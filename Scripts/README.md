@@ -113,7 +113,7 @@ stages:
             inputs:
               azureSubscription: $(azureSubscription)
               ScriptType: 'FilePath'
-              ScriptPath: '$(Build.SourcesDirectory)/DeploymentScripts/Create-SentinelSolutions.ps1'
+              ScriptPath: '$(Build.SourcesDirectory)/Scripts/Set-SentinelContent.ps1'
               ScriptArguments: >
                 -ResourceGroup '$(RESOURCEGROUP)' 
                 -Workspace '$(WORKSPACENAME)' 
@@ -131,7 +131,7 @@ stages:
 2. Run the script with the required parameters:
 
     ```Powershell
-    .\Create-SentinelSolutions.ps1 `
+    .\Set-SentinelContent.ps1 `
         -ResourceGroup "Security-RG" `
         -Workspace "MySentinelWorkspace" `
         -Region "EastUS" `
