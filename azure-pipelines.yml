@@ -1,0 +1,63 @@
+trigger:
+- main  # Change this to your branch name
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: 'MSSPSentinelDeployments'
+
+# =============================================================================
+# Stage: DeployBicep
+# This stage deploys the Microsoft Sentinel infrastructure via a Bicep template.
+# =============================================================================
+stages:
+  - stage: DeployBicep
+    displayName: 'Deploy Microsoft Sentinel Infrastructure via Bicep'
+    jobs:
+      - job: DeploySentinelResources
+        displayName: 'Deploy Microsoft Sentinel Resources'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy Sentinel Infrastructure with Bicep Template'
+            name: DeployBicepTask
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Starting Bicep Deployment..."
+                az deployment sub create \
+                  --location '$(REGION)' \
+                  --template-file Deployment/main.bicep \
+                  --parameters Deployment/main.bicepparam \
+                  --parameters rgLocation='$(REGION)' rgName='$(RESOURCEGROUP)' lawName='$(WORKSPACENAME)' dailyQuota='$(DAILYQUOTA)'
+
+# =============================================================================
+# Stage: EnableSentinelContentHub
+# This stage enables Sentinel solutions and configures alert rules.
+# It is executed only if the previous stage succeeds.
+# =============================================================================
+  - stage: EnableSentinelContentHub
+    displayName: 'Enable Sentinel Solutions and Configure Alert Rules'
+    dependsOn: DeployBicep
+    condition: succeeded()
+    jobs:
+      - job: EnableContentHub
+        displayName: 'Enable Sentinel Solutions and Alert Rules'
+        steps:
+          - task: AzurePowerShell@5
+            continueOnError: true
+            inputs:
+              azureSubscription: $(azureSubscription)
+              ScriptType: 'FilePath'
+              ScriptPath: '$(Build.SourcesDirectory)/DeploymentScripts/Create-SentinelSolutions.ps1'
+              ScriptArguments: >
+                -ResourceGroup '$(RESOURCEGROUP)' 
+                -Workspace '$(WORKSPACENAME)' 
+                -Region '$(REGION)' 
+                -Solutions $(SENTINELSOLUTIONS) 
+                -SeveritiesToInclude $(ARSEVERITIES) 
+                -IsGov 'false'
+              azurePowerShellVersion: 'LatestVersion'
+            displayName: "Sentinel Solution Deployment"
