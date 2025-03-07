@@ -56,21 +56,64 @@ This stage enables Sentinel solutions and configures alert rules. It runs only i
 
 ```yaml
 trigger:
-- main  # Change this to your branch name
+- main
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  azureSubscription: 'MSSPSentinelDeployments'
+  azureSubscription: 'DevelopmentDeployments'
 
-# =============================================================================
-# Stage: DeployBicep
-# This stage deploys the Microsoft Sentinel infrastructure via a Bicep template.
-# =============================================================================
 stages:
+# =================================================================================
+# Stage: CheckExistingResources
+# This stage checks whether Microsoft Sentinel resources already exist.
+# If resources are found, the Bicep deployment will be skipped in the next stage.
+# =================================================================================
+  - stage: CheckExistingResources
+    displayName: 'Check if Sentinel Resources Exist'
+    jobs:
+      - job: CheckResources
+        displayName: 'Verify Existing Sentinel Resources'
+        steps:
+          - task: AzurePowerShell@5
+            displayName: 'Check for Existing Resources in Resource Group'
+            name: CheckSentinelResources
+            inputs:
+              azureSubscription: $(azureSubscription)
+              ScriptType: 'InlineScript'
+              pwsh: true
+              azurePowerShellVersion: LatestVersion
+              Inline: |
+                Write-Output "Checking if Sentinel resources already exist in Resource Group: $(RESOURCEGROUP)..."
+
+                # Define variables
+                $resourceGroupName = "$(RESOURCEGROUP)"
+                $workspaceName = "$(WORKSPACENAME)"
+                $resourcesExist = "false"
+
+                # Check if the Log Analytics Workspace exists
+                $law = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $workspaceName -ErrorAction SilentlyContinue
+                if ($law) {
+                    Write-Output "Log Analytics Workspace ($workspaceName) found."
+                    $resourcesExist = "true"
+                } else {
+                    Write-Output "Log Analytics Workspace ($workspaceName) not found."
+                }
+
+                # Set a pipeline variable based on resource existence
+                Write-Output "Setting RESOURCES_EXIST to: $resourcesExist"
+                echo "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
+
+# ========================================================================================================
+# Stage: DeployBicep
+# This stage deploys the Microsoft Sentinel infrastructure using a Bicep template.
+# If the CheckExistingResources stage confirms that resources already exist, this stage will be skipped.
+# ========================================================================================================
   - stage: DeployBicep
     displayName: 'Deploy Microsoft Sentinel Infrastructure via Bicep'
+    dependsOn: CheckExistingResources
+    condition: and(succeeded(), eq(dependencies.CheckExistingResources.outputs['CheckResources.CheckSentinelResources.RESOURCES_EXIST'], 'false'))
     jobs:
       - job: DeploySentinelResources
         displayName: 'Deploy Microsoft Sentinel Resources'
@@ -90,15 +133,17 @@ stages:
                   --parameters Deployment/main.bicepparam \
                   --parameters rgLocation='$(REGION)' rgName='$(RESOURCEGROUP)' lawName='$(WORKSPACENAME)' dailyQuota='$(DAILYQUOTA)'
 
-# =============================================================================
+# ==========================================================================================
 # Stage: EnableSentinelContentHub
 # This stage enables Sentinel solutions and configures alert rules.
-# It is executed only if the previous stage succeeds.
-# =============================================================================
+# It will always run, regardless of whether the Bicep deployment was skipped or executed.
+# ==========================================================================================
   - stage: EnableSentinelContentHub
     displayName: 'Enable Sentinel Solutions and Configure Alert Rules'
-    dependsOn: DeployBicep
-    condition: succeeded()
+    dependsOn:
+      - CheckExistingResources
+      - DeployBicep
+    condition: always()  # Ensures this stage runs even if DeployBicep is skipped
     jobs:
       - job: EnableContentHub
         displayName: 'Enable Sentinel Solutions and Alert Rules'
@@ -108,7 +153,7 @@ stages:
             inputs:
               azureSubscription: $(azureSubscription)
               ScriptType: 'FilePath'
-              ScriptPath: '$(Build.SourcesDirectory)/DeploymentScripts/Create-SentinelSolutions.ps1'
+              ScriptPath: '$(Build.SourcesDirectory)/Scripts/Set-SentinelContent.ps1'
               ScriptArguments: >
                 -ResourceGroup '$(RESOURCEGROUP)' 
                 -Workspace '$(WORKSPACENAME)' 
