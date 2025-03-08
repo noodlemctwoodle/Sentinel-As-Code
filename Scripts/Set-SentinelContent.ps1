@@ -1,30 +1,108 @@
+<#
+.SYNOPSIS
+    Deploys Microsoft Sentinel Solutions, Analytics Rules, and Workbooks to a specified Microsoft Sentinel workspace.
+    
+.DESCRIPTION
+    This PowerShell script automates the deployment of Microsoft Sentinel solutions, analytics rules,
+    and workbooks from the Content Hub into an Azure Sentinel workspace. It provides granular control
+    over which resources to deploy, update, or skip. The script uses a unified resource testing framework
+    to ensure consistent status checking across all resource types.
+    
+.PARAMETER ResourceGroup
+    The name of the Azure Resource Group where the Sentinel workspace is located.
+    
+.PARAMETER Workspace
+    The name of the Sentinel (Log Analytics) workspace.
+    
+.PARAMETER Region
+    The Azure region where the workspace is deployed.
+    
+.PARAMETER Solutions
+    An array of Microsoft Sentinel solutions to deploy.
+    
+.PARAMETER SeveritiesToInclude
+    An optional list of rule severities to include (e.g., High, Medium, Low).
+    
+.PARAMETER IsGov
+    Specifies whether the script should target an Azure Government cloud.
+    
+.PARAMETER ForceSolutionUpdate
+    When specified, forces update of already installed solutions even if they're current.
+    
+.PARAMETER ForceRuleDeployment
+    When specified, deploys rules for already installed solutions, not just newly deployed ones.
+    
+.PARAMETER SkipSolutionUpdates
+    When specified, skips updating solutions that need updates.
+    
+.PARAMETER SkipRuleUpdates
+    When specified, skips updating analytics rules that need updates.
+    
+.PARAMETER SkipRuleDeployment
+    When specified, skips deploying analytics rules entirely.
+    
+.PARAMETER SkipWorkbookDeployment
+    When specified, skips deploying workbooks entirely.
+    
+.PARAMETER ForceWorkbookDeployment
+    When specified, forces redeployment of existing workbooks.
+    
+.NOTES
+    Author: noodlemctwoodle
+    Version: 1.0.0
+    Last Updated: 08/03/2025
+    GitHub Repository: Sentinel-As-Code
+    
+.EXAMPLE
+    .\Set-SentinelContent.ps1 -ResourceGroup "Security-RG" -Workspace "MySentinelWorkspace" -Region "East US" -Solutions "Microsoft Defender XDR", "Microsoft 365" -SeveritiesToInclude "High", "Medium"
+    Deploys "Microsoft Defender XDR" and "Microsoft 365" Sentinel solutions while filtering analytics rules to include only "High" and "Medium" severity incidents.
+    
+.EXAMPLE
+    .\Set-SentinelContent.ps1 -ResourceGroup "Security-RG" -Workspace "MySentinelWorkspace" -Region "East US" -Solutions "Microsoft Defender XDR", "Microsoft 365" -SeveritiesToInclude "High", "Medium" -IsGov $true
+    Deploys "Microsoft Defender XDR" and "Microsoft 365" Sentinel solutions while filtering analytics rules to include only "High" and "Medium" severity incidents in an Azure Government cloud environment.
+    
+.EXAMPLE
+    .\Set-SentinelContent.ps1 -ResourceGroup "Security-RG" -Workspace "MySentinelWorkspace" -Region "East US" -Solutions "Microsoft 365", "Threat Intelligence" -ForceSolutionUpdate -SkipRuleUpdates
+    Deploys solutions and forces update of already installed solutions, while skipping any rule updates.
+#>
+
 param(
-    [Parameter(Mandatory = $true)][string]$ResourceGroup,
-    [Parameter(Mandatory = $true)][string]$Workspace,
-    [Parameter(Mandatory = $true)][string]$Region,
-    [Parameter(Mandatory = $true)][string[]]$Solutions,
-    [Parameter(Mandatory = $false)][string[]]$SeveritiesToInclude = @("High", "Medium", "Low"),  # Default severities
-    [Parameter(Mandatory = $false)][string]$IsGov = "false",  # Changed from [bool] to [string]
-    [Parameter(Mandatory = $false)][switch]$ForceSolutionUpdate = $false,  # Force update of already installed solutions
-    [Parameter(Mandatory = $false)][switch]$ForceRuleDeployment = $false,  # Force deployment of rules for already installed solutions
-    [Parameter(Mandatory = $false)][switch]$SkipSolutionUpdates = $false,  # Skip updating solutions that need updates
-    [Parameter(Mandatory = $false)][switch]$SkipRuleUpdates = $false,      # Skip updating analytical rules that need updates
-    [Parameter(Mandatory = $false)][switch]$SkipRuleDeployment = $false,    # Skip deploying analytical rules entirely
-    [Parameter(Mandatory = $false)][switch]$SkipWorkbookDeployment = $false,   # Skip deploying workbooks entirely
-    [Parameter(Mandatory = $false)][switch]$ForceWorkbookDeployment = $false
+    [Parameter(Mandatory = $true)][string]$ResourceGroup,                      # Azure Resource Group containing the Sentinel workspace
+    [Parameter(Mandatory = $true)][string]$Workspace,                          # Microsoft Sentinel workspace name
+    [Parameter(Mandatory = $true)][string]$Region,                             # Azure region (location) for deployments
+    [Parameter(Mandatory = $true)][string[]]$Solutions,                        # Array of solution names to deploy
+    [Parameter(Mandatory = $false)][string[]]$SeveritiesToInclude = @("High", "Medium", "Low"),  # Analytical rule severities to include
+    [Parameter(Mandatory = $false)][string]$IsGov = "false",                   # Set to 'true' for Azure Government cloud
+    [Parameter(Mandatory = $false)][switch]$ForceSolutionUpdate,               # Force update of already installed solutions
+    [Parameter(Mandatory = $false)][switch]$ForceRuleDeployment,               # Force deployment of rules for already installed solutions
+    [Parameter(Mandatory = $false)][switch]$SkipSolutionUpdates,               # Skip updating solutions that need updates
+    [Parameter(Mandatory = $false)][switch]$SkipRuleUpdates,                   # Skip updating analytical rules that need updates
+    [Parameter(Mandatory = $false)][switch]$SkipRuleDeployment,                # Skip deploying analytical rules entirely
+    [Parameter(Mandatory = $false)][switch]$SkipWorkbookDeployment,            # Skip deploying workbooks entirely
+    [Parameter(Mandatory = $false)][switch]$ForceWorkbookDeployment            # Force redeployment of existing workbooks
 )
 
-# Convert the string value to Boolean
+# Convert the string value to Boolean (supports 'true', '1', 'false', '0')
 $IsGov = ($IsGov -eq 'true' -or $IsGov -eq '1')
 
 Write-Host "GovCloud Mode: $IsGov"
 
-# Ensure parameters are always treated as arrays
+# Ensure parameters are always treated as arrays, even when a single value is provided
 if ($Solutions -isnot [array]) { $Solutions = @($Solutions) }
 if ($SeveritiesToInclude -isnot [array]) { $SeveritiesToInclude = @($SeveritiesToInclude) }
 
+<#
+.SYNOPSIS
+    Authenticates with Azure using the current context or prompts for login.
 
-# Function to authenticate with Azure
+.DESCRIPTION
+    Checks if an Azure context already exists. If not, prompts for authentication,
+    using the appropriate environment (Government or Public).
+
+.OUTPUTS
+    Returns the Azure context object containing subscription information.
+#>
+
 function Connect-ToAzure {
     # Retrieve the current Azure context
     $context = Get-AzContext
@@ -47,7 +125,7 @@ $context = Connect-ToAzure
 $SubscriptionId = $context.Subscription.Id
 Write-Host "Connected to Azure with Subscription: $SubscriptionId" -ForegroundColor Blue
 
-# Determine the appropriate API server URL based on the environment (GovCloud or Public)
+# Select the appropriate API endpoint based on the environment
 $serverUrl = if ($IsGov -eq $true) { 
     "https://management.usgovcloudapi.net"  # Azure Government API endpoint
 } else { 
@@ -68,7 +146,36 @@ $authHeader = @{
     'Authorization' = 'Bearer ' + $token.AccessToken 
 }
 
-# Consolidated function to test status of various Sentinel resources
+<#
+.SYNOPSIS
+    Evaluates the status of Sentinel resources (Solutions, Rules, Workbooks).
+
+.DESCRIPTION
+    Provides a unified interface for checking the status of different Sentinel resource types,
+    including whether they are installed, need updates, or require deployment.
+
+.PARAMETER ResourceType
+    The type of Sentinel resource to evaluate: 'Solution', 'AnalyticsRule', or 'Workbook'.
+
+.PARAMETER Resource
+    The resource object being evaluated.
+
+.PARAMETER InstalledPackages
+    For Solution resources - array of installed content packages used to determine installation status.
+
+.PARAMETER ExistingRulesByTemplate
+    For AnalyticsRule resources - hashtable of existing rules indexed by template name.
+
+.PARAMETER ExistingRulesByName
+    For AnalyticsRule resources - hashtable of existing rules indexed by display name.
+
+.PARAMETER ExistingWorkbooks
+    For Workbook resources - array of existing workbooks to compare against.
+
+.OUTPUTS
+    Returns a hashtable containing status information about the resource.
+#>
+
 function Test-SentinelResource {
     [CmdletBinding()]
     param (
@@ -112,7 +219,7 @@ function Test-SentinelResource {
                 throw "Solution parameter is required when ResourceType is 'Solution'"
             }
             
-            # Get solution display name and ID
+            # Extract solution display name and ID
             $result.DisplayName = if ($Resource.properties.PSObject.Properties.Name -contains "displayName") {
                 $Resource.properties.displayName
             } else {
@@ -137,7 +244,7 @@ function Test-SentinelResource {
                 # Solution is installed, check if update is available
                 $installedPackage = $matchingPackages[0]
                 
-                # Check if versions match (if both have version property)
+                # Compare versions if available on both objects
                 if ($Resource.properties.PSObject.Properties.Name -contains "version" -and 
                     $installedPackage.properties.PSObject.Properties.Name -contains "version") {
                     
@@ -160,14 +267,14 @@ function Test-SentinelResource {
                 return $result
             }
             
-            # Check if the solution has any special markers that indicate it might be deprecated or special
+            # Check for special indicators in the name (Preview/Deprecated)
             if ($result.DisplayName -match "\[Preview\]" -or $result.DisplayName -match "\[Deprecated\]") {
                 $result.Status = "Special"
                 $result.Reason = "Solution is marked as Preview or Deprecated"
                 return $result
             }
             
-            # Solution is not installed
+            # Default case: solution is not installed
             $result.Status = "NotInstalled"
             $result.Reason = "Solution is not installed"
             return $result
@@ -305,11 +412,28 @@ function Test-SentinelResource {
     return $result
 }
 
-# Function to deploy Sentinel solutions
+<#
+.SYNOPSIS
+    Deploys Microsoft Sentinel solutions from the Content Hub.
+
+.DESCRIPTION
+    Fetches available Sentinel solutions from the Content Hub, checks their status,
+    and deploys or updates solutions based on the specified parameters.
+
+.PARAMETER ForceUpdate
+    Forces update of solutions that are already installed, even if not required.
+
+.PARAMETER SkipUpdates
+    Skips updating solutions that need updates.
+
+.OUTPUTS
+    Returns a hashtable containing details of deployed, updated, installed, and failed solutions.
+#>
+
 function Deploy-Solutions {
     param(
-        [Parameter(Mandatory = $false)][switch]$ForceUpdate = $false,
-        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+        [Parameter(Mandatory = $false)][switch]$ForceUpdate,
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates
     )
     
     Write-Host "Fetching available Sentinel solutions..." -ForegroundColor Yellow
@@ -319,7 +443,7 @@ function Deploy-Solutions {
         $availableSolutions = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader).value
         Write-Host "Successfully fetched $(($availableSolutions | Measure-Object).Count) Sentinel solutions." -ForegroundColor Green
     } catch {
-        Write-Error "ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
+        Write-Error "❌ ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
         return @{ 
             Deployed = @()
             Updated = @()
@@ -329,7 +453,7 @@ function Deploy-Solutions {
     }
 
     if ($null -eq $availableSolutions -or $availableSolutions.Count -eq 0) {
-        Write-Error "ERROR: No Sentinel solutions found! Exiting."
+        Write-Error "❌ ERROR: No Sentinel solutions found! Exiting."
         return @{ 
             Deployed = @()
             Updated = @()
@@ -482,7 +606,7 @@ function Deploy-Solutions {
             try {
                 $jsonBody = $installBody | ConvertTo-Json -EnumsAsStrings -Depth 50 -EscapeHandling EscapeNonAscii
             } catch {
-                Write-Error "Failed to convert installation body to JSON: $($_.Exception.Message)"
+                Write-Error "❌ Failed to convert installation body to JSON: $($_.Exception.Message)"
                 $failedSolutions += $status
                 continue
             }
@@ -493,7 +617,7 @@ function Deploy-Solutions {
             $deploymentResult = Invoke-RestMethod -Uri $installURL -Method Put -Headers $authHeader -Body $jsonBody
             
             if ($null -eq $deploymentResult) {
-                Write-Error "Deployment returned null result for solution: $($status.DisplayName)"
+                Write-Error "❌ Deployment returned null result for solution: $($status.DisplayName)"
                 $failedSolutions += $status
                 continue
             }
@@ -530,7 +654,7 @@ function Deploy-Solutions {
     Write-Host "Solution Deployment Summary:" -ForegroundColor Blue
     Write-Host "  - Installed: $($deployedSolutions.Count)" -ForegroundColor Green
     Write-Host "  - Updated: $($updatedSolutions.Count)" -ForegroundColor Cyan
-    Write-Host "  - Skipped (already installed): $($skippedSolutions.Count)" -ForegroundColor Yellow
+    Write-Host "  - Skipped: $($skippedSolutions.Count)" -ForegroundColor Yellow
     if ($specialSolutions.Count -gt 0) {
         Write-Host "  - Special (preview/deprecated): $($specialSolutions.Count)" -ForegroundColor Yellow
     }
@@ -547,17 +671,34 @@ function Deploy-Solutions {
     }
 }
 
-# Function to deploy Analytics Rules
+<#
+.SYNOPSIS
+    Deploys analytical rules for the specified Microsoft Sentinel solutions.
+
+.DESCRIPTION
+    Fetches analytical rule templates, filters them based on specified solutions and
+    severities, and deploys or updates them as needed.
+
+.PARAMETER DeployedSolutions
+    Array of solution names to deploy analytical rules for. If empty, all available rules are considered.
+
+.PARAMETER SkipTunedRulesText
+    Text to identify rules that should be skipped (manually tuned/customized).
+
+.PARAMETER SkipUpdates
+    Skips updating rules that need updates.
+#>
+
 function Deploy-AnalyticalRules {
     param(
         [Parameter(Mandatory = $false)][string[]]$DeployedSolutions = @(),
         [Parameter(Mandatory = $false)][string]$SkipTunedRulesText = "",
-        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates
     )
     
     # Wait for solutions to finish deploying before deploying rules
     Write-Host "Waiting for solution deployment to complete..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 90  # Adjust if needed
+    Start-Sleep -Seconds 90  # Delay to ensure solutions are fully deployed before proceeding
     
     Write-Host "Fetching available Sentinel solutions..." -ForegroundColor Yellow
     $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=2024-03-01"
@@ -566,19 +707,19 @@ function Deploy-AnalyticalRules {
         $allSolutions = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader).value
         Write-Host "✅ Successfully fetched Sentinel solutions." -ForegroundColor Green
     } catch {
-        Write-Error "ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
+        Write-Error "❌ ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
         return
     }
 
-    # Get all existing Analytics Rules to check for duplicates and updates
-    Write-Host "Fetching existing Analytics Rules..." -ForegroundColor Yellow
+    # Get all existing deployed Analytics Rules to check for duplicates and updates
+    Write-Host "Fetching existing deployed Analytics Rules..." -ForegroundColor Yellow
     $existingRulesURL = "$baseUri/providers/Microsoft.SecurityInsights/alertRules?api-version=2022-12-01-preview"
     
     try {
         $existingRules = (Invoke-RestMethod -Uri $existingRulesURL -Method Get -Headers $authHeader).value
-        Write-Host "✅ Successfully fetched $($existingRules.Count) existing Analytics Rules." -ForegroundColor Green
+        Write-Host "✅ Successfully fetched $($existingRules.Count) existing deployed Analytics Rules." -ForegroundColor Green
     } catch {
-        Write-Error "ERROR: Failed to fetch existing Analytics Rules: $($_.Exception.Message)"
+        Write-Error "❌ ERROR: Failed to fetch existing deployed Analytics Rules: $($_.Exception.Message)"
         return
     }
 
@@ -596,20 +737,20 @@ function Deploy-AnalyticalRules {
         }
     }
     
-    Write-Host "Fetching available Analytical Rule templates..." -ForegroundColor Yellow
+    Write-Host "Fetching available Analytics Rule templates..." -ForegroundColor Yellow
     $ruleTemplateURL = "$baseUri/providers/Microsoft.SecurityInsights/contentTemplates?api-version=2023-05-01-preview"
     $ruleTemplateURL += "&%24filter=(properties%2FcontentKind%20eq%20'AnalyticsRule')"
 
     try {
         $ruleTemplates = (Invoke-RestMethod -Uri $ruleTemplateURL -Method Get -Headers $authHeader).value
-        Write-Host "✅ Successfully fetched $($ruleTemplates.Count) Analytical Rule templates." -ForegroundColor Green
+        Write-Host "✅ Successfully fetched $($ruleTemplates.Count) available Analytics Rule templates." -ForegroundColor Green
     } catch {
-        Write-Error "ERROR: Failed to fetch Analytical Rule templates: $($_.Exception.Message)"
+        Write-Error "❌ ERROR: Failed to fetch Analytics Rule templates: $($_.Exception.Message)"
         return
     }
 
     if ($null -eq $ruleTemplates -or $ruleTemplates.Count -eq 0) {
-        Write-Error "ERROR: No Analytical Rule templates found! Exiting."
+        Write-Error "❌ ERROR: No Analytical Rule templates found! Exiting."
         return
     }
 
@@ -638,7 +779,7 @@ function Deploy-AnalyticalRules {
         $rulesToProcess = $ruleTemplates
     }
     
-    Write-Host "Found $($rulesToProcess.Count) applicable Analytical Rule templates." -ForegroundColor Cyan
+    Write-Host "Found $($rulesToProcess.Count) applicable Analytics Rule templates." -ForegroundColor Cyan
     
     if ($rulesToProcess.Count -eq 0) {
         Write-Warning "No rule templates found for the specified solutions."
@@ -655,6 +796,7 @@ function Deploy-AnalyticalRules {
     $updatedCount = 0
     $skippedCount = 0
     $deprecatedCount = 0
+    $failedCount = 0
 
     # Check each rule template using the Test-SentinelResource function
     $rulesToDeploy = @()
@@ -703,7 +845,7 @@ function Deploy-AnalyticalRules {
                     continue
                 }
                 "Missing" {
-                    #Write-Host "🚀 Deploying new Analytical Rule: $($ruleStatus.DisplayName)" -ForegroundColor Cyan
+                    #Write-Host "🚀 Deploying new Analytics Rule: $($ruleStatus.DisplayName)" -ForegroundColor Cyan
                     $rulesToDeploy += [PSCustomObject]@{
                         Template = $template
                         DisplayName = $ruleStatus.DisplayName
@@ -862,11 +1004,11 @@ function Deploy-AnalyticalRules {
 
         } catch {
             if ($_.ErrorDetails.Message -match "One of the tables does not exist") {
-                Write-Warning "Skipping $displayName due to missing tables in the environment."
+                Write-Warning "⏭️ Skipping $displayName due to missing tables in the environment."
             } elseif ($_.ErrorDetails.Message -match "The given column") {
-                Write-Warning "Skipping $displayName due to missing column in the query."
+                Write-Warning "⏭️ Skipping $displayName due to missing column in the query."
             } elseif ($_.ErrorDetails.Message -match "FailedToResolveScalarExpression|SemanticError") {
-                Write-Warning "Skipping $displayName due to an invalid expression in the query."
+                Write-Warning "⏭️ Skipping $displayName due to an invalid expression in the query."
             } else {
                 Write-Error "❌ ERROR: Deployment failed for Analytical Rule: $displayName"
                 Write-Error "Azure API Error: $($_.Exception.Message)"
@@ -877,20 +1019,41 @@ function Deploy-AnalyticalRules {
 
     # Display summary
     Write-Host "Analytics Rules Deployment Summary:" -ForegroundColor Blue
-    Write-Host "  - New rules deployed: $deployedCount" -ForegroundColor Green
-    Write-Host "  - Existing rules updated: $updatedCount" -ForegroundColor Cyan
-    Write-Host "  - Rules skipped: $skippedCount" -ForegroundColor Yellow
+    Write-Host "  - Installed: $deployedCount" -ForegroundColor Green
+    Write-Host "  - Updated: $updatedCount" -ForegroundColor Cyan
+    Write-Host "  - Skipped: $skippedCount" -ForegroundColor Yellow
     if ($deprecatedCount -gt 0) {
-        Write-Host "  - Deprecated rules skipped: $deprecatedCount" -ForegroundColor Yellow
+        Write-Host "  - Deprecated: $deprecatedCount" -ForegroundColor Yellow
+    }
+    if ($failedCount -gt 0) {
+        Write-Host "  - Failed: $failedCount" -ForegroundColor Red
     }
 }
 
 # Function to deploy workbooks
+<#
+.SYNOPSIS
+    Deploys Microsoft Sentinel workbooks for specified solutions.
+
+.DESCRIPTION
+    Fetches workbook templates from the Content Hub, filters them based on specified solutions,
+    and deploys or updates them as needed.
+
+.PARAMETER DeployedSolutions
+    Array of solution names to deploy workbooks for. If empty, all available workbooks are considered.
+
+.PARAMETER DeployExistingWorkbooks
+    When specified, redeploys workbooks that are already installed with current versions.
+
+.PARAMETER SkipUpdates
+    Skips updating workbooks that need updates.
+#>
+
 function Deploy-SolutionWorkbooks {
     param(
         [Parameter(Mandatory = $false)][string[]]$DeployedSolutions = @(),
-        [Parameter(Mandatory = $false)][switch]$SkipExistingWorkbooks = $true,
-        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+        [Parameter(Mandatory = $false)][switch]$DeployExistingWorkbooks, # Redeploy workbooks even if they exist
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates              # Skip updating workbooks that need updates
     )
 
     Write-Host "Deploying workbooks for installed solutions..." -ForegroundColor Yellow
@@ -904,7 +1067,7 @@ function Deploy-SolutionWorkbooks {
         $workbookTemplates = (Invoke-RestMethod -Uri $workbookTemplateURL -Method Get -Headers $authHeader).value
         Write-Host "✅ Successfully fetched $($workbookTemplates.Count) workbook templates." -ForegroundColor Green
     } catch {
-        Write-Error "ERROR: Failed to fetch workbook templates: $($_.Exception.Message)"
+        Write-Error "❌ ERROR: Failed to fetch workbook templates: $($_.Exception.Message)"
         return
     }
     
@@ -940,7 +1103,7 @@ function Deploy-SolutionWorkbooks {
                 $deployedSolutionIds -contains $_.properties.packageId
             }
         } catch {
-            Write-Error "ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
+            Write-Error "❌ ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
             return
         }
     } else {
@@ -979,7 +1142,7 @@ function Deploy-SolutionWorkbooks {
         
         switch ($workbookStatus.Status) {
             { $_ -in "Current", "PreviewCurrent" } {
-                if ($SkipExistingWorkbooks) {
+                if (-not $DeployExistingWorkbooks) {
                     Write-Host "⏭️ Skipping workbook (already exists with current version): $($workbookStatus.DisplayName)" -ForegroundColor Yellow
                     $skippedCount++
                     continue
@@ -1009,7 +1172,7 @@ function Deploy-SolutionWorkbooks {
                 }
             }
             { $_ -in "Missing", "PreviewMissing" } {
-                Write-Host "🚀 New workbook to deploy: $($workbookStatus.DisplayName)" -ForegroundColor Cyan
+                #Write-Host "🚀 New workbook to deploy: $($workbookStatus.DisplayName)" -ForegroundColor Cyan
                 $workbooksToProcess += [PSCustomObject]@{
                     Template = $workbookTemplate
                     DisplayName = $workbookStatus.DisplayName
@@ -1098,11 +1261,35 @@ function Deploy-SolutionWorkbooks {
                     
                     $deleteResult = Invoke-AzRestMethod -Path $deleteWorkbookPath -Method DELETE
                     
+                    # Check result of workbook deletion
+                    if ($deleteResult.StatusCode -in 200, 201, 204) {
+                        Write-Host "     ✅ Successfully deleted old workbook" -ForegroundColor Green
+                    } 
+                    elseif ($deleteResult.StatusCode -eq 404) {
+                        Write-Host "     ⚠️ Old workbook not found (already deleted)" -ForegroundColor Yellow
+                    }
+                    else {
+                        Write-Warning "     ⚠️ Failed to delete old workbook: Status $($deleteResult.StatusCode)"
+                        Write-Verbose "Response: $($deleteResult.Content)"
+                    }
+                    
                     # Delete old metadata
                     $deleteMetadataPath = "$baseUri/providers/Microsoft.SecurityInsights/metadata/$oldMetadataName".Replace("https://management.azure.com", "")
                     $deleteMetadataPath += "?api-version=2023-05-01-preview"
                     
                     $deleteMetadataResult = Invoke-AzRestMethod -Path $deleteMetadataPath -Method DELETE
+                    
+                    # Check result of metadata deletion
+                    if ($deleteMetadataResult.StatusCode -in 200, 201, 204) {
+                        Write-Host "     ✅ Successfully deleted workbook metadata" -ForegroundColor Green
+                    } 
+                    elseif ($deleteMetadataResult.StatusCode -eq 404) {
+                        Write-Host "     ⚠️ Old workbook metadata not found (already deleted)" -ForegroundColor Yellow
+                    }
+                    else {
+                        Write-Warning "     ⚠️ Failed to delete workbook metadata: Status $($deleteMetadataResult.StatusCode)"
+                        Write-Verbose "Response: $($deleteMetadataResult.Content)"
+                    }
                 }
             }
             
@@ -1157,27 +1344,27 @@ function Deploy-SolutionWorkbooks {
     
     # Display summary
     Write-Host "Workbook Deployment Summary:" -ForegroundColor Blue
-    Write-Host "  - New workbooks deployed: $deployedCount" -ForegroundColor Green
-    Write-Host "  - Existing workbooks updated: $updatedCount" -ForegroundColor Cyan
-    Write-Host "  - Workbooks skipped: $skippedCount" -ForegroundColor Yellow
+    Write-Host "  - Installed: $deployedCount" -ForegroundColor Green
+    Write-Host "  - Updated: $updatedCount" -ForegroundColor Cyan
+    Write-Host "  - Skipped: $skippedCount" -ForegroundColor Yellow
     if ($deprecatedCount -gt 0) {
-        Write-Host "  - Deprecated workbooks skipped: $deprecatedCount" -ForegroundColor Yellow
+        Write-Host "  - Deprecated: $deprecatedCount" -ForegroundColor Yellow
     }
     if ($failedCount -gt 0) {
-        Write-Host "  - Workbooks failed: $failedCount" -ForegroundColor Red
+        Write-Host "  - Failed: $failedCount" -ForegroundColor Red
     }
 }
 
 # Main execution block
-# Deployment functions workflow
-# Pass both parameters to give user full control
+
+# First, deploy the requested solutions
 $deploymentResults = Deploy-Solutions -ForceUpdate:$ForceSolutionUpdate -SkipUpdates:$SkipSolutionUpdates
 
-# Skip rule deployment entirely if requested
+# Skip analytical rule deployment if requested
 if ($SkipRuleDeployment) {
-    Write-Host "Skipping analytical rules deployment as requested." -ForegroundColor Yellow
+    Write-Host "⏭️ Skipping analytical rules deployment as requested." -ForegroundColor Yellow
 } else {
-    # Check if we have any solutions to deploy rules for
+    # Determine which solutions to deploy rules for
     $solutionsForRules = @()
 
     # Add newly deployed solutions
@@ -1190,24 +1377,24 @@ if ($SkipRuleDeployment) {
         $solutionsForRules += $deploymentResults.Updated
     }
 
-    # Add already installed solutions if needed
+    # Add already installed solutions if ForceRuleDeployment is specified
     if ($ForceRuleDeployment -and $deploymentResults.Installed -and $deploymentResults.Installed.Count -gt 0) {
         $solutionsForRules += $deploymentResults.Installed
     }
 
-    # Only deploy analytical rules if we have solutions to deploy rules for
+    # Deploy analytical rules if we have applicable solutions
     if ($solutionsForRules.Count -gt 0) {
-        # Deploy rules for all solutions
         Deploy-AnalyticalRules -DeployedSolutions $solutionsForRules -SkipUpdates:$SkipRuleUpdates
     } else {
-        Write-Host "No solutions deployed or updated. Skipping analytical rules deployment." -ForegroundColor Yellow
+        Write-Host "⏭️ No solutions deployed or updated. Skipping analytical rules deployment." -ForegroundColor Yellow
     }
 }
 
-# Handle workbook deployment separately
+# Handle workbook deployment
 if ($SkipWorkbookDeployment) {
     Write-Host "Skipping workbook deployment as requested." -ForegroundColor Yellow
 } else {
+    # Determine which solutions to deploy workbooks for
     $solutionsForWorkbooks = @()
     
     # Add newly deployed solutions
@@ -1220,15 +1407,15 @@ if ($SkipWorkbookDeployment) {
         $solutionsForWorkbooks += $deploymentResults.Updated
     }
 
-    # Add already installed solutions if ForceWorkbookDeployment is enabled
+    # Add already installed solutions if ForceWorkbookDeployment is specified
     if ($ForceWorkbookDeployment -and $deploymentResults.Installed -and $deploymentResults.Installed.Count -gt 0) {
         $solutionsForWorkbooks += $deploymentResults.Installed
     }
     
-    # Deploy workbooks if we have solutions to deploy workbooks for
+    # Deploy workbooks if we have applicable solutions
     if ($solutionsForWorkbooks.Count -gt 0) {
-        Deploy-SolutionWorkbooks -DeployedSolutions $solutionsForWorkbooks -SkipUpdates:$SkipSolutionUpdates
+        Deploy-SolutionWorkbooks -DeployedSolutions $solutionsForWorkbooks -SkipUpdates:$SkipSolutionUpdates -DeployExistingWorkbooks:$ForceWorkbookDeployment
     } else {
-        Write-Host "No solutions to deploy workbooks for. Skipping workbook deployment." -ForegroundColor Yellow
+        Write-Host "⏭️ No solutions to deploy workbooks for. Skipping workbook deployment." -ForegroundColor Yellow
     }
 }
