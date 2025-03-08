@@ -63,8 +63,8 @@ The pipeline consists of three main stages:
      workspaceName: "YourWorkspaceName"
      region: "YourAzureRegion"
      dailyQuota: "10"
-     sentinelSolutions: "\"Azure Activity\",\"Microsoft 365\",\"Threat Intelligence\""
-     arSeverities: "\"High\",\"Medium\",\"Low\""
+     sentinelSolutions: "Azure Activity","Microsoft 365","Threat Intelligence"
+     arSeverities: "High","Medium","Low"
      ```
 
 3. **Set Up Service Connection**
