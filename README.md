@@ -7,7 +7,7 @@ This repository provides a complete CI/CD solution for deploying Microsoft Senti
 ## Repository Structure
 
 ```
-├── Deployment/              # Bicep templates for infrastructure
+├── Bicep/                   # Bicep templates for infrastructure
 │   ├── main.bicep           # Main deployment template
 │   └── sentinel.bicep       # Sentinel-specific resources
 ├── Scripts/                 # PowerShell automation scripts
