@@ -4,7 +4,14 @@ param(
     [Parameter(Mandatory = $true)][string]$Region,
     [Parameter(Mandatory = $true)][string[]]$Solutions,
     [Parameter(Mandatory = $false)][string[]]$SeveritiesToInclude = @("High", "Medium", "Low"),  # Default severities
-    [Parameter(Mandatory = $false)][string]$IsGov = "false"  # Changed from [bool] to [string]
+    [Parameter(Mandatory = $false)][string]$IsGov = "false",  # Changed from [bool] to [string]
+    [Parameter(Mandatory = $false)][switch]$ForceSolutionUpdate = $false,  # Force update of already installed solutions
+    [Parameter(Mandatory = $false)][switch]$ForceRuleDeployment = $false,  # Force deployment of rules for already installed solutions
+    [Parameter(Mandatory = $false)][switch]$SkipSolutionUpdates = $false,  # Skip updating solutions that need updates
+    [Parameter(Mandatory = $false)][switch]$SkipRuleUpdates = $false,      # Skip updating analytical rules that need updates
+    [Parameter(Mandatory = $false)][switch]$SkipRuleDeployment = $false,    # Skip deploying analytical rules entirely
+    [Parameter(Mandatory = $false)][switch]$SkipWorkbookDeployment = $false,   # Skip deploying workbooks entirely
+    [Parameter(Mandatory = $false)][switch]$ForceWorkbookDeployment = $false
 )
 
 # Convert the string value to Boolean
@@ -16,6 +23,7 @@ Write-Host "GovCloud Mode: $IsGov"
 if ($Solutions -isnot [array]) { $Solutions = @($Solutions) }
 if ($SeveritiesToInclude -isnot [array]) { $SeveritiesToInclude = @($SeveritiesToInclude) }
 
+
 # Function to authenticate with Azure
 function Connect-ToAzure {
     # Retrieve the current Azure context
@@ -23,7 +31,11 @@ function Connect-ToAzure {
     
     # If no context exists, authenticate with Azure (for GovCloud if specified)
     if (!$context) {
-        Connect-AzAccount -Environment AzureUSGovernment
+        if ($IsGov -eq $true) {
+            Connect-AzAccount -Environment AzureUSGovernment
+        } else {
+            Connect-AzAccount
+        }
         $context = Get-AzContext
     }
     
@@ -56,50 +68,387 @@ $authHeader = @{
     'Authorization' = 'Bearer ' + $token.AccessToken 
 }
 
-### Function: Deploy Solutions ###
-function Deploy-Solutions {
-    Write-Host "Fetching available Sentinel solutions..." -ForegroundColor Yellow
+# Consolidated function to test status of various Sentinel resources
+function Test-SentinelResource {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Solution', 'AnalyticsRule', 'Workbook')]
+        [string]$ResourceType,
+        
+        # Common parameters
+        [Parameter(Mandatory = $true)]
+        [object]$Resource,
+        
+        # Solution-specific parameters
+        [Parameter(Mandatory = $false)]
+        [array]$InstalledPackages = @(),
+        
+        # AnalyticsRule-specific parameters
+        [Parameter(Mandatory = $false)]
+        [hashtable]$ExistingRulesByTemplate,
+        
+        [Parameter(Mandatory = $false)]
+        [hashtable]$ExistingRulesByName,
+        
+        # Workbook-specific parameters
+        [Parameter(Mandatory = $false)]
+        [array]$ExistingWorkbooks = @()
+    )
     
-    $url = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=2024-03-01"
+    # Create a base result object with properties common to all resource types
+    $result = @{
+        ResourceType = $ResourceType
+        Status = "Unknown"
+        DisplayName = ""
+        Reason = ""
+    }
+    
+    # Process based on resource type
+    switch ($ResourceType) {
+        'Solution' {
+            # Validate required parameters
+            if ($null -eq $Resource) {
+                throw "Solution parameter is required when ResourceType is 'Solution'"
+            }
+            
+            # Get solution display name and ID
+            $result.DisplayName = if ($Resource.properties.PSObject.Properties.Name -contains "displayName") {
+                $Resource.properties.displayName
+            } else {
+                $Resource.name
+            }
+            
+            $result.SolutionId = $Resource.name
+            
+            # If no installed packages, solution can't be installed
+            if ($null -eq $InstalledPackages -or $InstalledPackages.Count -eq 0) {
+                $result.Status = "NotInstalled"
+                $result.Reason = "No installed solutions found"
+                return $result
+            }
+            
+            # Check for matching installed packages by display name
+            $matchingPackages = $InstalledPackages | Where-Object {
+                $_.properties.displayName -eq $result.DisplayName
+            }
+            
+            if ($matchingPackages.Count -gt 0) {
+                # Solution is installed, check if update is available
+                $installedPackage = $matchingPackages[0]
+                
+                # Check if versions match (if both have version property)
+                if ($Resource.properties.PSObject.Properties.Name -contains "version" -and 
+                    $installedPackage.properties.PSObject.Properties.Name -contains "version") {
+                    
+                    $availableVersion = $Resource.properties.version
+                    $installedVersion = $installedPackage.properties.version
+                    
+                    if ($availableVersion -gt $installedVersion) {
+                        $result.Status = "NeedsUpdate"
+                        $result.AvailableVersion = $availableVersion
+                        $result.InstalledVersion = $installedVersion
+                        $result.InstalledPackage = $installedPackage
+                        $result.Reason = "Newer version available"
+                        return $result
+                    }
+                }
+                
+                $result.Status = "Installed"
+                $result.InstalledPackage = $installedPackage
+                $result.Reason = "Solution is installed and up to date"
+                return $result
+            }
+            
+            # Check if the solution has any special markers that indicate it might be deprecated or special
+            if ($result.DisplayName -match "\[Preview\]" -or $result.DisplayName -match "\[Deprecated\]") {
+                $result.Status = "Special"
+                $result.Reason = "Solution is marked as Preview or Deprecated"
+                return $result
+            }
+            
+            # Solution is not installed
+            $result.Status = "NotInstalled"
+            $result.Reason = "Solution is not installed"
+            return $result
+        }
+        
+        'AnalyticsRule' {
+            # Validate required parameters
+            if ($null -eq $Resource) {
+                throw "RuleTemplate parameter is required when ResourceType is 'AnalyticsRule'"
+            }
+            if ($null -eq $ExistingRulesByTemplate) {
+                throw "ExistingRulesByTemplate parameter is required when ResourceType is 'AnalyticsRule'"
+            }
+            if ($null -eq $ExistingRulesByName) {
+                throw "ExistingRulesByName parameter is required when ResourceType is 'AnalyticsRule'"
+            }
+            
+            # Extract rule details from template
+            $result.DisplayName = $Resource.properties.mainTemplate.resources.properties[0].displayName
+            $result.TemplateName = $Resource.properties.mainTemplate.resources[0].name
+            $result.TemplateVersion = $Resource.properties.mainTemplate.resources.properties[1].version
+            $result.Severity = $Resource.properties.mainTemplate.resources.properties[0].severity
+            
+            # Check if rule is deprecated
+            if ($result.DisplayName -match "\[Deprecated\]") {
+                $result.Status = "Deprecated"
+                $result.ExistingRule = $null
+                $result.Reason = "Rule is marked as deprecated"
+                return $result
+            }
+            
+            # Check if rule already exists by template name
+            if ($ExistingRulesByTemplate.ContainsKey($result.TemplateName)) {
+                $existingRule = $ExistingRulesByTemplate[$result.TemplateName]
+                $currentVersion = $existingRule.properties.templateVersion
+                
+                # Check if rule needs an update by comparing versions
+                if ($currentVersion -ne $result.TemplateVersion) {
+                    $result.Status = "NeedsUpdate"
+                    $result.ExistingRule = $existingRule
+                    $result.CurrentVersion = $currentVersion
+                    $result.Reason = "Template version is newer than deployed version"
+                    return $result
+                } else {
+                    $result.Status = "Current"
+                    $result.ExistingRule = $existingRule
+                    $result.Reason = "Rule exists with current template version"
+                    return $result
+                }
+            }
+            # If not found by template name, check by display name
+            elseif ($ExistingRulesByName.ContainsKey($result.DisplayName)) {
+                $result.Status = "NameMatch"
+                $result.ExistingRule = $ExistingRulesByName[$result.DisplayName]
+                $result.Reason = "Rule with same name exists but not linked to template"
+                return $result
+            }
+            # Rule doesn't exist and needs to be deployed
+            else {
+                $result.Status = "Missing"
+                $result.ExistingRule = $null
+                $result.Reason = "Rule does not exist and needs to be deployed"
+                return $result
+            }
+        }
+        
+        'Workbook' {
+            # Validate required parameters
+            if ($null -eq $Resource) {
+                throw "WorkbookTemplate parameter is required when ResourceType is 'Workbook'"
+            }
+            
+            # Extract workbook details
+            $result.DisplayName = $Resource.properties.displayName
+            $result.TemplateId = $Resource.properties.contentId
+            $result.TemplateVersion = $Resource.properties.version
+            
+            # Check if workbook is deprecated or in preview
+            if ($result.DisplayName -match "\[Deprecated\]") {
+                $result.Status = "Deprecated"
+                $result.ExistingWorkbook = $null
+                $result.Reason = "Workbook is marked as deprecated"
+                return $result
+            }
+            
+            if ($result.DisplayName -match "\[Preview\]") {
+                $result.Status = "Preview"
+                $result.Reason = "Workbook is marked as preview"
+            }
+            
+            # Check if workbook already exists
+            $existingWorkbook = $ExistingWorkbooks | Where-Object {
+                $_.properties.contentId -eq $result.TemplateId
+            } | Select-Object -First 1
+            
+            if ($existingWorkbook) {
+                $result.ExistingWorkbook = $existingWorkbook
+                $currentVersion = $existingWorkbook.properties.version
+                
+                # Check if version needs update
+                if ($currentVersion -ne $result.TemplateVersion) {
+                    $result.Status = "NeedsUpdate"
+                    $result.CurrentVersion = $currentVersion
+                    $result.Reason = "Template version is newer than deployed version"
+                    return $result
+                } else {
+                    $result.Status = if ($result.Status -eq "Preview") { "PreviewCurrent" } else { "Current" }
+                    $result.Reason = "Workbook exists with current template version"
+                    return $result
+                }
+            }
+            
+            # Check if workbook with same name exists
+            $nameMatch = $ExistingWorkbooks | Where-Object {
+                $_.properties.displayName -eq $result.DisplayName
+            } | Select-Object -First 1
+            
+            if ($nameMatch) {
+                $result.Status = "NameMatch"
+                $result.ExistingWorkbook = $nameMatch
+                $result.Reason = "Workbook with same name exists but not linked to template"
+                return $result
+            }
+            
+            # Workbook doesn't exist
+            $result.Status = if ($result.Status -eq "Preview") { "PreviewMissing" } else { "Missing" }
+            $result.Reason = "Workbook does not exist and needs to be deployed"
+            return $result
+        }
+    }
+    
+    # Should not reach here, but just in case
+    $result.Status = "Unknown"
+    $result.Reason = "Failed to determine status"
+    return $result
+}
+
+# Function to deploy Sentinel solutions
+function Deploy-Solutions {
+    param(
+        [Parameter(Mandatory = $false)][switch]$ForceUpdate = $false,
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+    )
+    
+    Write-Host "Fetching available Sentinel solutions..." -ForegroundColor Yellow
+    $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=2024-03-01"
 
     try {
-        $allSolutions = (Invoke-RestMethod -Method "Get" -Uri $url -Headers $authHeader).value
-        Write-Host "Successfully fetched Sentinel solutions." -ForegroundColor Green
+        $availableSolutions = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader).value
+        Write-Host "Successfully fetched $(($availableSolutions | Measure-Object).Count) Sentinel solutions." -ForegroundColor Green
     } catch {
         Write-Error "ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
-        return
+        return @{ 
+            Deployed = @()
+            Updated = @()
+            Installed = @()
+            Failed = @()
+        }
     }
 
-    if ($null -eq $allSolutions -or $allSolutions.Count -eq 0) {
+    if ($null -eq $availableSolutions -or $availableSolutions.Count -eq 0) {
         Write-Error "ERROR: No Sentinel solutions found! Exiting."
-        return
+        return @{ 
+            Deployed = @()
+            Updated = @()
+            Installed = @()
+            Failed = @()
+        }
+    }
+    
+    # Get installed Content Packages to check solution status
+    $contentPackagesUrl = "$baseUri/providers/Microsoft.SecurityInsights/contentPackages?api-version=2023-11-01"
+    try {
+        $result = Invoke-RestMethod -Method "Get" -Uri $contentPackagesUrl -Headers $authHeader
+        $installedPackages = if ($result.PSObject.Properties.Name -contains "value") { $result.value } else { @() }
+        
+        Write-Host "Successfully fetched $(($installedPackages | Measure-Object).Count) installed solutions." -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to fetch installed solutions: $($_.Exception.Message). Assuming no solutions are installed."
+        $installedPackages = @()
     }
 
-    $jobs = @()
+    # Check each requested solution
+    $solutionsToProcess = @()
+    $skippedSolutions = @()
+    $specialSolutions = @()
+    
     foreach ($deploySolution in $Solutions) {
-        $singleSolution = $allSolutions | Where-Object { $_.properties.displayName -eq $deploySolution }
-        if ($null -eq $singleSolution) {
-            Write-Warning "Skipping solution '$deploySolution' - Not found in Sentinel Content Hub."
+        # Find matching solution by name
+        $matchingSolutions = $availableSolutions | Where-Object {
+            $_.properties.displayName -eq $deploySolution
+        }
+        
+        if ($matchingSolutions.Count -eq 0) {
+            Write-Warning "⚠️ Solution '$deploySolution' not found in Content Hub. Skipping."
             continue
         }
+        
+        $singleSolution = $matchingSolutions[0]
+        $solutionStatus = Test-SentinelResource -ResourceType Solution -Resource $singleSolution -InstalledPackages $installedPackages
+        
+        switch ($solutionStatus.Status) {
+            "Installed" {
+                if ($ForceUpdate) {
+                    Write-Host "🔄 Solution '$($solutionStatus.DisplayName)' is installed but will be updated due to ForceUpdate." -ForegroundColor Cyan
+                    $solutionsToProcess += [PSCustomObject]@{
+                        Solution = $singleSolution
+                        Status = $solutionStatus
+                        Action = "Update"
+                    }
+                } else {
+                    Write-Host "✅ Solution '$($solutionStatus.DisplayName)' is already installed." -ForegroundColor Green
+                    $skippedSolutions += $solutionStatus
+                }
+            }
+            "NeedsUpdate" {
+                if ($SkipUpdates) {
+                    Write-Host "⏭️ Solution '$($solutionStatus.DisplayName)' needs update but updates are being skipped." -ForegroundColor Yellow
+                    $skippedSolutions += $solutionStatus
+                } else {
+                    Write-Host "🔄 Solution '$($solutionStatus.DisplayName)' needs update (v$($solutionStatus.InstalledVersion) → v$($solutionStatus.AvailableVersion))." -ForegroundColor Cyan
+                    $solutionsToProcess += [PSCustomObject]@{
+                        Solution = $singleSolution
+                        Status = $solutionStatus
+                        Action = "Update"
+                    }
+                }
+            }
+            "NotInstalled" {
+                Write-Host "🚀 Solution '$($solutionStatus.DisplayName)' will be deployed." -ForegroundColor Yellow
+                $solutionsToProcess += [PSCustomObject]@{
+                    Solution = $singleSolution
+                    Status = $solutionStatus
+                    Action = "Install"
+                }
+            }
+            "Special" {
+                if ($ForceUpdate) {
+                    Write-Host "🔄 Solution '$($solutionStatus.DisplayName)' is marked as special but will be deployed due to ForceUpdate." -ForegroundColor Cyan
+                    $solutionsToProcess += [PSCustomObject]@{
+                        Solution = $singleSolution
+                        Status = $solutionStatus
+                        Action = "Install"
+                    }
+                } else {
+                    Write-Host "⚠️ Solution '$($solutionStatus.DisplayName)' is marked as special (preview or deprecated)." -ForegroundColor Yellow
+                    $specialSolutions += $solutionStatus
+                }
+            }
+        }
+    }
 
-        Write-Host "Deploying solution: $deploySolution" -ForegroundColor Yellow
+    # Deploy or update solutions
+    $deployedSolutions = @()
+    $updatedSolutions = @()
+    $failedSolutions = @()
 
-        # Ensure `api-version` is included when retrieving solution details
-        $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages/$($singleSolution.name)?api-version=2024-03-01"
+    foreach ($solutionInfo in $solutionsToProcess) {
+        $solution = $solutionInfo.Solution
+        $status = $solutionInfo.Status
+        $action = $solutionInfo.Action
+        
+        Write-Host "Processing $action for solution: $($status.DisplayName)" -ForegroundColor Cyan
+
+        # Get detailed solution information
+        $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages/$($solution.name)?api-version=2024-03-01"
 
         try {
-            $solution = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader)
-            if ($null -eq $solution) {
-                Write-Warning "Failed to retrieve details for solution: $deploySolution"
+            $detailedSolution = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader)
+            if ($null -eq $detailedSolution) {
+                Write-Warning "Failed to retrieve details for solution: $($status.DisplayName)"
+                $failedSolutions += $status
                 continue
             }
         } catch {
-            Write-Error "Unable to retrieve solution details: $($_.Exception.Message)"
+            Write-Error "Unable to retrieve solution details for $($status.DisplayName): $($_.Exception.Message)"
+            $failedSolutions += $status
             continue
         }
 
-        $packagedContent = $solution.properties.packagedContent
+        $packagedContent = $detailedSolution.properties.packagedContent
 
         # Ensure `api-version` is included in Content Templates requests
         foreach ($resource in $packagedContent.resources) { 
@@ -125,51 +474,91 @@ function Deploy-Solutions {
         $installURL = "$serverUrl/subscriptions/$SubscriptionId/resourcegroups/$ResourceGroup/providers/Microsoft.Resources/deployments/$deploymentName"
         $installURL = $installURL + "?api-version=2021-04-01"
 
-        # Start deployment in parallel and pass $deploySolution for error reporting
-        $job = Start-Job -ScriptBlock {
-            param ($installURL, $installBody, $authHeader, $deploymentName, $solutionDisplayName)
-            try {
-                Invoke-RestMethod -Uri $installURL -Method Put -Headers $authHeader -Body ($installBody | ConvertTo-Json -EnumsAsStrings -Depth 50 -EscapeHandling EscapeNonAscii) | Out-Null
-                Write-Host "Deployment successful: $deploymentName" -ForegroundColor Green
-            } catch {
-                $ErrorResponse = $_
-                $RawError = $ErrorResponse.ErrorDetails.Message
-                Write-Error "ERROR: Deployment failed for solution: $solutionDisplayName (Deployment: $deploymentName)"
-                if ($RawError) {
-                    Write-Error "Azure API Error: $($RawError.Substring(0, [Math]::Min(300, $RawError.Length)))"
-                }
-            }
-        } -ArgumentList $installURL, $installBody, $authHeader, $deploymentName, $deploySolution
-
-        # Store the job and the corresponding solution name
-        $jobs += [PSCustomObject]@{
-            Job      = $job
-            Solution = $deploySolution
-        }
-        # Increased delay to mitigate potential rate limiting
-        Start-Sleep -Milliseconds 1000
-    }
-
-    # Wait for all deployments to complete with enhanced error handling and output failed solution names
-    $failedJobs = @()
-    foreach ($jobObject in $jobs) {
+        # Start deployment
         try {
-            Receive-Job -Job $jobObject.Job -Wait -ErrorAction Stop
-        } catch {
-            $failedJobs += $jobObject
-            Write-Warning "Deployment failed for solution: $($jobObject.Solution)"
+            Write-Host "Starting deployment for $($status.DisplayName)..." -ForegroundColor Cyan
+            
+            # Convert the body to JSON, handling errors
+            try {
+                $jsonBody = $installBody | ConvertTo-Json -EnumsAsStrings -Depth 50 -EscapeHandling EscapeNonAscii
+            } catch {
+                Write-Error "Failed to convert installation body to JSON: $($_.Exception.Message)"
+                $failedSolutions += $status
+                continue
+            }
+            
+            # Log the URL for debugging
+            Write-Verbose "Deployment URL: $installURL"
+            
+            $deploymentResult = Invoke-RestMethod -Uri $installURL -Method Put -Headers $authHeader -Body $jsonBody
+            
+            if ($null -eq $deploymentResult) {
+                Write-Error "Deployment returned null result for solution: $($status.DisplayName)"
+                $failedSolutions += $status
+                continue
+            }
+            
+            Write-Host "✅ Deployment successful for solution: $($status.DisplayName)" -ForegroundColor Green
+            
+            if ($action -eq "Update") {
+                $updatedSolutions += $status
+            } else {
+                $deployedSolutions += $status
+            }
+            
+            # Increased delay to mitigate potential rate limiting
+            Start-Sleep -Milliseconds 1000
+        }
+        catch {
+            Write-Error "❌ Deployment failed for solution: $($status.DisplayName)"
+            Write-Error "Azure API Error: $($_.Exception.Message)"
+            
+            # More detailed error information
+            if ($_.Exception.Response) {
+                $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $responseBody = $reader.ReadToEnd()
+                $reader.Close()
+                Write-Error "Response status code: $($_.Exception.Response.StatusCode.value__)"
+                Write-Error "Response body: $responseBody"
+            }
+            
+            $failedSolutions += $status
         }
     }
-    if ($failedJobs.Count -gt 0) {
-        Write-Error "Some deployments failed. Please review logs."
-        exit 1
-    } else {
-        Write-Host "All Sentinel solutions have been deployed." -ForegroundColor Blue
+    
+    # Create a summary of what was done
+    Write-Host "Solution Deployment Summary:" -ForegroundColor Blue
+    Write-Host "  - Installed: $($deployedSolutions.Count)" -ForegroundColor Green
+    Write-Host "  - Updated: $($updatedSolutions.Count)" -ForegroundColor Cyan
+    Write-Host "  - Skipped (already installed): $($skippedSolutions.Count)" -ForegroundColor Yellow
+    if ($specialSolutions.Count -gt 0) {
+        Write-Host "  - Special (preview/deprecated): $($specialSolutions.Count)" -ForegroundColor Yellow
+    }
+    if ($failedSolutions.Count -gt 0) {
+        Write-Host "  - Failed: $($failedSolutions.Count)" -ForegroundColor Red
+    }
+    
+    # Return the combined list of all solutions that should have rules deployed
+    return @{
+        Deployed = $deployedSolutions | ForEach-Object { $_.DisplayName }
+        Updated = $updatedSolutions | ForEach-Object { $_.DisplayName }
+        Installed = $skippedSolutions | ForEach-Object { $_.DisplayName }
+        Failed = $failedSolutions | ForEach-Object { $_.DisplayName }
     }
 }
 
-### Function: Deploy Analytical Rules ###
+# Function to deploy Analytics Rules
 function Deploy-AnalyticalRules {
+    param(
+        [Parameter(Mandatory = $false)][string[]]$DeployedSolutions = @(),
+        [Parameter(Mandatory = $false)][string]$SkipTunedRulesText = "",
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+    )
+    
+    # Wait for solutions to finish deploying before deploying rules
+    Write-Host "Waiting for solution deployment to complete..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 90  # Adjust if needed
+    
     Write-Host "Fetching available Sentinel solutions..." -ForegroundColor Yellow
     $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=2024-03-01"
 
@@ -181,171 +570,665 @@ function Deploy-AnalyticalRules {
         return
     }
 
+    # Get all existing Analytics Rules to check for duplicates and updates
+    Write-Host "Fetching existing Analytics Rules..." -ForegroundColor Yellow
+    $existingRulesURL = "$baseUri/providers/Microsoft.SecurityInsights/alertRules?api-version=2022-12-01-preview"
+    
+    try {
+        $existingRules = (Invoke-RestMethod -Uri $existingRulesURL -Method Get -Headers $authHeader).value
+        Write-Host "✅ Successfully fetched $($existingRules.Count) existing Analytics Rules." -ForegroundColor Green
+    } catch {
+        Write-Error "ERROR: Failed to fetch existing Analytics Rules: $($_.Exception.Message)"
+        return
+    }
+
+    # Create lookup tables for existing rules by displayName and template name
+    $existingRulesByName = @{}
+    $existingRulesByTemplate = @{}
+    
+    foreach ($rule in $existingRules) {
+        if ($rule.properties.displayName) {
+            $existingRulesByName[$rule.properties.displayName] = $rule
+        }
+        
+        if ($rule.properties.alertRuleTemplateName) {
+            $existingRulesByTemplate[$rule.properties.alertRuleTemplateName] = $rule
+        }
+    }
+    
     Write-Host "Fetching available Analytical Rule templates..." -ForegroundColor Yellow
     $ruleTemplateURL = "$baseUri/providers/Microsoft.SecurityInsights/contentTemplates?api-version=2023-05-01-preview"
     $ruleTemplateURL += "&%24filter=(properties%2FcontentKind%20eq%20'AnalyticsRule')"
 
     try {
-        $results = (Invoke-RestMethod -Uri $ruleTemplateURL -Method Get -Headers $authHeader).value
-        Write-Host "✅ Successfully fetched $($results.Count) Analytical Rule templates." -ForegroundColor Green
+        $ruleTemplates = (Invoke-RestMethod -Uri $ruleTemplateURL -Method Get -Headers $authHeader).value
+        Write-Host "✅ Successfully fetched $($ruleTemplates.Count) Analytical Rule templates." -ForegroundColor Green
     } catch {
         Write-Error "ERROR: Failed to fetch Analytical Rule templates: $($_.Exception.Message)"
         return
     }
 
-    if ($null -eq $results -or $results.Count -eq 0) {
+    if ($null -eq $ruleTemplates -or $ruleTemplates.Count -eq 0) {
         Write-Error "ERROR: No Analytical Rule templates found! Exiting."
+        return
+    }
+
+    # Filter rule templates to only include those from the specified solutions
+    if ($DeployedSolutions.Count -gt 0) {
+        Write-Host "Targeting rules for solutions: $($DeployedSolutions -join ', ')" -ForegroundColor Magenta
+        
+        # Find solutions that match the deployed solutions
+        $relevantSolutions = $allSolutions | Where-Object { 
+            $_.properties.displayName -in $DeployedSolutions 
+        }
+        
+        # Extract solution IDs
+        $deployedSolutionIds = @()
+        foreach ($solution in $relevantSolutions) {
+            if ($solution.properties.contentId) { $deployedSolutionIds += $solution.properties.contentId }
+            if ($solution.properties.packageId) { $deployedSolutionIds += $solution.properties.packageId }
+        }
+        
+        # Filter rule templates to only include those from the deployed solutions
+        $rulesToProcess = $ruleTemplates | Where-Object { 
+            $deployedSolutionIds -contains $_.properties.packageId 
+        }
+    } else {
+        # If no solutions specified, use all templates
+        $rulesToProcess = $ruleTemplates
+    }
+    
+    Write-Host "Found $($rulesToProcess.Count) applicable Analytical Rule templates." -ForegroundColor Cyan
+    
+    if ($rulesToProcess.Count -eq 0) {
+        Write-Warning "No rule templates found for the specified solutions."
         return
     }
 
     $BaseAlertUri = "$baseUri/providers/Microsoft.SecurityInsights/alertRules/"
     $BaseMetaURI = "$baseUri/providers/Microsoft.SecurityInsights/metadata/analyticsrule-"
 
-    Write-Host "Severities to include: $SeveritiesToInclude" -ForegroundColor Magenta
+    Write-Host "Severities to include: $($SeveritiesToInclude -join ', ')" -ForegroundColor Magenta
 
-    foreach ($result in $results) {
-        $displayName = $result.properties.mainTemplate.resources.properties[0].displayName
-        $severity = $result.properties.mainTemplate.resources.properties[0].severity
+    # Counters for summary
+    $deployedCount = 0
+    $updatedCount = 0
+    $skippedCount = 0
+    $deprecatedCount = 0
 
-        if ($SeveritiesToInclude.Count -eq 0 -or $SeveritiesToInclude.Contains($severity)) {
-
-            Write-Host "🚀 Deploying Analytical Rule: $displayName" -ForegroundColor Cyan
-
-            # **Skip deprecated rules**
-            if ($displayName -match "\[Deprecated\]") {
-                Write-Warning "⚠️ Skipping Deprecated Rule: $displayName"
-                continue
-            }
-
-            $templateVersion = $result.properties.mainTemplate.resources.properties[1].version
-            $kind = $result.properties.mainTemplate.resources[0].kind
-            $properties = $result.properties.mainTemplate.resources[0].properties
-            $properties.enabled = $true
-
-            # Add linking fields
-            $properties | Add-Member -NotePropertyName "alertRuleTemplateName" -NotePropertyValue $result.properties.mainTemplate.resources[0].name
-            $properties | Add-Member -NotePropertyName "templateVersion" -NotePropertyValue $templateVersion
-
-            # Ensure entityMappings is an array
-            if ($properties.PSObject.Properties.Name -contains "entityMappings") {
-                if ($properties.entityMappings -isnot [System.Array]) {
-                    $properties.entityMappings = @($properties.entityMappings)
+    # Check each rule template using the Test-SentinelResource function
+    $rulesToDeploy = @()
+    
+    foreach ($template in $rulesToProcess) {
+        # Extract severity for filtering
+        $severity = $template.properties.mainTemplate.resources.properties[0].severity
+        
+        # Check if rule matches severity filter
+        if ($SeveritiesToInclude.Count -eq 0 -or $SeveritiesToInclude -contains $severity) {
+            # Use the consolidated test function
+            $ruleStatus = Test-SentinelResource -ResourceType AnalyticsRule -Resource $template -ExistingRulesByTemplate $existingRulesByTemplate -ExistingRulesByName $existingRulesByName
+            
+            switch ($ruleStatus.Status) {
+                "Deprecated" {
+                    Write-Host "⚠️ Skipping Deprecated Rule: $($ruleStatus.DisplayName)" -ForegroundColor Yellow
+                    $deprecatedCount++
+                    continue
                 }
-            }
-
-            # Ensure requiredDataConnectors is an object
-            if ($properties.PSObject.Properties.Name -contains "requiredDataConnectors") {
-                if ($properties.requiredDataConnectors -is [System.Array] -and $properties.requiredDataConnectors.Count -eq 1) {
-                    $properties.requiredDataConnectors = $properties.requiredDataConnectors[0]
+                "Current" {
+                    Write-Host "⏭️ Skipping rule (already exists with current version): $($ruleStatus.DisplayName)" -ForegroundColor Yellow
+                    $skippedCount++
+                    continue
                 }
-            }
-
-            # Fix Grouping Configuration 
-            if ($properties.PSObject.Properties.Name -contains "incidentConfiguration") {
-                if ($properties.incidentConfiguration.PSObject.Properties.Name -contains "groupingConfiguration") {
-
-                    if (-not $properties.incidentConfiguration.groupingConfiguration) {
-                        $properties.incidentConfiguration | Add-Member -NotePropertyName "groupingConfiguration" -NotePropertyValue @{
-                            matchingMethod = "AllEntities"
-                            lookbackDuration = "PT1H"
-                        }
-                        Write-Host "DEBUG: Created missing groupingConfiguration with default values (matchingMethod='AllEntities', lookbackDuration='PT1H')" -ForegroundColor Cyan
+                "NeedsUpdate" {
+                    if ($SkipUpdates) {
+                        Write-Host "⏭️ Skipping update for rule: $($ruleStatus.DisplayName) (current version: $($ruleStatus.CurrentVersion))" -ForegroundColor Yellow
+                        $skippedCount++
+                        continue
                     } else {
-                        # Ensure `matchingMethod` exists
-                        if (-not ($properties.incidentConfiguration.groupingConfiguration.PSObject.Properties.Name -contains "matchingMethod")) {
-                            $properties.incidentConfiguration.groupingConfiguration | Add-Member -NotePropertyName "matchingMethod" -NotePropertyValue "AllEntities"
-                            Write-Host "DEBUG: Added missing matchingMethod='AllEntities' to groupingConfiguration" -ForegroundColor Cyan
-                        }
-
-                        # Ensure `lookbackDuration` is in ISO 8601 format
-                        if ($properties.incidentConfiguration.groupingConfiguration.PSObject.Properties.Name -contains "lookbackDuration") {
-                            $lookbackDuration = $properties.incidentConfiguration.groupingConfiguration.lookbackDuration
-                            if ($lookbackDuration -match "^(\d+)(h|d|m)$") {
-                                $timeValue = $matches[1]
-                                $timeUnit = $matches[2]
-                                switch ($timeUnit) {
-                                    "h" { $isoDuration = "PT${timeValue}H" }
-                                    "d" { $isoDuration = "P${timeValue}D" }
-                                    "m" { $isoDuration = "PT${timeValue}M" }
-                                }
-                                $properties.incidentConfiguration.groupingConfiguration.lookbackDuration = $isoDuration
-                                Write-Host "DEBUG: Converted lookbackDuration '$lookbackDuration' to ISO 8601 format: '$isoDuration'" -ForegroundColor Cyan
-                            }
+                        Write-Host "🔄 Updating existing rule: $($ruleStatus.DisplayName) (Version $($ruleStatus.CurrentVersion) → $($ruleStatus.TemplateVersion))" -ForegroundColor Cyan
+                        $rulesToDeploy += [PSCustomObject]@{
+                            Template = $template
+                            DisplayName = $ruleStatus.DisplayName
+                            Severity = $severity
+                            TemplateName = $ruleStatus.TemplateName
+                            TemplateVersion = $ruleStatus.TemplateVersion
+                            ExistingRule = $ruleStatus.ExistingRule
+                            NeedsUpdate = $true
                         }
                     }
                 }
-            }
-
-            # Create JSON body based on rule type
-            $body = @{
-                "kind"       = $kind
-                "properties" = $properties
-            }
-
-            $guid = (New-Guid).Guid
-            $alertUri = "$BaseAlertUri$guid" + "?api-version=2022-12-01-preview"
-
-            try {
-                $jsonBody = $body | ConvertTo-Json -Depth 50 -Compress
-                $verdict = Invoke-RestMethod -Uri $alertUri -Method Put -Headers $authHeader -Body $jsonBody
-                Write-Host "✅ Successfully deployed rule: $displayName" -ForegroundColor Green
-
-                # **Correct Source Name Lookup**
-                $solution = $allSolutions | Where-Object { 
-                    ($_.properties.contentId -eq $result.properties.packageId) -or 
-                    ($_.properties.packageId -eq $result.properties.packageId)
-                } | Select-Object -First 1
-
-                if ($solution) {
-                    $sourceName = $solution.properties.displayName
-                    $sourceId = $solution.name
-                } else {
-                    $sourceName = "Unknown Solution"
-                    $sourceId = "Unknown-ID"
-                    Write-Warning "⚠️ No matching solution found for: $displayName"
+                "NameMatch" {
+                    Write-Host "⏭️ Skipping rule (name match): $($ruleStatus.DisplayName)" -ForegroundColor Yellow
+                    $skippedCount++
+                    continue
                 }
-
-                # **Create metadata**
-                $metaBody = @{
-                    "apiVersion" = "2022-01-01-preview"
-                    "name"       = "analyticsrule-" + $verdict.name
-                    "type"       = "Microsoft.OperationalInsights/workspaces/providers/metadata"
-                    "id"         = $null
-                    "properties" = @{
-                        "contentId" = $result.properties.mainTemplate.resources[0].name
-                        "parentId"  = $verdict.id
-                        "kind"      = "AnalyticsRule"
-                        "version"   = $templateVersion
-                        "source"    = @{
-                            "kind"     = "Solution"
-                            "name"     = $sourceName
-                            "sourceId" = $sourceId
-                        }
+                "Missing" {
+                    Write-Host "🚀 Deploying new Analytical Rule: $($ruleStatus.DisplayName)" -ForegroundColor Cyan
+                    $rulesToDeploy += [PSCustomObject]@{
+                        Template = $template
+                        DisplayName = $ruleStatus.DisplayName
+                        Severity = $severity
+                        TemplateName = $ruleStatus.TemplateName
+                        TemplateVersion = $ruleStatus.TemplateVersion
+                        ExistingRule = $null
+                        NeedsUpdate = $false
                     }
-                }
-
-                # ✅ Send metadata update
-                $metaUri = "$BaseMetaURI$($verdict.name)?api-version=2022-01-01-preview"
-                Invoke-RestMethod -Uri $metaUri -Method Put -Headers $authHeader -Body ($metaBody | ConvertTo-Json -Depth 5 -Compress) | Out-Null
-
-            } catch {
-                if ($_.ErrorDetails.Message -match "One of the tables does not exist") {
-                    Write-Warning "Skipping $displayName due to missing tables in the environment."
-                } elseif ($_.ErrorDetails.Message -match "The given column") {
-                    Write-Warning "Skipping $displayName due to missing column in the query."
-                } elseif ($_.ErrorDetails.Message -match "FailedToResolveScalarExpression|SemanticError") {
-                    Write-Warning "Skipping $displayName due to an invalid expression in the query."
-                } else {
-                    Write-Error "❌ ERROR: Deployment failed for Analytical Rule: $displayName"
-                    Write-Error "Azure API Error: $($_.ErrorDetails.Message)"
                 }
             }
         }
     }
 
-    Write-Host "✅ All Analytical Rules have been deployed." -ForegroundColor Green
+    # Deploy or update rules
+    foreach ($ruleToDeploy in $rulesToDeploy) {
+        $template = $ruleToDeploy.Template
+        $displayName = $ruleToDeploy.DisplayName
+        $templateName = $ruleToDeploy.TemplateName
+        $templateVersion = $ruleToDeploy.TemplateVersion
+        $existingRule = $ruleToDeploy.ExistingRule
+        $needsUpdate = $ruleToDeploy.NeedsUpdate
+        
+        # Prepare rule properties
+        $kind = $template.properties.mainTemplate.resources[0].kind
+        $properties = $template.properties.mainTemplate.resources[0].properties
+        $properties.enabled = $true
+
+        # Add linking fields
+        $properties | Add-Member -NotePropertyName "alertRuleTemplateName" -NotePropertyValue $templateName -Force
+        $properties | Add-Member -NotePropertyName "templateVersion" -NotePropertyValue $templateVersion -Force
+
+        # If updating an existing rule, preserve custom entity mappings and details
+        if ($needsUpdate -and $existingRule) {
+            # Preserve custom entity mappings if they exist
+            if ($existingRule.properties.PSObject.Properties.Name -contains "entityMappings") {
+                Write-Host "   - Preserving custom entity mappings" -ForegroundColor Cyan
+                $properties.entityMappings = $existingRule.properties.entityMappings
+            }
+            
+            # Preserve custom details if they exist
+            if ($existingRule.properties.PSObject.Properties.Name -contains "customDetails") {
+                Write-Host "   - Preserving custom details" -ForegroundColor Cyan
+                $properties | Add-Member -NotePropertyName "customDetails" -NotePropertyValue $existingRule.properties.customDetails -Force
+            }
+        }
+        # Otherwise ensure entity mappings is an array
+        elseif ($properties.PSObject.Properties.Name -contains "entityMappings") {
+            if ($properties.entityMappings -isnot [System.Array]) {
+                $properties.entityMappings = @($properties.entityMappings)
+            }
+        }
+
+        # Ensure requiredDataConnectors is an object
+        if ($properties.PSObject.Properties.Name -contains "requiredDataConnectors") {
+            if ($properties.requiredDataConnectors -is [System.Array] -and $properties.requiredDataConnectors.Count -eq 1) {
+                $properties.requiredDataConnectors = $properties.requiredDataConnectors[0]
+            }
+        }
+
+        # Fix Grouping Configuration 
+        if ($properties.PSObject.Properties.Name -contains "incidentConfiguration") {
+            if ($properties.incidentConfiguration.PSObject.Properties.Name -contains "groupingConfiguration") {
+                if (-not $properties.incidentConfiguration.groupingConfiguration) {
+                    $properties.incidentConfiguration | Add-Member -NotePropertyName "groupingConfiguration" -NotePropertyValue @{
+                        matchingMethod = "AllEntities"
+                        lookbackDuration = "PT1H"
+                    }
+                } else {
+                    # Ensure `matchingMethod` exists
+                    if (-not ($properties.incidentConfiguration.groupingConfiguration.PSObject.Properties.Name -contains "matchingMethod")) {
+                        $properties.incidentConfiguration.groupingConfiguration | Add-Member -NotePropertyName "matchingMethod" -NotePropertyValue "AllEntities"
+                    }
+
+                    # Ensure `lookbackDuration` is in ISO 8601 format
+                    if ($properties.incidentConfiguration.groupingConfiguration.PSObject.Properties.Name -contains "lookbackDuration") {
+                        $lookbackDuration = $properties.incidentConfiguration.groupingConfiguration.lookbackDuration
+                        if ($lookbackDuration -match "^(\d+)(h|d|m)$") {
+                            $timeValue = $matches[1]
+                            $timeUnit = $matches[2]
+                            switch ($timeUnit) {
+                                "h" { $isoDuration = "PT${timeValue}H" }
+                                "d" { $isoDuration = "P${timeValue}D" }
+                                "m" { $isoDuration = "PT${timeValue}M" }
+                            }
+                            $properties.incidentConfiguration.groupingConfiguration.lookbackDuration = $isoDuration
+                        }
+                    }
+                }
+            }
+        }
+
+        # Create JSON body based on rule type
+        $body = @{
+            "kind"       = $kind
+            "properties" = $properties
+        }
+
+        # For updates, use existing rule ID; for new rules, generate a GUID
+        $ruleId = if ($needsUpdate) { $existingRule.name } else { (New-Guid).Guid }
+        $alertUri = "$BaseAlertUri$ruleId" + "?api-version=2022-12-01-preview"
+
+        try {
+            $jsonBody = $body | ConvertTo-Json -Depth 50 -Compress
+            $verdict = Invoke-RestMethod -Uri $alertUri -Method Put -Headers $authHeader -Body $jsonBody
+            
+            if ($needsUpdate) {
+                Write-Host "✅ Successfully updated rule: $displayName" -ForegroundColor Green
+                $updatedCount++
+            } else {
+                Write-Host "✅ Successfully deployed rule: $displayName" -ForegroundColor Green
+                $deployedCount++
+            }
+
+            # Find the solution for this rule
+            $solution = $allSolutions | Where-Object { 
+                ($_.properties.contentId -eq $template.properties.packageId) -or 
+                ($_.properties.packageId -eq $template.properties.packageId)
+            } | Select-Object -First 1
+
+            if ($solution) {
+                $sourceName = $solution.properties.displayName
+                $sourceId = $solution.name
+            } else {
+                $sourceName = "Unknown Solution"
+                $sourceId = "Unknown-ID"
+                Write-Warning "⚠️ No matching solution found for: $displayName"
+            }
+
+            # Create metadata
+            $metaBody = @{
+                "apiVersion" = "2022-01-01-preview"
+                "name"       = "analyticsrule-" + $verdict.name
+                "type"       = "Microsoft.OperationalInsights/workspaces/providers/metadata"
+                "id"         = $null
+                "properties" = @{
+                    "contentId" = $templateName
+                    "parentId"  = $verdict.id
+                    "kind"      = "AnalyticsRule"
+                    "version"   = $templateVersion
+                    "source"    = @{
+                        "kind"     = "Solution"
+                        "name"     = $sourceName
+                        "sourceId" = $sourceId
+                    }
+                }
+            }
+
+            # Send metadata update
+            $metaUri = "$BaseMetaURI$($verdict.name)?api-version=2022-01-01-preview"
+            Invoke-RestMethod -Uri $metaUri -Method Put -Headers $authHeader -Body ($metaBody | ConvertTo-Json -Depth 5 -Compress) | Out-Null
+
+            # Update lookup tables with newly deployed/updated rule
+            $existingRulesByName[$displayName] = $verdict
+            $existingRulesByTemplate[$templateName] = $verdict
+
+        } catch {
+            if ($_.ErrorDetails.Message -match "One of the tables does not exist") {
+                Write-Warning "Skipping $displayName due to missing tables in the environment."
+            } elseif ($_.ErrorDetails.Message -match "The given column") {
+                Write-Warning "Skipping $displayName due to missing column in the query."
+            } elseif ($_.ErrorDetails.Message -match "FailedToResolveScalarExpression|SemanticError") {
+                Write-Warning "Skipping $displayName due to an invalid expression in the query."
+            } else {
+                Write-Error "❌ ERROR: Deployment failed for Analytical Rule: $displayName"
+                Write-Error "Azure API Error: $($_.Exception.Message)"
+            }
+            $skippedCount++
+        }
+    }
+
+    # Display summary
+    Write-Host "Analytics Rules Deployment Summary:" -ForegroundColor Blue
+    Write-Host "  - New rules deployed: $deployedCount" -ForegroundColor Green
+    Write-Host "  - Existing rules updated: $updatedCount" -ForegroundColor Cyan
+    Write-Host "  - Rules skipped: $skippedCount" -ForegroundColor Yellow
+    if ($deprecatedCount -gt 0) {
+        Write-Host "  - Deprecated rules skipped: $deprecatedCount" -ForegroundColor Yellow
+    }
 }
 
-# Execution Functions 
-Deploy-Solutions
-Deploy-AnalyticalRules
+# Function to deploy workbooks
+function Deploy-SolutionWorkbooks {
+    param(
+        [Parameter(Mandatory = $false)][string[]]$DeployedSolutions = @(),
+        [Parameter(Mandatory = $false)][switch]$SkipExistingWorkbooks = $true,
+        [Parameter(Mandatory = $false)][switch]$SkipUpdates = $false
+    )
+
+    Write-Host "Deploying workbooks for installed solutions..." -ForegroundColor Yellow
+    
+    # Get all workbook templates from Content Hub
+    Write-Host "Getting all workbook templates from Content Hub..." -ForegroundColor Cyan
+    $workbookTemplateURL = "$baseUri/providers/Microsoft.SecurityInsights/contentTemplates?api-version=2023-05-01-preview"
+    $workbookTemplateURL += "&%24filter=(properties%2FcontentKind%20eq%20'Workbook')"
+    
+    try {
+        $workbookTemplates = (Invoke-RestMethod -Uri $workbookTemplateURL -Method Get -Headers $authHeader).value
+        Write-Host "✅ Successfully fetched $($workbookTemplates.Count) workbook templates." -ForegroundColor Green
+    } catch {
+        Write-Error "ERROR: Failed to fetch workbook templates: $($_.Exception.Message)"
+        return
+    }
+    
+    if ($null -eq $workbookTemplates -or $workbookTemplates.Count -eq 0) {
+        Write-Warning "No workbook templates found in Content Hub."
+        return
+    }
+    
+    # Filter workbook templates to those from deployed solutions
+    $relevantWorkbooks = @()
+    
+    if ($DeployedSolutions.Count -gt 0) {
+        # Get all solutions to find workbooks related to deployed solutions
+        $solutionURL = "$baseUri/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=2024-03-01"
+        
+        try {
+            $allSolutions = (Invoke-RestMethod -Method "Get" -Uri $solutionURL -Headers $authHeader).value
+            
+            # Find solutions that match the deployed solutions
+            $relevantSolutions = $allSolutions | Where-Object { 
+                $_.properties.displayName -in $DeployedSolutions 
+            }
+            
+            # Extract solution IDs
+            $deployedSolutionIds = @()
+            foreach ($solution in $relevantSolutions) {
+                if ($solution.properties.contentId) { $deployedSolutionIds += $solution.properties.contentId }
+                if ($solution.properties.packageId) { $deployedSolutionIds += $solution.properties.packageId }
+            }
+            
+            # Filter workbook templates to those from deployed solutions
+            $relevantWorkbooks = $workbookTemplates | Where-Object {
+                $deployedSolutionIds -contains $_.properties.packageId
+            }
+        } catch {
+            Write-Error "ERROR: Failed to fetch Sentinel solutions: $($_.Exception.Message)"
+            return
+        }
+    } else {
+        # If no specific solutions provided, use all templates
+        $relevantWorkbooks = $workbookTemplates
+    }
+    
+    Write-Host "Found $($relevantWorkbooks.Count) workbooks associated with deployed solutions." -ForegroundColor Cyan
+    
+    # Get existing workbooks to check which ones to skip
+    Write-Host "Checking for existing workbooks..." -ForegroundColor Cyan
+    $workbookMetadataURL = "$baseUri/providers/Microsoft.SecurityInsights/metadata?api-version=2023-05-01-preview"
+    $workbookMetadataURL += "&%24filter=(properties%2FKind%20eq%20'Workbook')"
+    
+    try {
+        $workbookMetadata = (Invoke-RestMethod -Uri $workbookMetadataURL -Method Get -Headers $authHeader).value
+        Write-Host "✅ Successfully fetched metadata for $($workbookMetadata.Count) existing workbooks." -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to fetch workbook metadata: $($_.Exception.Message)"
+        $workbookMetadata = @()
+    }
+    
+    # Counters for tracking progress
+    $deployedCount = 0
+    $updatedCount = 0
+    $skippedCount = 0
+    $deprecatedCount = 0
+    $failedCount = 0
+    
+    # Create a list of workbooks to deploy or update
+    $workbooksToProcess = @()
+    
+    foreach ($workbookTemplate in $relevantWorkbooks) {
+        # Use consolidated test function
+        $workbookStatus = Test-SentinelResource -ResourceType Workbook -Resource $workbookTemplate -ExistingWorkbooks $workbookMetadata
+        
+        switch ($workbookStatus.Status) {
+            { $_ -in "Current", "PreviewCurrent" } {
+                if ($SkipExistingWorkbooks) {
+                    Write-Host "⏭️ Skipping workbook (already exists with current version): $($workbookStatus.DisplayName)" -ForegroundColor Yellow
+                    $skippedCount++
+                    continue
+                } else {
+                    # Force redeploy even though current
+                    $workbooksToProcess += [PSCustomObject]@{
+                        Template = $workbookTemplate
+                        DisplayName = $workbookStatus.DisplayName
+                        ExistingWorkbook = $workbookStatus.ExistingWorkbook
+                        Action = "Redeploy"
+                    }
+                }
+            }
+            "NeedsUpdate" {
+                if ($SkipUpdates) {
+                    Write-Host "⏭️ Skipping update for workbook: $($workbookStatus.DisplayName) (current version: $($workbookStatus.CurrentVersion))" -ForegroundColor Yellow
+                    $skippedCount++
+                    continue
+                } else {
+                    Write-Host "🔄 Workbook needs update: $($workbookStatus.DisplayName) (Version $($workbookStatus.CurrentVersion) → $($workbookStatus.TemplateVersion))" -ForegroundColor Cyan
+                    $workbooksToProcess += [PSCustomObject]@{
+                        Template = $workbookTemplate
+                        DisplayName = $workbookStatus.DisplayName
+                        ExistingWorkbook = $workbookStatus.ExistingWorkbook
+                        Action = "Update"
+                    }
+                }
+            }
+            { $_ -in "Missing", "PreviewMissing" } {
+                Write-Host "🚀 New workbook to deploy: $($workbookStatus.DisplayName)" -ForegroundColor Cyan
+                $workbooksToProcess += [PSCustomObject]@{
+                    Template = $workbookTemplate
+                    DisplayName = $workbookStatus.DisplayName
+                    ExistingWorkbook = $null
+                    Action = "Deploy"
+                }
+            }
+            "Deprecated" {
+                Write-Host "⚠️ Skipping deprecated workbook: $($workbookStatus.DisplayName)" -ForegroundColor Yellow
+                $deprecatedCount++
+                continue
+            }
+            "NameMatch" {
+                Write-Host "⏭️ Skipping workbook (name match): $($workbookStatus.DisplayName)" -ForegroundColor Yellow
+                $skippedCount++
+                continue
+            }
+        }
+    }
+    
+    # Process workbooks
+    foreach ($workbookInfo in $workbooksToProcess) {
+        $workbookTemplate = $workbookInfo.Template
+        $displayName = $workbookInfo.DisplayName
+        $existingWorkbook = $workbookInfo.ExistingWorkbook
+        $action = $workbookInfo.Action
+        
+        # Get detailed workbook template
+        $workbookDetailURL = "$baseUri/providers/Microsoft.SecurityInsights/contentTemplates/$($workbookTemplate.name)?api-version=2023-05-01-preview"
+        
+        try {
+            $workbookDetail = (Invoke-RestMethod -Uri $workbookDetailURL -Method Get -Headers $authHeader).properties.mainTemplate.resources
+            
+            # Extract workbook and metadata resources
+            $workbookResource = $workbookDetail | Where-Object type -eq 'Microsoft.Insights/workbooks'
+            $metadataResource = $workbookDetail | Where-Object type -eq 'Microsoft.OperationalInsights/workspaces/providers/metadata'
+            
+            if (-not $workbookResource) {
+                Write-Warning "Could not find workbook resource in template: $displayName"
+                $failedCount++
+                continue
+            }
+            
+            # Generate new GUID for the workbook or use existing ID for updates
+            $guid = if ($action -eq "Update" -and $existingWorkbook) {
+                # Extract GUID from the parentId
+                if ($existingWorkbook.properties.parentId -match '/([^/]+)$') {
+                    $matches[1]
+                } else {
+                    # Fallback to new GUID if we can't extract it
+                    (New-Guid).Guid
+                }
+            } else {
+                (New-Guid).Guid
+            }
+            
+            # Prepare workbook for deployment
+            $newWorkbook = $workbookResource | Select-Object * -ExcludeProperty apiVersion, metadata, name
+            $newWorkbook | Add-Member -NotePropertyName name -NotePropertyValue $guid
+            $newWorkbook | Add-Member -NotePropertyName location -NotePropertyValue $Region -Force
+            
+            # Ensure required properties are present
+            if (-not ($newWorkbook.PSObject.Properties.Name -contains "kind")) {
+                $newWorkbook | Add-Member -NotePropertyName kind -NotePropertyValue "shared"
+            }
+            
+            if (-not ($newWorkbook.PSObject.Properties.Name -contains "tags")) {
+                $newWorkbook | Add-Member -NotePropertyName tags -NotePropertyValue @{
+                    "hidden-title" = $displayName
+                    "source" = "Microsoft Sentinel"
+                }
+            }
+            
+            $workbookPayload = $newWorkbook | ConvertTo-Json -Depth 50 -EnumsAsStrings
+            
+            # If updating, delete the old workbook first if it's a different ID
+            if ($action -eq "Update" -and $existingWorkbook) {
+                $oldMetadataName = $existingWorkbook.name
+                $oldWorkbookName = $oldMetadataName -replace 'workbook-', ''
+                
+                if ($oldWorkbookName -ne $guid) {
+                    # Delete old workbook
+                    Write-Host "   - Deleting old workbook version" -ForegroundColor Cyan
+                    $deleteWorkbookPath = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Insights/workbooks/$oldWorkbookName"
+                    $deleteWorkbookPath += "?api-version=2022-04-01"
+                    
+                    $deleteResult = Invoke-AzRestMethod -Path $deleteWorkbookPath -Method DELETE
+                    
+                    # Delete old metadata
+                    $deleteMetadataPath = "$baseUri/providers/Microsoft.SecurityInsights/metadata/$oldMetadataName".Replace("https://management.azure.com", "")
+                    $deleteMetadataPath += "?api-version=2023-05-01-preview"
+                    
+                    $deleteMetadataResult = Invoke-AzRestMethod -Path $deleteMetadataPath -Method DELETE
+                }
+            }
+            
+            # Create/update workbook using Invoke-AzRestMethod
+            $workbookCreatePath = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Insights/workbooks/$guid"
+            $workbookCreatePath += "?api-version=2022-04-01"
+            
+            $workbookResult = Invoke-AzRestMethod -Path $workbookCreatePath -Method PUT -Payload $workbookPayload
+            
+            if ($workbookResult.StatusCode -in 200, 201) {
+                if ($action -eq "Update") {
+                    Write-Host "✅ Successfully updated workbook: $displayName" -ForegroundColor Green
+                    $updatedCount++
+                } else {
+                    Write-Host "✅ Successfully deployed workbook: $displayName" -ForegroundColor Green
+                    $deployedCount++
+                }
+                
+                # Create metadata
+                if ($metadataResource) {
+                    $metadataDeployment = $metadataResource | Select-Object * -ExcludeProperty apiVersion, name
+                    $metadataDeployment | Add-Member -NotePropertyName name -NotePropertyValue "workbook-$guid" -Force
+                    
+                    # Update parent ID to point to the new workbook
+                    $workbookParentId = $metadataDeployment.properties.parentId -replace '/[^/]+$', "/$guid"
+                    $metadataDeployment.properties | Add-Member -NotePropertyName parentId -NotePropertyValue $workbookParentId -Force
+                    
+                    $metadataPayload = $metadataDeployment | ConvertTo-Json -Depth 50 -EnumsAsStrings
+                    
+                    $metadataPath = "$baseUri/providers/Microsoft.SecurityInsights/metadata/workbook-$guid".Replace("https://management.azure.com", "")
+                    $metadataPath += "?api-version=2023-05-01-preview"
+                    
+                    $metadataResult = Invoke-AzRestMethod -Path $metadataPath -Method PUT -Payload $metadataPayload
+                    
+                    if (-not ($metadataResult.StatusCode -in 200, 201)) {
+                        Write-Warning "⚠️ Workbook created but metadata update failed: $displayName"
+                        Write-Warning "Status: $($metadataResult.StatusCode)"
+                        Write-Warning "Response: $($metadataResult.Content)"
+                    }
+                }
+            } else {
+                Write-Error "❌ Failed to deploy workbook $displayName"
+                Write-Error "Status: $($workbookResult.StatusCode)"
+                Write-Error "Response: $($workbookResult.Content)"
+                $failedCount++
+            }
+        } catch {
+            Write-Error "❌ Failed to deploy workbook $displayName : $($_.Exception.Message)"
+            $failedCount++
+        }
+    }
+    
+    # Display summary
+    Write-Host "Workbook Deployment Summary:" -ForegroundColor Blue
+    Write-Host "  - New workbooks deployed: $deployedCount" -ForegroundColor Green
+    Write-Host "  - Existing workbooks updated: $updatedCount" -ForegroundColor Cyan
+    Write-Host "  - Workbooks skipped: $skippedCount" -ForegroundColor Yellow
+    if ($deprecatedCount -gt 0) {
+        Write-Host "  - Deprecated workbooks skipped: $deprecatedCount" -ForegroundColor Yellow
+    }
+    if ($failedCount -gt 0) {
+        Write-Host "  - Workbooks failed: $failedCount" -ForegroundColor Red
+    }
+}
+
+# Main execution block
+# Deployment functions workflow
+# Pass both parameters to give user full control
+$deploymentResults = Deploy-Solutions -ForceUpdate:$ForceSolutionUpdate -SkipUpdates:$SkipSolutionUpdates
+
+# Skip rule deployment entirely if requested
+if ($SkipRuleDeployment) {
+    Write-Host "Skipping analytical rules deployment as requested." -ForegroundColor Yellow
+} else {
+    # Check if we have any solutions to deploy rules for
+    $solutionsForRules = @()
+
+    # Add newly deployed solutions
+    if ($deploymentResults.Deployed -and $deploymentResults.Deployed.Count -gt 0) {
+        $solutionsForRules += $deploymentResults.Deployed
+    }
+
+    # Add updated solutions
+    if ($deploymentResults.Updated -and $deploymentResults.Updated.Count -gt 0) {
+        $solutionsForRules += $deploymentResults.Updated
+    }
+
+    # Add already installed solutions if needed
+    if ($ForceRuleDeployment -and $deploymentResults.Installed -and $deploymentResults.Installed.Count -gt 0) {
+        $solutionsForRules += $deploymentResults.Installed
+    }
+
+    # Only deploy analytical rules if we have solutions to deploy rules for
+    if ($solutionsForRules.Count -gt 0) {
+        # Deploy rules for all solutions
+        Deploy-AnalyticalRules -DeployedSolutions $solutionsForRules -SkipUpdates:$SkipRuleUpdates
+    } else {
+        Write-Host "No solutions deployed or updated. Skipping analytical rules deployment." -ForegroundColor Yellow
+    }
+}
+
+# Handle workbook deployment separately
+if ($SkipWorkbookDeployment) {
+    Write-Host "Skipping workbook deployment as requested." -ForegroundColor Yellow
+} else {
+    $solutionsForWorkbooks = @()
+    
+    # Add newly deployed solutions
+    if ($deploymentResults.Deployed -and $deploymentResults.Deployed.Count -gt 0) {
+        $solutionsForWorkbooks += $deploymentResults.Deployed
+    }
+
+    # Add updated solutions
+    if ($deploymentResults.Updated -and $deploymentResults.Updated.Count -gt 0) {
+        $solutionsForWorkbooks += $deploymentResults.Updated
+    }
+
+    # Add already installed solutions if ForceWorkbookDeployment is enabled
+    if ($ForceWorkbookDeployment -and $deploymentResults.Installed -and $deploymentResults.Installed.Count -gt 0) {
+        $solutionsForWorkbooks += $deploymentResults.Installed
+    }
+    
+    # Deploy workbooks if we have solutions to deploy workbooks for
+    if ($solutionsForWorkbooks.Count -gt 0) {
+        Deploy-SolutionWorkbooks -DeployedSolutions $solutionsForWorkbooks -SkipUpdates:$SkipSolutionUpdates
+    } else {
+        Write-Host "No solutions to deploy workbooks for. Skipping workbook deployment." -ForegroundColor Yellow
+    }
+}
