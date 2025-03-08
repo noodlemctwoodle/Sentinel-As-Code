@@ -14,7 +14,7 @@ param rgName string              // Name of the resource group to create or use
 param dailyQuota int             // Daily data ingestion quota in GB for the Log Analytics workspace
 param lawName string             // Name of the Log Analytics workspace
 
-// Deploy the resource group to contain all Sentinel resources
+// Resource group that contain all Sentinel resources
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: rgName
   location: rgLocation
