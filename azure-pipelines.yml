@@ -72,8 +72,7 @@ stages:
                 echo "Starting Bicep Deployment..."
                 az deployment sub create \
                   --location '$(REGION)' \
-                  --template-file Deployment/main.bicep \
-                  --parameters Deployment/main.bicepparam \
+                  --template-file Bicep/main.bicep \
                   --parameters rgLocation='$(REGION)' rgName='$(RESOURCEGROUP)' lawName='$(WORKSPACENAME)' dailyQuota='$(DAILYQUOTA)'
 
 # ==========================================================================================
