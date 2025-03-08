@@ -1,72 +1,119 @@
-# Sentinel Deployment Automation
+# Microsoft Sentinel Deployment Automation
 
 ## Overview
 
-This script automates the deployment of Microsoft Sentinel solutions, analytical rules, and workbooks within an Azure environment. It simplifies the process of configuring and enabling security solutions, reducing manual effort and ensuring consistent deployments across environments.
+This PowerShell script automates the deployment of Microsoft Sentinel resources within an Azure environment. It handles the deployment of solutions from the Content Hub, analytics rules, and workbooks, streamlining the configuration of a complete Sentinel environment with minimal manual intervention.
 
-## Features
+## Key Features
 
-- **Automated Deployment of Solutions**: Retrieves and deploys Microsoft Sentinel solutions from the Content Hub.  
-- **Automated Deployment of Analytics Rules**: Deploys analytics rules based on severity and ensures proper configuration.
-- **Automated Deployment of Workbooks**: Deploys associated workbooks for each solution.
-- **Consolidated Status Testing**: Unified mechanism for checking status of all resource types.
-- **Intelligent Update Management**: Granular control over which resources to update vs. skip.
-- **Error Handling and Logging**: Catches and handles API errors gracefully with detailed status reporting.
-- **Metadata Association**: Links deployed solutions, rules, and workbooks with their metadata for better tracking.
-- **Professional Documentation**: Comment-based help for all functions supporting PowerShell Get-Help.
+### Comprehensive Resource Deployment
+- **Solutions**: Deploy Microsoft Sentinel solutions from the Content Hub
+- **Analytics Rules**: Deploy rules filtered by severity with proper configuration and metadata
+- **Workbooks**: Deploy workbooks for each solution
 
-## What's New in This Version
+### Intelligent Resource Management
+- **Unified Status Testing**: Consolidated resource status checking with `Test-SentinelResource`
+- **Smart Update Handling**: Skip or force updates based on your requirements
+- **Metadata Association**: Proper linking of resources with their metadata
 
-### Core Architecture Improvements
+### Deployment Controls
+- **Granular Solution Management**: Control which solutions to deploy, update, or skip
+- **Rule Severity Filtering**: Deploy only rules matching specified severities
+- **Workbook Deployment Options**: Control whether to update or redeploy existing workbooks
 
-- **Consolidated Testing Framework**: New `Test-SentinelResource` function provides consistent status testing for solutions, rules, and workbooks.
-- **Improved Parameter Management**: Logical parameter grouping and clear documentation.
-- **Professional Code Documentation**: Added comment-based help for all functions supporting PowerShell Get-Help.
-- **Consistent Terminology**: Standardized naming across the codebase (Analytics vs Analytical).
+### Error Resilience
+- **Graceful Error Handling**: Skip problematic resources rather than failing the entire deployment
+- **Status Reporting**: Clear, color-coded status summaries for all resource types
+- **Detailed Logging**: Informative messages for tracking deployment progress
 
-### Enhanced Controls
+### Azure Government Support
+- **Cloud Environment Detection**: Support for both Azure Commercial and Azure Government clouds
 
-- **Granular Update Control**: 
-  - New `ForceSolutionUpdate` parameter to explicitly control solution updates
-  - Renamed `SkipExistingWorkbooks` to `DeployExistingWorkbooks` for intuitive behavior
-  - Fixed switch parameter handling to follow PowerShell best practices
+## Parameter Reference
 
-- **Standardized Status Reporting**:
-  - Consistent summary format across solutions, rules, and workbooks
-  - Clear color coding for different status types (installed, updated, skipped, failed)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `ResourceGroup` | string | Yes | - | Azure Resource Group containing the Sentinel workspace |
+| `Workspace` | string | Yes | - | Microsoft Sentinel workspace name |
+| `Region` | string | Yes | - | Azure region for deployments |
+| `Solutions` | string[] | Yes | - | Array of solution names to deploy |
+| `SeveritiesToInclude` | string[] | No | `@("High", "Medium", "Low")` | Analytics rule severities to include |
+| `IsGov` | string | No | `"false"` | Set to 'true' for Azure Government cloud |
+| `ForceSolutionUpdate` | switch | No | `$false` | Force update of already installed solutions |
+| `ForceRuleDeployment` | switch | No | `$false` | Force deployment of rules for already installed solutions |
+| `SkipSolutionUpdates` | switch | No | `$false` | Skip updating solutions that need updates |
+| `SkipRuleUpdates` | switch | No | `$false` | Skip updating analytics rules that need updates |
+| `SkipRuleDeployment` | switch | No | `$false` | Skip deploying analytics rules entirely |
+| `SkipWorkbookDeployment` | switch | No | `$false` | Skip deploying workbooks entirely |
+| `ForceWorkbookDeployment` | switch | No | `$false` | Force redeployment of existing workbooks |
 
-### Improved Workbook Management
+## Usage Examples
 
-- **Proper Workbook Update Handling**: Better management of workbook updates with proper error handling
-- **Enhanced Workbook Error Handling**: Proper status checking for workbook and metadata deletion operations
-- **Workbook Deployment Controls**: Options to force redeployment of existing workbooks
+### Basic Usage
+```powershell
+.\Set-SentinelContent.ps1 `
+    -ResourceGroup "Security-RG" `
+    -Workspace "MySentinelWorkspace" `
+    -Region "EastUS" `
+    -Solutions "Microsoft 365","Threat Intelligence" `
+    -SeveritiesToInclude "High","Medium"
+```
 
-### Solution Deployment Improvements
+### Advanced Usage (Controlling Updates)
+```powershell
+.\Set-SentinelContent.ps1 `
+    -ResourceGroup "Security-RG" `
+    -Workspace "MySentinelWorkspace" `
+    -Region "EastUS" `
+    -Solutions "Microsoft 365","Threat Intelligence","Windows Security Events" `
+    -SeveritiesToInclude "High","Medium","Low" `
+    -ForceSolutionUpdate `
+    -SkipRuleUpdates `
+    -ForceWorkbookDeployment
+```
 
-- **Fixed Force Update Behavior**: Solutions are only updated when explicitly requested
-- **Better Status Tracking**: More accurate status reporting for solutions
-- **Improved Error Handling**: More detailed error messages and status checks
+### Deployment in Azure Government
+```powershell
+.\Set-SentinelContent.ps1 `
+    -ResourceGroup "Security-RG" `
+    -Workspace "GovSentinelWorkspace" `
+    -Region "USGovVirginia" `
+    -Solutions "Microsoft 365","Azure Activity" `
+    -IsGov "true"
+```
 
-### Analytics Rule Enhancements
+### CI/CD Pipeline Example (Azure DevOps)
+```yaml
+variables:
+  azureSubscription: 'SentinelDeployment'
+  resourceGroup: 'Sentinel-RG'
+  workspaceName: 'SentinelWorkspace'
+  region: 'eastus'
+  solutions: '"Microsoft 365","Azure Activity","Threat Intelligence"'
+  severities: '"High","Medium","Low"'
 
-- **Clear Resource Type Distinction**: Clear separation between deployed rules and rule templates
-- **Consistent Status Reporting**: Standardized status messages across all rule operations
-- **Improved Rule Processing**: Better handling of special cases and errors
+jobs:
+  - job: DeploySentinel
+    displayName: 'Deploy Sentinel Resources'
+    steps:
+      - task: AzurePowerShell@5
+        displayName: 'Deploy Sentinel Solutions and Rules'
+        inputs:
+          azureSubscription: $(azureSubscription)
+          ScriptType: 'FilePath'
+          ScriptPath: './Set-SentinelContent.ps1'
+          ScriptArguments: >
+            -ResourceGroup '$(resourceGroup)' 
+            -Workspace '$(workspaceName)' 
+            -Region '$(region)' 
+            -Solutions $(solutions) 
+            -SeveritiesToInclude $(severities) 
+          azurePowerShellVersion: 'LatestVersion'
+```
 
-## New Features & Fixes vs. Previous Version
+## Tested Solutions
 
-| Feature / Fix                                     | Previous Behavior                        | Current Behavior                                                  |
-|---------------------------------------------------|------------------------------------------|-------------------------------------------------------------------|
-| **Solution update control**                       | Ambiguous, force updates by default     | Explicit control with `ForceSolutionUpdate` parameter              |
-| **Workbook deployment naming**                    | Confusing use of `SkipExistingWorkbooks`| Intuitive `DeployExistingWorkbooks` parameter                     |
-| **Resource status checking**                      | Separate functions for each resource    | Unified `Test-SentinelResource` for all resource types            |
-| **Workbook deletion handling**                    | No status checking                      | Proper error handling and status reporting                         |
-| **Status reporting**                              | Inconsistent formats                    | Standardized summary format across all resource types              |
-| **Code documentation**                            | Basic comments                          | Professional comment-based help for all functions                  |
-| **Parameter descriptions**                        | Basic descriptions                      | Detailed parameter documentation and alignment                     |
-| **Resource type naming**                          | Mixed Analytics/Analytical terminology  | Consistent terminology throughout codebase                         |
-
-### Tested with these Solutions
+The script has been tested with the following Microsoft Sentinel solutions:
 
 - Azure Activity
 - Azure Key Vault
@@ -86,100 +133,43 @@ This script automates the deployment of Microsoft Sentinel solutions, analytical
 - Windows Security Events
 - Windows Server DNS
 
-```powershell
-"Azure Activity","Azure Key Vault","Azure Logic Apps","Azure Network Security Groups","Microsoft 365","Microsoft Defender for Cloud","Microsoft Defender for Cloud Apps","Microsoft Defender for Endpoint","Microsoft Defender for Identity","Microsoft Defender Threat Intelligence","Microsoft Defender XDR","Microsoft Entra ID","Microsoft Purview Insider Risk Management","Syslog","Threat Intelligence","Windows Security Events","Windows Server DNS"
-```
-
-## Pipeline Variables
-
-| Variable Name         | Example Value                                                          | Description                                                                                         |
-|-----------------------|------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| **resourceGroup**     | `ResourceGroupName`                                                    | The name of the Resource Group that contains (or will contain) the Sentinel workspace.              |
-| **workspaceName**     | `LogAnalyticsWorkspaceName`                                            | The name of the Sentinel workspace to which solutions and rules are deployed.                       |
-| **resourceGroup**     | `ResourceGroupName`                                                    | The name of the Resource Group that contains (or will contain) the Sentinel workspace.              |
-| **sentinelSolutions** | `"Azure Activity","Azure Key Vault","Azure Logic Apps","..."`          | A list of Sentinel solutions to deploy from the Content Hub.                                        |
-| **arSeverities**      | `"High","Medium","Low","Informational"`                                | List of severities to include when deploying analytics rules.                                       |
-
-
-### Example Usage in YAML
-
-```yaml
-variables:
-  azureSubscription: 'MSSPSentinelDeployments'
-
-stages:
-  - stage: EnableSentinelContentHub
-    displayName: 'Enable Sentinel Solutions and Configure Alert Rules'
-    dependsOn: DeployBicep
-    condition: succeeded()
-    jobs:
-      - job: EnableContentHub
-        displayName: 'Enable Sentinel Solutions and Alert Rules'
-        steps:
-          - task: AzurePowerShell@5
-            continueOnError: true
-            inputs:
-              azureSubscription: $(azureSubscription)
-              ScriptType: 'FilePath'
-              ScriptPath: '$(Build.SourcesDirectory)/Scripts/Set-SentinelContent.ps1'
-              ScriptArguments: >
-                -ResourceGroup '$(RESOURCEGROUP)' 
-                -Workspace '$(WORKSPACENAME)' 
-                -Region '$(REGION)' 
-                -Solutions $(SENTINELSOLUTIONS) 
-                -SeveritiesToInclude $(ARSEVERITIES) 
-                -IsGov 'false'
-              azurePowerShellVersion: 'LatestVersion'
-            displayName: "Sentinel Solution Deployment"
-```
-
-### How to Use the Script Locally
-
-1. Ensure you have the necessary Azure permissions to deploy Sentinel solutions and rules.
-2. Run the script with the required parameters:
-
-    ```powershell
-    .\Set-SentinelContent.ps1 `
-        -ResourceGroup "Security-RG" `
-        -Workspace "MySentinelWorkspace" `
-        -Region "EastUS" `
-        -Solutions "Syslog","Threat Intelligence" `
-        -SeveritiesToInclude "High","Medium","Low"
-    ```
-
-3. The script will:
-   - Fetch available Sentinel solutions and deploy them
-   - Deploy associated analytics rules for each solution based on selected severities
-   - Deploy workbooks that complement the solutions
-   - Handle errors gracefully with detailed status reporting
-
-### Advanced Parameter Usage
-
-For more granular control, you can use these additional parameters:
-
-```powershell
-.\Set-SentinelContent.ps1 `
-    -ResourceGroup "Security-RG" `
-    -Workspace "MySentinelWorkspace" `
-    -Region "EastUS" `
-    -Solutions "Syslog","Threat Intelligence" `
-    -SeveritiesToInclude "High","Medium","Low" `
-    -ForceSolutionUpdate `            # Force update of already installed solutions
-    -SkipSolutionUpdates `            # Skip solutions that need updates
-    -ForceRuleDeployment `            # Deploy rules for already installed solutions
-    -SkipRuleUpdates `                # Skip rule updates
-    -ForceWorkbookDeployment          # Force redeployment of existing workbooks
-```
-
 ## Known Limitations
 
-- Some solutions may require additional permissions to deploy.
-- If a rule depends on a missing table or column, it will be skipped with a warning.
-- Deprecated rules will not be deployed.
-- Ensure that the necessary Azure authentication is in place before execution.
+- Solutions requiring specific permissions or prerequisites may need additional configuration
+- Analytics rules referencing tables/columns not present in your environment will be skipped
+- Deprecated rules are skipped by design to prevent deploying outdated content
+- Authentication context is required before running the script (Connect-AzAccount or equivalent)
+- Some workbooks may have dependencies on specific data sources being configured
+
+## How It Works
+
+The script follows a structured deployment process:
+
+1. **Authentication and Setup**:
+   - Validates Azure authentication
+   - Sets up the environment based on parameters
+   - Determines the appropriate API endpoints for Commercial or Government cloud
+
+2. **Solution Deployment**:
+   - Retrieves available solutions from the Content Hub
+   - Checks which solutions are installed vs. need installation
+   - Deploys or updates solutions based on parameters
+
+3. **Analytics Rule Deployment**:
+   - Fetches rule templates for deployed solutions
+   - Filters rules by severity
+   - Checks rule status using the testing framework
+   - Deploys missing rules and updates outdated ones
+
+4. **Workbook Deployment**:
+   - Retrieves workbook templates for deployed solutions
+   - Tests workbook status using the testing framework
+   - Deploys, updates, or skips workbooks based on parameters
+
+5. **Status Reporting**:
+   - Provides detailed deployment summaries for each resource type
+   - Color-codes output for easy status identification
 
 ## Conclusion
 
-The updated Sentinel deployment script is now more reliable, efficient, and resilient. With improved code organization, better error handling, and a consistent status reporting framework, it provides a smoother deployment experience across various environments. The script follows PowerShell best practices with professional documentation and intuitive parameter naming.
-
-🚀 Upgrade now and streamline your Sentinel deployments!
+This Microsoft Sentinel deployment script provides a reliable, efficient, and flexible way to automate the deployment of Sentinel resources. With its comprehensive approach to handling solutions, rules, and workbooks, it significantly reduces the manual effort required to set up and maintain a Sentinel environment, while providing granular control over the deployment process.
