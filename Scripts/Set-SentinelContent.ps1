@@ -703,7 +703,7 @@ function Deploy-AnalyticalRules {
                     continue
                 }
                 "Missing" {
-                    Write-Host "🚀 Deploying new Analytical Rule: $($ruleStatus.DisplayName)" -ForegroundColor Cyan
+                    #Write-Host "🚀 Deploying new Analytical Rule: $($ruleStatus.DisplayName)" -ForegroundColor Cyan
                     $rulesToDeploy += [PSCustomObject]@{
                         Template = $template
                         DisplayName = $ruleStatus.DisplayName
