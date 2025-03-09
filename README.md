@@ -91,6 +91,15 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## Support the Project
+
+If you've found Sentinel-As-Code useful, consider buying me a coffee! Your support helps maintain this project and develop new features.
+
+<a href="https://www.buymeacoffee.com/noodlemctwoodle" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
+While donations are appreciated, they're entirely optional. The best way to contribute is by submitting issues, suggesting improvements, or contributing code!
+Note: All donations will be reinvested into development time and improving this project.
+
 ## License
 
 This project is licensed under the MIT License.
