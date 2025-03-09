@@ -1,0 +1,136 @@
+name: Deploy Sentinel-As-Code
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  RESOURCEGROUP: ${{ vars.RESOURCEGROUP }}
+  WORKSPACENAME: ${{ vars.WORKSPACENAME }}
+  REGION: ${{ vars.REGION }}
+  DAILYQUOTA: ${{ vars.DAILYQUOTA }}
+  SENTINELSOLUTIONS: ${{ vars.SENTINELSOLUTIONS }}
+  ARSEVERITIES: ${{ vars.ARSEVERITIES }}
+
+jobs:
+  # =================================================================================
+  # Job: CheckExistingResources
+  # This job checks whether Microsoft Sentinel resources already exist.
+  # If resources are found, the Bicep deployment will be skipped in the next job.
+  # =================================================================================
+  CheckExistingResources:
+    name: Check if Sentinel Resources Exist
+    runs-on: ubuntu-latest
+    outputs:
+      RESOURCES_EXIST: ${{ steps.check_resources.outputs.RESOURCES_EXIST }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Check for Existing Resources in Resource Group
+        id: check_resources
+        uses: azure/powershell@v1
+        with:
+          inlineScript: |
+            Write-Output "Checking if Sentinel resources already exist in Resource Group: $env:RESOURCEGROUP..."
+            
+            # Define variables
+            $resourceGroupName = "$env:RESOURCEGROUP"
+            $workspaceName = "$env:WORKSPACENAME"
+            $resourcesExist = "false"
+            
+            # Check if the Log Analytics Workspace exists
+            $law = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $workspaceName -ErrorAction SilentlyContinue
+            if ($law) {
+                Write-Output "Log Analytics Workspace ($workspaceName) found."
+                $resourcesExist = "true"
+            } else {
+                Write-Output "Log Analytics Workspace ($workspaceName) not found."
+            }
+            
+            # Set an output variable based on resource existence
+            Write-Output "Setting RESOURCES_EXIST to: $resourcesExist"
+            Write-Output "::set-output name=RESOURCES_EXIST::$resourcesExist"
+          azPSVersion: 'latest'
+
+  # ========================================================================================================
+  # Job: DeployBicep
+  # This job deploys the Microsoft Sentinel infrastructure using a Bicep template.
+  # If the CheckExistingResources job confirms that resources already exist, this job will be skipped.
+  # ========================================================================================================
+  DeployBicep:
+    name: Deploy Microsoft Sentinel Infrastructure via Bicep
+    needs: CheckExistingResources
+    if: ${{ needs.CheckExistingResources.outputs.RESOURCES_EXIST == 'false' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Install Bicep CLI
+        run: |
+          # Download the Bicep installer
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          # Make it executable
+          chmod +x ./bicep
+          # Add bicep to PATH
+          sudo mv ./bicep /usr/local/bin/bicep
+          # Verify installation
+          bicep --version
+          
+      - name: Deploy Sentinel Infrastructure with Bicep Template
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            echo "Starting Bicep Deployment..."
+            az deployment sub create \
+              --location '${{ env.REGION }}' \
+              --template-file Bicep/main.bicep \
+              --parameters rgLocation='${{ env.REGION }}' rgName='${{ env.RESOURCEGROUP }}' lawName='${{ env.WORKSPACENAME }}' dailyQuota='${{ env.DAILYQUOTA }}'
+
+  # ==========================================================================================
+  # Job: EnableSentinelContentHub
+  # This job enables Sentinel solutions and configures alert rules.
+  # It will always run, regardless of whether the Bicep deployment was skipped or executed.
+  # ==========================================================================================
+  EnableSentinelContentHub:
+    name: Enable Sentinel Solutions and Configure Alert Rules
+    needs: [CheckExistingResources, DeployBicep]
+    if: ${{ always() }}  # Ensures this job runs even if DeployBicep is skipped
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Enable Sentinel Solutions and Alert Rules
+        uses: azure/powershell@v1
+        with:
+          inlineScript: |
+            & "${{ github.workspace }}/Scripts/Set-SentinelContent.ps1" `
+              -ResourceGroup '${{ env.RESOURCEGROUP }}' `
+              -Workspace '${{ env.WORKSPACENAME }}' `
+              -Region '${{ env.REGION }}' `
+              -Solutions ${{ env.SENTINELSOLUTIONS }} `
+              -SeveritiesToInclude ${{ env.ARSEVERITIES }} `
+              -IsGov 'false'
+          azPSVersion: 'latest'
+          errorActionPreference: 'continue'  # Equivalent to continueOnError
