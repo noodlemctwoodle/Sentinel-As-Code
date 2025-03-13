@@ -47,9 +47,19 @@ The pipeline consists of three main stages:
 ## Setup Instructions
 
 ### Prerequisites
+
 - Azure subscription
 - Azure DevOps organization and project
 - Service Principal with contributor permissions
+
+### Subscription Resource Providers
+
+`Required Subscription Resource Providers`
+
+To deploy this solution, you must enable the following Resource Providers in your subscription:
+
+- Microsoft.OperationsManagement
+- Microsoft.SecurityInsights
 
 ### Configuration Steps
 
