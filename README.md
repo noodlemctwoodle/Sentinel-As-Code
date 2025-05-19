@@ -2,11 +2,14 @@
 
 ## Overview
 
-This repository provides a complete CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines. It combines infrastructure-as-code (Bicep) for resource provisioning with PowerShell automation for deploying Sentinel solutions, analytics rules, and workbooks.
+This repository provides a complete CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines or GitHub Actions workflows. It combines infrastructure-as-code (Bicep) for resource provisioning with PowerShell automation for deploying Sentinel solutions, analytics rules, and workbooks.
 
 ## Repository Structure
 
 ```
+├── .github/                 # GitHub specific configuration
+│   └── workflows/           # GitHub Actions workflows
+│       └── deploy-sentinel.yml # GitHub Actions workflow for Sentinel deployment
 ├── Bicep/                   # Bicep templates for infrastructure
 │   ├── main.bicep           # Main deployment template
 │   └── sentinel.bicep       # Sentinel-specific resources
@@ -23,7 +26,7 @@ This repository provides a complete CI/CD solution for deploying Microsoft Senti
 - **Infrastructure as Code**: Bicep templates for consistent infrastructure provisioning
 - **Content Automation**: PowerShell scripts for deploying Sentinel solutions, rules, and workbooks
 - **Resource Verification**: Checks for existing resources to prevent duplicate deployments
-- **CI/CD Integration**: Ready-to-use Azure DevOps pipeline configuration
+- **CI/CD Integration**: Ready-to-use Azure DevOps pipeline and GitHub Actions workflow configurations
 
 ## Pipeline Workflow
 
@@ -49,7 +52,9 @@ The pipeline consists of three main stages:
 ### Prerequisites
 
 - Azure subscription
-- Azure DevOps organization and project
+- Either:
+  - Azure DevOps organization and project, or
+  - GitHub repository with Actions enabled
 - Service Principal with contributor permissions
 
 ### Subscription Resource Providers
@@ -62,6 +67,8 @@ To deploy this solution, you must enable the following Resource Providers in you
 - Microsoft.SecurityInsights
 
 ### Configuration Steps
+
+#### Option 1: Azure DevOps
 
 1. **Import Repository**
    - Clone or import this repository into your Azure DevOps project
@@ -83,6 +90,36 @@ To deploy this solution, you must enable the following Resource Providers in you
 
 4. **Run the Pipeline**
    - The pipeline will automatically:
+     - Check for existing resources
+     - Deploy infrastructure if needed
+     - Deploy Sentinel solutions and content
+
+#### Option 2: GitHub Actions
+
+1. **Import Repository**
+   - Fork or clone this repository into your GitHub account
+
+2. **Configure GitHub Secrets**
+   - Add the following secrets to your GitHub repository:
+     ```
+     AZURE_CLIENT_ID: "YourServicePrincipalClientID"
+     AZURE_TENANT_ID: "YourAzureTenantID"
+     AZURE_SUBSCRIPTION_ID: "YourAzureSubscriptionID"
+     AZURE_RESOURCE_GROUP: "YourResourceGroupName"
+     AZURE_WORKSPACE_NAME: "YourWorkspaceName"
+     AZURE_REGION: "YourAzureRegion"
+     AZURE_DAILY_QUOTA: "10"
+     AZURE_SENTINEL_SOLUTIONS: '"Azure Activity","Microsoft 365","Threat Intelligence"'
+     AZURE_AR_SEVERITIES: '"High","Medium","Low"'
+     ```
+
+3. **Set Up Azure Authentication**
+   - Create a service principal with contributor permissions
+   - Configure the service principal credentials as GitHub secrets
+
+4. **Run the Workflow**
+   - Manually trigger the workflow from the Actions tab in your repository
+   - The workflow will automatically:
      - Check for existing resources
      - Deploy infrastructure if needed
      - Deploy Sentinel solutions and content
