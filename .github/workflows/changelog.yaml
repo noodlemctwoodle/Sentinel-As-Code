@@ -116,9 +116,9 @@ jobs:
             # Update existing changelog
             if grep -q "## \[Unreleased\]" CHANGELOG.md; then
               # Add to existing Unreleased section
-              sed -i "/## \[Unreleased\]/a\\
-\\
-$ENTRY" CHANGELOG.md
+              # Create temp file with new entry
+              awk '/## \[Unreleased\]/ {print; print ""; print "'"$ENTRY"'"; next} 1' CHANGELOG.md > CHANGELOG_TMP.md
+              mv CHANGELOG_TMP.md CHANGELOG.md
             else
               # Create new Unreleased section at the top
               {
