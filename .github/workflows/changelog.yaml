@@ -9,7 +9,7 @@ name: Update Changelog on PR Merge
 on:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   update-changelog:
@@ -138,7 +138,7 @@ $ENTRY" CHANGELOG.md
             fi
           else
             # Create new changelog
-            cat > CHANGELOG.md << EOF
+            cat > CHANGELOG.md << 'EOF'
           # Changelog
           
           All notable changes to **OmniFetch** will be documented in this file.
@@ -148,8 +148,8 @@ $ENTRY" CHANGELOG.md
           
           ## [Unreleased]
           
-          $ENTRY
           EOF
+            echo "$ENTRY" >> CHANGELOG.md
           fi
 
       - name: Commit Changes
