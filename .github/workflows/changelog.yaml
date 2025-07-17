@@ -114,8 +114,6 @@ jobs:
           
           if [ "${{ steps.changelog-check.outputs.EXISTS }}" = "true" ]; then
             # Update existing changelog
-            
-            # Check if there's already an "Unreleased" section
             if grep -q "## \[Unreleased\]" CHANGELOG.md; then
               # Add to existing Unreleased section
               sed -i "/## \[Unreleased\]/a\\
@@ -138,17 +136,15 @@ $ENTRY" CHANGELOG.md
             fi
           else
             # Create new changelog
-            cat > CHANGELOG.md << 'EOF'
-          # Changelog
-          
-          All notable changes to **OmniFetch** will be documented in this file.
-          
-          The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-          and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-          
-          ## [Unreleased]
-          
-          EOF
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "All notable changes to **OmniFetch** will be documented in this file." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> CHANGELOG.md
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "## [Unreleased]" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
             echo "$ENTRY" >> CHANGELOG.md
           fi
 
