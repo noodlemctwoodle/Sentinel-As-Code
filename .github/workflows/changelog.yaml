@@ -1,0 +1,186 @@
+#
+# OmniFetch/.github/workflows/changelog.yml
+#
+# Created by Toby G on 17/07/2025.
+#
+
+name: Update Changelog on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  update-changelog:
+    name: Update CHANGELOG.md
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    
+    permissions:
+      contents: write
+      pull-requests: read
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Get PR Information
+        id: pr-info
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ', ') }}"
+          MERGE_DATE=$(date '+%Y-%m-%d')
+          
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "PR_AUTHOR=$PR_AUTHOR" >> $GITHUB_OUTPUT
+          echo "PR_URL=$PR_URL" >> $GITHUB_OUTPUT
+          echo "PR_LABELS=$PR_LABELS" >> $GITHUB_OUTPUT
+          echo "MERGE_DATE=$MERGE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Determine Change Category
+        id: category
+        run: |
+          LABELS="${{ steps.pr-info.outputs.PR_LABELS }}"
+          CATEGORY="Changed"
+          EMOJI="🔄"
+          
+          # Categorize based on labels
+          if [[ "$LABELS" == *"feature"* ]] || [[ "$LABELS" == *"enhancement"* ]]; then
+            CATEGORY="Added"
+            EMOJI="✨"
+          elif [[ "$LABELS" == *"bug"* ]] || [[ "$LABELS" == *"fix"* ]]; then
+            CATEGORY="Fixed"
+            EMOJI="🐛"
+          elif [[ "$LABELS" == *"breaking"* ]] || [[ "$LABELS" == *"breaking-change"* ]]; then
+            CATEGORY="Breaking Changes"
+            EMOJI="💥"
+          elif [[ "$LABELS" == *"security"* ]]; then
+            CATEGORY="Security"
+            EMOJI="🔒"
+          elif [[ "$LABELS" == *"performance"* ]] || [[ "$LABELS" == *"optimization"* ]]; then
+            CATEGORY="Performance"
+            EMOJI="⚡"
+          elif [[ "$LABELS" == *"docs"* ]] || [[ "$LABELS" == *"documentation"* ]]; then
+            CATEGORY="Documentation"
+            EMOJI="📚"
+          elif [[ "$LABELS" == *"refactor"* ]]; then
+            CATEGORY="Refactored"
+            EMOJI="♻️"
+          elif [[ "$LABELS" == *"dependency"* ]] || [[ "$LABELS" == *"dependencies"* ]]; then
+            CATEGORY="Dependencies"
+            EMOJI="📦"
+          fi
+          
+          echo "CATEGORY=$CATEGORY" >> $GITHUB_OUTPUT
+          echo "EMOJI=$EMOJI" >> $GITHUB_OUTPUT
+
+      - name: Check for Existing Changelog
+        id: changelog-check
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Changelog Entry
+        id: changelog-entry
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.PR_NUMBER }}"
+          PR_TITLE="${{ steps.pr-info.outputs.PR_TITLE }}"
+          PR_AUTHOR="${{ steps.pr-info.outputs.PR_AUTHOR }}"
+          PR_URL="${{ steps.pr-info.outputs.PR_URL }}"
+          CATEGORY="${{ steps.category.outputs.CATEGORY }}"
+          EMOJI="${{ steps.category.outputs.EMOJI }}"
+          MERGE_DATE="${{ steps.pr-info.outputs.MERGE_DATE }}"
+          
+          # Create changelog entry
+          ENTRY="- $EMOJI **$CATEGORY**: $PR_TITLE ([#$PR_NUMBER]($PR_URL)) by @$PR_AUTHOR"
+          
+          echo "ENTRY=$ENTRY" >> $GITHUB_OUTPUT
+
+      - name: Update or Create Changelog
+        run: |
+          ENTRY="${{ steps.changelog-entry.outputs.ENTRY }}"
+          MERGE_DATE="${{ steps.pr-info.outputs.MERGE_DATE }}"
+          
+          if [ "${{ steps.changelog-check.outputs.EXISTS }}" = "true" ]; then
+            # Update existing changelog
+            
+            # Check if there's already an "Unreleased" section
+            if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+              # Add to existing Unreleased section
+              sed -i "/## \[Unreleased\]/a\\
+\\
+$ENTRY" CHANGELOG.md
+            else
+              # Create new Unreleased section at the top
+              {
+                echo "# Changelog"
+                echo ""
+                echo "All notable changes to OmniFetch will be documented in this file."
+                echo ""
+                echo "## [Unreleased]"
+                echo ""
+                echo "$ENTRY"
+                echo ""
+                tail -n +1 CHANGELOG.md | grep -v "^# Changelog" | tail -n +4
+              } > CHANGELOG_NEW.md
+              mv CHANGELOG_NEW.md CHANGELOG.md
+            fi
+          else
+            # Create new changelog
+            cat > CHANGELOG.md << EOF
+          # Changelog
+          
+          All notable changes to **OmniFetch** will be documented in this file.
+          
+          The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+          and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+          
+          ## [Unreleased]
+          
+          $ENTRY
+          EOF
+          fi
+
+      - name: Commit Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet CHANGELOG.md; then
+            echo "No changes to commit"
+          else
+            git add CHANGELOG.md
+            git commit -m "📝 Update CHANGELOG.md - Add PR #${{ steps.pr-info.outputs.PR_NUMBER }}"
+            git push
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const entry = `${{ steps.changelog-entry.outputs.ENTRY }}`;
+            const category = `${{ steps.category.outputs.CATEGORY }}`;
+            
+            await github.rest.issues.createComment({
+              issue_number: ${{ github.event.pull_request.number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🎉 **Changelog Updated!**
+              
+              This PR has been automatically added to the changelog under **${category}**:
+              
+              ${entry}
+              
+              The changelog has been updated in \`CHANGELOG.md\`.`
+            });
