@@ -8,6 +8,9 @@ on:
 jobs:
   EnableSentinelContentHub:
     name: Enable Sentinel Solutions and Configure Alert Rules
+    permissions:
+      contents: write
+      id-token: write
     runs-on: ubuntu-latest
     
     steps:
@@ -33,9 +36,9 @@ jobs:
           inlineScript: |
             & "${{ github.workspace }}/Scripts/Set-SentinelContent.ps1" `
               -ResourceGroup '${{ vars.RESOURCE_GROUP }}' `
-              -Workspace '${{ vars.WORKSPACENAME }}' `
+              -Workspace '${{ vars.WORKSPACE_NAME }}' `
               -Region '${{ vars.REGION }}' `
-              -Solutions ${{ vars.SENTINELSOLUTIONS }} `
-              -SeveritiesToInclude ${{ vars.ARSEVERITIES }} `
+              -Solutions ${{ vars.SENTINEL_SOLUTIONS }} `
+              -SeveritiesToInclude ${{ vars.AR_SEVERITIES }} `
               -IsGov 'false'
           azPSVersion: 'latest'
