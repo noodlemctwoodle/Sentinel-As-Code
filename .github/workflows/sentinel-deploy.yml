@@ -6,102 +6,8 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
-  # =================================================================================
-  # Job: CheckExistingResources
-  # This job checks whether Microsoft Sentinel resources already exist.
-  # If resources are found, the Bicep deployment will be skipped in the next job.
-  # =================================================================================
-  CheckExistingResources:
-    name: Check if Sentinel Resources Exist
-    runs-on: ubuntu-latest
-    outputs:
-      RESOURCES_EXIST: ${{ steps.check_resources.outputs.RESOURCES_EXIST }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Login to Azure (Attempt 1)
-        continue-on-error: true
-        id: login1
-        uses: azure/login@v2
-        with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID}}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
-
-      - name: Wait 30 seconds if login attempt 1 failed
-        if: ${{ steps.login1.outcome=='failure' }}
-        run: powershell Start-Sleep -s 30
-
-      - name: Login to Azure (Attempt 2)
-        continue-on-error: true
-        id: login2
-        uses: azure/login@v2
-        if: ${{ steps.login1.outcome=='failure' }}
-        with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID }}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
-
-      - name: Wait 30 seconds if login attempt 2 failed
-        if: ${{ steps.login2.outcome=='failure' }}
-        run: powershell Start-Sleep -s 30
-
-      - name: Login to Azure (Attempt 3)
-        continue-on-error: false
-        id: login3
-        uses: azure/login@v2
-        if: ${{ steps.login2.outcome=='failure'  }}
-        with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID }}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
-          
-      - name: Check for Existing Resources in Resource Group
-        id: check_resources
-        uses: azure/powershell@v1
-        with:
-          inlineScript: |
-            Write-Output "Checking if Sentinel resources already exist in Resource Group: $env:RESOURCE_GROUP..."
-            
-            # Define variables
-            $resourceGroupName = "${{ vars.RESOURCE_GROUP }}"
-            $workspaceName = "${{ vars.WORKSPACENAME }}"
-            $resourcesExist = "false"
-            
-            # Check if the Log Analytics Workspace exists
-            $law = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $workspaceName -ErrorAction SilentlyContinue
-            if ($law) {
-                Write-Output "Log Analytics Workspace ($workspaceName) found."
-                $resourcesExist = "true"
-            } else {
-                Write-Output "Log Analytics Workspace ($workspaceName) not found."
-            }
-            
-            # Set an output variable based on resource existence
-            Write-Output "Setting RESOURCES_EXIST to: $resourcesExist"
-            echo "RESOURCES_EXIST=$resourcesExist" >> $env:GITHUB_OUTPUT
-          azPSVersion: 'latest'
-
-  # ==========================================================================================
-  # Job: EnableSentinelContentHub
-  # This job enables Sentinel solutions and configures alert rules.
-  # It will always run, regardless of whether the Bicep deployment was skipped or executed.
-  # ==========================================================================================
   EnableSentinelContentHub:
     name: Enable Sentinel Solutions and Configure Alert Rules
-    needs: [CheckExistingResources]
-    if: ${{ always() }}  # Ensures this job runs even if DeployBicep is skipped
     runs-on: ubuntu-latest
     
     steps:
@@ -113,46 +19,12 @@ jobs:
         id: login1
         uses: azure/login@v2
         with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID}}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
-
-      - name: Wait 30 seconds if login attempt 1 failed
-        if: ${{ steps.login1.outcome=='failure' }}
-        run: powershell Start-Sleep -s 30
-
-      - name: Login to Azure (Attempt 2)
-        continue-on-error: true
-        id: login2
-        uses: azure/login@v2
-        if: ${{ steps.login1.outcome=='failure' }}
-        with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID }}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
-
-      - name: Wait 30 seconds if login attempt 2 failed
-        if: ${{ steps.login2.outcome=='failure' }}
-        run: powershell Start-Sleep -s 30
-
-      - name: Login to Azure (Attempt 3)
-        continue-on-error: false
-        id: login3
-        uses: azure/login@v2
-        if: ${{ steps.login2.outcome=='failure'  }}
-        with:
-            client-id: ${{ secrets.SENTINEL_CLIENTID }}
-            tenant-id: ${{ secrets.SENTINEL_TENANTID }}
-            subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-            environment: 'AzureCloud'
-            audience: api://AzureADTokenExchange
-            enable-AzPSSession: true
+          client-id: ${{ secrets.SENTINEL_CLIENTID }}
+          tenant-id: ${{ secrets.SENTINEL_TENANTID}}
+          subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
+          environment: 'AzureCloud'
+          audience: api://AzureADTokenExchange
+          enable-AzPSSession: true
           
       - name: Enable Sentinel Solutions and Alert Rules
         uses: azure/powershell@v1
