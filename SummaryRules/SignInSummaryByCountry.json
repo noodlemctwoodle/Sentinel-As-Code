@@ -1,0 +1,8 @@
+{
+  "name": "SignInSummaryByCountry",
+  "displayName": "Sign-in summary by country",
+  "description": "Hourly aggregation of successful and failed sign-ins by country and application for cost-effective trend analysis.",
+  "query": "SigninLogs\n| summarize SuccessCount = countif(ResultType == 0), FailureCount = countif(ResultType != 0), DistinctUsers = dcount(UserPrincipalName) by Location = tostring(LocationDetails.countryOrRegion), AppDisplayName",
+  "binSize": 60,
+  "destinationTable": "SignInSummaryByCountry_CL"
+}

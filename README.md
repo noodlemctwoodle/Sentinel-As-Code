@@ -1,95 +1,152 @@
-# Sentinel-Deployment-CI
+# Sentinel-As-Code
 
 ## Overview
 
-This repository provides a complete CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines. It combines infrastructure-as-code (Bicep) for resource provisioning with PowerShell automation for deploying Sentinel solutions, analytics rules, and workbooks.
+This repository provides a complete end-to-end CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines or GitHub Actions. Starting from an empty subscription, the pipeline provisions all required infrastructure via Bicep, deploys Content Hub solutions (the source of truth for out-of-the-box content), deploys custom content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploys Defender XDR custom detection rules — all from a single repo.
 
 ## Repository Structure
 
 ```
-├── Bicep/                   # Bicep templates for infrastructure
-│   ├── main.bicep           # Main deployment template
-│   └── sentinel.bicep       # Sentinel-specific resources
-├── Scripts/                 # PowerShell automation scripts
-│   ├── README.md            # Documentation for Set-SentinelContent.ps1
-│   └── Set-SentinelContent.ps1  # Sentinel content deployment script
-├── README.md                # This file
-└── azure-pipelines.yml      # Azure DevOps pipeline definition
+├── .github/workflows/                  # GitHub Actions workflow
+│   └── sentinel-deploy.yml             # 5-stage deployment (OIDC auth)
+├── Archive/                            # Deprecated legacy files
+│   ├── azure-pipelines.yml             # Legacy pipeline (v1)
+│   └── Set-SentinelContent.ps1         # Legacy deployment script (v1)
+├── AutomationRules/                    # Custom automation rules (JSON)
+│   ├── README.md                       # Schema docs and action reference
+│   ├── AutoCloseInformational.json     # Example: auto-close informational incidents
+│   └── AddTaskOnHighSeverity.json      # Example: add task to high severity incidents
+├── Bicep/                              # Bicep templates for infrastructure
+│   ├── main.bicep                      # Main deployment template
+│   └── sentinel.bicep                  # Sentinel-specific resources
+├── DefenderDetections/                 # Defender XDR custom detection rules (YAML)
+│   ├── README.md                       # Schema docs and Graph API reference
+│   ├── Email/                          # Email detection rules
+│   │   └── PhishingLinkClickedByUser.yaml
+│   ├── Endpoint/                       # Endpoint detection rules
+│   │   ├── LateralMovementViaPsExec.yaml
+│   │   └── SuspiciousEncodedPowerShell.yaml
+│   └── Identity/                       # Identity detection rules
+│       └── BruteForceEntraIDAccounts.yaml
+├── Detections/                         # Custom Sentinel analytics rules (YAML)
+│   ├── README.md                       # Schema docs and export guide
+│   ├── Identity/                       # Rules organised by category
+│   │   └── AzurePortalBruteForce.yaml  # Scheduled: brute force detection
+│   └── PrivilegeEscalation/
+│       └── UserAddedToPrivilegedGroup.yaml
+├── HuntingQueries/                     # Custom hunting queries (YAML)
+│   ├── README.md                       # Schema docs and export guide
+│   ├── Identity/                       # Queries organised by category
+│   │   └── SuspiciousSignInFromNewCountry.yaml
+│   └── Persistence/
+│       └── NewServicePrincipalCredential.yaml
+├── Pipelines/                          # Azure DevOps pipeline definitions
+│   ├── README.md                       # Pipeline documentation
+│   └── Sentinel-Deploy.yml             # Deployment pipeline (5 stages)
+├── Playbooks/                          # Custom playbooks (ARM templates)
+│   └── README.md                       # ARM template docs and export guide
+├── Scripts/                            # PowerShell automation scripts
+│   ├── README.md                       # Script documentation
+│   ├── Deploy-SentinelContentHub.ps1   # Content Hub deployment script
+│   ├── Deploy-CustomContent.ps1        # Custom content deployment script
+│   └── Deploy-DefenderDetections.ps1   # Defender XDR detections deployment script
+├── SummaryRules/                       # Custom summary rules (JSON)
+│   ├── README.md                       # Schema docs and bin size reference
+│   ├── SignInSummaryByCountry.json     # Example: hourly sign-in aggregation
+│   └── SecurityAlertSummary.json       # Example: hourly alert aggregation
+├── Watchlists/                         # Custom watchlists (JSON + CSV)
+│   ├── README.md                       # Schema docs
+│   └── HighValueAssets/                # Example watchlist
+│       ├── watchlist.json              # Metadata definition
+│       └── data.csv                    # Watchlist data
+├── Workbooks/                          # Custom workbooks (gallery JSON)
+│   └── README.md                       # Workbook template docs
+└── README.md                           # This file
 ```
 
 ## Features
 
-- **Complete Sentinel Deployment**: Automate end-to-end deployment from infrastructure to content
-- **Infrastructure as Code**: Bicep templates for consistent infrastructure provisioning
-- **Content Automation**: PowerShell scripts for deploying Sentinel solutions, rules, and workbooks
-- **Resource Verification**: Checks for existing resources to prevent duplicate deployments
-- **CI/CD Integration**: Ready-to-use Azure DevOps pipeline configuration
+- **End-to-End Deployment**: Single pipeline provisions infrastructure via Bicep, deploys Content Hub content, custom Sentinel content, and Defender XDR custom detections
+- **Smart Infrastructure Checks**: Detects existing resources and skips Bicep deployment if infrastructure is already in place
+- **Content Hub Automation**: Deploy solutions, analytics rules, workbooks, automation rules, and hunting queries via REST API
+- **Custom Content Deployment**: Deploy custom detections (YAML), watchlists (JSON+CSV), playbooks (ARM), workbooks (gallery JSON), hunting queries (YAML), automation rules (JSON), and summary rules (JSON) from the repo
+- **Custom Hunting Queries**: Deploy YAML-based saved searches for proactive threat hunting
+- **Custom Automation Rules**: Deploy JSON-based automation rules for incident auto-response
+- **Summary Rules**: Deploy JSON-based summary rules to aggregate verbose log data into cost-effective summary tables
+- **Defender XDR Custom Detections**: Deploy Advanced Hunting-based custom detection rules to Defender XDR via the Graph Security API
+- **Customisation Protection**: Detect and skip locally modified analytics rules to preserve manual tuning
+- **Granular Content Control**: Toggle deployment of individual content types via pipeline parameters
+- **Dry Run Support**: Preview changes with `-WhatIf` before applying
+- **Azure Government Support**: Target both commercial and government cloud environments
 
-## Pipeline Workflow
-
-The pipeline consists of three main stages:
-
-1. **Check Existing Resources**: Verifies if Sentinel resources already exist in the target environment
-2. **Deploy Bicep**: Provisions infrastructure (skipped if resources already exist)
-3. **Enable Sentinel Content**: Deploys solutions, analytics rules, and workbooks
-
-## Pipeline Variables
-
-| Variable Name | Description |
-|---------------|-------------|
-| `resourceGroup` | Azure Resource Group name |
-| `workspaceName` | Log Analytics workspace name |
-| `region` | Azure region (e.g., uksouth) |
-| `dailyQuota` | Daily data ingestion quota in GB |
-| `sentinelSolutions` | Comma-separated list of Sentinel solutions to deploy |
-| `arSeverities` | Severity levels for analytics rules (High, Medium, Low, Informational) |
-
-## Setup Instructions
+## Quick Start
 
 ### Prerequisites
 
 - Azure subscription
-- Azure DevOps organization and project
-- Service Principal with contributor permissions
+- Azure DevOps organisation and project
+- Service Principal with the following roles:
 
-### Subscription Resource Providers
+| Role | Scope | Purpose |
+|------|-------|---------|
+| **Contributor** | Subscription | Resource group, workspace, and Bicep deployments |
+| **Microsoft Sentinel Contributor** | Subscription or Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules) |
+| **Log Analytics Contributor** | Subscription or Resource Group | Summary rule deployment *(Stage 4)* |
+| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional — see note)* |
+| **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
 
-`Required Subscription Resource Providers`
+> **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
 
-To deploy this solution, you must enable the following Resource Providers in your subscription:
+> **Note on Defender XDR Detections**: Stage 5 requires the `CustomDetection.ReadWrite.All` Microsoft Graph **application permission** on the service principal's app registration. Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph > Application permissions** and provide admin consent.
 
-- Microsoft.OperationsManagement
-- Microsoft.SecurityInsights
+> **Note**: Required resource providers (`Microsoft.OperationsManagement`, `Microsoft.SecurityInsights`) are registered automatically by the pipeline during infrastructure deployment.
 
-### Configuration Steps
+### Setup
 
-1. **Import Repository**
-   - Clone or import this repository into your Azure DevOps project
+1. **Import** this repository into your Azure DevOps project
 
-2. **Configure Pipeline Variables**
-   - Create a pipeline with the following variables:
-     ```
-     resourceGroup: "YourResourceGroupName"
-     workspaceName: "YourWorkspaceName"
-     region: "YourAzureRegion"
-     dailyQuota: "10"
-     sentinelSolutions: "Azure Activity","Microsoft 365","Threat Intelligence"
-     arSeverities: "High","Medium","Low"
-     ```
+2. **Create a variable group** named `sentinel-deployment` in **Pipelines > Library** with your desired resource names — the pipeline will create them if they don't exist. See the [Pipelines README](./Pipelines/README.md) for details
 
-3. **Set Up Service Connection**
-   - Create an Azure service connection named "DevelopmentDeployments" 
-   - Or update the `azureSubscription` variable in the pipeline YAML
+3. **Create a service connection** named `sc-sentinel-as-code` — see the [Pipelines README](./Pipelines/README.md) for role requirements
 
-4. **Run the Pipeline**
-   - The pipeline will automatically:
-     - Check for existing resources
-     - Deploy infrastructure if needed
-     - Deploy Sentinel solutions and content
+4. **Create a pipeline** in Azure DevOps pointing to `Pipelines/Sentinel-Deploy.yml`
 
-## Sentinel Content Deployment Script
+5. **Run the pipeline** — the pipeline will:
+   - Check if infrastructure already exists
+   - Deploy Bicep templates if needed (resource group, Log Analytics, Sentinel, UEBA)
+   - Deploy Content Hub solutions and content
+   - Deploy custom content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules)
+   - Deploy Defender XDR custom detection rules via Graph API
 
-The `Set-SentinelContent.ps1` script handles the deployment of Microsoft Sentinel content including solutions, analytics rules, and workbooks. For detailed information about the script's capabilities, parameters, and examples, refer to the [script README](./Scripts/README.md).
+## Documentation
+
+| Area | README | Covers |
+|------|--------|--------|
+| **Pipelines** | [Pipelines/README.md](./Pipelines/README.md) | Pipeline stages, variable group setup, all parameters, service connection, usage examples |
+| **Scripts** | [Scripts/README.md](./Scripts/README.md) | Script parameters, PowerShell usage examples, tested solutions, known limitations |
+| **Detections** | [Detections/README.md](./Detections/README.md) | YAML schema for custom analytics rules, required fields, export guide |
+| **Watchlists** | [Watchlists/README.md](./Watchlists/README.md) | Watchlist metadata schema, CSV format, KQL usage examples |
+| **Playbooks** | [Playbooks/README.md](./Playbooks/README.md) | ARM template requirements, managed identity, parameters file |
+| **Workbooks** | [Workbooks/README.md](./Workbooks/README.md) | Gallery template JSON format, stable GUIDs, export guide |
+| **Hunting Queries** | [HuntingQueries/README.md](./HuntingQueries/README.md) | YAML schema for hunting queries, required fields, export guide |
+| **Automation Rules** | [AutomationRules/README.md](./AutomationRules/README.md) | JSON schema for automation rules, action types, trigger conditions |
+| **Summary Rules** | [SummaryRules/README.md](./SummaryRules/README.md) | Summary rule JSON schema, bin sizes, KQL restrictions |
+| **Defender Detections** | [DefenderDetections/README.md](./DefenderDetections/README.md) | Defender XDR YAML schema, Graph API, response actions |
+
+## Infrastructure (Bicep)
+
+The `Bicep/` directory contains templates for provisioning Sentinel infrastructure, called by the pipeline's infrastructure stage:
+
+- **main.bicep**: Subscription-level deployment that creates the resource group and calls the Sentinel module
+- **sentinel.bicep**: Deploys and configures:
+  - Log Analytics workspace (configurable retention, daily quota, tags)
+  - Microsoft Sentinel onboarding
+  - Entity Analytics (Entra ID) — *requires Security Administrator Entra ID role*
+  - UEBA (AuditLogs, AzureActivity, SigninLogs, SecurityEvent) — *requires Security Administrator Entra ID role*
+  - Anomalies (built-in ML detection)
+  - EyesOn (SOC incident review)
+  - Workspace diagnostic settings (audit logs and metrics)
+  - Sentinel Health diagnostics (SentinelHealth and SentinelAudit tables)
 
 ## Contributing
 

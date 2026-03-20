@@ -1,0 +1,20 @@
+id: "d4e5f6a7-b8c9-4d0e-a1b2-c3d4e5f6a7b8"
+name: "Suspicious sign-in from new country"
+description: "Identifies users signing in from countries not seen in the last 14 days, which may indicate compromised credentials."
+query: |
+  let lookback = 14d;
+  let knownLocations = SigninLogs
+      | where TimeGenerated between (ago(lookback) .. ago(1d))
+      | where ResultType == 0
+      | summarize Countries = make_set(LocationDetails.countryOrRegion) by UserPrincipalName;
+  SigninLogs
+  | where TimeGenerated > ago(1d)
+  | where ResultType == 0
+  | extend Country = tostring(LocationDetails.countryOrRegion)
+  | join kind=inner knownLocations on UserPrincipalName
+  | where Countries !has Country
+  | project TimeGenerated, UserPrincipalName, Country, IPAddress, AppDisplayName, DeviceDetail
+tactics:
+  - InitialAccess
+techniques:
+  - T1078

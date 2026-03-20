@@ -1,0 +1,9 @@
+{
+  "name": "SecurityAlertSummary",
+  "displayName": "Security alert summary",
+  "description": "Hourly aggregation of security alerts by provider, severity, and status for SOC dashboard reporting.",
+  "query": "SecurityAlert\n| summarize AlertCount = count(), DistinctEntities = dcount(Entities) by AlertSeverity, ProviderName, Status, ProductName",
+  "binSize": 60,
+  "destinationTable": "SecurityAlertSummary_CL",
+  "binDelay": 10
+}

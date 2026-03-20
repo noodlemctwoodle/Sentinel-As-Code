@@ -1,0 +1,4 @@
+Hostname,IPAddress,Owner,Criticality,Environment
+DC01,10.0.0.10,Platform Team,Critical,Production
+SQL-PROD-01,10.0.1.50,DBA Team,Critical,Production
+PAYROLL-SRV,10.0.2.30,Finance IT,High,Production

@@ -414,6 +414,9 @@ function Connect-AzureEnvironment {
 
     Write-PipelineMessage "Establishing Azure authentication..." -Level Section
 
+    # Suppress Az module version upgrade warnings
+    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue | Out-Null
+
     $context = Get-AzContext
 
     if (-not $context) {

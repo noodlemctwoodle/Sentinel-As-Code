@@ -1,13 +1,13 @@
 # ---------------------------------------------------------------------------
-# Azure DevOps Pipeline: Deploy Microsoft Sentinel Content Hub Solutions
+# Azure DevOps Pipeline: Deploy Microsoft Sentinel Infrastructure & Content
 # ---------------------------------------------------------------------------
-# This pipeline deploys Content Hub solutions and their associated content
-# (Analytics Rules, Workbooks, Automation Rules, Hunting Queries) to a
-# Microsoft Sentinel workspace.
+# This pipeline provisions Sentinel infrastructure via Bicep (if needed) and
+# then deploys Content Hub solutions and their associated content (Analytics
+# Rules, Workbooks, Automation Rules, Hunting Queries) to the workspace.
 #
 # Prerequisites:
 #   - Azure Service Connection with Contributor + Microsoft Sentinel Contributor
-#     roles on the target Resource Group
+#     roles on the target Subscription / Resource Group
 #   - Az.Accounts PowerShell module (installed in pipeline)
 #
 # Usage:
@@ -26,58 +26,133 @@ schedules:
     always: false
 
 parameters:
+  # ── Stage Toggles ──────────────────────────────────────────────────────
+  - name: deployInfrastructure
+    displayName: "── Stage 1-2: Deploy Infrastructure (Bicep)"
+    type: boolean
+    default: true
+
+  - name: deployContentHub
+    displayName: "── Stage 3: Deploy Content Hub Solutions"
+    type: boolean
+    default: true
+
+  - name: deployCustomContent
+    displayName: "── Stage 4: Deploy Custom Content"
+    type: boolean
+    default: true
+
+  - name: deployDefenderDetections
+    displayName: "── Stage 5: Deploy Defender XDR Custom Detections"
+    type: boolean
+    default: true
+
+  # ── Infrastructure (Stage 2) ───────────────────────────────────────────
+  - name: dailyQuota
+    displayName: "  Bicep › Daily Quota (GB, 0 = unlimited)"
+    type: number
+    default: 0
+
+  - name: retentionInDays
+    displayName: "  Bicep › Interactive Retention (days, 30-730)"
+    type: number
+    default: 90
+
+  - name: totalRetentionInDays
+    displayName: "  Bicep › Total Retention incl. Archive (0 = same as interactive)"
+    type: number
+    default: 0
+
+  # ── Content Hub (Stage 3) ──────────────────────────────────────────────
   - name: solutions
-    displayName: "Content Hub Solutions (comma-separated)"
+    displayName: "  Content Hub › Solutions (comma-separated)"
     type: string
     default: "Microsoft Defender XDR,Azure Activity"
 
   - name: severitiesToInclude
-    displayName: "Analytics Rule Severities"
+    displayName: "  Content Hub › Analytics Rule Severities"
     type: string
     default: "High,Medium,Low,Informational"
 
   - name: disableRules
-    displayName: "Deploy Analytics Rules as Disabled"
+    displayName: "  Content Hub › Deploy Analytics Rules as Disabled"
     type: boolean
     default: true
 
   - name: protectCustomisedRules
-    displayName: "Protect Customised Rules from Overwrite"
+    displayName: "  Content Hub › Protect Customised Rules from Overwrite"
     type: boolean
     default: true
 
   - name: skipAnalyticsRules
-    displayName: "Skip Analytics Rule Deployment"
+    displayName: "  Content Hub › Skip Analytics Rules"
     type: boolean
     default: false
 
   - name: skipWorkbooks
-    displayName: "Skip Workbook Deployment"
+    displayName: "  Content Hub › Skip Workbooks"
     type: boolean
     default: false
 
   - name: skipAutomationRules
-    displayName: "Skip Automation Rule Deployment"
+    displayName: "  Content Hub › Skip Automation Rules"
     type: boolean
     default: false
 
   - name: skipHuntingQueries
-    displayName: "Skip Hunting Query Deployment"
+    displayName: "  Content Hub › Skip Hunting Queries"
     type: boolean
     default: false
 
   - name: forceSolutionUpdate
-    displayName: "Force Solution Update (even if current)"
+    displayName: "  Content Hub › Force Solution Update (even if current)"
     type: boolean
     default: false
 
   - name: forceContentDeployment
-    displayName: "Force Content Redeployment (even if current)"
+    displayName: "  Content Hub › Force Content Redeployment (even if current)"
     type: boolean
     default: false
 
+  # ── Custom Content (Stage 4) ───────────────────────────────────────────
+  - name: skipCustomDetections
+    displayName: "  Custom › Skip Detections (YAML)"
+    type: boolean
+    default: false
+
+  - name: skipCustomWatchlists
+    displayName: "  Custom › Skip Watchlists (JSON+CSV)"
+    type: boolean
+    default: false
+
+  - name: skipCustomPlaybooks
+    displayName: "  Custom › Skip Playbooks (ARM)"
+    type: boolean
+    default: false
+
+  - name: skipCustomWorkbooks
+    displayName: "  Custom › Skip Workbooks (Gallery JSON)"
+    type: boolean
+    default: false
+
+  - name: skipCustomHuntingQueries
+    displayName: "  Custom › Skip Hunting Queries (YAML)"
+    type: boolean
+    default: false
+
+  - name: skipCustomAutomationRules
+    displayName: "  Custom › Skip Automation Rules (JSON)"
+    type: boolean
+    default: false
+
+  - name: skipCustomSummaryRules
+    displayName: "  Custom › Skip Summary Rules (JSON)"
+    type: boolean
+    default: false
+
+  # ── General ────────────────────────────────────────────────────────────
   - name: whatIf
-    displayName: "Dry Run (no changes)"
+    displayName: "🔍 Dry Run — preview changes without applying"
     type: boolean
     default: false
 
@@ -88,7 +163,9 @@ variables:
                                      #   - sentinelWorkspaceName
                                      #   - sentinelRegion
   - name: serviceConnection
-    value: "Sentinel-As-Code"
+    value: "sc-sentinel-as-code"
+  - name: SuppressAzurePowerShellBreakingChangeWarnings
+    value: "true"
 
   # Map boolean parameters to switch flag strings at compile time.
   # Each resolves to either the switch name or an empty string.
@@ -140,6 +217,48 @@ variables:
     ${{ else }}:
       value: ""
 
+  - name: flagSkipCustomDetections
+    ${{ if eq(parameters.skipCustomDetections, true) }}:
+      value: "-SkipDetections"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomWatchlists
+    ${{ if eq(parameters.skipCustomWatchlists, true) }}:
+      value: "-SkipWatchlists"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomPlaybooks
+    ${{ if eq(parameters.skipCustomPlaybooks, true) }}:
+      value: "-SkipPlaybooks"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomWorkbooks
+    ${{ if eq(parameters.skipCustomWorkbooks, true) }}:
+      value: "-SkipWorkbooks"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomHuntingQueries
+    ${{ if eq(parameters.skipCustomHuntingQueries, true) }}:
+      value: "-SkipHuntingQueries"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomAutomationRules
+    ${{ if eq(parameters.skipCustomAutomationRules, true) }}:
+      value: "-SkipAutomationRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustomSummaryRules
+    ${{ if eq(parameters.skipCustomSummaryRules, true) }}:
+      value: "-SkipSummaryRules"
+    ${{ else }}:
+      value: ""
+
   - name: flagWhatIf
     ${{ if eq(parameters.whatIf, true) }}:
       value: "-WhatIf"
@@ -147,8 +266,137 @@ variables:
       value: ""
 
 stages:
-  - stage: Deploy
+  # =================================================================================
+  # Stage 1: Check Existing Resources
+  # Checks whether the Resource Group and Log Analytics Workspace already exist.
+  # Handles the case where the RG doesn't exist yet (greenfield deployment).
+  # If resources are found, the Bicep deployment stage is skipped.
+  # =================================================================================
+  - stage: CheckInfrastructure
+    displayName: "Check Existing Infrastructure"
+    condition: and(succeeded(), eq('${{ parameters.deployInfrastructure }}', 'True'))
+    jobs:
+      - job: CheckResources
+        displayName: "Verify Existing Sentinel Resources"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: AzurePowerShell@5
+            displayName: "Check for Existing Log Analytics Workspace"
+            name: CheckSentinelResources
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              pwsh: true
+              azurePowerShellVersion: LatestVersion
+              Inline: |
+                Write-Host "##[section]Checking for existing Sentinel infrastructure"
+                Write-Host "Resource Group: $(sentinelResourceGroup)"
+                Write-Host "Workspace: $(sentinelWorkspaceName)"
+
+                $resourcesExist = "false"
+
+                # First check if the Resource Group exists
+                $rg = Get-AzResourceGroup -Name "$(sentinelResourceGroup)" -ErrorAction SilentlyContinue
+                if (-not $rg) {
+                    Write-Host "Resource Group '$(sentinelResourceGroup)' not found — full Bicep deployment required."
+                } else {
+                    Write-Host "Resource Group '$(sentinelResourceGroup)' exists."
+
+                    # Check if the Log Analytics Workspace exists within the RG
+                    $law = Get-AzOperationalInsightsWorkspace `
+                        -ResourceGroupName "$(sentinelResourceGroup)" `
+                        -Name "$(sentinelWorkspaceName)" `
+                        -ErrorAction SilentlyContinue
+
+                    if ($law) {
+                        Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' already exists — skipping Bicep deployment."
+                        $resourcesExist = "true"
+                    } else {
+                        Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' not found — Bicep deployment required."
+                    }
+                }
+
+                echo "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
+
+  # =================================================================================
+  # Stage 2: Deploy Infrastructure (Bicep)
+  # Registers required resource providers, then provisions the Resource Group,
+  # Log Analytics Workspace, Sentinel, Entity Analytics, and UEBA.
+  # Skipped if the workspace already exists or if deployInfrastructure is false.
+  # =================================================================================
+  - stage: DeployInfrastructure
+    displayName: "Deploy Sentinel Infrastructure (Bicep)"
+    dependsOn: CheckInfrastructure
+    condition: |
+      and(
+        succeeded(),
+        eq('${{ parameters.deployInfrastructure }}', 'True'),
+        eq(dependencies.CheckInfrastructure.outputs['CheckResources.CheckSentinelResources.RESOURCES_EXIST'], 'false')
+      )
+    jobs:
+      - job: DeployBicep
+        displayName: "Deploy Bicep Templates"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: "Register Required Resource Providers"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                echo "##[section]Registering required resource providers"
+                az provider register --namespace Microsoft.OperationsManagement --wait
+                az provider register --namespace Microsoft.SecurityInsights --wait
+                echo "Resource providers registered successfully."
+
+          - task: AzureCLI@2
+            displayName: "Deploy Sentinel Infrastructure with Bicep"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                echo "##[section]Starting Bicep Deployment"
+                echo "Region: $(sentinelRegion)"
+                echo "Resource Group: $(sentinelResourceGroup)"
+                echo "Workspace: $(sentinelWorkspaceName)"
+                echo "Daily Quota: ${{ parameters.dailyQuota }} GB"
+                echo "Retention: ${{ parameters.retentionInDays }} days (interactive), ${{ parameters.totalRetentionInDays }} days (total)"
+
+                az deployment sub create \
+                  --location "$(sentinelRegion)" \
+                  --template-file Bicep/main.bicep \
+                  --parameters \
+                    rgLocation="$(sentinelRegion)" \
+                    rgName="$(sentinelResourceGroup)" \
+                    lawName="$(sentinelWorkspaceName)" \
+                    dailyQuota=${{ parameters.dailyQuota }} \
+                    retentionInDays=${{ parameters.retentionInDays }} \
+                    totalRetentionInDays=${{ parameters.totalRetentionInDays }}
+
+  # =================================================================================
+  # Stage 3: Deploy Content Hub
+  # Deploys Content Hub solutions and their associated content. Runs regardless of
+  # whether infrastructure was deployed or already existed.
+  # =================================================================================
+  - stage: DeployContentHub
     displayName: "Deploy Sentinel Content Hub"
+    dependsOn:
+      - CheckInfrastructure
+      - DeployInfrastructure
+    condition: |
+      and(
+        eq('${{ parameters.deployContentHub }}', 'True'),
+        or(
+          eq('${{ parameters.deployInfrastructure }}', 'False'),
+          in(dependencies.DeployInfrastructure.result, 'Succeeded', 'Skipped')
+        )
+      )
     jobs:
       - job: DeployContent
         displayName: "Deploy Solutions and Content"
@@ -194,7 +442,136 @@ stages:
                 Write-Host "Solutions: $($solutionList -join ', ')"
                 Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
 
-                & "$(Build.SourcesDirectory)/scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+                & "$(Build.SourcesDirectory)/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              errorActionPreference: "Continue"
+
+  # =================================================================================
+  # Stage 4: Deploy Custom Content
+  # Deploys custom Detections (YAML), Watchlists (JSON+CSV), Playbooks (ARM),
+  # Workbooks (gallery JSON), Hunting Queries (YAML), Automation Rules (JSON),
+  # and Summary Rules (JSON) from the repo to the Sentinel workspace.
+  # =================================================================================
+  - stage: DeployCustomContent
+    displayName: "Deploy Custom Content"
+    dependsOn:
+      - CheckInfrastructure
+      - DeployInfrastructure
+      - DeployContentHub
+    condition: |
+      and(
+        eq('${{ parameters.deployCustomContent }}', 'True'),
+        or(
+          eq('${{ parameters.deployInfrastructure }}', 'False'),
+          in(dependencies.DeployContentHub.result, 'Succeeded', 'Skipped')
+        )
+      )
+    jobs:
+      - job: DeployCustom
+        displayName: "Deploy Custom Sentinel Content"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 60
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Install powershell-yaml Module"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                Write-Host "##[section]Installing powershell-yaml module"
+                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                Write-Host "powershell-yaml installed successfully."
+
+          - task: AzurePowerShell@5
+            displayName: "Deploy Custom Content"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              Inline: |
+                $scriptParams = @{
+                    SubscriptionId = "$(azureSubscriptionId)"
+                    ResourceGroup  = "$(sentinelResourceGroup)"
+                    Workspace      = "$(sentinelWorkspaceName)"
+                    Region         = "$(sentinelRegion)"
+                    BasePath       = "$(Build.SourcesDirectory)"
+                }
+
+                if ("$(flagSkipCustomDetections)")       { $scriptParams['SkipDetections']      = $true }
+                if ("$(flagSkipCustomWatchlists)")      { $scriptParams['SkipWatchlists']     = $true }
+                if ("$(flagSkipCustomPlaybooks)")       { $scriptParams['SkipPlaybooks']      = $true }
+                if ("$(flagSkipCustomWorkbooks)")       { $scriptParams['SkipWorkbooks']      = $true }
+                if ("$(flagSkipCustomHuntingQueries)")  { $scriptParams['SkipHuntingQueries'] = $true }
+                if ("$(flagSkipCustomAutomationRules)") { $scriptParams['SkipAutomationRules']= $true }
+                if ("$(flagSkipCustomSummaryRules)")    { $scriptParams['SkipSummaryRules']   = $true }
+                if ("$(flagWhatIf)")                    { $scriptParams['WhatIf']             = $true }
+
+                Write-Host "##[section]Launching Custom Content Deployment"
+                Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
+
+                & "$(Build.SourcesDirectory)/Scripts/Deploy-CustomContent.ps1" @scriptParams
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              errorActionPreference: "Continue"
+
+  # =================================================================================
+  # Stage 5: Deploy Defender XDR Custom Detections
+  # Deploys custom detection rules to the Microsoft Defender XDR platform via the
+  # Microsoft Graph Security API. Rules are defined as YAML files in DefenderDetections/.
+  # Requires CustomDetection.ReadWrite.All Graph application permission.
+  # =================================================================================
+  - stage: DeployDefenderDetections
+    displayName: "Deploy Defender XDR Custom Detections"
+    dependsOn:
+      - CheckInfrastructure
+      - DeployInfrastructure
+      - DeployContentHub
+      - DeployCustomContent
+    condition: |
+      and(
+        eq('${{ parameters.deployDefenderDetections }}', 'True'),
+        or(
+          eq('${{ parameters.deployCustomContent }}', 'False'),
+          in(dependencies.DeployCustomContent.result, 'Succeeded', 'Skipped')
+        )
+      )
+    jobs:
+      - job: DeployDefenderRules
+        displayName: "Deploy Custom Detection Rules to Defender XDR"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Install powershell-yaml Module"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                Write-Host "##[section]Installing powershell-yaml module"
+                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                Write-Host "powershell-yaml installed successfully."
+
+          - task: AzurePowerShell@5
+            displayName: "Deploy Defender Custom Detections"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              Inline: |
+                $scriptParams = @{
+                    BasePath = "$(Build.SourcesDirectory)"
+                }
+
+                if ("$(flagWhatIf)") { $scriptParams['WhatIf'] = $true }
+
+                Write-Host "##[section]Launching Defender XDR Custom Detections Deployment"
+
+                & "$(Build.SourcesDirectory)/Scripts/Deploy-DefenderDetections.ps1" @scriptParams
               azurePowerShellVersion: "LatestVersion"
               pwsh: true
               errorActionPreference: "Continue"

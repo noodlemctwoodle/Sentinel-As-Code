@@ -1,44 +1,373 @@
-name: Deploy Sentinel-As-Code
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Deploy Microsoft Sentinel Infrastructure & Content
+# ---------------------------------------------------------------------------
+# Equivalent of Pipelines/Sentinel-Deploy.yml for GitHub-hosted repos.
+#
+# Prerequisites:
+#   - Azure Service Principal with Contributor + Microsoft Sentinel Contributor
+#   - Federated credentials (OIDC) configured for this repo
+#   - CustomDetection.ReadWrite.All Graph permission for Stage 5
+#
+# Required secrets:
+#   AZURE_CLIENT_ID        - Service Principal Application (client) ID
+#   AZURE_TENANT_ID        - Entra ID Tenant ID
+#   AZURE_SUBSCRIPTION_ID  - Azure Subscription ID
+#
+# Required variables (Settings > Secrets and variables > Variables):
+#   SENTINEL_RESOURCE_GROUP   - Resource Group name
+#   SENTINEL_WORKSPACE_NAME   - Log Analytics workspace name
+#   SENTINEL_REGION           - Azure region (e.g., uksouth)
+#
+# Authentication: Uses OIDC (federated credentials) by default.
+# ---------------------------------------------------------------------------
+
+name: Deploy Sentinel
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
+    inputs:
+      # ── Stage Toggles ────────────────────────────────────────────────
+      deploy_infrastructure:
+        description: "Stage 1-2: Deploy Infrastructure (Bicep)"
+        type: boolean
+        default: true
+      deploy_content_hub:
+        description: "Stage 3: Deploy Content Hub Solutions"
+        type: boolean
+        default: true
+      deploy_custom_content:
+        description: "Stage 4: Deploy Custom Content"
+        type: boolean
+        default: true
+      deploy_defender_detections:
+        description: "Stage 5: Deploy Defender XDR Custom Detections"
+        type: boolean
+        default: true
+
+      # ── Infrastructure (Stage 2) ─────────────────────────────────────
+      daily_quota:
+        description: "Bicep: Daily Quota (GB, 0 = unlimited)"
+        type: number
+        default: 0
+      retention_in_days:
+        description: "Bicep: Interactive Retention (days, 30-730)"
+        type: number
+        default: 90
+      total_retention_in_days:
+        description: "Bicep: Total Retention incl. Archive (0 = same as interactive)"
+        type: number
+        default: 0
+
+      # ── Content Hub (Stage 3) ────────────────────────────────────────
+      solutions:
+        description: "Content Hub: Solutions (comma-separated)"
+        type: string
+        default: "Microsoft Defender XDR,Azure Activity"
+      severities_to_include:
+        description: "Content Hub: Analytics Rule Severities"
+        type: string
+        default: "High,Medium,Low,Informational"
+      disable_rules:
+        description: "Content Hub: Deploy Analytics Rules as Disabled"
+        type: boolean
+        default: true
+      protect_customised_rules:
+        description: "Content Hub: Protect Customised Rules"
+        type: boolean
+        default: true
+      skip_analytics_rules:
+        description: "Content Hub: Skip Analytics Rules"
+        type: boolean
+        default: false
+      skip_workbooks:
+        description: "Content Hub: Skip Workbooks"
+        type: boolean
+        default: false
+      skip_automation_rules:
+        description: "Content Hub: Skip Automation Rules"
+        type: boolean
+        default: false
+      skip_hunting_queries:
+        description: "Content Hub: Skip Hunting Queries"
+        type: boolean
+        default: false
+
+      # ── Custom Content (Stage 4) ─────────────────────────────────────
+      skip_custom_detections:
+        description: "Custom: Skip Detections (YAML)"
+        type: boolean
+        default: false
+      skip_custom_watchlists:
+        description: "Custom: Skip Watchlists (JSON+CSV)"
+        type: boolean
+        default: false
+      skip_custom_playbooks:
+        description: "Custom: Skip Playbooks (ARM)"
+        type: boolean
+        default: false
+      skip_custom_workbooks:
+        description: "Custom: Skip Workbooks (Gallery JSON)"
+        type: boolean
+        default: false
+      skip_custom_hunting_queries:
+        description: "Custom: Skip Hunting Queries (YAML)"
+        type: boolean
+        default: false
+      skip_custom_automation_rules:
+        description: "Custom: Skip Automation Rules (JSON)"
+        type: boolean
+        default: false
+      skip_custom_summary_rules:
+        description: "Custom: Skip Summary Rules (JSON)"
+        type: boolean
+        default: false
+
+      # ── General ──────────────────────────────────────────────────────
+      what_if:
+        description: "Dry Run: preview changes without applying"
+        type: boolean
+        default: false
+
+  schedule:
+    - cron: "0 4 * * 1"  # Weekly Monday 04:00 UTC
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: ${{ vars.SENTINEL_RESOURCE_GROUP }}
+  WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE_NAME }}
+  REGION: ${{ vars.SENTINEL_REGION }}
 
 jobs:
-  EnableSentinelContentHub:
-    name: Enable Sentinel Solutions, Configure Analytical Rules and Deploy Workbooks
-    permissions:
-      contents: write
-      id-token: write
+  # ===========================================================================
+  # Stage 1: Check Existing Infrastructure
+  # ===========================================================================
+  check-infrastructure:
+    name: "Check Existing Infrastructure"
     runs-on: ubuntu-latest
-    
+    if: ${{ inputs.deploy_infrastructure != false }}
+    outputs:
+      resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Login to Azure
-        continue-on-error: true
-        id: login1
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.SENTINEL_CLIENTID }}
-          tenant-id: ${{ secrets.SENTINEL_TENANTID}}
-          subscription-id: ${{ secrets.SENTINEL_SUBSCRIPTIONID }}
-          environment: 'AzureCloud'
-          audience: api://AzureADTokenExchange
-          enable-AzPSSession: true
-          
-      - name: Enable Sentinel Solutions and Alert Rules
-        uses: azure/powershell@v1
-        continue-on-error: true
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check for Existing Resources
+        id: check
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            Write-Host "Checking for existing Sentinel infrastructure..."
+            $resourcesExist = "false"
+
+            $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
+            if ($rg) {
+                $law = Get-AzOperationalInsightsWorkspace `
+                    -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
+                    -Name "${{ env.WORKSPACE_NAME }}" `
+                    -ErrorAction SilentlyContinue
+                if ($law) {
+                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists — skipping Bicep."
+                    $resourcesExist = "true"
+                } else {
+                    Write-Host "Workspace not found — Bicep deployment required."
+                }
+            } else {
+                Write-Host "Resource Group not found — full Bicep deployment required."
+            }
+
+            echo "resources_exist=$resourcesExist" >> $env:GITHUB_OUTPUT
+
+  # ===========================================================================
+  # Stage 2: Deploy Infrastructure (Bicep)
+  # ===========================================================================
+  deploy-infrastructure:
+    name: "Deploy Sentinel Infrastructure (Bicep)"
+    runs-on: ubuntu-latest
+    needs: check-infrastructure
+    if: |
+      always() &&
+      needs.check-infrastructure.result == 'success' &&
+      needs.check-infrastructure.outputs.resources_exist == 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Register Resource Providers
+        uses: azure/cli@v2
         with:
           inlineScript: |
-            & "${{ github.workspace }}/Scripts/Set-SentinelContent.ps1" `
-              -ResourceGroup '${{ vars.RESOURCE_GROUP }}' `
-              -Workspace '${{ vars.WORKSPACE_NAME }}' `
-              -Region '${{ vars.REGION }}' `
-              -Solutions ${{ vars.SENTINEL_SOLUTIONS }} `
-              -SeveritiesToInclude ${{ vars.AR_SEVERITIES }} `
-              -IsGov 'false'
-          azPSVersion: 'latest'
+            az provider register --namespace Microsoft.OperationsManagement --wait
+            az provider register --namespace Microsoft.SecurityInsights --wait
+
+      - name: Deploy Bicep Templates
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az deployment sub create \
+              --location "${{ env.REGION }}" \
+              --template-file Bicep/main.bicep \
+              --parameters \
+                rgLocation="${{ env.REGION }}" \
+                rgName="${{ env.RESOURCE_GROUP }}" \
+                lawName="${{ env.WORKSPACE_NAME }}" \
+                dailyQuota=${{ inputs.daily_quota || 0 }} \
+                retentionInDays=${{ inputs.retention_in_days || 90 }} \
+                totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }}
+
+  # ===========================================================================
+  # Stage 3: Deploy Content Hub
+  # ===========================================================================
+  deploy-content-hub:
+    name: "Deploy Sentinel Content Hub"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure]
+    if: |
+      always() &&
+      (inputs.deploy_content_hub != false) &&
+      (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Content Hub Solutions
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $solutionList = "${{ inputs.solutions || 'Microsoft Defender XDR,Azure Activity' }}" -split ',' | ForEach-Object { $_.Trim() }
+            $severityList = "${{ inputs.severities_to_include || 'High,Medium,Low,Informational' }}" -split ',' | ForEach-Object { $_.Trim() }
+
+            $scriptParams = @{
+                SubscriptionId      = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+                ResourceGroup       = "${{ env.RESOURCE_GROUP }}"
+                Workspace           = "${{ env.WORKSPACE_NAME }}"
+                Region              = "${{ env.REGION }}"
+                Solutions           = $solutionList
+                SeveritiesToInclude = $severityList
+            }
+
+            if ("${{ inputs.disable_rules }}" -ne "false")            { $scriptParams['DisableRules']            = $true }
+            if ("${{ inputs.protect_customised_rules }}" -ne "false")  { $scriptParams['ProtectCustomisedRules']   = $true }
+            if ("${{ inputs.skip_analytics_rules }}" -eq "true")       { $scriptParams['SkipAnalyticsRules']       = $true }
+            if ("${{ inputs.skip_workbooks }}" -eq "true")             { $scriptParams['SkipWorkbooks']            = $true }
+            if ("${{ inputs.skip_automation_rules }}" -eq "true")      { $scriptParams['SkipAutomationRules']      = $true }
+            if ("${{ inputs.skip_hunting_queries }}" -eq "true")       { $scriptParams['SkipHuntingQueries']       = $true }
+            if ("${{ inputs.what_if }}" -eq "true")                    { $scriptParams['WhatIf']                   = $true }
+
+            & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+
+  # ===========================================================================
+  # Stage 4: Deploy Custom Content
+  # ===========================================================================
+  deploy-custom-content:
+    name: "Deploy Custom Content"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub]
+    if: |
+      always() &&
+      (inputs.deploy_custom_content != false) &&
+      (needs.deploy-content-hub.result == 'success' || needs.deploy-content-hub.result == 'skipped')
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install powershell-yaml Module
+        shell: pwsh
+        run: |
+          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+
+      - name: Deploy Custom Content
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $scriptParams = @{
+                SubscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+                ResourceGroup  = "${{ env.RESOURCE_GROUP }}"
+                Workspace      = "${{ env.WORKSPACE_NAME }}"
+                Region         = "${{ env.REGION }}"
+                BasePath       = "${{ github.workspace }}"
+            }
+
+            if ("${{ inputs.skip_custom_detections }}" -eq "true")        { $scriptParams['SkipDetections']      = $true }
+            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']     = $true }
+            if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
+            if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
+            if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
+            if ("${{ inputs.skip_custom_automation_rules }}" -eq "true") { $scriptParams['SkipAutomationRules']= $true }
+            if ("${{ inputs.skip_custom_summary_rules }}" -eq "true")   { $scriptParams['SkipSummaryRules']   = $true }
+            if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
+
+            & "${{ github.workspace }}/Scripts/Deploy-CustomContent.ps1" @scriptParams
+
+  # ===========================================================================
+  # Stage 5: Deploy Defender XDR Custom Detections
+  # ===========================================================================
+  deploy-defender-detections:
+    name: "Deploy Defender XDR Custom Detections"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub, deploy-custom-content]
+    if: |
+      always() &&
+      (inputs.deploy_defender_detections != false) &&
+      (needs.deploy-custom-content.result == 'success' || needs.deploy-custom-content.result == 'skipped')
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install powershell-yaml Module
+        shell: pwsh
+        run: |
+          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+
+      - name: Deploy Defender Custom Detections
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $scriptParams = @{
+                BasePath = "${{ github.workspace }}"
+            }
+
+            if ("${{ inputs.what_if }}" -eq "true") { $scriptParams['WhatIf'] = $true }
+
+            & "${{ github.workspace }}/Scripts/Deploy-DefenderDetections.ps1" @scriptParams

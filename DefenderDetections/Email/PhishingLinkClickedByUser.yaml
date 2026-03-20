@@ -1,0 +1,43 @@
+displayName: User clicked phishing URL from delivered email
+isEnabled: true
+queryCondition:
+  queryText: |
+    UrlClickEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "ClickAllowed"
+    | where ThreatTypes has "Phish"
+    | join kind=inner (
+        EmailEvents
+        | where Timestamp > ago(2h)
+        | where DeliveryAction == "Delivered"
+        | project NetworkMessageId, SenderFromAddress, Subject, RecipientEmailAddress, RecipientObjectId
+    ) on NetworkMessageId
+    | project Timestamp, ReportId, AccountUpn, IPAddress, Url, NetworkMessageId, SenderFromAddress, Subject, RecipientEmailAddress, RecipientObjectId, ThreatTypes
+  lastModifiedDateTime: "2026-03-20T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "User clicked phishing URL from delivered email"
+    description: |
+      A user clicked a URL classified as phishing from an email that was
+      delivered to their mailbox. The account may be at risk of credential
+      theft or malware infection depending on the phishing page content.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1566.002
+    recommendedActions: |
+      1. Check if the user entered credentials on the phishing page.
+      2. Review the phishing URL in threat intelligence feeds.
+      3. If credentials were entered, force a password reset immediately.
+      4. Check for suspicious sign-in activity after the click event.
+      5. Purge the phishing email from all recipient mailboxes.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedMailboxAsset"
+        identifier: recipientEmailAddress
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: recipientObjectId
+    - "@odata.type": "#microsoft.graph.security.softDeleteResponseAction"
+      identifier: "networkMessageId, recipientEmailAddress"

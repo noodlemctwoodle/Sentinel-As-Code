@@ -1,0 +1,40 @@
+displayName: Suspicious encoded PowerShell execution
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceProcessEvents
+    | where Timestamp > ago(1h)
+    | where FileName =~ "powershell.exe" or FileName =~ "pwsh.exe"
+    | where ProcessCommandLine has_any ("-enc", "-encodedcommand", "-e ")
+    | where ProcessCommandLine !has "Update-Help"
+    | project Timestamp, DeviceId, DeviceName, ReportId, AccountUpn, AccountName, AccountDomain, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+  lastModifiedDateTime: "2026-03-20T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Suspicious encoded PowerShell execution detected"
+    description: |
+      A PowerShell process was launched with an encoded command argument.
+      Encoded commands are commonly used by attackers to obfuscate malicious
+      scripts and evade detection. Review the decoded command and parent process.
+    severity: medium
+    category: Execution
+    mitreTechniques:
+      - T1059.001
+    recommendedActions: |
+      1. Decode the Base64 encoded command to understand intent.
+      2. Review the parent process and execution context.
+      3. Check if the user account normally runs encoded PowerShell.
+      4. Investigate the device for additional indicators of compromise.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
+      identifier: deviceId
+      isolationType: full
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId
