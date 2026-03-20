@@ -160,12 +160,11 @@ Contributions are welcome! Please follow these steps:
 
 ## Support the Project
 
-If you've found Sentinel-As-Code useful, consider buying me a coffee! Your support helps maintain this project and develop new features.
+If you've found Sentinel-As-Code useful, subscribe to [sentinel.blog](https://sentinel.blog) for more Sentinel and security content!
 
-<a href="https://www.buymeacoffee.com/noodlemctwoodle" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+[![Subscribe to Sentinel Blog](https://img.shields.io/badge/Subscribe-sentinel.blog-blue?style=for-the-badge&logo=ghost&logoColor=white)](https://sentinel.blog/#/portal/signup)
 
-While donations are appreciated, they're entirely optional. The best way to contribute is by submitting issues, suggesting improvements, or contributing code!
-Note: All donations will be reinvested into development time and improving this project.
+The best way to support this project is by subscribing to the blog, submitting issues, suggesting improvements, or contributing code!
 
 ## License
 
