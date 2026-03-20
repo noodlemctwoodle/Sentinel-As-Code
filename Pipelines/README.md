@@ -51,11 +51,27 @@ The pipeline supports **greenfield deployments** — you can start from an empty
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| **Contributor** | Subscription | Resource group, workspace, and Bicep deployments |
-| **Microsoft Sentinel Contributor** | Subscription or Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules) |
-| **Log Analytics Contributor** | Subscription or Resource Group | Summary rule deployment *(Stage 4)* |
-| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics *(optional — can be enabled manually)* |
+| **Contributor** | Subscription | Resource group, workspace, Bicep deployments, Sentinel content, and summary rules |
+| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional — see note)* |
 | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
+
+> **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
+
+> **Note on Defender XDR Detections**: Stage 5 requires the `CustomDetection.ReadWrite.All` Microsoft Graph **application permission** on the service principal's app registration. Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph > Application permissions** and provide admin consent.
+
+#### Least-Privilege Alternative
+
+If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles:
+
+| Role | Scope | Purpose |
+|------|-------|---------|
+| **Resource Group Contributor** | Resource Group | Create and manage resources within the resource group |
+| **Microsoft Sentinel Contributor** | Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules, content deployment) |
+| **Log Analytics Contributor** | Resource Group | Log Analytics workspace management and summary rule deployment *(Stage 4)* |
+| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional)* |
+| **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
+
+> **Note**: With the least-privilege approach, the resource group must be pre-created (or use a separate identity with subscription-level Contributor for the initial Bicep deployment). For greenfield deployments that create the resource group, subscription-level **Contributor** is the simplest option.
 
 - Variable group `sentinel-deployment` linked to the pipeline
 

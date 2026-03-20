@@ -89,11 +89,11 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| **Contributor** | Subscription | Resource group, workspace, and Bicep deployments |
-| **Microsoft Sentinel Contributor** | Subscription or Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules) |
-| **Log Analytics Contributor** | Subscription or Resource Group | Summary rule deployment *(Stage 4)* |
+| **Contributor** | Subscription | Resource group, workspace, Bicep deployments, Sentinel content, and summary rules |
 | **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional — see note)* |
 | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
+
+> **Least-privilege alternative**: If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles. See the [Pipelines README](./Pipelines/README.md#prerequisites) for the least-privilege role assignment table.
 
 > **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
 
