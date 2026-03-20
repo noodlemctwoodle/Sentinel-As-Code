@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "HighValueAssets",
+  "displayName": "High Value Assets",
+  "description": "Critical servers and workstations requiring elevated security monitoring.",
+  "provider": "Custom",
+  "itemsSearchKey": "Hostname"
+}

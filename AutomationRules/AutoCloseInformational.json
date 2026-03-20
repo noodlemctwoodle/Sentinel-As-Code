@@ -1,0 +1,31 @@
+{
+  "automationRuleId": "b1c2d3e4-f5a6-7890-bcde-f12345678901",
+  "displayName": "Auto-close informational incidents",
+  "order": 100,
+  "triggeringLogic": {
+    "isEnabled": true,
+    "triggersOn": "Incidents",
+    "triggersWhen": "Created",
+    "conditions": [
+      {
+        "conditionType": "Property",
+        "conditionProperties": {
+          "propertyName": "IncidentSeverity",
+          "operator": "Equals",
+          "propertyValues": ["Informational"]
+        }
+      }
+    ]
+  },
+  "actions": [
+    {
+      "actionType": "ModifyProperties",
+      "order": 1,
+      "actionConfiguration": {
+        "status": "Closed",
+        "classification": "BenignPositive",
+        "classificationReason": "SuspiciousButExpected"
+      }
+    }
+  ]
+}

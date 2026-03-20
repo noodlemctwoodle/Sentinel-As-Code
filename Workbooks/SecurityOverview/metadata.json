@@ -1,0 +1,6 @@
+{
+  "displayName": "Security Overview",
+  "description": "High-level security dashboard showing incident trends, alert summaries, and failed sign-in activity across your Sentinel workspace.",
+  "category": "Sentinel",
+  "sourceId": "SecurityOverview"
+}
