@@ -7,7 +7,7 @@ on:
 
 jobs:
   EnableSentinelContentHub:
-    name: Enable Sentinel Solutions and Configure Alert Rules
+    name: Enable Sentinel Solutions, Configure Analytical Rules and Deploy Workbooks
     permissions:
       contents: write
       id-token: write
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: Login to Azure (Attempt 1)
+      - name: Login to Azure
         continue-on-error: true
         id: login1
         uses: azure/login@v2
