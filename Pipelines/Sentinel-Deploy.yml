@@ -1,0 +1,200 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Deploy Microsoft Sentinel Content Hub Solutions
+# ---------------------------------------------------------------------------
+# This pipeline deploys Content Hub solutions and their associated content
+# (Analytics Rules, Workbooks, Automation Rules, Hunting Queries) to a
+# Microsoft Sentinel workspace.
+#
+# Prerequisites:
+#   - Azure Service Connection with Contributor + Microsoft Sentinel Contributor
+#     roles on the target Resource Group
+#   - Az.Accounts PowerShell module (installed in pipeline)
+#
+# Usage:
+#   Trigger manually or via schedule. Override parameters at queue time
+#   to target specific solutions or toggle content switches.
+# ---------------------------------------------------------------------------
+
+trigger: none
+
+schedules:
+  - cron: "0 4 * * 1"
+    displayName: "Weekly Monday 04:00 UTC"
+    branches:
+      include:
+        - main
+    always: false
+
+parameters:
+  - name: solutions
+    displayName: "Content Hub Solutions (comma-separated)"
+    type: string
+    default: "Microsoft Defender XDR,Azure Activity"
+
+  - name: severitiesToInclude
+    displayName: "Analytics Rule Severities"
+    type: string
+    default: "High,Medium,Low,Informational"
+
+  - name: disableRules
+    displayName: "Deploy Analytics Rules as Disabled"
+    type: boolean
+    default: true
+
+  - name: protectCustomisedRules
+    displayName: "Protect Customised Rules from Overwrite"
+    type: boolean
+    default: true
+
+  - name: skipAnalyticsRules
+    displayName: "Skip Analytics Rule Deployment"
+    type: boolean
+    default: false
+
+  - name: skipWorkbooks
+    displayName: "Skip Workbook Deployment"
+    type: boolean
+    default: false
+
+  - name: skipAutomationRules
+    displayName: "Skip Automation Rule Deployment"
+    type: boolean
+    default: false
+
+  - name: skipHuntingQueries
+    displayName: "Skip Hunting Query Deployment"
+    type: boolean
+    default: false
+
+  - name: forceSolutionUpdate
+    displayName: "Force Solution Update (even if current)"
+    type: boolean
+    default: false
+
+  - name: forceContentDeployment
+    displayName: "Force Content Redeployment (even if current)"
+    type: boolean
+    default: false
+
+  - name: whatIf
+    displayName: "Dry Run (no changes)"
+    type: boolean
+    default: false
+
+variables:
+  - group: sentinel-deployment      # Variable group containing:
+                                     #   - azureSubscriptionId
+                                     #   - sentinelResourceGroup
+                                     #   - sentinelWorkspaceName
+                                     #   - sentinelRegion
+  - name: serviceConnection
+    value: "Sentinel-As-Code"
+
+  # Map boolean parameters to switch flag strings at compile time.
+  # Each resolves to either the switch name or an empty string.
+  - name: flagDisableRules
+    ${{ if eq(parameters.disableRules, true) }}:
+      value: "-DisableRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagProtectCustomisedRules
+    ${{ if eq(parameters.protectCustomisedRules, true) }}:
+      value: "-ProtectCustomisedRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipAnalyticsRules
+    ${{ if eq(parameters.skipAnalyticsRules, true) }}:
+      value: "-SkipAnalyticsRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipWorkbooks
+    ${{ if eq(parameters.skipWorkbooks, true) }}:
+      value: "-SkipWorkbooks"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipAutomationRules
+    ${{ if eq(parameters.skipAutomationRules, true) }}:
+      value: "-SkipAutomationRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipHuntingQueries
+    ${{ if eq(parameters.skipHuntingQueries, true) }}:
+      value: "-SkipHuntingQueries"
+    ${{ else }}:
+      value: ""
+
+  - name: flagForceSolutionUpdate
+    ${{ if eq(parameters.forceSolutionUpdate, true) }}:
+      value: "-ForceSolutionUpdate"
+    ${{ else }}:
+      value: ""
+
+  - name: flagForceContentDeployment
+    ${{ if eq(parameters.forceContentDeployment, true) }}:
+      value: "-ForceContentDeployment"
+    ${{ else }}:
+      value: ""
+
+  - name: flagWhatIf
+    ${{ if eq(parameters.whatIf, true) }}:
+      value: "-WhatIf"
+    ${{ else }}:
+      value: ""
+
+stages:
+  - stage: Deploy
+    displayName: "Deploy Sentinel Content Hub"
+    jobs:
+      - job: DeployContent
+        displayName: "Deploy Solutions and Content"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 120
+        steps:
+          - checkout: self
+
+          - task: AzurePowerShell@5
+            displayName: "Deploy Content Hub Solutions"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              Inline: |
+                # Build the solution and severity arrays from comma-separated parameters
+                $solutionList = "${{ parameters.solutions }}" -split ',' | ForEach-Object { $_.Trim() }
+                $severityList = "${{ parameters.severitiesToInclude }}" -split ',' | ForEach-Object { $_.Trim() }
+
+                # Build the base parameter hashtable (splatting)
+                $scriptParams = @{
+                    SubscriptionId      = "$(azureSubscriptionId)"
+                    ResourceGroup       = "$(sentinelResourceGroup)"
+                    Workspace           = "$(sentinelWorkspaceName)"
+                    Region              = "$(sentinelRegion)"
+                    Solutions           = $solutionList
+                    SeveritiesToInclude = $severityList
+                }
+
+                # Conditionally add switch parameters based on compile-time flag variables.
+                # Each flag variable is either the switch name (truthy) or empty string (falsy).
+                if ("$(flagDisableRules)")            { $scriptParams['DisableRules']            = $true }
+                if ("$(flagProtectCustomisedRules)")   { $scriptParams['ProtectCustomisedRules']   = $true }
+                if ("$(flagSkipAnalyticsRules)")       { $scriptParams['SkipAnalyticsRules']       = $true }
+                if ("$(flagSkipWorkbooks)")            { $scriptParams['SkipWorkbooks']            = $true }
+                if ("$(flagSkipAutomationRules)")      { $scriptParams['SkipAutomationRules']      = $true }
+                if ("$(flagSkipHuntingQueries)")       { $scriptParams['SkipHuntingQueries']       = $true }
+                if ("$(flagForceSolutionUpdate)")      { $scriptParams['ForceSolutionUpdate']      = $true }
+                if ("$(flagForceContentDeployment)")   { $scriptParams['ForceContentDeployment']   = $true }
+                if ("$(flagWhatIf)")                   { $scriptParams['WhatIf']                   = $true }
+
+                Write-Host "##[section]Launching Sentinel Content Hub Deployment"
+                Write-Host "Solutions: $($solutionList -join ', ')"
+                Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
+
+                & "$(Build.SourcesDirectory)/scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              errorActionPreference: "Continue"
