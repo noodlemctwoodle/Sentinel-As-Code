@@ -1,0 +1,121 @@
+id: b59d576c-a6c1-47d4-8685-f81bfcf155e9
+name: Imperva Attack Analytics  - Incomplete Attack Blocking Detected
+description: This detection identifies and prioritises web application attacks that potentially bypassed Imperva WAF protections in the last 3 hours. It focuses on incidents where some attack traffic was NOT blocked (events_blocked_percent < 100%), indicating potential security gaps that require immediate attention.
+severity: Informational
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT3H
+queryPeriod: PT3H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - Impact
+techniques:
+  - T1189
+  - T1190
+  - T1498
+  - T1498.001
+  - T1499
+  - T1499.002
+requiredDataConnectors:
+  - connectorId: ImpervaAttackAnalytics
+    dataTypes:
+      - Imperva_CL
+query: |-
+  ImpervaAttackAnalytics
+  | where TimeGenerated > ago(3h)
+  // filted Blocked Events
+  | where events_blocked_percent != 100
+  // Concaturated Event Message
+  | extend eventMessage = strcat(main_sentence, " - ", secondary_sentence)
+  // Renamed Imperva Severity
+  | extend impervaSeverity = severity
+  //Filleted on Imperva Severity
+  | where impervaSeverity has_any ("MINOR", "MAJOR", "CRITICAL")
+  // Renamed D_ Columes to meaningful names
+  | extend attackCountry = D_Country
+  , attackIPAddress = D_IP
+  , attackTool = D_tool
+  , attackRisk = d_tool_type
+  , attackType = dominant_attack_violation
+  | extend riskScore = case(
+  // High Risk Factors
+  (events_blocked_percent <= 90 and events_count >= 1000), 4
+  , (events_blocked_percent <= 95 and events_count >= 500), 3
+  , (attackType == "DOMINANT" and events_count >= 100), 3
+  , (severity_explanation has "Highly targeted" and severity_explanation has "Highly confidence"), 4
+  , (severity_explanation has "Highly suspicious origin distribution"), 3
+  , (severity_explanation has "Large magnitude" and severity_explanation has "Highly risk"), 4
+  // Medium Risk Factors
+  , (events_blocked_percent <= 98 and events_count >= 50), 2
+  , (attackType == "DOMINANT"), 2
+  , (severity_explanation has "Medium magnitude" and severity_explanation has "Targeted"), 2
+  , (severity_explanation has "High confidence"), 2
+  // Low Risk Factors
+  , (attackType == "DISTRIBUTION"), 1
+  , (events_count < 50), 1
+  // Default
+  , 1
+  )
+  // Imperva Severity Plus Risk Base Score
+  | extend severity = case(
+  // Critical Plus High Indicators
+  (impervaSeverity == "CRITICAL"
+  or (impervaSeverity == "MAJOR"
+  and riskScore >= 4)
+  or (events_blocked_percent <= 90
+  and events_count >= 1000)), "High"
+  // Medium Base Incident
+  , (impervaSeverity == "MAJOR"
+  and riskScore >= 2)
+  or (impervaSeverity == "CRITICAL"
+  and riskScore < 4)
+  or (events_blocked_percent <= 95
+  and events_count >= 100), "Medium"
+  // Low Base Incident
+  , (impervaSeverity == "MINOR"
+  and riskScore >= 3)
+  or (impervaSeverity == "MAJOR"
+  and riskScore < 2), "Low"
+  // Information Base Incident
+  , "Informational"
+  )
+  // Create Attack Scale from Events_count
+  | extend attackScale = case(
+  events_count >= 15000, "Large"
+  , events_count >= 5000, "Medium"
+  , events_count >= 100, "Small"
+  , "Minimal"
+  )
+  | project TimeGenerated, firstSeen = first_event_time, lastSeen = last_event_time, severity, attackType
+  , attackRisk, attackTool, eventMessage,  riskScore, eventsCount = events_count, attackScale
+  , attackCountry, attackIPAddress, Impervaid
+entityMappings:
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: attackIPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+alertDetailsOverride:
+  alertSeverityColumnName: severity
+  alertDynamicProperties: []
+customDetails:
+  Country: attackCountry
+  DominantAttackTool: attackTool
+  DominantToolType: attackRisk
+  Alertdetails: eventMessage
+suppressionEnabled: false
+suppressionDuration: PT5H

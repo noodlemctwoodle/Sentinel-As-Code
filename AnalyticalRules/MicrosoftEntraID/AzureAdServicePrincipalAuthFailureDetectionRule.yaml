@@ -1,0 +1,53 @@
+id: d45ad7f1-5db6-4a65-89b4-7141f0b45619
+name: Azure AD Service Principal has failed authentication
+description: |
+  'Monitors AADServicePrincipalSignInLogs and identifies when a Service Principal has failed authentication.'
+severity: Low
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1528
+  - T1552
+  - T1552.001
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AADServicePrincipalSignInLogs
+query: |
+  let Identities = _GetWatchlist('socManagedIdentities') | summarize ManagedIdentity = make_set(ServicePrincipalId);
+  AADServicePrincipalSignInLogs
+  | where ServicePrincipalName in (Identities)
+  | where ResultType != 0
+  | project-reorder TimeGenerated, ServicePrincipalName, ResourceDisplayName, ResultType, Location, IPAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: ServicePrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

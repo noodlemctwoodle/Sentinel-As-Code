@@ -1,0 +1,44 @@
+id: "4bf2a3b4-c5d6-4e7f-8091-a2b3c4d5e6f7"
+name: "RDP threat detection and response automation"
+description: "Detects suspicious RDP logons from external sources with automated risk scoring based on source country, time of day, and account type, triggering appropriate response playbooks."
+query: |
+  // Analyzes RDP logons with automated risk scoring and response recommendations,
+  // triggering different playbooks based on source country, account type, and confidence levels
+
+  // Detection with built-in automation decision logic
+  SecurityEvent
+  | where TimeGenerated > ago(30m)
+  | where EventID == 4624  // Successful logon
+  | where LogonType == 10  // RDP logon
+  | extend SourceCountry = geo_info_from_ip_address(IpAddress).country,
+           IsInternalIP = ipv4_is_private(IpAddress)
+  // Risk-based automation triggers
+  | extend AutomationAction = case(
+      not(IsInternalIP) and SourceCountry !in ("United Kingdom", "United States"), "IsolateUser",
+      not(IsInternalIP) and hourofday(TimeGenerated) !between (8 .. 18), "RequireApproval",
+      Account has_any ("admin", "service") and not(IsInternalIP), "AlertSecurityTeam",
+      "MonitorOnly"
+  )
+  | extend ConfidenceLevel = case(
+      not(IsInternalIP) and SourceCountry in ("China", "Russia", "North Korea"), 95,
+      not(IsInternalIP) and Account has "admin", 85,
+      not(IsInternalIP), 70,
+      50
+  )
+  // Investigation playbook selection
+  | extend PlaybookRequired = case(
+      AutomationAction == "IsolateUser", "User-Isolation-Playbook",
+      AutomationAction == "RequireApproval", "Manager-Approval-Playbook",
+      AutomationAction == "AlertSecurityTeam", "Security-Escalation-Playbook",
+      "Standard-Investigation-Playbook"
+  )
+  | where ConfidenceLevel >= 70  // Only trigger for high-confidence detections
+  | project TimeGenerated, Account, Computer, IpAddress, SourceCountry,
+           AutomationAction, ConfidenceLevel, PlaybookRequired
+tactics:
+  - LateralMovement
+  - InitialAccess
+techniques:
+  - T1021.001
+  - T1078
+  - T1133

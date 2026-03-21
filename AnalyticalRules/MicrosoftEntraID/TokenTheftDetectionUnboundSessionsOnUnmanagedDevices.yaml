@@ -1,0 +1,118 @@
+id: 286d4473-f5e2-4dfc-9c6e-1a9b6e1afd5e
+name: "Entra ID Token Theft Detection: Unbound Sessions on Unmanaged Devices (M356CommunityConf)"
+description: |-
+  This detection identifies potential token theft attacks in Entra ID by monitoring for unbound authentication sessions that occur on unverified devices. When an authentication token is stolen, attackers can reuse it to access corporate resources while bypassing password requirements and multi-factor authentication (MFA). The detection focuses on indicators of compromise including session unbinding (code 1002) and the absence of essential device validation attributes, which are strong signals of token replay attacks.
+
+  The rule incorporates risk assessment by evaluating device management status, compliance state, and device identification, highlighting high-risk scenarios that require immediate investigation. Each alert includes the identity of the affected user, geographic location details, and the specific application where the suspicious token was used. Security teams should respond by immediately revoking all active sessions for the impacted user, forcing credential reset with MFA, and investigating the initial compromise vector through forensic examination of sign-in logs.
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - LateralMovement
+  - DefenseEvasion
+techniques:
+  - T1539
+  - T1528
+  - T1550
+  - T1550.001
+  - T1552
+  - T1552.001
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |-
+  // Define a list of exclusions (service accounts, expected behaviors, etc.)
+  let includedUsers = _GetWatchlist('EntraRiskyUsers') | project UserPrincipalName;
+  // Main detection query
+  UnifiedSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where UserPrincipalName in (includedUsers)
+  | where TokenProtection has "unbound" and TokenProtection has "1002"
+  | extend
+  DeviceId = tostring(DeviceDetail.deviceId),
+  HostName = tostring(DeviceDetail.displayName),
+  IsCompliant = tostring(DeviceDetail.isCompliant),
+  IsManaged = tostring(DeviceDetail.isManaged),
+  TrustType = tostring(DeviceDetail.trustType),
+  OS = tostring(DeviceDetail.operatingSystem),
+  Browser = tostring(DeviceDetail.browser),
+  Region = tostring(LocationDetails.countryOrRegion),
+  City = tostring(LocationDetails.city)
+  | extend RiskFactors = dynamic([])
+  | extend RiskFactors = iff(isempty(DeviceId), array_concat(RiskFactors, dynamic(["Missing Device ID"])), RiskFactors)
+  | extend RiskFactors = iff(isempty(HostName), array_concat(RiskFactors, dynamic(["Missing Host Name"])), RiskFactors)
+  | extend RiskFactors = iff(isempty(IsCompliant) or IsCompliant == "false", array_concat(RiskFactors, dynamic(["Non-Compliant Device"])), RiskFactors)
+  | extend RiskFactors = iff(isempty(IsManaged) or IsManaged == "false", array_concat(RiskFactors, dynamic(["Unmanaged Device"])), RiskFactors)
+  | extend RiskFactors = iff(isempty(TrustType), array_concat(RiskFactors, dynamic(["No Trust Type"])), RiskFactors)
+  | extend
+  RiskFactorCount = array_length(RiskFactors),
+  RiskFactorList = iif(array_length(RiskFactors) > 0, strcat_array(RiskFactors, ", "), "None")
+  | extend RiskLevel = case(
+  RiskFactorCount >= 3, "Critical",
+  RiskFactorCount == 2, "High",
+  RiskFactorCount == 1, "Medium",
+  "Low"
+  )
+  // Simplify the detection without relying on complex user history joins
+  | extend CombinedRiskLevel = RiskLevel
+  | project
+  TimeGenerated,
+  UserPrincipalName,
+  RiskLevel,
+  RiskFactorList,
+  RiskFactorCount,
+  IPAddress,
+  Region,
+  City,
+  DeviceId,
+  HostName,
+  OS,
+  Browser,
+  IsCompliant,
+  IsManaged,
+  TokenIssuerType,
+  AppDisplayName,
+  TokenProtection,
+  ConditionalAccessStatus,
+  AuthenticationRequirement,
+  ClientAppUsed
+  | order by RiskLevel asc, TimeGenerated desc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+customDetails:
+  City: City
+  Country: Region
+  RiskType: RiskLevel
+  Token: TokenIssuerType
+suppressionEnabled: false
+suppressionDuration: PT5H

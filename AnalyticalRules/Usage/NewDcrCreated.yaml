@@ -1,0 +1,50 @@
+id: 7090645f-c96d-4edc-98bd-0dd1d0cbfa6a
+name: New DCR Created
+description: Enter rule description here
+severity: Informational
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+  - Impact
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |
+  // New DCR
+  AzureActivity
+  | where OperationNameValue has "DATACOLLECTIONRULES/WRITE"
+      and ActivitySubstatusValue has "OK"
+  | extend DCR_Name = tostring(parse_json(Properties).resource)
+  | extend DCR_RG = tostring(parse_json(Properties).resourceGroup)
+  | extend DCR_Sub = tostring(parse_json(Properties).subscriptionId)
+  | extend RBAC_Role = tostring(parse_json(tostring(Authorization_d.evidence)).role)
+  | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , DCR_Name, DCR_RG, DCR_Sub, Caller, RBAC_Role, CallerIpAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D

@@ -1,0 +1,17 @@
+id: "3a81c9d0-4152-4637-4859-60718293a4b5"
+name: "pfSense local traffic overview"
+description: "Identifies local network traffic patterns by filtering pfSense firewall logs for non-GeoIP tagged connections, showing source and destination details with firewall rule actions."
+query: |
+  // pfSesne Local Traffic
+  pfsense_logstash_CL
+  | where TimeGenerated > ago(1m)
+  | where tags_s !contains "GeoIP_Destination"
+  | extend event_created_t = TimeGenerated
+  | extend ipType = iif(network_type_s == '4', 'IPv4','')
+  | project TimeGenerated, interface_alias_s, network_name_s, interface_name_s, source_ip_s, source_port_s, destination_ip_s, destination_port_s,
+      network_direction_s, event_action_s, event_reason_s, rule_description_s, destination_service_s, network_transport_s
+tactics:
+  - Discovery
+techniques:
+  - T1046
+  - T1018

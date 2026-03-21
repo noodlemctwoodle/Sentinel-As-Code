@@ -21,7 +21,7 @@
     - WhatIf mode for dry runs
 
 .PARAMETER BasePath
-    The root path of the repository containing the DefenderDetections/ folder.
+    The root path of the repository containing the DefenderCustomDetections/ folder.
     Defaults to the parent of the Scripts folder.
 
 .PARAMETER IsGov
@@ -44,7 +44,7 @@
 .EXAMPLE
     .\Deploy-DefenderDetections.ps1
 
-    Deploys all custom detection rules from the DefenderDetections/ folder.
+    Deploys all custom detection rules from the DefenderCustomDetections/ folder.
 
 .EXAMPLE
     .\Deploy-DefenderDetections.ps1 -WhatIf
@@ -401,12 +401,12 @@ function Deploy-DefenderDetections {
     param()
 
     $counters = @{ Created = 0; Updated = 0; Skipped = 0; Failed = 0 }
-    $detectionsPath = Join-Path $BasePath "DefenderDetections"
+    $detectionsPath = Join-Path $BasePath "DefenderCustomDetections"
 
     Write-PipelineMessage "Deploying Defender XDR custom detection rules..." -Level Section
 
     if (-not (Test-Path $detectionsPath)) {
-        Write-PipelineMessage "DefenderDetections folder not found at '$detectionsPath' — skipping." -Level Warning
+        Write-PipelineMessage "DefenderCustomDetections folder not found at '$detectionsPath' — skipping." -Level Warning
         return $counters
     }
 

@@ -1,0 +1,181 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "title": "Module-DefenderRestrictFileHash",
+        "description": "Add File Hash to Defender XDR Indicators module",
+        "lastUpdateTime": "31-07-2024",
+        "entities": [],
+        "tags": [],
+        "support": {
+            "tier": "community"
+        },
+        "author": {
+            "name": "noodlemctwoodle"
+        }
+    },
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Module-DefenderRestrictFileHash",
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "properties": {
+                                        "playbookName": {
+                                            "type": "string"
+                                        },
+                                        "incidentArmId": {
+                                            "type": "string"
+                                        },
+                                        "indicatorValue": {
+                                            "type": "string"
+                                        },
+                                        "entityProperties": {
+                                            "type": "string"
+                                        },
+                                        "algorithm": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Response": {
+                            "runAfter": {
+                                "Switch": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 200
+                            }
+                        },
+                        "Switch": {
+                            "runAfter": {},
+                            "cases": {
+                                "Case": {
+                                    "case": "SHA1",
+                                    "actions": {
+                                        "POST_SHA1": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://api.securitycenter.windows.com/api/indicators",
+                                                "method": "POST",
+                                                "body": {
+                                                    "action": "AlertAndBlock",
+                                                    "application": "Microsoft Sentinel",
+                                                    "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                                                    "expirationTime": "@{addDays(utcNow(), 90)}",
+                                                    "indicatorType": "FileSha1",
+                                                    "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                                                    "title": "@{guid()}"
+                                                },
+                                                "authentication": {
+                                                    "type": "ManagedServiceIdentity",
+                                                    "audience": "https://api.securitycenter.windows.com/"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "Case 2": {
+                                    "case": "SHA256",
+                                    "actions": {
+                                        "POST_SHA265": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://api.securitycenter.windows.com/api/indicators",
+                                                "method": "POST",
+                                                "body": {
+                                                    "action": "AlertAndBlock",
+                                                    "application": "Microsoft Sentinel",
+                                                    "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                                                    "expirationTime": "@{addDays(utcNow(), 90)}",
+                                                    "indicatorType": "SHA256",
+                                                    "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                                                    "title": "@{guid()}"
+                                                },
+                                                "authentication": {
+                                                    "type": "ManagedServiceIdentity",
+                                                    "audience": "https://api.securitycenter.windows.com/"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "default": {
+                                "actions": {}
+                            },
+                            "expression": "@triggerBody()?['algorithm']",
+                            "type": "Switch"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {}
+                    }
+                },
+                "accessControl": {
+                    "triggers": {
+                        "allowedCallerIpAddresses": []
+                    },
+                    "actions": {
+                        "allowedCallerIpAddresses": []
+                    }
+                }
+            },
+            "name": "[parameters('PlaybookName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Source": "Sentinel-As-Code",
+                "hidden-SentinelTemplateName": "Module-DefenderRestrictFileHash",
+                "hidden-SentinelTemplateVersion": "1.0"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "apiVersion": "2017-07-01",
+            "dependsOn": []
+        }
+    ]
+}

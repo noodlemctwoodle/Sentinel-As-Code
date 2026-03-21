@@ -1,0 +1,14 @@
+id: "6db4f2a3-7485-4960-7182-93a4b5c6d7e8"
+name: "Logstash server free disk space monitoring"
+description: "Identifies disk space utilization trends across Logstash servers by tracking average free megabytes per logical disk over the last 30 days to detect storage capacity issues."
+query: |
+  Perf
+  | where TimeGenerated > ago(30d)
+  | where ObjectName ==  "Logical Disk"
+  | where CounterName == "Free Megabytes"
+  | summarize avg_free_disk_MB=avg(CounterValue) by Computer, InstanceName
+  | render barchart
+tactics:
+  - Impact
+techniques:
+  - T1489

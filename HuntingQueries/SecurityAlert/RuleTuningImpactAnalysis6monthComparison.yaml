@@ -1,0 +1,36 @@
+id: "07b8c9d0-e1f2-4a3b-4c5d-6e7f8091a2b3"
+name: "Rule tuning impact analysis 6-month comparison"
+description: "Identifies SOC efficiency improvements by comparing alert volume, true positive rates, and mean time to resolution metrics across two 6-month periods before and after rule tuning."
+query: |
+  // Compares SOC efficiency metrics before and after rule tuning by analyzing alert volume,
+  // true positive rates, and mean time to resolution across two 6-month periods
+
+  // SOC efficiency metrics before and after rule tuning
+  let BeforeTuning = datetime("2025-01-01");
+  let AfterTuning = datetime("2025-06-01");
+  //
+  let AlertMetrics = SecurityAlert
+      | where TimeGenerated >= BeforeTuning  // Add time filter
+      | extend Period = case(TimeGenerated < AfterTuning, "Before", "After")
+      | summarize TotalAlerts = count(),
+                 HighSeverity = countif(AlertSeverity == "High")
+                 by Period
+      | extend AlertsPerDay = TotalAlerts / 180.0;  // 6-month periods
+  //
+  let IncidentMetrics = SecurityIncident
+      | where TimeGenerated >= BeforeTuning  // Add time filter
+      | extend Period = case(TimeGenerated < AfterTuning, "Before", "After")
+      | summarize TotalIncidents = count(),
+                 TruePositives = countif(Classification == "TruePositive"),
+                 MTTR = avg(datetime_diff('hour', ClosedTime, CreatedTime))
+                 by Period
+      | extend TPRate = round(100.0 * TruePositives / TotalIncidents, 1);
+  //
+  AlertMetrics
+  | join kind=inner (IncidentMetrics) on Period
+  | project Period, AlertsPerDay, HighSeverity, TPRate, MTTR
+  | order by Period asc
+tactics:
+  - Collection
+techniques:
+  - T1530

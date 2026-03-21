@@ -1,0 +1,29 @@
+id: "f64de5f6-0718-4293-0415-26374859607b"
+name: "pfSense blocked connection spike detection"
+description: "Detects anomalous spikes in blocked firewall connections by comparing the last hour's blocked count against the historical average, alerting when current volume exceeds double the baseline."
+query: |
+  // This query alerts whenever a spike of blocked connections is seen
+  let average = materialize(
+      psfsense_logstash_CL
+      | extend Action = event_action_s
+      | where Action == "block"
+      | summarize c = count() by bin(TimeGenerated, 10m)
+      | summarize average_connections = avg(c) by join_key = ''
+  );
+  let today = materialize (
+      psfsense_logstash_CL
+      | where TimeGenerated > ago(1h)
+      | extend Action = event_action_s
+      | where Action == "block"
+      | summarize today_connections = count() by join_key = ''
+  );
+  average
+  | join today on join_key
+  | where today_connections > (average_connections * 2)
+  | project average_connections, today_connections
+tactics:
+  - Impact
+  - InitialAccess
+techniques:
+  - T1498
+  - T1190

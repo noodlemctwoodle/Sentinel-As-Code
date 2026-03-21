@@ -1,0 +1,98 @@
+id: 2a9f2173-94f8-4b0c-b085-a53fb512da28
+name: Potential unauthorised code executed from the browser
+description: |
+  'A user has executed code from one of the following locations
+
+    -- C:\
+    -- C:\Windows\System32\WindowsPowerShell\
+    -- C:\Windows\System32\cmd.exe
+    -- C:\Windows\System32\regedt32.exe
+    -- C:\Windows\SysWOW64\regedit.exe
+    -- \\C$\
+    -- \\SYSVOL
+
+  This is outside of directories that they have access too "Downloads | OneDrive | Users"'
+severity: Informational
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - Execution
+techniques:
+  - T1189
+  - T1059
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderforEndpoints
+    dataTypes:
+      - DeviceFileEvents
+query: |
+  DeviceFileEvents
+  | where ActionType in ("FileCreated", "FileOpened", "FileModified", "FileDeleted")
+  | where InitiatingProcessFileName has_any ("chrome.exe", "firefox.exe", "edge.exe")
+  | where not(FileName has_any (".css", ".html", ".js", "png", ".gif", ".gz", ".svg"))
+  | where not(FolderPath matches regex "(Downloads|OneDrive|Users)")
+  | where not (FolderPath startswith @"C:\Windows\System32\spool\drivers")
+  | where FolderPath has_any (
+      @"C:\"
+      , @"C:\Windows\System32\WindowsPowerShell\"
+      , @"C:\Windows\System32\cmd.exe"
+      , @"C:\Windows\System32\regedt32.exe"
+      , @"C:\Windows\SysWOW64\regedit.exe"
+      , @"\\C$\"
+      , @"\\SYSVOL"
+      )
+  | extend Severity = case(
+       ActionType == "FileOpened" and FileName endswith ".exe", "High"
+      , ActionType == "FileOpened" and FileName endswith ".ps1", "High"
+      , ActionType == "FileOpened" and FileName endswith ".js", "High"
+      , ActionType == "FileCreated" and FileName endswith ".exe" and FileName != "software_reporter_tool.exe", "High"
+      , ActionType == "FileCreated" and FileName endswith ".ps1", "High"
+      , ActionType == "FileCreated" and FileName endswith ".js", "Low"
+      , ActionType == "FileCreated" and FileName endswith ".pdf", "Informational"
+      , "Informational"
+      )
+  | summarize by TimeGenerated
+      , ActionType
+      , DeviceName
+      , InitiatingProcessAccountUpn
+      , FileName
+      , FolderPath
+      , InitiatingProcessFileName
+      , Severity
+  | where Severity has_any ("High", "Medium")
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: InitiatingProcessAccountUpn
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceName
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: InitiatingProcessFileName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+alertDetailsOverride:
+  alertnameFormat: null
+  alertDescriptionFormat: null
+  alertTacticsColumnName: null
+  alertSeverityColumnName: Severity
+suppressionEnabled: false
+suppressionDuration: PT5H

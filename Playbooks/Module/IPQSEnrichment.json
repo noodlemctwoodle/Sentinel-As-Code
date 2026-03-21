@@ -1,0 +1,129 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "title": "Module-IPQSEnrichment",
+        "description": "Get IP risk information from IP Quality Score API module",
+        "lastUpdateTime": "31-07-2024",
+        "entities": [],
+        "tags": [],
+        "support": {
+            "tier": "community"
+        },
+        "author": {
+            "name": "noodlemctwoodle"
+        }
+    },
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Module-IPQSEnrichment",
+            "type": "string"
+        },
+        "AutomationResourceGroup": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "properties": {
+                                        "ipAddress": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "HTTP": {
+                            "runAfter": {
+                                "Module-GetSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://ipqualityscore.com/api/json/ip/@{body('Module-GetSecret')}/@{triggerBody()?['ipAddress']}",
+                                "method": "GET"
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Module-GetSecret": {
+                            "runAfter": {},
+                            "type": "Workflow",
+                            "inputs": {
+                                "host": {
+                                    "workflow": {
+                                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-GetSecret')]"
+
+                                    },
+                                    "triggerName": "When_a_HTTP_request_is_received"
+                                },
+                                "body": {
+                                    "secretName": "IPQS-API-Key"
+                                }
+                            }
+                        },
+                        "Response": {
+                            "runAfter": {
+                                "HTTP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 200,
+                                "body": "@body('HTTP')"
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {}
+                    }
+                }
+            },
+            "name": "[parameters('PlaybookName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Source": "Sentinel-As-Code",
+                "hidden-SentinelTemplateName": "Module-IPQSEnrichment",
+                "hidden-SentinelTemplateVersion": "1.0"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "apiVersion": "2017-07-01",
+            "dependsOn": []
+        }
+    ]
+}

@@ -1,0 +1,41 @@
+id: "7ec53647-5809-4a1b-2c3d-4e5f60718293"
+name: "PowerShell Graph recon tenant enumeration"
+description: "Detects Invoke-GraphRecon module usage by identifying rapid-fire PowerShell Graph API calls to tenant enumeration endpoints and the undocumented estimateAccess permission testing API."
+query: |
+  // The Invoke-GraphRecon module collects various tenant information, encompassing primary contact details,
+  // directory sync configurations, and user settings. This information includes permissions related to app creation, group creation, and app consent.
+
+  // Additionally, the Invoke-GraphRecon module features a "PermissionEnum" switch. When activated, this switch leverages an undocumented
+  // "Estimate Access" API to systematically test nearly 400 actions. This process helps determine the specific actions permitted for the current user.
+
+  // Fortunately, from a defender's standpoint, this undocumented API does leave traces in the MicrosoftGraphActivityLogs. Following the execution of
+  // the Invoke-GraphRecon module, we see a lot of events. We tested this extensively however the number of events keeps changing, so we can't give you
+  // an exact number. When using the PermissionEnum feature you'll see a very specific call to the following (beta) endpoint.
+
+  // https://graph.microsoft.com/beta/roleManagement/directory/estimateAccess
+  // Running the module without the 'PermissionEnum' switch triggers only one event, which is a call to: https://graph.microsoft.com/beta/policies/authorizationPolicy
+
+  // Detect Graph API calls made by the Invoke-GraphRecon module, because they're all made at the same time.
+  let InvokeGraphReconCalls = dynamic(["https://graph.microsoft.com/v1.0/search/query"
+      , "https://graph.microsoft.com/v1.0/servicePrincipals/"
+      , "https://graph.microsoft.com/v1.0/users/"
+      , "https://graph.microsoft.com/v1.0/organization"
+      , "https://graph.microsoft.com/v1.0/applications"
+      , "https://graph.microsoft.com/v1.0/servicePrincipals?$skiptoken="]);
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri in~ (InvokeGraphReconCalls)
+      or RequestUri has_all("https://graph.microsoft.com/v1.0/servicePrincipals(appId=", "appRoleAssignedTo")
+  | extend RequestedAppId = extract(@"appId='(.*?)'", 1, RequestUri)
+  | sort by TimeGenerated asc
+  | extend timeDiffInSeconds = datetime_diff('second', prev(TimeGenerated, 1), TimeGenerated)
+  | where timeDiffInSeconds == 0
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+tactics:
+  - Discovery
+  - Reconnaissance
+techniques:
+  - T1087.004
+  - T1526
+  - T1069.003

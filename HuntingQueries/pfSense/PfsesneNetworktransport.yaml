@@ -1,0 +1,17 @@
+id: "5ca3e1f2-6374-4859-6071-8293a4b5c6d7"
+name: "pfSense network transport protocol summary"
+description: "Identifies the distribution of network transport protocols through the pfSense firewall over the last 24 hours to detect unusual protocol usage patterns."
+query: |
+  // Count by Network Transport
+  pfsense_logstash_CL
+  | where TimeGenerated > ago(1d)
+  | where isnotempty(network_transport_s)
+  | summarize count() by network_transport_s
+  | sort by count_ desc
+  | top 100 by count_
+tactics:
+  - CommandAndControl
+  - Discovery
+techniques:
+  - T1071
+  - T1046

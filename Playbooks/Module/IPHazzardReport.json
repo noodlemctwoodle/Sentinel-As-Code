@@ -1,0 +1,646 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "title": "Module-IPHazzardReport",
+        "description": "Big Data Cloud Hazzard Report module",
+        "lastUpdateTime": "29-07-2024",
+        "entities": [],
+        "tags": [],
+        "support": {
+            "tier": "community"
+        },
+        "author": {
+            "name": "noodlemctwoodle"
+        }
+    },
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Module-IPHazzardReport",
+            "type": "string"
+        },
+        "AutomationResourceGroup": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "properties": {
+                                        "IPAddress": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Compose_JSON_Template": {
+                            "runAfter": {
+                                "Parse_JSON_Response": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": {
+                                "Bogon": "@body('Parse_JSON_Response')?['hazardReport']?['isBogon']",
+                                "Cellular": "@body('Parse_JSON_Response')?['hazardReport']?['isCellular']",
+                                "City": "@{body('Parse_JSON_Response')?['location']?['city']}",
+                                "Continent": "@{body('Parse_JSON_Response')?['location']?['continent']}",
+                                "CountryCode": "@{body('Parse_JSON_Response')?['country']?['isoAlpha2']}",
+                                "GloballyReachable": "@{body('Parse_JSON_Response')?['isReachableGlobally']}",
+                                "HostingAsn": "@body('Parse_JSON_Response')?['hazardReport']?['isHostingAsn']",
+                                "HostingLikelihood": "@{body('Parse_JSON_Response')?['hazardReport']?['hostingLikelihood']}",
+                                "IPAddress": "@{body('Parse_JSON_Response')?['ip']}",
+                                "KnownAsMailServer": "@body('Parse_JSON_Response')?['hazardReport']?['isKnownAsMailServer']",
+                                "KnownAsProxy": "@body('Parse_JSON_Response')?['hazardReport']?['isKnownAsProxy']",
+                                "KnownAsPublicRouter": "@body('Parse_JSON_Response')?['hazardReport']?['isKnownAsPublicRouter']",
+                                "KnownAsTorServer": "@body('Parse_JSON_Response')?['hazardReport']?['isKnownAsTorServer']",
+                                "KnownAsVpn": "@body('Parse_JSON_Response')?['hazardReport']?['isKnownAsVpn']",
+                                "Organisation": "@{body('Parse_JSON_Response')?['network']?['organisation']}",
+                                "TotalAddresses": "@body('Parse_JSON_Response')?['network']?['totalAddresses']",
+                                "Unreachable": "@body('Parse_JSON_Response')?['hazardReport']?['isUnreachable']",
+                                "iCloudPrivateRelay": "@body('Parse_JSON_Response')?['hazardReport']?['iCloudPrivateRelay']"
+                            }
+                        },
+                        "HTTP_GET_Big_Data_Cloud": {
+                            "runAfter": {
+                                "Module-GetSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://api-bdc.net/data/ip-geolocation-full?ip=@{triggerBody()?['IPAddress']}&key=@{body('Module-GetSecret')}",
+                                "method": "GET"
+                            }
+                        },
+                        "Parse_JSON_Response": {
+                            "runAfter": {
+                                "HTTP_GET_Big_Data_Cloud": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_GET_Big_Data_Cloud')",
+                                "schema": {
+                                    "properties": {
+                                        "confidence": {
+                                            "type": "string"
+                                        },
+                                        "confidenceArea": {
+                                            "items": {
+                                                "properties": {
+                                                    "latitude": {
+                                                        "type": "number"
+                                                    },
+                                                    "longitude": {
+                                                        "type": "number"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "latitude",
+                                                    "longitude"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "country": {
+                                            "properties": {
+                                                "callingCode": {
+                                                    "type": "string"
+                                                },
+                                                "countryFlagEmoji": {
+                                                    "type": "string"
+                                                },
+                                                "currency": {
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string"
+                                                        },
+                                                        "minorUnits": {
+                                                            "type": "integer"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "numericCode": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "geonameId": {
+                                                    "type": "integer"
+                                                },
+                                                "isIndependent": {
+                                                    "type": "boolean"
+                                                },
+                                                "isoAdminLanguages": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "isoAlpha2": {
+                                                                "type": "string"
+                                                            },
+                                                            "isoAlpha3": {
+                                                                "type": "string"
+                                                            },
+                                                            "isoName": {
+                                                                "type": "string"
+                                                            },
+                                                            "nativeName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                "isoAlpha2": {
+                                                    "type": "string"
+                                                },
+                                                "isoAlpha3": {
+                                                    "type": "string"
+                                                },
+                                                "isoName": {
+                                                    "type": "string"
+                                                },
+                                                "isoNameFull": {
+                                                    "type": "string"
+                                                },
+                                                "m49Code": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "unRegion": {
+                                                    "type": "string"
+                                                },
+                                                "wbIncomeLevel": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string"
+                                                        },
+                                                        "iso2Code": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "wbRegion": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string"
+                                                        },
+                                                        "iso2Code": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "wikidataId": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "hazardReport": {
+                                            "properties": {
+                                                "hostingLikelihood": {
+                                                    "type": "integer"
+                                                },
+                                                "iCloudPrivateRelay": {
+                                                    "type": "boolean"
+                                                },
+                                                "isBlacklistedBlocklistDe": {
+                                                    "type": "boolean"
+                                                },
+                                                "isBlacklistedUceprotect": {
+                                                    "type": "boolean"
+                                                },
+                                                "isBogon": {
+                                                    "type": "boolean"
+                                                },
+                                                "isCellular": {
+                                                    "type": "boolean"
+                                                },
+                                                "isHostingAsn": {
+                                                    "type": "boolean"
+                                                },
+                                                "isKnownAsMailServer": {
+                                                    "type": "boolean"
+                                                },
+                                                "isKnownAsProxy": {
+                                                    "type": "boolean"
+                                                },
+                                                "isKnownAsPublicRouter": {
+                                                    "type": "boolean"
+                                                },
+                                                "isKnownAsTorServer": {
+                                                    "type": "boolean"
+                                                },
+                                                "isKnownAsVpn": {
+                                                    "type": "boolean"
+                                                },
+                                                "isSpamhausAsnDrop": {
+                                                    "type": "boolean"
+                                                },
+                                                "isSpamhausDrop": {
+                                                    "type": "boolean"
+                                                },
+                                                "isSpamhausEdrop": {
+                                                    "type": "boolean"
+                                                },
+                                                "isUnreachable": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "ip": {
+                                            "type": "string"
+                                        },
+                                        "isReachableGlobally": {
+                                            "type": "boolean"
+                                        },
+                                        "lastUpdated": {
+                                            "type": "string"
+                                        },
+                                        "localityLanguageRequested": {
+                                            "type": "string"
+                                        },
+                                        "location": {
+                                            "properties": {
+                                                "city": {
+                                                    "type": "string"
+                                                },
+                                                "continent": {
+                                                    "type": "string"
+                                                },
+                                                "continentCode": {
+                                                    "type": "string"
+                                                },
+                                                "isoPrincipalSubdivision": {
+                                                    "type": "string"
+                                                },
+                                                "isoPrincipalSubdivisionCode": {
+                                                    "type": "string"
+                                                },
+                                                "latitude": {
+                                                    "type": "number"
+                                                },
+                                                "localityInfo": {
+                                                    "properties": {
+                                                        "administrative": {
+                                                            "items": {
+                                                                "properties": {
+                                                                    "adminLevel": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "description": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "geonameId": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "isoCode": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "isoName": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "order": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "wikidataId": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [],
+                                                                "type": "object"
+                                                            },
+                                                            "type": "array"
+                                                        },
+                                                        "informative": {
+                                                            "items": {
+                                                                "properties": {
+                                                                    "description": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "geonameId": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "isoCode": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "isoName": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "order": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "wikidataId": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [],
+                                                                "type": "object"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "localityName": {
+                                                    "type": "string"
+                                                },
+                                                "longitude": {
+                                                    "type": "number"
+                                                },
+                                                "plusCode": {
+                                                    "type": "string"
+                                                },
+                                                "postcode": {
+                                                    "type": "string"
+                                                },
+                                                "principalSubdivision": {
+                                                    "type": "string"
+                                                },
+                                                "timeZone": {
+                                                    "properties": {
+                                                        "displayName": {
+                                                            "type": "string"
+                                                        },
+                                                        "effectiveTimeZoneFull": {
+                                                            "type": "string"
+                                                        },
+                                                        "effectiveTimeZoneShort": {
+                                                            "type": "string"
+                                                        },
+                                                        "ianaTimeId": {
+                                                            "type": "string"
+                                                        },
+                                                        "isDaylightSavingTime": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "localTime": {
+                                                            "type": "string"
+                                                        },
+                                                        "utcOffset": {
+                                                            "type": "string"
+                                                        },
+                                                        "utcOffsetSeconds": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "network": {
+                                            "properties": {
+                                                "bgpPrefix": {
+                                                    "type": "string"
+                                                },
+                                                "bgpPrefixLastAddress": {
+                                                    "type": "string"
+                                                },
+                                                "bgpPrefixNetworkAddress": {
+                                                    "type": "string"
+                                                },
+                                                "carriers": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "asn": {
+                                                                "type": "string"
+                                                            },
+                                                            "asnNumeric": {
+                                                                "type": "integer"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "organisation": {
+                                                                "type": "string"
+                                                            },
+                                                            "rank": {
+                                                                "type": "integer"
+                                                            },
+                                                            "rankText": {
+                                                                "type": "string"
+                                                            },
+                                                            "registeredCountry": {
+                                                                "type": "string"
+                                                            },
+                                                            "registeredCountryName": {
+                                                                "type": "string"
+                                                            },
+                                                            "registrationDate": {
+                                                                "type": "string"
+                                                            },
+                                                            "registrationLastChange": {
+                                                                "type": "string"
+                                                            },
+                                                            "registry": {
+                                                                "type": "string"
+                                                            },
+                                                            "totalIpv4Addresses": {
+                                                                "type": "integer"
+                                                            },
+                                                            "totalIpv4BogonPrefixes": {
+                                                                "type": "integer"
+                                                            },
+                                                            "totalIpv4Prefixes": {
+                                                                "type": "integer"
+                                                            },
+                                                            "totalIpv6BogonPrefixes": {
+                                                                "type": "integer"
+                                                            },
+                                                            "totalIpv6Prefixes": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                "isBogon": {
+                                                    "type": "boolean"
+                                                },
+                                                "isReachableGlobally": {
+                                                    "type": "boolean"
+                                                },
+                                                "organisation": {
+                                                    "type": "string"
+                                                },
+                                                "registeredCountry": {
+                                                    "type": "string"
+                                                },
+                                                "registeredCountryName": {
+                                                    "type": "string"
+                                                },
+                                                "registry": {
+                                                    "type": "string"
+                                                },
+                                                "registryStatus": {
+                                                    "type": "string"
+                                                },
+                                                "totalAddresses": {
+                                                    "type": "integer"
+                                                },
+                                                "viaCarriers": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "asn": {
+                                                                "type": "string"
+                                                            },
+                                                            "asnNumeric": {
+                                                                "type": "integer"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "organisation": {
+                                                                "type": "string"
+                                                            },
+                                                            "rank": {
+                                                                "type": "integer"
+                                                            },
+                                                            "rankText": {
+                                                                "type": "string"
+                                                            },
+                                                            "registeredCountry": {
+                                                                "type": "string"
+                                                            },
+                                                            "registeredCountryName": {
+                                                                "type": "string"
+                                                            },
+                                                            "registry": {
+                                                                "type": "string"
+                                                            },
+                                                            "totalIpv4Addresses": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "securityThreat": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Response": {
+                            "runAfter": {
+                                "Compose_JSON_Template": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 200,
+                                "body": "@outputs('Compose_JSON_Template')"
+                            }
+                        },
+                        "Module-GetSecret": {
+                            "runAfter": {},
+                            "type": "Workflow",
+                            "inputs": {
+                                "host": {
+                                    "workflow": {
+                                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-GetSecret')]"
+
+                                    },
+                                    "triggerName": "When_a_HTTP_request_is_received"
+                                },
+                                "body": {
+                                    "secretName": "BigData-API"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {}
+                    }
+                },
+                "accessControl": {
+                    "triggers": {
+                        "allowedCallerIpAddresses": [
+
+                        ]
+                    },
+                    "actions": {
+                        "allowedCallerIpAddresses": [
+
+                            
+                        ]
+                    }
+                }
+            },
+            "name": "[parameters('PlaybookName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Source": "Sentinel-As-Code",
+                "hidden-SentinelTemplateName": "Module-IPHazzardReport",
+                "hidden-SentinelTemplateVersion": "1.0"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "apiVersion": "2017-07-01",
+            "dependsOn": []
+        }
+    ]
+}

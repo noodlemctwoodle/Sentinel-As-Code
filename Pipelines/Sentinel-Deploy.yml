@@ -67,7 +67,7 @@ parameters:
   - name: solutions
     displayName: "  Content Hub › Solutions (comma-separated)"
     type: string
-    default: "Microsoft Defender XDR,Azure Activity"
+    default: "Microsoft Defender XDR,Azure Activity,Microsoft Entra ID,Microsoft Defender for Cloud,Microsoft 365,Microsoft Defender for Endpoint,Windows Security Events,Threat Intelligence (New),UEBA Essentials"
 
   - name: severitiesToInclude
     displayName: "  Content Hub › Analytics Rule Severities"
@@ -115,6 +115,11 @@ parameters:
     default: false
 
   # ── Custom Content (Stage 4) ───────────────────────────────────────────
+  - name: skipCustomParsers
+    displayName: "  Custom › Skip Parsers (YAML)"
+    type: boolean
+    default: false
+
   - name: skipCustomDetections
     displayName: "  Custom › Skip Detections (YAML)"
     type: boolean
@@ -150,6 +155,11 @@ parameters:
     type: boolean
     default: false
 
+  - name: smartDeployment
+    displayName: "  Custom › Smart Deployment (only deploy changed files)"
+    type: boolean
+    default: true
+
   # ── General ────────────────────────────────────────────────────────────
   - name: whatIf
     displayName: "🔍 Dry Run — preview changes without applying"
@@ -162,6 +172,7 @@ variables:
                                      #   - sentinelResourceGroup
                                      #   - sentinelWorkspaceName
                                      #   - sentinelRegion
+                                     #   - playbookResourceGroup (optional, defaults to sentinelResourceGroup)
   - name: serviceConnection
     value: "sc-sentinel-as-code"
   - name: SuppressAzurePowerShellBreakingChangeWarnings
@@ -217,6 +228,12 @@ variables:
     ${{ else }}:
       value: ""
 
+  - name: flagSkipCustomParsers
+    ${{ if eq(parameters.skipCustomParsers, true) }}:
+      value: "-SkipParsers"
+    ${{ else }}:
+      value: ""
+
   - name: flagSkipCustomDetections
     ${{ if eq(parameters.skipCustomDetections, true) }}:
       value: "-SkipDetections"
@@ -256,6 +273,12 @@ variables:
   - name: flagSkipCustomSummaryRules
     ${{ if eq(parameters.skipCustomSummaryRules, true) }}:
       value: "-SkipSummaryRules"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSmartDeployment
+    ${{ if eq(parameters.smartDeployment, true) }}:
+      value: "-SmartDeployment"
     ${{ else }}:
       value: ""
 
@@ -379,6 +402,83 @@ stages:
                     retentionInDays=${{ parameters.retentionInDays }} \
                     totalRetentionInDays=${{ parameters.totalRetentionInDays }}
 
+          - task: PowerShell@2
+            displayName: "Wait for Workspace Indexing"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                Write-Host "##[section]Waiting 60 seconds for Log Analytics workspace to become queryable..."
+                Start-Sleep -Seconds 60
+                Write-Host "Done."
+
+          - task: AzurePowerShell@5
+            displayName: "Configure Sentinel Settings"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              Inline: |
+                $token = (Get-AzAccessToken -ResourceUrl "https://management.azure.com" -WarningAction SilentlyContinue)
+                if ($token.Token -is [System.Security.SecureString]) {
+                    $accessToken = $token.Token | ConvertFrom-SecureString -AsPlainText
+                } else {
+                    $accessToken = $token.Token
+                }
+                $headers = @{
+                    Authorization  = "Bearer $accessToken"
+                    'Content-Type' = 'application/json'
+                }
+                $baseUri = "https://management.azure.com/subscriptions/$(azureSubscriptionId)/resourceGroups/$(sentinelResourceGroup)/providers/Microsoft.OperationalInsights/workspaces/$(sentinelWorkspaceName)"
+                $api = "api-version=2024-01-01-preview"
+
+                $settings = @(
+                    @{ name = 'Anomalies';       body = @{ kind = 'Anomalies';       etag = $null; properties = @{} } }
+                    @{ name = 'EyesOn';          body = @{ kind = 'EyesOn';          etag = $null; properties = @{} } }
+                    @{ name = 'EntityAnalytics'; body = @{ kind = 'EntityAnalytics'; etag = $null; properties = @{ entityProviders = @('AzureActiveDirectory') } } }
+                    @{ name = 'Ueba';            body = @{ kind = 'Ueba';            etag = $null; properties = @{ dataSources = @('AuditLogs','AzureActivity','SigninLogs','SecurityEvent') } } }
+                )
+
+                foreach ($s in $settings) {
+                    $uri = "$baseUri/providers/Microsoft.SecurityInsights/settings/$($s.name)?$api"
+                    # GET current setting to retrieve etag
+                    try {
+                        $getHeaders = @{ Authorization = "Bearer $accessToken" }
+                        $current = Invoke-RestMethod -Uri $uri -Method Get -Headers $getHeaders
+                        if ($current.etag) { $s.body['etag'] = $current.etag }
+                    } catch {}
+
+                    $json = $s.body | ConvertTo-Json -Depth 5
+
+                    $putHeaders = @{
+                        Authorization  = "Bearer $accessToken"
+                        'Content-Type' = 'application/json'
+                        'If-Match'     = if ($s.body.etag) { $s.body.etag } else { '*' }
+                    }
+
+                    try {
+                        Invoke-RestMethod -Uri $uri -Method Put -Headers $putHeaders -Body $json | Out-Null
+                        Write-Host "Configured: $($s.name)"
+                    }
+                    catch {
+                        $errorBody = $null
+                        if ($_.Exception.Response) {
+                            try {
+                                $stream = $_.Exception.Response.GetResponseStream()
+                                $reader = [System.IO.StreamReader]::new($stream)
+                                $errorBody = $reader.ReadToEnd()
+                                $reader.Close()
+                            } catch {}
+                        }
+                        if ($errorBody) {
+                            Write-Host "##[warning]Failed to configure $($s.name): $($_.Exception.Message) — $errorBody"
+                        } else {
+                            Write-Host "##[warning]Failed to configure $($s.name): $($_.Exception.Message)"
+                        }
+                    }
+                }
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+
   # =================================================================================
   # Stage 3: Deploy Content Hub
   # Deploys Content Hub solutions and their associated content. Runs regardless of
@@ -449,9 +549,10 @@ stages:
 
   # =================================================================================
   # Stage 4: Deploy Custom Content
-  # Deploys custom Detections (YAML), Watchlists (JSON+CSV), Playbooks (ARM),
-  # Workbooks (gallery JSON), Hunting Queries (YAML), Automation Rules (JSON),
-  # and Summary Rules (JSON) from the repo to the Sentinel workspace.
+  # Deploys custom Parsers (YAML), AnalyticalRules (YAML), Watchlists (JSON+CSV),
+  # Playbooks (ARM), Workbooks (gallery JSON), Hunting Queries (YAML),
+  # Automation Rules (JSON), and Summary Rules (JSON) from the repo to the
+  # Sentinel workspace. Uses dependencies.json for prerequisite validation.
   # =================================================================================
   - stage: DeployCustomContent
     displayName: "Deploy Custom Content"
@@ -475,6 +576,22 @@ stages:
         timeoutInMinutes: 60
         steps:
           - checkout: self
+            fetchDepth: 2   # Smart deployment needs parent commit for git diff
+
+          - task: DownloadPipelineArtifact@2
+            displayName: "Restore Deployment State"
+            condition: succeeded()
+            continueOnError: true
+            inputs:
+              buildType: "specific"
+              project: "$(System.TeamProjectId)"
+              definition: "$(System.DefinitionId)"
+              buildVersionToDownload: "latestFromBranch"
+              branchName: "$(Build.SourceBranch)"
+              allowPartiallySucceededBuilds: true
+              allowFailedBuilds: true
+              artifactName: "deployment-state"
+              targetPath: "$(Build.SourcesDirectory)"
 
           - task: PowerShell@2
             displayName: "Install powershell-yaml Module"
@@ -500,6 +617,10 @@ stages:
                     BasePath       = "$(Build.SourcesDirectory)"
                 }
 
+                $playbookRG = "$(playbookResourceGroup)"
+                if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
+
+                if ("$(flagSkipCustomParsers)")           { $scriptParams['SkipParsers']         = $true }
                 if ("$(flagSkipCustomDetections)")       { $scriptParams['SkipDetections']      = $true }
                 if ("$(flagSkipCustomWatchlists)")      { $scriptParams['SkipWatchlists']     = $true }
                 if ("$(flagSkipCustomPlaybooks)")       { $scriptParams['SkipPlaybooks']      = $true }
@@ -507,6 +628,7 @@ stages:
                 if ("$(flagSkipCustomHuntingQueries)")  { $scriptParams['SkipHuntingQueries'] = $true }
                 if ("$(flagSkipCustomAutomationRules)") { $scriptParams['SkipAutomationRules']= $true }
                 if ("$(flagSkipCustomSummaryRules)")    { $scriptParams['SkipSummaryRules']   = $true }
+                if ("$(flagSmartDeployment)")           { $scriptParams['SmartDeployment']    = $true }
                 if ("$(flagWhatIf)")                    { $scriptParams['WhatIf']             = $true }
 
                 Write-Host "##[section]Launching Custom Content Deployment"
@@ -517,10 +639,18 @@ stages:
               pwsh: true
               errorActionPreference: "Continue"
 
+          - task: PublishPipelineArtifact@1
+            displayName: "Save Deployment State"
+            condition: always()
+            continueOnError: true
+            inputs:
+              targetPath: "$(Build.SourcesDirectory)/.deployment-state.json"
+              artifactName: "deployment-state"
+
   # =================================================================================
   # Stage 5: Deploy Defender XDR Custom Detections
   # Deploys custom detection rules to the Microsoft Defender XDR platform via the
-  # Microsoft Graph Security API. Rules are defined as YAML files in DefenderDetections/.
+  # Microsoft Graph Security API. Rules are defined as YAML files in DefenderCustomDetections/.
   # Requires CustomDetection.ReadWrite.All Graph application permission.
   # =================================================================================
   - stage: DeployDefenderDetections

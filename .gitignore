@@ -1,0 +1,5 @@
+# Blog drafts
+Blog/
+
+# Deployment state — tracks successful deployments for smart retry logic
+.deployment-state.json

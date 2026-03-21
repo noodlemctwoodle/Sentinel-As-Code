@@ -1,0 +1,159 @@
+id: 3ff61aae-69ca-4fa4-8891-32464d5e3dde
+name: Invoke-DumpApps PowerShell Module Usage Detection
+description: |-
+  This detection identifies the use of the Invoke-DumpApps PowerShell module, which is designed to enumerate Azure application registrations across a tenant. The module systematically queries Microsoft Graph API endpoints to collect comprehensive information about app registrations, including permission scopes, consent grants, and third-party applications.
+
+  The detection specifically monitors the characteristic pattern of Graph API calls made by this module, which generates a high volume of requests to user directories, organization information, application registrations, and service principal endpoints. This activity may indicate reconnaissance efforts to identify third-party external applications that users have consented to, which could represent potential security risks or attack vectors.
+
+  The rule incorporates user context and blast radius assessment to prioritize alerts based on the privileges of the account performing the enumeration. This helps security teams quickly identify whether the activity represents legitimate administrative work or potentially malicious reconnaissance. Each alert provides detailed information about the specific endpoints accessed, the timing and pattern of requests, and the user's position within the organization to facilitate rapid investigation and response.
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - InitialAccess
+  - DefenseEvasion
+  - CredentialAccess
+  - LateralMovement
+  - Discovery
+techniques:
+  - T1595
+  - T1595.002
+  - T1078
+  - T1078.004
+  - T1589
+  - T1550
+  - T1550.001
+  - T1562
+  - T1539
+  - T1087
+  - T1087.004
+requiredDataConnectors:
+  - connectorId: MicrosoftGraphActivityLogs
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+query: |-
+  let InvokeDumpAppsCalls = dynamic([
+  "https://graph.microsoft.com/v1.0/users/",
+  "https://graph.microsoft.com/v1.0/organization",
+  "https://graph.microsoft.com/v1.0/applications",
+  "https://graph.microsoft.com/v1.0/servicePrincipals/",
+  'https://graph.microsoft.com/v1.0/servicePrincipals?$skiptoken="'
+  ]);
+  // Get most recent identity info to join later, including blast radius indicators
+  let RecentIdentityInfo = IdentityInfo
+  | where TimeGenerated > ago(10d)
+  | extend
+  // Parse assigned roles from JSON format
+  ParsedRoles = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", parse_json(AssignedRoles), dynamic([])),
+  // Parse group memberships from JSON format
+  ParsedGroups = iff(isnotempty(GroupMembership) and GroupMembership != "[]", parse_json(GroupMembership), dynamic([])),
+  // Check for privileged roles
+  IsAdmin = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", true, false),
+  IsPrivilegedRole = iff(
+  AssignedRoles has_any("Global Administrator", "Privileged Role Administrator", "User Administrator", "SharePoint Administrator", "Exchange Administrator", "Hybrid Identity Administrator", "Application Administrator", "Cloud Application Administrator"),
+  true, false
+  ),
+  // Check for privileged group memberships
+  IsInPrivilegedGroup = iff(
+  GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins"),
+  true, false
+  ),
+  EmployeeId = JobTitle,
+  Department = Department,
+  Manager = Manager
+  | summarize arg_max(TimeGenerated, *) by AccountObjectId; // Take only the most recent record per account
+  // Find Graph API calls that could be suspicious reconnaissance
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri in~ (InvokeDumpAppsCalls)
+  or RequestUri has_all("https://graph.microsoft.com/v1.0/servicePrincipals(appId=", "appRoleAssignedTo")
+  | extend
+  RequestCategory = case(
+  RequestUri has "applications", "Applications",
+  RequestUri has "servicePrincipals", "Service Principals",
+  RequestUri has "users", "Users",
+  RequestUri has "organization", "Organization",
+  "Other"
+  )
+  | join kind=leftouter AADNonInteractiveUserSignInLogs
+  on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind=leftouter RecentIdentityInfo
+  on $left.UserId == $right.AccountObjectId
+  | where isnotempty(UserId) // Only include records where we have a valid UserId
+  | extend
+  RequestedAppId = extract(@"appId='(.*?)'", 1, RequestUri),
+  UserDisplayName = iff(isnotempty(AccountDisplayName), AccountDisplayName, UserDisplayName),
+  RoleCount = iff(isnotempty(ParsedRoles), array_length(ParsedRoles), 0),
+  GroupCount = iff(isnotempty(ParsedGroups), array_length(ParsedGroups), 0),
+  KeyAdminGroups = iff(isnotempty(ParsedGroups),
+  set_intersect(ParsedGroups, dynamic(["AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins", "Azure DevOps Administrators", "Security Administrators", "Global Readers"])),
+  dynamic([]))
+  // Add filters to reduce the number of results
+  | where ResultType == 0 or isnull(ResultType) // Only successful sign-ins or when ResultType isn't available
+  | summarize
+  RequestCount = count(),
+  FirstActivity = min(TimeGenerated),
+  LastActivity = max(TimeGenerated),
+  RequestCategories = make_set(RequestCategory),
+  RequestURIs = make_set(RequestUri, 10),
+  RequestedAppIds = make_set(RequestedAppId, 10),
+  UserAgents = make_set(UserAgent, 5)
+  by
+  UserId,
+  UserDisplayName,
+  AccountUPN,
+  UserPrincipalName,
+  IPAddress,
+  Department,
+  EmployeeId,
+  Manager,
+  IsAdmin,
+  IsPrivilegedRole,
+  IsInPrivilegedGroup,
+  tostring(ParsedRoles),
+  RoleCount,
+  tostring(KeyAdminGroups),
+  GroupCount
+  | where RequestCount > 2 // Only include users who made multiple requests
+  | extend
+  BlastRadiusSeverity = case(
+  IsPrivilegedRole == true, "Critical",
+  IsAdmin == true or IsInPrivilegedGroup == true, "High",
+  RoleCount > 0, "Medium",
+  "Low"
+  ),
+  ActivityDurationMinutes = datetime_diff('minute', LastActivity, FirstActivity),
+  UniqueEndpointsAccessed = array_length(RequestURIs),
+  AppIdsAccessed = array_length(RequestedAppIds)
+  | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserDisplayName
+      - identifier: AadUserId
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

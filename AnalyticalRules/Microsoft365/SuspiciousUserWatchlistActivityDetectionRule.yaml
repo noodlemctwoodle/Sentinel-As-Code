@@ -1,0 +1,77 @@
+id: 8a653912-657e-409e-a911-19e1d110baa1
+name: Activity from known suspicious user
+description: |
+  'Please escalate this incident to Tier 3 / SOC Manager
+
+  REQUIRES WATCHLIST = "SuspiciousUsers"'
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - InitialAccess
+  - Persistence
+techniques:
+  - T1591
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |
+  let SuspiciousUsers = _GetWatchlist('SuspiciousUsers') | project UserPrincipalName;
+  let O365Activity =
+      OfficeActivity
+      | extend UserPrincipalName = UserId
+      | where UserPrincipalName in (SuspiciousUsers)
+      | extend Appname =
+          iff(tostring(split(OfficeObjectId, '/')[3]) == 'personal', 'Onedrive for Business'
+          , iff(tostring(split(OfficeObjectId, '/')[3]) == 'sites', 'SharePoint'
+          , 'Brand Assets'))
+      | extend UserLocation = tostring(split(OfficeObjectId, '/')[4])
+      | extend DocumentName = extract(@'[^\\/:*?"<>|\r\n]+$', 0, OfficeObjectId)
+      | where isnotempty(DocumentName)
+      | summarize by UserPrincipalName, Appname, UserLocation, DocumentName;
+  let SuspiciousLogin =
+      SigninLogs
+      | where UserPrincipalName in (SuspiciousUsers)
+      | where ResultType == 0
+      | extend DeviceType = tostring(DeviceDetail.name)
+      | extend DeviceTrust = tostring(DeviceDetail.trustType)
+      | extend DeviceOS = tostring(DeviceDetail.operatingSystem)
+      | where isnotempty(DeviceType)
+      | summarize by UserPrincipalName, DeviceType, DeviceTrust, DeviceOS
+      ;
+  union O365Activity, SuspiciousLogin
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: Appname
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceType
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

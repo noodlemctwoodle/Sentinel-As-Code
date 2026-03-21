@@ -1,0 +1,42 @@
+id: "8fd64758-09a1-4b2c-3d4e-5f6071829304"
+name: "PowerShell malicious OAuth app injection"
+description: "Detects Invoke-InjectOAuthApp module activity by identifying PowerShell-driven app registration, credential addition, and service principal creation in both Graph API and Entra audit logs."
+query: |
+  // The Invoke-InjectOAuthApp module is designed to automate the deployment of an app registration in a Microsoft tenant.
+  // When configuring the -scope parameter as 'op backdoor,' the tool creates an application and assigns a wide range of
+  // common permissions to it, which includes access to Mail, Files, Teams, and various other resources. Notably, none of
+  // these permissions require administrative consent.
+
+  // This module triggers three events in the Azure Audit Logs when executed:
+
+  // - Add application
+  // - Update application — Certificates and secrets management
+  // - Update application
+
+  // The most important event entry is 'Add application'. In this event you can find the newly created application ID and name.
+  // Another crucial field to examine is the 'Address' field, which holds the Reply URL. This field contains the malicious URL to which the user's session will be redirected.
+
+  // The Invoke-InjectOAuthApp module generates a notable volume of events within the MicrosoftGraphActivityLogs, which is visually represented in the below screenshot
+
+  // Detect app registration
+  let ApplicationOperations = dynamic(["Add application", "Update application — Certificates and secrets management", "Update application"]);
+  AuditLogs
+  | where AdditionalDetails[0].value contains "PowerShell"
+  | where OperationName in (ApplicationOperations)
+
+  // Detect app registration in Graph Activity Logs
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where (RequestUri has_all("https://graph.microsoft.com/v1.0/applications/", "addPassword") or
+  RequestUri == "https://graph.microsoft.com/v1.0/applications" or
+  RequestUri == "https://graph.microsoft.com/v1.0/servicePrincipals")
+  | extend ApplicationId = tostring(extract(@"applications/(.*?)/addPassword", 1, RequestUri))
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1098.001
+  - T1136.003
+  - T1550.001

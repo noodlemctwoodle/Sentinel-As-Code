@@ -1,0 +1,71 @@
+id: 4ce03f95-e37e-497e-968e-9cc79554b2de
+name: MFA Explicit Deny
+description: |
+  'Identifies explicit MFA denies'
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1110
+  - T1110.001
+  - T1078
+  - T1078.004
+  - T1621
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SignInLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let threshold = 10;
+  let aadFunc = (tableName:string) {
+  table(tableName)
+  | where AuthenticationRequirement == "multiFactorAuthentication"
+  | extend AuthResult = tostring(parse_json(AuthenticationDetails)[1].authenticationStepResultDetail)
+  | where AuthResult in ("MFA completed in Azure AD", "MFA denied; user declined the authentication","MFA denied; user did not respond to mobile app notification")
+  | summarize ['Result Types']=make_list(AuthResult) by CorrelationId, UserPrincipalName
+  | where ['Result Types'] has ("MFA completed in Azure AD") and ['Result Types'] has_any ("MFA denied; user declined the authentication", "MFA denied; user did not respond to mobile app notification")
+  | mv-expand ['Result Types'] to typeof(string)
+  | where ['Result Types'] has_any ("MFA denied; user declined the authentication","MFA denied; user did not respond to mobile app notification") };
+  let aadSignin = aadFunc("SigninLogs");
+  let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+  let deniedMFAUsers = union isfuzzy=true aadSignin, aadNonInt
+  | summarize DeniedAttempts = count()by ['Result Types'], CorrelationId, UserPrincipalName
+  | where DeniedAttempts >= threshold; //Ammend the amount of times the user has denied the MFA push
+  deniedMFAUsers
+  | extend Severity = case
+      (DeniedAttempts < 20, "Medium"
+      ,DeniedAttempts >= 20, "High"
+      , "High"
+      )
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+alertDetailsOverride:
+  alertnameFormat: null
+  alertDescriptionFormat: null
+  alertTacticsColumnName: null
+  alertSeverityColumnName: Severity
+suppressionEnabled: false
+suppressionDuration: PT5H

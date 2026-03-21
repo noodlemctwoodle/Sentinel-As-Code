@@ -1,0 +1,6 @@
+{
+  "displayName": "Perimeter 81",
+  "description": "Network security workbook for monitoring Perimeter 81 VPN and ZTNA activity including connections, users, and policy events.",
+  "category": "Network",
+  "sourceId": "Perimeter81"
+}

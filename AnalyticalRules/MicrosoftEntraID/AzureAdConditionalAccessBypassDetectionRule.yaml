@@ -1,0 +1,129 @@
+id: 33609de4-5fa4-42ff-bec8-8b6713c30298
+name: Attempt to bypass conditional access rule in Azure AD
+description: |
+  'Identifies an attempt to Bypass conditional access rule in Azure Active Directory.
+  The ConditionalAccessStatus column value details if there was an attempt to bypass Conditional Access
+  or if the Conditional access rule was not satisfied (ConditionalAccessStatus == 1).
+  References:
+  https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/overview
+  https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+  https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/reference-sign-ins-error-codes
+  ConditionalAccessStatus == 0 // Success
+  ConditionalAccessStatus == 1 // Failure
+  ConditionalAccessStatus == 2 // Not Applied
+  ConditionalAccessStatus == 3 // unknown'
+severity: Low
+kind: Scheduled
+version: 1.0.0
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - Persistence
+  - DefenseEvasion
+techniques:
+  - T1078
+  - T1078.004
+  - T1098
+  - T1556
+  - T1556.009
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SignInLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let threshold = 4; // Modify this threshold value to reduce false positives based on your environment
+  let excludeErrorCodes = dynamic(['50078', '50076']); // Add more codes to reduce false positives based on your environment
+  //let knownIPRange = _GetWatchlist('knownIPs') | project IPAddress | sort by IPAddress desc;
+  let aadFunc = (tableName: string)
+      {
+          table(tableName)
+          | where ConditionalAccessStatus == 1 or ConditionalAccessStatus =~ "failure" or ConditionalAccessStatus =~ "notapplied"
+          | where not(Status has_any (excludeErrorCodes)) // excluding error codes that don't represent a security concern
+          | mv-apply ConditionalAccessPolicy = parse_json(ConditionalAccessPolicies)
+              on (
+              project ConditionalAccessPoliciesName = ConditionalAccessPolicy.name, result = ConditionalAccessPolicy.result
+              | where result =~ "failure"
+                  or result == "notApplied"
+              )
+          | extend DeviceDetail = todynamic(DeviceDetail)
+              , Status = todynamic(Status)
+              , LocationDetails = todynamic(LocationDetails)
+          | extend OS = DeviceDetail.operatingSystem, Browser = DeviceDetail.browser
+          | extend State = tostring(LocationDetails.state)
+              , City = tostring(LocationDetails.city)
+              , Country = tostring(LocationDetails.countryOrRegion)
+          | extend StatusCode = tostring(Status.errorCode)
+              , StatusDetails = tostring(Status.additionalDetails)
+          | extend Status = strcat(StatusCode, ": ", ResultDescription)
+          //| where IPAddress !in (knownIPRange)
+          | summarize StartTime = min(TimeGenerated)
+              , EndTime = max(TimeGenerated)
+              , Status = make_list(Status, 10)
+              , StatusDetails = make_list(StatusDetails, 50)
+              , IPAddresses = make_list(IPAddress, 100)
+              , IPAddressCount = dcount(IPAddress)
+              , CorrelationIds = make_list(CorrelationId, 100)
+              , ConditionalAccessPoliciesName = make_list(ConditionalAccessPoliciesName, 100)
+              by UserPrincipalName
+              , AppDisplayName
+              , tostring(Browser)
+              , tostring(OS)
+              , City
+              , State
+              , Country
+              , Type
+          | where IPAddressCount > threshold and StatusDetails !has "MFA successfully completed"
+          | mv-expand IPAddresses, Status, StatusDetails, CorrelationIds
+          | extend Status = strcat(Status, " ", StatusDetails)
+          | summarize
+              IPAddresses = make_set(IPAddresses, 100)
+              , Status = make_set(Status, 10)
+              , CorrelationIds = make_set(CorrelationIds, 100)
+              , ConditionalAccessPoliciesName = make_set(ConditionalAccessPoliciesName, 100)
+              by StartTime
+              , EndTime
+              , UserPrincipalName
+              , AppDisplayName
+              , tostring(Browser)
+              , tostring(OS)
+              , City
+              , State
+              , Country
+              , IPAddressCount
+              , Type
+          | extend IPAddresses = tostring(IPAddresses)
+      };
+  let aadSignin = aadFunc("SigninLogs");
+  let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+  union isfuzzy=true aadSignin, aadNonInt
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddresses
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

@@ -1,0 +1,18 @@
+id: "8fd6e7f8-091a-42b3-c4d5-e6f708192031"
+name: "Incident weekly pivot table with timechart"
+description: "Identifies trending incident patterns by creating a pivot table of incident counts by title across weekly periods over 60 days, rendered as a time chart visualization."
+query: |
+  // Creates a pivot table showing incident counts by title across weekly time periods,
+  // then renders as a time chart to visualize trending patterns over the last 60 days
+
+  SecurityIncident
+  | where TimeGenerated >= ago(60d)
+  | extend WeekStart = startofweek(TimeGenerated)
+  | summarize IncidentCount = count() by Title, WeekStart
+  | evaluate pivot(WeekStart, sum(IncidentCount))
+  | order by Title asc
+  | render timechart
+tactics:
+  - Collection
+techniques:
+  - T1530

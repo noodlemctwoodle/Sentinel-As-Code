@@ -1,0 +1,317 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# OneIdentity Security Monitoring Dashboard\n---\nThis workbook monitors OneIdentity password management activities and identifies potential security risks including bulk password requests, privilege escalation attempts, and anomalous user behavior."
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "0c74f374-3bfa-48dd-91bd-b0b4ebe26356",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time Range",
+            "type": 4,
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 300000
+                },
+                {
+                  "durationMs": 900000
+                },
+                {
+                  "durationMs": 1800000
+                },
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2419200000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 5184000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ]
+            },
+            "value": {
+              "durationMs": 7776000000
+            }
+          },
+          {
+            "id": "1c74f374-3bfa-48dd-91bd-b0b4ebe26357",
+            "version": "KqlParameterItem/1.0",
+            "name": "MinPasswordCount",
+            "type": 1,
+            "value": "5",
+            "label": "Minimum Password Count Threshold"
+          },
+          {
+            "id": "2c74f374-3bfa-48dd-91bd-b0b4ebe26358",
+            "version": "KqlParameterItem/1.0",
+            "name": "MaxTimeSpan",
+            "type": 1,
+            "value": "5",
+            "label": "Maximum Time Span (minutes)"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 8"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Enhanced bulk password request detection with risk scoring\nlet timeWindow = totimespan('{TimeRange:grain}');\nlet minPasswordCount = toint('{MinPasswordCount}');\nlet maxTimeSpan = totimespan(strcat('{MaxTimeSpan}', 'm'));\nlet businessHoursStart = 7;\nlet businessHoursEnd = 19;\nCommonSecurityLog\n| where TimeGenerated > ago(timeWindow)\n| where DeviceVendor == \"OneIdentity\"\n| where Activity in (\"AccessRequestCreated\", \"PasswordReleased\")\n| where isnotempty(DestinationUserName) and isnotempty(DeviceCustomString1)\n| extend UPN = replace_string(strcat(DestinationUserName, \"@\", coalesce(DestinationDnsDomain, \"\")), 'ad.capita.co.uk', 'capita.co.uk')\n| extend RequestAccount = strcat(coalesce(DeviceCustomString1, \"\"), \"@\", coalesce(DeviceCustomString2, \"\"))\n| extend HourOfDay = hourofday(TimeGenerated)\n| extend IsBusinessHours = HourOfDay >= businessHoursStart and HourOfDay <= businessHoursEnd\n| extend IsPrivileged = RequestAccount has_any (\"admin\", \"service\", \"privileged\", \"root\", \"sa\")\n| summarize \n    RequestedPasswords = countif(Activity == \"AccessRequestCreated\"),\n    ReleasedPasswords = countif(Activity == \"PasswordReleased\"),\n    ReleasedAccounts = make_set_if(RequestAccount, Activity == \"PasswordReleased\"),\n    PrivilegedRequests = countif(Activity == \"AccessRequestCreated\" and IsPrivileged),\n    OffHoursRequests = countif(Activity == \"AccessRequestCreated\" and not(IsBusinessHours)),\n    EarliestEvent = min(TimeGenerated),\n    LatestEvent = max(TimeGenerated),\n    UniqueAccounts = dcount(RequestAccount)\n    by UPN\n| extend TimeSpan = LatestEvent - EarliestEvent\n| extend RiskScore = \n    case(\n        RequestedPasswords >= 20, 5,\n        RequestedPasswords >= 15, 4,\n        RequestedPasswords >= 10, 3,\n        RequestedPasswords >= minPasswordCount and TimeSpan <= maxTimeSpan, 2,\n        1\n    ) + \n    case(\n        PrivilegedRequests > 0, 2,\n        0\n    ) +\n    case(\n        OffHoursRequests > (RequestedPasswords * 0.5), 1,\n        0\n    )\n| extend RiskLevel = \n    case(\n        RiskScore >= 7, \"Critical\",\n        RiskScore >= 5, \"High\", \n        RiskScore >= 3, \"Medium\",\n        \"Low\"\n    )\n| where RequestedPasswords >= minPasswordCount and ReleasedPasswords >= minPasswordCount\n| where TimeSpan <= maxTimeSpan or RequestedPasswords >= 10\n| project UPN, RequestedPasswords, ReleasedPasswords, PrivilegedRequests, OffHoursRequests, UniqueAccounts, ReleasedAccounts, EarliestEvent, LatestEvent, TimeSpan, RiskScore, RiskLevel\n| order by RiskScore desc, ReleasedPasswords desc",
+        "size": 0,
+        "title": "🚨 High-Risk Password Access Patterns",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "RiskLevel",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical",
+                    "representation": "redBright",
+                    "text": "🔴 Critical"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High",
+                    "representation": "orange",
+                    "text": "🟠 High"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium",
+                    "representation": "yellow",
+                    "text": "🟡 Medium"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "green",
+                    "text": "🟢 Low"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "RiskScore",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "redGreen"
+              }
+            }
+          ]
+        }
+      },
+      "customWidth": "100",
+      "name": "enhanced-bulk-requests"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Password request timeline with risk indicators\nlet timeWindow = totimespan('{TimeRange:grain}');\nCommonSecurityLog\n| where TimeGenerated > ago(timeWindow)\n| where DeviceVendor == \"OneIdentity\"\n| where Activity in (\"AccessRequestCreated\", \"PasswordReleased\")\n| extend UPN = replace_string(strcat(DestinationUserName, \"@\", coalesce(DestinationDnsDomain, \"\")), 'ad.domain.co.uk', 'domain.co.uk')\n| extend RequestAccount = strcat(coalesce(DeviceCustomString1, \"\"), \"@\", coalesce(DeviceCustomString2, \"\"))\n| extend IsPrivileged = RequestAccount has_any (\"admin\", \"service\", \"privileged\", \"root\", \"sa\")\n| extend HourOfDay = hourofday(TimeGenerated)\n| extend IsBusinessHours = HourOfDay >= 7 and HourOfDay <= 19\n| summarize \n    Events = count(),\n    PrivilegedEvents = countif(IsPrivileged),\n    OffHoursEvents = countif(not(IsBusinessHours))\n    by bin(TimeGenerated, 1h), Activity\n| extend RiskIndicator = PrivilegedEvents + OffHoursEvents\n| project TimeGenerated, Activity, Events, RiskIndicator\n| render timechart",
+        "size": 0,
+        "title": "📊 Password Activity Timeline",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "customWidth": "50",
+      "name": "timeline-chart"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Enhanced password check failures with context\nlet timeWindow = totimespan('{TimeRange:grain}');\nCommonSecurityLog\n| where DeviceVendor == \"OneIdentity\" \n| where TimeGenerated > ago(timeWindow) \n| where Activity == \"PasswordCheckFailed\"\n| where isnotempty(DeviceCustomString1)\n| extend DomainAccount = DeviceCustomString1\n| extend Domain = coalesce(DeviceCustomString2, \"Unknown\")\n| extend Details = coalesce(DeviceCustomString5, \"No details\")\n| extend IsPrivileged = DomainAccount has_any (\"admin\", \"service\", \"privileged\", \"root\", \"sa\")\n| summarize \n    FailureCount = count(),\n    LatestFailure = max(TimeGenerated),\n    UniqueDetails = make_set(Details),\n    IsPrivilegedAccount = max(toint(IsPrivileged))\n    by DomainAccount, Domain\n| extend RiskLevel = \n    case(\n        FailureCount >= 10 and IsPrivilegedAccount == 1, \"Critical\",\n        FailureCount >= 5 and IsPrivilegedAccount == 1, \"High\",\n        FailureCount >= 10, \"Medium\",\n        \"Low\"\n    )\n| project DomainAccount, Domain, FailureCount, LatestFailure, RiskLevel, UniqueDetails\n| order by FailureCount desc",
+        "size": 0,
+        "title": "❌ Password Authentication Failures",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "RiskLevel",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical",
+                    "representation": "redBright"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High",
+                    "representation": "orange"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium",
+                    "representation": "yellow"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "customWidth": "50",
+      "name": "password-failures"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Enhanced directory sync monitoring with trend analysis\nlet timeWindow = totimespan('{TimeRange:grain}');\nlet currentPeriod = CommonSecurityLog\n| where DeviceVendor == \"OneIdentity\"\n| where TimeGenerated > ago(timeWindow)\n| where Activity contains \"DirectoryAssetSyncFailed\"\n| summarize CurrentFailures = count() by Domain = coalesce(DeviceCustomString1, \"Unknown\");\nlet previousPeriod = CommonSecurityLog\n| where DeviceVendor == \"OneIdentity\" \n| where TimeGenerated between (ago(timeWindow * 2) .. ago(timeWindow))\n| where Activity contains \"DirectoryAssetSyncFailed\"\n| summarize PreviousFailures = count() by Domain = coalesce(DeviceCustomString1, \"Unknown\");\ncurrentPeriod\n| join kind=fullouter previousPeriod on Domain\n| extend Domain = coalesce(Domain, Domain1)\n| extend CurrentFailures = coalesce(CurrentFailures, 0)\n| extend PreviousFailures = coalesce(PreviousFailures, 0)\n| extend TrendPercentage = \n    case(\n        PreviousFailures == 0 and CurrentFailures > 0, 100.0,\n        PreviousFailures == 0, 0.0,\n        round(((CurrentFailures - PreviousFailures) * 100.0 / PreviousFailures), 1)\n    )\n| extend Trend = \n    case(\n        TrendPercentage > 50, \"📈 Significant Increase\",\n        TrendPercentage > 0, \"📊 Increase\", \n        TrendPercentage < -50, \"📉 Significant Decrease\",\n        TrendPercentage < 0, \"📊 Decrease\",\n        \"➡️ Stable\"\n    )\n| extend AlertLevel = \n    case(\n        CurrentFailures >= 50, \"Critical\",\n        CurrentFailures >= 20, \"High\",\n        CurrentFailures >= 5, \"Medium\",\n        \"Low\"\n    )\n| project Domain, CurrentFailures, PreviousFailures, TrendPercentage, Trend, AlertLevel\n| order by CurrentFailures desc",
+        "size": 1,
+        "title": "🔄 Directory Sync Health & Trends",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "customWidth": "50",
+      "name": "directory-sync"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Enhanced user deletion monitoring with context\nlet timeWindow = totimespan('{TimeRange:grain}');\nlet deletedUsers = CommonSecurityLog\n| where DeviceVendor == \"OneIdentity\" \n| where TimeGenerated > ago(timeWindow) \n| where Activity == \"UserDeleted\"\n| where isnotempty(DeviceCustomString3)\n| project DeletedAccount = DeviceCustomString3, DeletionTime = TimeGenerated, Activity;\n\nlet userDetails = IdentityInfo\n| where TimeGenerated > ago(timeWindow * 2)\n| where AccountName in ((deletedUsers | project DeletedAccount))\n| summarize arg_max(TimeGenerated, *) by AccountName\n| project AccountName, AccountDisplayName, Manager, Department, JobTitle;\n\ndeletedUsers\n| join kind=leftouter userDetails on $left.DeletedAccount == $right.AccountName\n| extend RiskLevel = \n    case(\n        JobTitle has_any (\"admin\", \"manager\", \"director\", \"executive\", \"privileged\"), \"High\",\n        isnotempty(Manager), \"Medium\",\n        \"Low\"\n    )\n| project \n    DeletedAccount, \n    DeletionTime, \n    AccountDisplayName = coalesce(AccountDisplayName, \"Unknown\"),\n    Manager = coalesce(Manager, \"Unknown\"),\n    Department = coalesce(Department, \"Unknown\"),\n    JobTitle = coalesce(JobTitle, \"Unknown\"),\n    RiskLevel\n| order by DeletionTime desc",
+        "size": 1,
+        "title": "👤 User Account Deletions",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "customWidth": "50",
+      "name": "user-deletions"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Enhanced breakglass account monitoring\nlet timeWindow = totimespan('{TimeRange:grain}');\nlet breakglassKeywords = dynamic([\"breakglass\", \"emergency\", \"yootha\", \"bga\", \"emrg\"]);\n\nIdentityDirectoryEvents\n| where TimeGenerated > ago(timeWindow)\n| where TargetAccountDisplayName has_any (breakglassKeywords) or\n       TargetAccountUpn has_any (breakglassKeywords) or\n       AccountDisplayName has_any (breakglassKeywords)\n| where isnotempty(TargetAccountDisplayName) or isnotempty(TargetAccountUpn) or isnotempty(AccountDisplayName)\n| extend\n   AccountType =\n       case(\n           TargetAccountDisplayName has_any (breakglassKeywords), \"Target\",\n           AccountDisplayName has_any (breakglassKeywords), \"Initiator\",\n           \"Related\"\n       ),\n   RiskScore =\n       case(\n           ActionType in (\"Add member to role\", \"Remove member from role\", \"Update user\"), 5,\n           ActionType in (\"User logged in\", \"Sign-in activity\"), 3,\n           ActionType == \"Password changed\", 4,\n           1\n       ),\n   HourOfDay = hourofday(TimeGenerated),\n   IsBusinessHours = hourofday(TimeGenerated) >= 7 and hourofday(TimeGenerated) <= 19\n| extend AlertLevel =\n   case(\n       RiskScore >= 4 and not(IsBusinessHours), \"Critical\",\n       RiskScore >= 4, \"High\",\n       RiskScore >= 3, \"Medium\",\n       \"Low\"\n   )\n| extend BreakglassAccount = \n   case(\n       TargetAccountDisplayName has_any (breakglassKeywords), TargetAccountDisplayName,\n       TargetAccountUpn has_any (breakglassKeywords), TargetAccountUpn,\n       AccountDisplayName has_any (breakglassKeywords), AccountDisplayName,\n       \"Unknown\"\n   )\n| where BreakglassAccount != \"Unknown\"\n| project\n   TimeGenerated,\n   BreakglassAccount,\n   ActionType,\n   TargetAccount = coalesce(TargetAccountDisplayName, TargetAccountUpn, \"Unknown\"),\n   InitiatedBy = coalesce(AccountDisplayName, \"System\"),\n   AccountType,\n   RiskScore,\n   AlertLevel,\n   IsBusinessHours,\n   Location,\n   IPAddress\n| order by TimeGenerated desc",
+        "size": 1,
+        "title": "🚨 Breakglass & Emergency Account Activity",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "AlertLevel",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical",
+                    "representation": "redBright"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High",
+                    "representation": "orange"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium",
+                    "representation": "yellow"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "customWidth": "100",
+      "name": "breakglass-monitoring"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Security metrics summary - Sample data version\ndatatable(Metric:string, Value:real)\n[\n    \"Total Events\", 247,\n    \"Password Requests\", 156,\n    \"Success Rate %\", 94.2,\n    \"Password Failures\", 3,\n    \"Sync Failures\", 0,\n    \"User Deletions\", 1,\n    \"Active Users\", 89\n]",
+        "size": 1,
+        "title": "📈 Security Health Dashboard",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Metric",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "blue"
+            }
+          },
+          "showBorder": true
+        }
+      },
+      "customWidth": "100",
+      "name": "security-metrics"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

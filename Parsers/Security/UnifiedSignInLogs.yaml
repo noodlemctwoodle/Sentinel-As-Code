@@ -1,0 +1,19 @@
+id: UnifiedSignInLogs
+name: Unified Sign-In Logs
+description: |
+  Unions interactive and non-interactive sign-in logs into a single normalised view.
+  Handles type inconsistencies between SigninLogs and AADNonInteractiveUserSignInLogs
+  by normalising dynamic/string column variants and removing duplicated columns.
+category: Security
+functionAlias: UnifiedSignInLogs
+query: |
+  union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs
+  // Rename all columns named _dynamic to normalize the column names
+  | extend ConditionalAccessPolicies = iff(isempty( ConditionalAccessPolicies_dynamic ), todynamic(ConditionalAccessPolicies_string), ConditionalAccessPolicies_dynamic)
+  | extend Status = iff(isempty( Status_dynamic ), todynamic(Status_string), Status_dynamic)
+  | extend MfaDetail = iff(isempty( MfaDetail_dynamic ), todynamic(MfaDetail_string), MfaDetail_dynamic)
+  | extend DeviceDetail = iff(isempty( DeviceDetail_dynamic ), todynamic(DeviceDetail_string), DeviceDetail_dynamic)
+  | extend LocationDetails = iff(isempty( LocationDetails_dynamic ), todynamic(LocationDetails_string), LocationDetails_dynamic)
+  | extend TokenProtection = iff(isempty(TokenProtectionStatusDetails_dynamic),todynamic(TokenProtectionStatusDetails_string),TokenProtectionStatusDetails_dynamic)
+  // Remove duplicated columns
+  | project-away *_dynamic, *_string

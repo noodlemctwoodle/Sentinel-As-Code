@@ -1,0 +1,291 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "title": "Watchlist-TorExitNodes",
+        "description": "Create a TOR Exit Nodes Watchlist from JSON source",
+        "lastUpdateTime": "30-07-2024",
+        "entities": [],
+        "tags": [],
+        "support": {
+            "tier": "community"
+        },
+        "author": {
+            "name": "noodlemctwoodle"
+        }
+    },
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Watchlist-TorExitNodes",
+            "type": "string"
+        },
+        "SubscriptionId": {
+            "defaultValue": "00000000-0000-0000-0000-000000000000",
+            "type": "string"
+        },
+        "SentinelResourceGroup": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "WorkspaceId": {
+            "defaultValue": "00000000-0000-0000-0000-000000000001",
+            "type": "string"
+        },
+        "WatchlistAlias": {
+            "defaultValue": "TorExitNodes",
+            "type": "string"
+        },
+        "AutomationResourceGroup": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        },
+                        "SentinelResourceGroup": {
+                            "type": "string",
+                            "defaultValue": "[parameters('SentinelResourceGroup')]"
+                        },
+                        "SubscriptionId": {
+                            "type": "string",
+                            "defaultValue": "[parameters('SubscriptionId')]"
+                        },
+                        "WatchlistAlias": {
+                            "type": "string",
+                            "defaultValue": "[parameters('WatchlistAlias')]"
+                        },
+                        "WorkspaceId": {
+                            "type": "string",
+                            "defaultValue": "[parameters('WorkspaceId')]"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1
+                            },
+                            "evaluatedRecurrence": {
+                                "frequency": "Day",
+                                "interval": 1
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Condition": {
+                            "actions": {
+                                "Module-CreateWatchlist-True": {
+                                    "type": "Workflow",
+                                    "inputs": {
+                                        "host": {
+                                            "workflow": {
+                                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-CreateWatchlist')]"
+                                                
+                                            },
+                                            "triggerName": "When_a_HTTP_request_is_received"
+                                        },
+                                        "body": {
+                                            "description": "A list of TOR exit node IP Addresses",
+                                            "displayName": "Tor Exit Nodes",
+                                            "itemsSearchKey": "TorExitNodes",
+                                            "rawContent": "@body('Create_CSV_table')",
+                                            "source": "Update-TorExitNodesWatchlist",
+                                            "subscriptionId": "@parameters('SubscriptionId')",
+                                            "resourceGroup": "@parameters('SentinelResourceGroup')",
+                                            "workspaceId": "@parameters('WorkspaceId')",
+                                            "watchlistAlias": "@parameters('WatchlistAlias')"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Module-GetWatchlist": [
+                                    "Succeeded",
+                                    "Failed"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Delay": {
+                                        "runAfter": {
+                                            "Module-DeleteWatchlist": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Wait",
+                                        "inputs": {
+                                            "interval": {
+                                                "count": 30,
+                                                "unit": "Second"
+                                            }
+                                        }
+                                    },
+                                    "Module-CreateWatchlist-False": {
+                                        "runAfter": {
+                                            "Delay": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Workflow",
+                                        "inputs": {
+                                            "host": {
+                                                "workflow": {
+                                                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-CreateWatchlist')]"
+                                                    
+                                                },
+                                                "triggerName": "When_a_HTTP_request_is_received"
+                                            },
+                                            "body": {
+                                                "description": "A list of TOR exit node IP Addresses",
+                                                "displayName": "Tor Exit Nodes",
+                                                "itemsSearchKey": "TorExitNodes",
+                                                "rawContent": "@body('Create_CSV_table')",
+                                                "source": "Update-TorExitNodesWatchlist",
+                                                "subscriptionId": "@parameters('SubscriptionId')",
+                                                "resourceGroup": "@parameters('SentinelResourceGroup')",
+                                                "workspaceId": "@parameters('WorkspaceId')",
+                                                "watchlistAlias": "@parameters('WatchlistAlias')"
+                                            }
+                                        }
+                                    },
+                                    "Module-DeleteWatchlist": {
+                                        "type": "Workflow",
+                                        "inputs": {
+                                            "host": {
+                                                "workflow": {
+                                                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-DeleteWatchlist')]"
+                                                },
+                                                "triggerName": "When_a_HTTP_request_is_received"
+                                            },
+                                            "body": {
+                                                "resourceGroup": "@parameters('SentinelResourceGroup')",
+                                                "subscriptionId": "@parameters('SubscriptionId')",
+                                                "watchlistAlias": "@parameters('WatchlistAlias')",
+                                                "workspaceId": "@parameters('WorkspaceId')"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@body('Module-GetWatchlist')?['watchlistAlias']",
+                                            "@null"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Create_CSV_table": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Table",
+                            "inputs": {
+                                "from": "@body('Parse_JSON')?['TorExitNodes']",
+                                "format": "CSV",
+                                "columns": [
+                                    {
+                                        "header": "TorExitNodes",
+                                        "value": "@item()"
+                                    }
+                                ]
+                            }
+                        },
+                        "HTTP": {
+                            "runAfter": {},
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://raw.githubusercontent.com/noodlemctwoodle/SentinelPublic/main/ExternalData/TorExitNodes.json",
+                                "method": "GET"
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "HTTP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP')",
+                                "schema": {
+                                    "properties": {
+                                        "TorExitNodes": {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Module-GetWatchlist": {
+                            "runAfter": {
+                                "Create_CSV_table": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Workflow",
+                            "inputs": {
+                                "host": {
+                                    "workflow": {
+                                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-GetWatchlist')]"
+
+                                        
+                                    },
+                                    "triggerName": "When_a_HTTP_request_is_received"
+                                },
+                                "body": {
+                                    "subscriptionId": "@parameters('SubscriptionId')",
+                                    "resourceGroup": "@parameters('SentinelResourceGroup')",
+                                    "workspaceId": "@parameters('WorkspaceId')",
+                                    "watchlistAlias": "@parameters('WatchlistAlias')"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {}
+                    }
+                }
+            },
+            "name": "[parameters('PlaybookName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Source": "Sentinel-As-Code",
+                "hidden-SentinelTemplateName": "Update-TorExitNodesWatchlist",
+                "hidden-SentinelTemplateVersion": "1.0"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "apiVersion": "2017-07-01",
+            "dependsOn": []
+        }
+    ]
+}

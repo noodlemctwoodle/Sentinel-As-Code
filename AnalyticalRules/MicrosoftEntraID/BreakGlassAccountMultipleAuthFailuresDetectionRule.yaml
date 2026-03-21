@@ -1,0 +1,49 @@
+id: 679ca3e1-82b4-455a-ae41-7244e5638486
+name: Multiple break glass account authentication failures
+description: |
+  'The Azure Breakglass account has failed to log in more than 5 times.
+
+  REQUIRES WATCHLIST = "breakGlassAccounts"'
+severity: High
+kind: NRT
+version: 1.0.0
+status: Available
+queryFrequency: PT5M
+queryPeriod: PT5M
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - CredentialAccess
+techniques:
+  - T1078
+  - T1078.004
+  - T1110
+  - T1110.001
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SignInLogs
+query: |
+  let breakGlassAccounts = _GetWatchlist('breakGlassAccounts')
+    | summarize by UserPrincipalName, UserId;
+  SigninLogs
+  | where UserId in (breakGlassAccounts)
+      or UserPrincipalName in (breakGlassAccounts)
+  | extend county = tostring(LocationDetails.state),
+      city = tostring(LocationDetails.city)
+  | summarize arg_max(TimeGenerated, 1m), Reuslts = count(ResultType != 0) by UserPrincipalName, ResultType, AppDisplayName,
+      IPAddress, City = city,Region = Location, OS = tostring(DeviceDetail.operatingSystem), Browser = tostring(DeviceDetail.browser)
+  | project-away max_TimeGenerated_arg1
+  | project-reorder TimeGenerated
+  | where Reuslts >= 5
+  | sort by TimeGenerated
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress

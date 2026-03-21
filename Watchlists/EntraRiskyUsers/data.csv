@@ -1,0 +1,2 @@
+UserPrincipalName,DisplayName,RiskLevel,RiskState,DateFlagged,Notes
+risky.user@example.onmicrosoft.com,Example User,high,atRisk,2024-01-01,Seed row — replace with actual data

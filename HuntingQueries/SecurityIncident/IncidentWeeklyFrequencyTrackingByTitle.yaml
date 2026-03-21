@@ -1,0 +1,22 @@
+id: "7ec5d6e7-f809-41a2-b3c4-d5e6f7081920"
+name: "Incident weekly frequency tracking by title"
+description: "Identifies recurring incident patterns by tracking weekly occurrence counts per incident type over 60 days to reveal trends and persistent threat activity."
+query: |
+  // Shows how many times each incident type occurs per week over the last 60 days,
+  // organized by incident title and week to identify recurring patterns and trends
+
+  SecurityIncident
+  | where TimeGenerated >= ago(60d)
+  | extend WeekStart = startofweek(TimeGenerated)
+  | summarize
+      IncidentCount = count()
+      by Title, WeekStart
+  | order by Title asc, WeekStart asc
+  | project
+      IncidentTitle = Title,
+      WeekStarting = format_datetime(WeekStart, "yyyy-MM-dd"),
+      WeeklyCount = IncidentCount
+tactics:
+  - Collection
+techniques:
+  - T1530

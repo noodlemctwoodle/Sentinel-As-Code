@@ -1,0 +1,32 @@
+id: "f64d5e6f-7081-4920-3142-536475809a1b"
+name: "Workspace billing analysis by table size"
+description: "Identifies the most expensive data sources in a Log Analytics workspace by analyzing billable data ingestion volumes and estimated costs per log type over the last 24 hours."
+query: |
+  // Analyzes data ingestion costs by log type over the last 24 hours,
+  // calculating table sizes in GB and estimated costs to identify the most expensive data sources
+
+  let timeFrame = ago(1d);
+  let Categories =
+      union *
+      | summarize Size = count() by Category = Type
+      | order by Size desc
+      ;
+  let knownTables = Usage
+      | where TimeGenerated > timeFrame
+      | where IsBillable == true
+      | join kind=leftouter Categories on $left.DataType == $right.Category
+      | summarize
+          size =sumif(Quantity, isnotempty(Category)) / round(1024, -3),
+          sizeOther= sumif(Quantity, (isempty(Category))) / round(1024, -3)
+          by Category
+      | project
+          ['Log Type'] = iif(isnotempty(Category), Category, "Other"),
+          ['Table Size'] = iif(isnotempty(Category), size, sizeOther),
+          ['Estimated cost'] = iif(isnotempty(Category), size * round(4, 1), sizeOther * round(4, 1))
+      ;
+  knownTables
+  | order by ['Table Size'] desc
+tactics:
+  - Collection
+techniques:
+  - T1530

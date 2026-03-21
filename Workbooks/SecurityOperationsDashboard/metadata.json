@@ -1,0 +1,6 @@
+{
+  "displayName": "Security Operations Dashboard",
+  "description": "SOC operations dashboard providing an overview of security incidents, alert trends, and analyst workload metrics.",
+  "category": "Sentinel",
+  "sourceId": "SecurityOperationsDashboard"
+}

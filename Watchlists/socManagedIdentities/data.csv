@@ -1,0 +1,2 @@
+ServicePrincipalId,DisplayName,ApplicationId,Purpose,Owner
+00000000-0000-0000-0000-000000000000,Example SPN,00000000-0000-0000-0000-000000000001,Seed row,SOC

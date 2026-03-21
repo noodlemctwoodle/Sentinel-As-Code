@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "knownDCAccounts",
+  "displayName": "Known Domain Controller Accounts",
+  "description": "Computer accounts for legitimate domain controllers. Used by detection rules to identify AD replication requests from non-DC sources (DCSync attack detection).",
+  "provider": "Custom",
+  "itemsSearchKey": "ComputerAccount"
+}

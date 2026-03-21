@@ -4,14 +4,16 @@
 
 .DESCRIPTION
     This script automates the deployment of custom Sentinel content stored in the
-    repository: analytics rules (detections), watchlists, playbooks, workbooks,
-    hunting queries, and automation rules.
+    repository: parsers (KQL functions), analytics rules (detections), watchlists,
+    playbooks, workbooks, hunting queries, and automation rules.
 
     It is designed to run in Azure DevOps (ADO) pipelines using a Service Principal
     or Managed Identity for authentication. The script uses the latest GA API version
-    (2025-09-01) for Sentinel operations.
+    (2025-07-01-preview) for Sentinel operations, enabling sub-technique
+    mappings, sentinelEntitiesMappings, and native NRT rule support.
 
     Key capabilities:
+    - Deploy KQL parsers/functions from YAML files (workspace functions)
     - Deploy custom analytics rules from YAML files (Scheduled and NRT)
     - Deploy watchlists from JSON metadata + CSV data files
     - Deploy playbooks from ARM JSON templates
@@ -29,6 +31,11 @@
 .PARAMETER ResourceGroup
     The name of the Azure Resource Group containing the Sentinel workspace.
 
+.PARAMETER PlaybookResourceGroup
+    Optional. The name of the Azure Resource Group where playbooks (Logic Apps)
+    should be deployed. If not specified, playbooks deploy to the same resource
+    group as the Sentinel workspace.
+
 .PARAMETER Workspace
     The name of the Log Analytics workspace with Microsoft Sentinel enabled.
 
@@ -36,8 +43,11 @@
     The Azure region (location) where the workspace is deployed (e.g. 'uksouth').
 
 .PARAMETER BasePath
-    The root path of the repository containing content folders (Detections/,
+    The root path of the repository containing content folders (AnalyticalRules/,
     Watchlists/, Playbooks/, Workbooks/). Defaults to the parent of the Scripts folder.
+
+.PARAMETER SkipParsers
+    When specified, skips deploying KQL parsers/functions.
 
 .PARAMETER SkipDetections
     When specified, skips deploying custom analytics rules.
@@ -72,7 +82,7 @@
     Version:        1.0.0
     Last Updated:   2026-03-20
     Repository:     Sentinel-As-Code
-    API Version:    2025-09-01 (GA)
+    API Version:    2025-07-01-preview
     Requires:       Az.Accounts, powershell-yaml
 
 .EXAMPLE
@@ -111,6 +121,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ResourceGroup
     ,
+    [Parameter(Mandatory = $false)]
+    [string]$PlaybookResourceGroup
+    ,
     [Parameter(Mandatory = $true)]
     [string]$Workspace
     ,
@@ -119,6 +132,9 @@ param(
     ,
     [Parameter(Mandatory = $false)]
     [string]$BasePath
+    ,
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipParsers
     ,
     [Parameter(Mandatory = $false)]
     [switch]$SkipDetections
@@ -145,6 +161,9 @@ param(
     [switch]$IsGov
     ,
     [Parameter(Mandatory = $false)]
+    [switch]$SmartDeployment
+    ,
+    [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
 
@@ -157,10 +176,9 @@ $InformationPreference = "Continue"
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-$script:SentinelApiVersion  = "2024-09-01"
-$script:SentinelPreviewApiVersion = "2024-01-01-preview"
+$script:SentinelApiVersion  = "2025-07-01-preview"
 $script:WorkbookApiVersion  = "2022-04-01"
-$script:SavedSearchApiVersion = "2020-08-01"
+$script:SavedSearchApiVersion = "2025-07-01"
 $script:SummaryRuleApiVersion = "2025-07-01"
 
 # ---------------------------------------------------------------------------
@@ -168,6 +186,318 @@ $script:SummaryRuleApiVersion = "2025-07-01"
 # ---------------------------------------------------------------------------
 if (-not $BasePath) {
     $BasePath = Split-Path $PSScriptRoot -Parent
+}
+
+# ---------------------------------------------------------------------------
+# Smart Deployment: Config loader, git diff change detection, exclusions
+# ---------------------------------------------------------------------------
+$script:DeploymentConfig = $null
+$script:ChangedFiles = $null
+$script:SmartDeploymentActive = $false
+
+function Initialize-SmartDeployment {
+    [CmdletBinding()]
+    param()
+
+    # Load sentinel-deployment.config if present
+    $configPath = Join-Path $BasePath "sentinel-deployment.config"
+    if (Test-Path $configPath) {
+        try {
+            $script:DeploymentConfig = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+            Write-PipelineMessage "Loaded sentinel-deployment.config" -Level Info
+
+            $excluded = @()
+            if ($script:DeploymentConfig.PSObject.Properties.Name -contains 'excludecontentfiles') {
+                $excluded = @($script:DeploymentConfig.excludecontentfiles)
+            }
+            if ($excluded.Count -gt 0) {
+                Write-PipelineMessage "  Excluded paths: $($excluded -join ', ')" -Level Info
+            }
+
+            $prioritized = @()
+            if ($script:DeploymentConfig.PSObject.Properties.Name -contains 'prioritizedcontentfiles') {
+                $prioritized = @($script:DeploymentConfig.prioritizedcontentfiles)
+            }
+            if ($prioritized.Count -gt 0) {
+                Write-PipelineMessage "  Prioritized files: $($prioritized -join ', ')" -Level Info
+            }
+        }
+        catch {
+            Write-PipelineMessage "Failed to parse sentinel-deployment.config: $($_.Exception.Message)" -Level Warning
+        }
+    }
+
+    if (-not $SmartDeployment) {
+        Write-PipelineMessage "Smart deployment disabled — all content will be deployed." -Level Info
+        return
+    }
+
+    Write-PipelineMessage "Smart deployment enabled — detecting changed files..." -Level Section
+
+    # Determine changed files via git diff
+    try {
+        Push-Location $BasePath
+
+        # In ADO pipelines, use the merge base to find all changed files in this push
+        # BUILD_SOURCEVERSION is the current commit, SYSTEM_PULLREQUEST_TARGETBRANCH for PRs
+        $changedFiles = $null
+
+        if ($env:BUILD_SOURCEBRANCH -and $env:SYSTEM_PULLREQUEST_TARGETBRANCH) {
+            # PR trigger — diff against target branch
+            $targetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH -replace '^refs/heads/', ''
+            git fetch --depth=1 origin $targetBranch 2>$null | Out-Null
+            $changedFiles = git diff --name-only "origin/$targetBranch...HEAD" 2>$null
+        }
+        elseif ($env:BUILD_SOURCEVERSION) {
+            # CI trigger — ADO shallow clones with depth=1. Deepen by 1 to get the parent commit.
+            git fetch --deepen=1 2>$null | Out-Null
+            $changedFiles = git diff --name-only HEAD~1 HEAD 2>$null
+
+            # Fallback: if deepen didn't work, try fetching the full branch
+            if ($LASTEXITCODE -ne 0 -or -not $changedFiles) {
+                $branch = $env:BUILD_SOURCEBRANCH -replace '^refs/heads/', ''
+                git fetch --depth=2 origin $branch 2>$null | Out-Null
+                $changedFiles = git diff --name-only HEAD~1 HEAD 2>$null
+            }
+        }
+        else {
+            # Local run — diff against HEAD~1
+            $changedFiles = git diff --name-only HEAD~1 HEAD 2>$null
+        }
+
+        $changedFiles = @($changedFiles | Where-Object { $_ })
+        if ($changedFiles.Count -gt 0) {
+            $script:ChangedFiles = $changedFiles
+            $script:SmartDeploymentActive = $true
+            Write-PipelineMessage "  Detected $($script:ChangedFiles.Count) changed file(s):" -Level Info
+            foreach ($cf in $script:ChangedFiles) {
+                Write-PipelineMessage "    - $cf" -Level Info
+            }
+        }
+        else {
+            Write-PipelineMessage "  Could not determine changed files — deploying all content." -Level Warning
+        }
+    }
+    catch {
+        Write-PipelineMessage "  Git diff failed: $($_.Exception.Message) — deploying all content." -Level Warning
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Test-ShouldDeployFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    # Normalise to forward-slash relative path
+    $relativePath = $FilePath.Replace('\', '/').Replace($BasePath.Replace('\', '/') + '/', '')
+
+    # Check exclusions from sentinel-deployment.config
+    if ($script:DeploymentConfig) {
+        $excluded = @()
+        if ($script:DeploymentConfig.PSObject.Properties.Name -contains 'excludecontentfiles') {
+            $excluded = @($script:DeploymentConfig.excludecontentfiles)
+        }
+        foreach ($excl in $excluded) {
+            if ($relativePath -like "$excl*" -or $relativePath -eq $excl) {
+                Write-PipelineMessage "  Excluded by config: $relativePath" -Level Debug
+                return $false
+            }
+        }
+    }
+
+    # Smart deployment: check if file was changed
+    if ($script:SmartDeploymentActive) {
+        $isChanged = $false
+        foreach ($cf in $script:ChangedFiles) {
+            if ($relativePath -eq $cf -or $relativePath -like "$cf*" -or $cf -like "$relativePath*") {
+                $isChanged = $true
+                break
+            }
+        }
+
+        # Also check if the file's parent directory contains any changed files
+        # (for watchlists where data.csv or watchlist.json may change)
+        if (-not $isChanged) {
+            $parentDir = Split-Path $relativePath -Parent
+            if ($parentDir) {
+                foreach ($cf in $script:ChangedFiles) {
+                    if ($cf -like "$parentDir/*") {
+                        $isChanged = $true
+                        break
+                    }
+                }
+            }
+        }
+
+        if (-not $isChanged) {
+            # Check deployment state — retry items that failed previously
+            if (-not (Test-WasDeployedSuccessfully -FilePath $FilePath)) {
+                Write-PipelineMessage "Retrying: $relativePath — not previously deployed successfully" -Level Warning
+                return $true  # Not previously deployed successfully — retry
+            }
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Get-PrioritizedFiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo[]]$Files
+    )
+
+    if (-not $script:DeploymentConfig) {
+        return $Files
+    }
+
+    $prioritized = @()
+    if ($script:DeploymentConfig.PSObject.Properties.Name -contains 'prioritizedcontentfiles') {
+        $prioritized = @($script:DeploymentConfig.prioritizedcontentfiles)
+    }
+
+    if ($prioritized.Count -eq 0) {
+        return $Files
+    }
+
+    $priorityFiles = @()
+    $normalFiles = @()
+
+    foreach ($file in $Files) {
+        $relativePath = $file.FullName.Replace('\', '/').Replace($BasePath.Replace('\', '/') + '/', '')
+        $isPriority = $false
+        foreach ($p in $prioritized) {
+            if ($relativePath -eq $p -or $relativePath -like "$p*") {
+                $isPriority = $true
+                break
+            }
+        }
+        if ($isPriority) {
+            $priorityFiles += $file
+        }
+        else {
+            $normalFiles += $file
+        }
+    }
+
+    return @($priorityFiles) + @($normalFiles)
+}
+
+# ---------------------------------------------------------------------------
+# Deployment State: Persist successful deployments across pipeline runs so
+# that smart deployment can retry items that failed previously without making
+# expensive per-item API existence checks.
+# File: .deployment-state.json at $BasePath
+# Structure: { "deployedItems": { "relative/path": { "lastDeployed": "ISO8601", "status": "success" } } }
+# ---------------------------------------------------------------------------
+$script:DeploymentState = $null
+$script:DeploymentStatePath = $null
+
+function Initialize-DeploymentState {
+    [CmdletBinding()]
+    param()
+
+    $script:DeploymentStatePath = Join-Path $BasePath ".deployment-state.json"
+
+    if (Test-Path $script:DeploymentStatePath) {
+        try {
+            $raw = Get-Content -Path $script:DeploymentStatePath -Raw | ConvertFrom-Json
+            # Rebuild as a proper hashtable for O(1) lookups
+            $script:DeploymentState = @{ deployedItems = @{} }
+            if ($raw.PSObject.Properties['deployedItems']) {
+                foreach ($prop in $raw.deployedItems.PSObject.Properties) {
+                    $script:DeploymentState.deployedItems[$prop.Name] = @{
+                        lastDeployed = $prop.Value.lastDeployed
+                        status       = $prop.Value.status
+                    }
+                }
+            }
+            Write-PipelineMessage "Loaded deployment state: $($script:DeploymentState.deployedItems.Count) previously deployed item(s)." -Level Info
+        }
+        catch {
+            Write-PipelineMessage "Failed to load deployment state: $($_.Exception.Message) — starting fresh." -Level Warning
+            $script:DeploymentState = @{ deployedItems = @{} }
+        }
+    }
+    else {
+        $script:DeploymentState = @{ deployedItems = @{} }
+        Write-PipelineMessage "No deployment state file found — all items will deploy on first run." -Level Info
+    }
+}
+
+function Save-DeploymentState {
+    [CmdletBinding()]
+    param()
+
+    if ($null -eq $script:DeploymentState -or $null -eq $script:DeploymentStatePath) {
+        return
+    }
+
+    try {
+        $script:DeploymentState | ConvertTo-Json -Depth 5 | Set-Content -Path $script:DeploymentStatePath -Encoding UTF8
+        Write-PipelineMessage "Deployment state saved ($($script:DeploymentState.deployedItems.Count) item(s))." -Level Debug
+    }
+    catch {
+        Write-PipelineMessage "Failed to save deployment state: $($_.Exception.Message)" -Level Warning
+    }
+}
+
+function Set-DeploymentItemState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+        ,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("success", "failed")]
+        [string]$Status
+    )
+
+    if ($null -eq $script:DeploymentState) {
+        return
+    }
+
+    $key = $FilePath.Replace('\', '/').Replace($BasePath.Replace('\', '/') + '/', '')
+
+    if ($Status -eq "success") {
+        $script:DeploymentState.deployedItems[$key] = @{
+            lastDeployed = (Get-Date -Format 'o')
+            status       = "success"
+        }
+    }
+    else {
+        # Remove the entry so next run will retry
+        if ($script:DeploymentState.deployedItems.ContainsKey($key)) {
+            $script:DeploymentState.deployedItems.Remove($key)
+        }
+    }
+}
+
+function Test-WasDeployedSuccessfully {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    if ($null -eq $script:DeploymentState) {
+        return $false
+    }
+
+    $key = $FilePath.Replace('\', '/').Replace($BasePath.Replace('\', '/') + '/', '')
+
+    if ($script:DeploymentState.deployedItems.ContainsKey($key)) {
+        return $script:DeploymentState.deployedItems[$key].status -eq "success"
+    }
+
+    return $false
 }
 
 # ---------------------------------------------------------------------------
@@ -319,19 +649,19 @@ function Connect-AzureEnvironment {
     Write-PipelineMessage "Establishing Azure authentication..." -Level Section
 
     # Suppress Az module version upgrade warnings
-    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue | Out-Null
+    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
 
-    $context = Get-AzContext
+    $context = Get-AzContext -WarningAction SilentlyContinue
 
     if (-not $context) {
         Write-PipelineMessage "No Azure context found. Attempting login..." -Level Info
         if ($IsGov) {
-            Connect-AzAccount -Environment AzureUSGovernment -ErrorAction Stop | Out-Null
+            Connect-AzAccount -Environment AzureUSGovernment -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
         }
         else {
-            Connect-AzAccount -ErrorAction Stop | Out-Null
+            Connect-AzAccount -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
         }
-        $context = Get-AzContext
+        $context = Get-AzContext -WarningAction SilentlyContinue
     }
 
     if (-not $context) {
@@ -339,8 +669,8 @@ function Connect-AzureEnvironment {
     }
 
     if ($script:SubscriptionId) {
-        Set-AzContext -SubscriptionId $script:SubscriptionId -ErrorAction Stop | Out-Null
-        $context = Get-AzContext
+        Set-AzContext -SubscriptionId $script:SubscriptionId -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+        $context = Get-AzContext -WarningAction SilentlyContinue
     }
     else {
         $script:SubscriptionId = $context.Subscription.Id
@@ -359,9 +689,11 @@ function Connect-AzureEnvironment {
 
     $script:WorkspaceResourceId = "/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace"
 
+    $script:PlaybookRG = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
+
     $resourceEndpoint = $script:ServerUrl
     try {
-        $tokenResponse = Get-AzAccessToken -ResourceUrl $resourceEndpoint -ErrorAction Stop
+        $tokenResponse = Get-AzAccessToken -ResourceUrl $resourceEndpoint -ErrorAction Stop -WarningAction SilentlyContinue
 
         if ($tokenResponse.Token -is [System.Security.SecureString]) {
             $accessToken = $tokenResponse.Token | ConvertFrom-SecureString -AsPlainText
@@ -391,9 +723,319 @@ function Connect-AzureEnvironment {
     }
 
     Write-PipelineMessage "Target workspace: $Workspace (Resource Group: $ResourceGroup, Region: $Region)" -Level Info
+    if ($script:PlaybookRG -ne $ResourceGroup) {
+        Write-PipelineMessage "Playbooks will deploy to resource group: $($script:PlaybookRG)" -Level Info
+    }
     if ($IsGov) {
         Write-PipelineMessage "Azure Government cloud mode enabled." -Level Info
     }
+
+    # Retrieve the workspace ID (GUID) for playbook parameter injection
+    try {
+        $wsUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/${Workspace}?api-version=2022-10-01"
+        $wsResponse = Invoke-SentinelApi -Uri $wsUri -Method Get -Headers $script:AuthHeader
+        $script:WorkspaceId = $wsResponse.properties.customerId
+        Write-PipelineMessage "Workspace ID: $($script:WorkspaceId)" -Level Info
+    }
+    catch {
+        Write-PipelineMessage "Could not retrieve workspace ID: $($_.Exception.Message)" -Level Warning
+        $script:WorkspaceId = $null
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Dependency Graph: Load, Validate, and Check Prerequisites
+# ---------------------------------------------------------------------------
+$script:DependencyGraph = @{}
+$script:WorkspaceTables = @()
+$script:WorkspaceWatchlists = @()
+$script:WorkspaceFunctions = @()
+
+function Initialize-DependencyGraph {
+    [CmdletBinding()]
+    param()
+
+    $depsFile = Join-Path $BasePath "dependencies.json"
+
+    if (-not (Test-Path $depsFile)) {
+        Write-PipelineMessage "No dependencies.json found — all content will deploy unconditionally." -Level Info
+        return
+    }
+
+    Write-PipelineMessage "Loading dependency graph..." -Level Section
+
+    try {
+        $depsJson = Get-Content -Path $depsFile -Raw | ConvertFrom-Json
+        $deps = $depsJson.dependencies
+
+        # Convert PSObject properties to hashtable
+        foreach ($prop in $deps.PSObject.Properties) {
+            $entry = @{}
+            $val = $prop.Value
+            $valProps = @($val.PSObject.Properties.Name)
+            if ($valProps -contains 'tables')       { $entry.tables       = @($val.tables) }
+            if ($valProps -contains 'watchlists')   { $entry.watchlists   = @($val.watchlists) }
+            if ($valProps -contains 'functions')    { $entry.functions    = @($val.functions) }
+            if ($valProps -contains 'externalData') { $entry.externalData = @($val.externalData) }
+            if ($valProps -contains 'playbooks')    { $entry.playbooks    = @($val.playbooks) }
+            $script:DependencyGraph[$prop.Name] = $entry
+        }
+
+        Write-PipelineMessage "Loaded dependencies for $($script:DependencyGraph.Count) content items." -Level Info
+    }
+    catch {
+        Write-PipelineMessage "Failed to parse dependencies.json: $($_.Exception.Message)" -Level Warning
+        Write-PipelineMessage "Continuing without dependency checks." -Level Warning
+    }
+}
+
+function Invoke-PreFlightChecks {
+    [CmdletBinding()]
+    param()
+
+    if ($script:DependencyGraph.Count -eq 0) {
+        return
+    }
+
+    Write-PipelineMessage "Running pre-flight dependency checks..." -Level Section
+
+    # Bulk-fetch workspace tables (single API call)
+    try {
+        $tablesUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace/tables?api-version=2022-10-01"
+        $tablesResponse = Invoke-SentinelApi -Uri $tablesUri -Method Get -Headers $script:AuthHeader
+        $script:WorkspaceTables = @($tablesResponse.value | ForEach-Object { $_.name })
+        Write-PipelineMessage "  Workspace has $($script:WorkspaceTables.Count) tables." -Level Info
+    }
+    catch {
+        Write-PipelineMessage "  Failed to list workspace tables: $($_.Exception.Message)" -Level Warning
+        Write-PipelineMessage "  Table dependency checks will be skipped." -Level Warning
+    }
+
+    # Bulk-fetch workspace watchlists (single API call)
+    try {
+        $watchlistsUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/watchlists?api-version=$($script:SentinelApiVersion)"
+        $watchlistsResponse = Invoke-SentinelApi -Uri $watchlistsUri -Method Get -Headers $script:AuthHeader
+        $script:WorkspaceWatchlists = @($watchlistsResponse.value |
+            Where-Object { $_.properties -and (-not ($_.properties.PSObject.Properties.Name -contains 'isDeleted' -and $_.properties.isDeleted)) } |
+            Where-Object { $_.properties.PSObject.Properties.Name -contains 'watchlistAlias' } |
+            ForEach-Object { $_.properties.watchlistAlias })
+        Write-PipelineMessage "  Workspace has $($script:WorkspaceWatchlists.Count) watchlists." -Level Info
+    }
+    catch {
+        Write-PipelineMessage "  Failed to list workspace watchlists: $($_.Exception.Message)" -Level Warning
+        Write-PipelineMessage "  Watchlist dependency checks will be skipped." -Level Warning
+    }
+
+    # Bulk-fetch workspace saved searches to find functions (single API call)
+    try {
+        $savedSearchUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace/savedSearches?api-version=$($script:SavedSearchApiVersion)"
+        $savedSearchResponse = Invoke-SentinelApi -Uri $savedSearchUri -Method Get -Headers $script:AuthHeader
+        $script:WorkspaceFunctions = @($savedSearchResponse.value |
+            Where-Object { $_.properties.PSObject.Properties.Name -contains 'functionAlias' -and $_.properties.functionAlias } |
+            ForEach-Object { $_.properties.functionAlias })
+        Write-PipelineMessage "  Workspace has $($script:WorkspaceFunctions.Count) functions/parsers." -Level Info
+    }
+    catch {
+        Write-PipelineMessage "  Failed to list workspace functions: $($_.Exception.Message)" -Level Warning
+        Write-PipelineMessage "  Function dependency checks will be skipped." -Level Warning
+    }
+
+    # Build list of internal parsers we're about to deploy
+    $parsersPath = Join-Path $BasePath "Parsers"
+    $script:InternalParsers = @()
+    if (Test-Path $parsersPath) {
+        $parserFiles = @(Get-ChildItem -Path $parsersPath -Include "*.yaml", "*.yml" -Recurse -File)
+        foreach ($pf in $parserFiles) {
+            try {
+                $content = Get-Content -Path $pf.FullName -Raw
+                $parsed = ConvertFrom-Yaml -Yaml $content
+                if ($parsed.ContainsKey('functionAlias')) {
+                    $script:InternalParsers += $parsed['functionAlias']
+                }
+            }
+            catch { }
+        }
+    }
+
+    # Build list of internal watchlist aliases we're about to deploy
+    $watchlistsPath = Join-Path $BasePath "Watchlists"
+    $script:InternalWatchlists = @()
+    if (Test-Path $watchlistsPath) {
+        $wlDirs = @(Get-ChildItem -Path $watchlistsPath -Directory)
+        foreach ($wlDir in $wlDirs) {
+            $wlJson = Join-Path $wlDir.FullName "watchlist.json"
+            if (Test-Path $wlJson) {
+                try {
+                    $wlMeta = Get-Content -Path $wlJson -Raw | ConvertFrom-Json
+                    if ($wlMeta.watchlistAlias) {
+                        $script:InternalWatchlists += $wlMeta.watchlistAlias
+                    }
+                }
+                catch { }
+            }
+        }
+    }
+
+    Write-PipelineMessage "  Internal parsers to deploy: $($script:InternalParsers -join ', ')" -Level Info
+    Write-PipelineMessage "  Internal watchlists to deploy: $($script:InternalWatchlists -join ', ')" -Level Info
+    Write-PipelineMessage "Pre-flight checks complete." -Level Success
+}
+
+function Test-ContentDependencies {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentPath
+    )
+
+    # No dependency graph loaded — deploy everything
+    if ($script:DependencyGraph.Count -eq 0) {
+        return @{ Passed = $true; Missing = @() }
+    }
+
+    # Normalise path to use forward slashes and make relative
+    $relativePath = $ContentPath.Replace('\', '/').Replace($BasePath.Replace('\', '/') + '/', '')
+
+    # No entry in dependencies — no prerequisites, deploy unconditionally
+    if (-not $script:DependencyGraph.ContainsKey($relativePath)) {
+        return @{ Passed = $true; Missing = @() }
+    }
+
+    $deps = $script:DependencyGraph[$relativePath]
+    $missing = @()
+
+    # Check table dependencies
+    if ($deps.ContainsKey('tables') -and $script:WorkspaceTables.Count -gt 0) {
+        foreach ($table in $deps.tables) {
+            if ($script:WorkspaceTables -notcontains $table) {
+                $missing += "table:$table"
+            }
+        }
+    }
+
+    # Check watchlist dependencies — satisfied by workspace OR internal repo watchlists
+    if ($deps.ContainsKey('watchlists')) {
+        foreach ($wl in $deps.watchlists) {
+            $inWorkspace = $script:WorkspaceWatchlists -contains $wl
+            $inRepo = $script:InternalWatchlists -contains $wl
+            if (-not $inWorkspace -and -not $inRepo) {
+                $missing += "watchlist:$wl"
+            }
+        }
+    }
+
+    # Check function dependencies — satisfied by workspace OR internal repo parsers
+    if ($deps.ContainsKey('functions')) {
+        foreach ($fn in $deps.functions) {
+            $inWorkspace = $script:WorkspaceFunctions -contains $fn
+            $inRepo = $script:InternalParsers -contains $fn
+            if (-not $inWorkspace -and -not $inRepo) {
+                $missing += "function:$fn"
+            }
+        }
+    }
+
+    return @{
+        Passed  = ($missing.Count -eq 0)
+        Missing = $missing
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Deploy Custom Parsers (KQL Functions from YAML)
+# ---------------------------------------------------------------------------
+function Deploy-CustomParsers {
+    [CmdletBinding()]
+    param()
+
+    $counters = @{ Deployed = 0; Skipped = 0; Failed = 0 }
+    $parsersPath = Join-Path $BasePath "Parsers"
+
+    Write-PipelineMessage "Deploying KQL parsers/functions..." -Level Section
+
+    if (-not (Test-Path $parsersPath)) {
+        Write-PipelineMessage "Parsers folder not found at '$parsersPath' — skipping." -Level Warning
+        return $counters
+    }
+
+    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+        Write-PipelineMessage "Installing powershell-yaml module..." -Level Info
+        Install-Module -Name powershell-yaml -Force -Scope CurrentUser
+    }
+    Import-Module powershell-yaml -ErrorAction Stop
+
+    $yamlFiles = @(Get-ChildItem -Path $parsersPath -Include "*.yaml", "*.yml" -Recurse -File)
+    if ($yamlFiles.Count -eq 0) {
+        Write-PipelineMessage "No YAML files found in '$parsersPath' — skipping." -Level Info
+        return $counters
+    }
+
+    $yamlFiles = @(Get-PrioritizedFiles -Files $yamlFiles)
+    Write-PipelineMessage "Found $($yamlFiles.Count) parser(s) to process." -Level Info
+
+    foreach ($file in $yamlFiles) {
+        if (-not (Test-ShouldDeployFile -FilePath $file.FullName)) {
+            Write-PipelineMessage "Unchanged: $($file.Name) — skipping (smart deployment)" -Level Info
+            $counters.Skipped++
+            continue
+        }
+        try {
+            $yamlContent = Get-Content -Path $file.FullName -Raw
+            $parser = ConvertFrom-Yaml -Yaml $yamlContent
+
+            # Validate required fields
+            $requiredFields = @('id', 'name', 'functionAlias', 'query')
+            $missingFields = @($requiredFields | Where-Object { -not $parser.ContainsKey($_) -or [string]::IsNullOrWhiteSpace($parser[$_]) })
+            if ($missingFields.Count -gt 0) {
+                Write-PipelineMessage "Skipping '$($file.Name)': missing required fields: $($missingFields -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
+            $parserId = $parser['id']
+            $parserName = $parser['name']
+            $functionAlias = $parser['functionAlias']
+
+            Write-PipelineMessage "Processing: $parserName [alias: $functionAlias]" -Level Info
+
+            $properties = @{
+                category     = if ($parser.ContainsKey('category')) { $parser['category'] } else { "Sentinel Parsers" }
+                displayName  = $parserName
+                query        = $parser['query']
+                functionAlias = $functionAlias
+                version      = 2
+            }
+
+            if ($parser.ContainsKey('functionParameters') -and -not [string]::IsNullOrWhiteSpace($parser['functionParameters'])) {
+                $properties.functionParameters = $parser['functionParameters']
+            }
+
+            $body = @{
+                etag       = "*"
+                properties = $properties
+            } | ConvertTo-Json -Depth 10
+
+            $uri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace/savedSearches/$($parserId)?api-version=$($script:SavedSearchApiVersion)"
+
+            if ($WhatIf) {
+                Write-PipelineMessage "[WhatIf] Would deploy parser: $parserName [alias: $functionAlias]" -Level Info
+                $counters.Deployed++
+            }
+            else {
+                Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
+                Write-PipelineMessage "Deployed: $parserName [alias: $functionAlias]" -Level Success
+                $counters.Deployed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "success"
+            }
+        }
+        catch {
+            Write-PipelineMessage "Failed to deploy parser '$($file.Name)': $($_.Exception.Message)" -Level Error
+            $counters.Failed++
+            Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
+        }
+    }
+
+    return $counters
 }
 
 # ---------------------------------------------------------------------------
@@ -404,12 +1046,12 @@ function Deploy-CustomDetections {
     param()
 
     $counters = @{ Deployed = 0; Skipped = 0; Failed = 0 }
-    $detectionsPath = Join-Path $BasePath "Detections"
+    $detectionsPath = Join-Path $BasePath "AnalyticalRules"
 
     Write-PipelineMessage "Deploying custom analytics rules..." -Level Section
 
     if (-not (Test-Path $detectionsPath)) {
-        Write-PipelineMessage "Detections folder not found at '$detectionsPath' — skipping." -Level Warning
+        Write-PipelineMessage "AnalyticalRules folder not found at '$detectionsPath' — skipping." -Level Warning
         return $counters
     }
 
@@ -426,9 +1068,15 @@ function Deploy-CustomDetections {
         return $counters
     }
 
+    $yamlFiles = @(Get-PrioritizedFiles -Files $yamlFiles)
     Write-PipelineMessage "Found $($yamlFiles.Count) detection file(s) to process." -Level Info
 
     foreach ($file in $yamlFiles) {
+        if (-not (Test-ShouldDeployFile -FilePath $file.FullName)) {
+            Write-PipelineMessage "Unchanged: $($file.Name) — skipping (smart deployment)" -Level Info
+            $counters.Skipped++
+            continue
+        }
         try {
             $yamlContent = Get-Content -Path $file.FullName -Raw
             $rule = ConvertFrom-Yaml -Yaml $yamlContent
@@ -446,11 +1094,19 @@ function Deploy-CustomDetections {
             $ruleName = $rule['name']
             $ruleKind = $rule['kind']
 
+            # Check dependency graph — deploy disabled if prerequisites are not met
+            $depCheck = Test-ContentDependencies -ContentPath $file.FullName
+            $missingDeps = $false
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Missing dependencies for '$($file.Name)': $($depCheck.Missing -join ', ') — deploying as disabled" -Level Warning
+                $missingDeps = $true
+            }
+
             Write-PipelineMessage "Processing: $ruleName ($ruleKind) [$($file.Name)]" -Level Info
 
-            # Build the API properties
+            # Build the API properties — force disabled if dependencies are missing
             $ruleDescription = if ($rule.ContainsKey('description')) { $rule['description'] } else { "" }
-            $ruleEnabled     = if ($rule.ContainsKey('enabled')) { [bool]$rule['enabled'] } else { $true }
+            $ruleEnabled     = if ($missingDeps) { $false } elseif ($rule.ContainsKey('enabled')) { [bool]$rule['enabled'] } else { $true }
 
             $properties = @{
                 displayName       = $ruleName
@@ -493,10 +1149,20 @@ function Deploy-CustomDetections {
             }
             $techKey = if ($rule.ContainsKey('relevantTechniques')) { 'relevantTechniques' } elseif ($rule.ContainsKey('techniques')) { 'techniques' } else { $null }
             if ($techKey) {
-                $properties.techniques = [array]$rule[$techKey]
+                $allTechniques = [array]$rule[$techKey]
+                # Parent techniques (T####) go in 'techniques'
+                $properties.techniques = [array]($allTechniques | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
+                # Sub-techniques (T####.###) go in 'subTechniques' (preview API)
+                $subTechs = @($allTechniques | Where-Object { $_ -match '\.' } | Select-Object -Unique)
+                if ($subTechs -and $subTechs.Count -gt 0) {
+                    $properties.subTechniques = $subTechs
+                }
             }
             if ($rule.ContainsKey('entityMappings')) {
                 $properties.entityMappings = [array]$rule['entityMappings']
+            }
+            if ($rule.ContainsKey('sentinelEntitiesMappings')) {
+                $properties.sentinelEntitiesMappings = [array]$rule['sentinelEntitiesMappings']
             }
             if ($rule.ContainsKey('customDetails')) {
                 $properties.customDetails = $rule['customDetails']
@@ -516,9 +1182,7 @@ function Deploy-CustomDetections {
                 properties = $properties
             } | ConvertTo-Json -Depth 20
 
-            # NRT rules require preview API version
-            $apiVer = if ($ruleKind -eq "NRT") { $script:SentinelPreviewApiVersion } else { $script:SentinelApiVersion }
-            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=$apiVer"
+            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=$($script:SentinelApiVersion)"
 
             if ($WhatIf) {
                 Write-PipelineMessage "[WhatIf] Would deploy detection: $ruleName ($ruleKind, $($rule['severity']))" -Level Info
@@ -526,13 +1190,46 @@ function Deploy-CustomDetections {
             }
             else {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
-                Write-PipelineMessage "Deployed: $ruleName" -Level Success
+                $deployMsg = if ($missingDeps) { "Deployed (disabled — missing deps): $ruleName" } else { "Deployed: $ruleName" }
+                Write-PipelineMessage $deployMsg -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "success"
             }
         }
         catch {
-            Write-PipelineMessage "Failed to deploy '$($file.Name)': $($_.Exception.Message)" -Level Error
-            $counters.Failed++
+            $errorMsg = $_.Exception.Message
+            $isKqlError = $errorMsg -match 'FailedToResolveColumn|FailedToResolveScalarExpression|SemanticError|could not be found|Failed to run the analytics rule query'
+
+            if ($missingDeps) {
+                Write-PipelineMessage "Cannot deploy '$($file.Name)' even as disabled — $errorMsg" -Level Warning
+                $counters.Skipped++
+            }
+            elseif ($isKqlError -and $ruleEnabled) {
+                # KQL validation failed (e.g. newly deployed watchlist columns not yet queryable).
+                # Retry with enabled=false so the rule is created and can be enabled later.
+                Write-PipelineMessage "KQL validation error for '$($file.Name)' — retrying as disabled..." -Level Warning
+                try {
+                    $properties.enabled = $false
+                    $retryBody = @{
+                        kind       = $ruleKind
+                        properties = $properties
+                    } | ConvertTo-Json -Depth 20
+                    Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $retryBody | Out-Null
+                    Write-PipelineMessage "Deployed (disabled — KQL validation): $ruleName" -Level Success
+                    $counters.Deployed++
+                    Set-DeploymentItemState -FilePath $file.FullName -Status "success"
+                }
+                catch {
+                    Write-PipelineMessage "Failed to deploy '$($file.Name)' even as disabled: $($_.Exception.Message)" -Level Error
+                    $counters.Failed++
+                    Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
+                }
+            }
+            else {
+                Write-PipelineMessage "Failed to deploy '$($file.Name)': $errorMsg" -Level Error
+                $counters.Failed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
+            }
         }
     }
 
@@ -569,6 +1266,12 @@ function Deploy-CustomWatchlists {
             $metadataPath = Join-Path $dir.FullName "watchlist.json"
             $csvPath = Join-Path $dir.FullName "data.csv"
 
+            if (-not (Test-ShouldDeployFile -FilePath $metadataPath) -and -not (Test-ShouldDeployFile -FilePath $csvPath)) {
+                Write-PipelineMessage "Unchanged: $($dir.Name) — skipping (smart deployment)" -Level Info
+                $counters.Skipped++
+                continue
+            }
+
             if (-not (Test-Path $metadataPath)) {
                 Write-PipelineMessage "Skipping '$($dir.Name)': watchlist.json not found." -Level Warning
                 $counters.Skipped++
@@ -601,6 +1304,14 @@ function Deploy-CustomWatchlists {
 
             $alias = $metadata.watchlistAlias
 
+            # Check dependency graph
+            $depCheck = Test-ContentDependencies -ContentPath $metadataPath
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$($dir.Name)': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
             Write-PipelineMessage "Processing watchlist: $($metadata.displayName) (alias: $alias)" -Level Info
 
             $body = @{
@@ -629,11 +1340,13 @@ function Deploy-CustomWatchlists {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
                 Write-PipelineMessage "Deployed: $($metadata.displayName)" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $metadataPath -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy watchlist '$($dir.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $metadataPath -Status "failed"
         }
     }
 
@@ -657,60 +1370,159 @@ function Deploy-CustomPlaybooks {
         return $counters
     }
 
-    $playbookDirs = @(Get-ChildItem -Path $playbooksPath -Directory)
-    if ($playbookDirs.Count -eq 0) {
-        Write-PipelineMessage "No playbook subfolders found — skipping." -Level Info
+    # Find all ARM template JSON files recursively (exclude parameters files, README, .DS_Store, Template folder)
+    $templateFiles = @(Get-ChildItem -Path $playbooksPath -Filter "*.json" -Recurse |
+        Where-Object { $_.Name -notmatch '\.parameters\.json$' -and $_.Name -ne '.DS_Store' -and $_.Directory.Name -ne 'Template' })
+    if ($templateFiles.Count -eq 0) {
+        Write-PipelineMessage "No playbook ARM templates found — skipping." -Level Info
         return $counters
     }
 
-    Write-PipelineMessage "Found $($playbookDirs.Count) playbook(s) to process." -Level Info
+    Write-PipelineMessage "Found $($templateFiles.Count) playbook(s) to process." -Level Info
 
-    foreach ($dir in $playbookDirs) {
+    # Deploy Module playbooks first — other playbooks reference them as child workflows.
+    # Within Module/, sort so modules that reference other modules deploy last.
+    $moduleFiles = @($templateFiles | Where-Object { $_.Directory.Name -eq 'Module' })
+    $nonModuleFiles = @($templateFiles | Where-Object { $_.Directory.Name -ne 'Module' })
+
+    # Split modules into leaf (no module deps) and dependent (references other modules)
+    $leafModules = @()
+    $dependentModules = @()
+    foreach ($mf in $moduleFiles) {
+        $content = Get-Content -Path $mf.FullName -Raw
+        $ownName = "Module-$($mf.BaseName)"
+        $refs = @([regex]::Matches($content, 'Module-[A-Za-z]+') | ForEach-Object { $_.Value } | Where-Object { $_ -ne $ownName } | Select-Object -Unique)
+        if ($refs.Count -gt 0) {
+            $dependentModules += $mf
+        }
+        else {
+            $leafModules += $mf
+        }
+    }
+
+    $orderedFiles = @($leafModules) + @($dependentModules) + @($nonModuleFiles)
+
+    if ($moduleFiles.Count -gt 0) {
+        Write-PipelineMessage "  Deploying $($moduleFiles.Count) Module playbook(s) first ($($leafModules.Count) leaf, $($dependentModules.Count) dependent)." -Level Info
+    }
+
+    # Build a map of known ARM parameter names to inject from pipeline context
+    $knownParams = @{
+        'AutomationResourceGroup'   = $script:PlaybookRG
+        'SentinelResourceGroup'     = $ResourceGroup
+        'SentinelResourceGroupName' = $ResourceGroup
+        'PlaybookResourceGroup'     = $script:PlaybookRG
+        'SentinelWorkpaceName'      = $Workspace   # Typo in many ARM templates
+        'SentinelWorkspaceName'     = $Workspace
+        'SubscriptionId'            = $script:SubscriptionId
+    }
+    if ($script:WorkspaceId) {
+        $knownParams['WorkspaceId'] = $script:WorkspaceId
+    }
+
+    foreach ($templateFile in $orderedFiles) {
         try {
-            $templatePath = Join-Path $dir.FullName "azuredeploy.json"
-            $parametersPath = Join-Path $dir.FullName "azuredeploy.parameters.json"
-
-            if (-not (Test-Path $templatePath)) {
-                Write-PipelineMessage "Skipping '$($dir.Name)': azuredeploy.json not found." -Level Warning
+            if (-not (Test-ShouldDeployFile -FilePath $templateFile.FullName)) {
+                Write-PipelineMessage "Unchanged: $($templateFile.Name) — skipping (smart deployment)" -Level Info
                 $counters.Skipped++
                 continue
             }
 
-            Write-PipelineMessage "Processing playbook: $($dir.Name)" -Level Info
+            $templatePath = $templateFile.FullName
+            $parametersPath = Join-Path $templateFile.DirectoryName "$($templateFile.BaseName).parameters.json"
+            $playbookName = $templateFile.BaseName
 
-            $deploymentName = "Playbook-$($dir.Name)-$(Get-Date -Format 'yyyyMMddHHmmss')"
+            # Validate it's an ARM template by checking for the schema property
+            $templateContent = Get-Content -Path $templatePath -Raw | ConvertFrom-Json -ErrorAction Stop
+            if (-not $templateContent.'$schema' -or $templateContent.'$schema' -notmatch 'deploymentTemplate') {
+                Write-PipelineMessage "Skipping '$($templateFile.Name)': not an ARM deployment template." -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
+            $categoryFolder = $templateFile.Directory.Name
+            $displayName = if ($categoryFolder -eq "Playbooks") { $playbookName } else { "$categoryFolder/$playbookName" }
+
+            # Check dependency graph
+            $depCheck = Test-ContentDependencies -ContentPath $templateFile.FullName
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$displayName': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
+            Write-PipelineMessage "Processing playbook: $displayName" -Level Info
+
+            $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+            $maxNameLen = 64 - 10 - $timestamp.Length  # "Playbook-" (9) + "-" (1) + timestamp (14)
+            $truncatedName = if ($playbookName.Length -gt $maxNameLen) { $playbookName.Substring(0, $maxNameLen) } else { $playbookName }
+            $deploymentName = "Playbook-$truncatedName-$timestamp"
 
             $deployParams = @{
-                ResourceGroupName = $ResourceGroup
+                ResourceGroupName = $script:PlaybookRG
                 TemplateFile      = $templatePath
                 Name              = $deploymentName
             }
 
             if (Test-Path $parametersPath) {
                 $deployParams.TemplateParameterFile = $parametersPath
-                Write-PipelineMessage "  Using parameters file: azuredeploy.parameters.json" -Level Debug
+                Write-PipelineMessage "  Using parameters file: $($templateFile.BaseName).parameters.json" -Level Debug
+            }
+
+            # Auto-inject known parameters that the ARM template expects
+            $templateParams = $templateContent.parameters
+            if ($templateParams) {
+                $templateParamNames = @($templateParams.PSObject.Properties.Name)
+                foreach ($paramName in $templateParamNames) {
+                    if ($knownParams.ContainsKey($paramName)) {
+                        $deployParams[$paramName] = $knownParams[$paramName]
+                        Write-PipelineMessage "  Injected parameter: $paramName = $($knownParams[$paramName])" -Level Debug
+                    }
+                }
             }
 
             if ($WhatIf) {
-                Write-PipelineMessage "[WhatIf] Would deploy playbook: $($dir.Name)" -Level Info
+                Write-PipelineMessage "[WhatIf] Would deploy playbook: $displayName" -Level Info
                 try {
                     Test-AzResourceGroupDeployment @deployParams -ErrorAction Stop | Out-Null
-                    Write-PipelineMessage "[WhatIf] Template validation passed for '$($dir.Name)'." -Level Success
+                    Write-PipelineMessage "[WhatIf] Template validation passed for '$displayName'." -Level Success
                 }
                 catch {
-                    Write-PipelineMessage "[WhatIf] Template validation failed for '$($dir.Name)': $($_.Exception.Message)" -Level Warning
+                    Write-PipelineMessage "[WhatIf] Template validation failed for '$displayName': $($_.Exception.Message)" -Level Warning
                 }
                 $counters.Deployed++
             }
             else {
-                New-AzResourceGroupDeployment @deployParams -ErrorAction Stop | Out-Null
-                Write-PipelineMessage "Deployed: $($dir.Name)" -Level Success
+                $deployment = New-AzResourceGroupDeployment @deployParams -ErrorAction Stop
+                Write-PipelineMessage "Deployed: $displayName" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $templateFile.FullName -Status "success"
+
+                # Tag Logic App resources with Source = Sentinel-As-Code (API connections don't support tags reliably)
+                try {
+                    $deployedResources = Get-AzResourceGroupDeployment -ResourceGroupName $script:PlaybookRG -Name $deploymentName -ErrorAction Stop
+                    if ($deployedResources.OutputResources) {
+                        foreach ($res in $deployedResources.OutputResources) {
+                            if ($res.Id -match 'Microsoft\.Logic/workflows') {
+                                $resource = Get-AzResource -ResourceId $res.Id -ErrorAction SilentlyContinue
+                                if ($resource) {
+                                    $tags = $resource.Tags ?? @{}
+                                    $tags['Source'] = 'Sentinel-As-Code'
+                                    Set-AzResource -ResourceId $res.Id -Tag $tags -Force -ErrorAction SilentlyContinue | Out-Null
+                                }
+                            }
+                        }
+                    }
+                }
+                catch {
+                    Write-PipelineMessage "  Warning: Could not tag resources for '$displayName': $($_.Exception.Message)" -Level Warning
+                }
             }
         }
         catch {
-            Write-PipelineMessage "Failed to deploy playbook '$($dir.Name)': $($_.Exception.Message)" -Level Error
+            Write-PipelineMessage "Failed to deploy playbook '$displayName': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $templateFile.FullName -Status "failed"
         }
     }
 
@@ -747,8 +1559,22 @@ function Deploy-CustomWorkbooks {
             $workbookPath = Join-Path $dir.FullName "workbook.json"
             $metadataPath = Join-Path $dir.FullName "metadata.json"
 
+            if (-not (Test-ShouldDeployFile -FilePath $workbookPath)) {
+                Write-PipelineMessage "Unchanged: $($dir.Name) — skipping (smart deployment)" -Level Info
+                $counters.Skipped++
+                continue
+            }
+
             if (-not (Test-Path $workbookPath)) {
                 Write-PipelineMessage "Skipping '$($dir.Name)': workbook.json not found." -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
+            # Check dependency graph
+            $depCheck = Test-ContentDependencies -ContentPath $workbookPath
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$($dir.Name)': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
                 $counters.Skipped++
                 continue
             }
@@ -810,11 +1636,13 @@ function Deploy-CustomWorkbooks {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
                 Write-PipelineMessage "Deployed: $displayName" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $workbookPath -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy workbook '$($dir.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $workbookPath -Status "failed"
         }
     }
 
@@ -851,9 +1679,15 @@ function Deploy-CustomHuntingQueries {
         return $counters
     }
 
+    $yamlFiles = @(Get-PrioritizedFiles -Files $yamlFiles)
     Write-PipelineMessage "Found $($yamlFiles.Count) hunting query file(s) to process." -Level Info
 
     foreach ($file in $yamlFiles) {
+        if (-not (Test-ShouldDeployFile -FilePath $file.FullName)) {
+            Write-PipelineMessage "Unchanged: $($file.Name) — skipping (smart deployment)" -Level Info
+            $counters.Skipped++
+            continue
+        }
         try {
             $yamlContent = Get-Content -Path $file.FullName -Raw
             $hq = ConvertFrom-Yaml -Yaml $yamlContent
@@ -870,6 +1704,14 @@ function Deploy-CustomHuntingQueries {
             $queryId = $hq['id']
             $queryName = $hq['name']
 
+            # Check dependency graph — skip if prerequisites are not met
+            $depCheck = Test-ContentDependencies -ContentPath $file.FullName
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$($file.Name)': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
+
             Write-PipelineMessage "Processing: $queryName [$($file.Name)]" -Level Info
 
             # Build tags array for the saved search
@@ -883,8 +1725,15 @@ function Deploy-CustomHuntingQueries {
                 $tags += @{ name = "tactics"; value = $tacticsValue }
             }
             if ($hq.ContainsKey('techniques') -and $hq['techniques']) {
-                $techniquesValue = ([array]$hq['techniques']) -join ','
+                $allTechs = [array]$hq['techniques']
+                # Parent techniques (T####)
+                $techniquesValue = ($allTechs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique) -join ','
                 $tags += @{ name = "techniques"; value = $techniquesValue }
+                # Sub-techniques (T####.###) as separate tag
+                $subTechsValue = ($allTechs | Where-Object { $_ -match '\.' } | Select-Object -Unique) -join ','
+                if ($subTechsValue) {
+                    $tags += @{ name = "subTechniques"; value = $subTechsValue }
+                }
             }
             if ($hq.ContainsKey('tags') -and $hq['tags']) {
                 foreach ($tag in $hq['tags']) {
@@ -916,11 +1765,13 @@ function Deploy-CustomHuntingQueries {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
                 Write-PipelineMessage "Deployed: $queryName" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy '$($file.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
         }
     }
 
@@ -953,6 +1804,11 @@ function Deploy-CustomAutomationRules {
     Write-PipelineMessage "Found $($jsonFiles.Count) automation rule file(s) to process." -Level Info
 
     foreach ($file in $jsonFiles) {
+        if (-not (Test-ShouldDeployFile -FilePath $file.FullName)) {
+            Write-PipelineMessage "Unchanged: $($file.Name) — skipping (smart deployment)" -Level Info
+            $counters.Skipped++
+            continue
+        }
         try {
             $jsonContent = Get-Content -Path $file.FullName -Raw
             $rule = $jsonContent | ConvertFrom-Json
@@ -966,6 +1822,14 @@ function Deploy-CustomAutomationRules {
 
             $ruleId = $rule.automationRuleId
             $ruleName = $rule.displayName
+
+            # Check dependency graph
+            $depCheck = Test-ContentDependencies -ContentPath $file.FullName
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$($file.Name)': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
 
             Write-PipelineMessage "Processing: $ruleName (order: $($rule.order)) [$($file.Name)]" -Level Info
 
@@ -989,11 +1853,13 @@ function Deploy-CustomAutomationRules {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
                 Write-PipelineMessage "Deployed: $ruleName" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy '$($file.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
         }
     }
 
@@ -1028,6 +1894,11 @@ function Deploy-CustomSummaryRules {
     $validBinSizes = @(20, 30, 60, 120, 180, 360, 720, 1440)
 
     foreach ($file in $jsonFiles) {
+        if (-not (Test-ShouldDeployFile -FilePath $file.FullName)) {
+            Write-PipelineMessage "Unchanged: $($file.Name) — skipping (smart deployment)" -Level Info
+            $counters.Skipped++
+            continue
+        }
         try {
             $jsonContent = Get-Content -Path $file.FullName -Raw
             $rule = $jsonContent | ConvertFrom-Json
@@ -1055,6 +1926,14 @@ function Deploy-CustomSummaryRules {
 
             $ruleName = $rule.name
             $displayName = if ($rule.displayName) { $rule.displayName } else { $ruleName }
+
+            # Check dependency graph
+            $depCheck = Test-ContentDependencies -ContentPath $file.FullName
+            if (-not $depCheck.Passed) {
+                Write-PipelineMessage "Skipping '$($file.Name)': missing dependencies — $($depCheck.Missing -join ', ')" -Level Warning
+                $counters.Skipped++
+                continue
+            }
 
             Write-PipelineMessage "Processing: $displayName (bin: $($rule.binSize)min → $($rule.destinationTable)) [$($file.Name)]" -Level Info
 
@@ -1099,11 +1978,13 @@ function Deploy-CustomSummaryRules {
                 Invoke-SentinelApi -Uri $uri -Method Put -Headers $script:AuthHeader -Body $body | Out-Null
                 Write-PipelineMessage "Deployed: $displayName" -Level Success
                 $counters.Deployed++
+                Set-DeploymentItemState -FilePath $file.FullName -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy '$($file.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
+            Set-DeploymentItemState -FilePath $file.FullName -Status "failed"
         }
     }
 
@@ -1130,8 +2011,12 @@ function Write-DeploymentSummary {
     $totalSkipped = 0
     $totalFailed = 0
 
-    foreach ($contentType in @("Detections", "Watchlists", "Playbooks", "Workbooks", "HuntingQueries", "AutomationRules", "SummaryRules")) {
+    foreach ($contentType in @("Parsers", "AnalyticalRules", "Watchlists", "Playbooks", "Workbooks", "HuntingQueries", "AutomationRules", "SummaryRules")) {
         $result = $Results[$contentType]
+        if (-not $result) {
+            Write-PipelineMessage "  $($contentType.PadRight(15)) Deployed: 0  Skipped: 0  Failed: 0  [SKIPPED]" -Level Info
+            continue
+        }
         $totalDeployed += $result.Deployed
         $totalSkipped += $result.Skipped
         $totalFailed += $result.Failed
@@ -1168,8 +2053,13 @@ function Main {
         Write-PipelineMessage "DRY RUN MODE — no changes will be made." -Level Warning
     }
 
-    Write-PipelineMessage "Configuration:" -Level Info
+    # ── Step 1/12: Configuration ──────────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 1/12: Configuration" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     Write-PipelineMessage "  Base Path:     $BasePath" -Level Info
+    Write-PipelineMessage "  Smart Deploy:  $(if ($SmartDeployment) { 'ENABLED' } else { 'DISABLED (full deploy)' })" -Level Info
+    Write-PipelineMessage "  Parsers:       $(if ($SkipParsers) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Detections:    $(if ($SkipDetections) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Watchlists:    $(if ($SkipWatchlists) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Playbooks:     $(if ($SkipPlaybooks) { 'SKIP' } else { 'ENABLED' })" -Level Info
@@ -1178,10 +2068,29 @@ function Main {
     Write-PipelineMessage "  Automation:    $(if ($SkipAutomationRules) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Summary:       $(if ($SkipSummaryRules) { 'SKIP' } else { 'ENABLED' })" -Level Info
 
+    # ── Step 2/12: Authentication ─────────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 2/12: Authentication" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     Connect-AzureEnvironment
 
+    # ── Step 3/12: Smart Deployment ───────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 3/12: Smart Deployment" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    Initialize-SmartDeployment
+    Initialize-DeploymentState
+
+    # ── Step 4/12: Dependency Graph & Pre-Flight ──────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 4/12: Dependency Graph & Pre-Flight Checks" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    Initialize-DependencyGraph
+    Invoke-PreFlightChecks
+
     $results = @{
-        Detections      = @{ Deployed = 0; Skipped = 0; Failed = 0 }
+        Parsers         = @{ Deployed = 0; Skipped = 0; Failed = 0 }
+        AnalyticalRules = @{ Deployed = 0; Skipped = 0; Failed = 0 }
         Watchlists      = @{ Deployed = 0; Skipped = 0; Failed = 0 }
         Playbooks       = @{ Deployed = 0; Skipped = 0; Failed = 0 }
         Workbooks       = @{ Deployed = 0; Skipped = 0; Failed = 0 }
@@ -1190,55 +2099,110 @@ function Main {
         SummaryRules    = @{ Deployed = 0; Skipped = 0; Failed = 0 }
     }
 
-    if (-not $SkipDetections) {
-        $results.Detections = Deploy-CustomDetections
+    # ── Step 5/12: Deploy Parsers ─────────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 5/12: KQL Parsers & Functions" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    if (-not $SkipParsers) {
+        $results.Parsers = Deploy-CustomParsers
     }
     else {
-        Write-PipelineMessage "Skipping detections (SkipDetections flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipParsers flag set)." -Level Info
     }
+    Save-DeploymentState
 
+    # ── Step 6/12: Deploy Watchlists ──────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 6/12: Watchlists" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     if (-not $SkipWatchlists) {
         $results.Watchlists = Deploy-CustomWatchlists
+
+        # Allow Sentinel to index watchlist schemas before deploying rules that reference them
+        if ($results.Watchlists.Deployed -gt 0 -and -not $WhatIf) {
+            Write-PipelineMessage "Waiting 30s for watchlist schema propagation..." -Level Info
+            Start-Sleep -Seconds 30
+        }
     }
     else {
-        Write-PipelineMessage "Skipping watchlists (SkipWatchlists flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipWatchlists flag set)." -Level Info
     }
+    Save-DeploymentState
 
-    if (-not $SkipPlaybooks) {
-        $results.Playbooks = Deploy-CustomPlaybooks
+    # ── Step 7/12: Deploy Detections ──────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 7/12: Analytics Rules (Detections)" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    if (-not $SkipDetections) {
+        $results.AnalyticalRules = Deploy-CustomDetections
     }
     else {
-        Write-PipelineMessage "Skipping playbooks (SkipPlaybooks flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipDetections flag set)." -Level Info
     }
+    Save-DeploymentState
 
-    if (-not $SkipWorkbooks) {
-        $results.Workbooks = Deploy-CustomWorkbooks
-    }
-    else {
-        Write-PipelineMessage "Skipping workbooks (SkipWorkbooks flag set)." -Level Info
-    }
-
+    # ── Step 8/12: Deploy Hunting Queries ─────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 8/12: Hunting Queries" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     if (-not $SkipHuntingQueries) {
         $results.HuntingQueries = Deploy-CustomHuntingQueries
     }
     else {
-        Write-PipelineMessage "Skipping hunting queries (SkipHuntingQueries flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipHuntingQueries flag set)." -Level Info
     }
+    Save-DeploymentState
 
+    # ── Step 9/12: Deploy Playbooks ───────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 9/12: Playbooks (Logic Apps)" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    if (-not $SkipPlaybooks) {
+        $results.Playbooks = Deploy-CustomPlaybooks
+    }
+    else {
+        Write-PipelineMessage "  Skipped (SkipPlaybooks flag set)." -Level Info
+    }
+    Save-DeploymentState
+
+    # ── Step 10/12: Deploy Workbooks ──────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 10/12: Workbooks" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
+    if (-not $SkipWorkbooks) {
+        $results.Workbooks = Deploy-CustomWorkbooks
+    }
+    else {
+        Write-PipelineMessage "  Skipped (SkipWorkbooks flag set)." -Level Info
+    }
+    Save-DeploymentState
+
+    # ── Step 11/12: Deploy Automation Rules ────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 11/12: Automation Rules" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     if (-not $SkipAutomationRules) {
         $results.AutomationRules = Deploy-CustomAutomationRules
     }
     else {
-        Write-PipelineMessage "Skipping automation rules (SkipAutomationRules flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipAutomationRules flag set)." -Level Info
     }
+    Save-DeploymentState
 
+    # ── Step 12/12: Deploy Summary Rules ──────────────────────────────────
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "Step 12/12: Summary Rules" -Level Section
+    Write-PipelineMessage ("─" * 60) -Level Info
     if (-not $SkipSummaryRules) {
         $results.SummaryRules = Deploy-CustomSummaryRules
     }
     else {
-        Write-PipelineMessage "Skipping summary rules (SkipSummaryRules flag set)." -Level Info
+        Write-PipelineMessage "  Skipped (SkipSummaryRules flag set)." -Level Info
     }
+    Save-DeploymentState
 
+    # ── Summary ───────────────────────────────────────────────────────────
+    Write-PipelineMessage "" -Level Info
     $duration = (Get-Date) - $scriptStartTime
     $totalFailed = Write-DeploymentSummary -Results $results -Duration $duration
 

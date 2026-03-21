@@ -1,0 +1,107 @@
+id: 4802f51c-fda5-4eb1-a8bb-5a2ca194bb19
+name: Successful logon from IP and failure from a different IP
+description: |
+  'Identifies when a user account successfully logs onto an Azure App from one IP and within 10 mins failed to logon to the same App via a different IP.
+  This may indicate a malicious attempt at password guessing based on knowledge of the users account.'
+severity: Medium
+kind: Scheduled
+version: 1.0.1
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1110
+  - T1110.001
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SignInLogs
+query: |
+  let logonDiff = 10m;
+  //let knownIPRange = _GetWatchlist('knownIPs') | project IPAddress | sort by IPAddress desc;
+  let excludeErrorCodes = dynamic(['50078', '50076']); // Add more codes to reduce false positives based on your environment
+  let aadFunc = (tableName: string) {
+    table(tableName)
+    | where ResultType == "0"
+    | where AppDisplayName !in ("Office 365 Exchange Online", "Skype for Business Online") // To remove false-positives, add more Apps to this array
+    | project
+        SuccessLogonTime = TimeGenerated,
+        UserPrincipalName,
+        SuccessIPAddress = IPAddress,
+        AppDisplayName,
+        SuccessIPBlock =
+            iff(IPAddress has ".", // Check if IPAddress contains a period
+                strcat(split(IPAddress, ".")[0], ".", split(IPAddress, ".")[1]), // Split as IPv4
+                strcat(split(IPAddress, ":")[0], ":", split(IPAddress, ":")[1], ":", split(IPAddress, ":")[2], ":", split(IPAddress, ":")[3]) // Split as IPv6
+            ),
+        Type
+    | join kind= inner (
+        table(tableName)
+        | where ResultType !in ("0", "50140")
+        | where ResultDescription !~ "Other"
+        | where AppDisplayName !in ("Office 365 Exchange Online", "Skype for Business Online") // To remove false-positives, add more Apps to this array
+        | project
+            FailedLogonTime = TimeGenerated,
+            UserPrincipalName,
+            FailedIPAddress = IPAddress,
+            AppDisplayName,
+            ResultType,
+            ResultDescription,
+            Type
+        )
+        on UserPrincipalName, AppDisplayName
+    | where SuccessLogonTime < FailedLogonTime
+        and FailedLogonTime - SuccessLogonTime <= logonDiff
+        and FailedIPAddress !startswith SuccessIPBlock
+        //and SuccessIPAddress !in (knownIPRange)
+        //and FailedIPAddress !in (knownIPRange)
+        and SuccessIPAddress != FailedIPAddress
+        and ResultType !in (excludeErrorCodes)
+    | summarize FailedLogonTime = max(FailedLogonTime)
+      , SuccessLogonTime = max(SuccessLogonTime)
+      , SuccessIPAddress = make_set(SuccessIPAddress)
+      , FailedIPAddress = make_set(FailedIPAddress)
+      , ResultDescriptions = make_set(ResultDescription)
+      , AppDisplayNames = make_set(AppDisplayName)
+      , AuthenticationResults = make_set(ResultType)
+      , LogType = make_set(Type)
+      by UserPrincipalName
+    | extend timestamp = SuccessLogonTime
+  };
+  let aadSignin = aadFunc("SigninLogs");
+  let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+  union isfuzzy=true aadSignin, aadNonInt
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SuccessIPAddress
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: FailedIPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

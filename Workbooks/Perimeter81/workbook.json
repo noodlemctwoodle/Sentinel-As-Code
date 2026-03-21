@@ -1,0 +1,614 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Perimeter 81 Event Dashboard\n\nThis dashboard provides Perimeter 81 visualization of geographic security events analytics capabilities."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 14400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            }
+          },
+          {
+            "id": "eventTypes",
+            "version": "KqlParameterItem/1.0",
+            "name": "EventTypes",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| distinct eventTypeGroup_s\n| order by eventTypeGroup_s asc",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 2592000000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": [
+              "application"
+            ]
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend \n    Latitude = geoPoint_latitude_d,\n    Longitude = geoPoint_longitude_d,\n    EventType = eventTypeGroup_s,\n    EventName = eventName_s,\n    SourceIP = ip_s,\n    Country = addressCountry_s,\n    TenantId = tenantId_s,\n    UserEmail = releasedBy_email_s,\n    TimeZone = geoPoint_time_zone_s,\n    AccuracyRadius = geoPoint_accuracy_radius_d\n| where isnotnull(Latitude) and isnotnull(Longitude)\n| where Latitude between (-90.0 .. 90.0) and Longitude between (-180.0 .. 180.0)\n| summarize \n    EventCount = count(),\n    UniqueIPs = dcount(SourceIP),\n    UniqueUsers = dcount(UserEmail),\n    UniqueTenants = dcount(TenantId),\n    UniqueEventTypes = dcount(EventType),\n    EventTypeList = make_list(EventType),\n    EventNameList = make_list(EventName),\n    CountryList = make_list(Country),\n    UserList = make_list(UserEmail),\n    IPList = make_list(SourceIP),\n    FirstSeen = min(TimeGenerated),\n    LastSeen = max(TimeGenerated),\n    AvgAccuracy = avg(AccuracyRadius),\n    TimeZoneInfo = take_any(TimeZone)\n    by Latitude, Longitude\n| extend \n    LocationKey = strcat(round(Latitude, 4), \",\", round(Longitude, 4)),\n    Duration = LastSeen - FirstSeen,\n    EventsPerHour = round(EventCount / (datetime_diff('hour', LastSeen, FirstSeen) + 1), 2)\n| extend\n    RiskLevel = case(\n        EventCount >= 100 and UniqueIPs >= 10, \"Critical\",\n        EventCount >= 50 and UniqueIPs >= 5, \"High\",\n        EventCount >= 20 or UniqueIPs >= 3, \"Medium\",\n        EventCount >= 5, \"Low\",\n        \"Minimal\"\n    ),\n    ThreatIndicator = case(\n        UniqueTenants >= 3, \"Multi-Tenant\",\n        UniqueIPs >= 10, \"Distributed\",\n        EventCount >= 50, \"High-Volume\",\n        \"Standard\"\n    ),\n    GeoPrecision = case(\n        AvgAccuracy <= 10, \"Very High\",\n        AvgAccuracy <= 100, \"High\",\n        AvgAccuracy <= 1000, \"Medium\",\n        \"Low\"\n    )\n| extend\n    ActivityWindow = strcat(\n        format_datetime(FirstSeen, 'MM/dd/yyyy HH:mm'),\n        \" - \",\n        format_datetime(LastSeen, 'MM/dd/yyyy HH:mm')\n    ),\n    LocationSummary = strcat(\n        \"Lat: \", round(Latitude, 4), \n        \", Lon: \", round(Longitude, 4),\n        \" (\", TimeZoneInfo, \")\"\n    ),\n    ThreatScore = case(\n        RiskLevel == \"Critical\", 90 + (UniqueIPs * 2),\n        RiskLevel == \"High\", 70 + UniqueIPs,\n        RiskLevel == \"Medium\", 50 + (UniqueIPs / 2),\n        RiskLevel == \"Low\", 25 + (EventCount / 10),\n        10\n    ),\n    PrimaryCountry = case(\n        array_length(CountryList) > 0, tostring(CountryList[0]),\n        \"Unknown\"\n    )\n| project \n    Latitude, \n    Longitude, \n    LocationKey,\n    LocationSummary,\n    EventCount, \n    UniqueIPs, \n    UniqueUsers, \n    UniqueTenants,\n    UniqueEventTypes,\n    RiskLevel,\n    ThreatIndicator,\n    ThreatScore,\n    PrimaryCountry,\n    EventsPerHour,\n    Duration,\n    ActivityWindow,\n    GeoPrecision,\n    AvgAccuracy,\n    TimeZoneInfo,\n    EventTypeList,\n    EventNameList,\n    CountryList,\n    UserList,\n    IPList,\n    FirstSeen,\n    LastSeen",
+        "size": 2,
+        "title": "Geographic Threat Map",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sizeSettings": "ThreatScore",
+          "sizeAggregation": "Sum",
+          "labelSettings": "PrimaryCountry",
+          "legendMetric": "ThreatScore",
+          "legendAggregation": "Sum",
+          "itemColorSettings": {
+            "nodeColorField": "EventCount",
+            "colorAggregation": "Sum",
+            "type": "heatmap",
+            "heatmapPalette": "greenRed"
+          }
+        }
+      },
+      "name": "threatMap"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend EventType = eventTypeGroup_s\n| summarize EventCount = count() by EventType\n| order by EventCount desc\n| render piechart",
+        "size": 1,
+        "title": "Event Distribution by Type",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "customWidth": "50",
+      "name": "eventDistribution"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend \n    EventType = eventTypeGroup_s,\n    Country = addressCountry_s,\n    SourceIP = ip_s\n| summarize \n    EventCount = count(),\n    UniqueIPs = dcount(SourceIP),\n    UniqueCountries = dcount(Country)\n    by Country\n| where isnotempty(Country)\n| order by EventCount desc\n| take 10",
+        "size": 1,
+        "title": "Top 10 Countries by Event Count",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "EventCount",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "UniqueIPs",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "UniqueCountries",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        }
+      },
+      "customWidth": "50",
+      "name": "topCountries"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend EventType = eventTypeGroup_s\n| summarize EventCount = count() by bin(TimeGenerated, {TimeRange:grain}), EventType\n| render timechart",
+        "size": 0,
+        "title": "Event Timeline by Type",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "customWidth": "100",
+      "name": "eventTimeline"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let EventData = Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend \n    Latitude = geoPoint_latitude_d,\n    Longitude = geoPoint_longitude_d,\n    EventType = eventTypeGroup_s,\n    EventName = eventName_s,\n    SourceIP = ip_s,\n    Country = addressCountry_s,\n    UserEmail = releasedBy_email_s,\n    TenantId = tenantId_s,\n    OriginalTenantId = originalTenantId_s,\n    ApplicationName = application_name_s,\n    ApplicationType = application_type_s,\n    DeviceType = device_deviceType_s,\n    DeviceHostname = device_hostname_s;\n\nlet LocationStats = EventData\n| where isnotnull(Latitude) and isnotnull(Longitude)\n| summarize \n    EventCount = count(),\n    UniqueIPs = dcount(SourceIP),\n    UniqueUsers = dcount(UserEmail),\n    UniqueTenants = dcount(TenantId),\n    UniqueDevices = dcount(DeviceHostname),\n    UniqueApps = dcount(ApplicationName),\n    EventTypes = make_set(EventType),\n    EventNames = make_set(EventName),\n    Countries = make_set(Country),\n    UserList = make_set(UserEmail),\n    IPList = make_set(SourceIP),\n    TenantList = make_set(TenantId),\n    DeviceList = make_set(DeviceHostname),\n    AppList = make_set(ApplicationName),\n    DeviceTypeList = make_set(DeviceType),\n    AppTypeList = make_set(ApplicationType),\n    FirstSeen = min(TimeGenerated),\n    LastSeen = max(TimeGenerated)\n    by Latitude, Longitude\n| extend \n    LocationLabel = strcat(\"(\", round(Latitude, 4), \", \", round(Longitude, 4), \")\"),\n    Duration = LastSeen - FirstSeen\n| extend\n    RiskScore = case(\n        UniqueUsers > UniqueDevices * 3 and (AppTypeList has \"Terminal\" or AppTypeList has \"RDP\" or AppTypeList has \"Citrix\"), \"Low - Terminal Server\",\n        UniqueIPs > UniqueUsers and EventCount >= 50 and not(AppTypeList has \"Terminal\" or AppTypeList has \"RDP\" or AppTypeList has \"Citrix\"), \"Critical - Unusual IP Pattern\",\n        UniqueUsers > UniqueDevices * 2 and EventCount >= 30, \"Medium - Shared Devices\",\n        UniqueDevices == 1 and UniqueIPs >= 5 and array_length(Countries) >= 2, \"Critical - Mobile Device Compromise\",\n        UniqueIPs >= 20 and UniqueUsers <= 5 and not(AppTypeList has \"Terminal\" or AppTypeList has \"RDP\" or AppTypeList has \"Citrix\"), \"Critical - Concentrated IPs\",\n        UniqueTenants >= 3 and EventCount >= 50, \"Critical - Multi-Tenant\",\n        EventCount >= 200 and UniqueUsers <= 3 and not(AppTypeList has \"Terminal\" or AppTypeList has \"RDP\" or AppTypeList has \"Citrix\"), \"Critical - High Volume\",\n        EventCount >= 100 and UniqueIPs >= 10 and (UniqueIPs <= UniqueUsers * 1.5), \"High - Corporate Activity\",\n        EventCount >= 50 and UniqueUsers >= 10, \"Medium - Multi-User Location\",\n        EventCount >= 20, \"Low\",\n        \"Minimal\"\n    ),\n    ThreatLevel = case(\n        UniqueTenants >= 5 and EventCount >= 50, \"Multi-Tenant Threat\",\n        UniqueIPs >= 10 and EventCount >= 30, \"Distributed Attack\",\n        EventCount >= 100, \"High Volume\",\n        \"Normal Activity\"\n    ),\n    PrimaryCountry = case(\n        array_length(Countries) > 0, tostring(Countries[0]),\n        \"Unknown\"\n    )\n| extend\n    UserSummary = case(\n        UniqueUsers <= 3, strcat(\"Users: \", strcat_array(UserList, \", \")),\n        strcat(\"Users: \", UniqueUsers, \" total (Top 3: \", strcat_array(array_slice(UserList, 0, 3), \", \"), \"...)\")\n    ),\n    IPSummary = case(\n        UniqueIPs <= 3, strcat(\"IPs: \", strcat_array(IPList, \", \")),\n        strcat(\"IPs: \", UniqueIPs, \" total (First 3: \", strcat_array(array_slice(IPList, 0, 3), \", \"), \"...)\")\n    ),\n    TenantSummary = case(\n        UniqueTenants <= 2, strcat(\"Tenants: \", strcat_array(TenantList, \", \")),\n        strcat(\"Tenants: \", UniqueTenants, \" total\")\n    ),\n    EventTypeSummary = strcat_array(EventTypes, \", \"),\n    DeviceSummary = case(\n        UniqueDevices <= 3, strcat(\"Devices: \", strcat_array(DeviceList, \", \")),\n        strcat(\"Devices: \", UniqueDevices, \" total (First 3: \", strcat_array(array_slice(DeviceList, 0, 3), \", \"), \"...)\")\n    ),\n    AppSummary = case(\n        UniqueApps <= 3, strcat(\"Apps: \", strcat_array(AppList, \", \")),\n        strcat(\"Apps: \", UniqueApps, \" total (Top 3: \", strcat_array(array_slice(AppList, 0, 3), \", \"), \"...)\")\n    )\n| order by EventCount desc;\n\nLocationStats\n| project \n    ThreatLevel, \n    RiskScore, \n    PrimaryCountry,\n    EventCount,\n    UniqueUsers, \n    UniqueTenants, \n    UniqueIPs,\n    UniqueDevices,\n    UniqueApps,\n    UserSummary,\n    IPSummary,\n    DeviceSummary,\n    //AppSummary,\n    TenantSummary,\n    EventTypeSummary,\n    //Duration,\n    FirstSeen, \n    LastSeen, \n    LocationLabel",
+        "size": 0,
+        "title": "High-Risk Locations with User & Device Details",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ThreatLevel",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Multi-Tenant Threat",
+                    "representation": "redBright",
+                    "text": "🚨 Multi-Tenant Threat"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Distributed Attack",
+                    "representation": "red",
+                    "text": "⚠️ Distributed Attack"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High Volume",
+                    "representation": "orange",
+                    "text": "📈 High Volume"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Normal Activity",
+                    "representation": "green",
+                    "text": "✅ Normal Activity"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "RiskScore",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Low - Terminal Server",
+                    "representation": "lightGreen",
+                    "text": "🖥️ Low - Terminal Server"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium - Shared Devices",
+                    "representation": "yellow",
+                    "text": "💻 Medium - Shared Devices"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical - Mobile Device Compromise",
+                    "representation": "redBright",
+                    "text": "📱 Critical - Mobile Device Compromise"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical - Unusual IP Pattern",
+                    "representation": "redBright",
+                    "text": "🔍 Critical - Unusual IP Pattern"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical - Concentrated IPs",
+                    "representation": "redBright",
+                    "text": "🔴 Critical - Concentrated IPs"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical - Multi-Tenant",
+                    "representation": "redBright",
+                    "text": "🚨 Critical - Multi-Tenant"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical - High Volume",
+                    "representation": "redBright",
+                    "text": "🔴 Critical - High Volume"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High - Corporate Activity",
+                    "representation": "orange",
+                    "text": "🟠 High - Corporate Activity"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium - Multi-User Location",
+                    "representation": "yellow",
+                    "text": "🟡 Medium - Multi-User Location"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Low",
+                    "representation": "green",
+                    "text": "🟢 Low"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Minimal",
+                    "representation": "lightGreen",
+                    "text": "✅ Minimal"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "EventCount",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "redBright"
+              }
+            },
+            {
+              "columnMatch": "UniqueUsers",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "UniqueTenants",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "purple"
+              }
+            },
+            {
+              "columnMatch": "UniqueIPs",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            },
+            {
+              "columnMatch": "UniqueDevices",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "UniqueApps",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "yellow"
+              }
+            },
+            {
+              "columnMatch": "Duration",
+              "formatter": 6
+            },
+            {
+              "columnMatch": "FirstSeen",
+              "formatter": 6
+            },
+            {
+              "columnMatch": "LastSeen",
+              "formatter": 6
+            }
+          ],
+          "filter": true
+        },
+        "sortBy": []
+      },
+      "name": "enhancedRiskAnalysis"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perimeter81_CL\n| where TimeGenerated {TimeRange}\n| where \"{EventTypes:escape}\" == \"*\" or eventTypeGroup_s in ({EventTypes})\n| extend \n    EventType = eventTypeGroup_s,\n    EventName = eventName_s,\n    UserEmail = releasedBy_email_s,\n    SourceIP = ip_s,\n    Country = addressCountry_s,\n    TenantId = tenantId_s\n| extend\n    UserDomain = case(\n        isnotempty(UserEmail), split(UserEmail, \"@\")[1],\n        \"Unknown\"\n    ),\n    DeviceFingerprint = strcat(SourceIP, \"-\", Country),\n    TimeHour = bin(TimeGenerated, 1h)\n| where isnotempty(UserEmail)\n| summarize \n    EventCount = count(),\n    UniqueIPs = dcount(SourceIP),\n    UniqueCountries = dcount(Country),\n    UniqueTenants = dcount(TenantId),\n    EventNames = make_set(EventName),\n    Countries = make_set(Country),\n    IPAddresses = make_set(SourceIP),\n    FirstActivity = min(TimeGenerated),\n    LastActivity = max(TimeGenerated),\n    ActivityHours = dcount(TimeHour)\n    by UserEmail, UserDomain, EventType\n| extend \n    ActivityDuration = LastActivity - FirstActivity,\n    RiskProfile = case(\n        UniqueIPs >= 10 and UniqueCountries >= 3, \"High Risk - Global Activity\",\n        UniqueIPs >= 5 and UniqueCountries >= 2, \"Medium Risk - Multi-Location\",\n        EventCount >= 100, \"High Volume User\",\n        UniqueTenants >= 2, \"Multi-Tenant Access\",\n        \"Standard Activity\"\n    ),\n    UserType = case(\n        UserDomain in (\"gmail.com\", \"yahoo.com\", \"hotmail.com\", \"outlook.com\"), \"Personal Email\",\n        UserDomain contains \"temp\" or UserDomain contains \"test\", \"Test Account\",\n        \"Corporate Email\"\n    ),\n    GeographicSpread = case(\n        UniqueCountries >= 5, \"Global\",\n        UniqueCountries >= 3, \"Regional\", \n        UniqueCountries >= 2, \"Multi-Country\",\n        \"Local\"\n    ),\n    DeviceMobility = case(\n        UniqueIPs >= 20, \"Highly Mobile\",\n        UniqueIPs >= 10, \"Mobile\",\n        UniqueIPs >= 5, \"Semi-Mobile\",\n        \"Static\"\n    )\n| extend\n    ThreatLevel = case(\n        RiskProfile contains \"High Risk\", 4,\n        RiskProfile contains \"Medium Risk\", 3,\n        RiskProfile contains \"High Volume\", 3,\n        RiskProfile contains \"Multi-Tenant\", 4,\n        1\n    )\n| project \n    UserEmail,\n    UserDomain,\n    UserType,\n    EventType,\n    EventCount,\n    UniqueIPs,\n    UniqueCountries,\n    UniqueTenants,\n    ActivityHours,\n    RiskProfile,\n    GeographicSpread,\n    DeviceMobility,\n    ThreatLevel,\n    ActivityDuration,\n    FirstActivity,\n    LastActivity,\n    EventNames,\n    Countries,\n    IPAddresses\n| order by ThreatLevel desc, EventCount desc",
+        "size": 0,
+        "title": "User & Device Activity Analysis by Event Type",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "UserEmail",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "25%"
+              }
+            },
+            {
+              "columnMatch": "EventType",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Security Alert",
+                    "representation": "redBright",
+                    "text": "🚨 Security Alert"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Authentication",
+                    "representation": "blue",
+                    "text": "🔐 Authentication"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Network Access",
+                    "representation": "green",
+                    "text": "🌐 Network Access"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "VPN Connection",
+                    "representation": "orange",
+                    "text": "🔒 VPN Connection"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "EventCount",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "blue",
+                "customColumnWidthSetting": "10%"
+              }
+            },
+            {
+              "columnMatch": "UniqueIPs",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "orange",
+                "customColumnWidthSetting": "8%"
+              }
+            },
+            {
+              "columnMatch": "UniqueCountries",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "green",
+                "customColumnWidthSetting": "8%"
+              }
+            },
+            {
+              "columnMatch": "RiskProfile",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "High Risk",
+                    "representation": "redBright",
+                    "text": "🔴 High Risk"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Medium Risk",
+                    "representation": "orange",
+                    "text": "🟠 Medium Risk"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "High Volume",
+                    "representation": "yellow",
+                    "text": "🟡 High Volume"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Multi-Tenant",
+                    "representation": "purple",
+                    "text": "🟣 Multi-Tenant"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Standard Activity",
+                    "representation": "green",
+                    "text": "🟢 Standard"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "UserType",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Personal Email",
+                    "representation": "orange",
+                    "text": "👤 Personal"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Test Account",
+                    "representation": "gray",
+                    "text": "🧪 Test"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Corporate Email",
+                    "representation": "blue",
+                    "text": "🏢 Corporate"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "GeographicSpread",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Global",
+                    "representation": "redBright",
+                    "text": "🌍 Global"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Regional",
+                    "representation": "orange",
+                    "text": "🌎 Regional"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Multi-Country",
+                    "representation": "yellow",
+                    "text": "🌏 Multi-Country"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Local",
+                    "representation": "green",
+                    "text": "📍 Local"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "DeviceMobility",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Highly Mobile",
+                    "representation": "redBright",
+                    "text": "📱 Highly Mobile"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Mobile",
+                    "representation": "orange",
+                    "text": "💻 Mobile"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Semi-Mobile",
+                    "representation": "yellow",
+                    "text": "🏠 Semi-Mobile"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Static",
+                    "representation": "green",
+                    "text": "🖥️ Static"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "ActivityDuration",
+              "formatter": 6,
+              "formatOptions": {
+                "customColumnWidthSetting": "12%"
+              }
+            },
+            {
+              "columnMatch": "FirstActivity",
+              "formatter": 6
+            },
+            {
+              "columnMatch": "LastActivity",
+              "formatter": 6
+            }
+          ],
+          "filter": true,
+          "sortBy": [
+            {
+              "itemKey": "ThreatLevel",
+              "sortOrder": 2
+            }
+          ]
+        },
+        "sortBy": [
+          {
+            "itemKey": "ThreatLevel",
+            "sortOrder": 2
+          }
+        ]
+      },
+      "customWidth": "100",
+      "name": "userDeviceAnalysis"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

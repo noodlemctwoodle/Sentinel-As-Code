@@ -1,0 +1,95 @@
+id: b64655b6-db98-44f1-8188-707d372c35c5
+name: Cross-Origin Device Code Flow Authentication Anomaly
+description: This detection identifies suspicious device code authentication flows that occur shortly after a browser sign-in, but from a different IP address, location, and user agent. This pattern may indicate credential theft, session hijacking, or other authentication-based attacks where an attacker is leveraging compromised credentials to establish persistent access. The detection specifically looks for device code authentication within 20 minutes of a browser sign-in, where all environmental indicators (IP, location, user agent) differ, suggesting the activity is coming from an unauthorized source. This technique is used by attackers to maintain access to compromised accounts while evading detection mechanisms that only monitor traditional sign-in methods.
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - DefenseEvasion
+  - CredentialAccess
+  - LateralMovement
+techniques:
+  - T1078
+  - T1078.004
+  - T1550
+  - T1550.001
+  - T1539
+  - T1606
+  - T1606.001
+requiredDataConnectors:
+  - connectorId: MicrosoftGraphActivityLogs
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+query: |-
+  UnifiedSignInLogs
+  | where ClientAppUsed == "Browser"
+  | project BrowserSignInTime = TimeGenerated, UserId, UserPrincipalName, BrowserIPAddress = IPAddress,
+  BrowserCity = tostring(LocationDetails.city),
+  BrowserCountry = tostring(LocationDetails.countryOrRegion),
+  BrowserLocation = strcat(tostring(LocationDetails.countryOrRegion), ", ", tostring(LocationDetails.city)), BrowserUserAgent = UserAgent
+  | join kind=inner (
+  UnifiedSignInLogs
+  | where AuthenticationProtocol == "deviceCode"
+  | project DeviceCodeSignInTime = TimeGenerated, UserId, UserPrincipalName, DeviceDetail, DeviceIPAddress = IPAddress, AppDisplayName,
+  DeviceCity = tostring(LocationDetails.city),
+  DeviceCountry = tostring(LocationDetails.countryOrRegion),
+  DeviceLocation = strcat(tostring(LocationDetails.countryOrRegion), ", ", tostring(LocationDetails.city)),
+  DeviceUserAgent = tostring(UserAgent),
+  ResultType
+  ) on UserId
+  | extend TimeDiffMinutes = datetime_diff('minute', DeviceCodeSignInTime, BrowserSignInTime)
+  | where TimeDiffMinutes between (0 .. 20) // Look for device code sign-ins within 60 minutes after a browser sign-in
+  | project
+  UserId,
+  UserPrincipalName,
+  BrowserSignInTime,
+  BrowserIPAddress,
+  BrowserLocation,
+  BrowserUserAgent,
+  DeviceCodeSignInTime,
+  DeviceIPAddress,
+  DeviceLocation,
+  DeviceUserAgent,
+  TimeDiffMinutes,
+  DeviceDetail,
+  AppDisplayName,
+  ResultType
+  | extend IPMatch = iff(BrowserIPAddress == DeviceIPAddress, "Same", "Different"),
+  LocationMatch = iff(tostring(BrowserLocation) == tostring(DeviceLocation), "Same", "Different"),
+  UserAgentMatch = iff(tostring(BrowserUserAgent) == tostring(DeviceUserAgent), "Same", "Different")
+  | where IPMatch == "Different" and LocationMatch == "Different" and UserAgentMatch == "Different"
+  | order by TimeDiffMinutes asc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+      - identifier: AadUserId
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: DeviceIPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+customDetails:
+  BrowserUserAgent: BrowserUserAgent
+  DeviceUserAgent: DeviceUserAgent
+suppressionEnabled: false
+suppressionDuration: PT5H

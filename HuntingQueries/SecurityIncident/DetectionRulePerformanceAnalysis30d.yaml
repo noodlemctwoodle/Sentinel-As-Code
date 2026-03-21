@@ -1,0 +1,44 @@
+id: "6db4c5d6-e7f8-4091-a2b3-c4d5e6f70819"
+name: "Detection rule performance analysis 30-day"
+description: "Identifies underperforming detection rules by analyzing true positive rates, false positive rates, alert velocity, and time to resolution over 30 days to prioritize tuning efforts."
+query: |
+  // Analyzes analytical rule performance over the last 30 days by measuring true positive rates,
+  // false positive rates, alert velocity, and time to resolution to identify rules that need tuning
+
+  let AnalysisWindow = 30d;
+  let RulePerformance = SecurityIncident
+  | where TimeGenerated > ago(AnalysisWindow)
+  | summarize TotalIncidents = count(),
+      ClosedAsTP = countif(Classification == "TruePositive"),
+      ClosedAsFP = countif(Classification == "FalsePositive"),
+      ClosedAsBP = countif(Classification == "BenignPositive"),
+      AvgTimeToClose = avg(datetime_diff('hour', ClosedTime, CreatedTime))
+  by Title
+  | extend TPRate = round(100.0 * ClosedAsTP / TotalIncidents, 2),
+  FPRate = round(100.0 * ClosedAsFP / TotalIncidents, 2)
+  | extend EfficiencyScore = case(
+      TPRate >= 80 and FPRate <= 10, "Excellent",
+      TPRate >= 60 and FPRate <= 25, "Good",
+      TPRate >= 40 and FPRate <= 40, "NeedsTuning",
+      "RequiresReview"
+  );
+  //
+  let AlertVelocity = SecurityAlert
+  | where TimeGenerated > ago(AnalysisWindow)
+  | summarize AlertsPerDay = count() / 30.0 by AlertName
+  | extend AlertVolume = case(
+      AlertsPerDay > 30, "High",
+      AlertsPerDay > 3, "Medium",
+      "Low"
+  );
+  //
+  RulePerformance
+  | join kind=inner (AlertVelocity) on $left.Title == $right.AlertName
+  | project RuleName = Title, TotalIncidents, TPRate, FPRate,
+      EfficiencyScore, AlertsPerDay, AlertVolume, AvgTimeToClose
+  | order by case(EfficiencyScore == "RequiresReview", 1,
+      EfficiencyScore == "NeedsTuning", 2, 3) asc, FPRate desc
+tactics:
+  - Collection
+techniques:
+  - T1530

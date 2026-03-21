@@ -1,0 +1,22 @@
+id: "c31ab2c3-d4e5-4f60-7182-930415263748"
+name: "Updatable groups permission enumeration"
+description: "Detects Get-UpdatableGroups module usage by identifying PowerShell Graph API calls to the estimateAccess API and group enumeration endpoints to assess group modification permissions."
+query: |
+  // The Get-UpdatableGroups module identifies groups that the current user might have the ability to modify. The module interacts with the "Estimate Access" API
+  // to assess whether the current user possesses the required permissions to update groups within the tenant.
+
+  // This module follows a two-step process. Initially, it enumerates all the groups available, and subsequently, it uses the estimateAccess API for each group to
+  //evaluate whether the user has the necessary permissions to modify that group. You can see this process illustrated in the screenshot below taken from the MicrosoftGraphActivityLogs:
+
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri == "https://graph.microsoft.com/beta/roleManagement/directory/estimateAccess" or RequestUri == "https://graph.microsoft.com/v1.0/groups"
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | project-reorder TimeGenerated, RequestUri
+tactics:
+  - Discovery
+  - PrivilegeEscalation
+techniques:
+  - T1069.003
+  - T1078.004

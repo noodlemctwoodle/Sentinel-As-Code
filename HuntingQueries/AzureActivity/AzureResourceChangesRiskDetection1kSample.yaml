@@ -1,0 +1,30 @@
+id: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+name: "Azure resource changes risk detection"
+description: "Identifies high-risk Azure resource modifications by sampling activity logs for delete, create, and modify operations on production resources by unauthorized callers."
+query: |
+  // Samples Azure Activity logs for efficient analysis of high-risk operations within the last hour,
+  // focusing on resource modifications while maintaining detection accuracy for critical changes
+
+  // Sample large datasets while maintaining detection accuracy
+  AzureActivity
+  | where TimeGenerated > ago(1h)
+  | sample 1000  // Sample for initial analysis
+  | where OperationName has_any ("delete", "create", "modify")
+  | where ActivityStatus == "Succeeded"
+  | extend Risk = case(
+      OperationName has "delete" and ResourceGroup has "prod", "High",
+      OperationName has "create" and Caller !has "@contoso.com", "Medium",
+      "Low"
+  )
+  | where Risk in ("High", "Medium")  // Focus on significant changes only
+  | summarize Operations = count(),
+             Callers = make_set(Caller, 10),
+             Resources = make_set(Resource, 20)
+             by ResourceGroup, Risk, bin(TimeGenerated, 10m)
+tactics:
+  - Impact
+  - DefenseEvasion
+techniques:
+  - T1485
+  - T1578
+  - T1578.002

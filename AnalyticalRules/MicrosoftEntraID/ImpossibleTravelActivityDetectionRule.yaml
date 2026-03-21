@@ -1,0 +1,139 @@
+id: 2723b003-91d4-4282-bf33-f4b90f04c4e7
+name: Impossible travel activity
+description: |
+  '"Impossible travel" is one of the most basic anomaly detections used to indicate that a user is compromised. The logic behind impossible travel is simple. If the same user connects from two different countries and the time between those connections can't be made through conventional air travel, it's an impossible travel.
+
+  Although the principle of detecting impossible travel is straightforward, the how, when, and where we work has made it more challenging to correctly identify an impossible travel event. Employees can connect to your corporate network and resources practically at the same time from multiple devices, using multiple applications, from multiple IP addresses. To address these problems, Microsoft implemented a comprehensive mechanism to analyze and record user behavior, to develop suppressions that ignores cases of "legitimate" impossible travel.
+
+  For example, an employee works from a laptop from their home, but the laptop has a VPN connection to the corporate network with split tunnels such as Microsoft Office 365 going directly from the home IP address, while activity using GitHub goes out through the VPN in a different country. Simultaneously, they are connected to the Microsoft Teams app from their smartphone and the IP address can switch in a matter of seconds between the home Wi-Fi and the cellular network's ISP.
+
+  Another example is when an employee is traveling and working from a remote location. Their smartphone can jump between their cellular network provider that's connected using roaming from their home country and Wi-Fi located on a different continent.'
+severity: High
+kind: Scheduled
+version: 1.1.1
+status: Available
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - DefenseEvasion
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004
+  - T1550
+  - T1550.001
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let startDate = ago(1h);
+  let endDate = now();
+  let pevCount = 1;
+  let maxSpeed = 1000;
+  let AzureRanges = materialize(
+      externaldata(changeNumber: string, cloud: string, values: dynamic)
+      ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"] with(format='multijson')
+      | mv-expand values
+      | extend Name = values.name, AddressPrefixes = tostring(values.properties.addressPrefixes)
+  );
+  // Uncomment where Watchlist exists in environment!!!!!!
+  //let TrustedIPLocations = materialize(_GetWatchlist('environmentIPs') | project IPAddress);
+  let CountryLookup = materialize(_GetWatchlist('regionalMap') | project Region = iso2, Country = name);
+  let HighRiskCountries = dynamic(["Brazil", "China", "Cuba", "Cyprus", "Egypt", "Equatorial Guinea", "Eritrea", "Haiti"
+      , "Indonesia", "Iran", "Iraq", "Israel", "Kosovo", "Liberia", "Libya", "Malaysia", "Myanmar", "Nicaragua", "Nigeria"
+      , "North Korea", "Paraguay", "Russia", "Russian Federation", "Sudan", "Switzerland", "Syria", "Thailand", "Turkmenistan"
+      , "Uganda", "Ukraine", "Uzbekistan", "Venezuela", "Yemen", "Zimbabwe"]);
+  let MatchedIPs = materialize(
+      UnifiedSignInLogs
+      | where TimeGenerated between (startDate .. endDate)
+      | summarize by IPAddress
+      | evaluate ipv4_lookup(AzureRanges, IPAddress, AddressPrefixes)
+      | project IPAddress
+  );
+  UnifiedSignInLogs
+  | where TimeGenerated between (startDate .. endDate)
+  | where ResultType == 0
+  | where isnotempty(tostring(LocationDetails.countryOrRegion))
+  // Uncomment if Watchlist is being used in the environment!!!!!!
+  //| where IPAddress !in (TrustedIPLocations)
+  | where not (IPAddress in (MatchedIPs))
+  | extend Latitude = todouble(LocationDetails.geoCoordinates.latitude)
+      , Longitude = todouble(LocationDetails.geoCoordinates.longitude)
+      , Region = tostring(LocationDetails.countryOrRegion)
+  | project TimeGenerated, UserPrincipalName, IPAddress, Latitude, Longitude, Region
+  | join kind = inner
+      CountryLookup
+      on Region
+  | extend Region = Country
+  | order by UserPrincipalName, TimeGenerated
+  | extend PreviousIPAddress = prev(IPAddress, pevCount)
+      , PreviousUserPrincipalName = prev(UserPrincipalName, pevCount)
+      , PreviousLatitude = prev(Latitude, pevCount)
+      , PreviousLongitude = prev(Longitude, pevCount)
+      , PreviousTime = prev(TimeGenerated, pevCount)
+      , PreviousRegion = prev(Country, pevCount)
+  | extend Coordinates = pack_array(Latitude, Longitude)
+      , PreviousCoordinates = pack_array(PreviousLatitude, PreviousLongitude)
+      , UserPrincipalNameDifference = iff(UserPrincipalName == PreviousUserPrincipalName, "Same", "Different")
+  | project TimeGenerated, PreviousTime, UserPrincipalName, UserPrincipalNameDifference, IPAddress, Coordinates, PreviousCoordinates, Region, PreviousRegion
+  | extend distance = round(geo_distance_2points(todouble(Coordinates[1]), todouble(Coordinates[0]), todouble(PreviousCoordinates[1]), todouble(PreviousCoordinates[0])) / 1000, 0)
+  | extend hours = abs(datetime_diff('hour', todatetime(TimeGenerated), todatetime(PreviousTime)))
+  | extend speedKmPerHour = round(distance/hours, 0)
+  | extend Countries = strcat(PreviousRegion, " > ", Region)
+  | extend HighRiskCountry = iff(Region in (HighRiskCountries), Region, "")
+  | extend IPLocation = strcat(IPAddress, " - ", Region)
+  | extend ImpossibleTravel = iff((speedKmPerHour > maxSpeed) and (Region != PreviousRegion) and (UserPrincipalNameDifference == "Same"), Countries, "")
+  | summarize
+      CountryCount = dcount(Region)
+      , Countries = make_set(Region)
+      , HighRiskCountryCount = dcountif(HighRiskCountry, HighRiskCountry != "")
+      , ImpossibleTravelRouteCount = dcountif(ImpossibleTravel, ImpossibleTravel != "")
+      , ImpossibleTravelRoutes = make_set_if(ImpossibleTravel, ImpossibleTravel != "")
+      , IPAddresses = make_set(IPLocation)
+      , LastAccess = max(TimeGenerated)
+      by UserPrincipalName
+  | where (ImpossibleTravelRouteCount > 0 or CountryCount >= 3) and LastAccess > ago(10m)
+  | extend Severity = case
+      (
+          HighRiskCountryCount > 0 and ImpossibleTravelRouteCount > 1,"High"
+          , HighRiskCountryCount > 1 , "High"
+          , HighRiskCountryCount > 0 and ImpossibleTravelRouteCount > 0, "Medium"
+          , ImpossibleTravelRouteCount > 2, "High"
+          , ImpossibleTravelRouteCount > 1, "Medium"
+          , CountryCount > 3, "Medium"
+          , ImpossibleTravelRouteCount > 0, "Low"
+          ,"Informational"
+      )
+  | project-reorder LastAccess, UserPrincipalName, HighRiskCountryCount, ImpossibleTravelRoutes, ImpossibleTravelRouteCount, Countries, CountryCount, IPAddresses, Severity
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddresses
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+customDetails:
+  TravalRoutes: ImpossibleTravelRoutes
+  ImpTravelCount: ImpossibleTravelRouteCount
+  HighRiskCount: HighRiskCountryCount
+  CountryOfSignIn: Countries
+  CountryCount: CountryCount
+suppressionEnabled: false
+suppressionDuration: PT5H

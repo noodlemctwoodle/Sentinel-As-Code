@@ -1,0 +1,53 @@
+id: 9d1c9b03-f953-42f3-8308-a95179392df5
+name: New Source added to DCR
+description: Enter rule description here
+severity: Informational
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+  - Impact
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |
+  AzureActivity
+  | where OperationNameValue has "DATACOLLECTIONRULEASSOCIATIONS/WRITE"
+      and ActivitySubstatusValue has "OK"
+  | extend Resources = split(tostring(Properties_d.resource), "/")
+  | extend Source = toupper(Resources[0])
+  | extend SourceRG = tostring(Properties_d.resourceGroup)
+  | extend DCR = toupper(split(Resources[2], "-association")[0])
+  | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Source, SourceRG, DCR, Caller, CallerIpAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Source
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D

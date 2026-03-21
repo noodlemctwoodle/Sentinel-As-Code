@@ -1,0 +1,118 @@
+id: "90e75809-a1b2-4c3d-4e5f-607182930415"
+name: "OAuth app injection blast radius detection"
+description: "Detects OAuth application abuse with blast radius assessment by monitoring Graph API calls for app registration and credential addition, identifying patterns of malicious OAuth app injection."
+query: |
+  // Detects OAuth application abuse by monitoring Graph API calls for app registration and credential addition,
+  // identifying patterns consistent with malicious OAuth app injection and privilege escalation techniques
+
+  // OAuth Application Abuse.kql
+  // Get most recent identity info to join later, including blast radius indicators
+  let RecentIdentityInfo = IdentityInfo
+      | where TimeGenerated > ago(10d)
+      | extend
+          // Parse assigned roles from JSON format
+          ParsedRoles = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              , parse_json(AssignedRoles)
+              , dynamic([]))
+          // Parse group memberships from JSON format
+          , ParsedGroups = iff(isnotempty(GroupMembership)
+              and GroupMembership != "[]"
+              , parse_json(GroupMembership)
+              , dynamic([]))
+          // Check for privileged roles
+          , IsAdmin = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              , true, false),
+          IsPrivilegedRole = iff(
+              AssignedRoles has_any("Global Administrator"
+                  , "Privileged Role Administrator", "User Administrator"
+                  , "SharePoint Administrator", "Exchange Administrator"
+                  , "Hybrid Identity Administrator", "Application Administrator"
+                  , "Cloud Application Administrator")
+                  , true, false
+          ),
+          // Check for privileged group memberships
+          IsInPrivilegedGroup = iff(
+              GroupMembership has_any("AdminAgents"
+              , "Azure AD Joined Device Local Administrators"
+              , "Directory Synchronization Accounts"
+              , "Domain Admins", "Enterprise Admins"
+              , "Schema Admins", "Key Admins")
+              , true, false
+          ),
+          Department = Department
+          , JobTitle = JobTitle
+          , Manager = Manager
+      | summarize arg_max(TimeGenerated, *) by AccountObjectId;
+  // Find specific Graph API calls related to app registration
+  let appRegistrationEvents = MicrosoftGraphActivityLogs
+  | where UserAgent has "PowerShell"
+  | where (RequestUri has_all("https://graph.microsoft.com/v1.0/applications/", "addPassword")
+      or RequestUri == "https://graph.microsoft.com/v1.0/applications"
+      or RequestUri == "https://graph.microsoft.com/v1.0/servicePrincipals")
+  | extend
+      ApplicationId = tostring(extract(@"applications/(.*?)/addPassword", 1, RequestUri))
+      , OperationType = case(
+          RequestUri has "addPassword", "Add Credentials"
+          , RequestUri == "https://graph.microsoft.com/v1.0/applications"
+          , "Create Application"
+          , RequestUri == "https://graph.microsoft.com/v1.0/servicePrincipals"
+          , "Create Service Principal"
+          , "Other"
+      );
+  // Get AAD Audit logs for additional app registration details
+  let auditLogs = AuditLogs
+  | where TimeGenerated > ago(1d)
+  | where OperationName in ("Add application", "Update application — Certificates and secrets management"
+      , "Update application")
+  | extend
+      AppId = tostring(TargetResources[0].id)
+      , AppDisplayName = tostring(TargetResources[0].displayName)
+      , ModifiedProperties = TargetResources[0].modifiedProperties
+      ;
+  // Join with authentication logs
+  let appRegistrationWithAuth = appRegistrationEvents
+  | join kind=leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind=leftouter RecentIdentityInfo
+      on $left.UserId == $right.AccountObjectId;
+  // Identify users performing multiple app registration operations
+  appRegistrationWithAuth
+  | summarize
+      OperationCount = count(),
+      OperationTypes = make_set(OperationType),
+      FirstOperation = min(TimeGenerated),
+      LastOperation = max(TimeGenerated),
+      ApplicationIds = make_set(ApplicationId, 10),
+      RequestURIs = make_set(RequestUri, 10)
+      by
+      UserId, UserPrincipalName, IPAddress, UserAgent, Department, JobTitle
+          , Manager, IsAdmin, IsPrivilegedRole, IsInPrivilegedGroup
+  | extend
+      OperationTimeSpan = datetime_diff('minute', LastOperation, FirstOperation),
+      HasAllOperationTypes = array_length(
+          set_intersect(OperationTypes, dynamic(
+              ["Create Application", "Add Credentials", "Create Service Principal"]
+              )
+          )) == 3,
+      BlastRadiusSeverity = case(
+          IsPrivilegedRole == true, "Critical",
+          IsAdmin == true
+              or IsInPrivilegedGroup == true, "High"
+              , "Medium"
+          )
+  // Focus on patterns indicating Invoke-InjectOAuthApp usage
+  | where OperationCount >= 3 or HasAllOperationTypes
+  | project-reorder
+      BlastRadiusSeverity, UserId, UserPrincipalName, IsAdmin, IsPrivilegedRole
+          , Department, OperationCount, OperationTypes, HasAllOperationTypes
+          , OperationTimeSpan, ApplicationIds, IPAddress, FirstOperation, LastOperation
+  | order by HasAllOperationTypes desc, BlastRadiusSeverity asc, OperationCount desc
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1098.001
+  - T1136.003
+  - T1550.001

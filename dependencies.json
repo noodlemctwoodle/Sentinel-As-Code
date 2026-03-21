@@ -1,0 +1,165 @@
+{
+  "version": "1.0",
+  "description": "Dependency graph for Sentinel-As-Code content. The deployment script checks these prerequisites before deploying each item. Internal dependencies (parsers, watchlists in this repo) are deployed first automatically. External dependencies (tables, watchlists not in this repo) are validated via API.",
+  "dependencies": {
+    "AnalyticalRules/AzureActivity/PotentialTorExitNodeDetected.yaml": {
+      "watchlists": ["TorExitNodes"]
+    },
+    "AnalyticalRules/AzureActivity/TokenReplayWorkloadIdentityOutsideAzureDetectionRule.yaml": {
+      "tables": ["PrivilegedWorkloadIdentityInfo", "AADManagedIdentitySignInLogs"],
+      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+    },
+    "AnalyticalRules/Custom/ChangeWasMadeToTailscale.yaml": {
+      "tables": ["Tailscale_CL"]
+    },
+    "AnalyticalRules/Custom/PotentialMaliciousDomainRegistrationDetectionRule.yaml": {
+      "tables": ["RegisteredDomains_CL"]
+    },
+    "AnalyticalRules/Custom/SummaryRuleDemoCountry.yaml": {
+      "tables": ["AuthenticationAttemptFromNewCountry_CL"]
+    },
+    "AnalyticalRules/DeviceEvents/SmartScreenPotentialPhishingUrlClicked.yaml": {
+      "tables": ["DeviceEvents"]
+    },
+    "AnalyticalRules/DeviceTvmSoftwareVulnerabilities/VulnerabilityDetectedOnDomainController.yaml": {
+      "tables": ["DeviceTvmSoftwareVulnerabilities"]
+    },
+    "AnalyticalRules/DNS/PotentialExploitationOfCve202449112LdapNightmare.yaml": {
+      "functions": ["ASimDnsActivityLogs"]
+    },
+    "AnalyticalRules/GWorkspace/GoogleDriveUnauthorizedChangesDetectionRule.yaml": {
+      "tables": ["GWorkspace_ReportsAPI_drive_CL"]
+    },
+    "AnalyticalRules/ImpervaAttackAnalytics/ImpervaAttackAnalyticsIncompleteAttackBlockingDetected.yaml": {
+      "tables": ["ImpervaAttackAnalytics"]
+    },
+    "AnalyticalRules/Microsoft365/SuspiciousUserWatchlistActivityDetectionRule.yaml": {
+      "watchlists": ["SuspiciousUsers"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/AuthenticationAttemptNewCountryDetectionRule.yaml": {
+      "functions": ["UnifiedSignInLogs"],
+      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/AzureAdServicePrincipalAuthFailureDetectionRule.yaml": {
+      "watchlists": ["socManagedIdentities"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/AzurePortalFailedLoginAttemptsDetectionRule.yaml": {
+      "functions": ["UnifiedSignInLogs"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/BreakGlassAccountAuthenticationDetectionRule.yaml": {
+      "watchlists": ["breakGlassAccounts"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/BreakGlassAccountMultipleAuthFailuresDetectionRule.yaml": {
+      "watchlists": ["breakGlassAccounts"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/DisabledAccountSigninAttemptsDetectionRule.yaml": {
+      "watchlists": ["environmentIPs", "confirmedLeavers"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/HighPrivilegedAppOwnerAdditionDetectionRule.yaml": {
+      "watchlists": ["HighRiskApps"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/HighPrivilegedAppSecretAdditionDetectionRule.yaml": {
+      "watchlists": ["HighRiskApps"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/ImpossibleTravelActivityDetectionRule.yaml": {
+      "functions": ["UnifiedSignInLogs"],
+      "watchlists": ["regionalMap"],
+      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/PrivilegedAccountAuthMethodsChangeDetectionRule.yaml": {
+      "watchlists": ["environmentIPs"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/SuccessfulLogonDifferentIpFailureDetectionRule.yaml": {
+      "tables": ["IdentityLogonEvents"]
+    },
+    "AnalyticalRules/MicrosoftEntraID/TokenTheftDetectionUnboundSessionsOnUnmanagedDevices.yaml": {
+      "functions": ["UnifiedSignInLogs"],
+      "watchlists": ["EntraRiskyUsers"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/AzureApplicationAndServicePrincipalReconnaissanceViaPowershell.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/AzurehoundActivityDetectedDetectionRule.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/AzurehoundReconnaissanceDetectedDetectionRule.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/CrossOriginDeviceCodeFlowAuthenticationAnomaly.yaml": {
+      "functions": ["UnifiedSignInLogs"],
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/GraphrunnerReconnaissanceDetectedDetectionRule.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/InvokeDumpappsPowershellModuleUsageDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/MaliciousOauthAppRegistrationDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/PrivilegeEscalationAttemptViaRoleManagementAndGroupAccessEstimation.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/PrivilegedUserSecurityGroupEnumerationViaPowershell.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/PurpleknightReconnaissanceDetectedDetectionRule.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/MicrosoftGraphActivityLogs/SecurityGroupCloningDetectionViaPowershell.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "AnalyticalRules/SecurityEvent/NonDomainControllerAdReplicationDetectionRule.yaml": {
+      "watchlists": ["knownDCAccounts"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/ApplicationAndServicePrincipalReconnaissance.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/MicrosoftGraphSecurityGroupReconnaissance.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/OauthApplicationAbuse.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellAppEnumerationBlastRadiusDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellAppRegistrationEnumerationDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellGraphReconTenantEnumerationDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellMaliciousOauthAppInjectionDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellOauthAppInjectionBlastRadiusDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellSecurityGroupCloningBlastRadiusDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellSecurityGroupCloningDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PowershellUpdatableGroupsPermissionEnumerationDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PrivilegedRoleManagementActivities.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/PrivilegedRoleManagementActivitiesBlastRadiusDetection.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/MicrosoftGraphActivityLogs/SecurityGroupCloning.yaml": {
+      "tables": ["MicrosoftGraphActivityLogs"]
+    },
+    "HuntingQueries/UnifiedSignInLogs/CrossOriginDeviceCodeFlowDetection.yaml": {
+      "functions": ["UnifiedSignInLogs"]
+    },
+    "HuntingQueries/UnifiedSignInLogs/DeviceCodePhishingCorrelationDetection.yaml": {
+      "functions": ["UnifiedSignInLogs"]
+    }
+  }
+}
