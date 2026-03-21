@@ -1,0 +1,135 @@
+id: 7d269b05-9400-468f-b2a0-20dd6a79e41d
+name: Privileged User Security Group Enumeration via PowerShell
+description: This detection identifies users leveraging PowerShell to enumerate security groups and their memberships through Microsoft Graph API. The rule specifically targets reconnaissance activities where a user makes multiple requests to list security groups or examine their members. It incorporates blast radius assessment by prioritizing activities performed by users with privileged roles or group memberships, who pose a higher risk to the organization. The detection considers user identity context, administrative privileges, department, and management chain to help determine the potential impact of the activity. The rule focuses on patterns of multiple requests (more than 2) within a time window, which may indicate systematic information gathering rather than legitimate administrative tasks. Each alert includes details about the specific security groups accessed, allowing security teams to evaluate whether the activity is appropriate for the user's role.
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - Persistence
+  - PrivilegeEscalation
+  - Discovery
+techniques:
+  - T1589
+  - T1595
+  - T1595.002
+  - T1078
+  - T1078.004
+  - T1007
+  - T1087
+  - T1087.004
+  - T1069
+  - T1069.003
+requiredDataConnectors:
+  - connectorId: MicrosoftGraphActivityLogs
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+query: |-
+  // Get most recent identity info to join later, including blast radius indicators
+  let RecentIdentityInfo = IdentityInfo
+  | where TimeGenerated > ago(10d)
+  | extend
+  // Parse assigned roles from JSON format
+  ParsedRoles = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", parse_json(AssignedRoles), dynamic([])),
+  // Parse group memberships from JSON format
+  ParsedGroups = iff(isnotempty(GroupMembership) and GroupMembership != "[]", parse_json(GroupMembership), dynamic([])),
+  // Check for privileged roles
+  IsAdmin = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", true, false),
+  IsPrivilegedRole = iff(
+  AssignedRoles has_any("Global Administrator", "Privileged Role Administrator", "User Administrator", "SharePoint Administrator", "Exchange Administrator", "Hybrid Identity Administrator", "Application Administrator", "Cloud Application Administrator"),
+  true, false
+  ),
+  // Check for privileged group memberships
+  IsInPrivilegedGroup = iff(
+  GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins"),
+  true, false
+  ),
+  EmployeeId = JobTitle,
+  Department = Department,
+  Manager = Manager
+  | summarize arg_max(TimeGenerated, *) by AccountObjectId; // Take only the most recent record per account
+  // Find Graph API calls accessing security groups
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where (RequestUri == "https://graph.microsoft.com/v1.0/groups?=securityEnabled%20eq%20true"
+  or RequestUri has_all("https://graph.microsoft.com/v1.0/groups/","members"))
+  | extend GroupObjectId = tostring(extract(@"groups/(.*?)/members", 1, RequestUri))
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+  on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind = leftouter RecentIdentityInfo
+  on $left.UserId == $right.AccountObjectId
+  | where isnotempty(UserId) // Only include records where we have a valid UserId
+  | extend
+  UserDisplayName = iff(isnotempty(AccountDisplayName), AccountDisplayName, UserDisplayName),
+  RoleCount = iff(isnotempty(ParsedRoles), array_length(ParsedRoles), 0),
+  GroupCount = iff(isnotempty(ParsedGroups), array_length(ParsedGroups), 0),
+  KeyAdminGroups = iff(isnotempty(ParsedGroups),
+  set_intersect(ParsedGroups, dynamic(["AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins", "Azure DevOps Administrators", "Security Administrators", "Global Readers"])),
+  dynamic([]))
+  // Add filters to reduce the number of results
+  | where ResultType == 0 or isnull(ResultType) // Only successful sign-ins or when ResultType isn't available
+  | summarize
+  RequestCount = count(),
+  FirstActivity = min(TimeGenerated),
+  LastActivity = max(TimeGenerated),
+  GroupsAccessed = make_set(GroupObjectId, 15),
+  RequestURIs = make_set(RequestUri, 10),
+  UserAgents = make_set(UserAgent, 5)
+  by
+  UserId,
+  UserDisplayName,
+  AccountUPN,
+  UserPrincipalName,
+  IPAddress,
+  Department,
+  EmployeeId,
+  Manager,
+  IsAdmin,
+  IsPrivilegedRole,
+  IsInPrivilegedGroup,
+  tostring(ParsedRoles),
+  RoleCount,
+  tostring(KeyAdminGroups),
+  GroupCount
+  | where RequestCount > 2 // Only include users who made multiple requests
+  | extend
+  BlastRadiusSeverity = case(
+  IsPrivilegedRole == true, "Critical",
+  IsAdmin == true or IsInPrivilegedGroup == true, "High",
+  RoleCount > 0, "Medium",
+  "Low"
+  ),
+  ActivityDurationMinutes = datetime_diff('minute', LastActivity, FirstActivity),
+  UniqueEndpointsAccessed = array_length(RequestURIs),
+  SecurityGroupsAccessed = array_length(GroupsAccessed)
+  | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserDisplayName
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

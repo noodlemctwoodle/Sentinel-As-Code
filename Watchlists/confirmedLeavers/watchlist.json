@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "confirmedLeavers",
+  "displayName": "Confirmed Leavers",
+  "description": "Users who have left the organisation and whose accounts should be disabled. Used by detection rules to flag sign-in attempts from known leavers.",
+  "provider": "Custom",
+  "itemsSearchKey": "UserPrincipalName"
+}

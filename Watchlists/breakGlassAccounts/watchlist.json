@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "breakGlassAccounts",
+  "displayName": "Break Glass Accounts",
+  "description": "Emergency access accounts that bypass conditional access policies. Used by detection rules to alert on any authentication activity from these accounts.",
+  "provider": "Custom",
+  "itemsSearchKey": "UserPrincipalName"
+}

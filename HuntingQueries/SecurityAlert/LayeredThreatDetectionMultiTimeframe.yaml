@@ -1,0 +1,42 @@
+id: "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8091a2"
+name: "Layered threat detection multi-timeframe"
+description: "Identifies threats across multiple time horizons by combining immediate high-severity alerts, campaign-style brute force patterns, and long-term persistent C2 beaconing behavior."
+query: |
+  // Multi-layered threat detection combining immediate high-severity alerts, campaign-style failed logons,
+  // and long-term persistent threat patterns to identify threats across different time horizons
+
+  // Short-term detection for immediate threats (real-time)
+  union (
+      SecurityAlert
+      | where TimeGenerated > ago(15m)  // Last 15 minutes
+      | where AlertSeverity == "High"
+      | extend DetectionType = "Immediate"
+  ),
+  (
+      // Medium-term detection for campaign activity (hourly)
+      SecurityEvent
+      | where TimeGenerated > ago(4h)   // Last 4 hours
+      | where EventID == 4625
+      | summarize FailedCount = count() by Account, bin(TimeGenerated, 1h)
+      | where FailedCount >= 10
+      | extend DetectionType = "Campaign"
+  ),
+  (
+      // Long-term detection for APT behaviour (daily)
+      DeviceNetworkEvents
+      | where TimeGenerated > ago(7d)   // Last 7 days
+      | summarize Connections = count(),
+                 UniqueDestinations = dcount(RemoteIP)
+                 by DeviceName, bin(TimeGenerated, 1d)
+      | where UniqueDestinations >= 100  // Potential C2 beaconing
+      | extend DetectionType = "Persistent"
+  )
+  | project TimeGenerated, DetectionType, AlertDetails = pack_all()
+tactics:
+  - CredentialAccess
+  - CommandAndControl
+  - InitialAccess
+techniques:
+  - T1110
+  - T1071
+  - T1078

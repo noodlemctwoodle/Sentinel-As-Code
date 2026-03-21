@@ -1,0 +1,16 @@
+id: "29d0e1f2-a3b4-4c5d-6e7f-8091a2b3c4d5"
+name: "Malicious process hunting (inefficient pattern)"
+description: "Identifies malicious process executions using full-text search across security events, demonstrating an inefficient query pattern to avoid in production hunting queries."
+query: |
+  // Demonstrates inefficient query patterns with expensive full-text searches and large time windows,
+  // showing what to avoid when writing performance-optimized security event queries
+
+  // Inefficient approach - avoid this pattern
+  SecurityEvent
+  | where * has "malicious.exe"  // Expensive full-text search
+  | where TimeGenerated > ago(30d)  // Large time window processed last
+tactics:
+  - Execution
+techniques:
+  - T1204
+  - T1204.002

@@ -1,0 +1,146 @@
+id: b75f46db-21e9-4ee4-8460-6a6aea41db53
+name: Privileged Accounts - Sign in Failure Spikes
+description: |
+  'A rule that looks for sign-in failure spikes from privileged accounts. To prevent false and benign positives,
+  this query first searches for and collates successful sign-in history which is then filtered out.
+  This query will run once per day, looking at the last 1d of data. The query also utilises TimeSeries to help perform anomaly detection.
+  The 'series_decompose' function is used in this query to identify anomalies in a time series data.
+  The 'make-series' function aggregates and produces a series of 'HourlyCount' by 'UserPrincipalName' and 'Roles' on an hourly basis.
+  The 'series_decompose_anomalies' function then decomposes this time series into seasonal, trend and residual components.
+  It uses these components to identify anomalous points in the series, i.e., data points that significantly deviate from the expected pattern
+  or baseline. The 'mv-expand' function is used to transform the multi-value array output into separate rows for further processing.
+  A high anomaly score means that the data point is very different from what's expected and
+  could be considered anomalous or potentially suspicious. A lower score will mean it is much closer to expected behaviour.'
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - CredentialAccess
+techniques:
+  - T1078
+  - T1078.004
+  - T1110
+  - T1110.001
+  - T1110.003
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let adminLookupTime = 14d;
+  let starttime = 14d;
+  let timeframe = 1d;
+  let scorethreshold = 3;
+  let baselinethreshold = 5;
+  // Sign-in threshold, adjust accordingly
+  let succesfulLoginThreshold = 5;
+  // Identifying successful sign-ins from IP addresses over the past 90 days
+  let successfulLogins =
+      union SigninLogs, AADNonInteractiveUserSignInLogs
+      | where TimeGenerated >= ago(90d)
+          and ResultType == 0
+      | summarize successCount = count() by IPAddress
+      | where successCount > succesfulLoginThreshold
+      | project IPAddress
+      ;
+  // Function to get failed sign-ins from admin accounts excluding the IPs identified in successfulLogins
+  let aadFunc = (tableName: string) {
+      IdentityInfo
+      | where TimeGenerated > ago(adminLookupTime)
+      | summarize arg_max(TimeGenerated, *) by AccountUPN
+      | mv-expand AssignedRoles
+      | where AssignedRoles contains 'Admin'
+      | summarize Roles = make_list(AssignedRoles) by AccountUPN = tolower(AccountUPN)
+      | join kind=inner (
+          table(tableName)
+          | where TimeGenerated between (startofday(ago(starttime)) .. startofday(now()))
+              and ResultType != 0
+              and IPAddress !in(successfulLogins)
+          | extend UserPrincipalName = tolower(UserPrincipalName)
+          )
+          on $left.AccountUPN == $right.UserPrincipalName
+      | extend
+          timestamp = TimeGenerated,
+          AccountCustomEntity = UserPrincipalName,
+          Roles = tostring(Roles)
+  };
+  // Apply function to both SigninLogs and AADNonInteractiveUserSignInLogs
+  let aadSignin = aadFunc("SigninLogs");
+  let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+  let allSignins = union isfuzzy=true aadSignin, aadNonInt;
+  // Detect anomalies in the hourly count of failed sign-ins
+  let TimeSeriesAlerts =
+      allSignins
+      | make-series HourlyCount=count() on TimeGenerated from startofday(ago(starttime)) to startofday(now()) step 1h by UserPrincipalName, Roles
+      | extend (anomalies, score, baseline) = series_decompose_anomalies(HourlyCount, scorethreshold, -1, 'linefit')
+      | mv-expand
+          HourlyCount to typeof(double),
+          TimeGenerated to typeof(datetime),
+          anomalies to typeof(double),
+          score to typeof(double),
+          baseline to typeof(long)
+      // Filter out low count events
+      | where anomalies > 0 and baseline > baselinethreshold
+      | extend AnomalyHour = TimeGenerated
+      | project
+          UserPrincipalName
+          , Roles
+          , AnomalyHour
+          , TimeGenerated
+          , HourlyCount
+          , baseline
+          , anomalies
+          , score
+          ;
+  // Filter the alerts for the specified timeframe and join with allSignins on UserPrincipalName and AnomalyHour
+  TimeSeriesAlerts
+  | where TimeGenerated > startofday(ago(timeframe))
+  | join kind=inner (
+      allSignins
+      | where TimeGenerated > startofday(ago(timeframe))
+      // Create a new column and round to hour
+      | extend DateHour = bin(TimeGenerated, 1h)
+      | summarize PartialFailedSignins = count(), LatestAnomalyTime = arg_max(TimeGenerated, *)
+          by
+          bin(TimeGenerated, 1h)
+          , OperationName
+          , Category
+          , ResultType
+          , ResultDescription
+          , UserPrincipalName
+          , Roles
+          , UserDisplayName
+          , AppDisplayName
+          , ClientAppUsed
+          , IPAddress
+          , ResourceDisplayName
+      )
+      on UserPrincipalName,$left.AnomalyHour == $right.DateHour
+  | project
+      TimeGenerated
+      , UserPrincipalName
+      , Roles
+      , IPAddress
+      , ResultType
+      , ResultDescription
+      , AppDisplayName
+      , HourlyCount
+      , baseline
+      , anomalies
+      , ['Anomaly Score'] = score
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress

@@ -1,0 +1,70 @@
+id: d14ed162-636a-487c-9f69-ed049cb82577
+name: Testing - Smart screen potential phishing URL clicked
+description: MDE has detected a user that has potentially clicked an email with a phishing URL.
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Execution
+  - InitialAccess
+techniques:
+  - T1566
+  - T1566.002
+  - T1204
+  - T1204.001
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |-
+  let allowedDomains = dynamic(["microsoft.com","sentinel.blog", "ipinfo.io"]);
+  let pattern = @"(https:\/\/[^\/]+)\/.*";
+  let emailAlerts =
+  EmailEvents
+  | join kind=inner EmailUrlInfo on NetworkMessageId
+  //| where not (SenderFromDomain has_any (allowedDomains))
+  | extend RemoteUrl = replace_regex(Url, pattern, @"\1")
+  | project TimeGenerated, RecipientEmailAddress, SenderIPv4, SenderFromAddress, Url, RemoteUrl, SenderFromDomain
+  ;
+  DeviceEvents
+  | join kind=inner emailAlerts on RemoteUrl
+  | where AdditionalFields has_any ("Phishing")
+  | extend ThreatType = tostring(AdditionalFields.Experience)
+  | project TimeGenerated, DeviceName = toupper(DeviceName), UserPrincipalName = RecipientEmailAddress, InitiatingProcessAccountSid, ThreatType
+  , InitiatingProcessFileName, InitiatingProcessFolderPath, RemoteUrl, Url, SenderFromDomain, SenderIPv4
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: URL
+    fieldMappings:
+      - identifier: Url
+        columnName: Url
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: InitiatingProcessFileName
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

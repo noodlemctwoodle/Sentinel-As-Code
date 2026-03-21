@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "HighRiskApps",
+  "displayName": "High Risk Applications",
+  "description": "Entra ID application registrations classified as high risk due to sensitive permissions, external access, or business criticality. Used by detection rules to alert on owner changes and secret additions.",
+  "provider": "Custom",
+  "itemsSearchKey": "AppObjectId"
+}

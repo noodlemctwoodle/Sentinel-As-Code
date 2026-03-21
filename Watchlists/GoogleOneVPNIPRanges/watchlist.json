@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "GoogleOneVPNIPRanges",
+  "displayName": "Google One VPN IP Ranges",
+  "description": "Public IP ranges used by Google One VPN. Used to identify and filter VPN traffic in detection rules.",
+  "provider": "Custom",
+  "itemsSearchKey": "IPRange"
+}

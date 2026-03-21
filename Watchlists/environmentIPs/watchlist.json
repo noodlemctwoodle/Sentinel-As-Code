@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "environmentIPs",
+  "displayName": "Environment IP Addresses",
+  "description": "Known trusted IP addresses for the environment including office locations, VPN endpoints, and infrastructure IPs. Used by detection rules to exclude legitimate traffic from alerts.",
+  "provider": "Custom",
+  "itemsSearchKey": "IPAddress"
+}

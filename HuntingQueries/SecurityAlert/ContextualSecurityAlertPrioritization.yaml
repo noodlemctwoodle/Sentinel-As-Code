@@ -1,0 +1,59 @@
+id: "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80"
+name: "Contextual security alert prioritization"
+description: "Identifies high-priority security alerts by enriching them with user identity and device context, assigning investigation priorities and recommended response actions based on entity risk profiles."
+query: |
+  // Enriches security alerts with user and device context from identity and asset data,
+  // providing investigation priorities and recommended actions based on entity risk profiles
+
+  // Main detection query with entity enrichment
+  let UserRiskData = IdentityInfo
+      | where TimeGenerated > ago(7d)
+      | summarize arg_max(TimeGenerated, *) by AccountUPN
+      | project AccountUPN, Department, JobTitle, Manager, RiskLevel;
+  //
+  let AssetData = DeviceInfo
+      | where TimeGenerated > ago(1d)
+      | summarize arg_max(TimeGenerated, *) by DeviceName
+      | project DeviceName, DeviceType, OSPlatform, JoinType,
+               IsAzureADJoined, PublicIP;
+  //
+  SecurityAlert
+  | where TimeGenerated > ago(24h)
+  | where AlertName has "Suspicious"
+  | where Entities has_any ("account", "host", "ip", "file")  // Filter before parsing
+  | extend ParsedEntities = parse_json(Entities)  // Parse once and store
+  | mv-expand Entity = ParsedEntities  // Use different variable name
+  | extend EntityType = tostring(Entity.Type)
+  | extend EntityValue = case(
+      EntityType == "account", tostring(Entity.AadUserId),
+      EntityType == "host", tostring(Entity.HostName),
+      EntityType == "ip", tostring(Entity.Address),
+      EntityType == "file", tostring(Entity.Name),
+      "Unknown"
+  )
+  // Enrich with user context
+  | join kind=leftouter (UserRiskData) on $left.EntityValue == $right.AccountUPN
+  | join kind=leftouter (AssetData) on $left.EntityValue == $right.DeviceName
+  // Create investigation context
+  | extend InvestigationPriority = case(
+      RiskLevel == "High" or DeviceType == "Server", "Critical",
+      Department in ("Finance", "Executive", "IT"), "High",
+      JobTitle has_any ("admin", "manager"), "Medium",
+      "Standard"
+  )
+  | extend RecommendedActions = case(
+      EntityType == "account" and RiskLevel == "High", "Disable account and reset credentials",
+      EntityType == "host" and DeviceType == "Server", "Isolate system and check for persistence",
+      EntityType == "ip" and not(PublicIP startswith "10."), "Block external IP and check firewall logs",
+      "Standard investigation workflow"
+  )
+  | project TimeGenerated, AlertName, AlertSeverity, EntityType, EntityValue,
+           Department, JobTitle, DeviceType, InvestigationPriority, RecommendedActions
+tactics:
+  - InitialAccess
+  - Execution
+  - Persistence
+techniques:
+  - T1078
+  - T1059
+  - T1136

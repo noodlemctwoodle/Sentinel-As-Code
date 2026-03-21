@@ -1,0 +1,29 @@
+id: "2970b8c9-3041-4526-3748-5960718293a4"
+name: "pfSense lateral movement detection"
+description: "Detects potential lateral movement by identifying source IPs communicating with an abnormally high number of internal destinations across defined network subnets, exceeding per-subnet thresholds."
+query: |
+  // pfSesne Lateral Movement
+  let systems = dynamic(
+  {
+      "10.10.0.1/24": 100,
+      "10.10.100.0/24": 200,
+      "10.10.200.0/24": 200,
+      "10.10.300.0/24": 200,
+      "10.10.401.0/24": 200
+  });
+  pfsense_logstash_CL
+  | where destination_ip_s !contains '.255'
+  | mv-expand bagexpansion=array system = systems
+  | extend cidr = system[0]
+  | extend threshold = system[1]
+  | where ipv4_is_match(tostring(destination_ip_s), tostring(cidr))
+  | summarize amount = count() by source_ip_s, destination_ip_s, tostring(cidr), tostring(threshold)
+  | sort by amount desc
+  | where amount > tolong(threshold)
+tactics:
+  - LateralMovement
+  - Discovery
+techniques:
+  - T1021
+  - T1018
+  - T1046

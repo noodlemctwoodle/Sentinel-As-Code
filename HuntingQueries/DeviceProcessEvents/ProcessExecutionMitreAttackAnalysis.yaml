@@ -1,0 +1,57 @@
+id: "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
+name: "Process execution MITRE ATT&CK analysis"
+description: "Identifies sophisticated attacks by mapping process execution events to MITRE ATT&CK tactics and techniques, scoring threat activities and flagging devices using multiple attack techniques."
+query: |
+  // Analyzes process execution events with MITRE ATT&CK framework mapping over 4 hours,
+  // scoring threat activities and identifying sophisticated attacks using multiple techniques
+
+  // Process execution analysis with MITRE ATT&CK context
+  DeviceProcessEvents
+  | where TimeGenerated > ago(4h)
+  | extend MITRETactic = case(
+      ProcessCommandLine has_any ("whoami", "net user", "net group"), "Discovery",
+      ProcessCommandLine has_any ("rundll32", "regsvr32", "mshta"), "DefenseEvasion",
+      ProcessCommandLine has_any ("powershell", "cmd") and
+      ProcessCommandLine has_any ("DownloadString", "WebClient"), "CommandAndControl",
+      ProcessCommandLine has_any ("net use", "copy", "xcopy", "robocopy"), "LateralMovement",
+      ProcessCommandLine has_any ("reg add", "schtasks", "sc create"), "Persistence",
+      "Execution"
+  )
+  | extend MITRETechnique = case(
+      ProcessCommandLine has "whoami", "T1033 - System Owner/User Discovery",
+      ProcessCommandLine has "net user", "T1087 - Account Discovery",
+      ProcessCommandLine has "rundll32", "T1218.011 - Rundll32",
+      ProcessCommandLine has "powershell" and ProcessCommandLine has "DownloadString",
+          "T1059.001 - PowerShell",
+      ProcessCommandLine has "net use", "T1021.002 - SMB/Windows Admin Shares",
+      ProcessCommandLine has "schtasks", "T1053.005 - Scheduled Task",
+      "T1059 - Command and Scripting Interpreter"
+  )
+  | extend ThreatScore = case(
+      MITRETactic in ("DefenseEvasion", "CommandAndControl"), 80,
+      MITRETactic in ("LateralMovement", "Persistence"), 70,
+      MITRETactic == "Discovery", 50,
+      30
+  )
+  | where ThreatScore >= 50  // Focus on significant techniques
+  | summarize TechniqueCount = count(),
+             UniqueTechniques = dcount(MITRETechnique),
+             TacticsCovered = make_set(MITRETactic, 10),
+             MaxThreatScore = max(ThreatScore)
+             by DeviceName, AccountName, bin(TimeGenerated, 1h)
+  | where UniqueTechniques >= 3  // Multiple techniques suggest sophisticated attack
+tactics:
+  - Execution
+  - Discovery
+  - DefenseEvasion
+  - CommandAndControl
+  - LateralMovement
+  - Persistence
+techniques:
+  - T1033
+  - T1087
+  - T1218.011
+  - T1059.001
+  - T1021.002
+  - T1053.005
+  - T1059

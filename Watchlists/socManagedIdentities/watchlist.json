@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "socManagedIdentities",
+  "displayName": "SOC Managed Identities",
+  "description": "Service principals and managed identities managed by the SOC team. Used by detection rules to monitor authentication failures for critical automation accounts.",
+  "provider": "Custom",
+  "itemsSearchKey": "ServicePrincipalId"
+}

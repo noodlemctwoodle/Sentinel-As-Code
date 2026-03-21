@@ -1,0 +1,6 @@
+{
+  "displayName": "UniFi Site Manager",
+  "description": "Multi-site management workbook for UniFi environments showing site health, device inventory, ISP metrics, and firmware status.",
+  "category": "Network",
+  "sourceId": "UnifiSiteManager"
+}

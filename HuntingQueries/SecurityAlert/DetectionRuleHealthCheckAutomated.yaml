@@ -1,0 +1,46 @@
+id: "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8091"
+name: "Detection rule health check"
+description: "Identifies detection rules requiring optimization by analyzing alert volume, severity patterns, and dormancy over 7 days to provide automated tuning recommendations."
+query: |
+  // Performs automated health checks on security detection rules over the last 7 days,
+  // analyzing alert volume and patterns to provide tuning recommendations for rule optimization
+
+  // Automated rule health check and recommendations
+  let RuleHealthCheck = SecurityAlert
+      | where TimeGenerated > ago(7d)
+      | summarize RecentAlerts = count(),
+                 LastAlert = max(TimeGenerated),
+                 AvgSeverity = case(
+                     countif(AlertSeverity == "High") > 0, 4,
+                     countif(AlertSeverity == "Medium") > 0, 3,
+                     countif(AlertSeverity == "Low") > 0, 2,
+                     1
+                 ),
+                 DataSources = dcount(ProductName)
+                 by AlertName
+      | extend DaysSinceLastAlert = datetime_diff('day', now(), LastAlert)
+      | extend HealthStatus = case(
+                   RecentAlerts == 0 and DaysSinceLastAlert > 30, "Dormant",
+                   RecentAlerts > 1000, "TooNoisy",
+                   RecentAlerts between (10 .. 100) and AvgSeverity >= 3, "Healthy",
+                   RecentAlerts < 5 and AvgSeverity <= 2, "LowValue",
+                   "ReviewRequired"
+               )
+      | extend Recommendation = case(
+                   HealthStatus == "Dormant", "Consider disabling or updating detection logic",
+                   HealthStatus == "TooNoisy", "Increase thresholds or add exclusions",
+                   HealthStatus == "LowValue", "Evaluate business relevance or adjust severity",
+                   HealthStatus == "Healthy", "Monitor performance and maintain",
+                   "Manual review recommended"
+               )
+      | order by case(HealthStatus == "TooNoisy", 1,
+                     HealthStatus == "Dormant", 2,
+                     HealthStatus == "LowValue", 3, 4) asc;
+  //
+  RuleHealthCheck
+  | project RuleName = AlertName, HealthStatus, RecentAlerts,
+           DaysSinceLastAlert, AvgSeverity, Recommendation
+tactics:
+  - Collection
+techniques:
+  - T1530

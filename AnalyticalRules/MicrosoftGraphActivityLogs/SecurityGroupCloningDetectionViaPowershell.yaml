@@ -1,0 +1,171 @@
+id: d7858e9b-38b6-4b2c-89a7-0718a370849a
+name: Security Group Cloning Detection via PowerShell
+description: |-
+  This detection identifies potential security group cloning activities performed through PowerShell against Microsoft Graph API. The rule monitors for the characteristic sequence of operations that indicate an attacker or insider threat is enumerating security groups and their memberships, potentially to clone them for privilege escalation or persistence purposes.
+
+  The detection specifically targets the pattern where a user:
+
+  1. Lists all security groups in the tenant
+  2. Retrieves membership details from existing security groups
+  3. Adds members to groups (potentially to a newly created group)
+
+  This activity could indicate an attacker attempting to clone a privileged security group to grant themselves additional permissions. The rule incorporates blast radius assessment by prioritizing activities performed by users based on their existing privileges, providing security teams with context about the potential impact of the activity.
+
+  The detection correlates Graph API activity with non-interactive sign-in logs and identity information to provide comprehensive context about the user performing these actions. Each alert includes details about the specific groups accessed, the timeline of operations, and the user's organizational position and existing privileges.
+
+  Early detection of security group cloning attempts is critical as this technique can be used to establish persistent privileged access within the environment, potentially bypassing traditional detection methods focused on direct privilege assignments.
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT5H
+queryPeriod: PT5H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - CredentialAccess
+  - Discovery
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1590
+  - T1552
+  - T1069
+  - T1069.003
+  - T1098
+  - T1098.003
+requiredDataConnectors:
+  - connectorId: MicrosoftGraphActivityLogs
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+query: |-
+  // Get most recent identity info to join later, including blast radius indicators
+  let RecentIdentityInfo = IdentityInfo
+  | where TimeGenerated > ago(10d)
+  | extend
+  // Parse assigned roles from JSON format
+  ParsedRoles = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", parse_json(AssignedRoles), dynamic([])),
+  // Parse group memberships from JSON format
+  ParsedGroups = iff(isnotempty(GroupMembership) and GroupMembership != "[]", parse_json(GroupMembership), dynamic([])),
+  // Check for privileged roles
+  IsAdmin = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", true, false),
+  IsPrivilegedRole = iff(
+  AssignedRoles has_any("Global Administrator", "Privileged Role Administrator", "User Administrator", "SharePoint Administrator", "Exchange Administrator", "Hybrid Identity Administrator", "Application Administrator", "Cloud Application Administrator"),
+  true, false
+  ),
+  // Check for privileged group memberships
+  IsInPrivilegedGroup = iff(
+  GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins"),
+  true, false
+  ),
+  Department = Department,
+  JobTitle = JobTitle,
+  Manager = Manager
+  | summarize arg_max(TimeGenerated, *) by AccountObjectId;
+  // Detect Graph Activity related to security groups cloning
+  let groupModificationEvents = MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri has_all("https://graph.microsoft.com/v1.0/groups/", "/members/$ref")
+  or RequestUri has_all("https://graph.microsoft.com/v1.0/groups", "/members")
+  or RequestUri == "https://graph.microsoft.com/v1.0/groups?=securityEnabled%20eq%20true"
+  or RequestUri == "https://graph.microsoft.com/v1.0/me"
+  | extend
+  GroupObjectId = tostring(extract(@"groups/(.*?)/members", 1, RequestUri)),
+  OperationType = case(
+  RequestUri has "/members/$ref", "Add Member",
+  RequestUri has "/members" and not(RequestUri has "/members/$ref"), "List Members",
+  RequestUri has "securityEnabled%20eq%20true", "List Security Groups",
+  RequestUri has "/me", "Get Current User",
+  "Other"
+  );
+  // Join with authentication logs and identity info
+  let groupEventsWithContext = groupModificationEvents
+  | join kind=leftouter AADNonInteractiveUserSignInLogs
+  on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind=leftouter RecentIdentityInfo
+  on $left.UserId == $right.AccountObjectId;
+  // Get group creation events from audit logs to correlate with group member additions
+  let groupCreationEvents = AuditLogs
+  | where TimeGenerated > ago(1d)
+  | where OperationName == "Add group"
+  | where Result == "success"
+  | extend ActorId = tostring(InitiatedBy.user.id)
+  | project
+  TimeGenerated,
+  ActorId,
+  GroupId = tostring(TargetResources[0].id),
+  GroupName = tostring(TargetResources[0].displayName);
+  // Identify patterns of security group cloning
+  groupEventsWithContext
+  | summarize
+  OperationCount = count(),
+  OperationTypes = make_set(OperationType),
+  SecurityGroupsAccessed = make_set(GroupObjectId, 15),
+  FirstOperation = min(TimeGenerated),
+  LastOperation = max(TimeGenerated),
+  RequestURIs = make_set(RequestUri, 10)
+  by
+  UserId,
+  UserPrincipalName,
+  IPAddress,
+  UserAgent,
+  Department,
+  JobTitle,
+  Manager,
+  IsAdmin,
+  IsPrivilegedRole,
+  IsInPrivilegedGroup
+  | extend
+  OperationTimeSpan = datetime_diff('minute', LastOperation, FirstOperation),
+  HasListAndModifyOperations = array_length(set_intersect(OperationTypes, dynamic(["List Security Groups", "List Members", "Add Member"]))) >= 2,
+  SecurityGroupCount = array_length(SecurityGroupsAccessed),
+  BlastRadiusSeverity = case(
+  IsPrivilegedRole == true, "Critical",
+  IsAdmin == true or IsInPrivilegedGroup == true, "High",
+  "Medium"
+  )
+  // Focus on patterns indicating security group cloning
+  | where OperationCount >= 4 and HasListAndModifyOperations
+  | project-reorder
+  BlastRadiusSeverity,
+  UserId,
+  UserPrincipalName,
+  IsAdmin,
+  IsPrivilegedRole,
+  Department,
+  OperationCount,
+  OperationTypes,
+  HasListAndModifyOperations,
+  SecurityGroupCount,
+  OperationTimeSpan,
+  SecurityGroupsAccessed,
+  IPAddress,
+  FirstOperation,
+  LastOperation
+  | order by BlastRadiusSeverity asc, OperationCount desc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: UserId
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

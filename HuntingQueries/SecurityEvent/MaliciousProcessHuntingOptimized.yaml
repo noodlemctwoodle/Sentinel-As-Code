@@ -1,0 +1,27 @@
+id: "3ae1f2a3-b4c5-4d6e-7f80-91a2b3c4d5e6"
+name: "Malicious process hunting (optimized)"
+description: "Identifies suspicious process executions across multiple hosts using optimized filtering by time, event ID, and process name to detect significant malicious activity patterns."
+query: |
+  // Efficiently hunts for suspicious process executions across multiple hosts within 24 hours,
+  // using optimized filtering and aggregation to identify significant malicious activity patterns
+
+  // Optimised approach - use this pattern instead
+  let SuspiciousProcesses = dynamic(["malicious.exe", "bad.dll", "threat.ps1"]);
+  let TimeRange = ago(24h);  // Reduced time window
+  //
+  SecurityEvent
+  | where TimeGenerated > TimeRange  // Filter time first
+  | where EventID in (4688, 4689)   // Specific event types only
+  | where Process has_any (SuspiciousProcesses)  // Efficient string matching
+  | project TimeGenerated, Computer, Account, Process, CommandLine
+  | summarize FirstSeen = min(TimeGenerated),
+             LastSeen = max(TimeGenerated),
+             ExecutionCount = count(),
+             UniqueHosts = dcount(Computer)
+             by Process, Account
+  | where ExecutionCount >= 3 or UniqueHosts >= 2  // Focus on significant activity
+tactics:
+  - Execution
+techniques:
+  - T1204
+  - T1204.002

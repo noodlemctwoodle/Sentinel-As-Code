@@ -1,0 +1,6 @@
+{
+  "displayName": "Microsoft Sentinel Monitoring",
+  "description": "Operational monitoring workbook tracking data ingestion health, new data connectors, DCR changes, and week-over-week ingestion trends.",
+  "category": "Sentinel",
+  "sourceId": "MicrosoftSentinelMonitoring"
+}

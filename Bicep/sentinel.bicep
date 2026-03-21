@@ -48,56 +48,22 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
 }
 
 // -----------------------------------------------------------------------
-// Microsoft Sentinel
+// Microsoft Sentinel (via OperationsManagement — idempotent, no ETag required)
 // -----------------------------------------------------------------------
 
-resource sentinel 'Microsoft.SecurityInsights/onboardingStates@2024-09-01' = {
-  name: 'default'
-  scope: logAnalyticsWorkspace
-}
-
-// -----------------------------------------------------------------------
-// Sentinel Settings
-// -----------------------------------------------------------------------
-
-// Entity Analytics — enables entity behaviour from Entra ID
-resource entityAnalytics 'Microsoft.SecurityInsights/settings@2023-02-01-preview' = {
-  name: 'EntityAnalytics'
-  kind: 'EntityAnalytics'
-  scope: logAnalyticsWorkspace
+resource sentinel 'Microsoft.OperationsManagement/solutions@2015-11-01-preview' = {
+  name: 'SecurityInsights(${lawName})'
+  location: resourceGroup().location
+  tags: tags
   properties: {
-    entityProviders: ['AzureActiveDirectory']
+    workspaceResourceId: logAnalyticsWorkspace.id
   }
-  dependsOn: [sentinel]
-}
-
-// UEBA — enables user and entity behaviour analytics data sources
-resource uebaAnalytics 'Microsoft.SecurityInsights/settings@2023-02-01-preview' = {
-  name: 'Ueba'
-  kind: 'Ueba'
-  scope: logAnalyticsWorkspace
-  properties: {
-    dataSources: ['AuditLogs', 'AzureActivity', 'SigninLogs', 'SecurityEvent']
+  plan: {
+    name: 'SecurityInsights(${lawName})'
+    publisher: 'Microsoft'
+    product: 'OMSGallery/SecurityInsights'
+    promotionCode: ''
   }
-  dependsOn: [entityAnalytics]
-}
-
-// Anomalies — enables built-in ML-based anomaly detection
-resource anomalies 'Microsoft.SecurityInsights/settings@2023-02-01-preview' = {
-  name: 'Anomalies'
-  kind: 'Anomalies'
-  scope: logAnalyticsWorkspace
-  properties: {}
-  dependsOn: [uebaAnalytics]
-}
-
-// EyesOn — enables the SOC incident review flag and overview dashboard
-resource eyesOn 'Microsoft.SecurityInsights/settings@2023-02-01-preview' = {
-  name: 'EyesOn'
-  kind: 'EyesOn'
-  scope: logAnalyticsWorkspace
-  properties: {}
-  dependsOn: [sentinel]
 }
 
 // -----------------------------------------------------------------------

@@ -1,0 +1,60 @@
+id: 55141153-32be-403e-8fcd-14bf1a76e5b0
+name: Failed login attempts to Azure Portal
+description: |
+  'Identifies failed login attempts in the Azure Active Directory SigninLogs to the Azure Portal.  Many failed logon
+  attempts or some failed logon attempts from multiple IPs could indicate a potential brute force attack. The query will remove sign-ins that have successful sign-ins'
+severity: Low
+kind: Scheduled
+version: 1.0.1
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1110
+  - T1110.001
+  - T1110.003
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let timeFrame = 1d;
+  let threshold = 5;
+  // Successful sign-in check
+  let successfulLogins = UnifiedSignInLogs
+      | where TimeGenerated >= ago(90d)
+          and ResultType == 0
+      | summarize successCount = count() by IPAddress
+      | where successCount > threshold
+      | project IPAddress
+  ;
+  // Check for failed logins to Azure Portal App
+  UnifiedSignInLogs
+  | where IPAddress !in(successfulLogins)
+      and TimeGenerated > ago(timeFrame)
+      and ResultType != 0
+      and AppDisplayName =~ "Azure Portal"
+  | extend TimeGenerated = bin(TimeGenerated, 5m)
+  | summarize FailedLogins = count()
+      by
+      TimeGenerated
+      , UserPrincipalName
+      , IPAddress
+      , ResultType
+      , ResultDescription
+  | where FailedLogins > 5
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress

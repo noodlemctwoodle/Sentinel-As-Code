@@ -1,0 +1,105 @@
+id: "d42bc3d4-e5f6-4071-8293-041526374859"
+name: "Privileged role management blast radius"
+description: "Identifies unauthorized admin enumeration via PowerShell Graph API calls to role management and group endpoints, enriched with identity context and blast radius severity assessment."
+query: |
+  // Monitors privileged role management activities via Microsoft Graph API calls,
+  // enriching with identity context and blast radius assessment to detect unauthorized admin enumeration
+
+  // Privileged Role Management Activities.kql
+  // Get most recent identity info to join later, including blast radius indicators
+  let RecentIdentityInfo = IdentityInfo
+      | where TimeGenerated > ago(10d)
+      | extend
+          // Parse assigned roles from JSON format
+          ParsedRoles = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              , parse_json(AssignedRoles)
+              , dynamic([]))
+          // Parse group memberships from JSON format
+          , ParsedGroups = iff(isnotempty(GroupMembership)
+              and GroupMembership != "[]"
+              , parse_json(GroupMembership)
+              , dynamic([]))
+          // Check for privileged roles
+          , IsAdmin = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              , true, false)
+          , IsPrivilegedRole = iff(
+              AssignedRoles has_any("Global Administrator", "Privileged Role Administrator"
+                  , "User Administrator", "SharePoint Administrator", "Exchange Administrator"
+                  , "Hybrid Identity Administrator", "Application Administrator"
+                  , "Cloud Application Administrator")
+                  , true, false
+          ),
+          // Check for privileged group memberships
+          IsInPrivilegedGroup = iff(
+              GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators"
+                  , "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins"
+                  , "Schema Admins", "Key Admins")
+                  , true, false
+          )
+          , EmployeeId = JobTitle
+          , Department = Department
+          , Manager = Manager
+      // Take only the most recent record per account
+      | summarize arg_max(TimeGenerated, *) by AccountObjectId;
+  // Find Graph API calls accessing role management or generic groups
+  MicrosoftGraphActivityLogs
+  | where UserAgent has "PowerShell"
+  | where RequestUri == "https://graph.microsoft.com/beta/roleManagement/directory/estimateAccess"
+      or RequestUri == "https://graph.microsoft.com/v1.0/groups"
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind = leftouter RecentIdentityInfo
+      on $left.UserId == $right.AccountObjectId
+  | where isnotempty(UserId) // Only include records where we have a valid UserId
+  | extend
+      UserDisplayName = iff(isnotempty(AccountDisplayName)
+      , AccountDisplayName, UserDisplayName)
+      , RoleCount = iff(isnotempty(ParsedRoles)
+      , array_length(ParsedRoles), 0)
+      , GroupCount = iff(isnotempty(ParsedGroups)
+      , array_length(ParsedGroups), 0)
+      , KeyAdminGroups = iff(isnotempty(ParsedGroups)
+      , set_intersect(ParsedGroups, dynamic(["AdminAgents", "Azure AD Joined Device Local Administrators"
+          , "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins"
+          , "Schema Admins", "Key Admins", "Azure DevOps Administrators", "Security Administrators"
+          , "Global Readers"]))
+          , dynamic([]))
+          , AccessType = case(
+          RequestUri == "https://graph.microsoft.com/beta/roleManagement/directory/estimateAccess"
+              , "Role Management Access Estimation",
+          RequestUri == "https://graph.microsoft.com/v1.0/groups"
+              , "All Groups Enumeration", "Other Access"
+          )
+  // Add filters to reduce the number of results
+  | where ResultType == 0 or isnull(ResultType) // Only successful sign-ins or when ResultType isn't available
+  | summarize
+      RequestCount = count()
+      , FirstActivity = min(TimeGenerated)
+      , LastActivity = max(TimeGenerated)
+      , RequestURIs = make_set(RequestUri, 10)
+      , UserAgents = make_set(UserAgent, 5)
+      , AccessTypes = make_set(AccessType)
+      by
+      UserId, UserDisplayName,AccountUPN, UserPrincipalName, IPAddress,Department,EmployeeId
+          , Manager,IsAdmin,IsPrivilegedRole,IsInPrivilegedGroup,tostring(ParsedRoles)
+          ,RoleCount,tostring(KeyAdminGroups),GroupCount
+  | extend
+      BlastRadiusSeverity = case(
+          IsPrivilegedRole == true, "Critical",
+          IsAdmin == true
+              or IsInPrivilegedGroup == true, "High",
+          RoleCount > 0, "Medium",
+          "Low"
+      ),
+      ActivityDurationMinutes = datetime_diff('minute', LastActivity, FirstActivity)
+      , UniqueEndpointsAccessed = array_length(RequestURIs)
+  | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
+tactics:
+  - Discovery
+  - PrivilegeEscalation
+techniques:
+  - T1069.003
+  - T1087.004
+  - T1078.004

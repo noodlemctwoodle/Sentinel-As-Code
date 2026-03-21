@@ -1,0 +1,6 @@
+{
+  "displayName": "SafeGuard",
+  "description": "Security monitoring workbook for SafeGuard endpoint protection showing device status, policy compliance, and security events.",
+  "category": "Security",
+  "sourceId": "Safeguard"
+}

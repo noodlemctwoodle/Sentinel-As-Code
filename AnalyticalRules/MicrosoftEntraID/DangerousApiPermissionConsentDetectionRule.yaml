@@ -1,0 +1,67 @@
+id: db0a3672-033b-48f0-9531-c3eb75c69d50
+name: Dangerous API permission consented
+description: |
+  'One or more high priv API permission were granted to an application.
+
+  Check if this is really necessary and otherwise remove the permissions'
+severity: High
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT31M
+queryPeriod: PT31M
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1098
+  - T1098.001
+  - T1098.003
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AuditLogs
+query: |
+  let DangerousPermissions = dynamic(["AppRoleAssignment.ReadWrite.All","Application.ReadWrite.All","RoleManagement.ReadWrite.Directory"]);
+  AuditLogs
+  | where OperationName == "Add app role assignment to service principal"
+  | where Result =~ "success"
+  | mv-expand TargetResources
+  | mv-expand TargetResources.modifiedProperties
+  | where TargetResources_modifiedProperties.name == "AppRole.Value"
+  | extend InitiatingUserOrApp = tostring(InitiatedBy.user.userPrincipalName)
+  | extend InitiatingIpAddress = tostring(InitiatedBy.user.ipAddress)
+  | extend UserAgent = iff(AdditionalDetails[0].key == "User-Agent",tostring(AdditionalDetails[0].value),"")
+  | extend AddedPermission = replace_string(tostring(TargetResources_modifiedProperties.newValue),'"','')
+  | where AddedPermission in~ ( DangerousPermissions )
+  | mv-expand TargetResources.modifiedProperties
+  | where TargetResources_modifiedProperties.name == "ServicePrincipal.ObjectID"
+  | extend ServicePrincipalObjectID = replace_string(tostring(TargetResources_modifiedProperties.newValue),'"','')
+  | extend timestamp = TimeGenerated, AccountCustomEntity = InitiatingUserOrApp, IPCustomEntity = InitiatingIpAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: AccountCustomEntity
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPCustomEntity
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+customDetails:
+  AddedPermission: AddedPermission
+  ServicePrincipalId: ServicePrincipalObjectID
+suppressionEnabled: false
+suppressionDuration: PT5H

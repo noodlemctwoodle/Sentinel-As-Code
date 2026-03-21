@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "SuspiciousUsers",
+  "displayName": "Suspicious Users",
+  "description": "Users flagged for enhanced monitoring due to suspicious activity, insider threat indicators, or HR escalations. Used by detection rules to correlate activity across Microsoft 365 and Entra ID.",
+  "provider": "Custom",
+  "itemsSearchKey": "UserPrincipalName"
+}

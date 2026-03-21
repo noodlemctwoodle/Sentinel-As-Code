@@ -1,0 +1,106 @@
+id: 25eb5776-437b-4772-9895-42f03ec776b5
+name: Authentication Methods Changed for Privileged Account
+description: |
+  'Identifies authentication methods being changed for a privileged account.
+  This could be an indication of an attacker adding an auth method to the account so they can have continued access.
+  This rule has been modified to exclude trusted/known IP addresses'
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Persistence
+  - CredentialAccess
+techniques:
+  - T1098
+  - T1098.005
+  - T1556
+  - T1556.006
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AuditLogs
+      - SigninLogs
+  - connectorId: BehaviorAnalytics
+    dataTypes:
+      - IdentityInfo
+query: |
+  let adminLookupPeriod = 14d;
+  let queryPeriod = 1d;
+  let successfulLoginPeriod = 90d;
+  let successfulLoginThreshold = 5;
+  let securityActionsList = dynamic(["User registered security info", "User changed default security info", "User deleted security info", "Admin updated security info", "User reviewed security info", "Admin deleted security info", "Admin registered security info"]);
+  // Get the list of trusted IPs from the environment watchlist
+  let trustedIPsList = _GetWatchlist('environmentIPs') | project IPAddress = tostring(IPAddress);
+  // Identify successful IP logins within the defined successfulLoginLookup period
+  let successfulIPLogins =
+      SigninLogs
+      | where TimeGenerated >= ago(successfulLoginPeriod)
+      and ResultType == 0
+      | summarize successCount = count() by IPAddress
+      | where successCount > successfulLoginThreshold
+      | project IPAddress
+      ;
+  // Combine the trusted IPs and successful logins into one list
+  let allTrustedIPs = union trustedIPsList, successfulIPLogins;
+  // Identify admin users
+  let adminUsers =
+      IdentityInfo
+      | where TimeGenerated > ago(adminLookupPeriod)
+      | mv-expand AssignedRoles
+      | where AssignedRoles contains 'Admin'
+      | summarize by AccountUPN
+      ;
+  // Query the audit logs for security actions performed by admins
+  AuditLogs
+  | where TimeGenerated > ago(queryPeriod)
+      and Category =~ "UserManagement"
+      and ActivityDisplayName in (securityActionsList)
+  | extend Initiator = tostring(InitiatedBy.user.userPrincipalName), IP = tostring(InitiatedBy.user.ipAddress)
+  | mv-apply TargetResource = TargetResources on
+      (
+        where TargetResource.type =~ "User"
+        | extend Target = tostring(TargetResource.userPrincipalName)
+      )
+  | where Target in~ (adminUsers)
+  | summarize
+      Start = min(TimeGenerated)
+      , End = max(TimeGenerated)
+      , Actions = make_set(ResultReason, MaxSize = 8)
+      by
+      Initiator
+      , IP
+      , Result
+      , Targets = Target
+  // Remove safe/known IPs
+  | where IP !in (allTrustedIPs)
+  | project-rename
+    TargetUser=Targets
+    , IPAddress=IP
+    , InitiatingUser=Initiator
+    , AuthentcationAction=Actions
+  | project
+    Start
+    , End
+    , InitiatingUser
+    , IPAddress
+    , TargetUser
+    , AuthentcationAction
+    , Result
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: InitiatingUser
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: TargetUser
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress

@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "EntraRiskyUsers",
+  "displayName": "Entra ID Risky Users",
+  "description": "Users identified as high risk by Entra ID Identity Protection or manual SOC investigation. Used by detection rules for enhanced monitoring of token theft and session anomalies.",
+  "provider": "Custom",
+  "itemsSearchKey": "UserPrincipalName"
+}

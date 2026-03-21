@@ -1,0 +1,29 @@
+id: "075ef6a7-1829-4304-1526-374859607182"
+name: "pfSense passed connection spike detection"
+description: "Detects anomalous spikes in allowed firewall connections by comparing today's passed connection count against the historical daily average, alerting when volume exceeds double the baseline."
+query: |
+  // This query alerts whenever a spike of passed connections is seen
+  let average = materialize(
+      psfsense_logstash_CL
+      | extend Action = event_action_s
+      | where Action == "pass"
+      | summarize c = count() by bin(TimeGenerated, 1d)
+      | summarize average_connections = avg(c) by join_key = ''
+  );
+  let today = materialize (
+      psfsense_logstash_CL
+      | where TimeGenerated > ago(1d)
+      | extend Action = event_action_s
+      | where Action == "pass"
+      | summarize today_connections = count() by join_key = ''
+  );
+  average
+  | join today on join_key
+  | where today_connections > (average_connections * 2)
+  | project average_connections, today_connections
+tactics:
+  - CommandAndControl
+  - Exfiltration
+techniques:
+  - T1071
+  - T1048

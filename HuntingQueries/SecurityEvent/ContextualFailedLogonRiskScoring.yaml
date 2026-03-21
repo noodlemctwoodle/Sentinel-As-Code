@@ -1,0 +1,54 @@
+id: "18c9d0e1-f2a3-4b4c-5d6e-7f8091a2b3c4"
+name: "Contextual failed logon risk scoring"
+description: "Detects failed logon attempts with context-aware severity scoring based on account privilege levels, target system types, and logon patterns to prioritize high-risk authentication failures."
+query: |
+  // Detects failed logon attempts with context-aware severity scoring based on account privileges,
+  // system types, and logon patterns to prioritize high-risk authentication failures
+
+  // Context-aware failed logon detection with dynamic severity assignment
+  SecurityEvent
+  | where TimeGenerated > ago(1h)
+  | where EventID == 4625  // Failed logon attempts
+  | extend AccountType = case(
+      Account has_any ("admin", "administrator", "service", "sql"), "Privileged",
+      Account has_any ("guest", "test", "temp"), "NonCritical",
+      "Standard"
+  ),
+  SystemType = case(
+      Computer has_any ("dc", "domain", "ad"), "DomainController",
+      Computer has_any ("sql", "db", "database"), "Database",
+      Computer has_any ("web", "iis", "apache"), "WebServer",
+      "Workstation"
+  )
+  | extend SeverityLevel = case(
+      AccountType == "Privileged" and SystemType == "DomainController", "High",
+      AccountType == "Privileged" or SystemType in ("Database", "DomainController"), "Medium",
+      LogonType == 10 and SystemType == "WebServer", "Medium",  // RDP to web server
+      AccountType == "NonCritical", "Informational",
+      "Low"
+  )
+  | extend AlertTitle = strcat("Failed logon attempt: ", AccountType, " account on ", SystemType),
+  RiskScore = case(
+      SeverityLevel == "High", 90,
+      SeverityLevel == "Medium", 60,
+      SeverityLevel == "Low", 30,
+      10
+  )
+  | summarize FailedAttempts = count(),
+             FirstAttempt = min(TimeGenerated),
+             LastAttempt = max(TimeGenerated),
+             SourceIPs = make_set(IpAddress, 10),
+             SeverityLevel = any(SeverityLevel),
+             AlertTitle = any(AlertTitle),
+             RiskScore = any(RiskScore),
+             AccountType = any(AccountType),
+             SystemType = any(SystemType)
+             by Account, Computer
+  | where FailedAttempts >= case(SeverityLevel == "High", 3, 5)  // Lower threshold for high-risk
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1110
+  - T1110.001
+  - T1078

@@ -1,0 +1,102 @@
+id: 2134c14b-84b0-4329-8532-195d7930f91b
+name: New User Assigned to Privileged Role
+description: |
+  Identifies when a privileged role is assigned to a new user. Any account eligible for a role is now being given privileged access. If the assignment is unexpected or into a role that isn't the responsibility of the account holder, investigate.
+severity: High
+kind: Scheduled
+version: 0.0.1
+status: Available
+queryFrequency: PT1H
+queryPeriod: P14D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1078
+  - T1078.004
+  - T1098
+  - T1098.003
+tags:
+  - AADSecOpsGuide
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AuditLogs
+query: |
+  let starttime = now()-1h;
+  let endtime = now();
+  // Set a lookback period of 14 days
+  let lookback = starttime - 14d;
+  // Define a reusable function to query audit logs
+  let awsFunc = (start:datetime, end:datetime) {
+    AuditLogs
+    | where TimeGenerated between (start..end)
+    | where Category =~ "RoleManagement"
+    | where AADOperationType in ("Assign", "AssignEligibleRole")
+    | where ActivityDisplayName has_any ("Add eligible member to role", "Add member to role")
+    | mv-apply TargetResource = TargetResources on
+      (
+        where TargetResource.type in~ ("User", "ServicePrincipal")
+        | extend Target = iff(TargetResource.type =~ "ServicePrincipal", tostring(TargetResource.displayName), tostring(TargetResource.userPrincipalName)),
+        props = TargetResource.modifiedProperties
+      )
+    | mv-apply Property = props on
+      (
+        where Property.displayName =~ "Role.DisplayName"
+        | extend RoleName = trim('"', tostring(Property.newValue))
+      )
+    | where RoleName contains "Admin" and Result == "success"
+  };
+  // Query for audit events in the current day
+  let EventInfo_CurrentDay = awsFunc(starttime, endtime);
+  // Query for audit events in the historical period (lookback)
+  let EventInfo_historical = awsFunc(lookback, starttime);
+  // Find unseen events by performing a left anti-join
+  let EventInfo_Unseen = (EventInfo_CurrentDay
+    | join kind=leftanti(EventInfo_historical) on Target, RoleName, OperationName
+  );
+  // Extend and clean up the results
+  EventInfo_Unseen
+  | extend InitiatingAppName = tostring(InitiatedBy.app.displayName)
+  | extend InitiatingAppServicePrincipalId = tostring(InitiatedBy.app.servicePrincipalId)
+  | extend InitiatingUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName)
+  | extend InitiatingAadUserId = tostring(InitiatedBy.user.id)
+  | extend InitiatingIpAddress = tostring(iff(isnotempty(InitiatedBy.user.ipAddress), InitiatedBy.user.ipAddress, InitiatedBy.app.ipAddress))
+  | extend Initiator = iif(isnotempty(InitiatingAppName), InitiatingAppName, InitiatingUserPrincipalName)
+  // You can uncomment the lines below to filter out PIM activations
+  | where Initiator != "MS-PIM"
+  // | summarize StartTime=min(TimeGenerated), EndTime=min(TimeGenerated) by OperationName, RoleName, Target, Initiator, Result
+  // Project specific columns and split them for further analysis
+  | project TimeGenerated, OperationName, RoleName, Target, Initiator, InitiatingUserPrincipalName, InitiatingAadUserId, InitiatingAppName, InitiatingAppServicePrincipalId, InitiatingIpAddress, Result
+  | extend TargetName = tostring(split(Target,'@',0)[0]), TargetUPNSuffix = tostring(split(Target,'@',1)[0]), InitiatorName = tostring(split(InitiatingUserPrincipalName,'@',0)[0]), InitiatorUPNSuffix = tostring(split(InitiatingUserPrincipalName,'@',1)[0])
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Target
+      - identifier: Name
+        columnName: TargetName
+      - identifier: UPNSuffix
+        columnName: TargetUPNSuffix
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: InitiatingUserPrincipalName
+      - identifier: Name
+        columnName: InitiatorName
+      - identifier: UPNSuffix
+        columnName: InitiatorUPNSuffix
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: InitiatingAadUserId
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: InitiatingAppServicePrincipalId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: InitiatingIpAddress

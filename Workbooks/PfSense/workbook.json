@@ -1,0 +1,1632 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "ccd5adcd-8d59-4cfe-99ec-98075de2e253",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "DefaultSubscription_Internal",
+                  "type": 1,
+                  "isRequired": true,
+                  "query": "where type =~ 'microsoft.operationalinsights/workspaces'\r\n| take 1\r\n| project subscriptionId",
+                  "crossComponentResources": [
+                    "value::selected"
+                  ],
+                  "isHiddenWhenLocked": true,
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources"
+                },
+                {
+                  "id": "1ca69445-60fc-4806-b43d-ac7e6aad630a",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Subscription",
+                  "type": 6,
+                  "query": "summarize by subscriptionId\r\n| project value = strcat(\"/subscriptions/\", subscriptionId), label = subscriptionId, selected = iff(subscriptionId =~ '{DefaultSubscription_Internal}', true, false)\r\n",
+                  "crossComponentResources": [
+                    "value::selected"
+                  ],
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources"
+                },
+                {
+                  "id": "e94aafa3-c5d9-4523-89f0-4e87aa754511",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Workspace",
+                  "type": 5,
+                  "query": "where type =~ 'microsoft.operationalinsights/workspaces'\n| project id",
+                  "crossComponentResources": [
+                    "{Subscription}"
+                  ],
+                  "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/your-resource-group/providers/Microsoft.OperationalInsights/workspaces/your-workspace",
+                  "typeSettings": {
+                    "resourceTypeFilter": {
+                      "microsoft.operationalinsights/workspaces": true
+                    },
+                    "additionalResourceOptions": []
+                  },
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources"
+                },
+                {
+                  "id": "eafaa0ec-7c3a-4ee5-babe-9850080c909d",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "resourceGroup",
+                  "type": 1,
+                  "query": "resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| where id == \"{Workspace}\"\r\n| project resourceGroup",
+                  "crossComponentResources": [
+                    "value::selected"
+                  ],
+                  "isHiddenWhenLocked": true,
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources"
+                },
+                {
+                  "id": "c5761866-8aea-4605-9411-cff167c0d988",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000
+                      },
+                      {
+                        "durationMs": 900000
+                      },
+                      {
+                        "durationMs": 1800000
+                      },
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2419200000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      },
+                      {
+                        "durationMs": 5184000000
+                      },
+                      {
+                        "durationMs": 7776000000
+                      }
+                    ]
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "value": {
+                    "durationMs": 3600000
+                  }
+                },
+                {
+                  "id": "81137c5f-f5bd-4dc0-9c56-b153a954e8ee",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Price",
+                  "label": "Price estimation",
+                  "type": 1,
+                  "description": "Enter your price (tip.  Use the Azure Pricing Calculator, enter  a value of 1GB and divide by 30days), or see Help toggle",
+                  "value": "4.0",
+                  "criteriaData": [
+                    {
+                      "criteriaContext": {
+                        "operator": "Default",
+                        "rightValType": "param",
+                        "resultValType": "static",
+                        "resultVal": "4.0"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "ad2cab00-aef6-4998-9af8-30db11aa83bd",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "tableName",
+                  "label": "pfSense Table Name",
+                  "type": 1,
+                  "description": "Enter the table name of pfSense pfSenseLogstash_CL",
+                  "isRequired": true,
+                  "value": "chspfs01_CL",
+                  "criteriaData": [
+                    {
+                      "criteriaContext": {
+                        "operator": "Default",
+                        "rightValType": "param",
+                        "resultValType": "static",
+                        "resultVal": "pfSenseLogstash_CL"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "4acc1441-d2ff-4433-9a23-5cd4b5be487f",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "help",
+                  "label": "Show Help",
+                  "type": 10,
+                  "description": "This will show some help information to help you understand the page you are on",
+                  "isRequired": true,
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "jsonData": "[\r\n { \"value\": \"Yes\", \"label\": \"Yes\"},\r\n { \"value\": \"No\", \"label\": \"No\", \"selected\":true },\r\n { \"value\": \"Change Log\", \"label\": \"Change Log\"}\r\n]"
+                }
+              ],
+              "style": "above",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 0"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "# pfSense Dashboard\r\n\r\nCreated by noodlemctwoodle for use with [pf-Azure-Sentinel](https://github.com/noodlemctwoodle/pf-azure-sentinel)\r\n\r\n## Usage\r\n- Please select your Subscription and Workspace\r\n- Time Range: is the time you wish to query back to. i.e 7days from now, into the past.\r\n- Ensure that the pfSense table name is set to return data from Azure Sentinel.\r\n\r\n### Isues \r\n\r\n- Please raise any issues or requests on [GitHub](https://github.com/noodlemctwoodle/pf-azure-sentinel/issues)\r\n\r\n\r\n\r\n"
+            },
+            "customWidth": "40",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "help",
+                "comparison": "isEqualTo",
+                "value": "Yes"
+              },
+              {
+                "parameterName": "selectedTab",
+                "comparison": "isNotEqualTo",
+                "value": "threatHunting"
+              }
+            ],
+            "name": "dashboardInformation"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "# Change Log\r\n\r\n### v0.2.1 Initial Release (Alpha)\r\n\r\n- Added Tabs and split out visuals into:\r\n\t- Firewall\r\n\t- Unbound\r\n\t- Services\r\n\t- Inbound\r\n\t- Outbound\r\n\t- Threat Hunting.\r\n- Added Time Slice for common services\r\n- Added Unbound lookups\r\n\r\n### v0.1 Initial Release (Testing)\r\n- Added pfSense Workbook v0.1"
+            },
+            "customWidth": "30",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "help",
+                "comparison": "isEqualTo",
+                "value": "Change Log"
+              },
+              {
+                "parameterName": "selectedTab",
+                "comparison": "isNotEqualTo",
+                "value": "threatHunting"
+              }
+            ],
+            "name": "changeLog"
+          }
+        ],
+        "exportParameters": true
+      },
+      "customWidth": "100",
+      "name": "settings"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "8f88cfa1-2ffe-4212-aa39-ea28173f9482",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Firewall",
+            "subTarget": "firewallInformation",
+            "style": "link"
+          },
+          {
+            "id": "b0072442-912d-417c-9444-07214ef040e4",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Unbound",
+            "subTarget": "dnsInformation",
+            "style": "link"
+          },
+          {
+            "id": "3db3151b-e32f-439f-b725-f6771ba56006",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Services",
+            "subTarget": "commonServices",
+            "style": "link"
+          },
+          {
+            "id": "df4fb2f6-c643-4684-9a1d-e2cbdffa0a05",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Inbound",
+            "subTarget": "inboundServices",
+            "style": "link"
+          },
+          {
+            "id": "cf42e060-65ad-4a18-8281-db41e16d90c4",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Outbound",
+            "subTarget": "outboundServices",
+            "style": "link"
+          },
+          {
+            "id": "01b0cdb3-7fcf-4361-97a8-47bb9f87f997",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Threat Hunting",
+            "subTarget": "threatHunting",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "headings"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Firewall",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "union withsource=TableName1 *\r\n| where TimeGenerated > ago(30d)\r\n| summarize Entries = count(), Size = sum(_BilledSize), last_log = datetime_diff(\"second\", now(), max(TimeGenerated)), estimate  = sumif(_BilledSize, _IsBillable == true)  by TableName1, _IsBillable\r\n| project ['Table Name'] = TableName1, ['Table Size'] = Size, ['Table Entries'] = Entries,\r\n    ['Size per Entry'] = 1.0 * Size / Entries, ['% of Total GiB'] = (Size / (1024 * 1024 * 1024)) / 3.91 * 100, ['IsBillable'] = _IsBillable, ['Latest Record Created'] =  last_log,  ['Estimated Table Price'] =  (estimate / (1024 * 1024 * 1024)) * {Price}\r\n| where ['Table Name'] == \"{tableName}\"\r\n| order by ['Table Size']  desc\r\n",
+              "size": 4,
+              "title": "Data Ingestion & Cost",
+              "timeContext": {
+                "durationMs": 1800000
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Table Name",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "18ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "Table Size",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "greenRed",
+                      "customColumnWidthSetting": "38ch"
+                    },
+                    "numberFormat": {
+                      "unit": 2,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Table Entries",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Size per Entry",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "orange",
+                      "customColumnWidthSetting": "38ch"
+                    },
+                    "numberFormat": {
+                      "unit": 2,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "%",
+                    "formatter": 1,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "19ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "IsBillable",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "True",
+                          "representation": "green",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "False",
+                          "representation": "blueDark",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "blue",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Latest Record Created",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "greenRed"
+                    },
+                    "numberFormat": {
+                      "unit": 24,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    },
+                    "tooltipFormat": {
+                      "tooltip": "Time when record was created at data source"
+                    }
+                  },
+                  {
+                    "columnMatch": "Estimated Table Price",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "greenRed"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": false
+                      }
+                    }
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "Table Name"
+                  },
+                  {
+                    "columnId": "Table Size",
+                    "comment": "Capacity of the Table"
+                  },
+                  {
+                    "columnId": "Table Entries",
+                    "comment": "Count of Rows in the Table"
+                  },
+                  {
+                    "columnId": "Size per Entry",
+                    "comment": "Capacity of the Rows"
+                  },
+                  {
+                    "columnId": "IsBillable",
+                    "comment": "Is the Table Free or Billable?"
+                  },
+                  {
+                    "columnId": "Latest Record Created"
+                  }
+                ]
+              },
+              "chartSettings": {
+                "xAxis": "Table Size"
+              }
+            },
+            "customWidth": "100",
+            "name": "ingestionData",
+            "styleSettings": {
+              "maxWidth": "100"
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where isnotempty(network_transport_s)\r\n| project network_transport_s,TimeGenerated\r\n| summarize count() by network_transport_s, TimeGenerated\r\n| distinct network_transport_s, count_, TimeGenerated",
+              "size": 0,
+              "title": "Network Transport",
+              "timeContext": {
+                "durationMs": 1800000
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "yAxis": [
+                  "count_"
+                ],
+                "group": "network_transport_s",
+                "createOtherGroup": 0,
+                "showLegend": true
+              }
+            },
+            "customWidth": "50",
+            "name": "networkTransport",
+            "styleSettings": {
+              "maxWidth": "50"
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where isnotempty(event_action_s)\r\n| where event_action_s =~ \"block\" \r\n    or event_action_s =~ \"pass\"\r\n| where network_direction_s =~ \"in\" \r\n    or network_direction_s =~ \"out\"\r\n| where interface_alias_s =~ \"wan\"\r\n| summarize count() by event_action_s, TimeGenerated\r\n\r\n//| project destination_service_s, TimeGenerated\r\n//| summarize count() by destination_service_s, TimeGenerated\r\n//| top 2500 by count_\r\n//| distinct destination_service_s, count_, TimeGenerated\r\n\r\n\r\n\r\n\r\n",
+              "size": 0,
+              "title": "Traffic",
+              "timeContext": {
+                "durationMs": 1800000
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "pass",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "block",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "destinationService"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "firewallInformation"
+      },
+      "name": "firewallGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Common Services",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where TimeGenerated {TimeRange:query}\r\n| where isnotempty(source_service_s)\r\n| summarize count() by source_service_s, TimeGenerated\r\n| sort by count_ desc\r\n| top 500 by count_\r\n",
+              "size": 2,
+              "title": "Common Services",
+              "timeContext": {
+                "durationMs": 1800000
+              },
+              "timeContextFromParameter": "TimeRange",
+              "timeBrushParameterName": "tbMthlyUsage",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart",
+              "chartSettings": {
+                "showMetrics": false,
+                "showLegend": true
+              }
+            },
+            "customWidth": "100",
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "commonServices"
+            },
+            "name": "commonServices",
+            "styleSettings": {
+              "maxWidth": "100"
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where isnotempty(source_service_s)\r\n| summarize Amount = count() by Service = source_service_s\r\n| top 250 by Service\r\n| sort by Amount desc\r\n",
+              "size": 1,
+              "title": "Common Services Slicer",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "tbMthlyUsage",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Amount",
+                    "formatter": 4,
+                    "formatOptions": {
+                      "min": 0,
+                      "max": 100,
+                      "palette": "greenRed",
+                      "aggregation": "Count"
+                    },
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "sortBy": []
+            },
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "commonServices"
+            },
+            "name": "timeSliceCommonServices"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "commonServices"
+      },
+      "name": "commonServicesGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Outbound Services",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where event_action_s =~ \"pass\"\r\n| where network_direction_s =~ \"out\"\r\n| where interface_alias_s =~ \"wan\"\r\n| where isnotempty(destination_geo_country_name_s)\r\n| extend country = destination_geo_country_name_s\r\n| summarize count() by country\r\n| sort by count_\r\n| top 5 by count_",
+              "size": 2,
+              "title": "Top 5 Outbound",
+              "timeContext": {
+                "durationMs": 86400000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart"
+            },
+            "customWidth": "40",
+            "name": "outbound"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where event_action_s =~ \"pass\"\r\n| where network_direction_s =~ \"out\"\r\n| where interface_alias_s =~ \"wan\"\r\n| where isnotempty(destination_geo_country_name_s)\r\n| extend lat_d = destination_geo_latitude_d, long_d = destination_geo_longitude_d\r\n| summarize country = count() by destination_geo_country_name_s, long_d, lat_d\r\n| sort by country\r\n| top 100 by country\r\n",
+              "size": 3,
+              "title": "Outbound Connections Passed",
+              "timeContext": {
+                "durationMs": 1800000
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "map",
+              "tileSettings": {
+                "showBorder": false,
+                "titleContent": {
+                  "columnMatch": "destination_geo_region_name_s",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "count_",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "auto"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "maximumSignificantDigits": 3,
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                }
+              },
+              "graphSettings": {
+                "type": 0,
+                "topContent": {
+                  "columnMatch": "destination_geo_region_name_s",
+                  "formatter": 1
+                },
+                "centerContent": {
+                  "columnMatch": "count_",
+                  "formatter": 1,
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "maximumSignificantDigits": 3,
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                }
+              },
+              "mapSettings": {
+                "locInfo": "LatLong",
+                "latitude": "lat_d",
+                "longitude": "long_d",
+                "sizeAggregation": "Count",
+                "minSize": 20,
+                "maxSize": 500,
+                "defaultSize": 15,
+                "labelSettings": "destination_geo_country_name_s",
+                "legendMetric": "country",
+                "numberOfMetrics": 7,
+                "legendAggregation": "Average",
+                "itemColorSettings": {
+                  "nodeColorField": "country",
+                  "colorAggregation": "Sum",
+                  "type": "heatmap",
+                  "heatmapPalette": "greenRed",
+                  "heatmapMin": 1,
+                  "heatmapMax": 100
+                },
+                "numberFormatSettings": {
+                  "unit": 17,
+                  "options": {
+                    "style": "decimal",
+                    "useGrouping": false,
+                    "minimumIntegerDigits": 1,
+                    "maximumFractionDigits": 1
+                  }
+                }
+              }
+            },
+            "customWidth": "60",
+            "name": "geoDestination",
+            "styleSettings": {
+              "maxWidth": "70"
+            }
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "outboundServices"
+      },
+      "name": "outboundGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Threat Hunting",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "8ac1e805-084d-42f5-aeca-2dcb60755bf3",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "threatHelp",
+                  "label": "Help",
+                  "type": 10,
+                  "description": "Show Threat Hunting Help",
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "jsonData": "[\r\n { \"value\": \"Yes\", \"label\": \"Yes\"},\r\n { \"value\": \"No\", \"label\": \"No\", \"selected\":\"False\" }\r\n]",
+                  "timeContext": {
+                    "durationMs": 86400000
+                  }
+                },
+                {
+                  "id": "8644dacb-a185-4af3-b77c-b031a0425191",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "showSubnets",
+                  "label": "Show Subnets",
+                  "type": 10,
+                  "isRequired": true,
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "jsonData": "[\r\n { \"value\": \"Yes\", \"label\": \"Yes\"},\r\n { \"value\": \"No\", \"label\": \"No\", \"selected\":\"False\" }\r\n]",
+                  "timeContext": {
+                    "durationMs": 86400000
+                  }
+                }
+              ],
+              "style": "above",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "customWidth": "100",
+            "name": "parameters - 3"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "# Threat Hunting\r\n\r\n## Lateral Movement\r\n\r\n- Enable the Subnets Swich.\r\n- Populate the Subnet and Thresholds fields"
+            },
+            "customWidth": "100",
+            "conditionalVisibility": {
+              "parameterName": "threatHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "threatHuntingHelp"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "loadType": "always",
+              "items": [
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "802b9223-396f-4235-a922-3ec3eaebfaa7",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "subnet1",
+                        "label": "Subnet",
+                        "type": 1,
+                        "value": "10.10.1.0/24",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "10.10.1.0/24"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "subnet1"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "4c93ce64-22d2-4419-b11d-080edd28ca72",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "subnet2",
+                        "label": "Subnet",
+                        "type": 1,
+                        "value": "10.20.1.0/24",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "10.20.1.0/24"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "subnet2"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "c4d8065f-7b78-44d5-aa84-391eff45c561",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "subnet3",
+                        "label": "Subnett",
+                        "type": 1,
+                        "value": "10.30.1.0/24",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "10.30.1.0/24"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "subnet3"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "4e93806b-64fa-4d95-af8b-683a16005702",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "subnet4",
+                        "label": "Subnett",
+                        "type": 1,
+                        "value": "10.40.1.0/24",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "10.40.1.0/24"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "subnet4"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "9023700e-fee6-4a35-8876-2623911033fb",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "subnet5",
+                        "label": "Subnett",
+                        "type": 1,
+                        "value": "10.50.1.0/24",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "10.50.1.0/24"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "subnet5"
+                }
+              ],
+              "exportParameters": true
+            },
+            "customWidth": "8",
+            "conditionalVisibility": {
+              "parameterName": "showSubnets",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "subnets"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "a08eada8-a589-405b-b815-698e5f2c777f",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "threshold1",
+                        "label": "Threshold",
+                        "type": 1,
+                        "value": "200",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "200"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "threshold1"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "9a26e949-0c73-434f-b2ea-7ff4a1c98d2e",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "threshold2",
+                        "label": "Threshold",
+                        "type": 1,
+                        "value": "200",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "200"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "thresholds2"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "f75fcb65-e06f-4654-ba05-8e939c309348",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "threshold3",
+                        "label": "Threshold",
+                        "type": 1,
+                        "value": "200",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "200"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "thresholds3"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "25929b68-88cc-486a-b1b4-28ac65699b99",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "threshold4",
+                        "label": "Threshold",
+                        "type": 1,
+                        "value": "200",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "200"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "thresholds4"
+                },
+                {
+                  "type": 9,
+                  "content": {
+                    "version": "KqlParameterItem/1.0",
+                    "parameters": [
+                      {
+                        "id": "96e23d8f-39df-4837-b6f2-597e06b42141",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "threshold5",
+                        "label": "Threshold",
+                        "type": 1,
+                        "value": "200",
+                        "criteriaData": [
+                          {
+                            "criteriaContext": {
+                              "operator": "Default",
+                              "rightValType": "param",
+                              "resultValType": "static",
+                              "resultVal": "200"
+                            }
+                          }
+                        ],
+                        "timeContext": {
+                          "durationMs": 86400000
+                        }
+                      }
+                    ],
+                    "style": "above",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "showSubnets",
+                    "comparison": "isEqualTo",
+                    "value": "Yes"
+                  },
+                  "name": "thresholds5"
+                }
+              ],
+              "exportParameters": true
+            },
+            "customWidth": "8",
+            "conditionalVisibility": {
+              "parameterName": "showSubnets",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "thresholds"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let systems = dynamic(\r\n{\r\n    \"{subnet1}\": {threshold1},\r\n    \"{subnet2}\": {threshold2},\r\n    \"{subnet3}\": {threshold3},\r\n    \"{subnet4}\": {threshold4},\r\n    \"{subnet5}\": {threshold5}\r\n});\r\n{tableName}\r\n| where destination_ip_s !contains '.255'\r\n| mv-expand bagexpansion=array system = systems\r\n| extend cidr = system[0]\r\n| extend threshold = system[1]\r\n| where ipv4_is_match(tostring(destination_ip_s), tostring(cidr))\r\n| summarize Total = count() by \r\n    [\"Source IP\"] = source_ip_s, \r\n    [\"Destination IP\"] = destination_ip_s, \r\n    [\"CIDR Notation\"] = tostring(cidr), \r\n    [\"Threshold\"] = tostring(threshold)\r\n| sort by Total desc \r\n| where Total > tolong(Threshold)\r\n",
+              "size": 0,
+              "title": "Lateral Movement",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Threshold",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": null,
+                          "text": "{0}{1}"
+                        }
+                      ],
+                      "aggregation": "Count"
+                    }
+                  },
+                  {
+                    "columnMatch": "Total",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "<",
+                          "thresholdValue": "{threshold1}",
+                          "representation": "green",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": ">",
+                          "thresholdValue": "{threshold1}",
+                          "representation": "redBright",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        }
+                      ],
+                      "aggregation": "Count"
+                    },
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": false
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "customWidth": "40",
+            "conditionalVisibility": {
+              "parameterName": "showSubnets",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "lateralMovement"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// This query alerts whenever a spike of blocked connections is seen\r\nlet average = materialize( \r\n    {tableName}\r\n    | extend Action = event_action_s\r\n    | where Action == \"block\"\r\n    | summarize c = count() by bin(TimeGenerated, 10m)\r\n    | summarize average_connections = avg(c) by join_key = ''\r\n);\r\nlet today = materialize (\r\n    {tableName}\r\n    | where TimeGenerated {TimeRange:query} \r\n    | extend Action = event_action_s\r\n    | where Action == \"block\"\r\n    | summarize today_connections = count() by join_key = ''\r\n);\r\naverage\r\n| join today on join_key\r\n| where today_connections > (average_connections * 2)\r\n| extend Average = average_connections, Today = today_connections\r\n| summarize by Average, Today",
+              "size": 4,
+              "aggregation": 4,
+              "title": "Average Blocked Connetions",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Average",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "<",
+                          "thresholdValue": "today_connections",
+                          "representation": "green",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": ">",
+                          "thresholdValue": "today_connections",
+                          "representation": "redBright",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ],
+                      "customColumnWidthSetting": "15ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "Today",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "<",
+                          "thresholdValue": "Average",
+                          "representation": "green",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": ">",
+                          "thresholdValue": "Average",
+                          "representation": "redBright",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ],
+                      "customColumnWidthSetting": "15ch"
+                    }
+                  }
+                ]
+              }
+            },
+            "customWidth": "15",
+            "name": "connections"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "threatHunting"
+      },
+      "name": "ThreatHuntingGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Inbound Services",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where event_action_s =~ \"block\"\r\n| where network_direction_s =~ \"in\"\r\n| where interface_alias_s =~ \"wan\"\r\n| where isnotempty(source_geo_country_name_s)\r\n| extend lat_d = source_geo_latitude_d, long_d = source_geo_longitude_d\r\n| summarize country = count() by source_geo_country_name_s, long_d, lat_d\r\n| sort by country\r\n| top 100 by country\r\n//| project lat_d, long_d",
+              "size": 3,
+              "title": "Inbound Connections Blocked",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "map",
+              "mapSettings": {
+                "locInfo": "LatLong",
+                "latitude": "lat_d",
+                "longitude": "long_d",
+                "sizeAggregation": "Count",
+                "minSize": 20,
+                "maxSize": 300,
+                "defaultSize": 15,
+                "labelSettings": "source_geo_country_name_s",
+                "legendMetric": "country",
+                "legendAggregation": "Average",
+                "itemColorSettings": {
+                  "nodeColorField": "country",
+                  "colorAggregation": "Sum",
+                  "type": "heatmap",
+                  "heatmapPalette": "greenRed",
+                  "heatmapMin": 1,
+                  "heatmapMax": 100
+                },
+                "numberFormatSettings": {
+                  "unit": 17,
+                  "options": {
+                    "style": "decimal",
+                    "minimumIntegerDigits": 1
+                  }
+                }
+              }
+            },
+            "customWidth": "60",
+            "name": "blockedDestinations",
+            "styleSettings": {
+              "maxWidth": "100"
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where event_action_s =~ \"block\"\r\n| where network_direction_s =~ \"in\"\r\n| where interface_alias_s =~ \"wan\"\r\n| where isnotempty(source_geo_country_name_s)\r\n| extend country = source_geo_country_name_s\r\n| summarize count() by country\r\n| sort by count_\r\n| top 5 by count_",
+              "size": 2,
+              "title": "Top 5 Blocked",
+              "timeContext": {
+                "durationMs": 86400000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart"
+            },
+            "customWidth": "40",
+            "name": "geoDestination"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "inboundServices"
+      },
+      "name": "inboundGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "unbound",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where tags_s contains \"unbound\"\r\n| extend TimeGenerated = event_created_t\r\n| where client_ip_s != \"127.0.0.1\"\r\n| where isnotempty(dns_question_name_s)\r\n| summarize Hits = count() by Record = dns_question_name_s, TimeGenerated\r\n| sort by Hits",
+              "size": 3,
+              "title": "Popular Lookups",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "categoricalbar",
+              "sortBy": [],
+              "tileSettings": {
+                "showBorder": false,
+                "titleContent": {
+                  "columnMatch": "dns_question_name_s",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "count_",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "auto"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "maximumSignificantDigits": 3,
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                }
+              },
+              "graphSettings": {
+                "type": 2,
+                "topContent": {
+                  "columnMatch": "dns_question_name_s",
+                  "formatter": 1
+                },
+                "centerContent": {
+                  "columnMatch": "count_",
+                  "formatter": 1,
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "maximumSignificantDigits": 3,
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "nodeIdField": "count_",
+                "sourceIdField": "dns_question_name_s",
+                "targetIdField": "dns_question_name_s",
+                "graphOrientation": 3,
+                "showOrientationToggles": false,
+                "nodeSize": null,
+                "staticNodeSize": 100,
+                "colorSettings": {
+                  "nodeColorField": "count_",
+                  "type": 2
+                },
+                "hivesMargin": 5
+              },
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "group": "Record",
+                "createOtherGroup": null
+              }
+            },
+            "name": "query - 1"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where tags_s contains \"unbound\"\r\n| extend TimeGenerated = event_created_t\r\n| where client_ip_s != \"127.0.0.1\"\r\n| project TimeGenerated, [\"Host Name\"] = host_hostname_s, \r\n    [\"Client IP\"] = client_ip_s, \r\n    [\"Record Type\"] = dns_question_type_s, \r\n    [\"Lookup\"] = dns_question_name_s",
+              "size": 0,
+              "title": "DNS Lookups",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "customWidth": "40",
+            "name": "unboundTable"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": []
+            },
+            "customWidth": "10",
+            "name": "group - 3"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "{tableName}\r\n| where tags_s contains \"unbound\"\r\n| extend TimeGenerated = event_created_t\r\n| where client_ip_s != \"127.0.0.1\"\r\n| where isnotempty(dns_question_type_s)\r\n| summarize count() by dns_question_type_s",
+              "size": 2,
+              "title": "Record Types",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart"
+            },
+            "customWidth": "20",
+            "name": "recordTypes",
+            "styleSettings": {
+              "padding": "300"
+            }
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "dnsInformation"
+      },
+      "name": "unboundGroup"
+    }
+  ],
+  "fallbackResourceIds": [],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

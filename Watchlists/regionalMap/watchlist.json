@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "regionalMap",
+  "displayName": "Regional Map - Countries and Territories",
+  "description": "Comprehensive country and territory reference data including ISO codes, coordinates, regions, and timezones. Used by detection rules for geographic lookup and impossible travel calculations. Source: dr5hn/countries-states-cities-database (GitHub).",
+  "provider": "Custom",
+  "itemsSearchKey": "iso2"
+}

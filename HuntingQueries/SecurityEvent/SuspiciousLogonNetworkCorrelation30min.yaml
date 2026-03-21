@@ -1,0 +1,41 @@
+id: "5ca3b4c5-d6e7-4f80-91a2-b3c4d5e6f708"
+name: "Suspicious logon network correlation"
+description: "Identifies lateral movement by correlating successful network logons with device network connections within a 5-minute window, detecting accounts accessing multiple systems from the same source."
+query: |
+  // Correlates successful network logons with device network connections within a 5-minute window,
+  // identifying accounts that access multiple systems from the same IP to detect lateral movement
+
+  // Combining network and authentication data for comprehensive detection
+  let TimeWindow = 30m;
+  let SuspiciousLogons = SecurityEvent
+      | where TimeGenerated > ago(TimeWindow)
+      | where EventID == 4624  // Successful logon
+      | where LogonType in (3, 10)  // Network and RDP logons
+      | project LogonTime = TimeGenerated, Account, Computer, IpAddress, LogonType;
+  //
+  let NetworkConnections = DeviceNetworkEvents
+      | where TimeGenerated > ago(TimeWindow)
+      | where ActionType == "ConnectionSuccess"
+      | project ConnectionTime = TimeGenerated,
+               SourceIP = LocalIP,
+               DestinationIP = RemoteIP,
+               DeviceName;
+  //
+  SuspiciousLogons
+  | join kind=inner (
+      NetworkConnections
+  ) on $left.Computer == $right.DeviceName
+  | where ConnectionTime between ((LogonTime - 5m) .. (LogonTime + 5m))
+  | where IpAddress == SourceIP  // Correlate logon source with network activity
+  | summarize LogonCount = count(),
+             UniqueDestinations = dcount(Computer)
+             by Account, IpAddress, bin(LogonTime, 1h)
+  | where UniqueDestinations >= 3  // Multiple systems accessed
+tactics:
+  - LateralMovement
+  - Discovery
+techniques:
+  - T1021
+  - T1021.001
+  - T1021.002
+  - T1018

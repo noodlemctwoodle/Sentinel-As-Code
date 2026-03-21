@@ -509,7 +509,7 @@ function Get-ContentHubSolutions {
 
     $catalogUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=$($script:SentinelApiVersion)"
     $catalogResult = Invoke-SentinelApi -Uri $catalogUrl -Method Get -Headers $script:AuthHeader
-    $availableSolutions = if ($catalogResult.PSObject.Properties.Name -contains "value") { $catalogResult.value } else { @() }
+    $availableSolutions = @(if ($catalogResult.PSObject.Properties.Name -contains "value") { $catalogResult.value } else { @() })
 
     Write-PipelineMessage "Found $($availableSolutions.Count) solutions in the Content Hub catalogue." -Level Info
 
@@ -517,7 +517,7 @@ function Get-ContentHubSolutions {
     $installedUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentPackages?api-version=$($script:SentinelApiVersion)"
     try {
         $installedResult = Invoke-SentinelApi -Uri $installedUrl -Method Get -Headers $script:AuthHeader
-        $installedPackages = if ($installedResult.PSObject.Properties.Name -contains "value") { $installedResult.value } else { @() }
+        $installedPackages = @(if ($installedResult.PSObject.Properties.Name -contains "value") { $installedResult.value } else { @() })
         Write-PipelineMessage "Found $($installedPackages.Count) installed solutions." -Level Info
     }
     catch {
@@ -755,18 +755,19 @@ function Get-ExistingAnalyticsRules {
 
     $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
     $result = Invoke-SentinelApi -Uri $rulesUrl -Method Get -Headers $script:AuthHeader
-    $rules = if ($result.PSObject.Properties.Name -contains "value") { $result.value } else { @() }
+    $rules = @(if ($result.PSObject.Properties.Name -contains "value") { $result.value } else { @() })
 
     # Handle pagination
     while ($result.PSObject.Properties.Name -contains "nextLink" -and $result.nextLink) {
         $result = Invoke-SentinelApi -Uri $result.nextLink -Method Get -Headers $script:AuthHeader
         if ($result.PSObject.Properties.Name -contains "value") {
-            $rules += $result.value
+            $rules += @($result.value)
         }
     }
 
+    $rules = @($rules)
     Write-PipelineMessage "Found $($rules.Count) existing Analytics Rules." -Level Info
-    return $rules
+    return ,$rules
 }
 
 function Test-RuleIsCustomised {
@@ -884,16 +885,17 @@ function Deploy-AnalyticsRules {
     $templatesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates?api-version=$($script:SentinelApiVersion)&`$filter=(properties/contentKind eq 'AnalyticsRule')&`$expand=properties/mainTemplate"
     try {
         $templatesResult = Invoke-SentinelApi -Uri $templatesUrl -Method Get -Headers $script:AuthHeader
-        $allTemplates = if ($templatesResult.PSObject.Properties.Name -contains "value") { $templatesResult.value } else { @() }
+        $allTemplates = @(if ($templatesResult.PSObject.Properties.Name -contains "value") { $templatesResult.value } else { @() })
 
         # Handle pagination
         while ($templatesResult.PSObject.Properties.Name -contains "nextLink" -and $templatesResult.nextLink) {
             $templatesResult = Invoke-SentinelApi -Uri $templatesResult.nextLink -Method Get -Headers $script:AuthHeader
             if ($templatesResult.PSObject.Properties.Name -contains "value") {
-                $allTemplates += $templatesResult.value
+                $allTemplates += @($templatesResult.value)
             }
         }
 
+        $allTemplates = @($allTemplates)
         Write-PipelineMessage "Found $($allTemplates.Count) Analytics Rule templates." -Level Info
     }
     catch {
@@ -991,8 +993,11 @@ function Deploy-AnalyticsRules {
         $ruleProperties = $firstResource.properties
         $displayName = if ($ruleProperties.PSObject.Properties.Name -contains "displayName") { $ruleProperties.displayName } else { $null }
         $severity = if ($ruleProperties.PSObject.Properties.Name -contains "severity") { $ruleProperties.severity } else { $null }
-        $templateName = if ($firstResource.PSObject.Properties.Name -contains "name") { $firstResource.name } else { $null }
         $kind = if ($firstResource.PSObject.Properties.Name -contains "kind") { $firstResource.kind } else { "Scheduled" }
+
+        # Use the content template's contentId (GUID) rather than the ARM resource name (which may be an ARM expression)
+        $templateContentId = if ($template.properties.PSObject.Properties.Name -contains "contentId") { $template.properties.contentId } else { $null }
+        $templateName = if ($templateContentId) { $templateContentId } elseif ($firstResource.PSObject.Properties.Name -contains "name") { $firstResource.name } else { $null }
 
         # Extract template version - check the template properties first, then metadata resource
         $templateVersion = if ($template.properties.PSObject.Properties.Name -contains "version") { $template.properties.version } else { $null }
@@ -1168,6 +1173,7 @@ function Deploy-AnalyticsRules {
 
             if ($solutionMatch) {
                 $solDisplayName = if ($solutionMatch.properties.PSObject.Properties.Name -contains "displayName") { $solutionMatch.properties.displayName } else { "Unknown" }
+                $solContentId = if ($solutionMatch.properties.PSObject.Properties.Name -contains "contentId") { $solutionMatch.properties.contentId } else { $solutionMatch.name }
                 $metaBody = @{
                     properties = @{
                         contentId = $templateName
@@ -1177,7 +1183,7 @@ function Deploy-AnalyticsRules {
                         source    = @{
                             kind     = "Solution"
                             name     = $solDisplayName
-                            sourceId = $solutionMatch.name
+                            sourceId = $solContentId
                         }
                     }
                 }

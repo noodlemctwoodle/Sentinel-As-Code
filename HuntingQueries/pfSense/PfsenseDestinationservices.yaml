@@ -1,0 +1,15 @@
+id: "e53cd4e5-f607-4182-9304-15263748596a"
+name: "pfSense destination services summary"
+description: "Identifies the most frequently accessed destination services through the pfSense firewall over the last 24 hours by counting connections per service port."
+query: |
+  // Count of detination services
+  psfsense_logstash_CL
+  | where TimeGenerated > ago(1d)
+  | where isnotempty(destination_service_s)
+  | summarize count() by destination_service_s
+  | sort by count_ desc
+  | top 100 by count_
+tactics:
+  - Discovery
+techniques:
+  - T1046

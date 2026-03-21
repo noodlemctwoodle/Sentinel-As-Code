@@ -1,0 +1,91 @@
+id: "075e6f70-8192-4031-4253-6475809a1b2c"
+name: "App and service principal reconnaissance"
+description: "Detects application and service principal reconnaissance via PowerShell Graph API calls by identifying users enumerating applications, users, and organizational data with blast radius assessment."
+query: |
+  let InvokeDumpAppsCalls = dynamic([
+      "https://graph.microsoft.com/v1.0/users/",
+      "https://graph.microsoft.com/v1.0/organization",
+      "https://graph.microsoft.com/v1.0/applications",
+      "https://graph.microsoft.com/v1.0/servicePrincipals/",
+      'https://graph.microsoft.com/v1.0/servicePrincipals?$skiptoken="'
+  ]);
+  // Get most recent identity info to join later
+  let RecentIdentityInfo =
+      IdentityInfo
+      | where TimeGenerated > ago(10d)
+      | extend
+          ParsedRoles = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              , parse_json(AssignedRoles)
+              , dynamic([]))
+              , ParsedGroups = iff(isnotempty(GroupMembership)
+              and GroupMembership != "[]"
+              , parse_json(GroupMembership)
+              , dynamic([]))
+              , IsAdmin = iff(isnotempty(AssignedRoles)
+              and AssignedRoles != "[]"
+              and AssignedRoles != "[\"\"]"
+              , true, false)
+              , IsPrivilegedRole = iff(
+                  AssignedRoles has_any("Global Administrator", "Privileged Role Administrator"
+                      , "User Administrator", "SharePoint Administrator", "Exchange Administrator"
+                      , "Hybrid Identity Administrator", "Application Administrator"
+                      , "Cloud Application Administrator")
+                      , true, false
+              ),
+          IsInPrivilegedGroup = iff(
+              GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators"
+                  , "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins"
+                  , "Schema Admins", "Key Admins")
+                  , true, false
+          )
+      | summarize arg_max(TimeGenerated, *) by AccountObjectId;
+  // Find Graph API calls that could be suspicious reconnaissance
+  MicrosoftGraphActivityLogs
+  | where UserAgent has "PowerShell"
+  | where RequestUri in~ (InvokeDumpAppsCalls)
+      or RequestUri has_all("https://graph.microsoft.com/v1.0/servicePrincipals(appId=", "appRoleAssignedTo")
+  | join kind=leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind=leftouter RecentIdentityInfo
+      on $left.UserId == $right.AccountObjectId
+  | where isnotempty(UserId) // Only include records where we have a valid UserId
+  | extend
+      RequestedAppId = extract(@"appId='(.*?)'", 1, RequestUri),
+      AdminRoleCount = array_length(ParsedRoles),
+      GroupCount = array_length(ParsedGroups),
+      UserDisplayName = AccountDisplayName
+  // Add filters to reduce the number of results
+  | where ResultType == 0 // Only successful sign-ins
+  | summarize
+      RequestCount = count()
+      , FirstActivity = min(TimeGenerated)
+      , LastActivity = max(TimeGenerated)
+      , RequestURIs = make_set(RequestUri, 10)
+      // , Limit to 10 URIs per group UserAgents = make_set(UserAgent, 5)
+      by UserId, UserDisplayName, AccountUPN, UserPrincipalName, IPAddress
+          , Department, JobTitle, IsAdmin, IsPrivilegedRole, IsInPrivilegedGroup
+          , AdminRoleCount, GroupCount, tostring(ParsedRoles), tostring(ParsedGroups)
+          , Scopes
+  // Only include users who made multiple requests
+  | where RequestCount > 2
+  | extend
+      BlastRadiusSeverity = case(
+          IsPrivilegedRole == true, "Critical"
+          , IsAdmin == true or IsInPrivilegedGroup == true, "High"
+          , AdminRoleCount > 0, "Medium"
+          , "Low"
+      ),
+      ActivityDurationMinutes = datetime_diff('minute', LastActivity, FirstActivity)
+      , UniqueEndpointsAccessed = array_length(RequestURIs)
+  | extend Scope = split(Scopes, " ")
+  | extend ScopeCount = array_length(Scope)
+  | project-away Scopes
+  | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
+tactics:
+  - Discovery
+  - Reconnaissance
+techniques:
+  - T1087.004
+  - T1069.003
+  - T1526

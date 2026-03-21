@@ -1,0 +1,46 @@
+id: "c31a2b3c-4d5e-46f7-0819-2031425364e7"
+name: "User behavior baseline analysis 7-day"
+description: "Identifies users with anomalous sign-in patterns including impossible travel and multiple IP usage by analyzing 7 days of successful authentication data with cleaned location and IP information."
+query: |
+  // Analyzes user sign-in behavior over the last 7 days with data cleaning and anomaly detection,
+  // identifying users with suspicious activity patterns like impossible travel or multiple IP usage
+
+  // User behaviour analytics with comprehensive error handling
+  SigninLogs
+  | where TimeGenerated > ago(7d)
+  | where ResultType == "0"  // Successful sign-ins only
+  // Handle missing or malformed data
+  | extend CleanLocation = case(
+      isempty(Location) or Location == "Unknown", "Not Available",
+      Location
+  ),
+  ClientAppUsed = case(
+      isempty(ClientAppUsed), "Unknown Client",
+      ClientAppUsed == "", "Unknown Client",
+      ClientAppUsed
+  ),
+  // Standardise IP addresses and handle IPv6
+  CleanIPAddress = case(
+      isempty(IPAddress), "0.0.0.0",
+      IPAddress contains ":", split(IPAddress, ":")[0],  // Extract IPv4 from IPv6 mapping
+      IPAddress
+  )
+  // Create time-based patterns accounting for timezone differences
+  | extend HourOfDay = hourofday(TimeGenerated),
+           DayOfWeek = dayofweek(TimeGenerated),
+           IsWeekend = dayofweek(TimeGenerated) in (0d, 6d),
+           IsAfterHours = hourofday(TimeGenerated) < 7 or hourofday(TimeGenerated) > 19
+  // Detect anomalous patterns
+  | summarize SignInCount = count(),
+             UniqueLocations = dcount(CleanLocation),
+             UniqueIPs = dcount(CleanIPAddress),
+             Apps = make_set(AppDisplayName, 10)
+             by UserPrincipalName, bin(TimeGenerated, 1h)
+  | where UniqueLocations >= 3 or UniqueIPs >= 5  // Impossible travel or suspicious activity
+tactics:
+  - InitialAccess
+  - DefenseEvasion
+techniques:
+  - T1078
+  - T1078.004
+  - T1550

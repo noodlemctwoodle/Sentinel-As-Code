@@ -1,0 +1,137 @@
+id: 8c3ce005-aa8d-4970-9fa5-56e6cd911b8e
+name: Azure Application and Service Principal Reconnaissance via PowerShell
+description: |-
+  This detection identifies potential reconnaissance activities where users leverage PowerShell to systematically enumerate Azure AD applications, service principals, and their associated permissions through Microsoft Graph API. The rule specifically monitors queries to user directories, organization information, application registrations, and service principal endpoints, which could indicate an attacker mapping the tenant's application ecosystem.
+
+  The detection is particularly focused on identifying attempts to discover third-party external applications that users have consented to, which could represent security risks or potential attack vectors. It analyzes the scope and permission patterns of these queries to help identify unusual access attempts. The rule incorporates blast radius assessment by prioritizing activities performed by users with privileged roles or administrative access, who could cause greater harm if their account is compromised or if they are acting maliciously.
+
+  Each alert includes detailed context about the specific Graph endpoints accessed, the user's privileges, and the duration and pattern of the activity to help security teams quickly assess whether the behavior represents legitimate administration or potential threat activity. The detection only flags users who have made multiple requests (more than 2), focusing on systematic enumeration rather than one-off legitimate queries.
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - ResourceDevelopment
+  - InitialAccess
+  - LateralMovement
+  - Discovery
+techniques:
+  - T1584
+  - T1595
+  - T1595.002
+  - T1087
+  - T1087.004
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: MicrosoftGraphActivityLogs
+    dataTypes:
+      - Mic
+query: |-
+  let InvokeDumpAppsCalls = dynamic([
+  "https://graph.microsoft.com/v1.0/users/",
+  "https://graph.microsoft.com/v1.0/organization",
+  "https://graph.microsoft.com/v1.0/applications",
+  "https://graph.microsoft.com/v1.0/servicePrincipals/",
+  'https://graph.microsoft.com/v1.0/servicePrincipals?$skiptoken="'
+  ]);
+  // Get most recent identity info to join later
+  let RecentIdentityInfo =
+  IdentityInfo
+  | where TimeGenerated > ago(10d)
+  | extend
+  ParsedRoles = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]", parse_json(AssignedRoles), dynamic([])),
+  ParsedGroups = iff(isnotempty(GroupMembership) and GroupMembership != "[]", parse_json(GroupMembership), dynamic([])),
+  IsAdmin = iff(isnotempty(AssignedRoles) and AssignedRoles != "[]" and AssignedRoles != "[\"\"]", true, false),
+  IsPrivilegedRole = iff(
+  AssignedRoles has_any("Global Administrator", "Privileged Role Administrator", "User Administrator", "SharePoint Administrator", "Exchange Administrator", "Hybrid Identity Administrator", "Application Administrator", "Cloud Application Administrator"),
+  true, false
+  ),
+  IsInPrivilegedGroup = iff(
+  GroupMembership has_any("AdminAgents", "Azure AD Joined Device Local Administrators", "Directory Synchronization Accounts", "Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins"),
+  true, false
+  )
+  | summarize arg_max(TimeGenerated, *) by AccountObjectId;
+  // Find Graph API calls that could be suspicious reconnaissance
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri in~ (InvokeDumpAppsCalls)
+  or RequestUri has_all("https://graph.microsoft.com/v1.0/servicePrincipals(appId=", "appRoleAssignedTo")
+  | join kind=leftouter AADNonInteractiveUserSignInLogs
+  on $left.SignInActivityId == $right.UniqueTokenIdentifier
+  | join kind=leftouter RecentIdentityInfo
+  on $left.UserId == $right.AccountObjectId
+  | where isnotempty(UserId) // Only include records where we have a valid UserId
+  | extend
+  RequestedAppId = extract(@"appId='(.*?)'", 1, RequestUri),
+  AdminRoleCount = array_length(ParsedRoles),
+  GroupCount = array_length(ParsedGroups),
+  UserDisplayName = AccountDisplayName
+  // Add filters to reduce the number of results
+  | where ResultType == 0 // Only successful sign-ins
+  | summarize
+  RequestCount = count(),
+  FirstActivity = min(TimeGenerated),
+  LastActivity = max(TimeGenerated),
+  RequestURIs = make_set(RequestUri, 10), // Limit to 10 URIs per group
+  UserAgents = make_set(UserAgent, 5)
+  by
+  UserId,
+  UserDisplayName,
+  AccountUPN,
+  UserPrincipalName,
+  IPAddress,
+  Department,
+  JobTitle,
+  IsAdmin,
+  IsPrivilegedRole,
+  IsInPrivilegedGroup,
+  AdminRoleCount,
+  GroupCount,
+  tostring(ParsedRoles),
+  tostring(ParsedGroups),
+  Scopes
+  | where RequestCount > 2 // Only include users who made multiple requests
+  | extend
+  BlastRadiusSeverity = case(
+  IsPrivilegedRole == true, "Critical",
+  IsAdmin == true or IsInPrivilegedGroup == true, "High",
+  AdminRoleCount > 0, "Medium",
+  "Low"
+  ),
+  ActivityDurationMinutes = datetime_diff('minute', LastActivity, FirstActivity),
+  UniqueEndpointsAccessed = array_length(RequestURIs)
+  | extend Scope = split(Scopes, " ")
+  | extend ScopeCount = array_length(Scope)
+  | project-away Scopes
+  | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserDisplayName
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

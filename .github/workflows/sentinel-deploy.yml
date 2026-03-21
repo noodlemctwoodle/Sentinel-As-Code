@@ -17,6 +17,7 @@
 #   SENTINEL_RESOURCE_GROUP   - Resource Group name
 #   SENTINEL_WORKSPACE_NAME   - Log Analytics workspace name
 #   SENTINEL_REGION           - Azure region (e.g., uksouth)
+#   PLAYBOOK_RESOURCE_GROUP   - (Optional) Resource Group for playbooks, defaults to SENTINEL_RESOURCE_GROUP
 #
 # Authentication: Uses OIDC (federated credentials) by default.
 # ---------------------------------------------------------------------------
@@ -62,7 +63,7 @@ on:
       solutions:
         description: "Content Hub: Solutions (comma-separated)"
         type: string
-        default: "Microsoft Defender XDR,Azure Activity"
+        default: "Microsoft Defender XDR,Azure Activity,Microsoft Entra ID,Microsoft Defender for Cloud,Microsoft 365,Microsoft Defender for Endpoint,Windows Security Events,Threat Intelligence (New),UEBA Essentials"
       severities_to_include:
         description: "Content Hub: Analytics Rule Severities"
         type: string
@@ -93,8 +94,12 @@ on:
         default: false
 
       # ── Custom Content (Stage 4) ─────────────────────────────────────
+      skip_custom_parsers:
+        description: "Custom: Skip KQL Parsers/Functions"
+        type: boolean
+        default: false
       skip_custom_detections:
-        description: "Custom: Skip Detections (YAML)"
+        description: "Custom: Skip Analytical Rules (YAML)"
         type: boolean
         default: false
       skip_custom_watchlists:
@@ -123,6 +128,10 @@ on:
         default: false
 
       # ── General ──────────────────────────────────────────────────────
+      smart_deployment:
+        description: "Smart Deploy: only deploy changed/failed content"
+        type: boolean
+        default: true
       what_if:
         description: "Dry Run: preview changes without applying"
         type: boolean
@@ -229,6 +238,77 @@ jobs:
                 retentionInDays=${{ inputs.retention_in_days || 90 }} \
                 totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }}
 
+      - name: Wait for Workspace Indexing
+        shell: pwsh
+        run: |
+          Write-Host "Waiting 60 seconds for Log Analytics workspace to become queryable..."
+          Start-Sleep -Seconds 60
+          Write-Host "Done."
+
+      - name: Configure Sentinel Settings
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $token = (Get-AzAccessToken -ResourceUrl "https://management.azure.com" -WarningAction SilentlyContinue)
+            if ($token.Token -is [System.Security.SecureString]) {
+                $accessToken = $token.Token | ConvertFrom-SecureString -AsPlainText
+            } else {
+                $accessToken = $token.Token
+            }
+            $headers = @{
+                Authorization  = "Bearer $accessToken"
+                'Content-Type' = 'application/json'
+            }
+            $baseUri = "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}"
+            $api = "api-version=2024-01-01-preview"
+
+            $settings = @(
+                @{ name = 'Anomalies';       body = @{ kind = 'Anomalies';       etag = $null; properties = @{} } }
+                @{ name = 'EyesOn';          body = @{ kind = 'EyesOn';          etag = $null; properties = @{} } }
+                @{ name = 'EntityAnalytics'; body = @{ kind = 'EntityAnalytics'; etag = $null; properties = @{ entityProviders = @('AzureActiveDirectory') } } }
+                @{ name = 'Ueba';            body = @{ kind = 'Ueba';            etag = $null; properties = @{ dataSources = @('AuditLogs','AzureActivity','SigninLogs','SecurityEvent') } } }
+            )
+
+            foreach ($s in $settings) {
+                $uri = "$baseUri/providers/Microsoft.SecurityInsights/settings/$($s.name)?$api"
+                # GET current setting to retrieve etag
+                try {
+                    $getHeaders = @{ Authorization = "Bearer $accessToken" }
+                    $current = Invoke-RestMethod -Uri $uri -Method Get -Headers $getHeaders
+                    if ($current.etag) { $s.body['etag'] = $current.etag }
+                } catch {}
+
+                $json = $s.body | ConvertTo-Json -Depth 5
+
+                $putHeaders = @{
+                    Authorization  = "Bearer $accessToken"
+                    'Content-Type' = 'application/json'
+                    'If-Match'     = if ($s.body.etag) { $s.body.etag } else { '*' }
+                }
+
+                try {
+                    Invoke-RestMethod -Uri $uri -Method Put -Headers $putHeaders -Body $json | Out-Null
+                    Write-Host "Configured: $($s.name)"
+                }
+                catch {
+                    $errorBody = $null
+                    if ($_.Exception.Response) {
+                        try {
+                            $stream = $_.Exception.Response.GetResponseStream()
+                            $reader = [System.IO.StreamReader]::new($stream)
+                            $errorBody = $reader.ReadToEnd()
+                            $reader.Close()
+                        } catch {}
+                    }
+                    if ($errorBody) {
+                        Write-Warning "Failed to configure $($s.name): $($_.Exception.Message) — $errorBody"
+                    } else {
+                        Write-Warning "Failed to configure $($s.name): $($_.Exception.Message)"
+                    }
+                }
+            }
+
   # ===========================================================================
   # Stage 3: Deploy Content Hub
   # ===========================================================================
@@ -294,6 +374,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # Smart deployment needs parent commit for git diff
+
+      - name: Restore Deployment State
+        uses: actions/cache/restore@v4
+        continue-on-error: true
+        with:
+          path: ${{ github.workspace }}/.deployment-state.json
+          key: deployment-state-${{ env.WORKSPACE_NAME }}-
+          restore-keys: |
+            deployment-state-${{ env.WORKSPACE_NAME }}-
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -320,16 +411,29 @@ jobs:
                 BasePath       = "${{ github.workspace }}"
             }
 
-            if ("${{ inputs.skip_custom_detections }}" -eq "true")        { $scriptParams['SkipDetections']      = $true }
+            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
+            if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
+
+            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']         = $true }
+            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']      = $true }
             if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']     = $true }
             if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
             if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
             if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
             if ("${{ inputs.skip_custom_automation_rules }}" -eq "true") { $scriptParams['SkipAutomationRules']= $true }
             if ("${{ inputs.skip_custom_summary_rules }}" -eq "true")   { $scriptParams['SkipSummaryRules']   = $true }
+            if ("${{ inputs.smart_deployment }}" -ne "false")            { $scriptParams['SmartDeployment']    = $true }
             if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
 
             & "${{ github.workspace }}/Scripts/Deploy-CustomContent.ps1" @scriptParams
+
+      - name: Save Deployment State
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.deployment-state.json
+          key: deployment-state-${{ env.WORKSPACE_NAME }}-${{ github.run_id }}
 
   # ===========================================================================
   # Stage 5: Deploy Defender XDR Custom Detections

@@ -1,0 +1,50 @@
+id: 8c047697-ad35-4d9b-97b5-008a5d51c3e9
+name: Azure break glass account authenticated in the portal
+description: |
+  'The Break Glass Accounts identified in the Watchlist 'breakGlassAccounts' has authenticated in the platform.
+
+  Emergency access accounts are highly privileged, and they are not assigned to specific individuals. Emergency access accounts are limited to emergency or "break glass"' scenarios where normal administrative accounts can't be used. We recommend that you maintain a goal of restricting emergency account use to only the times when it is absolutely necessary.
+
+  REQUIRES WATCHLIST = "breakGlassAccounts"'
+severity: High
+kind: NRT
+version: 1.0.0
+status: Available
+tactics:
+  - InitialAccess
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SignInLogs
+query: |
+  let breakGlassAccounts = _GetWatchlist('breakGlassAccounts') | summarize by UserPrincipalName, UserId;
+  SigninLogs
+  | where UserId in (breakGlassAccounts)
+      or UserPrincipalName in (breakGlassAccounts)
+  | extend county = tostring(LocationDetails.state)
+      , city = tostring(LocationDetails.city)
+  | summarize arg_max(TimeGenerated, 1m)
+      by UserPrincipalName
+      , AppDisplayName
+      , IPAddress
+      , City = city
+      , Region = Location
+      , OS = tostring(DeviceDetail.operatingSystem)
+      , Browser = tostring(DeviceDetail.browser)
+  | project-away max_TimeGenerated_arg1
+  | project-reorder TimeGenerated
+  | sort by TimeGenerated
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress

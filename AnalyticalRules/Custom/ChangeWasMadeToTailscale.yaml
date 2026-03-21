@@ -1,0 +1,51 @@
+id: 2dedd20f-2951-41b8-9727-1baf4c26a4a7
+name: Testing - A change was made to Tailscale
+description: "The alert rule was disabled due to too many consecutive failures. Reason: A table referenced in the query was not found. Verify that the relevant data source is connected. A change was made to Tailscale"
+severity: Medium
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+  - Impact
+  - Persistence
+techniques:
+  - T1562
+  - T1562.001
+  - T1562.004
+  - T1485
+  - T1565
+  - T1565.001
+requiredDataConnectors:
+  - connectorId: YourConnectorId
+    dataTypes:
+      - YourDataType
+query: |-
+  TailscaleAudit_CL
+  | where Action has_any ("ENABLE", "DISABLE")
+  | extend Origin = tolower(replace_string(Origin, '_', ' '))
+  , TargetProperty = tolower(replace_string(TargetProperty, '_', ' '))
+  | project EventTime, ActorLoginName, Origin, TargetProperty, TargetType
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: ActorLoginName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

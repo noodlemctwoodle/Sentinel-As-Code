@@ -1,0 +1,6 @@
+{
+  "displayName": "pfSense Firewall",
+  "description": "Firewall monitoring workbook for pfSense and OPNsense showing traffic flows, blocked connections, GeoIP analysis, and rule activity.",
+  "category": "Network",
+  "sourceId": "PfSense"
+}

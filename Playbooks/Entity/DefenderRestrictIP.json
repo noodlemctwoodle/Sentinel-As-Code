@@ -1,0 +1,176 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "title": "Entity-DefenderRestrictIP",
+        "description": "Add a IP Address to Defender XDR Indicators",
+        "lastUpdateTime": "31-07-2024",
+        "entities": [],
+        "tags": [],
+        "support": {
+            "tier": "community"
+        },
+        "author": {
+            "name": "noodlemctwoodle"
+        }
+    },
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Entity-DefenderRestrictIP",
+            "type": "string"
+        },
+        "AutomationResourceGroup": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "SentinelWorkpaceName": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+    },
+    "resources": [
+        {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Microsoft_Sentinel_entity_(IP)": {
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                                    }
+                                },
+                                "body": {
+                                    "callback_url": "@{listCallbackUrl()}"
+                                },
+                                "path": "/entity/@{encodeURIComponent('IP')}"
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Condition": {
+                            "actions": {
+                                "Module-AddSentinelComment": {
+                                    "type": "Workflow",
+                                    "inputs": {
+                                        "host": {
+                                            "workflow": {
+                                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                                            },
+                                            "triggerName": "When_a_HTTP_request_is_received"
+                                        },
+                                        "body": {
+                                            "SentinelComment": "An AlertAndBlock request has been sent to the security centre API for the IP address@{triggerBody()?['Entity']?['properties']?['Address']} . Note that the expiration time for this request is 90 days.
+HTTP Response of AlertAndBlock request:",
+                                            "IncidentARMId": "@triggerBody()?['IncidentArmID']"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Module-DefenderRestrictIP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {}
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "not": {
+                                            "equals": [
+                                                "@triggerBody()?['IncidentArmID']",
+                                                "@null"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Module-DefenderRestrictIP": {
+                            "runAfter": {},
+                            "type": "Workflow",
+                            "inputs": {
+                                "host": {
+                                    "workflow": {
+                                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-DefenderRestrictIP')]"
+                                    },
+                                    "triggerName": "When_a_HTTP_request_is_received"
+                                },
+                                "body": {
+                                    "playbookName": "Entity-DefenderRestrictIP",
+                                    "incidentArmId": "@triggerBody()?['IncidentArmID']",
+                                    "indicatorValue": "@triggerBody()?['Entity']?['properties']?['Address']",
+                                    "entityProperties": "@{triggerBody()?['Entity']?['properties']}"
+                                }
+                            }
+                        }
+                    }
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuresentinel_1": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
+                                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "name": "[parameters('PlaybookName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Source": "Sentinel-As-Code",
+                "hidden-SentinelWorkspaceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/microsoft.OperationalInsights/Workspaces/', parameters('SentinelWorkpaceName'))]",
+                "hidden-SentinelTemplateName": "Entity-DefenderRestrictIP",
+                "hidden-SentinelTemplateVersion": "1.0"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "apiVersion": "2017-07-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('MicrosoftSentinelConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "V1",
+            "properties": {
+                "displayName": "[variables('MicrosoftSentinelConnectionName')]",
+                "customParameterValues": {},
+                "parameterValueType": "Alternative",
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+                }
+            }
+        }
+    ]
+}

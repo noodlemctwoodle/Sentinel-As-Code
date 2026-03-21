@@ -1,0 +1,37 @@
+id: "b209a1b2-c3d4-4e5f-6071-829304152637"
+name: "PowerShell security group cloning detection"
+description: "Detects security group cloning by identifying PowerShell-driven group creation, member addition, and group enumeration events in both Entra audit logs and Microsoft Graph API activity."
+query: |
+  // This module clones a group while incorporating a user into it. The process involves several steps:
+
+  // Initially, the module identifies all available groups.
+  // Subsequently, it queries each group individually to gather information about its members.
+  // Afterward, you can select a group to clone, and the module will replicate it.
+  // Finally, it offers the option to add you or other members to the newly cloned group.
+  // In our example, we had five groups available. We decided to clone one of them and added the current user. This series of actions resulted in the following chain of events:
+
+  // In addition there were two events triggered in the Entra Audit log. These events indicate the creation of a new group followed by the addition of a member to the newly created group.
+
+
+  // Detect creation of group
+  AuditLogs
+  | where AdditionalDetails[0].value contains "PowerShell"
+  | where (OperationName == "Add member to group" or OperationName == "Add group")
+
+  // Detect Graph Activity related to security groups cloning
+  MicrosoftGraphActivityLogs
+  | where UserAgent contains "PowerShell"
+  | where RequestUri has_all("https://graph.microsoft.com/v1.0/groups/", "/members/$ref")
+      or RequestUri has_all("https://graph.microsoft.com/v1.0/groups", "/members")
+      or RequestUri == "https://graph.microsoft.com/v1.0/groups?=securityEnabled%20eq%20true"
+      or RequestUri == "https://graph.microsoft.com/v1.0/me"
+  | extend GroupObjectId = tostring(extract(@"groups/(.*?)/members", 1, RequestUri))
+  | join kind = leftouter AADNonInteractiveUserSignInLogs
+      on $left.SignInActivityId == $right.UniqueTokenIdentifier
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+techniques:
+  - T1098
+  - T1136.003
+  - T1069.003

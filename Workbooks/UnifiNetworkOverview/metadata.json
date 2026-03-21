@@ -1,0 +1,6 @@
+{
+  "displayName": "UniFi Network Overview",
+  "description": "Network overview workbook for Ubiquiti UniFi environments showing device status, client connections, and network health.",
+  "category": "Network",
+  "sourceId": "UnifiNetworkOverview"
+}

@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "TorExitNodes",
+  "displayName": "Tor Exit Nodes",
+  "description": "Known Tor network exit node IP addresses. Automatically populated by the Watchlist/TorExitNodes playbook. Used by detection rules to identify traffic originating from the Tor network.",
+  "provider": "Custom",
+  "itemsSearchKey": "TorExitNodes"
+}

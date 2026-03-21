@@ -1,0 +1,16 @@
+id: "186fa7b8-2930-4415-2637-485960718293"
+name: "pfSense geo-destination country summary"
+description: "Identifies network traffic destination countries by summarizing geo-location data from pfSense firewall logs over the last 24 hours to detect unusual geographic communication patterns."
+query: |
+  // Count of Geo Destination Countries
+  pfsense_logstash_CL
+  | where TimeGenerated > ago(1d)
+  | where isnotempty(destination_geo_country_name_s)
+  | extend country = destination_geo_country_name_s
+  | summarize count() by country
+tactics:
+  - CommandAndControl
+  - Exfiltration
+techniques:
+  - T1071
+  - T1048

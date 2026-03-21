@@ -1,0 +1,49 @@
+id: "e53c4d5e-6f70-4819-2031-42536475809a"
+name: "Device code phishing correlation detection"
+description: "Detects device code phishing attacks by correlating browser and device code sign-ins for the same user within 20 minutes, flagging mismatches in IP address, location, and user agent."
+query: |
+  UnifiedSignInLogs
+  | where ClientAppUsed == "Browser"
+  | project BrowserSignInTime = TimeGenerated, UserId, UserPrincipalName, BrowserIPAddress = IPAddress,
+      BrowserCity = tostring(LocationDetails.city),
+      BrowserCountry = tostring(LocationDetails.countryOrRegion),
+      BrowserLocation = strcat(tostring(LocationDetails.countryOrRegion), ", ", tostring(LocationDetails.city)), BrowserUserAgent = UserAgent
+  | join kind=inner (
+      UnifiedSignInLogs
+      | where AuthenticationProtocol == "deviceCode"
+      | project DeviceCodeSignInTime = TimeGenerated, UserId, UserPrincipalName, DeviceDetail, DeviceIPAddress = IPAddress, AppDisplayName,
+          DeviceCity = tostring(LocationDetails.city),
+          DeviceCountry = tostring(LocationDetails.countryOrRegion),
+          DeviceLocation = strcat(tostring(LocationDetails.countryOrRegion), ", ", tostring(LocationDetails.city)),
+          DeviceUserAgent = tostring(UserAgent),
+          ResultType
+  ) on UserId
+  | extend TimeDiffMinutes = datetime_diff('minute', DeviceCodeSignInTime, BrowserSignInTime)
+  | where TimeDiffMinutes between (0 .. 20) // Look for device code sign-ins within 60 minutes after a browser sign-in
+  | project
+      UserId,
+      UserPrincipalName,
+      BrowserSignInTime,
+      BrowserIPAddress,
+      BrowserLocation,
+      BrowserUserAgent,
+      DeviceCodeSignInTime,
+      DeviceIPAddress,
+      DeviceLocation,
+      DeviceUserAgent,
+      TimeDiffMinutes,
+      DeviceDetail,
+      AppDisplayName,
+      ResultType
+  | extend IPMatch = iff(BrowserIPAddress == DeviceIPAddress, "Same", "Different"),
+           LocationMatch = iff(tostring(BrowserLocation) == tostring(DeviceLocation), "Same", "Different"),
+           UserAgentMatch = iff(tostring(BrowserUserAgent) == tostring(DeviceUserAgent), "Same", "Different")
+  | where IPMatch == "Different" and LocationMatch == "Different" and UserAgentMatch == "Different"
+  | order by TimeDiffMinutes asc
+tactics:
+  - InitialAccess
+  - CredentialAccess
+techniques:
+  - T1528
+  - T1566
+  - T1078.004

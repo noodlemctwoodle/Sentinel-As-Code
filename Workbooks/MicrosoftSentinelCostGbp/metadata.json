@@ -1,0 +1,6 @@
+{
+  "displayName": "Microsoft Sentinel Cost (GBP)",
+  "description": "Cost analysis workbook for Microsoft Sentinel showing data ingestion volumes, billable tables, and estimated costs in British Pounds.",
+  "category": "Sentinel",
+  "sourceId": "MicrosoftSentinelCostGbp"
+}

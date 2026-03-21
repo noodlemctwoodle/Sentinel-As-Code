@@ -1,0 +1,52 @@
+id: 7bfdf8f9-237e-4c44-be98-ea3d751edcd2
+name: Bumblebee stings with ransomware - Living-off-the-land-binary technique for DLL execution
+description: |
+  'https://security.microsoft.com/threatanalytics3/048e866a-0a92-47b8-94ac-c47fe577cc33/analystreport
+
+  Looks for command line utilized for execution of rsp file which leads to execution of DLL using regsvr32. Here adversaries abuse odbcconf.exe to bypass application control solutions for DLL execution'
+severity: High
+kind: Scheduled
+version: 1.0.0
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Execution
+  - Persistence
+  - DefenseEvasion
+  - LateralMovement
+techniques:
+  - T1569
+  - T1569.002
+  - T1554
+  - T1211
+  - T1059
+  - T1059.003
+  - T1218
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderforEndpoints
+    dataTypes:
+      - DeviceProcessEvents
+query: |
+  DeviceProcessEvents
+  | where ProcessCommandLine has_all ("odbcconf",".rsp","-f")
+entityMappings:
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: ProcessCommandLine
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: false
+suppressionDuration: PT5H

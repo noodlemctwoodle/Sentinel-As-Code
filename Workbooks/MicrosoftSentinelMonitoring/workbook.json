@@ -1,0 +1,344 @@
+{
+    "version": "Notebook/1.0",
+    "items": [
+      {
+        "type": 9,
+        "content": {
+          "version": "KqlParameterItem/1.0",
+          "crossComponentResources": [
+            "{Workspace}"
+          ],
+          "parameters": [
+            {
+              "id": "4f3a930b-1a32-4892-b26c-6077e404a741",
+              "version": "KqlParameterItem/1.0",
+              "name": "DefaultSubscription_Internal",
+              "type": 1,
+              "isRequired": true,
+              "query": "where type =~ 'microsoft.operationalinsights/workspaces'\r\n| take 1\r\n| project subscriptionId",
+              "crossComponentResources": [
+                "value::selected"
+              ],
+              "isHiddenWhenLocked": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources"
+            },
+            {
+              "id": "1ca69445-60fc-4806-b43d-ac7e6aad630a",
+              "version": "KqlParameterItem/1.0",
+              "name": "Subscription",
+              "type": 6,
+              "query": "summarize by subscriptionId\r\n| project value = strcat(\"/subscriptions/\", subscriptionId), label = subscriptionId, selected = iff(subscriptionId =~ '{DefaultSubscription_Internal}', true, false)\r\n",
+              "crossComponentResources": [
+                "value::selected"
+              ],
+              "typeSettings": {
+                "showDefault": false
+              },
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "label": "☁️ Subscription"
+            },
+            {
+              "id": "e94aafa3-c5d9-4523-89f0-4e87aa754511",
+              "version": "KqlParameterItem/1.0",
+              "name": "Workspace",
+              "label": "🗂️ Workspace",
+              "type": 5,
+              "isRequired": true,
+              "query": "resources\n| where type =~ 'microsoft.operationalinsights/workspaces' \n//| where subscriptionId == '{Subscription:id}'\n| project id",
+              "crossComponentResources": [
+                "{Subscription}"
+              ],
+              "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/your-resource-group/providers/Microsoft.OperationalInsights/workspaces/your-workspace",
+              "typeSettings": {
+                "resourceTypeFilter": {
+                  "microsoft.operationalinsights/workspaces": true
+                }
+              },
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources"
+            },
+            {
+              "id": "eafaa0ec-7c3a-4ee5-babe-9850080c909d",
+              "version": "KqlParameterItem/1.0",
+              "name": "resourceGroup",
+              "label": "Resource Group",
+              "type": 1,
+              "query": "resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| where id == \"{Workspace}\"\r\n| project resourceGroup",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources"
+            },
+            {
+              "id": "c4b69c01-2263-4ada-8d9c-43433b739ff3",
+              "version": "KqlParameterItem/1.0",
+              "name": "TimeRange",
+              "type": 4,
+              "value": {
+                "durationMs": 172800000
+              },
+              "typeSettings": {
+                "selectableValues": [
+                  {
+                    "durationMs": 300000
+                  },
+                  {
+                    "durationMs": 900000
+                  },
+                  {
+                    "durationMs": 1800000
+                  },
+                  {
+                    "durationMs": 3600000
+                  },
+                  {
+                    "durationMs": 14400000
+                  },
+                  {
+                    "durationMs": 43200000
+                  },
+                  {
+                    "durationMs": 86400000
+                  },
+                  {
+                    "durationMs": 172800000
+                  },
+                  {
+                    "durationMs": 259200000
+                  },
+                  {
+                    "durationMs": 604800000
+                  },
+                  {
+                    "durationMs": 1209600000
+                  },
+                  {
+                    "durationMs": 2419200000
+                  },
+                  {
+                    "durationMs": 2592000000
+                  },
+                  {
+                    "durationMs": 5184000000
+                  },
+                  {
+                    "durationMs": 7776000000
+                  }
+                ],
+                "allowCustom": true
+              },
+              "label": "⏱️ Time Range"
+            },
+            {
+              "id": "79bbec8c-8253-41b5-83ce-6e48d5c43101",
+              "version": "KqlParameterItem/1.0",
+              "name": "SentinelPrice",
+              "label": "Sentinel Price",
+              "type": 2,
+              "description": "Select a value for Sentinel Data cost",
+              "query": "datatable(Region: string, Price: string)\n[\n    \"UK West\", \"4.59\",\n    \"UK South\", \"4.39\"\n]",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "typeSettings": {
+                "additionalResourceOptions": [],
+                "showDefault": false
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "value": "UK South"
+            }
+          ],
+          "style": "above",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "name": "parameters - 1"
+      },
+      {
+        "type": 11,
+        "content": {
+          "version": "LinkItem/1.0",
+          "style": "tabs",
+          "links": [
+            {
+              "id": "4df9243a-749d-4698-98f6-188e0b687e13",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "🔍 Log Data",
+              "subTarget": "logData",
+              "style": "link"
+            },
+            {
+              "id": "ffceb6e6-3756-466e-860b-c017f0421e9f",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "💰 Data Connectors",
+              "subTarget": "dataConnectors",
+              "style": "link"
+            },
+            {
+              "id": "25b0dfdf-9de1-4a16-b66f-c5b3822c8018",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "🔒 Data Collection",
+              "subTarget": "dcr",
+              "style": "link"
+            },
+            {
+              "id": "f43799bc-9001-428d-a18b-b8be2df27a5e",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": " 🦾 Playbooks",
+              "subTarget": "playbooks",
+              "style": "link"
+            }
+          ]
+        },
+        "name": "links - 19"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "  let lastWeekStart = ago(14d); \n  let lastWeekEnd = ago(7d); \n  let thisWeekStart = ago(7d); \n  let thisWeekEnd = ago(0d); \n  Usage\n  | where IsBillable == true\n  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  | union (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize DataTypes = make_set(DataType)\n      | mv-expand DataTypes\n      | where DataTypes !in (( \n          Usage\n          | where IsBillable == true\n          | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n          | summarize DataTypes = make_set(DataType)\n          | mv-expand DataTypes\n      ))\n      | project DataType = DataTypes, LastWeekSize = 0\n  )\n  | extend DataType = strcat(DataType_string, DataType_dynamic)\n  | join kind=leftouter (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize ThisWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  ) on DataType\n  | extend LastWeekSize = toreal(strcat(LastWeekSize_long, LastWeekSize_real))\n  | project DataType, LastWeekSize = round(toreal(LastWeekSize), 5), ThisWeekSize = round(toreal(ThisWeekSize), 5),\n      ['Size Change %'] = \n          case(\n              LastWeekSize == 0 and ThisWeekSize > 0, \n              toreal(100), // 100% increase if LastWeekSize was 0 and ThisWeekSize is greater than 0\n              LastWeekSize > 0 and ThisWeekSize / LastWeekSize > 10, \n              toreal(100), // Cap at 1000% if the change is more than 10 times\n              round((ThisWeekSize - LastWeekSize) / LastWeekSize * 100, 0)\n          ) \n  | order by abs(['Size Change %']) desc\n  | where ['Size Change %'] > 50",
+          "size": 1,
+          "title": "Data ingestion above average for last 7d",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "logData"
+        },
+        "customWidth": "50",
+        "name": "DataIngestionAboveAverage"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "  let lastWeekStart = ago(14d); \n  let lastWeekEnd = ago(7d); \n  let thirtyDaysStart = ago(30d);\n  let thirtyDaysEnd = ago(0d);\n  let averageIngestionLast30Days = toscalar(\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thirtyDaysStart and TimeGenerated < thirtyDaysEnd\n      | summarize avg(Quantity) / toreal(round(1024,-3))\n  );\n  Usage\n  | where IsBillable == true\n  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  | extend LastWeekSize = toreal(LastWeekSize)\n  | extend PercentageBelowAverage = iif(LastWeekSize < averageIngestionLast30Days, round((LastWeekSize / averageIngestionLast30Days) * 100, 2), 0.0)\n  | project DataType, LastWeekSize, PercentageBelowAverage\n  | where PercentageBelowAverage > 0",
+          "size": 0,
+          "title": "Data ingestion below average for last 30d",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "logData"
+        },
+        "customWidth": "50",
+        "name": "DataIngestionBelowAverage"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "  let lastWeekStart = ago(14d); \n  let lastWeekEnd = ago(7d); \n  let thisWeekStart = ago(7d); \n  let thisWeekEnd = ago(0d); \n  Usage\n  | where IsBillable == true\n  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  | union (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize DataTypes = make_set(DataType)\n      | mv-expand DataTypes\n      | where DataTypes !in (( \n          Usage\n          | where IsBillable == true\n          | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n          | summarize DataTypes = make_set(DataType)\n          | mv-expand DataTypes\n      ))\n      | project DataType = DataTypes, LastWeekSize = 0\n  )\n  | extend DataType = strcat(DataType_string, DataType_dynamic)\n  | join kind=leftouter (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize ThisWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  ) on DataType\n  | extend LastWeekSize = toreal(strcat(LastWeekSize_long, LastWeekSize_real))\n  | project DataType, LastWeekSize = round(toreal(LastWeekSize), 5), ThisWeekSize = round(toreal(ThisWeekSize), 5),\n      ['Size Change %'] = \n          case(\n              LastWeekSize == 0 and ThisWeekSize > 0, \n              toreal(100), // 100% increase if LastWeekSize was 0 and ThisWeekSize is greater than 0\n              LastWeekSize > 0 and ThisWeekSize / LastWeekSize > 10, \n              toreal(100), // Cap at 1000% if the change is more than 10 times\n              round((ThisWeekSize - LastWeekSize) / LastWeekSize * 100, 0)\n          ) \n  | order by abs(['Size Change %']) desc\n  | where LastWeekSize > 0 and ThisWeekSize == 0",
+          "size": 0,
+          "title": "Data Ingestion Missing",
+          "noDataMessage": "No Data has been detected as missing",
+          "noDataMessageStyle": 3,
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "logData"
+        },
+        "customWidth": "50",
+        "name": "DataIngestionMissing"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "let SentinelRG = tolower('{resourceGroup}');\nAzureActivity\n| where OperationNameValue has \"DATACONNECTORS/WRITE\"\n    and ActivityStatusValue has \"Start\"\n    and tolower(ResourceGroup) == SentinelRG\n| extend DataConnector = tostring(split(tostring(parse_json(Properties).entity), \"/\")[12])\n| extend RBACRole = tostring(parse_json(tostring(Authorization_d.evidence)).role)\n| summarize DataConnectors = make_set(DataConnector) by format_datetime(bin(TimeGenerated, 1d), \"dd/MM/yyyy\") , Caller, RBACRole, CallerIpAddress",
+          "size": 0,
+          "title": "New Data Connectors",
+          "timeContextFromParameter": "TimeRange",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "crossComponentResources": [
+            "{Workspace}"
+          ]
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "dataConnectors"
+        },
+        "customWidth": "50",
+        "name": "NewDataConnectors"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "  let lastWeekStart = ago(14d); \n  let lastWeekEnd = ago(7d); \n  let thisWeekStart = ago(7d); \n  let thisWeekEnd = ago(0d);\n  let SentinelRG = \"your-resource-group\";\n  let newDataConnector =\n    // New Sentinel Data Connector\n    AzureActivity\n    | where OperationNameValue has \"DATACONNECTORS/WRITE\"\n        and ActivityStatusValue has \"Start\"\n        and ResourceGroup == SentinelRG\n    | extend DataConnector = tostring(split(tostring(parse_json(Properties).entity), \"/\")[12])\n    | summarize DataConnectors = make_set(DataConnector);\n  Usage\n  | where IsBillable == true\n  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  | union (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize DataTypes = make_set(DataType)\n      | mv-expand DataTypes\n      | where DataTypes !in (( \n          Usage\n          | where IsBillable == true\n          | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n          | summarize DataTypes = make_set(DataType)\n          | mv-expand DataTypes\n      ))\n      | project DataType = DataTypes, LastWeekSize = 0\n  )\n  | extend DataType = strcat(DataType_string, DataType_dynamic)\n  | join kind=leftouter (\n      Usage\n      | where IsBillable == true\n      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd \n      | summarize ThisWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n  ) on DataType\n  | extend LastWeekSize = toreal(strcat(LastWeekSize_long, LastWeekSize_real))\n  | project DataType, LastWeekSize = round(toreal(LastWeekSize), 5), ThisWeekSize = round(toreal(ThisWeekSize), 5),\n      ['Size Change %'] = \n          case(\n              LastWeekSize == 0 and ThisWeekSize > 0, \n              toreal(100), // 100% increase if LastWeekSize was 0 and ThisWeekSize is greater than 0\n              LastWeekSize > 0 and ThisWeekSize / LastWeekSize > 10, \n              toreal(100), // Cap at 1000% if the change is more than 10 times\n              round((ThisWeekSize - LastWeekSize) / LastWeekSize * 100, 0)\n          ) \n  | order by abs(['Size Change %']) desc\n  | where ['Size Change %'] > 50\n  | where LastWeekSize == 0 and ThisWeekSize > 0\n  | where DataType in (newDataConnector)",
+          "size": 0,
+          "title": "New Data Connector Logs",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "dataConnectors"
+        },
+        "customWidth": "50",
+        "name": "NewDataConnectorLogs"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "// New DCR\nAzureActivity\n| where OperationNameValue has \"DATACOLLECTIONRULES/WRITE\"\n    and ActivitySubstatusValue has \"OK\"\n| extend DCR_Name = tostring(parse_json(Properties).resource)\n| extend DCR_RG = tostring(parse_json(Properties).resourceGroup)\n| extend DCR_Sub = tostring(parse_json(Properties).subscriptionId)\n| extend RBAC_Role = tostring(parse_json(tostring(Authorization_d.evidence)).role)\n| summarize by format_datetime(bin(TimeGenerated, 1d), \"dd/MM/yyyy\") , DCR_Name, DCR_RG, DCR_Sub, Caller, RBAC_Role, CallerIpAddress",
+          "size": 0,
+          "title": "New DCR Created",
+          "timeContext": {
+            "durationMs": 86400000
+          },
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "dcr"
+        },
+        "customWidth": "50",
+        "name": "NewDCRCreated"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureActivity\n| where OperationNameValue has \"DATACOLLECTIONRULEASSOCIATIONS/WRITE\"\n    and ActivitySubstatusValue has \"OK\"\n| extend Resources = split(tostring(Properties_d.resource), \"/\")\n| extend Source = toupper(Resources[0])\n| extend SourceRG = tostring(Properties_d.resourceGroup)\n| extend DCR = toupper(split(Resources[2], \"-association\")[0])\n| summarize by format_datetime(bin(TimeGenerated, 1d), \"dd/MM/yyyy\") , Source, SourceRG, DCR, Caller, CallerIpAddress",
+          "size": 0,
+          "title": "New DCR Source Added",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "dcr"
+        },
+        "customWidth": "50",
+        "name": "NewDCRSourceAdded"
+      }
+    ],
+    "fallbackResourceIds": [
+      "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace"
+    ],
+    "fromTemplateId": "sentinel-UserWorkbook",
+    "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+  }

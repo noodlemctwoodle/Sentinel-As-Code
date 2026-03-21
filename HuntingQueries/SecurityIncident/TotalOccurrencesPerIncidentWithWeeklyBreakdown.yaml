@@ -1,0 +1,32 @@
+id: "a1f8091a-2b3c-44d5-e6f7-081920314253"
+name: "Total incident occurrences with weekly breakdown"
+description: "Identifies persistent and sporadic threats by summarizing total incident occurrences, active weeks, and detailed weekly breakdowns for each incident type over 60 days."
+query: |
+  // Provides a comprehensive summary of incident patterns showing total occurrences, active weeks,
+  // and detailed weekly breakdown for each incident type to identify persistent and sporadic threats
+
+  SecurityIncident
+  | where TimeGenerated >= ago(60d)
+  | extend WeekStart = startofweek(TimeGenerated)
+  | summarize
+      WeeklyCount = count()
+      by Title, WeekStart
+  | summarize
+      TotalOccurrences = sum(WeeklyCount),
+      WeeklyBreakdown = make_bag(pack(tostring(WeekStart), WeeklyCount)),
+      FirstWeek = min(WeekStart),
+      LastWeek = max(WeekStart),
+      WeeksActive = dcount(WeekStart)
+      by Title
+  | order by TotalOccurrences desc
+  | project
+      IncidentTitle = Title,
+      TotalCount = TotalOccurrences,
+      WeeksActive,
+      FirstSeen = format_datetime(FirstWeek, "yyyy-MM-dd"),
+      LastSeen = format_datetime(LastWeek, "yyyy-MM-dd"),
+      WeeklyBreakdown
+tactics:
+  - Collection
+techniques:
+  - T1530

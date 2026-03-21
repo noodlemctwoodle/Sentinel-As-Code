@@ -1,0 +1,1755 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "showHeader",
+            "version": "KqlParameterItem/1.0",
+            "name": "ShowHeader",
+            "type": 10,
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\": \"Yes\", \"label\": \"Yes\"}, {\"value\": \"No\", \"label\": \"No\"}]",
+            "value": "No",
+            "label": "🎨 Show Header"
+          },
+          {
+            "id": "showHelp",
+            "version": "KqlParameterItem/1.0",
+            "name": "ShowHelp",
+            "type": 10,
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\": \"Yes\", \"label\": \"Yes\"}, {\"value\": \"No\", \"label\": \"No\"}]",
+            "value": "No",
+            "label": "❓ Show Help"
+          },
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 259200000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ],
+              "allowCustom": true
+            },
+            "label": "⏱️ Time Range"
+          },
+          {
+            "id": "productLine",
+            "version": "KqlParameterItem/1.0",
+            "name": "ProductLine",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| distinct productLine\n| where isnotempty(productLine)\n| sort by productLine asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "label": "📦 Product Line"
+          },
+          {
+            "id": "siteFilter",
+            "version": "KqlParameterItem/1.0",
+            "name": "SiteFilter",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "UniFiSiteManager_Sites_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by siteId\n| extend siteName = tostring(meta.name)\n| project siteName, siteId\n| sort by siteName asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "label": "🌍 Site"
+          },
+          {
+            "id": "statusFilter",
+            "version": "KqlParameterItem/1.0",
+            "name": "StatusFilter",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| distinct status\n| where isnotempty(status)\n| sort by status asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "label": "🔘 Status"
+          }
+        ],
+        "style": "above",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "Parameters"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "# 🌐 UniFi Site Manager Dashboard\n\nComprehensive visibility into your UniFi network infrastructure. Monitor devices, hosts, sites, and ISP performance metrics collected via the UniFi Site Manager API.\n\n📊 **Data Sources:** `Devices` · `Hosts` · `Sites` · `ISP Metrics` | 👤 **Author:** [Fetch Labs](https://sentinel.blog) | 📦 **Version:** 2.0.0"
+      },
+      "conditionalVisibility": {
+        "parameterName": "ShowHeader",
+        "comparison": "isEqualTo",
+        "value": "Yes"
+      },
+      "name": "Header"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "overview-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📊 Overview",
+            "subTarget": "overview",
+            "style": "link"
+          },
+          {
+            "id": "devices-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📡 Devices",
+            "subTarget": "devices",
+            "style": "link"
+          },
+          {
+            "id": "firmware-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🔄 Firmware",
+            "subTarget": "firmware",
+            "style": "link"
+          },
+          {
+            "id": "hosts-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🏠 Hosts",
+            "subTarget": "hosts",
+            "style": "link"
+          },
+          {
+            "id": "sites-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🌍 Sites",
+            "subTarget": "sites",
+            "style": "link"
+          },
+          {
+            "id": "isp-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🌐 ISP Performance",
+            "subTarget": "isp",
+            "style": "link"
+          },
+          {
+            "id": "health-tab",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📋 Health",
+            "subTarget": "health",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "TabNavigation"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Overview Help\n\n| Section | Description |\n|:--------|:------------|\n| **Infrastructure at a Glance** | Real-time counts of devices, controllers, sites, and connected clients across your entire UniFi infrastructure. |\n| **Availability Score** | Overall device availability percentage. **Excellent** ≥99%, **Good** ≥95%, **Fair** ≥90%, **Poor** <90%. |\n| **ISP Health** | Average latency and uptime from your WAN connections. SLA target is 99.9% uptime. |\n| **Firmware Compliance** | Percentage of devices running the latest firmware. Devices with pending updates are flagged. |\n| **Connector Health** | Status of data ingestion from all four data connectors. Healthy = data received within 30 minutes. |\n| **Device Status Over Time** | Trend chart showing online/offline device counts over the selected time range. |\n| **Current Offline Devices** | List of devices not currently online, sorted by how long they've been offline. |\n\n> 💡 **Tip:** Use the filters above to narrow down by Product Line, Site, or Status."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "OverviewHelp"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let CurrentDevices = UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Total = count(), Online = countif(status == \"online\"), Offline = countif(status != \"online\"), Updates = countif(isnotempty(updateAvailable));\nlet CurrentHosts = UniFiSiteManager_Hosts_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Hosts = count();\nlet CurrentSites = UniFiSiteManager_Sites_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by siteId\n| summarize Sites = count();\nlet CurrentClients = UniFiSiteManager_Sites_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by siteId\n| extend wifi = toint(siteStatistics.counts.wifiClient), wired = toint(siteStatistics.counts.wiredClient)\n| summarize Clients = sum(wifi) + sum(wired);\nlet Data = CurrentDevices \n| extend Hosts = toscalar(CurrentHosts), Sites = toscalar(CurrentSites), Clients = toscalar(CurrentClients);\nData\n| project \n    Label = pack_array(\"Total Devices\", \"Online\", \"Offline\", \"Updates Pending\", \"Controllers\", \"Sites\", \"Connected Clients\"),\n    Value = pack_array(Total, Online, Offline, Updates, Hosts, Sites, Clients),\n    Icon = pack_array(\"📱\", \"🟢\", \"🔴\", \"⬆️\", \"🖥️\", \"🌍\", \"👥\")\n| mv-expand Label to typeof(string), Value to typeof(long), Icon to typeof(string)\n| extend Display = strcat(Icon, \" \", Label)",
+              "size": 4,
+              "title": "Infrastructure at a Glance",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Display",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "auto"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "useGrouping": true,
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "100",
+            "name": "InfrastructureSummaryTiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Total = count(), Online = countif(status == \"online\")\n| extend \n    Availability = round(100.0 * Online / Total, 2),\n    Status = case(100.0 * Online / Total >= 99, \"Excellent\", 100.0 * Online / Total >= 95, \"Good\", 100.0 * Online / Total >= 90, \"Fair\", \"Poor\")\n| project \n    Label = pack_array(\"Device Availability\", \"Status\"),\n    Value = pack_array(strcat(tostring(Availability), \"%\"), Status)\n| mv-expand Label to typeof(string), Value to typeof(string)",
+              "size": 4,
+              "title": "Availability Score",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Label",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 1
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "25",
+            "name": "AvailabilityScore"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    avgLatency = toint(period.data.wan.avgLatency),\n    uptime = todouble(period.data.wan.uptime)\n| summarize \n    AvgLatency = round(avg(avgLatency), 1),\n    AvgUptime = round(avg(uptime), 2)\n| project \n    Label = pack_array(\"Avg Latency\", \"ISP Uptime\"),\n    Value = pack_array(strcat(tostring(AvgLatency), \" ms\"), strcat(tostring(AvgUptime), \"%\"))\n| mv-expand Label to typeof(string), Value to typeof(string)",
+              "size": 4,
+              "title": "ISP Health",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Label",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 1
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "25",
+            "name": "ISPHealthTiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| summarize \n    Total = count(),\n    UpToDate = countif(isempty(updateAvailable)),\n    NeedsUpdate = countif(isnotempty(updateAvailable))\n| extend ComplianceRate = round(100.0 * UpToDate / Total, 1)\n| project \n    Label = pack_array(\"Compliance Rate\", \"Needs Update\"),\n    Value = pack_array(strcat(tostring(ComplianceRate), \"%\"), NeedsUpdate)\n| mv-expand Label to typeof(string), Value to typeof(string)",
+              "size": 4,
+              "title": "Firmware Compliance",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Label",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 1
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "25",
+            "name": "FirmwareComplianceTiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DevicesHealth = UniFiSiteManager_Devices_CL | where TimeGenerated > ago(1h) | summarize LastData = max(TimeGenerated) | extend Table = \"Devices\", Healthy = LastData > ago(30m);\nlet HostsHealth = UniFiSiteManager_Hosts_CL | where TimeGenerated > ago(1h) | summarize LastData = max(TimeGenerated) | extend Table = \"Hosts\", Healthy = LastData > ago(30m);\nlet SitesHealth = UniFiSiteManager_Sites_CL | where TimeGenerated > ago(1h) | summarize LastData = max(TimeGenerated) | extend Table = \"Sites\", Healthy = LastData > ago(30m);\nlet ISPHealth = UniFiSiteManager_ISPMetrics_CL | where TimeGenerated > ago(1h) | summarize LastData = max(TimeGenerated) | extend Table = \"ISP\", Healthy = LastData > ago(30m);\nunion DevicesHealth, HostsHealth, SitesHealth, ISPHealth\n| summarize HealthyCount = countif(Healthy), TotalCount = count()\n| extend Status = iff(HealthyCount == TotalCount, \"All Healthy\", strcat(TotalCount - HealthyCount, \" Issues\"))\n| project \n    Label = pack_array(\"Data Connectors\", \"Status\"),\n    Value = pack_array(strcat(tostring(HealthyCount), \"/\", tostring(TotalCount)), Status)\n| mv-expand Label to typeof(string), Value to typeof(string)",
+              "size": 4,
+              "title": "Connector Health",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Label",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 1
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "25",
+            "name": "ConnectorHealthTiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| extend HourBin = bin(TimeGenerated, 1h)\n| summarize arg_max(TimeGenerated, status) by id, HourBin\n| summarize \n    Online = countif(status == \"online\"),\n    Offline = countif(status == \"offline\"),\n    Updating = countif(status == \"updating\")\n    by HourBin\n| project TimeGenerated = HourBin, Online, Offline, Updating\n| order by TimeGenerated asc",
+              "size": 0,
+              "title": "Device Status Over Time",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "yAxis": [
+                  "Online",
+                  "Offline",
+                  "Updating"
+                ],
+                "showMetrics": true,
+                "aggregation": "Avg",
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Online",
+                    "label": "Online",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "Offline",
+                    "label": "Offline",
+                    "color": "red"
+                  },
+                  {
+                    "seriesName": "Updating",
+                    "label": "Updating",
+                    "color": "yellow"
+                  }
+                ],
+                "ySettings": {
+                  "min": 0
+                }
+              }
+            },
+            "customWidth": "60",
+            "name": "DeviceStatusOverTime"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Count = count() by productLine\n| extend ProductLine = case(\n    productLine == \"network\", \"🌐 Network\",\n    productLine == \"protect\", \"📹 Protect\",\n    productLine == \"access\", \"🚪 Access\",\n    productLine == \"talk\", \"📞 Talk\",\n    productLine == \"connect\", \"🔌 Connect\",\n    productLine == \"led\", \"💡 LED\",\n    strcat(\"📦 \", productLine)\n)\n| project ProductLine, Count\n| sort by Count desc",
+              "size": 2,
+              "title": "Devices by Product Line",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart",
+              "chartSettings": {
+                "showMetrics": true,
+                "showLegend": true
+              }
+            },
+            "customWidth": "40",
+            "name": "DevicesByProductPie"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| where status != \"online\"\n| extend \n    OfflineHours = datetime_diff('hour', now(), TimeGenerated),\n    OfflineDuration = case(\n        datetime_diff('minute', now(), TimeGenerated) < 60, strcat(datetime_diff('minute', now(), TimeGenerated), ' mins'),\n        datetime_diff('hour', now(), TimeGenerated) < 24, strcat(datetime_diff('hour', now(), TimeGenerated), ' hrs'),\n        strcat(datetime_diff('day', now(), TimeGenerated), ' days')\n    )\n| project \n    ['Status'] = case(status == \"offline\", \"🔴 Offline\", status == \"updating\", \"🟡 Updating\", strcat(\"⚪ \", status)),\n    Name = coalesce(name, \"Unnamed\"),\n    Model = model,\n    ['IP Address'] = ip,\n    ['Product Line'] = productLine,\n    ['Offline Duration'] = OfflineDuration,\n    ['Last Seen'] = TimeGenerated,\n    OfflineHours\n| sort by OfflineHours desc\n| project-away OfflineHours\n| take 10",
+              "size": 0,
+              "title": "🔴 Currently Offline Devices",
+              "noDataMessage": "✅ All devices are online!",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "Last Seen",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  },
+                  {
+                    "columnMatch": "Offline Duration",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "days",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "hrs",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "OfflineDevicesTable"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "overview"
+      },
+      "name": "OverviewGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Devices Help\n\n| Section | Description |\n|:--------|:------------|\n| **Device Status Distribution** | Pie chart showing the breakdown of online, offline, updating, and adopting devices. |\n| **Top 10 Device Models** | Most common device models in your infrastructure. |\n| **Device Types** | Distribution by device shortname (e.g., UAP, USW, UDM). |\n| **Complete Device Inventory** | Full searchable table of all devices with status, IP, firmware, and uptime. Export to Excel available. |\n| **Currently Offline Devices** | Devices not responding, with duration showing how long they've been offline. |\n\n> 💡 **Tip:** Click column headers to sort. Use the search box to filter by device name or model."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "DevicesHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 📡 Device Inventory & Status\n\nComprehensive view of all UniFi devices across your network infrastructure."
+            },
+            "name": "DevicesHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| where '*' in ({StatusFilter}) or status in ({StatusFilter})\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Count = count() by status\n| extend StatusDisplay = case(\n    status == \"online\", \"🟢 Online\",\n    status == \"offline\", \"🔴 Offline\",\n    status == \"updating\", \"🟡 Updating\",\n    status == \"adopting\", \"🔵 Adopting\",\n    strcat(\"⚪ \", status)\n)\n| project StatusDisplay, Count\n| sort by Count desc",
+              "size": 3,
+              "title": "Device Status Distribution",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "🟢 Online",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "🔴 Offline",
+                    "color": "red"
+                  },
+                  {
+                    "seriesName": "🟡 Updating",
+                    "color": "yellow"
+                  },
+                  {
+                    "seriesName": "🔵 Adopting",
+                    "color": "blue"
+                  }
+                ]
+              }
+            },
+            "customWidth": "33",
+            "name": "DeviceStatusPie"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| summarize Count = count() by model\n| sort by Count desc\n| take 10",
+              "size": 3,
+              "title": "Top 10 Device Models",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart",
+              "chartSettings": {
+                "xAxis": "model",
+                "yAxis": [
+                  "Count"
+                ],
+                "showLegend": false
+              }
+            },
+            "customWidth": "34",
+            "name": "TopDeviceModels"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| where isnotempty(shortname)\n| summarize Count = count() by shortname\n| sort by Count desc\n| take 10",
+              "size": 3,
+              "title": "Device Types (Shortname)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart"
+            },
+            "customWidth": "33",
+            "name": "DeviceTypesBarchart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| where '*' in ({StatusFilter}) or status in ({StatusFilter})\n| summarize arg_max(TimeGenerated, *) by id\n| extend \n    StatusIcon = case(status == \"online\", \"🟢\", status == \"offline\", \"🔴\", status == \"updating\", \"🟡\", \"⚪\"),\n    FirmwareStatus = iff(isnotempty(updateAvailable), \"⬆️ Update\", \"✅ Current\"),\n    Uptime = datetime_diff('hour', now(), todatetime(startupTime))\n| project \n    ['Status'] = StatusIcon,\n    ['Name'] = coalesce(name, \"Unnamed\"),\n    ['Model'] = model,\n    ['IP Address'] = ip,\n    ['MAC'] = mac,\n    ['Version'] = version,\n    ['Firmware'] = FirmwareStatus,\n    ['Product Line'] = productLine,\n    ['Uptime (hrs)'] = Uptime,\n    ['Last Seen'] = TimeGenerated\n| sort by Status asc, Name asc",
+              "size": 0,
+              "title": "Complete Device Inventory",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "Firmware",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "Update",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "green",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Last Seen",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "DeviceInventoryTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| where status != \"online\"\n| extend \n    OfflineHours = datetime_diff('hour', now(), TimeGenerated),\n    OfflineDuration = case(\n        datetime_diff('minute', now(), TimeGenerated) < 60, strcat(datetime_diff('minute', now(), TimeGenerated), ' mins'),\n        datetime_diff('hour', now(), TimeGenerated) < 24, strcat(datetime_diff('hour', now(), TimeGenerated), ' hrs'),\n        strcat(datetime_diff('day', now(), TimeGenerated), ' days')\n    )\n| project \n    ['Status'] = case(status == \"offline\", \"🔴 Offline\", status == \"updating\", \"🟡 Updating\", strcat(\"⚪ \", status)),\n    Name = coalesce(name, \"Unnamed\"),\n    Model = model,\n    ['IP Address'] = ip,\n    ['Product Line'] = productLine,\n    ['Offline Duration'] = OfflineDuration,\n    ['Last Seen'] = TimeGenerated,\n    OfflineHours\n| sort by OfflineHours desc\n| project-away OfflineHours",
+              "size": 0,
+              "title": "🔴 Currently Offline Devices",
+              "noDataMessage": "✅ All devices are online!",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "Last Seen",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  },
+                  {
+                    "columnMatch": "Offline Duration",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "days",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "hrs",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "CurrentlyOfflineDevices"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "devices"
+      },
+      "name": "DevicesGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Firmware Help\n\n| Section | Description |\n|:--------|:------------|\n| **Firmware Compliance Overview** | Pie chart showing devices up-to-date vs those with available updates. |\n| **Firmware Version Distribution** | Bar chart of firmware versions across your fleet. Helps identify outdated versions. |\n| **Devices Requiring Updates** | Table of devices with pending firmware updates, showing current and available versions. |\n| **Compliance by Product Line** | Breakdown of firmware compliance by product type (Network, Protect, Access, etc.). |\n\n> ⚠️ **Best Practice:** Aim for >95% firmware compliance. Schedule regular maintenance windows for updates."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "FirmwareHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🔄 Firmware Management\n\nTrack firmware versions across your fleet and identify devices requiring updates."
+            },
+            "name": "FirmwareHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| extend UpdateStatus = iff(isnotempty(updateAvailable), \"⬆️ Update Available\", \"✅ Up to Date\")\n| summarize Count = count() by UpdateStatus",
+              "size": 3,
+              "title": "Firmware Compliance Overview",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "✅ Up to Date",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "⬆️ Update Available",
+                    "color": "orange"
+                  }
+                ]
+              }
+            },
+            "customWidth": "30",
+            "name": "FirmwareCompliancePie"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| summarize DeviceCount = count() by version\n| sort by DeviceCount desc\n| take 15",
+              "size": 0,
+              "title": "Firmware Version Distribution",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart",
+              "chartSettings": {
+                "xAxis": "version",
+                "yAxis": [
+                  "DeviceCount"
+                ],
+                "showLegend": false
+              }
+            },
+            "customWidth": "70",
+            "name": "FirmwareVersionChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| where isnotempty(updateAvailable)\n| summarize arg_max(TimeGenerated, *) by id\n| project \n    ['Name'] = coalesce(name, \"Unnamed\"),\n    ['Model'] = model,\n    ['Current Version'] = version,\n    ['Available Version'] = updateAvailable,\n    ['Firmware Status'] = firmwareStatus,\n    ['Product Line'] = productLine,\n    ['IP Address'] = ip\n| sort by Model asc, Name asc",
+              "size": 0,
+              "title": "⚠️ Devices Requiring Firmware Updates",
+              "noDataMessage": "✅ All devices are running the latest firmware!",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Firmware Status",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "upgradable",
+                          "representation": "orange",
+                          "text": "⬆️ {0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Available Version",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "Default",
+                          "representation": "green",
+                          "text": "🆕 {0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "FirmwareUpdatesTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where '*' in ({ProductLine}) or productLine in ({ProductLine})\n| summarize arg_max(TimeGenerated, *) by id\n| summarize \n    Total = count(),\n    NeedsUpdate = countif(isnotempty(updateAvailable))\n    by productLine\n| extend \n    UpToDate = Total - NeedsUpdate,\n    ComplianceRate = round(100.0 * (Total - NeedsUpdate) / Total, 1)\n| project \n    ['Product Line'] = productLine,\n    ['Total Devices'] = Total,\n    ['Up to Date'] = UpToDate,\n    ['Needs Update'] = NeedsUpdate,\n    ['Compliance %'] = ComplianceRate\n| sort by ['Compliance %'] asc",
+              "size": 0,
+              "title": "Compliance by Product Line",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Compliance %",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": ">=",
+                          "thresholdValue": "95",
+                          "representation": "green",
+                          "text": "{0}%"
+                        },
+                        {
+                          "operator": ">=",
+                          "thresholdValue": "80",
+                          "representation": "yellow",
+                          "text": "{0}%"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "red",
+                          "text": "{0}%"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Needs Update",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": ">",
+                          "thresholdValue": "0",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "green",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "customWidth": "100",
+            "name": "ComplianceByProductLine"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "firmware"
+      },
+      "name": "FirmwareGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Hosts Help\n\n| Section | Description |\n|:--------|:------------|\n| **Controllers by Type** | Distribution of controller types: UniFi OS Consoles, Cloud Keys, Dream Machines, Self-Hosted. |\n| **Controller Inventory** | Full list of all controllers with IP, status, access level, and backup information. |\n| **Recent Connection Changes** | Controllers that have had connection state changes in the last 7 days. |\n\n> 💡 **Tip:** Ensure all controllers have recent backups. Check the 'Last Backup' column regularly."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "HostsHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🏠 UniFi Controllers & Hosts\n\nMonitor your UniFi OS Consoles, Cloud Keys, and self-hosted controllers."
+            },
+            "name": "HostsHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Hosts_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| extend HostTypeDisplay = case(\n    hostType == \"ucore\", \"🖥️ UniFi OS Console\",\n    hostType == \"uck\", \"☁️ Cloud Key\",\n    hostType == \"uckp\", \"☁️ Cloud Key+\",\n    hostType == \"udm\", \"🌐 Dream Machine\",\n    hostType == \"udmpro\", \"🏢 Dream Machine Pro\",\n    hostType == \"udmse\", \"🏢 Dream Machine SE\",\n    hostType == \"self-hosted\", \"🏠 Self-Hosted\",\n    strcat(\"📦 \", hostType)\n)\n| summarize Count = count() by HostTypeDisplay\n| sort by Count desc",
+              "size": 3,
+              "title": "Controllers by Type",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart"
+            },
+            "customWidth": "40",
+            "name": "HostsByTypePie"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Hosts_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by id\n| extend \n    ConnectionStatus = iff(isnotempty(lastConnectionStateChange), \"🟢 Connected\", \"⚪ Unknown\"),\n    BlockStatus = iff(isBlocked == true, \"🚫 Blocked\", \"✅ Active\"),\n    OwnerStatus = iff(owner == true, \"👤 Owner\", \"👥 Member\"),\n    LastBackup = todatetime(latestBackupTime),\n    LastConnection = todatetime(lastConnectionStateChange)\n| project \n    ['Host Type'] = hostType,\n    ['IP Address'] = ipAddress,\n    ['Status'] = ConnectionStatus,\n    ['Access'] = BlockStatus,\n    ['Role'] = OwnerStatus,\n    ['Last Backup'] = LastBackup,\n    ['Last Connection Change'] = LastConnection,\n    ['Host ID'] = id\n| sort by ['Host Type'] asc",
+              "size": 0,
+              "title": "Controller Inventory",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Access",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🚫",
+                          "representation": "4",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "success",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Last Backup",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "60",
+            "name": "HostInventoryTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Hosts_CL\n| where TimeGenerated {TimeRange:query}\n| where isnotempty(lastConnectionStateChange)\n| extend ConnectionChange = todatetime(lastConnectionStateChange)\n| where ConnectionChange > ago(7d)\n| project \n    ['Connection Change'] = ConnectionChange,\n    ['Host Type'] = hostType,\n    ['IP Address'] = ipAddress,\n    ['Host ID'] = id\n| sort by ['Connection Change'] desc\n| take 20",
+              "size": 0,
+              "title": "Recent Connection State Changes (Last 7 Days)",
+              "noDataMessage": "No connection state changes in the last 7 days",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table"
+            },
+            "customWidth": "100",
+            "name": "HostConnectionChanges"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "hosts"
+      },
+      "name": "HostsGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Sites Help\n\n| Section | Description |\n|:--------|:------------|\n| **Site Health Dashboard** | Overview of all sites with health status based on offline device count. 🟢 Healthy = 0 offline, 🟡 Warning = 1-2 offline, 🔴 Critical = 3+ offline. |\n| **Client Distribution** | Bar chart showing WiFi, Wired, and Guest client counts per site. |\n\n> 💡 **Tip:** Sites with high guest client counts may need additional security monitoring."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "SitesHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🌍 Site Management\n\nOverview of all managed sites with health status, device counts, and client statistics."
+            },
+            "name": "SitesHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Sites_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by siteId\n| extend \n    siteName = tostring(meta.name),\n    timezone = tostring(meta.timezone),\n    totalDevices = toint(siteStatistics.counts.totalDevice),\n    offlineDevices = toint(siteStatistics.counts.offlineDevice),\n    wifiClients = toint(siteStatistics.counts.wifiClient),\n    wiredClients = toint(siteStatistics.counts.wiredClient),\n    guestClients = toint(siteStatistics.counts.guestClient)\n| extend \n    TotalClients = wifiClients + wiredClients + guestClients,\n    HealthStatus = case(\n        offlineDevices == 0, \"🟢 Healthy\",\n        offlineDevices <= 2, \"🟡 Warning\",\n        \"🔴 Critical\"\n    ),\n    AvailabilityPct = round(100.0 * (totalDevices - offlineDevices) / totalDevices, 1)\n| project \n    ['Site Name'] = siteName,\n    ['Health'] = HealthStatus,\n    ['Availability'] = strcat(AvailabilityPct, \"%\"),\n    ['Total Devices'] = totalDevices,\n    ['Offline'] = offlineDevices,\n    ['WiFi Clients'] = wifiClients,\n    ['Wired Clients'] = wiredClients,\n    ['Guests'] = guestClients,\n    ['Total Clients'] = TotalClients,\n    ['Timezone'] = timezone\n| sort by ['Offline'] desc, ['Site Name'] asc",
+              "size": 0,
+              "title": "Site Health Dashboard",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Health",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟢",
+                          "representation": "success",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟡",
+                          "representation": "2",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🔴",
+                          "representation": "4",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Offline",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": ">",
+                          "thresholdValue": "0",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Availability",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "100",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "SiteHealthTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Sites_CL\n| where TimeGenerated {TimeRange:query}\n| summarize arg_max(TimeGenerated, *) by siteId\n| extend \n    siteName = tostring(meta.name),\n    wifiClients = toint(siteStatistics.counts.wifiClient),\n    wiredClients = toint(siteStatistics.counts.wiredClient),\n    guestClients = toint(siteStatistics.counts.guestClient)\n| project siteName, wifiClients, wiredClients, guestClients\n| sort by wifiClients desc\n| take 10",
+              "size": 0,
+              "title": "Client Distribution by Site",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart",
+              "chartSettings": {
+                "xAxis": "siteName",
+                "yAxis": [
+                  "wifiClients",
+                  "wiredClients",
+                  "guestClients"
+                ],
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "wifiClients",
+                    "label": "📶 WiFi",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "wiredClients",
+                    "label": "🔌 Wired",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "guestClients",
+                    "label": "👤 Guest",
+                    "color": "purple"
+                  }
+                ]
+              }
+            },
+            "customWidth": "100",
+            "name": "ClientDistributionChart"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "sites"
+      },
+      "name": "SitesGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ ISP Performance Help\n\n| Section | Description |\n|:--------|:------------|\n| **ISP Performance Summary** | Key metrics: Average/Max latency, packet loss events, uptime percentage, and total downtime. |\n| **Latency Trends** | Line chart showing average and maximum latency over time. Spikes indicate network issues. |\n| **Packet Loss Over Time** | Area chart of packet loss events. Any packet loss indicates potential connectivity issues. |\n| **Bandwidth Utilisation** | Download and upload speeds over time in Mbps. |\n| **Connection Uptime** | Percentage uptime over time. Target is 99.9% for SLA compliance. |\n| **ISP Performance Issues** | Table of events where latency >50ms, max latency >200ms, packet loss >0, or downtime >0. |\n| **ISP Performance by Site** | Summary per site with latency grades and SLA status. |\n\n> ⚠️ **Thresholds:** Latency: Excellent ≤20ms, Good ≤50ms, Fair ≤100ms, Poor >100ms. SLA target: 99.9% uptime."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "ISPHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🌐 ISP Performance Monitoring\n\nTrack latency, packet loss, bandwidth, and uptime metrics from your WAN connections."
+            },
+            "name": "ISPHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    avgLatency = toint(period.data.wan.avgLatency),\n    maxLatency = toint(period.data.wan.maxLatency),\n    packetLoss = toint(period.data.wan.packetLoss),\n    uptime = todouble(period.data.wan.uptime),\n    downtime = toint(period.data.wan.downtime)\n| summarize \n    AvgLatency = round(avg(avgLatency), 1),\n    MaxLatency = max(maxLatency),\n    TotalPacketLoss = sum(packetLoss),\n    AvgUptime = round(avg(uptime), 2),\n    TotalDowntime = sum(downtime)\n| extend data = pack_array(\n    pack(\"name\", \"⏱️ Avg Latency\", \"value\", strcat(tostring(AvgLatency), \" ms\")),\n    pack(\"name\", \"⚡ Max Latency\", \"value\", strcat(tostring(MaxLatency), \" ms\")),\n    pack(\"name\", \"📉 Packet Loss\", \"value\", strcat(tostring(TotalPacketLoss), \" events\")),\n    pack(\"name\", \"🌐 Avg Uptime\", \"value\", strcat(tostring(AvgUptime), \"%\")),\n    pack(\"name\", \"⬇️ Total Downtime\", \"value\", strcat(tostring(TotalDowntime), \" sec\"))\n)\n| mv-expand data\n| evaluate bag_unpack(data)",
+              "size": 4,
+              "title": "ISP Performance Summary",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "name",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "value",
+                  "formatter": 1
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "100",
+            "name": "ISPSummaryTiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    metricTime = todatetime(period.metricTime),\n    avgLatency = toint(period.data.wan.avgLatency),\n    maxLatency = toint(period.data.wan.maxLatency)\n| summarize \n    ['Avg Latency'] = avg(avgLatency),\n    ['Max Latency'] = max(maxLatency)\n    by bin(metricTime, 1h)\n| sort by metricTime asc",
+              "size": 0,
+              "title": "Latency Trends",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "xAxis": "metricTime",
+                "yAxis": [
+                  "Avg Latency",
+                  "Max Latency"
+                ],
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Avg Latency",
+                    "label": "Average (ms)",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "Max Latency",
+                    "label": "Maximum (ms)",
+                    "color": "orange"
+                  }
+                ],
+                "ySettings": {
+                  "min": 0
+                }
+              }
+            },
+            "customWidth": "50",
+            "name": "LatencyTrendChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    metricTime = todatetime(period.metricTime),\n    packetLoss = toint(period.data.wan.packetLoss)\n| summarize PacketLoss = sum(packetLoss) by bin(metricTime, 1h)\n| sort by metricTime asc",
+              "size": 0,
+              "title": "Packet Loss Over Time",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "yAxis": [
+                  "PacketLoss"
+                ],
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "PacketLoss",
+                    "label": "Packet Loss Events",
+                    "color": "redBright"
+                  }
+                ],
+                "ySettings": {
+                  "min": 0
+                }
+              }
+            },
+            "customWidth": "50",
+            "name": "PacketLossChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    metricTime = todatetime(period.metricTime),\n    downloadMbps = todouble(period.data.wan.download_kbps) / 1000,\n    uploadMbps = todouble(period.data.wan.upload_kbps) / 1000\n| summarize \n    ['Download'] = avg(downloadMbps),\n    ['Upload'] = avg(uploadMbps)\n    by bin(metricTime, 1h)\n| sort by metricTime asc",
+              "size": 0,
+              "title": "Bandwidth Utilisation (Mbps)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "xAxis": "metricTime",
+                "yAxis": [
+                  "Download",
+                  "Upload"
+                ],
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Download",
+                    "label": "⬇️ Download",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "Upload",
+                    "label": "⬆️ Upload",
+                    "color": "green"
+                  }
+                ],
+                "ySettings": {
+                  "min": 0
+                }
+              }
+            },
+            "customWidth": "50",
+            "name": "BandwidthChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    metricTime = todatetime(period.metricTime),\n    uptime = todouble(period.data.wan.uptime)\n| summarize Uptime = avg(uptime) by bin(metricTime, 1h)\n| sort by metricTime asc",
+              "size": 0,
+              "title": "Connection Uptime (%)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "yAxis": [
+                  "Uptime"
+                ],
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Uptime",
+                    "label": "Uptime %",
+                    "color": "green"
+                  }
+                ],
+                "ySettings": {
+                  "min": 95,
+                  "max": 100
+                }
+              }
+            },
+            "customWidth": "50",
+            "name": "UptimeChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    metricTime = todatetime(period.metricTime),\n    avgLatency = toint(period.data.wan.avgLatency),\n    maxLatency = toint(period.data.wan.maxLatency),\n    packetLoss = toint(period.data.wan.packetLoss),\n    downtime = toint(period.data.wan.downtime),\n    ispName = tostring(period.data.wan.ispName)\n| where avgLatency > 50 or maxLatency > 200 or packetLoss > 0 or downtime > 0\n| extend Issue = case(\n    downtime > 0, \"🔴 Downtime\",\n    packetLoss > 0, \"🟠 Packet Loss\",\n    maxLatency > 200, \"🟡 High Max Latency\",\n    avgLatency > 50, \"🟡 High Avg Latency\",\n    \"⚪ Other\"\n)\n| project \n    ['Time'] = metricTime,\n    ['Issue Type'] = Issue,\n    ['ISP'] = ispName,\n    ['Avg Latency (ms)'] = avgLatency,\n    ['Max Latency (ms)'] = maxLatency,\n    ['Packet Loss'] = packetLoss,\n    ['Downtime (sec)'] = downtime\n| sort by ['Time'] desc\n| take 50",
+              "size": 0,
+              "title": "⚠️ ISP Performance Issues",
+              "noDataMessage": "✅ No performance issues detected!",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Issue Type",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🔴",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟠",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟡",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Downtime",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": ">",
+                          "thresholdValue": "0",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "green",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "ISPIssuesTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated {TimeRange:query}\n| mv-expand period = periods\n| extend \n    avgLatency = toint(period.data.wan.avgLatency),\n    maxLatency = toint(period.data.wan.maxLatency),\n    packetLoss = toint(period.data.wan.packetLoss),\n    uptime = todouble(period.data.wan.uptime),\n    downtime = toint(period.data.wan.downtime),\n    ispName = tostring(period.data.wan.ispName),\n    ispAsn = tostring(period.data.wan.ispAsn)\n| summarize \n    AvgLatency = round(avg(avgLatency), 1),\n    MaxLatency = max(maxLatency),\n    TotalPacketLoss = sum(packetLoss),\n    AvgUptime = round(avg(uptime), 2),\n    TotalDowntime = sum(downtime),\n    Measurements = count()\n    by siteId, ispName, ispAsn\n| extend \n    SLAStatus = iff(AvgUptime >= 99.9, \"✅ Met\", \"❌ Breach\"),\n    LatencyGrade = case(\n        AvgLatency <= 20, \"🟢 Excellent\",\n        AvgLatency <= 50, \"🟡 Good\",\n        AvgLatency <= 100, \"🟠 Fair\",\n        \"🔴 Poor\"\n    )\n| project \n    ['Site ID'] = siteId,\n    ['ISP'] = ispName,\n    ['ASN'] = ispAsn,\n    ['Latency Grade'] = LatencyGrade,\n    ['Avg Latency (ms)'] = AvgLatency,\n    ['Max Latency (ms)'] = MaxLatency,\n    ['Packet Loss'] = TotalPacketLoss,\n    ['Avg Uptime (%)'] = AvgUptime,\n    ['SLA (99.9%)'] = SLAStatus,\n    ['Downtime (sec)'] = TotalDowntime,\n    ['Samples'] = Measurements\n| sort by ['Avg Uptime (%)'] asc",
+              "size": 0,
+              "title": "ISP Performance by Site",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Latency Grade",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟢",
+                          "representation": "success",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟡",
+                          "representation": "2",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟠",
+                          "representation": "warning",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🔴",
+                          "representation": "4",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "SLA",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "✅",
+                          "representation": "success",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "❌",
+                          "representation": "4",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "ISPSummaryBySite"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "isp"
+      },
+      "name": "ISPGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### ❓ Health Help\n\n| Section | Description |\n|:--------|:------------|\n| **Data Connector Status** | Health check for all four data connectors. Shows last data received, time since last data, and 24-hour record count. |\n| **Data Ingestion Volume** | Line chart showing data ingestion over the last 24 hours per table. Gaps indicate connector issues. |\n| **Recently Adopted Devices** | Devices adopted to UniFi in the last 30 days. Useful for tracking new deployments. |\n\n> 🟢 **Status Indicators:** Healthy = <15 min, 🟡 Delayed = 15-60 min, 🟠 Stale = 1-6 hrs, 🔴 Critical = >6 hrs since last data."
+            },
+            "conditionalVisibility": {
+              "parameterName": "ShowHelp",
+              "comparison": "isEqualTo",
+              "value": "Yes"
+            },
+            "name": "HealthHelp"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## 📋 Data Connector Health\n\nMonitor the health and ingestion status of all UniFi Site Manager data connectors."
+            },
+            "name": "HealthHeader"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DevicesHealth = UniFiSiteManager_Devices_CL\n| where TimeGenerated > ago(24h)\n| summarize LastReceived = max(TimeGenerated), RecordCount = count()\n| extend Table = \"📱 Devices\", TableName = \"UniFiSiteManager_Devices_CL\";\nlet HostsHealth = UniFiSiteManager_Hosts_CL\n| where TimeGenerated > ago(24h)\n| summarize LastReceived = max(TimeGenerated), RecordCount = count()\n| extend Table = \"🏠 Hosts\", TableName = \"UniFiSiteManager_Hosts_CL\";\nlet SitesHealth = UniFiSiteManager_Sites_CL\n| where TimeGenerated > ago(24h)\n| summarize LastReceived = max(TimeGenerated), RecordCount = count()\n| extend Table = \"🌍 Sites\", TableName = \"UniFiSiteManager_Sites_CL\";\nlet ISPHealth = UniFiSiteManager_ISPMetrics_CL\n| where TimeGenerated > ago(24h)\n| summarize LastReceived = max(TimeGenerated), RecordCount = count()\n| extend Table = \"🌐 ISP Metrics\", TableName = \"UniFiSiteManager_ISPMetrics_CL\";\nunion DevicesHealth, HostsHealth, SitesHealth, ISPHealth\n| extend \n    MinutesSinceData = datetime_diff('minute', now(), LastReceived),\n    Status = case(\n        datetime_diff('minute', now(), LastReceived) <= 15, \"🟢 Healthy\",\n        datetime_diff('minute', now(), LastReceived) <= 60, \"🟡 Delayed\",\n        datetime_diff('minute', now(), LastReceived) <= 360, \"🟠 Stale\",\n        \"🔴 Critical\"\n    )\n| project \n    ['Data Table'] = Table,\n    ['Table Name'] = TableName,\n    ['Last Data'] = LastReceived,\n    ['Minutes Ago'] = MinutesSinceData,\n    ['Records (24h)'] = RecordCount,\n    ['Status'] = Status\n| sort by ['Minutes Ago'] desc",
+              "size": 0,
+              "title": "Data Connector Status",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟢",
+                          "representation": "success",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟡",
+                          "representation": "2",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🟠",
+                          "representation": "warning",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "🔴",
+                          "representation": "4",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Minutes Ago",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "<=",
+                          "thresholdValue": "15",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "<=",
+                          "thresholdValue": "60",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "<=",
+                          "thresholdValue": "360",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Last Data",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  }
+                ]
+              }
+            },
+            "customWidth": "100",
+            "name": "ConnectorStatusTable"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let Devices = UniFiSiteManager_Devices_CL | where TimeGenerated > ago(24h) | summarize Count = count() by bin(TimeGenerated, 1h) | extend Table = \"Devices\";\nlet Hosts = UniFiSiteManager_Hosts_CL | where TimeGenerated > ago(24h) | summarize Count = count() by bin(TimeGenerated, 1h) | extend Table = \"Hosts\";\nlet Sites = UniFiSiteManager_Sites_CL | where TimeGenerated > ago(24h) | summarize Count = count() by bin(TimeGenerated, 1h) | extend Table = \"Sites\";\nlet ISP = UniFiSiteManager_ISPMetrics_CL | where TimeGenerated > ago(24h) | summarize Count = count() by bin(TimeGenerated, 1h) | extend Table = \"ISP Metrics\";\nunion Devices, Hosts, Sites, ISP\n| order by TimeGenerated asc",
+              "size": 0,
+              "title": "Data Ingestion Volume (Last 24 Hours)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "yAxis": [
+                  "Count"
+                ],
+                "group": "Table",
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Devices",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "Hosts",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "Sites",
+                    "color": "purple"
+                  },
+                  {
+                    "seriesName": "ISP Metrics",
+                    "color": "orange"
+                  }
+                ]
+              }
+            },
+            "customWidth": "100",
+            "name": "IngestionVolumeChart"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "UniFiSiteManager_Devices_CL\n| where TimeGenerated {TimeRange:query}\n| where isnotempty(adoptionTime)\n| extend AdoptionDate = todatetime(adoptionTime)\n| where AdoptionDate > ago(30d)\n| summarize arg_max(TimeGenerated, *) by id\n| project \n    ['Adoption Date'] = AdoptionDate,\n    ['Name'] = coalesce(name, \"Unnamed\"),\n    ['Model'] = model,\n    ['IP Address'] = ip,\n    ['Product Line'] = productLine,\n    ['Status'] = status\n| sort by ['Adoption Date'] desc\n| take 15",
+              "size": 0,
+              "title": "🆕 Recently Adopted Devices (Last 30 Days)",
+              "noDataMessage": "No new device adoptions in the last 30 days",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "online",
+                          "representation": "green",
+                          "text": "🟢 {0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "red",
+                          "text": "🔴 {0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Adoption Date",
+                    "formatter": 6,
+                    "dateFormat": {
+                      "showUtcTime": false,
+                      "formatName": "shortDateTimePattern"
+                    }
+                  }
+                ]
+              }
+            },
+            "customWidth": "100",
+            "name": "RecentAdoptionsTable"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "health"
+      },
+      "name": "HealthGroup"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "---\n\n**UniFi Site Manager Workbook** v2.0.0 | Created by [Fetch Labs](https://sentinel.blog) | [📖 Documentation](https://sentinel.blog/integrating-unifi-network-monitoring-into-microsoft-sentinel/) | [💻 GitHub](https://github.com/noodlemctwoodle/sentinel.blog) | [🐛 Report Issue](https://github.com/noodlemctwoodle/sentinel.blog/issues)"
+      },
+      "name": "Footer"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

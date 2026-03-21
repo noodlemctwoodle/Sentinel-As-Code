@@ -1,0 +1,56 @@
+id: c2730362-f8e7-4369-85db-8ac7af65ee01
+name: Malicious Mailbox Rules (BEC)
+description: |
+  'This rule searches for potentially malicious mailbox actions that could indicate email compromise. Typical adversary tactics include the creation of new inbox rules to divert incoming emails to default but underused mail folders. If a rule has been created which moves emails to one of the folders ("Archive", "RSS Feeds", "RSS Subscriptions", "Deleted", "Conversation History") and sets MarkedAsRead property'
+severity: High
+kind: Scheduled
+version: 1.0.0
+status: Available
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - Persistence
+  - Collection
+techniques:
+  - T1098
+  - T1098.001
+  - T1114
+  - T1114.003
+requiredDataConnectors:
+  - connectorId: Office365
+    dataTypes:
+      - OfficeActivity
+query: |
+  let RuleEvents = dynamic(["New-InboxRule", "Set-InboxRule", "Remove-InboxRule", "Disable-InboxRule", "UpdateInBoxRules", "Set-Mailbox"]);
+  // Malicous Folder
+  let RuleParams = dynamic(["Archive", "RSS Feeds", "RSS Subscriptions", "Deleted", "Conversation History"]);
+  OfficeActivity
+  | where TimeGenerated > ago(1d)
+  | where OfficeWorkload =~ "Exchange"
+  | where Operation in~ (RuleEvents) and Parameters has_any(RuleParams)
+  // Extracting parameters column to display details of detected mailbox rule
+  | extend MailboxRuleConcat = strcat(
+      tostring(parse_json(Parameters)[0].Name), ": ", tostring(parse_json(Parameters)[0].Value), " | "
+      , tostring(parse_json(Parameters)[2].Name), ": ", tostring(parse_json(Parameters)[2].Value), " | "
+      , tostring(parse_json(Parameters)[4].Name), ": ", tostring(parse_json(Parameters)[4].Value), " | "
+      , tostring(parse_json(Parameters)[5].Name), ": ", tostring(parse_json(Parameters)[5].Value), " | "
+      , tostring(parse_json(Parameters)[6].Name), ": ", tostring(parse_json(Parameters)[6].Value)
+      )
+  | extend MailboxRule = split(MailboxRuleConcat, "|")
+  | project
+      TimeGenerated
+      , UserId
+      , ClientIP
+      , MailboxRule
+      , Operation
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: ClientIP

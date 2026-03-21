@@ -1,0 +1,32 @@
+id: "b2091a2b-3c4d-45e6-f708-19203142536d"
+name: "Weekly incident summary with trend indicators"
+description: "Identifies week-over-week incident trends over 14 days with visual direction indicators showing whether each incident type is increasing, decreasing, stable, or newly emerged."
+query: |
+  // Analyzes week-over-week incident trends over the last 14 days with visual indicators,
+  // showing whether each incident type is increasing, decreasing, stable, or newly emerged
+
+  SecurityIncident
+  | where TimeGenerated >= ago(14d)
+  | extend WeekStart = startofweek(TimeGenerated)
+  | summarize WeeklyCount = count() by Title, WeekStart
+  | order by Title asc, WeekStart asc
+  | extend
+      PreviousWeekCount = prev(WeeklyCount, 1),
+      WeekOverWeekChange = WeeklyCount - prev(WeeklyCount, 1),
+      TrendDirection = case(
+          WeeklyCount > prev(WeeklyCount, 1), "↗️ Increasing",
+          WeeklyCount < prev(WeeklyCount, 1), "↘️ Decreasing",
+          WeeklyCount == prev(WeeklyCount, 1), "→ Stable",
+          "🆕 New"
+      )
+  | project
+      IncidentTitle = Title,
+      WeekStarting = format_datetime(WeekStart, "yyyy-MM-dd"),
+      ThisWeek = WeeklyCount,
+      LastWeek = PreviousWeekCount,
+      Change = WeekOverWeekChange,
+      Trend = TrendDirection
+tactics:
+  - Collection
+techniques:
+  - T1530

@@ -1,0 +1,104 @@
+id: b915fb54-b6f6-41f8-a0cd-7eb0f7e27e53
+name: Authentication Attempt from New Country
+description: |
+  'Detects when there is a log in attempt from a country that has not seen a successful login in the previous 14 days.
+  Threat actors may attempt to authenticate with credentials from compromised accounts - monitoring attempts from anomalous locations may help identify these attempts.
+  Authentication attempts should be investigated to ensure the activity was legitimate and if there is other similar activity.
+  Ref: https://docs.microsoft.com/azure/active-directory/fundamentals/security-operations-user-accounts#monitoring-for-failed-unusual-sign-ins'
+severity: Medium
+kind: Scheduled
+version: 1.0.2
+status: Available
+queryFrequency: P1D
+queryPeriod: P14D
+triggerOperator: GreaterThan
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
+query: |
+  let MaxSetSize = 5;
+  let AzureRanges =
+    externaldata(changeNumber: string, cloud: string, values: dynamic)
+    ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"] with(format='multijson')
+    | mv-expand values
+    | extend Name = values.name, AddressPrefixes = tostring(values.properties.addressPrefixes);
+  let ExcludedKnownLocations =
+    UnifiedSignInLogs
+    | where TimeGenerated between (ago(14d)..ago(1d))
+    | where ResultType == 0
+    | summarize by Location;
+  let MatchedLocations =
+    materialize(UnifiedSignInLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType !in (50126, 50053, 50074, 70044)
+    | where Location !in (ExcludedKnownLocations));
+  let MatchedIPs =
+    MatchedLocations
+    | evaluate ipv4_lookup(AzureRanges, IPAddress, AddressPrefixes)
+    | project IPAddress;
+  let ExcludedIPs =
+    MatchedLocations
+    | where not (IPAddress in (MatchedIPs))
+    | where isnotempty(Location)
+    | extend LocationDetails = column_ifexists("LocationDetails", "")
+    | extend DeviceDetail = column_ifexists("DeviceDetail", "")
+    | extend LocationDetails = iif(isnotempty(LocationDetails), LocationDetails, parse_json(LocationDetails))
+    | extend DeviceDetail = iif(isnotempty(DeviceDetail), DeviceDetail, parse_json(DeviceDetail))
+    | extend Place = strcat(tostring(LocationDetails.city), " - ", tostring(LocationDetails.state))
+    | extend DeviceId = tostring(DeviceDetail.deviceId)
+    | extend Result = case(
+      ResultType == 0, strcat(ResultType, " - Authenticated Signin")
+      , strcat(tostring(ResultType), " - ", ResultDescription)
+      )
+    | extend UserType = iff(CrossTenantAccessType == "none", "Member", "Guest")
+    | extend IPAddressGeo = geo_info_from_ip_address(IPAddress)
+    | extend IPLocation = strcat(IPAddress, " - ", tostring(IPAddressGeo.country))
+    | summarize FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated)
+      , Results = make_set(Result, MaxSetSize)
+      , IPInfo = make_set(IPLocation, MaxSetSize)
+      , UserAgents = make_set(UserAgent, MaxSetSize)
+      , LocationStr = make_set(Place, MaxSetSize)
+      , DeviceStr = make_set(DeviceId, MaxSetSize) by UserPrincipalName, Location, Category, UserType
+    | extend Name = tostring(split(UserPrincipalName,'@',0)[0]), UPNSuffix = tostring(split(UserPrincipalName,'@',1)[0]), UserAgent = UserAgents[0];
+  ExcludedIPs
+  | project-reorder FirstSeen, LastSeen, Category, UserPrincipalName, Name, UPNSuffix, Location, UserType, Results
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+customDetails:
+  FirstObservedTime: FirstSeen
+  LastObservedTime: LastSeen
+  LogType: Category
+  CountryOfSignIn: Location
+  DirectoryMemberType: UserType
+  UserAgents: UserAgents
+  failureReason: Results
+  IPAddressInfo: IPInfo
+suppressionEnabled: false
+suppressionDuration: PT5H
