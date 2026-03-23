@@ -153,8 +153,9 @@ Automation/DCR-Watchlist/
 ├── main.bicep                         # Subscription-scoped Bicep orchestrator
 ├── modules/
 │   └── automationAccount.bicep        # Automation Account, schedule, runbook shell
-├── Invoke-DCRWatchlistSync.ps1        # Runbook — DCR enumeration and watchlist sync
-├── Set-RunbookPermissions.ps1         # Post-deployment RBAC assignment script
+├── scripts/
+│   ├── Invoke-DCRWatchlistSync.ps1    # Runbook — DCR enumeration and watchlist sync
+│   └── Set-RunbookPermissions.ps1     # Post-deployment RBAC assignment script
 └── README.md                          # This file
 
 Pipelines/
