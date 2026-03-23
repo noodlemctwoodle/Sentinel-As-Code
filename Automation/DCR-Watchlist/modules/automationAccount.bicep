@@ -12,7 +12,7 @@ param scheduleFrequencyHours int
 
 // ── Automation Account ────────────────────────────────────────────────────────
 
-resource automationAccount 'Microsoft.Automation/automationAccounts@2023-11-01' = {
+resource automationAccount 'Microsoft.Automation/automationAccounts@2024-10-23' = {
   name:     automationAccountName
   location: location
   identity: {
@@ -30,7 +30,7 @@ resource automationAccount 'Microsoft.Automation/automationAccounts@2023-11-01' 
 
 // Runbook shell — content is uploaded by the pipeline UpdateRunbook stage
 // via Import-AzAutomationRunbook + Publish-AzAutomationRunbook.
-resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2023-11-01' = {
+resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2024-10-23' = {
   parent: automationAccount
   name:   'Invoke-DCRWatchlistSync'
   location: location
@@ -49,7 +49,7 @@ resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2023-11-01' =
 // Pinned to 3.0.5 — latest pulls Azure.Identity 1.13+ which has unimplemented
 // methods in the Automation sandbox (GetTokenAsync on ManagedIdentityCredential).
 
-resource moduleAzAccounts 'Microsoft.Automation/automationAccounts/powershell72Modules@2023-11-01' = {
+resource moduleAzAccounts 'Microsoft.Automation/automationAccounts/powershell72Modules@2024-10-23' = {
   parent: automationAccount
   name:   'Az.Accounts'
   properties: {
@@ -61,7 +61,7 @@ resource moduleAzAccounts 'Microsoft.Automation/automationAccounts/powershell72M
 
 // ── Schedule ──────────────────────────────────────────────────────────────────
 
-resource schedule 'Microsoft.Automation/automationAccounts/schedules@2023-11-01' = {
+resource schedule 'Microsoft.Automation/automationAccounts/schedules@2024-10-23' = {
   parent: automationAccount
   name:   'dcr-watchlist-sync-schedule'
   properties: {
