@@ -167,8 +167,10 @@ Pipelines/
 |---|---|---|
 | Data Collection Rules | `2024-03-11` | [DCR REST API](https://learn.microsoft.com/en-us/rest/api/monitor/data-collection-rules) |
 | DCR Associations | `2024-03-11` | [DCR Associations REST API](https://learn.microsoft.com/en-us/rest/api/monitor/data-collection-rule-associations) |
-| Sentinel Watchlists | `2023-02-01` | [Watchlist REST API](https://learn.microsoft.com/en-us/rest/api/securityinsights/watchlists) |
-| Sentinel Watchlist Items | `2023-02-01` | [Watchlist Items REST API](https://learn.microsoft.com/en-us/rest/api/securityinsights/watchlist-items) |
+| Sentinel Watchlists | `2025-09-01` | [Watchlist REST API](https://learn.microsoft.com/en-us/rest/api/securityinsights/watchlists) |
+| Sentinel Watchlist Items | `2025-09-01` | [Watchlist Items REST API](https://learn.microsoft.com/en-us/rest/api/securityinsights/watchlist-items) |
+| Automation Account (Bicep) | `2024-10-23` | [Automation ARM Reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.automation/automationaccounts) |
+| Resource Groups (Bicep) | `2024-03-01` | [Resources ARM Reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.resources/resourcegroups) |
 
 ## Cost
 

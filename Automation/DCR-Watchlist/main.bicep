@@ -46,7 +46,7 @@ param scheduleFrequencyHours int = 24
 
 // ── Resource Groups ───────────────────────────────────────────────────────────
 
-resource automationRg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+resource automationRg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name:     automationResourceGroup
   location: location
 }

@@ -12,7 +12,7 @@
     API to delete and recreate the watchlist in a single operation.
 
     No Az.ResourceGraph dependency — uses the same ARM API pattern as
-    Invoke-DCRAudit.ps1 (api-version 2024-03-11).
+    Invoke-DCRAudit.ps1 (DCR api-version 2024-03-11, watchlist api-version 2025-09-01).
 
 .PARAMETER SubscriptionId
     The subscription ID to enumerate DCRs from.
@@ -45,7 +45,7 @@
 
     API versions:
       - DCR / associations : 2024-03-11
-      - Sentinel watchlist : 2023-02-01
+      - Sentinel watchlist : 2025-09-01
 #>
 
 [CmdletBinding()]
@@ -75,7 +75,7 @@ $ErrorActionPreference = 'Stop'
 #region ── Constants ────────────────────────────────────────────────────────────
 
 $DCR_API_VERSION       = '2024-03-11'
-$WATCHLIST_API_VERSION = '2023-02-01'
+$WATCHLIST_API_VERSION = '2025-09-01'
 $ARM_BASE              = 'https://management.azure.com'
 
 #endregion
