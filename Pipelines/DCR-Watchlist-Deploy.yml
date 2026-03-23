@@ -193,7 +193,7 @@ stages:
                 Write-Host "  Runbook:            Invoke-DCRWatchlistSync"
                 Write-Host "============================================================"
 
-                $scriptPath = "$(bicepPath)/Invoke-DCRWatchlistSync.ps1"
+                $scriptPath = "$(bicepPath)/scripts/Invoke-DCRWatchlistSync.ps1"
 
                 if (-not (Test-Path $scriptPath)) {
                     Write-Error "Script not found: $scriptPath"
