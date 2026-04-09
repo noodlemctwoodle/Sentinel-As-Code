@@ -78,13 +78,15 @@ If your organisation requires tighter RBAC, you can replace **Contributor** with
 
 | Role | Scope | Purpose |
 |------|-------|---------|
+| **Reader** | Subscription | Allow the discovery of the target resource group |
 | **Resource Group Contributor** | Resource Group | Create and manage resources within the resource group |
 | **Microsoft Sentinel Contributor** | Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules, content deployment) |
 | **Log Analytics Contributor** | Resource Group | Log Analytics workspace management and summary rule deployment *(Stage 4)* |
 | **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional)* |
 | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
 
-> **Note**: With the least-privilege approach, the resource group must be pre-created (or use a separate identity with subscription-level Contributor for the initial Bicep deployment). For greenfield deployments that create the resource group, subscription-level **Contributor** is the simplest option.
+> **Note**: With the least-privilege approach, the resource group must be pre-created (or use a separate identity with subscription-level Contributor for the initial Bicep deployment) and `Microsoft.OperationsManagement` and `Microsoft.SecurityInsights` resource providers must be manually registered in the subscription.
+For greenfield deployments that create the resource group, subscription-level **Contributor** is the simplest option.
 
 - Variable group `sentinel-deployment` linked to the pipeline
 
