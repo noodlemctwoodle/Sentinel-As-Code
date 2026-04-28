@@ -1,0 +1,76 @@
+id: dd23f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a
+name: Zscaler ZIA - Mass Cloud Storage Download - Data Staging Risk
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users downloading more than 500 MB or performing more than 200 requests from cloud storage services (Dropbox, OneDrive, Google Drive, Box, WeTransfer, SharePoint) via Zscaler ZIA in a 24-hour window. Bulk downloads from cloud storage are a key indicator of data staging before exfiltration — either by a malicious insider or a compromised account harvesting data. MITRE ATT&CK: T1530 (Data from Cloud Storage Object), T1048, T1213.
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+- Exfiltration
+relevantTechniques:
+- T1048
+- T1530
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction !in ("block", "BLOCK", "Blocked", "deny", "DROP")
+  | where DeviceCustomString2 has_any (
+      "DROPBOX", "BOX_NET", "GOOGLEDRIVE", "GOOGLE_DRIVE",
+      "ONEDRIVE", "SHAREPOINT", "WETRANSFER", "CLOUD_STORAGE", "WEBDAV")
+  | where isnotempty(SourceUserName)
+  | summarize
+      DownloadCount  = count(),
+      MBDownloaded   = round(sum(todouble(ReceivedBytes)) / 1048576, 2),
+      MBUploaded     = round(sum(todouble(SentBytes)) / 1048576, 2),
+      UniqueServices = dcount(DeviceCustomString2),
+      Services       = make_set(DeviceCustomString2, 5),
+      URLSamples     = make_set(RequestURL, 5),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated)
+    by SourceUserName
+  | where MBDownloaded > 500 or DownloadCount > 200
+  | extend RiskScore = case(
+      MBDownloaded > 5000, "Critical",
+      MBDownloaded > 2000 or DownloadCount > 1000, "High",
+      "Medium")
+  | order by MBDownloaded desc, DownloadCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Mass Cloud Download - {{SourceUserName}} ({{MBDownloaded}} MB, {{RiskScore}})'
+  alertDescriptionFormat: 'User {{SourceUserName}} downloaded {{MBDownloaded}} MB from cloud storage services. Risk score: {{RiskScore}}.'
+customDetails:
+  MBDownloaded: MBDownloaded
+  DownloadCount: DownloadCount
+  RiskScore: RiskScore
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

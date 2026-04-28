@@ -5,29 +5,27 @@ description: |
   This could be an indication of an attacker adding an auth method to the account so they can have continued access.
   This rule has been modified to exclude trusted/known IP addresses'
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AuditLogs
+  - SigninLogs
+- connectorId: BehaviorAnalytics
+  dataTypes:
+  - IdentityInfo
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - CredentialAccess
-techniques:
-  - T1098
-  - T1098.005
-  - T1556
-  - T1556.006
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - AuditLogs
-      - SigninLogs
-  - connectorId: BehaviorAnalytics
-    dataTypes:
-      - IdentityInfo
+- Persistence
+- CredentialAccess
+relevantTechniques:
+- T1098
+- T1098.005
+- T1556
+- T1556.006
 query: |
   let adminLookupPeriod = 14d;
   let queryPeriod = 1d;
@@ -92,15 +90,21 @@ query: |
     , AuthentcationAction
     , Result
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: InitiatingUser
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: TargetUser
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: InitiatingUser
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: TargetUser
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

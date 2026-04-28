@@ -1,0 +1,94 @@
+id: c0d6e8f9-a4b5-7c1d-2e3f-4a5b6c7d8e9f
+name: Non-Interactive Sign-Ins by Identity Protection Risky Users
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users flagged as High or Medium risk by Azure AD Identity Protection
+  who continue to silently authenticate via non-interactive token refreshes.
+  When Identity Protection flags a user as at-risk or compromised but silent
+  token activity continues, it means the attacker retained persistent access
+  that bypasses the risk-based Conditional Access controls.
+  MITRE ATT&CK: T1078 (Valid Accounts), T1528 (Steal Application Access Token)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - AADRiskyUsers
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- Persistence
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1528
+- T1550
+query: |
+  let HighRiskUsers =
+      AADRiskyUsers
+      | where RiskState in ("atRisk", "confirmedCompromised")
+      | where RiskLevel in ("high", "medium")
+      | project UserPrincipalName, RiskLevel, RiskState, RiskDetail;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | summarize
+      SilentCount  = count(),
+      Countries    = make_set(Location),
+      IPs          = make_set(IPAddress),
+      Apps         = make_set(AppDisplayName),
+      LastActivity = max(TimeGenerated)
+    by UserPrincipalName
+  | join kind=inner HighRiskUsers on UserPrincipalName
+  | extend IPAddress = tostring(IPs[0])
+  | project
+      UserPrincipalName,
+      RiskLevel,
+      RiskState,
+      RiskDetail,
+      SilentCount,
+      Countries,
+      IPAddress,
+      Apps,
+      LastActivity
+  | order by SilentCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Risky User Silent Auth - {{UserPrincipalName}} ({{RiskLevel}} risk) has active non-interactive tokens'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} is flagged as {{RiskLevel}} risk but performed {{SilentCount}} non-interactive sign-ins. Identity Protection risk state has not blocked silent token
+    use.'
+customDetails:
+  RiskLevel: RiskLevel
+  RiskState: RiskState
+  RiskDetail: RiskDetail
+  SilentSignInCount: SilentCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

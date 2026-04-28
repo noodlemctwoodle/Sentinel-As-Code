@@ -1,10 +1,21 @@
 id: 54b355e7-1736-425e-8627-4972161b135a
 name: AzureHound activity detected
-description: Microsoft Graph queries sent to the tenant contained the User Agent string of AzureHound. This is a high fedility indicator that someone scans your Azure AD tenant for additional information and might be part of the inital phase of an attack.
+description: |
+  'Microsoft Graph queries sent to the tenant contained the User Agent string of AzureHound. This is a high fedility indicator that someone scans your Azure AD tenant for additional information and might be part of the inital phase of an attack.'
 severity: Medium
-kind: NRT
-version: 1.0.0
-query: |-
+enabled: true
+tactics:
+- Reconnaissance
+- Discovery
+relevantTechniques:
+- T1069
+- T1069.003
+- T1087
+- T1087.004
+- T1589
+- T1595
+- T1595.002
+query: |
   MicrosoftGraphActivityLogs
   | where UserAgent has "azurehound"
   | summarize QueriesSent=count() by UserId, IPAddress, ServicePrincipalId, AppId, TokenIssuedAt, Location, SignInActivityId, SourceSystem, AadTenantId, UserAgent
@@ -19,6 +30,14 @@ entityMappings:
   fieldMappings:
   - identifier: Address
     columnName: IPAddress
+alertDetailsOverride:
+  alertDynamicProperties:
+  - alertProperty: RemediationSteps
+    value: RemediationSteps
+  - alertProperty: ConfidenceScore
+    value: ConfidenceScore
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -30,24 +49,9 @@ incidentConfiguration:
     - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-alertDetailsOverride:
-  alertDynamicProperties:
-  - alertProperty: RemediationSteps
-    value: RemediationSteps
-  - alertProperty: ConfidenceScore
-    value: ConfidenceScore
-tactics:
-  - Reconnaissance
-  - Discovery
-techniques:
-  - T1087
-  - T1087.004
-  - T1069
-  - T1069.003
-  - T1595
-  - T1595.002
-  - T1589
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: NRT
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

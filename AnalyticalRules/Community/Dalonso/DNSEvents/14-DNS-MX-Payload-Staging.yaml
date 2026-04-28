@@ -1,0 +1,76 @@
+id: a1b2c3d4-0014-4a5b-8c9d-dns014mxtunnel
+name: DNS MX Record Abuse for Payload Staging
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects MX record abuse for DNS payload staging. The Octoberfest7 technique
+  encodes payloads as hex and stores them across many MX records, using the
+  MX preference value (10, 20, 30...) to maintain ordering during reassembly.
+  Key indicators:
+  - High-volume MX queries from non-mail-server hosts
+  - MX queries for the same domain with numeric subdomain prefixes (1.domain, 2.domain...)
+  - Client is not a known mail relay or exchange server
+  This technique was developed to evade MDE TXT-record detection by switching
+  to MX records, which are not traditionally monitored for tunneling.
+  Ref: Octoberfest7/DNS_Tunneling — "Off the beaten path" section
+severity: High
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+- Exfiltration
+relevantTechniques:
+- T1071.004
+- T1132
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(1h)
+  | where DnsQueryTypeName =~ "MX" or DnsQueryType == 15
+  | extend BaseDomain = strcat(
+        tostring(split(DnsQuery, ".")[-2]), ".",
+        tostring(split(DnsQuery, ".")[-1])
+      )
+  | extend SubdomainPrefix = tostring(split(DnsQuery, ".")[0])
+  | extend HasNumericPrefix = SubdomainPrefix matches regex @"^\d+$"
+  | summarize
+      MxQueryCount    = count(),
+      NumericPrefixed = countif(HasNumericPrefix),
+      UniquePrefixes  = dcount(SubdomainPrefix),
+      SampleDomains   = make_set(DnsQuery, 15),
+      FirstSeen       = min(TimeGenerated),
+      LastSeen        = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname, BaseDomain
+  | where MxQueryCount > 10 and NumericPrefixed > 3
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+- entityType: DNS
+  fieldMappings:
+  - identifier: DomainName
+    columnName: BaseDomain
+alertDetailsOverride:
+  alertDisplayNameFormat: 'MX Tunnel — {{SrcHostname}} queried {{MxQueryCount}} MX records for {{BaseDomain}}'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) sent {{MxQueryCount}} MX queries for , with numerically-prefixed subdomains. This matches the Octoberfest7 MX-based'' payload staging technique.'
+customDetails:
+  BaseDomain: BaseDomain
+  MxQueryCount: MxQueryCount
+  NumericPrefixed: NumericPrefixed
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

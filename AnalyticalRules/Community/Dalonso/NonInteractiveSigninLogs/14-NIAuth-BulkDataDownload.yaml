@@ -1,0 +1,91 @@
+id: b9c5d7e8-f3a4-6b0c-1d2e-3f4a5b6c7d8e
+name: Non-Interactive Auth Followed by Bulk Data Download
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a user silently refreshes an OAuth token and then performs bulk file
+  downloads or access operations in SharePoint/OneDrive within the same period.
+  This correlation identifies data exfiltration via applications that obtained persistent
+  access through non-interactive authentication flows.
+  MITRE ATT&CK: T1048 (Exfiltration Over Alternative Protocol), T1213 (Data from Information Repositories)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+- connectorId: Office365
+  dataTypes:
+  - OfficeActivity
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+- Collection
+relevantTechniques:
+- T1048
+- T1213
+query: |
+  let SilentAuthUsers =
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated > ago(2h)
+      | where ResultType == 0
+      | summarize SilentSignIns = count(), LastNI = max(TimeGenerated)
+        by UserPrincipalName;
+  OfficeActivity
+  | where TimeGenerated > ago(2h)
+  | where Operation in (
+      "FileDownloaded", "FileSyncDownloadedFull",
+      "SearchQueryPerformed", "FileAccessed"
+    )
+  | summarize
+      OpCount    = count(),
+      FileCount  = dcount(SourceFileName),
+      Operations = make_set(Operation),
+      ClientIP   = tostring(make_set(ClientIP)[0])
+    by UserId
+  | where OpCount > 50
+  | join kind=inner SilentAuthUsers on $left.UserId == $right.UserPrincipalName
+  | project
+      UserPrincipalName = UserId,
+      OperationCount    = OpCount,
+      UniqueFiles       = FileCount,
+      Operations,
+      SilentSignIns,
+      ClientIP
+  | order by OperationCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: ClientIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Data Exfiltration Risk - {{UserPrincipalName}} downloaded {{UniqueFiles}} files after silent auth'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed {{OperationCount}} file operations ({{UniqueFiles}} unique files) in SharePoint/OneDrive after a silent auth. Possible data exfiltration.'
+customDetails:
+  OperationCount: OperationCount
+  UniqueFiles: UniqueFiles
+  SilentSignIns: SilentSignIns
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

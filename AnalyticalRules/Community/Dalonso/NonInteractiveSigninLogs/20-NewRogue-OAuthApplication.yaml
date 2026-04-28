@@ -1,0 +1,82 @@
+id: b5c1d3e4-f9a0-2b6c-7d8e-9f0a1b2c3d4e
+name: New or Rogue OAuth Application First Seen in Tenant
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects OAuth applications that appear for the first time in the past 7 days with
+  no prior activity in the preceding 30 days. New applications suddenly generating
+  non-interactive sign-ins can indicate illicit app consent, rogue app registration,
+  or a third-party supply chain compromise granting persistent access to your tenant.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1199 (Trusted Relationship)
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT24H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Persistence
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1199
+- T1528
+query: |
+  let KnownApps =
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated between (ago(14d) .. ago(7d))
+      | summarize by AppId;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(7d)
+  | where ResultType == 0
+  | join kind=leftanti KnownApps on AppId
+  | summarize
+      FirstSeen = min(TimeGenerated),
+      UserCount = dcount(UserPrincipalName),
+      Users     = make_set(UserPrincipalName, 10),
+      IPs       = make_set(IPAddress),
+      Countries = make_set(Location)
+    by AppDisplayName, AppId
+  | extend IPAddress = tostring(IPs[0])
+  | order by FirstSeen desc
+entityMappings:
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: AppId
+    columnName: AppId
+  - identifier: Name
+    columnName: AppDisplayName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'New OAuth App Detected - ''{{AppDisplayName}}'' first seen in tenant'
+  alertDescriptionFormat: 'OAuth app ''{{AppDisplayName}}'' (ID: {{AppId}}) was first seen generating non-interactive sign-ins in the past 7 days. Affected {{UserCount}} users. Verify legitimate authorization.'
+customDetails:
+  AppDisplayName: AppDisplayName
+  AppId: AppId
+  AffectedUsers: UserCount
+  Countries: Countries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: P1D
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - CloudApplication
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

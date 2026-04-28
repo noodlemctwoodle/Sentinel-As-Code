@@ -1,0 +1,71 @@
+id: a1b2c3d4-0005-4a5b-8c9d-dns005axfr
+name: DNS Zone Transfer (AXFR/IXFR) from Unauthorized Internal Host
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects DNS zone transfer requests (AXFR = full transfer, IXFR = incremental)
+  originating from internal hosts that are NOT in the authorized secondary DNS
+  server list. This differentiates from the Sentinel built-in "DNS Zone Transfer"
+  rule (DNS Solution), which fires on ALL AXFR queries regardless of source.
+  By excluding known authorized secondaries, this rule suppresses legitimate
+  replication traffic and surfaces only attacker-initiated transfers.
+  Populate the AuthorizedSecondaryDNS list with your secondary DNS server IPs.
+  Zone transfers expose the complete DNS zone including all hostnames, IPs,
+  and internal topology.
+  MITRE T1590.002 — Gather Victim Network Information: DNS
+  Ref: DnsBlade tool, nmap dns-zone-transfer NSE script, dnsniper
+  Deduplication note: Complements built-in "DNS Zone Transfer" (DNS Solution).
+  Disable the built-in or this rule to avoid duplicate alerts; this rule is
+  preferred as it suppresses authorized secondaries.
+severity: Medium
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Reconnaissance
+relevantTechniques:
+- T1590.002
+query: |
+  // Populate with IPs of authorized secondary/slave DNS servers to exclude
+  // legitimate zone replication traffic and avoid duplicating the built-in rule.
+  let AuthorizedSecondaryDNS = dynamic([]);
+  // Example: dynamic(["10.1.0.53", "10.2.0.53", "192.168.10.5"])
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(1h)
+  | where DnsQueryTypeName in~ ("AXFR", "IXFR")
+        or DnsQueryType in (252, 251)
+  | where SrcIpAddr !in (AuthorizedSecondaryDNS)
+  | summarize
+      TransferAttempts = count(),
+      TargetZones      = make_set(DnsQuery),
+      TargetServers    = make_set(DstIpAddr),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS Zone Transfer — {{SrcHostname}} attempted AXFR for {{TargetZones}}'
+  alertDescriptionFormat: 'Zone transfer request (AXFR/IXFR) detected from {{SrcHostname}} ({{SrcIpAddr}}) targeting zones: {{TargetZones}}. This exposes complete internal DNS topology.'
+customDetails:
+  TargetZones: TargetZones
+  TransferAttempts: TransferAttempts
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

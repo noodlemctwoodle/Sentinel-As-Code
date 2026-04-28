@@ -6,26 +6,24 @@ description: |
   1. A workload identity is used to access Azure resources.
   2. The workload identity is used from an IP address that is not in Azure IP ranges.
 severity: High
-kind: Scheduled
-version: 1.0.1
-status: Available
 queryFrequency: PT1H
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - DefenseEvasion
-  - InitialAccess
-  - LateralMovement
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1078
-  - T1078.004
-  - T1550
-  - T1550.001
-  - T1528
+- CredentialAccess
+- DefenseEvasion
+- InitialAccess
+- LateralMovement
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.004
+- T1528
+- T1550
+- T1550.001
 query: |
   let AzureRanges = externaldata(changeNumber: string, cloud: string, values: dynamic)
       ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"] with(format='multijson')
@@ -84,41 +82,28 @@ query: |
   | where IpAddressType == "None Azure IP"
   | project TimeGenerated,OperationNameValue,ResourceGroup,SubscriptionId,_ResourceId,CallerIpAddress,WorkloadIdentityName,WorkloadIdentityType,ServicePrincipalObjectId,ApplicationId,IsFirstPartyApp,EntraIdRoles,AppRolePermissions,WorkloadIdClassification,ActivityIpAddress,Uti,ConditionalAccessPolicies,ConditionalAccessStatus,UniqueTokenIdentifier,IpAddressType,CorrelationId,Caller,Category,EventSubmissionTimestamp,Authorization,ResourceProviderValue
 entityMappings:
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: Name
-        columnName: WorkloadIdentityName
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: AppId
-        columnName: ApplicationId
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: ActivityIpAddress
-  - entityType: AzureResource
-    fieldMappings:
-      - identifier: ResourceId
-        columnName: _ResourceId
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: ServicePrincipalObjectId
-      - identifier: Name
-        columnName: ServicePrincipalObjectId
-incidentConfiguration:
-  createIncident: true
-  groupingConfiguration:
-    enabled: true
-    reopenClosedIncident: false
-    lookbackDuration: P1D
-    matchingMethod: Selected
-    groupByEntities:
-      - CloudApplication
-    groupByAlertDetails: []
-    groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: WorkloadIdentityName
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: AppId
+    columnName: ApplicationId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: ActivityIpAddress
+- entityType: AzureResource
+  fieldMappings:
+  - identifier: ResourceId
+    columnName: _ResourceId
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: ServicePrincipalObjectId
+  - identifier: Name
+    columnName: ServicePrincipalObjectId
 customDetails:
   WorkloadIdentityName: WorkloadIdentityName
   WorkloadIdentityType: WorkloadIdentityType
@@ -129,5 +114,22 @@ customDetails:
   EntraDirectoryRoles: EntraIdRoles
   MSGraphRoles: AppRolePermissions
   ConditionalAccess: ConditionalAccessStatus
-suppressionEnabled: false
-suppressionDuration: PT5H
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: P1D
+    matchingMethod: Selected
+    groupByEntities:
+    - CloudApplication
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.1
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Azure Activity

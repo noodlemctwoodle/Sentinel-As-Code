@@ -1,41 +1,39 @@
 id: 15121201-c387-47e1-866c-fe1f711d4a7e
 name: Malicious OAuth App Registration Detection
-description: |-
+description: |
   This detection identifies potential deployment of malicious OAuth applications using the Invoke-InjectOAuthApp PowerShell module or similar techniques. The module automates the creation of app registrations with extensive permissions that don't require administrative consent, allowing attackers to establish persistent access to Mail, Files, Teams, and other sensitive resources.
   The rule monitors Microsoft Graph API activity for the characteristic sequence of operations performed during malicious app registration: creating a new application, adding credentials (certificates or secrets), and establishing service principals. The detection specifically looks for PowerShell-initiated Graph API calls to endpoints commonly used in these attacks.
   When triggered, this alert provides critical information about the newly created application, including any application IDs, reply URLs that may contain malicious redirection endpoints, and details about the user account that performed the actions. This enables security teams to quickly assess the potential impact and take immediate remediation steps, such as removing the rogue application, invalidating credentials, and investigating potential account compromise.
   Early detection of malicious OAuth app registrations is crucial as these applications can provide attackers with persistent access to tenant resources even after credentials are rotated or MFA is enforced.
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - Persistence
-  - PrivilegeEscalation
-  - DefenseEvasion
-  - CredentialAccess
-  - Impact
-  - LateralMovement
-techniques:
-  - T1550
-  - T1550.001
-  - T1546
-  - T1528
-  - T1499
-  - T1098
-  - T1098.001
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- InitialAccess
+- Persistence
+- PrivilegeEscalation
+- DefenseEvasion
+- CredentialAccess
+- Impact
+- LateralMovement
+relevantTechniques:
+- T1078
+- T1078.004
+- T1098
+- T1098.001
+- T1499
+- T1528
+- T1546
+- T1550
+- T1550.001
+query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
   | where TimeGenerated > ago(10d)
@@ -134,20 +132,22 @@ query: |-
   LastOperation
   | order by HasAllOperationTypes desc, BlastRadiusSeverity asc, OperationCount desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: UserId
-      - identifier: Name
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
-  - entityType: AzureResource
-    fieldMappings:
-      - identifier: ResourceId
-        columnName: ApplicationIds
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: UserId
+  - identifier: Name
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+- entityType: AzureResource
+  fieldMappings:
+  - identifier: ResourceId
+    columnName: ApplicationIds
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -158,7 +158,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

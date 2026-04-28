@@ -1,35 +1,36 @@
 id: 58deb816-0939-417f-95f2-05a9dc5d0b2c
 name: Summary Rule - Demo Country
-description: Enter rule description here
+description: |
+  'Enter rule description here'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5M
 queryPeriod: PT10M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CommandAndControl
-  - Exfiltration
-techniques:
-  - T1071
-  - T1071.001
-  - T1048
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
-query: |-
+- CommandAndControl
+- Exfiltration
+relevantTechniques:
+- T1048
+- T1071
+- T1071.001
+query: |
   DockerFlow_CL
   | extend DstIPLocation = geo_info_from_ip_address(dstIp)
   | extend Country = tostring(DstIPLocation.Country)
   | where Country in ("Russia", "China")
 entityMappings:
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: dstIp
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: dstIp
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -40,7 +41,8 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom

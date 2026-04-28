@@ -1,63 +1,39 @@
 id: 21f96b21-25e7-4bfc-ae54-ebe13f4c6d9c
 name: Data ingestion Missing
-description: Enter rule description here
+description: |
+  'Enter rule description here'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - DefenseEvasion
-  - Impact
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
-query: |
-  let lastWeekStart = ago(14d); 
-  let lastWeekEnd = ago(7d); 
-  let thisWeekStart = ago(7d); 
-  let thisWeekEnd = ago(0d); 
-  Usage
-  | where IsBillable == true
-  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd 
-  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType 
-  | union (
-      Usage
-      | where IsBillable == true
-      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd 
-      | summarize DataTypes = make_set(DataType)
-      | mv-expand DataTypes
-      | where DataTypes !in (( 
-          Usage
-          | where IsBillable == true
-          | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd 
-          | summarize DataTypes = make_set(DataType)
-          | mv-expand DataTypes
-      ))
-      | project DataType = DataTypes, LastWeekSize = 0
-  )
-  | extend DataType = strcat(DataType_string, DataType_dynamic)
-  | join kind=leftouter (
-      Usage
-      | where IsBillable == true
-      | where TimeGenerated >= thisWeekStart and TimeGenerated < thisWeekEnd 
-      | summarize ThisWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType 
-  ) on DataType
-  | extend LastWeekSize = toreal(strcat(LastWeekSize_long, LastWeekSize_real))
-  | project DataType, LastWeekSize = round(toreal(LastWeekSize), 5), ThisWeekSize = round(toreal(ThisWeekSize), 5),
-      ['Size Change %'] = 
-          case(
-              LastWeekSize == 0 and ThisWeekSize > 0, 
-              toreal(100), // 100% increase if LastWeekSize was 0 and ThisWeekSize is greater than 0
-              LastWeekSize > 0 and ThisWeekSize / LastWeekSize > 10, 
-              toreal(100), // Cap at 1000% if the change is more than 10 times
-              round((ThisWeekSize - LastWeekSize) / LastWeekSize * 100, 0)
-          ) 
-  | order by abs(['Size Change %']) desc
-  | where LastWeekSize > 0 and ThisWeekSize == 0
+- DefenseEvasion
+- Impact
+query: "let lastWeekStart = ago(14d); \nlet lastWeekEnd = ago(7d); \nlet thisWeekStart = ago(7d); \nlet thisWeekEnd = ago(0d); \nUsage\n| where IsBillable == true\n| where TimeGenerated >= lastWeekStart\
+  \ and TimeGenerated < lastWeekEnd \n| summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n| union (\n    Usage\n    | where IsBillable == true\n    | where TimeGenerated\
+  \ >= thisWeekStart and TimeGenerated < thisWeekEnd \n    | summarize DataTypes = make_set(DataType)\n    | mv-expand DataTypes\n    | where DataTypes !in (( \n        Usage\n        | where IsBillable\
+  \ == true\n        | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd \n        | summarize DataTypes = make_set(DataType)\n        | mv-expand DataTypes\n    ))\n    | project DataType\
+  \ = DataTypes, LastWeekSize = 0\n)\n| extend DataType = strcat(DataType_string, DataType_dynamic)\n| join kind=leftouter (\n    Usage\n    | where IsBillable == true\n    | where TimeGenerated >= thisWeekStart\
+  \ and TimeGenerated < thisWeekEnd \n    | summarize ThisWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n) on DataType\n| extend LastWeekSize = toreal(strcat(LastWeekSize_long,\
+  \ LastWeekSize_real))\n| project DataType, LastWeekSize = round(toreal(LastWeekSize), 5), ThisWeekSize = round(toreal(ThisWeekSize), 5),\n    ['Size Change %'] = \n        case(\n            LastWeekSize\
+  \ == 0 and ThisWeekSize > 0, \n            toreal(100), // 100% increase if LastWeekSize was 0 and ThisWeekSize is greater than 0\n            LastWeekSize > 0 and ThisWeekSize / LastWeekSize > 10, \n\
+  \            toreal(100), // Cap at 1000% if the change is more than 10 times\n            round((ThisWeekSize - LastWeekSize) / LastWeekSize * 100, 0)\n        ) \n| order by abs(['Size Change %']) desc\n\
+  | where LastWeekSize > 0 and ThisWeekSize == 0\n"
+entityMappings:
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: DataType
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -68,12 +44,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-entityMappings:
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: Name
-        columnName: DataType
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Workspace Usage

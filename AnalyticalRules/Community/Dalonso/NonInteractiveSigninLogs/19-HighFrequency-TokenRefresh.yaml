@@ -1,0 +1,71 @@
+id: a4b0c2d3-e8f9-1a5b-6c7d-8e9f0a1b2c3d
+name: High-Frequency Token Refresh - Possible Session Hijack or Automated Abuse
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users or IPs generating more than 50 successful non-interactive token refreshes
+  within a single hour. Legitimate applications refresh tokens at reasonable intervals.
+  Extremely high refresh rates indicate automated token replay (session hijack), malware
+  maintaining persistent access, or a compromised automated pipeline.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1078
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- Persistence
+relevantTechniques:
+- T1078
+- T1528
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | summarize
+      RefreshCount = count(),
+      Apps         = make_set(AppDisplayName),
+      Countries    = make_set(Location)
+    by UserPrincipalName, IPAddress
+  | where RefreshCount > 50
+  | order by RefreshCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'High-Frequency Token Refresh - {{UserPrincipalName}} from {{IPAddress}} ({{RefreshCount}} refreshes/hr)'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed {{RefreshCount}} non-interactive token refreshes in 1 hour from {{IPAddress}}. This rate suggests automated token replay or session hijack.'
+customDetails:
+  TokenRefreshCount: RefreshCount
+  Apps: Apps
+  Countries: Countries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

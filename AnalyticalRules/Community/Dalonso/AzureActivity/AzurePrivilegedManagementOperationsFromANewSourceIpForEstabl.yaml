@@ -1,0 +1,89 @@
+id: 3dd9bf91-65d1-4743-b1cb-5c981c9a32c8
+name: Azure - Privileged Management Operations from a New Source IP for Established Identity
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a known identity (seen in the last 14 days) performs privileged Azure management operations from an IP address not previously used by that identity for such operations. This is the Azure-plane equivalent of Impossible Travel / anomalous access location, but for the management plane specifically. Relevant to T1078.004 (Valid Cloud Accounts) exploitation — compromised credentials used from attacker infrastructure. FP mitigations: (1) 14-day per-identity IP whitelist built from historical privileged ops; (2) Azure platform IPs excluded; (3) Uses set_has_element for exact match — no partial-IP tricks; (4) Only privileged operation types (write/delete on IAM, KV, VM, diagnostics, automation); (5) Identity must have prior history (new identities with no baseline are a different rule).
+severity: Medium
+queryFrequency: PT6H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Persistence
+relevantTechniques:
+- T1078
+query: |
+  let PrivilegedOps = dynamic([
+      "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE",
+      "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/DELETE",
+      "MICROSOFT.KEYVAULT/VAULTS/WRITE",
+      "MICROSOFT.KEYVAULT/VAULTS/DELETE",
+      "MICROSOFT.COMPUTE/VIRTUALMACHINES/WRITE",
+      "MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/DELETE",
+      "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE",
+      "MICROSOFT.AUTHORIZATION/LOCKS/DELETE"
+  ]);
+  let HistoricalCallerIPs = AzureActivity
+      | where TimeGenerated between (ago(14d) .. ago(6h))
+      | where OperationNameValue has_any (PrivilegedOps)
+      | where ActivityStatusValue =~ "Success"
+      | where isnotempty(Caller) and isnotempty(CallerIpAddress)
+      | summarize HistoricalIPs = make_set(CallerIpAddress, 50) by Caller;
+  AzureActivity
+  | where TimeGenerated > ago(6h)
+  | where OperationNameValue has_any (PrivilegedOps)
+  | where ActivityStatusValue =~ "Success"
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63." and CallerIpAddress !startswith "169.254."
+  | join kind=inner HistoricalCallerIPs on Caller
+  | where not(set_has_element(HistoricalIPs, CallerIpAddress))
+  | summarize
+      OperationCount = count(),
+      Operations = make_set(OperationNameValue, 10),
+      AffectedResources = make_set(ResourceId, 10),
+      CallerIP = any(CallerIpAddress),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+      by Caller, SubscriptionId
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'New IP for {{Caller}}: privileged Azure ops from {{CallerIP}}'
+  alertDescriptionFormat: 'Established identity {{Caller}} performed {{OperationCount}} privileged management operation(s) from a new IP {{CallerIP}} not seen in 14 days:'
+customDetails:
+  Operations: Operations
+  AffectedResources: AffectedResources
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

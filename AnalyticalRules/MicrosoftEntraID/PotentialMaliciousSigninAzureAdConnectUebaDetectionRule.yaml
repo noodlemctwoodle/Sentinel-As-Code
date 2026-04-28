@@ -1,23 +1,23 @@
 id: a4fe163e-aec6-407c-8240-ef280742a5f4
 name: Potential malicious sign-in from Azure AD Connect account (UEBA)
-description: The Azure AD Connect account is accessing an ressource that it must not access. This is a high-fidelity sign of malicious actions.
+description: |
+  'The Azure AD Connect account is accessing an ressource that it must not access. This is a high-fidelity sign of malicious actions.'
 severity: High
-kind: Scheduled
-version: 1.0.1
 queryFrequency: PT1H
 queryPeriod: P14D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - LateralMovement
-  - PrivilegeEscalation
-techniques:
-  - T1078
-  - T1078.004
-  - T1550
-  - T1550.001
-query: |-
+- InitialAccess
+- LateralMovement
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.004
+- T1550
+- T1550.001
+query: |
   let DirectorySyncAdmins = (IdentityInfo
       | where TimeGenerated > ago(14d)
       | where AssignedRoles contains "Directory Synchronization Accounts"
@@ -28,26 +28,28 @@ query: |-
   // Only alert when AppId != Microsoft Azure Active Directory Connect and the ressource is not AAD
   | where AppId != "cb1056e2-e479-49de-ae31-7812af012ed8" and ResourceDisplayName != "Windows Azure Active Directory"
 entityMappings:
-  - entityType: CloudApplication
-    fieldMappings:
-      - columnName: AppId
-        identifier: AppId
-  - entityType: CloudApplication
-    fieldMappings:
-      - columnName: AppDisplayName
-        identifier: Name
-  - entityType: IP
-    fieldMappings:
-      - columnName: IPAddress
-        identifier: Address
-  - entityType: Account
-    fieldMappings:
-      - columnName: UserPrincipalName
-        identifier: FullName
-  - entityType: Account
-    fieldMappings:
-      - columnName: UserId
-        identifier: AadUserId
+- entityType: CloudApplication
+  fieldMappings:
+  - columnName: AppId
+    identifier: AppId
+- entityType: CloudApplication
+  fieldMappings:
+  - columnName: AppDisplayName
+    identifier: Name
+- entityType: IP
+  fieldMappings:
+  - columnName: IPAddress
+    identifier: Address
+- entityType: Account
+  fieldMappings:
+  - columnName: UserPrincipalName
+    identifier: FullName
+- entityType: Account
+  fieldMappings:
+  - columnName: UserId
+    identifier: AadUserId
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -55,11 +57,13 @@ incidentConfiguration:
     reopenClosedIncident: false
     groupByCustomDetails: []
     groupByEntities:
-      - Account
+    - Account
     groupByAlertDetails: []
     lookbackDuration: PT1H
     enabled: true
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.1
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

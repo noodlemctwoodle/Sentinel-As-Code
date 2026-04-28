@@ -1,0 +1,88 @@
+id: d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a
+name: SigninLogs — Brute Force Success Chain (Possible Account Breach)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects a successful sign-in occurring within 30 minutes of 5 or more failed attempts from the same IP against the same user. This pattern is a strong indicator of a successful breach following a brute force attack. MITRE ATT&CK: T1110 (Brute Force), T1078 (Valid Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1110
+query: |
+  let timeframe        = 1h;
+  let failureThreshold = 5;
+  let successWindow    = 30m;
+  let FailedLogins =
+      SigninLogs
+      | where TimeGenerated > ago(timeframe)
+      | where ResultType != "0"
+      | summarize
+          FailureCount   = count(),
+          LastFailure    = max(TimeGenerated),
+          FailureReasons = make_set(ResultDescription, 5)
+        by UserPrincipalName, IPAddress
+      | where FailureCount >= failureThreshold;
+  let SuccessfulLogins =
+      SigninLogs
+      | where TimeGenerated > ago(timeframe)
+      | where ResultType == "0"
+      | project
+          UserPrincipalName, IPAddress,
+          SuccessTime = TimeGenerated,
+          Location, AppDisplayName,
+          RiskLevelDuringSignIn;
+  FailedLogins
+  | join kind=inner SuccessfulLogins on UserPrincipalName, IPAddress
+  | where SuccessTime > LastFailure
+  | where SuccessTime - LastFailure <= successWindow
+  | extend
+      TimeSinceLastFailure = datetime_diff("minute", SuccessTime, LastFailure)
+  | project
+      TimeGenerated        = SuccessTime,
+      UserPrincipalName, IPAddress, Location,
+      AppDisplayName, FailureCount,
+      TimeSinceLastFailure, FailureReasons,
+      RiskLevelDuringSignIn
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Brute Force Breach — {{UserPrincipalName}} ({{FailureCount}} failures then success)'
+  alertDescriptionFormat: 'Sign-in from {{IPAddress}} succeeded after {{FailureCount}} failures — possible account compromise.'
+customDetails:
+  FailureCount: FailureCount
+  TimeSinceLastFailure: TimeSinceLastFailure
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,72 @@
+id: e7f8a9b0-c1d2-4e3f-4a5b-6c7d8e9f0a1b
+name: Fortinet SSL-VPN and Admin Authentication Brute Force
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects repeated Fortinet SSL-VPN or administrative console authentication failures from a
+  single source IP (>5 failures). VPN infrastructure is a primary target for credential
+  stuffing and password spraying attacks since successful access provides direct network-level
+  entry. High failure counts from a single IP are strong indicators of automated brute force
+  or credential stuffing activity.
+  MITRE ATT&CK: T1110 (Brute Force)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+relevantTechniques:
+- T1110
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Fortinet"
+  | where DeviceEventClassID has_any ("32001", "32002", "39424", "39952")
+      or Activity has_any ("ssl-vpn-tunnel", "vpn", "admin-login", "loginfailed",
+                           "login failure", "authentication failed")
+      or DeviceAction has_any ("failed", "denied", "reject", "failure")
+  | summarize
+      FailureCount     = count(),
+      UniqueUsers      = dcount(SourceUserName),
+      UserList         = make_set(SourceUserName, 20),
+      DestinationIPs   = make_set(DestinationIP, 5),
+      SourcePorts      = make_set(SourcePort, 5),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by SourceIP, DeviceEventClassID
+  | where FailureCount > 5
+  | order by FailureCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Fortinet VPN Brute Force - {{SourceIP}} ({{FailureCount}} failures)'
+  alertDescriptionFormat: 'Source {{SourceIP}} generated {{FailureCount}} Fortinet authentication failures targeting {{UniqueUsers}} unique accounts. Possible VPN credential brute force attack.'
+customDetails:
+  FailureCount: FailureCount
+  UniqueUsers: UniqueUsers
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

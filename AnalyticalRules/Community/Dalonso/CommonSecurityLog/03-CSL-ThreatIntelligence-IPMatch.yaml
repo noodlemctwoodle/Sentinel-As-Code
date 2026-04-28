@@ -1,0 +1,82 @@
+id: c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f
+name: Firewall Traffic to Threat Intelligence Flagged IP
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Correlates allowed firewall traffic (Fortinet, Palo Alto, Zscaler) against active Threat
+  Intelligence indicators from the ThreatIntelligenceIndicator table. Any allowed connection
+  to a TI-flagged IP is a high-confidence indicator of compromise, C2 communication, or
+  active exploitation attempt.
+  MITRE ATT&CK: T1071 (Application Layer Protocol), T1078 (Valid Accounts)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+- connectorId: ThreatIntelligence
+  dataTypes:
+  - ThreatIntelligenceIndicator
+queryFrequency: PT15M
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+- InitialAccess
+relevantTechniques:
+- T1071
+- T1078
+query: |
+  let TI_IPs =
+      ThreatIntelligenceIndicator
+      | where TimeGenerated > ago(30d)
+      | where Active == true
+      | where isnotempty(NetworkIP)
+      | summarize ThreatTypes = make_set(ThreatType), ConfidenceScore = max(ConfidenceScore)
+          by TI_IP = NetworkIP;
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP", "Reset-Both")
+  | where isnotempty(DestinationIP) or isnotempty(SourceIP)
+  | extend CheckIP = iff(ipv4_is_private(DestinationIP) == false, DestinationIP, SourceIP)
+  | join kind=inner TI_IPs on $left.CheckIP == $right.TI_IP
+  | summarize
+      HitCount         = count(),
+      InternalIPs      = make_set(SourceIP, 20),
+      DeviceVendors    = make_set(DeviceVendor),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated),
+      ThreatTypes      = make_set(ThreatTypes),
+      ConfidenceScore  = max(ConfidenceScore)
+    by TI_IP
+  | order by HitCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: TI_IP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'TI Match - Firewall Allowed Traffic to {{TI_IP}}'
+  alertDescriptionFormat: 'TI-flagged IP {{TI_IP}} (confidence: {{ConfidenceScore}}) was seen in {{HitCount}} allowed firewall events. Possible C2 communication or active IOC.'
+customDetails:
+  HitCount: HitCount
+  ConfidenceScore: ConfidenceScore
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

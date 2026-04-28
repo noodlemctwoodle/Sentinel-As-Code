@@ -1,0 +1,70 @@
+id: aa26c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d
+name: Zscaler ZIA - Off-Hours High-Volume Proxy Activity (Behavioral Anomaly)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA users generating more than 500 allowed proxy requests or downloading more than 100 MB between 10PM and 6AM local time. Most business users are inactive during these hours, so high-volume activity in this window is a strong behavioural anomaly — it may indicate a compromised account being remote-controlled, an insider threat staging data for exfiltration, or automated malware activity. MITRE ATT&CK: T1078 (Valid Accounts), T1048, T1029.
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+- DefenseEvasion
+relevantTechniques:
+- T1048
+- T1078
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction !in ("block", "BLOCK", "Blocked", "deny", "DROP")
+  | where isnotempty(SourceUserName)
+  | extend HourOfDay = hourofday(TimeGenerated)
+  | where HourOfDay between (0 .. 6) or HourOfDay >= 22
+  | summarize
+      OffHoursRequests   = count(),
+      MBDownloaded       = round(sum(todouble(ReceivedBytes)) / 1048576, 2),
+      MBUploaded         = round(sum(todouble(SentBytes)) / 1048576, 2),
+      UniqueDestinations = dcount(DestinationHostName),
+      Categories         = make_set(DeviceCustomString2, 5),
+      EarliestEvent      = min(TimeGenerated),
+      LatestEvent        = max(TimeGenerated)
+    by UserName = tolower(SourceUserName)
+  | where OffHoursRequests > 500 or MBDownloaded > 100
+  | order by MBDownloaded desc, OffHoursRequests desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Off-Hours Activity - {{UserName}} ({{OffHoursRequests}} reqs, {{MBDownloaded}} MB)'
+  alertDescriptionFormat: 'User {{UserName}} made {{OffHoursRequests}} proxy requests and downloaded {{MBDownloaded}} MB outside business hours (10PM-6AM).'
+customDetails:
+  OffHoursRequests: OffHoursRequests
+  MBDownloaded: MBDownloaded
+  MBUploaded: MBUploaded
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT8H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

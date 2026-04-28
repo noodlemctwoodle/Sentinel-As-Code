@@ -1,0 +1,63 @@
+id: c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e1f
+name: SigninLogs — Nation State IP Sign-In Detected
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects sign-ins where Azure AD Identity Protection tagged the source IP as affiliated with a nation-state threat actor (estsNationStateIP risk event type). Requires Entra ID P2 and Microsoft Defender for Identity. MITRE ATT&CK: T1078 (Valid Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT6H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+relevantTechniques:
+- T1078
+query: |
+  SigninLogs
+  | where TimeGenerated > ago(7d)
+  | extend V2Risk = tostring(RiskEventTypes_V2)
+  | where V2Risk contains "estsNationStateIP"
+  | project
+      TimeGenerated,
+      UserPrincipalName, IPAddress,
+      Location, AppDisplayName,
+      ResultType, ResultDescription,
+      RiskLevel = RiskLevelDuringSignIn,
+      RiskEventTypes_V2
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Nation State IP Sign-In — {{UserPrincipalName}} from {{IPAddress}}'
+  alertDescriptionFormat: 'Sign-in from {{IPAddress}} flagged as nation-state IP — {{RiskLevel}} risk level.'
+customDetails:
+  Location: Location
+  RiskLevel: RiskLevel
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

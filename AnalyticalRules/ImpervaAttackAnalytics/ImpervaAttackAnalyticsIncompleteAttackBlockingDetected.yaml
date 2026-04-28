@@ -1,29 +1,28 @@
 id: b59d576c-a6c1-47d4-8685-f81bfcf155e9
 name: Imperva Attack Analytics  - Incomplete Attack Blocking Detected
-description: This detection identifies and prioritises web application attacks that potentially bypassed Imperva WAF protections in the last 3 hours. It focuses on incidents where some attack traffic was NOT blocked (events_blocked_percent < 100%), indicating potential security gaps that require immediate attention.
+description: |
+  'This detection identifies and prioritises web application attacks that potentially bypassed Imperva WAF protections in the last 3 hours. It focuses on incidents where some attack traffic was NOT blocked (events_blocked_percent < 100%), indicating potential security gaps that require immediate attention.'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: ImpervaAttackAnalytics
+  dataTypes:
+  - Imperva_CL
 queryFrequency: PT3H
 queryPeriod: PT3H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - Impact
-techniques:
-  - T1189
-  - T1190
-  - T1498
-  - T1498.001
-  - T1499
-  - T1499.002
-requiredDataConnectors:
-  - connectorId: ImpervaAttackAnalytics
-    dataTypes:
-      - Imperva_CL
-query: |-
+- InitialAccess
+- Impact
+relevantTechniques:
+- T1189
+- T1190
+- T1498
+- T1498.001
+- T1499
+- T1499.002
+query: |
   ImpervaAttackAnalytics
   | where TimeGenerated > ago(3h)
   // filted Blocked Events
@@ -93,10 +92,20 @@ query: |-
   , attackRisk, attackTool, eventMessage,  riskScore, eventsCount = events_count, attackScale
   , attackCountry, attackIPAddress, Impervaid
 entityMappings:
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: attackIPAddress
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: attackIPAddress
+alertDetailsOverride:
+  alertSeverityColumnName: severity
+  alertDynamicProperties: []
+customDetails:
+  Country: attackCountry
+  DominantAttackTool: attackTool
+  DominantToolType: attackRisk
+  Alertdetails: eventMessage
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -107,15 +116,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-alertDetailsOverride:
-  alertSeverityColumnName: severity
-  alertDynamicProperties: []
-customDetails:
-  Country: attackCountry
-  DominantAttackTool: attackTool
-  DominantToolType: attackRisk
-  Alertdetails: eventMessage
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Imperva

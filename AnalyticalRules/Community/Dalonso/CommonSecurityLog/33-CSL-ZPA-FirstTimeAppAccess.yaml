@@ -1,0 +1,77 @@
+id: a033b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c
+name: Zscaler ZPA - First-Time Access to Internal Application - Possible Lateral Movement
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects ZPA users successfully accessing internal applications they have never connected to in the previous 14 days. In a well-managed ZPA deployment, users have defined app segment policies; accessing new applications outside their normal pattern can indicate logical lateral movement — an attacker using valid credentials to explore internal resources, privilege escalation that granted access to additional app segments, or a legitimate administrator testing new policies. MITRE ATT&CK: T1078 (Valid Accounts), T1021 (Remote Services).
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- LateralMovement
+- InitialAccess
+relevantTechniques:
+- T1021
+- T1078
+query: |
+  let recentWindow   = 1h;
+  let baselineWindow = 14d;
+  let baseline = CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Blocked", "Failed", "Error")
+      | where isnotempty(SourceUserName) and isnotempty(DestinationHostName)
+      | summarize HistoricApps = make_set(DestinationHostName)
+          by SourceUserName;
+  let recent = CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Blocked", "Failed", "Error")
+      | where isnotempty(SourceUserName) and isnotempty(DestinationHostName)
+      | summarize
+          RecentApps      = make_set(DestinationHostName),
+          ConnectionCount = count(),
+          SourceIPs       = make_set(SourceIP, 5)
+          by SourceUserName;
+  recent
+  | join kind=leftouter baseline on SourceUserName
+  | extend HistoricApps = coalesce(HistoricApps, dynamic([]))
+  | extend FirstTimeApps = set_difference(RecentApps, HistoricApps)
+  | where array_length(FirstTimeApps) > 0
+  | project SourceUserName, FirstTimeApps, ConnectionCount, SourceIPs, RecentApps
+  | order by ConnectionCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ZPA First-Time App Access - {{SourceUserName}} (new internal apps)'
+  alertDescriptionFormat: 'ZPA user {{SourceUserName}} accessed {{ConnectionCount}} connections to internal apps never seen in 14-day baseline: {{FirstTimeApps}}.'
+customDetails:
+  ConnectionCount: ConnectionCount
+  FirstTimeApps: FirstTimeApps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

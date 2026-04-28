@@ -3,27 +3,23 @@ name: New User Assigned to Privileged Role
 description: |
   Identifies when a privileged role is assigned to a new user. Any account eligible for a role is now being given privileged access. If the assignment is unexpected or into a role that isn't the responsibility of the account holder, investigate.
 severity: High
-kind: Scheduled
-version: 0.0.1
-status: Available
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AuditLogs
 queryFrequency: PT1H
 queryPeriod: P14D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1078
-  - T1078.004
-  - T1098
-  - T1098.003
-tags:
-  - AADSecOpsGuide
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - AuditLogs
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.004
+- T1098
+- T1098.003
 query: |
   let starttime = now()-1h;
   let endtime = now();
@@ -72,31 +68,37 @@ query: |
   | project TimeGenerated, OperationName, RoleName, Target, Initiator, InitiatingUserPrincipalName, InitiatingAadUserId, InitiatingAppName, InitiatingAppServicePrincipalId, InitiatingIpAddress, Result
   | extend TargetName = tostring(split(Target,'@',0)[0]), TargetUPNSuffix = tostring(split(Target,'@',1)[0]), InitiatorName = tostring(split(InitiatingUserPrincipalName,'@',0)[0]), InitiatorUPNSuffix = tostring(split(InitiatingUserPrincipalName,'@',1)[0])
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Target
-      - identifier: Name
-        columnName: TargetName
-      - identifier: UPNSuffix
-        columnName: TargetUPNSuffix
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: InitiatingUserPrincipalName
-      - identifier: Name
-        columnName: InitiatorName
-      - identifier: UPNSuffix
-        columnName: InitiatorUPNSuffix
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: InitiatingAadUserId
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: InitiatingAppServicePrincipalId
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: InitiatingIpAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Target
+  - identifier: Name
+    columnName: TargetName
+  - identifier: UPNSuffix
+    columnName: TargetUPNSuffix
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: InitiatingUserPrincipalName
+  - identifier: Name
+    columnName: InitiatorName
+  - identifier: UPNSuffix
+    columnName: InitiatorUPNSuffix
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: InitiatingAadUserId
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: InitiatingAppServicePrincipalId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: InitiatingIpAddress
+version: 0.0.1
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

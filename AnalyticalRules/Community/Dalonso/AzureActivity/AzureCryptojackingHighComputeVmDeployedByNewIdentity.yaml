@@ -1,0 +1,81 @@
+id: 045280a4-23b8-40dc-b30d-7e9191a12657
+name: Azure Cryptojacking - High-Compute VM Deployed by New Identity
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects deployment of GPU or high-compute VMs (NC/NV/ND/NP/HB/HC series) by identities with no history of such deployments in the last 14 days. Attackers compromise Azure credentials and immediately provision GPU VMs for cryptocurrency mining (T1496). FP mitigations applied: (1) 14-day behavioral baseline excludes established GPU deployers; (2) known IaC/CI-CD caller patterns excluded by name; (3) Azure platform IPs (168.63.x, 169.254.x) excluded; (4) requires ActivityStatus='Success' only — not 'Start' or 'Accept' which are pre-execution noise. NOT a duplicate of built-in 'Unusual number of resources created' because this is SKU-specific and identity-baseline-driven.
+severity: High
+queryFrequency: PT6H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Impact
+relevantTechniques:
+- T1496
+query: |
+  let GPUSKUs = dynamic(["Standard_NC", "Standard_NV", "Standard_ND", "Standard_NP", "Standard_HB", "Standard_HC"]);
+  let KnownAutoPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "devops", "arm-deployment"]);
+  let PriorGPUDeployers = AzureActivity
+      | where TimeGenerated between (ago(14d) .. ago(6h))
+      | where OperationNameValue has_any ("VIRTUALMACHINES/WRITE", "VIRTUALMACHINESCALESETS/WRITE")
+      | where Properties has_any (GPUSKUs)
+      | where ActivityStatusValue =~ "Success"
+      | distinct Caller;
+  AzureActivity
+  | where TimeGenerated > ago(6h)
+  | where ActivityStatusValue =~ "Success"
+  | where OperationNameValue has_any ("VIRTUALMACHINES/WRITE", "VIRTUALMACHINESCALESETS/WRITE")
+  | where Properties has_any (GPUSKUs)
+  | where not(tolower(Caller) has_any (KnownAutoPatterns))
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63." and CallerIpAddress !startswith "169.254."
+  | where Caller !in (PriorGPUDeployers)
+  | summarize
+      DeploymentCount = count(),
+      DeployedResources = make_set(ResourceId, 10),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+      by Caller, ResourceGroup, SubscriptionId
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Cryptojacking: GPU VM deployed by {{Caller}} from {{CallerIP}}'
+  alertDescriptionFormat: 'Identity {{Caller}} deployed {{DeploymentCount}} high-compute VM(s) with no prior history. Source IP(s): {{SourceIPs}}. Resources:'
+customDetails:
+  DeploymentCount: DeploymentCount
+  SourceIPs: SourceIPs
+  DeployedResources: DeployedResources
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

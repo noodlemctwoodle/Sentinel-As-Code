@@ -1,0 +1,75 @@
+id: cc22e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f
+name: Zscaler ZIA - Advanced Threat Protection (ATP) / Sandbox Malicious File Blocked
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA Advanced Threat Protection (ATP) or Sandbox events where a file download was blocked due to a malicious verdict. A sandbox block means Zscaler detonated the file and identified malicious behaviour — ransomware, trojan, exploit, or C2 callback. Treat any sandbox block as a high-confidence malware delivery attempt requiring immediate endpoint investigation. MITRE ATT&CK: T1204 (User Execution), T1566 (Phishing — Malicious File), T1071.
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT15M
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Execution
+relevantTechniques:
+- T1204
+- T1566
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction in ("block", "BLOCK", "Blocked")
+  | where DeviceCustomString2 has_any (
+      "SANDBOX", "ADVANCED_THREAT", "MALWARE_DOWNLOAD_BLOCKED",
+      "ADVANCED_MALWARE_POLICY", "RANSOMWARE", "EXPLOIT", "ADVANCED_THREAT_C2")
+      or DeviceCustomString1 has_any (
+      "sandbox", "malicious", "virus", "trojan",
+      "ransomware", "exploit", "backdoor", "rat")
+      or Activity has_any ("Sandbox", "Advanced Threat Protection", "Malware")
+  | summarize
+      BlockCount     = count(),
+      UserCount      = dcount(SourceUserName),
+      UserList       = make_set(SourceUserName, 10),
+      BlockedDomains = make_set(DestinationHostName, 10),
+      BlockedURLs    = make_set(RequestURL, 10),
+      ThreatNames    = make_set(DeviceCustomString1, 10),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated),
+      RepUser        = any(SourceUserName)
+    by ThreatCategory = DeviceCustomString2
+  | order by BlockCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: RepUser
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler ATP Block - {{ThreatCategory}} ({{BlockCount}} events, {{UserCount}} users)'
+  alertDescriptionFormat: 'Zscaler blocked {{BlockCount}} ATP or Sandbox events for category {{ThreatCategory}} affecting {{UserCount}} users.'
+customDetails:
+  BlockCount: BlockCount
+  UserCount: UserCount
+  ThreatCategory: ThreatCategory
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

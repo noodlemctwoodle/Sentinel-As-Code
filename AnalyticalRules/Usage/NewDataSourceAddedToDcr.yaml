@@ -1,20 +1,20 @@
 id: 9d1c9b03-f953-42f3-8308-a95179392df5
 name: New Source added to DCR
-description: Enter rule description here
+description: |
+  'Enter rule description here'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - DefenseEvasion
-  - Impact
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- DefenseEvasion
+- Impact
 query: |
   AzureActivity
   | where OperationNameValue has "DATACOLLECTIONRULEASSOCIATIONS/WRITE"
@@ -25,18 +25,22 @@ query: |
   | extend DCR = toupper(split(Resources[2], "-association")[0])
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Source, SourceRG, DCR, Caller, CallerIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
-  - entityType: Host
-    fieldMappings:
-      - identifier: HostName
-        columnName: Source
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: Source
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -47,7 +51,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Workspace Usage

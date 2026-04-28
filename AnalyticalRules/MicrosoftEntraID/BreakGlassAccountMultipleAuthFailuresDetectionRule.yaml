@@ -5,25 +5,23 @@ description: |
 
   REQUIRES WATCHLIST = "breakGlassAccounts"'
 severity: High
-kind: NRT
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SignInLogs
 queryFrequency: PT5M
 queryPeriod: PT5M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - CredentialAccess
-techniques:
-  - T1078
-  - T1078.004
-  - T1110
-  - T1110.001
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SignInLogs
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1110
+- T1110.001
 query: |
   let breakGlassAccounts = _GetWatchlist('breakGlassAccounts')
     | summarize by UserPrincipalName, UserId;
@@ -39,11 +37,17 @@ query: |
   | where Reuslts >= 5
   | sort by TimeGenerated
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+version: 1.0.0
+kind: NRT
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

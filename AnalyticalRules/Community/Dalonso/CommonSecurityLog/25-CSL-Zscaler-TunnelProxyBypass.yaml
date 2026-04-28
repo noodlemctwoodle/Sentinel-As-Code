@@ -1,0 +1,71 @@
+id: ff25b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c
+name: Zscaler ZIA - Tunnel, SOCKS Proxy, or SSL Bypass Category Detected
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA traffic matching tunnel, SOCKS proxy, VPN protocol, or SSL-bypass / proxy-avoidance URL categories. These categories indicate a user or host attempting to establish an encrypted channel that bypasses Zscaler's SSL inspection engine or to route traffic through an anonymizing proxy — hiding true destination or preventing DLP and threat detection. MITRE ATT&CK: T1572 (Protocol Tunneling), T1090 (Proxy), T1562.007.
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+- DefenseEvasion
+relevantTechniques:
+- T1090
+- T1572
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceCustomString2 has_any (
+      "TUNNEL", "PROXY_AVOIDANCE_ANONYMIZERS", "ENCRYPTED_TUNNEL",
+      "SECURE_TUNNELING", "VPN_PROTOCOLS", "TOR_PROXY",
+      "ANONYMIZING_UTILITIES", "PRIVACY_PROTECTION")
+      or ApplicationProtocol has_any ("TUNNEL", "SOCKS", "CONNECT")
+  | where isnotempty(SourceUserName)
+  | summarize
+      TunnelAttempts = count(),
+      UniqueTargets  = dcount(DestinationHostName),
+      TargetDomains  = make_set(DestinationHostName, 10),
+      DevicePorts    = make_set(DestinationPort, 5),
+      Protocols      = make_set(ApplicationProtocol, 5),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated)
+    by SourceUserName, TunnelCategory = DeviceCustomString2
+  | order by TunnelAttempts desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Tunnel/Bypass - {{SourceUserName}} ({{TunnelAttempts}} attempts)'
+  alertDescriptionFormat: 'User {{SourceUserName}} triggered {{TunnelAttempts}} tunneling or proxy-bypass events. Category: {{TunnelCategory}}.'
+customDetails:
+  TunnelAttempts: TunnelAttempts
+  UniqueTargets: UniqueTargets
+  TunnelCategory: TunnelCategory
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,76 @@
+id: d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a
+name: Zscaler ZIA - Shadow IT and Unauthorized File Sharing - High Volume
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users uploading significant amounts of data (>50 MB) or making frequent requests
+  (>200) to personal cloud storage, file-sharing platforms, or personal webmail via Zscaler.
+  While individual access may be policy-acceptable, high volume to shadow IT destinations is
+  a strong data exfiltration indicator, particularly when combined with recent security alerts
+  or identity risk signals.
+  MITRE ATT&CK: T1048.002 (Exfiltration Over Web Service)
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT6H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+relevantTechniques:
+- T1048
+query: |
+  let ShadowITCategories = dynamic([
+      "PERSONAL_SITES_BLOGS", "FILE_HOST", "SHAREWARE_FREEWARE",
+      "SOCIAL_NETWORKING", "PERSONAL_EMAIL", "WEB_BASED_EMAIL", "CLOUD_STORAGE",
+      "ONLINE_STORAGE_AND_BACKUP", "GENERAL_FILESHARING"]);
+  CommonSecurityLog
+  | where TimeGenerated > ago(7d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceCustomString2 in (ShadowITCategories)
+      or DeviceCustomString3 in (ShadowITCategories)
+  | summarize
+      RequestCount     = count(),
+      TotalBytesSent   = sum(SentBytes),
+      TotalBytesRecv   = sum(ReceivedBytes),
+      UniqueURLs       = dcount(RequestURL),
+      URLSamples       = make_set(RequestURL, 10),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by SourceUserName, DeviceCustomString2
+  | extend TotalMBSent = round(toreal(TotalBytesSent) / 1048576, 2)
+  | where TotalMBSent > 50 or RequestCount > 200
+  | order by TotalMBSent desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Shadow IT Upload Risk - {{SourceUserName}} sent {{TotalMBSent}} MB to {{DeviceCustomString2}}'
+  alertDescriptionFormat: 'User {{SourceUserName}} sent {{TotalMBSent}} MB to shadow IT category {{DeviceCustomString2}} across requests. Possible data exfiltration via consumer cloud service.'
+customDetails:
+  TotalMBSent: TotalMBSent
+  RequestCount: RequestCount
+  DeviceCustomString2: DeviceCustomString2
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: P1D
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

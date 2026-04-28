@@ -1,0 +1,79 @@
+id: f37da58a-d3c7-41df-8e75-79625adf5d7e
+name: Azure - Mass Privileged Role Assignments by Single Identity
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Alerts when a single identity assigns 5 or more non-read-only role assignments within a 30-minute window. Post-compromise privilege escalation by groups like LAPSUS$ and Storm-0501 involves rapid bulk role assignment to maintain access (T1098.003). FP mitigations: (1) PIM service principal excluded by name pattern — PIM-initiated bulk activations appear as role assignments but via 'MS-PIM' or 'PrivilegedIdentityManagement' callers; (2) Pure read-only roles (Reader, Billing Reader GUIDs) excluded; (3) Azure platform IP filtered; (4) Threshold of 5+ in 30 min avoids single legitimate assignment noise; (5) 30-minute bin ensures the burst pattern is detected rather than spread assignments.
+severity: High
+queryFrequency: PT30M
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- PrivilegeEscalation
+- Persistence
+relevantTechniques:
+- T1098
+query: |
+  let ExcludedCallerPatterns = dynamic(["ms-pim", "privilegedidentity", "identitygovernance", "aadidentitygovernance"]);
+  let ReadOnlyRoleIds = dynamic(["acdd72a7-3385-48ef-bd42-f606fba81ae7", "fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64", "72fafb9e-0641-4937-9268-a91bfd8191a3"]);
+  AzureActivity
+  | where TimeGenerated > ago(1h)
+  | where OperationNameValue =~ "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
+  | where ActivityStatusValue =~ "Success"
+  | where not(tolower(Caller) has_any (ExcludedCallerPatterns))
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63."
+  | extend RoleDefId = tolower(tostring(parse_json(Properties).requestbody.properties.roleDefinitionId))
+  | where not(RoleDefId has_any (ReadOnlyRoleIds))
+  | summarize
+      AssignmentCount = count(),
+      DistinctRoles = dcount(RoleDefId),
+      AssignedRoles = make_set(RoleDefId, 10),
+      AffectedScopes = make_set(ResourceGroup, 10),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstAssignment = min(TimeGenerated),
+      LastAssignment = max(TimeGenerated)
+      by Caller, SubscriptionId, bin(TimeGenerated, 30m)
+  | where AssignmentCount >= 5
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Mass role assignment: {{AssignmentCount}} roles by {{Caller}}'
+  alertDescriptionFormat: '{{Caller}} assigned {{AssignmentCount}} non-read-only roles across {{AffectedScopes}} in 30 minutes. Role IDs:'
+customDetails:
+  AssignmentCount: AssignmentCount
+  AssignedRoles: AssignedRoles
+  AffectedScopes: AffectedScopes
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -5,39 +5,40 @@ description: |
 
   Look for command line which contains malicious export functions as listed in query – this is a list of observed exports at time of writing and may change over time.'
 severity: High
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: MicrosoftDefenderforEndpoints
+  dataTypes:
+  - DeviceFileEvents
+  - DeviceProcessEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Execution
-  - Persistence
-  - DefenseEvasion
-  - LateralMovement
-techniques:
-  - T1569
-  - T1569.002
-  - T1554
-  - T1211
-  - T1059
-  - T1059.003
-  - T1574
-  - T1574.002
-requiredDataConnectors:
-  - connectorId: MicrosoftDefenderforEndpoints
-    dataTypes:
-      - DeviceFileEvents
-      - DeviceProcessEvents
+- Execution
+- Persistence
+- DefenseEvasion
+- LateralMovement
+relevantTechniques:
+- T1059
+- T1059.003
+- T1211
+- T1554
+- T1569
+- T1569.002
+- T1574
+- T1574.002
 query: |
   union DeviceFileEvents, DeviceProcessEvents
   | where ProcessCommandLine has_any ("juwXYebIfE", "LeKGTMwkFQ", "dSjXqiVvQK", "SjVjlixjPb", "MDbJvVaNCR", "EPTsswwiRJ", "IternalJob", "YTBSBbNTWU", "AUjoZKdcSZ", "xshiMECwuG", "rBgTBiTTDW", "EUQtIMIQqE", "shjKeAQfgT", "zYKGjAgZov", "pGUAYVFxbN", "VcrbRMwpuk", "ZmJwfQQnqA", "zYKGjAgZov", "kXlNkCKgFC")
 entityMappings:
-  - entityType: Process
-    fieldMappings:
-      - identifier: CommandLine
-        columnName: ProcessCommandLine
+- entityType: Process
+  fieldMappings:
+  - identifier: CommandLine
+    columnName: ProcessCommandLine
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -48,7 +49,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Defender XDR

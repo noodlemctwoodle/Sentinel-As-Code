@@ -1,0 +1,69 @@
+id: f8a9b0c1-d2e3-4f4a-5b6c-7d8e9f0a1b2c
+name: Zscaler ZIA - Impossible Travel (Same User, Multiple Locations in 1 Hour)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA users who generate requests from more than one distinct geographic
+  location within the same 1-hour window. Since physical travel between locations within
+  one hour is impossible, this indicates credential sharing, VPN/proxy abuse to change
+  apparent location, or an account compromise where both the legitimate user and an attacker
+  are using the credentials concurrently.
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1078
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where isnotempty(SourceUserName)
+  | extend HourBucket = bin(TimeGenerated, 1h)
+  | summarize
+      CountryCount     = dcount(SourceGeoCity),
+      Countries        = make_set(SourceGeoCity, 10),
+      RequestCount     = count(),
+      SourceIPs        = make_set(SourceIP, 10),
+      URLSamples       = make_set(RequestURL, 5)
+    by SourceUserName, HourBucket
+  | where CountryCount > 1
+  | order by CountryCount desc, RequestCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Impossible Travel - {{SourceUserName}} in {{CountryCount}} locations/hr'
+  alertDescriptionFormat: 'User {{SourceUserName}} accessed Zscaler from {{CountryCount}} distinct locations within 1 hour across {{RequestCount}} requests. Possible credential compromise or proxy bypass.'
+customDetails:
+  CountryCount: CountryCount
+  RequestCount: RequestCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,151 @@
+id: b137c2d3-e4f5-4a6b-7c8d-9e0f1a2b3c4d
+name: 'Zscaler ZIA - APT Control Evasion: Agent Tampering and Visibility Degradation'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects an attacker (or insider) attempting to degrade SOC visibility by breaking
+  Zscaler or EDR telemetry. This "maximum paranoia mode" rule correlates two distinct
+  evidence streams:
+
+  1. VISIBILITY LOSS: Hosts that had consistent ZIA traffic in the prior 7-day baseline
+     (≥10 requests/day) but produced zero ZIA telemetry in the most recent 4-hour window,
+     without a known global outage explanation.
+
+  2. AGENT TAMPERING: Microsoft Defender for Endpoint (DeviceEvents) service-stop /
+     service-delete / driver-unload events targeting Zscaler Client Connector or EDR
+     agent processes (ZscalerService, ZSATunnel, ZSAUpdater, MsSense, SenseSvc).
+     SecurityEvent Windows Service Control Manager events (EventID 7034-7045) for the
+     same service names are also correlated.
+
+  Both streams are scored jointly. A disappearing host alone warrants investigation;
+  a disappearing host with corroborating agent-tamper events is a critical indicator
+  of deliberate control evasion aligned with MITRE T1562 (Impair Defenses) and T1070
+  (Indicator Removal).
+
+  Outcome: A ranked list of source IPs / hosts showing evidence of being "detached"
+  from the Zero Trust / Zscaler architecture for manual investigation and potential
+  endpoint isolation.
+
+  MITRE ATT&CK: TA0005 (Defense Evasion), T1562 (Impair Defenses),
+  T1562.001 (Disable or Modify Tools), T1070 (Indicator Removal).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+- connectorId: MicrosoftDefenderAdvancedThreatProtection
+  dataTypes:
+  - DeviceEvents
+- connectorId: SecurityEvents
+  dataTypes:
+  - SecurityEvent
+queryFrequency: PT1H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+relevantTechniques:
+- T1070
+- T1562
+query: |
+  let baselineWindow            = 7d;
+  let recentWindow              = 4h;
+  let minBaselineRequestsPerDay = 10;
+  let ZIA_BaselineHosts =
+      CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler"
+      | where isnotempty(SourceIP) and isnotempty(SourceUserName)
+      | summarize
+          BaselineRequestsPerDay = round(toreal(count()) / (baselineWindow / 1d), 1),
+          BaselineUsers          = make_set(SourceUserName, 5)
+        by SourceIP
+      | where BaselineRequestsPerDay >= minBaselineRequestsPerDay;
+  let ZIA_RecentActive =
+      CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler"
+      | where isnotempty(SourceIP)
+      | distinct SourceIP;
+  let SilentHosts =
+      ZIA_BaselineHosts
+      | join kind=leftanti ZIA_RecentActive on SourceIP;
+  let AgentTampering =
+      DeviceEvents
+      | where TimeGenerated > ago(recentWindow)
+      | where ActionType in (
+          "ServiceUninstalled", "ServiceStopped", "DriverUnloaded",
+          "TamperingAttempt", "AntivirusScanFailed")
+        or (ActionType == "ProcessCreated"
+            and InitiatingProcessCommandLine has_any (
+                "ZscalerApp", "ZSATunnel", "ZSAUpdater", "ZscalerService",
+                "sc stop", "sc delete", "net stop", "taskkill"))
+      | summarize
+          TamperEvents    = count(),
+          TamperActions   = make_set(ActionType, 10),
+          TamperCmds      = make_set(InitiatingProcessCommandLine, 5),
+          TamperFirstSeen = min(TimeGenerated)
+        by DeviceName;
+  let SvcTampering =
+      SecurityEvent
+      | where TimeGenerated > ago(recentWindow)
+      | where EventID in (7034, 7035, 7036, 7040, 7045)
+      | where ServiceName has_any (
+          "ZscalerService", "ZSATunnel", "ZSAUpdater",
+          "MsSense", "SenseSvc", "WdFilter", "AADConnect")
+      | summarize
+          SvcEvents      = count(),
+          SvcNames       = make_set(ServiceName, 10),
+          SvcStateChange = make_set(Message, 5),
+          SvcFirstSeen   = min(TimeGenerated)
+        by Computer;
+  SilentHosts
+  | join kind=leftouter AgentTampering on $left.SourceIP == $right.DeviceName
+  | join kind=leftouter SvcTampering   on $left.SourceIP == $right.Computer
+  | extend
+      TamperEvents = coalesce(TamperEvents, 0),
+      SvcEvents    = coalesce(SvcEvents, 0)
+  | extend EvasionScore =
+      toint(BaselineRequestsPerDay * 2)
+    + iff(TamperEvents > 0, 50, 0)
+    + iff(SvcEvents    > 0, 40, 0)
+  | project
+      SourceIP, BaselineUsers, BaselineRequestsPerDay,
+      TamperEvents, TamperActions, TamperCmds,
+      SvcEvents, SvcNames, SvcStateChange,
+      EvasionScore,
+      TamperFirstSeen, SvcFirstSeen
+  | order by EvasionScore desc, BaselineRequestsPerDay desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Control Evasion Detected - {{SourceIP}} (score: {{EvasionScore}}, was {{BaselineRequestsPerDay}} req/day)'
+  alertDescriptionFormat: 'Host {{SourceIP}} went silent in ZIA after averaging {{BaselineRequestsPerDay}} requests/day. Tamper events: {{TamperEvents}} (MDE DeviceEvents), service events:'' (Security Log).
+    EvasionScore: .'
+customDetails:
+  EvasionScore: EvasionScore
+  BaselineRequestsPerD: BaselineRequestsPerDay
+  TamperEvents: TamperEvents
+  SvcEvents: SvcEvents
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,125 @@
+id: d9e5f7a8-b3c4-6d0e-1f2a-3b4c5d6e7f8a
+name: Interactive to Non-Interactive Token Theft Pivot
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a user had a successful interactive sign-in (especially without MFA or with
+  CA not applied) and then the same session was used for non-interactive token refreshes
+  from a DIFFERENT IP address and country within a 2-hour window. This is the classic
+  pattern of an attacker stealing a token immediately after initial authentication.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1539 (Steal Web Session Cookie)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT3H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- LateralMovement
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1528
+- T1539
+query: |
+  // ── IP Exclusion Lists ─────────────────────────────────────────────────────
+  // Add corporate VPN egress IPs or other known-safe IPs to KnownSafeIPs.
+  // Add CIDR ranges (VPN subnets, on-prem NAT, Azure VPN Gateway) to KnownSafeNetworks.
+  // Watchlist alternative:
+  //   let KnownSafeIPs = (_GetWatchlist('VPNExcludedIPs') | project SearchKey);
+  let KnownSafeIPs = dynamic([
+      // "203.0.113.50",       // Example VPN egress IP 1
+      // "198.51.100.12",      // Example VPN egress IP 2
+      // "20.x.x.x"            // Example Azure VPN Gateway public IP
+  ]);
+  // CIDR ranges – ipv4_lookup filters both interactive and NI IPs
+  // Azure datacenter IP ranges: https://aka.ms/azureipranges (add to a Watchlist for large sets)
+  let KnownSafeNetworks = datatable(network: string) [
+      // "10.0.0.0/8",         // RFC1918 – private / on-prem
+      // "172.16.0.0/12",      // RFC1918 – private / on-prem
+      // "192.168.0.0/16",     // RFC1918 – private / on-prem
+      // "YOUR_VPN_CIDR/24",   // Replace with corporate VPN egress subnet
+      "0.0.0.0/32"             // Placeholder – keeps datatable valid when list is empty
+  ];
+  // ──────────────────────────────────────────────────────────────────────────
+  let InteractiveSessions =
+      SigninLogs
+      | where TimeGenerated > ago(3h)
+      | where ResultType == 0
+      | where AuthenticationRequirement == "singleFactorAuthentication"
+         or   ConditionalAccessStatus   == "notApplied"
+      | where not(IPAddress in (KnownSafeIPs))
+      | evaluate ipv4_lookup(KnownSafeNetworks, IPAddress, network, return_unmatched = true)
+      | where isempty(network)
+      | project-away network
+      | project
+          UserPrincipalName,
+          InteractiveTime    = TimeGenerated,
+          InteractiveIP      = IPAddress,
+          InteractiveCountry = Location,
+          AppDisplayName,
+          CorrelationId;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(3h)
+  | where ResultType == 0
+  | where not(IPAddress in (KnownSafeIPs))
+  | evaluate ipv4_lookup(KnownSafeNetworks, IPAddress, network, return_unmatched = true)
+  | where isempty(network)
+  | project-away network
+  | join kind=inner InteractiveSessions on UserPrincipalName
+  | where IPAddress != InteractiveIP
+     and  Location  != InteractiveCountry
+     and  (TimeGenerated - InteractiveTime) between (1m .. 2h)
+  | project
+      NISignInTime       = TimeGenerated,
+      InteractiveTime,
+      UserPrincipalName,
+      AppDisplayName,
+      NIIPAddress        = IPAddress,
+      NICountry          = Location,
+      InteractiveIP,
+      InteractiveCountry,
+      CorrelationId,
+      UniqueTokenIdentifier,
+      TimeSinceInteractive = (TimeGenerated - InteractiveTime)
+  | order by UserPrincipalName asc, InteractiveTime asc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: NIIPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Token Pivot - {{UserPrincipalName}} NI token from {{NIIPAddress}} after interactive auth'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} used a non-interactive token from {{NIIPAddress}} within 2 hours of interactive auth from {{InteractiveIP}}. Possible token theft.'
+customDetails:
+  InteractiveIP: InteractiveIP
+  InteractiveCountry: InteractiveCountry
+  NonInteractiveCountr: NICountry
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

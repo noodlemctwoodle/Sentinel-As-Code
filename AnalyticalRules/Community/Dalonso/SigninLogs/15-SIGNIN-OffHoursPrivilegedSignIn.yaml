@@ -1,0 +1,74 @@
+id: e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b
+name: SigninLogs — Off-Hours Sign-In by Privileged Account
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects privileged accounts signing in between 22:00 and 05:00 UTC. Off-hours admin access is a key hunting signal for insider threats, living-off-the-land attackers, and compromised admin credentials. Investigate alongside concurrent AuditLogs activity. MITRE ATT&CK: T1078 (Valid Accounts), T1098 (Account Manipulation).
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Persistence
+relevantTechniques:
+- T1078
+- T1098
+query: |
+  let privilegedKeywords = dynamic([
+      "admin", "adm-", "adm.", "-adm", "_adm",
+      "da-", "ea-", "ga-", "pa-",
+      "tier0", "tier-0", "t0-",
+      "priv", "svc.adm", "svc-adm",
+      "globaladmin", "secadmin", "cloudadmin"
+  ]);
+  let offHoursStart = 22;
+  let offHoursEnd   = 5;
+  SigninLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == "0"
+  | where UserPrincipalName has_any (privilegedKeywords)
+  | extend HourOfDay = hourofday(TimeGenerated)
+  | where HourOfDay >= offHoursStart or HourOfDay < offHoursEnd
+  | project
+      TimeGenerated, UserPrincipalName,
+      IPAddress, Location,
+      AppDisplayName, HourOfDay,
+      RiskLevelDuringSignIn, ConditionalAccessStatus,
+      IsInteractive
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Off-Hours Privileged Sign-In — {{UserPrincipalName}} at {{HourOfDay}}:00 UTC from {{Location}}'
+  alertDescriptionFormat: 'Privileged account {{UserPrincipalName}} signed in at {{HourOfDay}}:00 UTC outside business hours. Investigate for unauthorized admin activity.'
+customDetails:
+  HourOfDay: HourOfDay
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

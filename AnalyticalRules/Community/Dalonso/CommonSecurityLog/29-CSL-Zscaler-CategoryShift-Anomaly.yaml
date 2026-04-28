@@ -1,0 +1,78 @@
+id: c329d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: Zscaler ZIA - Sudden Category Shift - User Accessing New High-Risk URL Categories
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users accessing URL categories they have never accessed in the previous 7 days, where those categories represent high-risk or policy-violating content: gambling, adult/pornography, proxy avoidance, personal VPN, dating, extremism, tasteless, or illegal content. A sudden category shift may indicate compromised credentials being used by an attacker browsing freely, a policy bypass attempt, or an insider threat. MITRE ATT&CK: T1078 (Valid Accounts), T1090 (Proxy), T1048.
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CommandAndControl
+relevantTechniques:
+- T1078
+- T1090
+query: |
+  let HighRiskCategories = dynamic([
+      "GAMBLING", "ADULT_CONTENT", "NUDITY", "DATING",
+      "PROXY_AVOIDANCE_ANONYMIZERS", "PERSONAL_VPN", "ANONYMIZING_UTILITIES",
+      "EXTREMISM_ADVOCACY", "TASTELESS", "ILLEGAL_OR_QUESTIONABLE"]);
+  let recentWindow    = 1h;
+  let baselineWindow  = 7d;
+  let baseline = CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler" and isnotempty(SourceUserName)
+      | summarize BaselineCategories = make_set(DeviceCustomString2)
+          by SourceUserName;
+  let recent = CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler" and isnotempty(SourceUserName)
+      | where DeviceCustomString2 in (HighRiskCategories)
+      | summarize
+          RecentCategories = make_set(DeviceCustomString2),
+          RequestCount     = count(),
+          Domains          = make_set(DestinationHostName, 10)
+          by SourceUserName;
+  recent
+  | join kind=leftouter baseline on SourceUserName
+  | extend BaselineCategories = coalesce(BaselineCategories, dynamic([]))
+  | extend NewCategories = set_difference(RecentCategories, BaselineCategories)
+  | where array_length(NewCategories) > 0
+  | project SourceUserName, NewCategories, RequestCount, Domains, RecentCategories
+  | order by RequestCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Category Shift - {{SourceUserName}} accessing new risk categories'
+  alertDescriptionFormat: 'User {{SourceUserName}} accessed {{RequestCount}} requests in new high-risk categories not seen in past 7 days: {{NewCategories}}.'
+customDetails:
+  RequestCount: RequestCount
+  NewCategories: NewCategories
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

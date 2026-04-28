@@ -1,0 +1,95 @@
+id: a1b2c3d4-0011-4a5b-8c9d-dns011certutil
+name: Certutil Decoding After DNS Lookup Chain (LOLBin DNS Staging)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects the classic DNS payload staging attack chain documented by Octoberfest7:
+  1. nslookup.exe makes many TXT/MX queries to retrieve base64/hex chunks
+  2. certutil.exe -decode or -decodehex reassembles the chunks into an executable
+  This is a Living-off-the-Land Binary (LOLBin) technique that works in
+  PowerShell Constrained Language Mode (CLM) and can evade application
+  whitelisting, as both nslookup.exe and certutil.exe are trusted Windows binaries.
+  The chain: nslookup (many calls) → certutil -decode → executable creation
+  MITRE T1218.003 (certutil), T1027 (obfuscated files), T1071.004 (DNS)
+  Differentiation from built-in "CertUtil Used to Download Files"
+  (Endpoint Threat Protection Essentials):
+  The built-in fires on any certutil.exe download event in isolation. This rule
+  requires TEMPORAL CORRELATION — a burst of nslookup DNS activity from the same
+  host within 10 minutes before the certutil execution, proving the DNS-staging
+  delivery chain rather than standalone certutil use. This eliminates noise from
+  legitimate PKI certificate operations that trigger the built-in rule.
+severity: High
+requiredDataConnectors:
+- connectorId: SecurityEvents
+  dataTypes:
+  - SecurityEvent
+queryFrequency: PT15M
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Execution
+- DefenseEvasion
+- CommandAndControl
+relevantTechniques:
+- T1027
+- T1071.004
+- T1218.003
+query: |
+  let NslookupEvents =
+      SecurityEvent
+      | where TimeGenerated > ago(1h)
+      | where EventID == 4688
+      | where Process =~ "nslookup.exe"
+      | summarize
+          NslookupCount = count(),
+          NslookupTime  = min(TimeGenerated),
+          NslookupCmds  = make_set(CommandLine, 5)
+        by Computer, Account;
+  let CertutilEvents =
+      SecurityEvent
+      | where TimeGenerated > ago(1h)
+      | where EventID == 4688
+      | where Process =~ "certutil.exe"
+      | where CommandLine has_any ("-decode", "-decodehex", "-urlcache", "-f")
+      | summarize
+          CertutilCount = count(),
+          CertutilTime  = min(TimeGenerated),
+          CertutilCmds  = make_set(CommandLine, 5)
+        by Computer, Account;
+  NslookupEvents
+  | join kind=inner CertutilEvents on Computer, Account
+  | where CertutilTime > NslookupTime
+      and (CertutilTime - NslookupTime) < 10m
+  | where NslookupCount >= 5
+  | project
+      Computer,
+      Account,
+      NslookupCount,
+      NslookupTime,
+      CertutilTime,
+      NslookupCmds,
+      CertutilCmds,
+      TimeDelta = CertutilTime - NslookupTime
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: Computer
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: Account
+alertDetailsOverride:
+  alertDisplayNameFormat: 'LOLBin DNS Staging — nslookup+certutil chain on {{Computer}}'
+  alertDescriptionFormat: '{{Computer}} ({{Account}}): {{NslookupCount}} nslookup calls followed by certutil -decode within . This matches DNS payload staging via LOLBins. nslookup cmds: ,'' certutil cmds:'
+customDetails:
+  NslookupCount: NslookupCount
+  CertutilCmds: CertutilCmds
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

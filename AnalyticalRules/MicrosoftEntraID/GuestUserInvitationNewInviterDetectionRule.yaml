@@ -3,25 +3,23 @@ name: Guest Users Invited to Tenant by New Inviters
 description: |
   'Detects when a Guest User is added by a user account that has not been seen adding a guest in the previous 14 days'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: AuditLogs
+  dataTypes:
+  - AuditLogs
 queryFrequency: P1D
 queryPeriod: P14D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - InitialAccess
-techniques:
-  - T1078
-  - T1078.004
-  - T1136
-  - T1136.003
-requiredDataConnectors:
-  - connectorId: AuditLogs
-    dataTypes:
-      - AuditLogs
+- Persistence
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1136
+- T1136.003
 query: |
   let normalGuestInviters = (
   AuditLogs
@@ -42,15 +40,21 @@ query: |
   | extend invitedUserPrincipalName = tostring(TargetResources[0].userPrincipalName)
   | extend ipAddress = tostring(parse_json(tostring(InitiatedBy.user)).ipAddress)
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: invitingUser
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: invitedUserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: ipAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: invitingUser
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: invitedUserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: ipAddress
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

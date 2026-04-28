@@ -1,0 +1,161 @@
+id: 872ccc90-d0f6-45c4-8f5e-8a5f8f651436
+name: Azure - Mass Resource Creation Burst by New Identity (Cryptojacking / Persistence)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects bursts of resource creation events by identities with no prior resource-creation history in the last 14 days, across 3+ distinct resource types, within a 2-hour window. This pattern is characteristic of: (1) Cryptojacking operators provisioning GPU/compute fleets post-credential-theft (T1496); (2) Attackers establishing persistence infrastructure — VMs, App Registrations, Container Instances (T1136); (3) Supply-chain-compromised pipelines spinning up outbound command-and-control infrastructure. Differentiated from the built-in 'Unusual number of resources created' alert because this rule uses IDENTITY-BASELINE logic (only triggers for identities with ZERO creation history) rather than simple count thresholds, and requires TYPE DIVERSITY (3+ distinct resource types) to signal broad infrastructure provisioning rather than legitimate scaling operations. Enriched with SigninLogs and AADServicePrincipalSignInLogs to surface whether the creating identity had a suspicious preceding authentication. FP mitigations: (1) 14-day identity creation baseline — established deployers never trigger; (2) 3+ distinct resource type requirement — avoids alert on auto-scaling of single resource type; (3) Minimum 15 resource events in 2h — accommodates IaC deployments that legitimately provision dozens of resources but filters single-test deployments; (4) IaC/CI-CD tool pattern exclusion; (5) Azure platform IP exclusion; (6) Only Success status operations.
+severity: High
+queryFrequency: PT2H
+queryPeriod: PT4H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Impact
+- Persistence
+relevantTechniques:
+- T1136
+- T1496
+query: |
+  let LookupWindow = 2h;
+  let CreationThreshold = 15;
+  let ResourceTypeThreshold = 3;
+  let KnownIaCPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "devops", "arm-deployment", "provisioner", "deployer"]);
+  let AzurePlatformIPs = dynamic(["168.63.", "169.254."]);
+  // Resource WRITE operations we care about (creation/provisioning)
+  let CreationOpKeywords = dynamic([
+      "MICROSOFT.COMPUTE/VIRTUALMACHINES/WRITE",
+      "MICROSOFT.COMPUTE/VIRTUALMACHINESCALESETS/WRITE",
+      "MICROSOFT.STORAGE/STORAGEACCOUNTS/WRITE",
+      "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/WRITE",
+      "MICROSOFT.WEB/SITES/WRITE",
+      "MICROSOFT.CONTAINERINSTANCE/CONTAINERGROUPS/WRITE",
+      "MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/WRITE",
+      "MICROSOFT.KEYVAULT/VAULTS/WRITE",
+      "MICROSOFT.NETWORK/VIRTUALNETWORKS/WRITE",
+      "MICROSOFT.COMPUTE/DISKS/WRITE",
+      "MICROSOFT.DATABRICKS/WORKSPACES/WRITE",
+      "MICROSOFT.LOGIC/WORKFLOWS/WRITE"
+  ]);
+  // 14-day baseline: identities with established resource creation history
+  let KnownCreators = AzureActivity
+      | where TimeGenerated between (ago(14d) .. ago(3h))
+      | where OperationNameValue has_any (CreationOpKeywords)
+      | where ActivityStatusValue =~ "Success"
+      | distinct Caller;
+  // Current window: creation bursts by UNKNOWN identities
+  let CreationBursts = AzureActivity
+      | where TimeGenerated > ago(3h)
+      | where ActivityStatusValue =~ "Success"
+      | where OperationNameValue has_any (CreationOpKeywords)
+      | where not(tolower(Caller) has_any (KnownIaCPatterns))
+      | where isnotempty(CallerIpAddress)
+      | where not(CallerIpAddress has_any (AzurePlatformIPs))
+      | where Caller !in (KnownCreators)
+      | summarize
+          CreationCount = count(),
+          DistinctResourceTypes = dcount(tostring(split(OperationNameValue, "/")[1])),
+          CreatedResources = make_set(ResourceId, 20),
+          Operations = make_set(OperationNameValue, 10),
+          ResourceGroups = make_set(ResourceGroup, 5),
+          SubscriptionIds = make_set(SubscriptionId, 5),
+          CallerIP = any(CallerIpAddress),
+          SourceIPs = make_set(CallerIpAddress, 5),
+          FirstCreate = min(TimeGenerated),
+          LastCreate = max(TimeGenerated)
+          by Caller, bin(TimeGenerated, LookupWindow)
+      | where CreationCount >= CreationThreshold
+      | where DistinctResourceTypes >= ResourceTypeThreshold;
+  // Enrich: correlate with user sign-ins from same IP
+  let UserSigninContext = SigninLogs
+      | where TimeGenerated > ago(4h)
+      | where isnotempty(IPAddress)
+      | project
+          SigninTime = TimeGenerated,
+          UserPrincipalName,
+          SigninIP = IPAddress,
+          UserDisplayName,
+          RiskLevelAggregated,
+          RiskState,
+          ConditionalAccessStatus,
+          Location,
+          AppDisplayName,
+          IsInteractive
+      | extend IsRisky = RiskLevelAggregated in ("high", "medium") or RiskState =~ "atRisk";
+  // Enrich: correlate with SP sign-ins from same IP
+  let SPSigninContext = AADServicePrincipalSignInLogs
+      | where TimeGenerated > ago(4h)
+      | where isnotempty(IPAddress)
+      | project
+          SPSigninTime = TimeGenerated,
+          ServicePrincipalName,
+          ServicePrincipalId,
+          SPSigninIP = IPAddress,
+          SPConditionalAccessStatus = ConditionalAccessStatus,
+          SPResultType = ResultType;
+  CreationBursts
+  | join kind=leftouter (
+      UserSigninContext
+      | summarize
+          UserSigninCount = count(),
+          SigninLocations = make_set(Location, 3),
+          SigninApps = make_set(AppDisplayName, 3),
+          MaxRisk = max(RiskLevelAggregated),
+          HasRiskySignin = max(toint(IsRisky)),
+          UserNames = make_set(UserPrincipalName, 3),
+          FirstSignin = min(SigninTime)
+          by SigninIP
+    ) on $left.CallerIP == $right.SigninIP
+  | join kind=leftouter (
+      SPSigninContext
+      | summarize
+          SPSigninCount = count(),
+          SigninSPs = make_set(ServicePrincipalName, 3),
+          CABypassCount = countif(SPConditionalAccessStatus has_any ("failure", "notApplied"))
+          by SPSigninIP
+    ) on $left.CallerIP == $right.SPSigninIP
+  | extend
+      HasSigninCorroboration = isnotempty(UserSigninCount) or isnotempty(SPSigninCount),
+      SigninRiskLevel = coalesce(MaxRisk, "unknown"),
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+  | project-away SigninIP, SPSigninIP
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Mass creation: {{Caller}} created {{CreationCount}} resources ({{DistinctResourceTypes}} types) - first time seen'
+  alertDescriptionFormat: 'New identity {{Caller}} created {{CreationCount}} resources across {{DistinctResourceTypes}} distinct resource types in 2 hours from . No creation history in previous'' 14 days.
+    Sign-in risk: . Resources:'
+customDetails:
+  CreationCount: CreationCount
+  DistinctResourceType: DistinctResourceTypes
+  Operations: Operations
+  SigninRiskLevel: SigninRiskLevel
+  HasSigninCorroborati: HasSigninCorroboration
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT8H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

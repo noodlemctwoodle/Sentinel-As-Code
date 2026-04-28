@@ -5,26 +5,25 @@ description: |
   For trusted IPs, 20 attempts for SigninLogs and 100 attempts for AADNonInteractiveUserSignInLogs.
   For non-trusted IPs, 10 attempts for SigninLogs and 60 attempts for AADNonInteractiveUserSignInLogs.'
 severity: Medium
-kind: Scheduled
-version: 1.0.2
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SignInLogs
+  - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - InitialAccess
-  - Persistence
-techniques:
-  - T1078
-  - T1078.004
-  - T1110
-  - T1110.001
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SignInLogs
-      - AADNonInteractiveUserSignInLogs
+- CredentialAccess
+- InitialAccess
+- Persistence
+relevantTechniques:
+- T1078
+- T1078.004
+- T1110
+- T1110.001
 query: |
   let timeframe = 1d;
   let trustedIPs = _GetWatchlist('environmentIPs') | project IPAddress = tostring(IPAddress);
@@ -53,7 +52,13 @@ query: |
   ;
   disabledFunc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: UserPrincipalName
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+version: 1.0.2
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

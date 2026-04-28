@@ -3,25 +3,24 @@ name: Azure AD Service Principal has failed authentication
 description: |
   'Monitors AADServicePrincipalSignInLogs and identifies when a Service Principal has failed authentication.'
 severity: Low
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADServicePrincipalSignInLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - InitialAccess
-techniques:
-  - T1528
-  - T1552
-  - T1552.001
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - AADServicePrincipalSignInLogs
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1528
+- T1552
+- T1552.001
 query: |
   let Identities = _GetWatchlist('socManagedIdentities') | summarize ManagedIdentity = make_set(ServicePrincipalId);
   AADServicePrincipalSignInLogs
@@ -29,14 +28,16 @@ query: |
   | where ResultType != 0
   | project-reorder TimeGenerated, ServicePrincipalName, ResourceDisplayName, ResultType, Location, IPAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: ServicePrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: ServicePrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -47,7 +48,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

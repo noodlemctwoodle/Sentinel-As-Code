@@ -1,0 +1,65 @@
+id: e9f0a1b2-c3d4-4e5f-6a7b-8c9d0e1f2a3b
+name: SigninLogs — Distributed Coordinated Attack (Botnet, 10+ IPs per User)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects highly distributed attacks where a single user is targeted from 10 or more unique IP addresses over 30 days. This pattern indicates botnet infrastructure or a coordinated campaign targeting high-value accounts. MITRE ATT&CK: T1110 (Brute Force).
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT12H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+relevantTechniques:
+- T1110
+query: |
+  let ipThreshold = 10;
+  SigninLogs
+  | where TimeGenerated > ago(14d)
+  | where ResultType != "0"
+  | summarize
+      UniqueIPs      = dcount(IPAddress),
+      FailedAttempts = count(),
+      SourceIPs      = make_set(IPAddress, 100),
+      StartTime      = min(TimeGenerated),
+      EndTime        = max(TimeGenerated),
+      Locations      = make_set(Location, 20)
+    by UserPrincipalName
+  | where UniqueIPs >= ipThreshold
+  | project
+      TimeGenerated  = StartTime,
+      UserPrincipalName, UniqueIPs,
+      FailedAttempts, SourceIPs,
+      EndTime, Locations
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Coordinated Attack — {{UserPrincipalName}} targeted from {{UniqueIPs}} IPs'
+  alertDescriptionFormat: '{{FailedAttempts}} failures from {{UniqueIPs}} distinct IPs — botnet or coordinated campaign.'
+customDetails:
+  UniqueIPs: UniqueIPs
+  FailedAttempts: FailedAttempts
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

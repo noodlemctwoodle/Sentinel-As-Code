@@ -1,0 +1,56 @@
+id: d430e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f
+name: Zscaler ZIA / ZPA - Visibility Loss - No Events Received in 2 Hours
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when no Zscaler ZIA or ZPA events are received in the CommonSecurityLog table for 2 or more consecutive hours. Zscaler NSS feeds should produce a continuous stream of events during business hours. A complete gap in events indicates NSS Cloud Connector failure, CEF/Syslog forwarding disruption, Azure Monitor Agent issues, or — in a threat scenario — deliberate interference with the Zscaler integration to blind the SOC. This rule fires when the event count is 0 during the query window.MITRE ATT&CK: T1562 (Impair Defenses), T1562.001.
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT30M
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+relevantTechniques:
+- T1562
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(2h)
+  | where DeviceVendor == "Zscaler"
+  | summarize EventCount = count()
+  | where EventCount == 0
+  | extend AppName = "Zscaler NSS"
+  | extend AlertReason = "No Zscaler ZIA/ZPA events received in the last 2 hours"
+entityMappings:
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: AppName
+alertDetailsOverride:
+  alertDisplayNameFormat: Zscaler Visibility Loss - No NSS Events for 2 Hours
+  alertDescriptionFormat: No Zscaler ZIA/ZPA events received in CommonSecurityLog for 2 hours. NSS Cloud Connector or CEF forwarding may be broken.
+customDetails:
+  EventCount: EventCount
+  AlertReason: AlertReason
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: Selected
+    groupByEntities:
+    - CloudApplication
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

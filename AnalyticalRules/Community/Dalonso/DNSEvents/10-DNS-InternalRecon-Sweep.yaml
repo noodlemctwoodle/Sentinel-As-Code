@@ -1,0 +1,59 @@
+id: a1b2c3d4-0010-4a5b-8c9d-dns010recon
+name: DNS-Based Internal Network Reconnaissance Sweep
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects post-compromise internal network reconnaissance via DNS by identifying
+  clients that query an abnormally high number of unique internal hostnames in a
+  short window. After gaining a foothold, attackers enumerate domain controllers,
+  file servers, databases, and admin tools by resolving their DNS names.
+  Automated recon tools (BloodHound, ADRecon, nmap) generate characteristic
+  DNS query bursts resolving hundreds of internal names in minutes.
+  Normal workstations resolve <100 unique hostnames per hour.
+  MITRE T1018 — Remote System Discovery, T1046 — Network Service Discovery
+severity: Medium
+requiredDataConnectors:
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT30M
+queryPeriod: PT30M
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Discovery
+- Reconnaissance
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(30m)
+  | summarize
+      UniqueDomains    = dcount(DnsQuery),
+      TotalQueries     = count(),
+      SampleDomains    = make_set(DnsQuery, 15),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname
+  | extend QueriesPerMinute = round(todouble(TotalQueries) / 30.0, 1)
+  | where UniqueDomains > 300
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS Recon Sweep — {{SrcHostname}} resolved {{UniqueDomains}} unique domains in 30 min'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) resolved {{UniqueDomains}} unique domains in 30 minutes (~ q/min). This exceeds the normal threshold of 300 and may indicate'' post-compromise
+    network enumeration.'
+customDetails:
+  UniqueDomains: UniqueDomains
+  QueriesPerMinute: QueriesPerMinute
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

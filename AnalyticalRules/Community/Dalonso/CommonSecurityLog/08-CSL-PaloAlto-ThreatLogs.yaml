@@ -1,0 +1,69 @@
+id: b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e
+name: Palo Alto Networks - Threat Log Events (Spyware, Wildfire, Vulnerability)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Surfaces Palo Alto Networks threat log entries for malware, spyware, wildfire, vulnerability,
+  and virus events that triggered more than 5 times in 24 hours. These events indicate active
+  threat detection by the firewall's content inspection engine. High-frequency threat events
+  from a single source often indicate malware activity, active C2 communications, or
+  lateral exploitation.
+  MITRE ATT&CK: T1190 (Exploit Public-Facing Application), T1071 (Application Layer Protocol)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CommandAndControl
+relevantTechniques:
+- T1071
+- T1190
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Palo Alto Networks"
+  | where DeviceEventClassID has_any ("THREAT", "threat", "WILDFIRE-VIRUS", "SPYWARE", "VULNERABILITY")
+      or Activity has_any ("threat", "wildfire", "spyware", "vulnerability", "virus")
+  | summarize
+      HitCount         = count(),
+      SourceIPs        = make_set(SourceIP, 20),
+      DestinationIPs   = make_set(DestinationIP, 20),
+      DestinationURLs  = make_set(RequestURL, 10),
+      SeverityValues   = make_set(LogSeverity, 5),
+      Actions          = make_set(DeviceAction, 5),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by Activity, DeviceEventClassID
+  | where HitCount > 5
+  | order by HitCount desc
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Palo Alto Threat Alert - {{Activity}} ({{HitCount}} events)'
+  alertDescriptionFormat: 'Palo Alto threat signature {{Activity}} (class: {{DeviceEventClassID}}) fired {{HitCount}} times. Review for active malware, spyware, or vulnerability exploitation.'
+customDetails:
+  HitCount: HitCount
+  Activity: Activity
+  DeviceEventClassID: DeviceEventClassID
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: AnyAlert
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails:
+    - Activity
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

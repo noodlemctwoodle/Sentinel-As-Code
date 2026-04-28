@@ -1,0 +1,71 @@
+id: c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f
+name: Zscaler ZIA - Blocked Request to Malicious / C2 Category
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA blocked web requests categorized as botnet, malware, phishing, ransomware,
+  command-and-control, or anonymous proxy destinations. Blocked events confirm the user or host
+  attempted to communicate with a known-malicious destination. Repeated attempts despite blocking
+  may indicate malware that is persistently trying to reach its C2 infrastructure.
+  MITRE ATT&CK: T1071 (Application Layer Protocol)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT15M
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1071
+query: |
+  let MaliciousCategories = dynamic([
+      "BOTNET_SITES", "MALWARE_SITES", "PHISHING", "SPYWARE_ADWARE_KEYLOGGERS",
+      "RANSOMWARE", "C2_SITES", "COMMAND_CONTROL", "SUSPICIOUS_DESTINATIONS",
+      "MALICIOUS_LINKS", "ANONYMOUS_PROXY"]);
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction in ("block", "BLOCK", "Blocked", "blocked")
+  | where DeviceCustomString2 in (MaliciousCategories)
+      or DeviceCustomString3 in (MaliciousCategories)
+      or RequestContext has_any ("BOTNET", "MALWARE", "PHISHING", "COMMAND_CONTROL", "RANSOMWARE")
+  | summarize
+      BlockCount       = count(),
+      UniqueUsers      = dcount(SourceUserName),
+      UserList         = make_set(SourceUserName, 20),
+      DestinationURLs  = make_set(RequestURL, 20),
+      DestIPs          = make_set(DestinationIP, 10),
+      Categories       = make_set(DeviceCustomString2, 10),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by DeviceCustomString2, DeviceCustomString3
+  | order by BlockCount desc
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Malicious Block - {{DeviceCustomString2}} ({{BlockCount}} attempts)'
+  alertDescriptionFormat: '{{BlockCount}} Zscaler requests blocked for malicious category {{DeviceCustomString2}} affecting {{UniqueUsers}} users. Possible malware C2 or phishing activity.'
+customDetails:
+  BlockCount: BlockCount
+  UniqueUsers: UniqueUsers
+  DeviceCustomString2: DeviceCustomString2
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AnyAlert
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails:
+    - DeviceCustomString2
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

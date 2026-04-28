@@ -1,0 +1,73 @@
+id: d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a
+name: Firewall Port Scan Detection - Vertical and Horizontal Sweeps
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects network reconnaissance activity by identifying source IPs that contact more than
+  30 unique destination ports (vertical/port sweep) or more than 50 unique destination IPs
+  (horizontal/host sweep) within a 1-hour window. Both patterns indicate active network
+  mapping or exploitation preparation.
+  MITRE ATT&CK: T1046 (Network Service Discovery)
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Discovery
+relevantTechniques:
+- T1046
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1h)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where isnotempty(SourceIP) and isnotempty(DestinationIP)
+  | summarize
+      UniqueDestPorts = dcount(DestinationPort),
+      UniqueDestIPs   = dcount(DestinationIP),
+      TotalAttempts   = count(),
+      Actions         = make_set(DeviceAction, 5),
+      Protocols       = make_set(Protocol, 5),
+      FirstSeen       = min(TimeGenerated),
+      LastSeen        = max(TimeGenerated)
+    by SourceIP, DeviceVendor
+  | where UniqueDestPorts > 30 or UniqueDestIPs > 50
+  | extend ScanType = case(
+      UniqueDestPorts > 30 and UniqueDestIPs <= 10, "Vertical Scan (port sweep)",
+      UniqueDestIPs   > 50 and UniqueDestPorts <= 5, "Horizontal Scan (host sweep)",
+      "Combined Scan")
+  | order by UniqueDestPorts desc, UniqueDestIPs desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Port Scan Detected - {{SourceIP}} hit {{UniqueDestPorts}} ports'
+  alertDescriptionFormat: 'Source {{SourceIP}} targeted {{UniqueDestIPs}} IPs across {{UniqueDestPorts}} unique ports. Possible network reconnaissance activity.'
+customDetails:
+  UniqueDestPorts: UniqueDestPorts
+  UniqueDestIPs: UniqueDestIPs
+  TotalAttempts: TotalAttempts
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT3H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,64 @@
+id: f4a5b6c7-d8e9-4f0a-1b2c-3d4e5f6a7b8c
+name: SigninLogs — Impossible Travel (3+ Countries in 1 Hour)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users authenticating from 3 or more distinct geographic locations within a 1-hour window — physically impossible travel. Indicates account compromise, credential sharing, or VPN/proxy abuse. MITRE ATT&CK: T1078 (Valid Accounts).
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT6H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+relevantTechniques:
+- T1078
+query: |
+  SigninLogs
+  | where TimeGenerated > ago(7d)
+  | where isnotempty(Location) and isnotempty(IPAddress)
+  | summarize
+      UniqueLocations = dcount(Location),
+      Locations       = make_set(Location),
+      IPs             = make_set(IPAddress),
+      FailedCount     = countif(ResultType != "0"),
+      SuccessCount    = countif(ResultType == "0"),
+      StartTime       = min(TimeGenerated),
+      EndTime         = max(TimeGenerated)
+    by UserPrincipalName
+  | where UniqueLocations >= 3
+  | project
+      TimeGenerated = StartTime,
+      UserPrincipalName, UniqueLocations,
+      Locations, IPs, FailedCount, SuccessCount, EndTime
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Impossible Travel — {{UserPrincipalName}} across {{UniqueLocations}} countries'
+  alertDescriptionFormat: 'User authenticated from {{UniqueLocations}} distinct countries — impossible physical travel detected.'
+customDetails:
+  UniqueLocations: UniqueLocations
+  FailedCount: FailedCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

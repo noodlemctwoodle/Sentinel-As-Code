@@ -1,0 +1,81 @@
+id: e531f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a
+name: Zscaler ZPA - Access to Internal Application from Anomalous Geolocation
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler Private Access (ZPA) connections to internal applications originating from countries the user has never accessed from in the previous 14 days. ZPA provides remote access to internal apps without a VPN; connections from unexpected geolocations indicate credential compromise, a threat actor using stolen credentials to access internal resources, or legitimate users travelling to unusual locations. MITRE ATT&CK: T1078 (Valid Accounts), T1133 (External Remote Services).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- LateralMovement
+relevantTechniques:
+- T1078
+- T1133
+query: |
+  let recentWindow   = 1h;
+  let baselineWindow = 14d;
+  let baseline = CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Failed")
+      | where isnotempty(SourceUserName) and isnotempty(SourceIP)
+      | extend SrcCountry = tostring(geo_info_from_ip_address(SourceIP).country)
+      | summarize BaselineCountries = make_set(SrcCountry)
+          by SourceUserName;
+  let recent = CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Failed")
+      | where isnotempty(SourceUserName) and isnotempty(SourceIP)
+      | extend SrcCountry = tostring(geo_info_from_ip_address(SourceIP).country)
+      | summarize
+          RecentCountries = make_set(SrcCountry),
+          AccessedApps    = make_set(DestinationHostName, 10),
+          ConnectionCount = count(),
+          SrcIPs          = make_set(SourceIP, 5)
+          by SourceUserName;
+  recent
+  | join kind=leftouter baseline on SourceUserName
+  | extend BaselineCountries = coalesce(BaselineCountries, dynamic([]))
+  | extend NewCountries = set_difference(RecentCountries, BaselineCountries)
+  | where array_length(NewCountries) > 0
+  | project SourceUserName, NewCountries, AccessedApps, ConnectionCount, SrcIPs
+  | order by ConnectionCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ZPA Anomalous Geolocation - {{SourceUserName}} from new countries'
+  alertDescriptionFormat: 'ZPA user {{SourceUserName}} connected from {{NewCountries}} — not seen in 14-day baseline. {{ConnectionCount}} connections to internal apps.'
+customDetails:
+  ConnectionCount: ConnectionCount
+  NewCountries: NewCountries
+  AccessedApps: AccessedApps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

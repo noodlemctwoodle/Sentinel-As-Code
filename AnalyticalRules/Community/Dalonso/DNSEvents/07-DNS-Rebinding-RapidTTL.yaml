@@ -1,0 +1,78 @@
+id: a1b2c3d4-0007-4a5b-8c9d-dns007rebinding
+name: DNS Rebinding — Rapid TTL Change for Same Domain
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects DNS rebinding preparation by identifying domains that resolve to
+  multiple different IP addresses within a short window with rapid re-resolution.
+  In a DNS rebinding attack, the attacker's domain initially resolves to a public
+  IP, then switches to an internal/loopback IP (127.0.0.1, 192.168.x.x, 0.0.0.0)
+  after the TTL expires. This allows JavaScript from the attacker's domain to
+  access internal services by bypassing the browser's Same-Origin Policy.
+  Ref: GitHub Security Lab — "DNS rebinding attacks explained"
+  Ref: Singularity of Origin (NCC Group), rbndr (Tavis Ormandy)
+severity: Medium
+requiredDataConnectors:
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT30M
+queryPeriod: PT30M
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+- CredentialAccess
+- DefenseEvasion
+- LateralMovement
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(30m)
+  | where EventResult =~ "Success"
+  | where DnsAnswerCount > 0
+  | summarize
+      QueryCount      = count(),
+      FirstSeen       = min(TimeGenerated),
+      LastSeen        = max(TimeGenerated),
+      SrcHostname     = any(SrcHostname)
+    by SrcIpAddr, DnsQuery
+  | where QueryCount >= 5
+  | extend SpanSeconds = datetime_diff('second', LastSeen, FirstSeen)
+  | where SpanSeconds > 0
+  | extend ReResolutionRate = round(todouble(QueryCount) / todouble(SpanSeconds) * 60.0, 2)
+  | where ReResolutionRate >= 2
+  | project
+      SrcIpAddr,
+      SrcHostname,
+      DnsQuery,
+      QueryCount,
+      ReResolutionRate,
+      SpanSeconds,
+      FirstSeen,
+      LastSeen
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+- entityType: DNS
+  fieldMappings:
+  - identifier: DomainName
+    columnName: DnsQuery
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS Rebinding — {{SrcHostname}} re-resolved {{DnsQuery}} {{QueryCount}} times'
+  alertDescriptionFormat: 'Potential DNS rebinding: {{SrcHostname}} re-resolved {{DnsQuery}} {{QueryCount}} times in seconds ( re-resolutions/min). Attackers use rapid'' TTL expiry to redirect domain from
+    public to internal IP.'
+customDetails:
+  ReResolutionRate: ReResolutionRate
+  TargetDomain: DnsQuery
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

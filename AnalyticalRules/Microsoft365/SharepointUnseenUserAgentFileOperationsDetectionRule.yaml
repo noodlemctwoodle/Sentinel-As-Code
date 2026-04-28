@@ -4,23 +4,22 @@ description: |
   'Identifies if the number of documents uploaded or downloaded from device(s) associated
   with a previously unseen user agent exceeding a threshold of 20'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: Office365
+  dataTypes:
+  - OfficeActivity
 queryFrequency: P1D
 queryPeriod: P8D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Exfiltration
-  - Collection
-techniques:
-  - T1030
-  - T1213
-  - T1213.002
-requiredDataConnectors:
-  - connectorId: Office365
-    dataTypes:
-      - OfficeActivity
+- Exfiltration
+- Collection
+relevantTechniques:
+- T1030
+- T1213
+- T1213.002
 query: |
   let threshold = 20;
   let szSharePointFileOperation = "SharePointFileOperation";
@@ -70,20 +69,22 @@ query: |
   | project-reorder StartTime, EndTime, UserAgent, UserAgentSeenCount, UserId, ClientIP, Site_Url
   | order by UserAgentSeenCount desc, UserAgent asc, UserId asc, Site_Url asc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserIdName
-      - identifier: UPNSuffix
-        columnName: UserIdUPNSuffix
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: ClientIP
-  - entityType: URL
-    fieldMappings:
-      - identifier: Url
-        columnName: Site_Url
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserIdName
+  - identifier: UPNSuffix
+    columnName: UserIdUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: ClientIP
+- entityType: URL
+  fieldMappings:
+  - identifier: Url
+    columnName: Site_Url
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -94,7 +95,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft 365

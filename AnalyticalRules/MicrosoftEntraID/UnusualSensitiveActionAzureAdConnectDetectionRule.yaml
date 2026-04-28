@@ -1,25 +1,25 @@
 id: 1919c832-b23f-46bb-a110-e275b546dc78
 name: Unusual sensitive action performed by Azure AD Connect account
-description: The Azure AD Connect account is performing different sensitive actions that must not be done by this account. This is a sign of compromise for this accounts and should result in immediate action.
+description: |
+  'The Azure AD Connect account is performing different sensitive actions that must not be done by this account. This is a sign of compromise for this accounts and should result in immediate action.'
 severity: High
-kind: Scheduled
-version: 1.0.0
 queryFrequency: PT30M
 queryPeriod: PT30M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - LateralMovement
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1550
-  - T1550.001
-  - T1098
-  - T1098.001
-  - T1078
-  - T1078.004
-query: |-
+- LateralMovement
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.004
+- T1098
+- T1098.001
+- T1550
+- T1550.001
+query: |
   let SensitiveActions = dynamic(["Update service principal","Add service principal credentials","Add owner to service principal","Add delegated permission grant"]);
   AuditLogs
   | extend InitiatedByUPN = parse_json(tostring(InitiatedBy.user)).userPrincipalName
@@ -31,22 +31,26 @@ query: |-
   | extend TargetResourcesId = TargetResources.id
   | extend InitiatedByIpAddress = parse_json(tostring(InitiatedBy.user)).ipAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - columnName: InitiatedByUPN
-        identifier: FullName
-  - entityType: CloudApplication
-    fieldMappings:
-      - columnName: TargetResourcesId
-        identifier: AppId
-  - entityType: IP
-    fieldMappings:
-      - columnName: InitiatedByIpAddress
-        identifier: Address
-  - entityType: CloudApplication
-    fieldMappings:
-      - columnName: TargetResourcesname
-        identifier: Name
+- entityType: Account
+  fieldMappings:
+  - columnName: InitiatedByUPN
+    identifier: FullName
+- entityType: CloudApplication
+  fieldMappings:
+  - columnName: TargetResourcesId
+    identifier: AppId
+- entityType: IP
+  fieldMappings:
+  - columnName: InitiatedByIpAddress
+    identifier: Address
+- entityType: CloudApplication
+  fieldMappings:
+  - columnName: TargetResourcesname
+    identifier: Name
+customDetails:
+  Activity: OperationName
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -54,13 +58,13 @@ incidentConfiguration:
     reopenClosedIncident: false
     groupByCustomDetails: []
     groupByEntities:
-      - Account
+    - Account
     groupByAlertDetails: []
     lookbackDuration: PT1H
     enabled: true
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-customDetails:
-  Activity: OperationName
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

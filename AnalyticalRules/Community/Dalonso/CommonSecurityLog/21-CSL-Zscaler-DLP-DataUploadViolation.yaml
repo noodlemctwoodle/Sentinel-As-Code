@@ -1,0 +1,71 @@
+id: bb21d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: Zscaler ZIA - DLP Policy Violation - Blocked Sensitive Data Upload
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA Data Loss Prevention (DLP) events where an upload or file transfer was blocked or flagged. DLP violations indicate a user attempted to send sensitive or restricted data to an external service — cloud storage, file-sharing site, or personal webmail. Repeated violations may indicate intentional exfiltration or a compromised account being used for data theft. MITRE ATT&CK: T1048 (Exfiltration Over Alternative Protocol), T1567 (Exfiltration Over Web Service).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT30M
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+relevantTechniques:
+- T1048
+- T1567
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction in ("block", "BLOCK", "Blocked", "blocked", "caution", "CAUTION")
+  | where DeviceCustomString2 has_any (
+      "DLP", "FILE_SHARE", "DATA_LOSS_PREVENTION",
+      "DROPBOX", "BOX_NET", "GOOGLE_DRIVE", "ONEDRIVE", "SHAREPOINT",
+      "WETRANSFER", "PEER_FILE_SHARE", "CLOUD_STORAGE")
+      or Activity has_any ("DLP", "Data Loss")
+  | where isnotempty(SourceUserName)
+  | summarize
+      ViolationCount    = count(),
+      MBUploaded        = round(sum(todouble(SentBytes)) / 1048576, 2),
+      UniqueDestDomains = dcount(DestinationHostName),
+      DestDomains       = make_set(DestinationHostName, 10),
+      URLSamples        = make_set(RequestURL, 5),
+      FirstViolation    = min(TimeGenerated),
+      LastViolation     = max(TimeGenerated)
+    by SourceUserName, DLPCategory = DeviceCustomString2
+  | order by ViolationCount desc, MBUploaded desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler DLP Violation - {{SourceUserName}} ({{ViolationCount}} blocks)'
+  alertDescriptionFormat: 'User {{SourceUserName}} violated DLP policy {{ViolationCount}} times. Category: {{DLPCategory}}.'
+customDetails:
+  ViolationCount: ViolationCount
+  MBUploaded: MBUploaded
+  DLPCategory: DLPCategory
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

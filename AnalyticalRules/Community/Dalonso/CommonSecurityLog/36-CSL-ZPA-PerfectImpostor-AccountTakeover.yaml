@@ -1,0 +1,171 @@
+id: a036b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c
+name: 'Zscaler ZPA/ZIA - Perfect Impostor: Account Takeover Hiding Within Normal Traffic'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects a "perfect impostor" scenario where an attacker using stolen credentials behaves
+  almost identically to the real user but introduces subtle cross-layer anomalies:
+
+  • ZPA layer: identifies ZPA sessions originating from a country not observed in the
+    user's 14-day baseline — indicating a new device, VPN exit, or compromised session
+    from an unexpected location.
+
+  • ZIA layer: identifies browsing to remote-admin tools, cloud admin portals,
+    account-creation sites, anonymous proxies, or tunnelling applications — tooling
+    inconsistent with usual workflow patterns.
+
+  • IdP / SaaS layer (OfficeActivity): captures security-critical account changes
+    performed in the same window — MFA removal, OAuth consent grants, inbox auto-forward
+    rules, mailbox delegation, and privilege escalation.
+
+  Each layer is scored individually. A single IdP change plus one ZIA suspicious category
+  is sufficient to surface the identity. Cross-layer correlation drastically reduces
+  false positives compared to single-signal detections.
+
+  Outcome: A prioritised list of "high-risk compromised account" candidates for manual
+  session review, token revocation, and MFA re-enforcement before the attacker achieves
+  persistence or escalates privileges.
+
+  MITRE ATT&CK: TA0003 (Persistence), TA0004 (Privilege Escalation),
+  TA0005 (Defense Evasion), TA0006 (Credential Access),
+  T1078 (Valid Accounts), T1098 (Account Manipulation),
+  T1114 (Email Collection), T1556 (Modify Authentication Process).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT4H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+- DefenseEvasion
+- Persistence
+- PrivilegeEscalation
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1098
+- T1114
+- T1556
+query: |
+  let baselineWindow = 14d;
+  let recentWindow   = 4h;
+  let ZPA_Baseline =
+      CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Failed")
+      | where isnotempty(SourceUserName)
+      | extend BaselineCountry = tostring(geo_info_from_ip_address(SourceIP).country)
+      | summarize
+          BaselineCountries = make_set(BaselineCountry, 20),
+          BaselineAppCount  = dcount(DestinationHostName)
+        by UserName = tolower(SourceUserName);
+  let ZPA_Recent =
+      CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where isnotempty(SourceUserName)
+      | extend RecentCountry = tostring(geo_info_from_ip_address(SourceIP).country)
+      | summarize
+          RecentCountries = make_set(RecentCountry, 5),
+          RecentApps      = make_set(DestinationHostName, 10),
+          RecentIPs       = make_set(SourceIP, 5),
+          RecentConnCount = count(),
+          ZPA_FirstSeen   = min(TimeGenerated)
+        by UserName = tolower(SourceUserName);
+  let ZIA_Suspicious =
+      CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler"
+      | where isnotempty(SourceUserName)
+      | where DeviceCustomString2 has_any (
+          "REMOTE_ACCESS_TOOLS", "REMOTE_ADMINISTRATION", "WEB_BASED_ADMIN",
+          "ACCOUNT_CREATION", "TUNNEL_SOCKS_PROXY", "ANONYMOUS_PROXY",
+          "ONLINE_STORAGE", "FILE_SHARE", "TOR", "VPN_SERVICES",
+          "NEWLY_REGISTERED_DOMAINS", "PHISHING")
+      | summarize
+          ZIA_Categories   = make_set(DeviceCustomString2, 10),
+          ZIA_Destinations = make_set(DestinationHostName, 10),
+          ZIA_RequestCount = count(),
+          ZIA_FirstSeen    = min(TimeGenerated)
+        by UserName = tolower(SourceUserName);
+  let IdP_Changes =
+      OfficeActivity
+      | where TimeGenerated > ago(recentWindow)
+      | where isnotempty(UserId)
+      | where Operation in (
+          "New-InboxRule",
+          "Set-Mailbox",
+          "Add-MailboxPermission",
+          "Add OAuth2PermissionGrant",
+          "Consent to application",
+          "Add service principal credentials",
+          "Update user",
+          "Disable Strong Authentication",
+          "Update StsRefreshTokenValidFrom",
+          "Add member to role")
+      | summarize
+          IdP_EventCount = count(),
+          IdP_Operations = make_set(Operation, 10),
+          IdP_FirstSeen  = min(TimeGenerated)
+        by UserName = tolower(UserId);
+  ZPA_Recent
+  | join kind=inner ZPA_Baseline on UserName
+  | extend NewCountries = set_difference(RecentCountries, BaselineCountries)
+  | join kind=leftouter ZIA_Suspicious on UserName
+  | join kind=leftouter IdP_Changes on UserName
+  | extend
+      ZIA_RequestCount = coalesce(ZIA_RequestCount, 0),
+      IdP_EventCount   = coalesce(IdP_EventCount, 0)
+  | extend ImpostorScore =
+      iff(array_length(NewCountries) > 0, 40, 0)
+    + (ZIA_RequestCount * 5)
+    + (IdP_EventCount * 30)
+  | where ImpostorScore >= 40
+      or (IdP_EventCount >= 1 and ZIA_RequestCount >= 1)
+      or array_length(NewCountries) > 0
+  | project
+      UserName,
+      NewCountries, RecentCountries, BaselineCountries,
+      RecentApps, RecentIPs, RecentConnCount,
+      ZIA_Categories, ZIA_Destinations, ZIA_RequestCount,
+      IdP_Operations, IdP_EventCount,
+      ImpostorScore,
+      ZPA_FirstSeen
+  | order by ImpostorScore desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Perfect Impostor Candidate - {{UserName}} (score: {{ImpostorScore}})'
+  alertDescriptionFormat: 'User {{UserName}} shows cross-layer anomalies: new countries {{NewCountries}}, {{ZIA_RequestCount}} ZIA suspicious requests, identity/security changes. ImpostorScore:'' .'
+customDetails:
+  ImpostorScore: ImpostorScore
+  IdP_EventCount: IdP_EventCount
+  ZIA_RequestCount: ZIA_RequestCount
+  NewCountries: NewCountries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT8H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

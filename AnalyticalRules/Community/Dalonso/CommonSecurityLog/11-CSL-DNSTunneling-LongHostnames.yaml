@@ -1,0 +1,74 @@
+id: e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b
+name: DNS Tunneling Indicators - Anomalously Long Hostnames
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects potential DNS tunneling by identifying DNS queries with hostnames longer than
+  50 characters or with more than 5 subdomain levels. Tools like dnscat2, iodine, and
+  DNScat encode arbitrary data into the subdomain portion of DNS queries, resulting in
+  unusually long, structured hostnames. These patterns evade traditional traffic inspection
+  but are visible in firewall DNS logs.
+  MITRE ATT&CK: T1071.004 (Application Layer Protocol: DNS)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+- Exfiltration
+relevantTechniques:
+- T1071
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where Protocol in ("DNS", "dns") or DestinationPort == 53
+  | where isnotempty(DestinationHostName)
+  | extend
+      SubdomainLength = strlen(DestinationHostName),
+      SubdomainParts  = countof(DestinationHostName, ".")
+  | where SubdomainLength > 50 or SubdomainParts > 5
+  | summarize
+      QueryCount       = count(),
+      UniqueSubdomains = dcount(DestinationHostName),
+      LongestQuery     = max(SubdomainLength),
+      SampleHosts      = make_set(DestinationHostName, 10),
+      SourceIPs        = make_set(SourceIP, 10)
+    by SourceIP, DeviceVendor
+  | where QueryCount > 10
+  | order by LongestQuery desc, QueryCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS Tunneling Suspect - {{SourceIP}} ({{LongestQuery}}-char queries)'
+  alertDescriptionFormat: 'Host {{SourceIP}} made {{QueryCount}} DNS queries with max hostname length {{LongestQuery}} chars. Abnormal subdomain structure is consistent with DNS tunneling tools.'
+customDetails:
+  QueryCount: QueryCount
+  LongestQuery: LongestQuery
+  UniqueSubdomains: UniqueSubdomains
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

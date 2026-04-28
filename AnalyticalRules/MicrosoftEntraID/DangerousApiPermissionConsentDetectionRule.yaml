@@ -5,23 +5,22 @@ description: |
 
   Check if this is really necessary and otherwise remove the permissions'
 severity: High
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AuditLogs
 queryFrequency: PT31M
 queryPeriod: PT31M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1098
-  - T1098.001
-  - T1098.003
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - AuditLogs
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1098
+- T1098.001
+- T1098.003
 query: |
   let DangerousPermissions = dynamic(["AppRoleAssignment.ReadWrite.All","Application.ReadWrite.All","RoleManagement.ReadWrite.Directory"]);
   AuditLogs
@@ -40,14 +39,19 @@ query: |
   | extend ServicePrincipalObjectID = replace_string(tostring(TargetResources_modifiedProperties.newValue),'"','')
   | extend timestamp = TimeGenerated, AccountCustomEntity = InitiatingUserOrApp, IPCustomEntity = InitiatingIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: AccountCustomEntity
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPCustomEntity
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: AccountCustomEntity
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPCustomEntity
+customDetails:
+  AddedPermission: AddedPermission
+  ServicePrincipalId: ServicePrincipalObjectID
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -58,10 +62,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-customDetails:
-  AddedPermission: AddedPermission
-  ServicePrincipalId: ServicePrincipalObjectID
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

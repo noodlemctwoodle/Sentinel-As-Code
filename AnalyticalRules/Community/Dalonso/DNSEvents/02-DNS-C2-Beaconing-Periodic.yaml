@@ -1,0 +1,69 @@
+id: a1b2c3d4-0002-4a5b-8c9d-dns002c2beacon
+name: DNS C2 Beaconing — Low-TTL Periodic Domain Lookups
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects DNS-based command-and-control beaconing by identifying clients that
+  query the same external domain repeatedly at suspiciously regular intervals.
+  Cobalt Strike DNS beacons, Silver, and Havoc C2 frameworks poll a staging
+  domain on a configurable timer (default: every 1 second to 5 minutes).
+  This rule alerts when a single client queries the same FQDN 20+ times in 4 hours
+  with a consistent periodicity, which is characteristic of automated C2 polling.
+severity: High
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT4H
+queryPeriod: PT4H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1071.004
+- T1132
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(4h)
+  | where EventResult =~ "Success"
+  | where DnsQueryTypeName in~ ("A", "AAAA", "TXT", "MX", "CNAME", "NULL")
+  | summarize
+      QueryCount  = count(),
+      FirstSeen   = min(TimeGenerated),
+      LastSeen    = max(TimeGenerated),
+      SrcHostname = any(SrcHostname)
+    by SrcIpAddr, DnsQuery
+  | where QueryCount >= 20
+  | extend
+      SpanMinutes   = datetime_diff('minute', LastSeen, FirstSeen),
+      QueriesPerMin = round(todouble(QueryCount) / max_of(1, datetime_diff('minute', LastSeen, FirstSeen)), 2)
+  | where SpanMinutes > 5
+  | where QueriesPerMin >= 1
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+- entityType: DNS
+  fieldMappings:
+  - identifier: DomainName
+    columnName: DnsQuery
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS C2 Beaconing — {{SrcHostname}} queried {{DnsQuery}} {{QueryCount}} times'
+  alertDescriptionFormat: 'Potential C2 beacon: {{SrcHostname}} ({{SrcIpAddr}}) queried {{DnsQuery}} times over minutes (~ q/min)'
+customDetails:
+  QueryCount: QueryCount
+  QueriesPerMin: QueriesPerMin
+  BeaconDomain: DnsQuery
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

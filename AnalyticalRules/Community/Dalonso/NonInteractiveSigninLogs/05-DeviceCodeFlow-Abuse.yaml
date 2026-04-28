@@ -1,0 +1,75 @@
+id: e0f6a8b9-c4d5-7e1f-2a3b-4c5d6e7f8a9b
+name: Device Code Flow Authentication Abuse
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects non-interactive sign-ins using device code flow authentication protocol.
+  Device code flow is commonly abused in phishing attacks where a user is tricked into
+  entering a device code on a legitimate Microsoft page. The attacker redeems the code
+  and obtains a long-lived refresh token that enables silent authentication indefinitely.
+  Any use of device code flow should be reviewed unless explicitly expected.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1566 (Phishing)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1528
+- T1566
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where AuthenticationProtocol == "deviceCode"
+     or   ClientAppUsed has_any ("device code", "device_code", "Device Code")
+  | summarize
+      Count     = count(),
+      IPs       = make_set(IPAddress),
+      Countries = make_set(Location),
+      Apps      = make_set(AppDisplayName),
+      FirstSeen = min(TimeGenerated),
+      LastSeen  = max(TimeGenerated)
+    by UserPrincipalName
+  | extend IPAddress = tostring(IPs[0])
+  | order by Count desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Device Code Flow Detected for {{UserPrincipalName}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} had {{Count}} device code flow non-interactive sign-ins. This protocol is abused in phishing attacks to obtain long-lived refresh tokens.'
+customDetails:
+  SignInCount: Count
+  Countries: Countries
+  Apps: Apps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

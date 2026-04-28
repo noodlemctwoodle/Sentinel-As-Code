@@ -1,0 +1,89 @@
+id: f7a3b5c6-d1e2-4f8a-9b0c-1d2e3f4a5b6c
+name: PIM Role Activation Followed by Non-Interactive Token Use
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a user activates a privileged role through Privileged Identity Management (PIM)
+  and then immediately uses a non-interactive token from that elevated session within 30 minutes.
+  This pattern may indicate an attacker abusing PIM to temporarily elevate privileges, then
+  using a silent token to perform admin operations without triggering interactive MFA prompts.
+  MITRE ATT&CK: T1078 (Valid Accounts), T1098 (Account Manipulation), T1134 (Access Token Manipulation)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - AuditLogs
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- PrivilegeEscalation
+- Persistence
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1098
+- T1134
+query: |
+  let PIMActivations =
+      AuditLogs
+      | where TimeGenerated > ago(2h)
+      | where OperationName has "Add member to role completed (PIM activation)"
+      | extend UPN = tostring(InitiatedBy.user.userPrincipalName)
+      | where isnotempty(UPN)
+      | project
+          ActivationTime = TimeGenerated,
+          UPN,
+          RoleName       = tostring(TargetResources[0].displayName);
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(2h)
+  | where ResultType == 0
+  | join kind=inner PIMActivations on $left.UserPrincipalName == $right.UPN
+  | where TimeGenerated > ActivationTime
+     and  (TimeGenerated - ActivationTime) < 30m
+  | project
+      NISignInTime       = TimeGenerated,
+      ActivationTime,
+      UserPrincipalName,
+      RoleName,
+      AppDisplayName,
+      IPAddress,
+      Location,
+      TimeSincePIMActivation = (TimeGenerated - ActivationTime)
+  | order by NISignInTime desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'PIM Abuse - {{UserPrincipalName}} activated {{RoleName}} then used silent token'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} activated PIM role ''{{RoleName}}'' then immediately used a non-interactive token from {{IPAddress}}. Verify this is authorized administrative activity.'
+customDetails:
+  RoleName: RoleName
+  AppDisplayName: AppDisplayName
+  MinutesSincePIMActiv: TimeSincePIMActivation
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

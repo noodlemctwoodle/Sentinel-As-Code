@@ -1,24 +1,24 @@
 id: 978adfdd-c5e6-4f27-87b2-259e23d8447c
 name: New DCR Created
-description: Identifies when a new Data Collection Rule (DCR) is created in Azure.
+description: |
+  'Identifies when a new Data Collection Rule (DCR) is created in Azure.'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActivity
+  dataTypes:
+  - AuditLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Collection
-  - DefenseEvasion
-techniques:
-  - T1074
-  - T1074.002
-  - T1530
-requiredDataConnectors:
-  - connectorId: AzureActivity
-    dataTypes:
-      - AuditLogs
+- Collection
+- DefenseEvasion
+relevantTechniques:
+- T1074
+- T1074.002
+- T1530
 query: |
   // New DCR
   AzureActivity
@@ -30,14 +30,18 @@ query: |
   | extend RBAC_Role = tostring(parse_json(tostring(Authorization_d.evidence)).role)
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , DCR_Name, DCR_RG, DCR_Sub, Caller, RBAC_Role, CallerIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -48,7 +52,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Azure Activity

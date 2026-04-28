@@ -1,0 +1,70 @@
+id: d6e7f8a9-b0c1-4d2e-3f4a-5b6c7d8e9f0a
+name: Palo Alto Networks - High-Volume Inter-Zone Policy Denies
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects high-volume Palo Alto Networks inter-zone policy deny events grouped by policy name
+  and zone pair (>50 denies). A spike in denies against a specific policy may indicate a zone
+  bypass attempt, misconfigured application, or an attacker testing firewall rules from a
+  compromised internal host. Policy names and zone context help distinguish automated tooling
+  from legitimate traffic.
+  MITRE ATT&CK: T1562 (Impair Defenses), T1046 (Network Service Discovery)
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+- Discovery
+relevantTechniques:
+- T1046
+- T1562
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Palo Alto Networks"
+  | where DeviceAction in ("deny", "drop", "reset-client", "reset-server", "reset-both",
+                           "Reset-Both", "Drop", "Deny")
+  | where isnotempty(DeviceCustomString1) or isnotempty(DeviceCustomString2)
+  | summarize
+      DenyCount        = count(),
+      SourceIPs        = make_set(SourceIP, 20),
+      DestinationIPs   = make_set(DestinationIP, 20),
+      Ports            = make_set(DestinationPort, 10),
+      Protocols        = make_set(Protocol, 5),
+      PolicyNames      = make_set(DeviceCustomString1, 10),
+      SourceZones      = make_set(DeviceCustomString2, 5),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by DeviceCustomString1, DeviceCustomString2, DeviceAction
+  | where DenyCount > 50
+  | order by DenyCount desc
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Palo Alto Policy Deny Spike - {{DeviceCustomString1}} ({{DenyCount}} denies)'
+  alertDescriptionFormat: 'Palo Alto policy {{DeviceCustomString1}} generated {{DenyCount}} deny events. High deny volume may indicate zone bypass attempts or firewall rule testing.'
+customDetails:
+  DenyCount: DenyCount
+  DeviceCustomString1: DeviceCustomString1
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AnyAlert
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails:
+    - DeviceCustomString1
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

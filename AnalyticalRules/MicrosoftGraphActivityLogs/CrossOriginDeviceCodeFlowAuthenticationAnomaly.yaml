@@ -1,32 +1,31 @@
 id: b64655b6-db98-44f1-8188-707d372c35c5
 name: Cross-Origin Device Code Flow Authentication Anomaly
-description: This detection identifies suspicious device code authentication flows that occur shortly after a browser sign-in, but from a different IP address, location, and user agent. This pattern may indicate credential theft, session hijacking, or other authentication-based attacks where an attacker is leveraging compromised credentials to establish persistent access. The detection specifically looks for device code authentication within 20 minutes of a browser sign-in, where all environmental indicators (IP, location, user agent) differ, suggesting the activity is coming from an unauthorized source. This technique is used by attackers to maintain access to compromised accounts while evading detection mechanisms that only monitor traditional sign-in methods.
+description: |
+  'This detection identifies suspicious device code authentication flows that occur shortly after a browser sign-in, but from a different IP address, location, and user agent. This pattern may indicate credential theft, session hijacking, or other authentication-based attacks where an attacker is leveraging compromised credentials to establish persistent access. The detection specifically looks for device code authentication within 20 minutes of a browser sign-in, where all environmental indicators (IP, location, user agent) differ, suggesting the activity is coming from an unauthorized source. This technique is used by attackers to maintain access to compromised accounts while evading detection mechanisms that only monitor traditional sign-in methods.'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - DefenseEvasion
-  - CredentialAccess
-  - LateralMovement
-techniques:
-  - T1078
-  - T1078.004
-  - T1550
-  - T1550.001
-  - T1539
-  - T1606
-  - T1606.001
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- InitialAccess
+- DefenseEvasion
+- CredentialAccess
+- LateralMovement
+relevantTechniques:
+- T1078
+- T1078.004
+- T1539
+- T1550
+- T1550.001
+- T1606
+- T1606.001
+query: |
   UnifiedSignInLogs
   | where ClientAppUsed == "Browser"
   | project BrowserSignInTime = TimeGenerated, UserId, UserPrincipalName, BrowserIPAddress = IPAddress,
@@ -66,16 +65,21 @@ query: |-
   | where IPMatch == "Different" and LocationMatch == "Different" and UserAgentMatch == "Different"
   | order by TimeDiffMinutes asc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserPrincipalName
-      - identifier: AadUserId
-        columnName: UserId
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: DeviceIPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+  - identifier: AadUserId
+    columnName: UserId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: DeviceIPAddress
+customDetails:
+  BrowserUserAgent: BrowserUserAgent
+  DeviceUserAgent: DeviceUserAgent
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -86,10 +90,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-customDetails:
-  BrowserUserAgent: BrowserUserAgent
-  DeviceUserAgent: DeviceUserAgent
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

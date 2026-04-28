@@ -1,0 +1,78 @@
+id: f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c
+name: SigninLogs — Fresh IP Authenticating Multiple Accounts (Compromised Proxy)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects an IP not seen in the prior 14 days that successfully authenticates 5 or more distinct user accounts within 2 hours. Indicates a newly-provisioned attack proxy or relay used with a purchased credential list. Complements the spray rule (failures) by catching pre-validated or successful spray runs. MITRE ATT&CK: T1110.003 (Password Spraying), T1078 (Valid Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT2H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1110
+query: |
+  let lookback      = 2h;
+  let baselineDays  = 14d;
+  let minUsers      = 5;
+  let KnownIPs =
+      SigninLogs
+      | where TimeGenerated between (ago(baselineDays) .. ago(lookback))
+      | where ResultType == "0"
+      | distinct IPAddress;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType == "0"
+  | where isnotempty(IPAddress)
+  | join kind=leftanti KnownIPs on IPAddress
+  | summarize
+      UniqueUsers        = dcount(UserPrincipalName),
+      AuthenticatedUsers = make_set(UserPrincipalName, 30),
+      TotalLogins        = count(),
+      Apps               = make_set(AppDisplayName, 5),
+      Locations          = make_set(Location, 3),
+      ClientTypes        = make_set(ClientAppUsed, 5),
+      FirstSeen          = min(TimeGenerated),
+      LastSeen           = max(TimeGenerated)
+    by IPAddress
+  | where UniqueUsers >= minUsers
+  | project
+      TimeGenerated = FirstSeen,
+      IPAddress, UniqueUsers, TotalLogins,
+      AuthenticatedUsers, Apps,
+      Locations, ClientTypes, LastSeen
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Fresh IP Mass Auth — {{IPAddress}} authenticated {{UniqueUsers}} accounts (not seen in 14d)'
+  alertDescriptionFormat: 'IP {{IPAddress}} (first seen in a 2h window — not in 14d baseline) successfully authenticated {{UniqueUsers}} distinct accounts — strong indicator of a newly-deployed attack proxy.'
+customDetails:
+  UniqueUsers: UniqueUsers
+  TotalLogins: TotalLogins
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT2H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting
