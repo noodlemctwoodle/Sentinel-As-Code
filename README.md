@@ -157,6 +157,7 @@ All documentation now lives under [`Docs/`](./Docs/).
 
 | Area | Doc | Covers |
 |------|-----|--------|
+| **Bicep** | [Docs/Bicep.md](./Docs/Bicep.md) | Subscription-scoped templates, parameters, dual onboarding mechanism, diagnostic settings, optional playbook RG |
 | **Pipelines** | [Docs/Pipelines.md](./Docs/Pipelines.md) | Pipeline stages, variable group setup, parameters, service connection, usage examples |
 | **Scripts** | [Docs/Scripts.md](./Docs/Scripts.md) | Script parameters, PowerShell usage examples, tested solutions, known limitations |
 | **Analytical Rules** | [Docs/Analytical-Rules.md](./Docs/Analytical-Rules.md) | YAML schema for custom analytics rules, required fields, deploy behaviour, examples |
