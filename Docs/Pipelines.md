@@ -1,5 +1,14 @@
 # Pipelines
 
+Azure DevOps pipelines that drive infrastructure provisioning, content
+deployment, and operational tooling.
+
+| Pipeline | Purpose | Schedule |
+| --- | --- | --- |
+| [`Pipelines/Sentinel-Deploy.yml`](../Pipelines/Sentinel-Deploy.yml) | End-to-end deploy: Bicep infra + Content Hub + custom content + Defender XDR | Weekly, Mon 04:00 UTC |
+| [`Pipelines/Sentinel-Drift-Detect.yml`](../Pipelines/Sentinel-Drift-Detect.yml) | Detect rules edited in the portal, auto-PR Custom drift back into the repo | Daily, 06:00 UTC. See [Sentinel Drift Detection](Sentinel-Drift-Detection.md) |
+| [`Pipelines/DCR-Watchlist-Deploy.yml`](../Pipelines/DCR-Watchlist-Deploy.yml) | Deploy the DCR-watchlist sync runbook | On change to `Automation/DCR-Watchlist/**`. See [DCR Watchlist](DCR-Watchlist.md) |
+
 ## Sentinel-Deploy.yml
 
 Azure DevOps pipeline for provisioning Microsoft Sentinel infrastructure via Bicep, deploying Content Hub solutions and their associated content, deploying custom Sentinel content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploying Defender XDR custom detection rules via the Graph Security API.
@@ -8,13 +17,16 @@ Azure DevOps pipeline for provisioning Microsoft Sentinel infrastructure via Bic
 
 ```
 Stage 1: Check Existing Infrastructure
-  └─ Checks if Resource Group and Log Analytics Workspace already exist
+  └─ Checks if Resource Group, Log Analytics Workspace, and optional Playbook
+     Resource Group already exist
   └─ Handles greenfield (nothing exists) through to existing environments
+  └─ If any required resource is missing, triggers Bicep deployment
 
 Stage 2: Deploy Sentinel Infrastructure (Bicep)
   ├─ Registers required resource providers (Microsoft.OperationsManagement,
   │   Microsoft.SecurityInsights)
-  ├─ Provisions Resource Group, Log Analytics Workspace, Sentinel onboarding
+  ├─ Provisions Resource Group (and optional Playbook Resource Group),
+  │   Log Analytics Workspace, Sentinel onboarding
   ├─ Configures Sentinel settings via REST API (Entity Analytics, UEBA,
   │   Anomalies, EyesOn) with automatic ETag handling
   ├─ Waits 60s for workspace indexing on new deployments
@@ -66,7 +78,7 @@ The pipeline supports **greenfield deployments** — you can start from an empty
 | **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional — see note)* |
 | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
 
-> **Note on Setup**: Run `Scripts/Setup-ServicePrincipal.ps1` once to automatically grant all required permissions. The script provides a permission summary, requests Y/N consent, and supports `-SkipEntraRole` and `-SkipGraphPermission` switches for optional steps. After running once, the pipeline is fully autonomous.
+> **Note on Setup**: Run `Scripts/Setup-ServicePrincipal.ps1` once to automatically grant all required permissions. The script provides a permission summary, requests Y/N consent, and supports `-SkipEntraRole` and `-SkipGraphPermission` switches for optional steps. After running once, the pipeline is fully autonomous. See [Scripts.md](Scripts.md#setup-serviceprincipalps1).
 
 > **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
 
@@ -170,10 +182,11 @@ The pipeline uses a service connection named `sc-sentinel-as-code` by default. T
 
 ### How It Works
 
-1. **Check Infrastructure**: Queries Azure for the resource group and Log Analytics Workspace to determine if Bicep deployment is needed. Handles greenfield (nothing exists) gracefully
+1. **Check Infrastructure**: Queries Azure for the resource group, Log Analytics Workspace, and optional playbook resource group to determine if Bicep deployment is needed. If any required resource is missing, Bicep runs. Handles greenfield (nothing exists) gracefully
 2. **Register Providers**: Ensures `Microsoft.OperationsManagement` and `Microsoft.SecurityInsights` resource providers are registered on the subscription
 3. **Deploy Bicep**: Runs a subscription-level deployment that creates:
    - Resource Group (with tags)
+   - Playbook Resource Group (if `playbookResourceGroup` is set and differs from the main RG)
    - Log Analytics workspace (configurable retention, daily quota)
    - Microsoft Sentinel onboarding (via `Microsoft.OperationsManagement/solutions` for idempotent re-runs)
    - Workspace diagnostic settings (audit logs and metrics)

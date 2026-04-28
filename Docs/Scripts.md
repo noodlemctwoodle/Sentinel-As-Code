@@ -1,5 +1,19 @@
 # Scripts
 
+PowerShell scripts that drive the deploy and detection pipelines, plus
+one-time bootstrap and ad-hoc maintenance tooling.
+
+| Script | Purpose | Doc anchor |
+| --- | --- | --- |
+| `Setup-ServicePrincipal.ps1` | One-time bootstrap of all required service-principal permissions | [#setup-serviceprincipalps1](#setup-serviceprincipalps1) |
+| `Deploy-SentinelContentHub.ps1` | Deploys Content Hub solutions and OoB content | [#deploy-sentinelcontenthubps1](#deploy-sentinelcontenthubps1) |
+| `Deploy-CustomContent.ps1` | Deploys repo-authored custom content | [#deploy-customcontentps1](#deploy-customcontentps1) |
+| `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
+| `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
+| `Export-Playbooks.ps1` | Exports Logic App playbooks as ARM templates | [#export-playbooksps1](#export-playbooksps1) |
+| `Set-PlaybookPermissions.ps1` | Grants managed-identity roles to deployed playbooks | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
+| `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](Sentinel-Drift-Detection.md) |
+
 ## Setup-ServicePrincipal.ps1
 
 One-time bootstrap script that grants the service principal all required Azure, Entra ID, and Microsoft Graph permissions needed for the pipeline to operate autonomously.
@@ -314,15 +328,14 @@ Content deploys in the following order (also driven by `dependencies.json`):
 7. **Automation Rules** — Incident auto-response
 8. **Summary Rules** — Cost-optimised aggregation
 
-See the individual content READMEs for schema details:
-- [Parsers/README.md](../Parsers/README.md) — KQL parser YAML schema
-- [AnalyticalRules/README.md](../AnalyticalRules/README.md) — YAML analytics rule schema
-- [Watchlists/README.md](../Watchlists/README.md) — Watchlist metadata and CSV format
-- [Playbooks/README.md](../Playbooks/README.md) — ARM template requirements
-- [Workbooks/README.md](../Workbooks/README.md) — Gallery template JSON format
-- [HuntingQueries/README.md](../HuntingQueries/README.md) — Hunting query YAML schema
-- [AutomationRules/README.md](../AutomationRules/README.md) — Automation rule JSON schema
-- [SummaryRules/README.md](../SummaryRules/README.md) — Summary rule JSON schema
+Schema details for each content type:
+- [Analytical-Rules.md](Analytical-Rules.md) — YAML analytics rule schema
+- [Watchlists.md](Watchlists.md) — Watchlist metadata and CSV format
+- [Playbooks.md](Playbooks.md) — ARM template requirements
+- [Workbooks.md](Workbooks.md) — Gallery template JSON format
+- [Hunting-Queries.md](Hunting-Queries.md) — Hunting query YAML schema
+- [Automation-Rules.md](Automation-Rules.md) — Automation rule JSON schema
+- [Summary-Rules.md](Summary-Rules.md) — Summary rule JSON schema
 
 ---
 
@@ -382,4 +395,162 @@ Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph
 
 ### Content Folder Structure
 
-See the [DefenderCustomDetections/README.md](../DefenderCustomDetections/README.md) for the full YAML schema, response action types, and impacted asset identifiers.
+See [Defender-Custom-Detections.md](Defender-Custom-Detections.md) for the full YAML schema, response action types, and impacted asset identifiers.
+
+---
+
+## Import-CommunityRules.ps1
+
+Imports community analytical rules from external repositories into the local codebase. Currently supports the David Alonso (Dalonso) Security repository. See [Community-Rules.md](Community-Rules.md) for the full contribution model.
+
+### Key Features
+
+- **External Repository Support**: Currently supports David Alonso's Threat Hunting rules (111 published rules)
+- **YAML Rule Import**: Clones external Git repositories and copies YAML-format detection rules
+- **Format Conversion**: Optionally converts KQL+ARM hybrid rules to YAML format for consistency
+- **Attribution Tracking**: Automatically adds source attribution and creation metadata to imported rules
+- **Disabled by Default**: All imported rules deploy with `enabled: false` for review before activation
+- **Manifest Generation**: Creates `import-manifest.json` (next to the rules) with content hashes for upstream-drift detection
+- **Auto-Generated Summary**: Writes a Markdown summary to `Docs/Community/{ContributorName}.md` with rule counts and per-category listings
+- **Change Detection**: Uses SHA-256 checksums to track which rules have changed between runs; only updates modified content
+- **Idempotent**: Fully re-runnable — unchanged rules are skipped, failed rules are retried on next execution
+- **Dry Run Mode**: `DryRun` parameter previews all changes without writing to disk
+- **ADO Pipeline Integration**: Emits pipeline warnings and structured output
+
+### Prerequisites
+
+- `powershell-yaml` module (for YAML parsing and generation)
+- Git command-line tools (for repository cloning)
+- Internet access to external repositories
+
+### Parameter Reference
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `OutputPath` | string | No | `AnalyticalRules/Community/Dalonso` | Target folder for imported rule YAMLs and `import-manifest.json` |
+| `DocsPath` | string | No | `Docs/Community/{ContributorName}.md` (auto-derived from `OutputPath` leaf) | Destination for the auto-generated Markdown summary |
+| `SourceRepo` | string | No | `https://github.com/davidalonsod/Dalonso-Security-Repo.git` | Git URL of source repository |
+| `SourceBranch` | string | No | `main` | Branch name to clone from |
+| `IncludeKqlConversion` | switch | No | `$false` | Also convert KQL+ARM rules to YAML format |
+| `DryRun` | switch | No | `$false` | Preview changes without writing files |
+
+### Usage Examples
+
+#### Import Default Community Rules
+```powershell
+.\Import-CommunityRules.ps1
+```
+
+#### Import with KQL Conversion
+```powershell
+.\Import-CommunityRules.ps1 -IncludeKqlConversion
+```
+
+#### Dry Run Preview
+```powershell
+.\Import-CommunityRules.ps1 -DryRun
+```
+
+#### Onboard a New Contributor
+```powershell
+.\Import-CommunityRules.ps1 `
+    -OutputPath ./AnalyticalRules/Community/NewContributor `
+    -DocsPath   ./Docs/Community/NewContributor.md `
+    -SourceRepo "https://github.com/example/threat-rules.git"
+```
+
+### How It Works
+
+1. **Repository Cloning**: Clones the source repository to a temporary directory using the specified branch
+2. **Rule Discovery**: Scans the cloned repository for YAML-format detection rules
+3. **Metadata Extraction**: Reads rule metadata (title, description, tactics, techniques, severity)
+4. **Format Conversion** (optional): If `-IncludeKqlConversion` is enabled, converts KQL+ARM hybrid rules to YAML
+5. **Attribution**: Adds source repository attribution and original author information to each rule
+6. **Deployment State**: Sets `enabled: false` on all imported rules for review before activation
+7. **Change Detection**: Compares SHA-256 checksums of each rule against the `import-manifest.json` manifest to detect changes
+8. **File Writing**: Writes new and updated rules to `OutputPath`, skips unchanged rules
+9. **Manifest Creation**: Updates `import-manifest.json` with metadata for all imported rules including source, rule count, and import timestamp
+10. **Summary Generation**: Writes the human-readable summary to `DocsPath` (under `Docs/Community/`) with import source, total rule count, organisation, and instructions for enabling rules
+11. **Cleanup**: Removes temporary clone directory
+
+### Import State Tracking
+
+The import process tracks changes using `import-manifest.json` (next to the rules):
+- **First Run**: Creates initial manifest; imports all rules
+- **Subsequent Runs**: Compares content hashes; only updates changed rules
+- **Retries**: Previously failed rules are flagged for retry on next execution
+- **Idempotency**: Running multiple times produces the same result with no duplicate imports
+
+### Content Folder Structure
+
+Imported community rules are organised by source:
+
+```
+AnalyticalRules/Community/
+└── Dalonso/
+    ├── *.yaml                    # Imported community detection rules (per category subfolder)
+    └── import-manifest.json      # Content-hash manifest
+
+Docs/Community/
+└── Dalonso.md                    # Auto-generated summary, governance doc lives at Docs/Community-Rules.md
+```
+
+Each imported rule includes:
+- Original rule title and description
+- Tactics and techniques (MITRE ATT&CK)
+- Severity level
+- Source repository attribution
+- Original author information (where available)
+- `enabled: false` flag for review
+
+---
+
+## Export-Playbooks.ps1
+
+Exports all Logic App playbooks from an Azure resource group into deployable ARM templates, organised by trigger category. Designed for Mac and PowerShell 7 compatibility.
+
+### Key Features
+
+- **REST API Discovery**: Lists all Logic Apps via the Azure Management REST API with automatic pagination
+- **Trigger Detection**: Categorises playbooks by trigger type (Incident, Entity, Alert, Module, Watchlist, Other)
+- **ARM Template Generation**: Builds clean, parameterised ARM templates from live workflow definitions
+- **Connection Handling**: Correctly handles MSI vs standard connections; connectors that don't support MSI (Office 365, Teams, AzureMonitorLogs, VirusTotal, SharePoint) omit `parameterValueType`
+- **Subscription Sanitisation**: Replaces hardcoded subscription IDs and resource group names with ARM expressions
+- **Metadata Generation**: Adds metadata block with title, description, author, and support tier
+
+### Parameter Reference
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `SubscriptionId` | string | Yes | - | Azure Subscription ID |
+| `ResourceGroupName` | string | Yes | - | Resource Group containing the Logic Apps |
+| `OutputPath` | string | No | `./Playbooks` | Output directory for exported templates |
+
+### Usage
+
+```powershell
+.\Export-Playbooks.ps1 `
+    -SubscriptionId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
+    -ResourceGroupName "rg-sentinel-prod" `
+    -OutputPath "./Playbooks"
+```
+
+---
+
+## Set-PlaybookPermissions.ps1
+
+Grants managed identity roles to deployed Logic App playbooks based on their API connections and workflow actions.
+
+### Key Features
+
+- **Connection Analysis**: Inspects each Logic App's connections to determine required roles
+- **Managed Identity Support**: Works with system-assigned managed identities on Logic Apps
+- **Role Assignment**: Grants appropriate roles (Sentinel Responder, Sentinel Contributor, Key Vault Secrets User, etc.)
+
+### Usage
+
+```powershell
+.\Set-PlaybookPermissions.ps1 `
+    -SubscriptionId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
+    -ResourceGroupName "rg-sentinel-prod"
+```

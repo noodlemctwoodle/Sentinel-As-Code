@@ -1,6 +1,6 @@
 # Workbooks
 
-Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder containing the gallery template JSON exported from the Sentinel workbook editor, and an optional metadata file.
+Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Workbooks/`](../Workbooks/) containing the gallery template JSON exported from the Sentinel workbook editor, and an optional metadata file.
 
 ## Folder Structure
 
@@ -64,3 +64,4 @@ Without a stable `workbookId`, re-deployments may create duplicate workbooks ins
 - The `sourceId` (workspace resource ID) is set automatically by the deployment script
 - Workbooks appear in the **My Workbooks** section of the Sentinel Workbooks blade
 - Re-deploying with the same GUID updates the existing workbook in place
+- Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](Scripts.md#deploy-customcontentps1)

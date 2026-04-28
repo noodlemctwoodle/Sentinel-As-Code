@@ -2,6 +2,8 @@
 
 Custom threat hunting queries authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. Unlike analytics rules, hunting queries do not generate alerts or incidents — they are executed manually or on-demand by analysts conducting proactive threat hunts.
 
+Source files live under [`HuntingQueries/`](../HuntingQueries/).
+
 ## How Hunting Queries Differ from Analytics Rules
 
 | | Analytics Rules | Hunting Queries |
@@ -13,7 +15,7 @@ Custom threat hunting queries authored in YAML and deployed to Microsoft Sentine
 | Severity | Required | Not applicable |
 | Trigger threshold | Required | Not applicable |
 
-Hunting queries appear in **Microsoft Sentinel > Hunting** and can be run directly from the portal, bookmarked, or promoted to analytics rules if they identify high-signal behaviour worth automating.
+Hunting queries appear in **Microsoft Sentinel > Hunting** and can be run directly from the portal, bookmarked, or promoted to analytics rules if they identify high-signal behaviour worth automating. For analytics rule schema, see [Analytical Rules](Analytical-Rules.md).
 
 ## Folder Structure
 
