@@ -76,8 +76,8 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        2.0.0
-    Last Updated:   2026-03-19
+    Version:        2.1.0
+    Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts PowerShell module

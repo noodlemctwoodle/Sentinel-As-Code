@@ -34,8 +34,8 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-03-20
+    Version:        1.0.1
+    Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API:            Microsoft Graph Security API (beta)
     Requires:       Az.Accounts, powershell-yaml

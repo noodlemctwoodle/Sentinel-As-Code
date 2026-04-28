@@ -56,8 +56,8 @@
 
 .NOTES
     Author:         Toby G
-    Version:        1.0.0
-    Last Updated:   2026-03-25
+    Version:        1.1.0
+    Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     Requires:       powershell-yaml module (auto-installed if missing)
                     git 2.x or later in PATH
