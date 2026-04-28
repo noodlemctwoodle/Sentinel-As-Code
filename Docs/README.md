@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../.images/SentinelAsCode.png" alt="Sentinel-As-Code" />
+</p>
+
 # Documentation
 
 Reference material for Sentinel-As-Code, grouped by concern. Pick the

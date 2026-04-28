@@ -1,4 +1,6 @@
-# Sentinel-As-Code
+<p align="center">
+  <img src="./.images/sentinel-as-code-banner.png" alt="Sentinel-As-Code" />
+</p>
 
 ## Overview
 
