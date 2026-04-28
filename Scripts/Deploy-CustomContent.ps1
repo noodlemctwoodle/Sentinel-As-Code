@@ -77,14 +77,6 @@
     When specified, performs a dry run showing what actions would be taken without
     making changes.
 
-.NOTES
-    Author:         noodlemctwoodle
-    Version:        1.1.0
-    Last Updated:   2026-04-28
-    Repository:     Sentinel-As-Code
-    API Version:    2025-07-01-preview
-    Requires:       Az.Accounts, powershell-yaml
-
 .EXAMPLE
     .\Deploy-CustomContent.ps1 `
         -ResourceGroup "rg-sentinel-prod" `
@@ -111,6 +103,14 @@
         -WhatIf
 
     Performs a dry run showing what would be deployed.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.1.0
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    API Version:    2025-07-01-preview
+    Requires:       Az.Accounts, powershell-yaml
 #>
 
 [CmdletBinding()]

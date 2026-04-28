@@ -1,8 +1,3 @@
-#
-# Sentinel-As-Code/Scripts/Import-CommunityRules.ps1
-#
-# Created by Toby G on 25/03/2026.
-#
 <#
 .SYNOPSIS
     Imports Microsoft Sentinel analytical rules from the David Alonso (Dalonso)
@@ -54,14 +49,6 @@
 .PARAMETER DryRun
     Shows what would be written without creating or modifying any files.
 
-.NOTES
-    Author:         Toby G
-    Version:        1.1.0
-    Last Updated:   2026-04-28
-    Repository:     Sentinel-As-Code
-    Requires:       powershell-yaml module (auto-installed if missing)
-                    git 2.x or later in PATH
-
 .EXAMPLE
     .\Import-CommunityRules.ps1
 
@@ -85,6 +72,13 @@
     Onboards a new contributor — both paths can be set explicitly when the
     auto-derived defaults don't suit (e.g. for a one-off import into a
     sandbox folder).
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.1.0
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    Requires:       powershell-yaml (auto-installed if missing); git 2.x or later in PATH
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
