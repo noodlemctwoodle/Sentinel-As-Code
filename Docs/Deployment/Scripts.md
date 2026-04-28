@@ -10,8 +10,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Deploy-CustomContent.ps1` | Deploys repo-authored custom content | [#deploy-customcontentps1](#deploy-customcontentps1) |
 | `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
 | `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
-| `Export-Playbooks.ps1` | Exports Logic App playbooks as ARM templates | [#export-playbooksps1](#export-playbooksps1) |
-| `Set-PlaybookPermissions.ps1` | Grants managed-identity roles to deployed playbooks | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
+| `Set-PlaybookPermissions.ps1` | Post-deploy: grants managed-identity roles based on each playbook's actual workflow content | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1
@@ -241,6 +240,7 @@ Deploys custom content from the repository to a Microsoft Sentinel workspace: KQ
 | `SmartDeployment` | switch | No | `$true` | Use git diff to detect changed files and skip unchanged content |
 | `SkipParsers` | switch | No | `$false` | Skip custom KQL parser deployment |
 | `SkipDetections` | switch | No | `$false` | Skip custom detection deployment |
+| `SkipCommunityDetections` | switch | No | `$false` | Skip rules under `AnalyticalRules/Community/**` only — non-community detections still deploy. Used by the pipeline's "Skip Community Detections" toggle |
 | `SkipWatchlists` | switch | No | `$false` | Skip custom watchlist deployment |
 | `SkipPlaybooks` | switch | No | `$false` | Skip custom playbook deployment |
 | `SkipWorkbooks` | switch | No | `$false` | Skip custom workbook deployment |
@@ -505,52 +505,81 @@ Each imported rule includes:
 
 ---
 
-## Export-Playbooks.ps1
-
-Exports all Logic App playbooks from an Azure resource group into deployable ARM templates, organised by trigger category. Designed for Mac and PowerShell 7 compatibility.
-
-### Key Features
-
-- **REST API Discovery**: Lists all Logic Apps via the Azure Management REST API with automatic pagination
-- **Trigger Detection**: Categorises playbooks by trigger type (Incident, Entity, Alert, Module, Watchlist, Other)
-- **ARM Template Generation**: Builds clean, parameterised ARM templates from live workflow definitions
-- **Connection Handling**: Correctly handles MSI vs standard connections; connectors that don't support MSI (Office 365, Teams, AzureMonitorLogs, VirusTotal, SharePoint) omit `parameterValueType`
-- **Subscription Sanitisation**: Replaces hardcoded subscription IDs and resource group names with ARM expressions
-- **Metadata Generation**: Adds metadata block with title, description, author, and support tier
-
-### Parameter Reference
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `SubscriptionId` | string | Yes | - | Azure Subscription ID |
-| `ResourceGroupName` | string | Yes | - | Resource Group containing the Logic Apps |
-| `OutputPath` | string | No | `./Playbooks` | Output directory for exported templates |
-
-### Usage
-
-```powershell
-.\Export-Playbooks.ps1 `
-    -SubscriptionId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
-    -ResourceGroupName "rg-sentinel-prod" `
-    -OutputPath "./Playbooks"
-```
-
----
-
 ## Set-PlaybookPermissions.ps1
 
-Grants managed identity roles to deployed Logic App playbooks based on their API connections and workflow actions.
+Post-deployment RBAC bootstrap for Logic App playbooks. After
+`Deploy-CustomContent.ps1` deploys playbooks (each tagged
+`Source: Sentinel-As-Code`), this script scans them, determines what
+permissions each playbook actually needs based on its workflow content,
+and assigns the minimum required roles to each Logic App's
+system-assigned managed identity.
 
-### Key Features
+### Why this script exists
 
-- **Connection Analysis**: Inspects each Logic App's connections to determine required roles
-- **Managed Identity Support**: Works with system-assigned managed identities on Logic Apps
-- **Role Assignment**: Grants appropriate roles (Sentinel Responder, Sentinel Contributor, Key Vault Secrets User, etc.)
+`Deploy-CustomContent.ps1` runs as the deployment service principal,
+which has `Contributor` on the resource group plus an ABAC-conditioned
+`User Access Administrator` role (set up by `Setup-ServicePrincipal.ps1`).
+That ABAC condition is intentionally restrictive — the deployer can only
+assign a fixed set of low-privilege roles. It cannot, for example,
+grant `Microsoft Sentinel Contributor` directly on the workspace.
+
+The role-assignment work is therefore split out:
+- **`Deploy-CustomContent.ps1`** deploys the Logic App ARM templates
+  (the playbook resource itself), enables system-assigned managed
+  identity, and tags it with `Source: Sentinel-As-Code`.
+- **`Set-PlaybookPermissions.ps1`** runs separately as a higher-privilege
+  identity (User Access Administrator or Owner) and grants the playbook
+  MSIs the roles they need to actually function.
+
+### Key features
+
+- **Tag-scoped discovery** — only Logic Apps with the `Source: Sentinel-As-Code` tag are considered, so hand-deployed Logic Apps in the same resource group are left alone.
+- **Workflow-content analysis** — instead of granting every role to every playbook, the script inspects each workflow's JSON to derive the minimum role set:
+  - **API connectors** (`azuresentinel`, `keyvault`, `wdatp`, `azuremonitorlogs`, `microsoftgraphsecurity`, etc.) → mapped to specific roles per connector type.
+  - **HTTP actions using ManagedServiceIdentity** — when a playbook calls Graph, Defender, or Log Analytics REST APIs directly via the HTTP action with `authentication.type: ManagedServiceIdentity`, the script reads the URL prefix to grant the right role for that endpoint.
+  - **Sentinel-specific actions** — actions that modify incidents, watchlists, or comments require Sentinel-Contributor-tier roles even when the connector is generic.
+- **Idempotent** — re-runs are safe; existing assignments are detected and skipped.
+- **WhatIf mode** — preview every assignment before applying.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `SubscriptionId` | string | No | Current Az context | Azure subscription containing the Logic Apps |
+| `PlaybookResourceGroup` | string | Yes | - | Resource group where Logic App playbooks are deployed |
+| `SentinelResourceGroup` | string | No | Same as `PlaybookResourceGroup` | Resource group containing the Sentinel workspace, if different |
+| `SentinelWorkspaceName` | string | Yes | - | Log Analytics workspace name (used to scope Sentinel role assignments) |
+| `KeyVaultName` | string | No | - | Key Vault used by playbooks. Required only when at least one playbook references Key Vault |
+| `WhatIf` | switch | No | `$false` | Preview role assignments without applying |
 
 ### Usage
 
 ```powershell
-.\Set-PlaybookPermissions.ps1 `
-    -SubscriptionId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
-    -ResourceGroupName "rg-sentinel-prod"
+# Standard run — Sentinel + playbooks in the same resource group
+./Set-PlaybookPermissions.ps1 `
+    -PlaybookResourceGroup "rg-sentinel-prod" `
+    -SentinelWorkspaceName "law-sentinel-prod"
+
+# Sentinel and playbooks in separate resource groups, Key Vault in use
+./Set-PlaybookPermissions.ps1 `
+    -PlaybookResourceGroup "rg-playbooks-prod" `
+    -SentinelResourceGroup "rg-sentinel-prod" `
+    -SentinelWorkspaceName "law-sentinel-prod" `
+    -KeyVaultName "kv-sentinel-prod"
+
+# Dry run
+./Set-PlaybookPermissions.ps1 `
+    -PlaybookResourceGroup "rg-sentinel-prod" `
+    -SentinelWorkspaceName "law-sentinel-prod" `
+    -WhatIf
 ```
+
+### Prerequisites for the executing principal
+
+The identity running this script needs **`User Access Administrator`** or
+**`Owner`** on the playbook resource group (and on the Sentinel resource
+group if different). The deployment SPN does not have this role by
+default — `Setup-ServicePrincipal.ps1` only grants it under an ABAC
+condition that doesn't permit Sentinel-tier role assignments. Run this
+script under a separate elevated identity (typically a one-off run by
+an admin user, not the pipeline SPN).
