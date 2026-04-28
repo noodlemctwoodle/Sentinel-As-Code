@@ -1,0 +1,69 @@
+id: a127b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c
+name: Zscaler ZIA - Multi-User Phishing Campaign - Same Domain Hit by 3+ Users in 1 Hour
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when 3 or more distinct users access the same destination domain within a 1-hour window and that domain is classified as a phishing, advanced security risk, botnet, or malware category by Zscaler ZIA. A single user clicking a phishing link is a user error; multiple users targeting the same domain in the same hour is a strong indicator of an active phishing campaign delivered via email or collaboration tools. MITRE ATT&CK: T1566 (Phishing), T1192 (Spearphishing Link).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+relevantTechniques:
+- T1566
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1h)
+  | where DeviceVendor == "Zscaler"
+  | where isnotempty(DestinationHostName) and isnotempty(SourceUserName)
+  | where DeviceCustomString2 has_any (
+      "PHISHING", "ADVANCED_SECURITY_RISK", "BOTNET_SITES",
+      "MALWARE_SITES", "SUSPICIOUS_DESTINATIONS", "MALICIOUS_LINKS")
+  | summarize
+      UserCount    = dcount(SourceUserName),
+      Users        = make_set(SourceUserName, 20),
+      Actions      = make_set(DeviceAction, 5),
+      URLSamples   = make_set(RequestURL, 5),
+      Category     = any(DeviceCustomString2),
+      FirstHit     = min(TimeGenerated),
+      LastHit      = max(TimeGenerated),
+      RepURL       = any(DestinationHostName)
+    by DestinationHostName
+  | where UserCount >= 3
+  | order by UserCount desc
+entityMappings:
+- entityType: URL
+  fieldMappings:
+  - identifier: Url
+    columnName: RepURL
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Phishing Campaign - {{DestinationHostName}} ({{UserCount}} users in 1h)'
+  alertDescriptionFormat: '{{UserCount}} users accessed phishing/malicious domain {{DestinationHostName}} within 1 hour. Category: {{Category}}.'
+customDetails:
+  UserCount: UserCount
+  DestinationHostName: DestinationHostName
+  Category: Category
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT2H
+    matchingMethod: Selected
+    groupByEntities:
+    - URL
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

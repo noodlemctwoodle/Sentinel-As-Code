@@ -1,0 +1,80 @@
+id: a1b2c3d4-0008-4a5b-8c9d-dns008exfil
+name: DNS Data Exfiltration via Long Subdomain Labels
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects data exfiltration over DNS by identifying queries containing
+  abnormally long subdomain labels. Attackers encode data (base64, hex)
+  into DNS subdomain labels to exfiltrate files and credentials.
+  Each DNS label supports up to 63 characters; legitimate domains almost
+  never use labels longer than 30–35 characters. Tunneling tools such as
+  iodine, dnscat2, and custom scripts split encoded payload data into
+  255-char TXT chunks or 63-char subdomain labels.
+  A single client exfiltrating >100KB via DNS in 24h is a strong indicator.
+  MITRE T1048.003 — Exfiltration over Unencrypted/Obfuscated Non-C2 Protocol
+  Differentiation from built-in "Potential DNS Tunnel (ASIM DNS)":
+  The built-in uses per-query length thresholds. This rule aggregates label
+  sizes across all queries per client over 24h to estimate total exfiltrated
+  bytes (EstimatedKB). This volume-based approach catches low-and-slow exfil
+  that uses moderately long labels (staying under per-query thresholds) but
+  accumulates significant data transfer over time.
+severity: High
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT24H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+- CommandAndControl
+relevantTechniques:
+- T1048.003
+- T1071.004
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(24h)
+  | extend Labels = split(DnsQuery, ".")
+  | extend
+      Label0    = tostring(Labels[0]),
+      Label1    = tostring(Labels[1]),
+      Label2    = tostring(Labels[2])
+  | extend MaxLabelLen = max_of(strlen(Label0), strlen(Label1), strlen(Label2))
+  | where MaxLabelLen > 35
+  | extend QuerySize = strlen(DnsQuery)
+  | summarize
+      TotalQueries   = count(),
+      EstimatedBytes = sum(QuerySize),
+      MaxLabelSeen   = max(MaxLabelLen),
+      AvgLabelLen    = round(avg(MaxLabelLen), 1),
+      SampleDomains  = make_set(DnsQuery, 10),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname
+  | extend EstimatedKB = round(todouble(EstimatedBytes) / 1024.0, 1)
+  | where EstimatedKB > 50
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DNS Exfiltration — {{SrcHostname}} sent ~{{EstimatedKB}}KB via long subdomain labels'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) sent {{TotalQueries}} queries with long subdomain labels (max chars, avg ). Estimated data volume: ~KB.'' Sample domains:'
+customDetails:
+  EstimatedKB: EstimatedKB
+  MaxLabelSeen: MaxLabelSeen
+  TotalQueries: TotalQueries
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

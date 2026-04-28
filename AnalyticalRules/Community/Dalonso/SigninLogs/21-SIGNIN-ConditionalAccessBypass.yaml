@@ -1,0 +1,80 @@
+id: e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b
+name: SigninLogs — Conditional Access Policy Blocked then Successful Bypass
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects a user blocked by Conditional Access (ResultType 53003) who then achieves a successful sign-in within 4 hours — possibly via a legacy auth client that bypasses CA, an unmanaged device, or a CA policy gap. MITRE ATT&CK: T1078 (Valid Accounts), T1562.001 (Disable or Modify Tools).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT4H
+queryPeriod: PT4H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1562
+query: |
+  let lookback     = 4h;
+  let bypassWindow = 4h;
+  let CABlockedUsers =
+      SigninLogs
+      | where TimeGenerated > ago(lookback)
+      | where ResultType == "53003"
+      | summarize
+          BlockedCount = count(),
+          LastBlocked  = max(TimeGenerated),
+          BlockedIPs   = make_set(IPAddress, 5),
+          BlockedApps  = make_set(AppDisplayName, 5)
+        by UserPrincipalName;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType == "0"
+  | join kind=inner CABlockedUsers on UserPrincipalName
+  | where TimeGenerated > LastBlocked
+  | where TimeGenerated - LastBlocked <= bypassWindow
+  | extend MinutesAfterBlock = datetime_diff("minute", TimeGenerated, LastBlocked)
+  | project
+      TimeGenerated, UserPrincipalName,
+      IPAddress, Location, AppDisplayName,
+      ClientAppUsed, ConditionalAccessStatus,
+      RiskLevelDuringSignIn, BlockedCount,
+      BlockedIPs, LastBlocked, MinutesAfterBlock
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'CA Policy Bypass — {{UserPrincipalName}} succeeded {{MinutesAfterBlock}}m after {{BlockedCount}} CA blocks'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} was CA-blocked {{BlockedCount}} times then authenticated successfully {{MinutesAfterBlock}} minutes later — possible legacy auth or unmanaged device
+    bypass.'
+customDetails:
+  BlockedCount: BlockedCount
+  MinutesAfterBlock: MinutesAfterBlock
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

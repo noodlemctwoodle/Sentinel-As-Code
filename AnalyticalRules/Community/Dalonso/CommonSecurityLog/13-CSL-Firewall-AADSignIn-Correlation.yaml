@@ -1,0 +1,93 @@
+id: a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d
+name: 'Correlation: Firewall Allowed Traffic + Azure AD Sign-In from Same IP'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Correlates firewall-allowed outbound traffic with Azure AD sign-in events sharing the same
+  external IP. An IP that appears in both AAD sign-in logs and firewall sessions simultaneously
+  may indicate a threat actor using the same infrastructure for credential-based cloud access
+  and network-level data collection. This correlation amplifies low-confidence signals from
+  each source into a high-confidence cross-vector indicator.
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1078
+query: |
+  let FirewallExternalIPs =
+      CommonSecurityLog
+      | where TimeGenerated > ago(1d)
+      | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+      | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP")
+      | where ipv4_is_private(DestinationIP) == false
+      | summarize
+          FW_Connections = count(),
+          FW_Sources     = make_set(SourceIP, 10),
+          FW_BytesSent   = sum(SentBytes),
+          FW_Vendors     = make_set(DeviceVendor)
+        by ExternalIP = DestinationIP;
+  SigninLogs
+  | where TimeGenerated > ago(1d)
+  | where ResultType == 0
+  | where isnotempty(IPAddress)
+  | summarize
+      AAD_SignInCount  = count(),
+      AAD_Users        = make_set(UserPrincipalName, 20),
+      AAD_AppNames     = make_set(AppDisplayName, 10),
+      AAD_Countries    = make_set(Location, 5),
+      AAD_RiskLevels   = make_set(RiskLevelDuringSignIn, 5)
+    by IPAddress
+  | join kind=inner FirewallExternalIPs on $left.IPAddress == $right.ExternalIP
+  | project
+      IPAddress,
+      AAD_SignInCount,
+      AAD_Users,
+      AAD_Countries,
+      AAD_RiskLevels,
+      FW_Connections,
+      FW_Sources,
+      FW_BytesSent,
+      FW_Vendors
+  | order by FW_Connections desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Cross-Signal IP Match - {{IPAddress}} in Firewall + AAD Sign-In'
+  alertDescriptionFormat: 'IP {{IPAddress}} generated {{AAD_SignInCount}} AAD sign-ins and {{FW_Connections}} firewall sessions. Multi-vector activity from a single source is a strong compromise indicator.'
+customDetails:
+  AAD_SignInCount: AAD_SignInCount
+  FW_Connections: FW_Connections
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

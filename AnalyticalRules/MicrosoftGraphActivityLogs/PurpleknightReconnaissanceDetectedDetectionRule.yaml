@@ -1,24 +1,24 @@
 id: 0833c2f0-036c-479b-90c4-59bd98f8c698
 name: Purple Knight reconnaissance detected
-description: Microsoft Graph queries that are similar to Purple Knight where detected in your environment. An attacker might have started with the reconnaissance stage of an attack in your environment. This requires access to a compromised service principal.
+description: |
+  'Microsoft Graph queries that are similar to Purple Knight where detected in your environment. An attacker might have started with the reconnaissance stage of an attack in your environment. This requires access to a compromised service principal.'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
 queryFrequency: PT30M
 queryPeriod: PT40M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - InitialAccess
-techniques:
-  - T1595
-  - T1595.002
-  - T1589
-  - T1591
-  - T1078
-  - T1078.004
-query: |-
+- Reconnaissance
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1589
+- T1591
+- T1595
+- T1595.002
+query: |
   let GraphQueries = dynamic([
       "https:/graph.microsoft.com/version/servicePrincipals/<UUID>/appRoleAssignments",
       "https:/graph.microsoft.com/version/roleManagement/directory/roleEligibilityScheduleInstances",
@@ -80,12 +80,18 @@ query: |-
   | join kind=leftouter IPEntities on ObjectId
   | project-away IPAddresses, *1, *2
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: ObjectId
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: ObjectId
 sentinelEntitiesMappings:
-  - columnName: IPInformation
+- columnName: IPInformation
+alertDetailsOverride:
+  alertDynamicProperties:
+  - alertProperty: ConfidenceScore
+    value: ConfidenceScore
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -96,11 +102,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-alertDetailsOverride:
-  alertDynamicProperties:
-    - alertProperty: ConfidenceScore
-      value: ConfidenceScore
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

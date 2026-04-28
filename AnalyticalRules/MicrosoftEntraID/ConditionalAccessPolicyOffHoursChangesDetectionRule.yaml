@@ -1,26 +1,26 @@
 id: c819e1b6-29b4-4693-a6ab-66038bcaeef9
 name: Detect change to Conditional Access Policy
-description: Detects any changes to Conditional Access Policies outside of business hours or on weekends
+description: |
+  'Detects any changes to Conditional Access Policies outside of business hours or on weekends'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT7H
 queryPeriod: P7D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - DefenseEvasion
-  - CredentialAccess
-  - Persistence
-techniques:
-  - T1556
-  - T1556.009
-  - T1562
-  - T1562.001
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- DefenseEvasion
+- CredentialAccess
+- Persistence
+relevantTechniques:
+- T1556
+- T1556.009
+- T1562
+- T1562.001
 query: |
   AuditLogs
   | where OperationName has "conditional access"
@@ -45,10 +45,12 @@ query: |
       Actor
   | sort by LocalTime desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: Actor
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: Actor
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -57,10 +59,12 @@ incidentConfiguration:
     lookbackDuration: P1D
     matchingMethod: Selected
     groupByEntities:
-      - Account
+    - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

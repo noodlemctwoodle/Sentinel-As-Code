@@ -5,24 +5,23 @@ description: |
 
   REQUIRES WATCHLIST = "SuspiciousUsers"'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - InitialAccess
-  - Persistence
-techniques:
-  - T1591
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- Reconnaissance
+- InitialAccess
+- Persistence
+relevantTechniques:
+- T1078
+- T1078.004
+- T1591
 query: |
   let SuspiciousUsers = _GetWatchlist('SuspiciousUsers') | project UserPrincipalName;
   let O365Activity =
@@ -49,18 +48,20 @@ query: |
       ;
   union O365Activity, SuspiciousLogin
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserPrincipalName
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: Name
-        columnName: Appname
-  - entityType: Host
-    fieldMappings:
-      - identifier: HostName
-        columnName: DeviceType
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: Appname
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: DeviceType
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -71,7 +72,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft 365

@@ -1,35 +1,34 @@
 id: 7d269b05-9400-468f-b2a0-20dd6a79e41d
 name: Privileged User Security Group Enumeration via PowerShell
-description: This detection identifies users leveraging PowerShell to enumerate security groups and their memberships through Microsoft Graph API. The rule specifically targets reconnaissance activities where a user makes multiple requests to list security groups or examine their members. It incorporates blast radius assessment by prioritizing activities performed by users with privileged roles or group memberships, who pose a higher risk to the organization. The detection considers user identity context, administrative privileges, department, and management chain to help determine the potential impact of the activity. The rule focuses on patterns of multiple requests (more than 2) within a time window, which may indicate systematic information gathering rather than legitimate administrative tasks. Each alert includes details about the specific security groups accessed, allowing security teams to evaluate whether the activity is appropriate for the user's role.
+description: |
+  'This detection identifies users leveraging PowerShell to enumerate security groups and their memberships through Microsoft Graph API. The rule specifically targets reconnaissance activities where a user makes multiple requests to list security groups or examine their members. It incorporates blast radius assessment by prioritizing activities performed by users with privileged roles or group memberships, who pose a higher risk to the organization. The detection considers user identity context, administrative privileges, department, and management chain to help determine the potential impact of the activity. The rule focuses on patterns of multiple requests (more than 2) within a time window, which may indicate systematic information gathering rather than legitimate administrative tasks. Each alert includes details about the specific security groups accessed, allowing security teams to evaluate whether the activity is appropriate for the user's role.'
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - Persistence
-  - PrivilegeEscalation
-  - Discovery
-techniques:
-  - T1589
-  - T1595
-  - T1595.002
-  - T1078
-  - T1078.004
-  - T1007
-  - T1087
-  - T1087.004
-  - T1069
-  - T1069.003
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- Reconnaissance
+- Persistence
+- PrivilegeEscalation
+- Discovery
+relevantTechniques:
+- T1007
+- T1069
+- T1069.003
+- T1078
+- T1078.004
+- T1087
+- T1087.004
+- T1589
+- T1595
+- T1595.002
+query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
   | where TimeGenerated > ago(10d)
@@ -109,16 +108,18 @@ query: |-
   SecurityGroupsAccessed = array_length(GroupsAccessed)
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserDisplayName
-      - identifier: FullName
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserDisplayName
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -129,7 +130,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

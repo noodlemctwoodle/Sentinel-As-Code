@@ -1,0 +1,91 @@
+id: c8d4e6f7-a2b3-5c9d-0e1f-2a3b4c5d6e7f
+name: Non-Interactive Sign-In from Threat Intelligence IP
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects non-interactive (silent) Azure AD sign-ins originating from IP addresses
+  present in the ThreatIntelIndicators table (unified TI - replaces deprecated
+  ThreatIntelligenceIndicator). Silent sign-ins from known-malicious IPs indicate
+  that an attacker has an active refresh token and is using it from
+  attacker-controlled infrastructure.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1078 (Valid Accounts)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+- connectorId: ThreatIntelligence
+  dataTypes:
+  - ThreatIntelIndicators
+queryFrequency: PT15M
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- CommandAndControl
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1528
+- T1539
+query: |
+  let MaliciousIPs =
+      ThreatIntelIndicators
+      | where TimeGenerated > ago(30d)
+      | where IsActive == true
+      | where isempty(ValidUntil) or ValidUntil > now()
+      | where Pattern has "ipv4-addr:value"
+      | extend NetworkIP = extract(@"ipv4-addr:value = '([^']+)'", 1, Pattern)
+      | where isnotempty(NetworkIP)
+      | summarize ThreatTags = make_set(Tags) by NetworkIP;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | join kind=inner MaliciousIPs on $left.IPAddress == $right.NetworkIP
+  | project
+      TimeGenerated,
+      UserPrincipalName,
+      AppDisplayName,
+      IPAddress,
+      Location,
+      ThreatTags,
+      ConditionalAccessStatus,
+      AuthenticationRequirement,
+      CorrelationId,
+      UniqueTokenIdentifier
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'TI Match - Non-Interactive Sign-In from Malicious IP for {{UserPrincipalName}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed a silent token refresh from IP {{IPAddress}} which is flagged in Threat Intelligence as: {{ThreatTags}}.'
+customDetails:
+  ThreatTags: ThreatTags
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

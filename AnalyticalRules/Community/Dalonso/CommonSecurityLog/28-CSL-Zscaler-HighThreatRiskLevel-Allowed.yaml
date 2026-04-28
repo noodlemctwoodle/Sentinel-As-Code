@@ -1,0 +1,69 @@
+id: b228c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+name: Zscaler ZIA - High ThreatRiskLevel Browsing in Allowed Traffic
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Zscaler ZIA allowed web requests where ThreatLabz has assigned a ThreatRiskLevel of 50 or higher to the destination. ThreatRiskLevel (DeviceCustomNumber1 in the NSS CEF feed) is a 0-100 score assigned by Zscaler's cloud intelligence — scores >= 50 indicate suspicious or potentially malicious destinations. Allowed traffic with elevated risk scores may indicate policy gaps, miscategorized sites, or zero-day infrastructure not yet blocked. MITRE ATT&CK: T1071 (Application Layer Protocol), T1566.
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+- InitialAccess
+relevantTechniques:
+- T1071
+- T1566
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceAction !in ("block", "BLOCK", "Blocked", "blocked", "deny", "DROP")
+  | where isnotempty(DeviceCustomNumber1)
+  | where toint(DeviceCustomNumber1) >= 50
+  | where isnotempty(SourceUserName)
+  | summarize
+      EventCount        = count(),
+      MaxRiskScore      = max(toint(DeviceCustomNumber1)),
+      UniqueDestinations= dcount(DestinationHostName),
+      HighRiskDomains   = make_set(DestinationHostName, 10),
+      Categories        = make_set(DeviceCustomString2, 5),
+      FirstSeen         = min(TimeGenerated),
+      LastSeen          = max(TimeGenerated)
+    by SourceUserName
+  | order by MaxRiskScore desc, EventCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler High ThreatRisk Allowed - {{SourceUserName}} (score {{MaxRiskScore}})'
+  alertDescriptionFormat: 'User {{SourceUserName}} browsed {{UniqueDestinations}} high-risk destinations (ThreatRiskLevel up to {{MaxRiskScore}}) without being blocked.'
+customDetails:
+  EventCount: EventCount
+  MaxRiskScore: MaxRiskScore
+  UniqueDestinations: UniqueDestinations
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

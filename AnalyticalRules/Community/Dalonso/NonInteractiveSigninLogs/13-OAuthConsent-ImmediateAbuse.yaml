@@ -1,0 +1,99 @@
+id: a8b4c6d7-e2f3-5a9b-0c1d-2e3f4a5b6c7d
+name: OAuth App Consent Followed by Immediate Silent Authentication
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a user grants consent to an OAuth application in Azure AD (recorded in
+  Audit Logs) and that same app immediately begins generating non-interactive token
+  refreshes within 24 hours. This is the signature of illicit consent grant attacks
+  where an attacker tricks a user into granting a malicious app persistent access to
+  their mailbox, files, or other sensitive resources.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1566 (Phishing)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - AuditLogs
+queryFrequency: PT1H
+queryPeriod: PT24H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- Persistence
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1528
+- T1566
+query: |
+  let RecentConsents =
+      AuditLogs
+      | where TimeGenerated > ago(24h)
+      | where OperationName has_any (
+          "Consent to application",
+          "Add app role assignment",
+          "Add delegated permission grant"
+        )
+      | extend ActorUPN    = tostring(InitiatedBy.user.userPrincipalName)
+      | extend AppId       = tostring(TargetResources[0].id)
+      | extend AppName     = tostring(TargetResources[0].displayName)
+      | where isnotempty(ActorUPN)
+      | project ConsentTime=TimeGenerated, ActorUPN, AppId, AppName, OperationName;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(24h)
+  | where ResultType == 0
+  | join kind=inner RecentConsents
+      on $left.UserPrincipalName == $right.ActorUPN, $left.AppId == $right.AppId
+  | where TimeGenerated > ConsentTime
+     and  (TimeGenerated - ConsentTime) < 24h
+  | summarize
+      NI_Count     = count(),
+      IPs          = make_set(IPAddress),
+      Countries    = make_set(Location),
+      FirstUse     = min(TimeGenerated)
+    by UserPrincipalName, AppName, AppId, ConsentTime, OperationName
+  | extend IPAddress = tostring(IPs[0])
+  | order by ConsentTime desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: AppId
+    columnName: AppId
+  - identifier: Name
+    columnName: AppName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Illicit OAuth Consent - {{UserPrincipalName}} granted access to {{AppName}} which immediately began silent auth'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} consented to app ''{{AppName}}'' which then generated {{NI_Count}} non-interactive sign-ins within 24 hours. Investigate whether consent was phishing-induced.'
+customDetails:
+  AppName: AppName
+  ConsentTime: ConsentTime
+  SignInsAfterConsent: NI_Count
+  Countries: Countries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

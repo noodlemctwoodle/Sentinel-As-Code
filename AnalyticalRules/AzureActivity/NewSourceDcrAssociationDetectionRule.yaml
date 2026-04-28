@@ -1,24 +1,24 @@
 id: f91b60e3-2e1e-4d73-beec-30a0b774c281
 name: New Source added to DCR
-description: Detects when a new source is added to a Data Collection Rule (DCR)
+description: |
+  'Detects when a new source is added to a Data Collection Rule (DCR)'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActivity
+  dataTypes:
+  - AzureActivity
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Collection
-  - DefenseEvasion
-techniques:
-  - T1074
-  - T1074.002
-  - T1530
-requiredDataConnectors:
-  - connectorId: AzureActivity
-    dataTypes:
-      - AzureActivity
+- Collection
+- DefenseEvasion
+relevantTechniques:
+- T1074
+- T1074.002
+- T1530
 query: |
   AzureActivity
   | where OperationNameValue has "DATACOLLECTIONRULEASSOCIATIONS/WRITE"
@@ -29,18 +29,22 @@ query: |
   | extend DCR = toupper(split(Resources[2], "-association")[0])
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Source, SourceRG, DCR, Caller, CallerIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
-  - entityType: Host
-    fieldMappings:
-      - identifier: HostName
-        columnName: Source
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: Source
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -51,7 +55,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Azure Activity

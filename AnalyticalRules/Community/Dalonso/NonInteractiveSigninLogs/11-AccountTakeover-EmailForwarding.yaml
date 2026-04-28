@@ -1,0 +1,93 @@
+id: e6f2a4b5-c0d1-3e7f-8a9b-0c1d2e3f4a5b
+name: Account Takeover - Email Forwarding Rule Created After Silent Auth
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects a key Business Email Compromise (BEC) indicator: a user's inbox forwarding
+  or redirect rule is created/modified within 2 hours of a non-interactive (silent)
+  sign-in. Attackers who obtain access via token theft immediately set up email
+  forwarding rules to monitor communications and exfiltrate sensitive emails.
+  MITRE ATT&CK: T1114 (Email Collection), T1114.003 (Email Forwarding Rule)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+- connectorId: Office365
+  dataTypes:
+  - OfficeActivity
+queryFrequency: PT1H
+queryPeriod: PT3H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+- Exfiltration
+- Persistence
+relevantTechniques:
+- T1078
+- T1114
+query: |
+  let SilentAuthUsers =
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated > ago(3h)
+      | where ResultType == 0
+      | summarize LastNI = max(TimeGenerated), NI_IPs = make_set(IPAddress)
+        by UserPrincipalName;
+  OfficeActivity
+  | where TimeGenerated > ago(3h)
+  | where Operation in (
+      "New-InboxRule", "Set-InboxRule", "UpdateInboxRules", "Set-Mailbox"
+    )
+  | where Parameters has_any (
+      "ForwardTo", "RedirectTo", "ForwardAsAttachmentTo",
+      "DeleteMessage", "MarkAsRead"
+    )
+  | extend UPN = tolower(UserId)
+  | join kind=inner SilentAuthUsers on $left.UPN == $right.UserPrincipalName
+  | where TimeGenerated > LastNI
+     and  (TimeGenerated - LastNI) < 2h
+  | project
+      RuleCreationTime  = TimeGenerated,
+      UserPrincipalName = UPN,
+      Operation,
+      Parameters,
+      NI_IPs,
+      LastNISignIn      = LastNI,
+      TimeSinceNISignIn = (TimeGenerated - LastNI),
+      ClientIP
+  | order by RuleCreationTime desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: ClientIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'BEC Indicator - {{UserPrincipalName}} created inbox forwarding rule after silent sign-in'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} created inbox rule ''{{Operation}}'' within 2 hours of a silent non-interactive sign-in. Strong Business Email Compromise indicator.'
+customDetails:
+  InboxRuleOperation: Operation
+  TimeSinceNISignIn: TimeSinceNISignIn
+  NISignInIPs: NI_IPs
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

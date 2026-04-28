@@ -1,0 +1,96 @@
+id: b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e
+name: 'Correlation: Firewall Traffic + Active Security Alert - Shared IOC IP'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Identifies IP addresses that appear in both active High/Medium Sentinel security alerts
+  (within the last 7 days) and allowed firewall traffic (last 24 hours). Cross-signal
+  correlation between alert IOCs and live firewall activity confirms that a flagged IP is
+  still actively communicating through the network, elevating response priority.
+  MITRE ATT&CK: T1078 (Valid Accounts), T1071 (Application Layer Protocol)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CommandAndControl
+relevantTechniques:
+- T1071
+- T1078
+query: |
+  let AlertIPs =
+      SecurityAlert
+      | where TimeGenerated > ago(7d)
+      | where AlertSeverity in ("High", "Medium")
+      | mv-expand todynamic(Entities)
+      | where Entities.Type == "ip"
+      | extend AlertIP = tostring(Entities.Address)
+      | where isnotempty(AlertIP)
+      | summarize
+          AlertCount    = count(),
+          AlertNames    = make_set(AlertName, 10),
+          Severities    = make_set(AlertSeverity, 3),
+          Products      = make_set(ProductName, 5)
+        by AlertIP;
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where isnotempty(SourceIP) or isnotempty(DestinationIP)
+  | extend CheckIP = iff(ipv4_is_private(DestinationIP) == false, DestinationIP, SourceIP)
+  | summarize
+      FW_HitCount     = count(),
+      FW_Actions      = make_set(DeviceAction, 5),
+      FW_InternalIPs  = make_set(SourceIP, 10),
+      FW_Vendors      = make_set(DeviceVendor),
+      FW_FirstSeen    = min(TimeGenerated),
+      FW_LastSeen     = max(TimeGenerated)
+    by CheckIP
+  | join kind=inner AlertIPs on $left.CheckIP == $right.AlertIP
+  | project
+      IOC_IP        = CheckIP,
+      AlertCount,
+      AlertNames,
+      Severities,
+      Products,
+      FW_HitCount,
+      FW_Actions,
+      FW_InternalIPs,
+      FW_Vendors,
+      FW_FirstSeen,
+      FW_LastSeen
+  | order by AlertCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IOC_IP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Active IOC in Firewall Traffic - {{IOC_IP}} ({{AlertCount}} alerts)'
+  alertDescriptionFormat: 'IP {{IOC_IP}} is referenced in {{AlertCount}} Sentinel alerts and generated {{FW_HitCount}} live firewall events. Confirmed active IOC still communicating through the perimeter.'
+customDetails:
+  AlertCount: AlertCount
+  FW_HitCount: FW_HitCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

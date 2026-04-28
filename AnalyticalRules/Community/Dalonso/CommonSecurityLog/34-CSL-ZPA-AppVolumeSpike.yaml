@@ -1,0 +1,80 @@
+id: b134c2d3-e4f5-4a6b-7c8d-9e0f1a2b3c4d
+name: Zscaler ZPA - App Access Volume Spike - User Accessing Significantly More Apps Than Baseline
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects ZPA users whose distinct application access count in a 1-hour window exceeds their 14-day daily average by 3x or more. A single user suddenly accessing many more internal apps than usual is a strong indicator of automated reconnaissance, credential compromise where the attacker is enumerating internal resources, or an insider staging access before an exfiltration event. MITRE ATT&CK: T1046 (Network Service Discovery), T1078 (Valid Accounts).
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Discovery
+- InitialAccess
+relevantTechniques:
+- T1046
+- T1078
+query: |
+  let recentWindow   = 1h;
+  let baselineWindow = 14d;
+  let baseline = CommonSecurityLog
+      | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Blocked", "Failed")
+      | where isnotempty(SourceUserName)
+      | summarize DailyApps = dcount(DestinationHostName)
+          by SourceUserName, Day = bin(TimeGenerated, 1d)
+      | summarize AvgDailyApps = avg(DailyApps)
+          by SourceUserName;
+  let recent = CommonSecurityLog
+      | where TimeGenerated > ago(recentWindow)
+      | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+      | where DeviceAction !in ("block", "BLOCK", "Blocked", "Failed")
+      | where isnotempty(SourceUserName)
+      | summarize
+          RecentAppCount = dcount(DestinationHostName),
+          RecentApps     = make_set(DestinationHostName, 20),
+          RecentConns    = count()
+          by SourceUserName;
+  recent
+  | join kind=inner baseline on SourceUserName
+  | where AvgDailyApps > 0
+  | extend SpikeRatio = round(toreal(RecentAppCount) / toreal(AvgDailyApps), 1)
+  | where SpikeRatio >= 3.0 and RecentAppCount >= 5
+  | project SourceUserName, RecentAppCount, AvgDailyApps, SpikeRatio, RecentApps, RecentConns
+  | order by SpikeRatio desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ZPA App Volume Spike - {{SourceUserName}} ({{SpikeRatio}}x baseline)'
+  alertDescriptionFormat: 'ZPA user {{SourceUserName}} accessed {{RecentAppCount}} distinct apps in 1h vs avg {{AvgDailyApps}}/day (x spike).'
+customDetails:
+  RecentAppCount: RecentAppCount
+  SpikeRatio: SpikeRatio
+  AvgDailyApps: AvgDailyApps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

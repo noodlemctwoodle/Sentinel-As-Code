@@ -4,53 +4,42 @@ description: |
   Identifies when a user account has been added to a privileged built in domain local group or global group
   such as the Enterprise Admins, Cert Publishers or DnsAdmins. Be sure to verify this is an expected addition.
 severity: Medium
-kind: Scheduled
-version: 1.0.1
+requiredDataConnectors:
+- connectorId: SecurityEvents
+  dataTypes:
+  - SecurityEvent
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1098
-  - T1098.003
-  - T1078
-  - T1078.002
-requiredDataConnectors:
-  - connectorId: SecurityEvents
-    dataTypes:
-      - SecurityEvent
-query: |
-  let timeframe = 40d;
-  // For AD SID mappings - https://docs.microsoft.com/windows/security/identity-protection/access-control/active-directory-security-groups
-  let WellKnownLocalSID = "S-1-5-32-5[0-9][0-9]$";
-  let WellKnownGroupSID = "S-1-5-21-[0-9]*-[0-9]*-[0-9]*-5[0-9][0-9]$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1102$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1103$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-498$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1000$";
-  SecurityEvent 
-  | where TimeGenerated > ago(timeframe)
-  // When MemberName contains '-' this indicates addition of a group to a group
-  | where AccountType == "User" and MemberName != "-"
-  // 4728 - A member was added to a security-enabled global group
-  // 4732 - A member was added to a security-enabled local group
-  // 4756 - A member was added to a security-enabled universal group
-  | where EventID in (4728, 4732, 4756)   
-  | where TargetSid matches regex WellKnownLocalSID or TargetSid matches regex WellKnownGroupSID
-  // Exclude Remote Desktop Users group: S-1-5-32-555
-  | where TargetSid !in ("S-1-5-32-555")
-  | where TargetSid != ("S-1-5-32-545")
-  | extend SimpleMemberName = tostring(split(tostring(split(MemberName, ",")[0]),"CN=")[1])
-  | project StartTimeUtc = TimeGenerated, EventID, Activity, Computer, SimpleMemberName, MemberName, MemberSid, TargetUserName, TargetDomainName, TargetSid, UserPrincipalName, SubjectUserName, SubjectUserSid
-  | extend timestamp = StartTimeUtc, AccountCustomEntity = SimpleMemberName, HostCustomEntity = Computer
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.002
+- T1098
+- T1098.003
+query: "let timeframe = 40d;\n// For AD SID mappings - https://docs.microsoft.com/windows/security/identity-protection/access-control/active-directory-security-groups\nlet WellKnownLocalSID = \"S-1-5-32-5[0-9][0-9]$\"\
+  ;\nlet WellKnownGroupSID = \"S-1-5-21-[0-9]*-[0-9]*-[0-9]*-5[0-9][0-9]$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1102$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1103$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-498$|S-1-5-21-[0-9]*-[0-9]*-[0-9]*-1000$\"\
+  ;\nSecurityEvent \n| where TimeGenerated > ago(timeframe)\n// When MemberName contains '-' this indicates addition of a group to a group\n| where AccountType == \"User\" and MemberName != \"-\"\n// 4728\
+  \ - A member was added to a security-enabled global group\n// 4732 - A member was added to a security-enabled local group\n// 4756 - A member was added to a security-enabled universal group\n| where EventID\
+  \ in (4728, 4732, 4756)   \n| where TargetSid matches regex WellKnownLocalSID or TargetSid matches regex WellKnownGroupSID\n// Exclude Remote Desktop Users group: S-1-5-32-555\n| where TargetSid !in (\"\
+  S-1-5-32-555\")\n| where TargetSid != (\"S-1-5-32-545\")\n| extend SimpleMemberName = tostring(split(tostring(split(MemberName, \",\")[0]),\"CN=\")[1])\n| project StartTimeUtc = TimeGenerated, EventID,\
+  \ Activity, Computer, SimpleMemberName, MemberName, MemberSid, TargetUserName, TargetDomainName, TargetSid, UserPrincipalName, SubjectUserName, SubjectUserSid\n| extend timestamp = StartTimeUtc, AccountCustomEntity\
+  \ = SimpleMemberName, HostCustomEntity = Computer\n"
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: AccountCustomEntity
-  - entityType: Host
-    fieldMappings:
-      - identifier: FullName
-        columnName: HostCustomEntity
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: AccountCustomEntity
+- entityType: Host
+  fieldMappings:
+  - identifier: FullName
+    columnName: HostCustomEntity
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -61,5 +50,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
+version: 1.0.1
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Windows Security Events

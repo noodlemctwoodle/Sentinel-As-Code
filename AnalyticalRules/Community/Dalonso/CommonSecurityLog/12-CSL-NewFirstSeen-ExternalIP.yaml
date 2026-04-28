@@ -1,0 +1,79 @@
+id: f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c
+name: Firewall New First-Seen External IP Contacted
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Identifies external IPs that received more than 5 allowed firewall connections in the
+  last 24 hours but were not observed at all during the prior 7-day baseline period.
+  Newly appearing external IPs with significant connection volume may indicate freshly
+  registered attacker infrastructure, a newly activated C2 domain, or an exfiltration
+  channel set up after initial compromise.
+  MITRE ATT&CK: T1071 (Application Layer Protocol)
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT6H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1071
+query: |
+  let HistoricalIPs =
+      CommonSecurityLog
+      | where TimeGenerated between (ago(7d) .. ago(1d))
+      | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+      | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP")
+      | where ipv4_is_private(DestinationIP) == false
+      | summarize by DestinationIP;
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP")
+  | where ipv4_is_private(DestinationIP) == false
+  | where isnotempty(DestinationIP)
+  | summarize
+      ConnectionCount  = count(),
+      SourceIPs        = make_set(SourceIP, 20),
+      BytesSent        = sum(SentBytes),
+      Ports            = make_set(DestinationPort, 10),
+      Protocols        = make_set(Protocol, 5),
+      DeviceVendors    = make_set(DeviceVendor),
+      FirstSeen        = min(TimeGenerated)
+    by DestinationIP
+  | where ConnectionCount > 5
+  | join kind=leftanti HistoricalIPs on DestinationIP
+  | order by ConnectionCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: DestinationIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'First-Seen External IP - {{DestinationIP}} ({{ConnectionCount}} connections)'
+  alertDescriptionFormat: 'External IP {{DestinationIP}} received {{ConnectionCount}} allowed firewall connections in the last 24 hours but was not seen in the prior 7-day baseline. Possible new attacker
+    infrastructure.'
+customDetails:
+  ConnectionCount: ConnectionCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

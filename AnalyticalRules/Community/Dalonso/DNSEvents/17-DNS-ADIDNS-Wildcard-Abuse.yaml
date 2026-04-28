@@ -1,0 +1,83 @@
+id: a1b2c3d4-0017-4a5b-8c9d-dns017adidns
+name: AD-Integrated DNS Wildcard Record Abuse (ADIDNS Poisoning)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Active Directory Integrated DNS (ADIDNS) wildcard record abuse, a
+  technique documented by Kevin Robertson (NetSPI) that works in hardened
+  environments where LLMNR and NBT-NS broadcast poisoning are disabled.
+  Any domain user with default AD permissions can add a wildcard A record (*)
+  to the DNS zone, causing all subsequently queried-but-unregistered hostnames
+  to resolve to the attacker's IP — enabling MiTM, SMB relay, and credential
+  capture without requiring elevated privileges or broadcast traffic.
+  Reference: "Beyond LLMNR/NBNS Spoofing — Exploiting Active Directory-Integrated DNS"
+  https://blog.netspi.com/exploiting-adidns/
+  Tool: Invoke-DNSUpdate (PowerMad toolkit) or dnscmd wildcard record add
+  Detection logic:
+  Within a 2-hour sliding window, this rule identifies DNS queries that
+  transitioned from NXDOMAIN (first hour) to NOERROR (second hour) for the
+  same hostnames — a reliable fingerprint of a wildcard record being inserted
+  mid-session. A legitimate wildcard record would be visible at zone setup;
+  a sudden mid-session flip across 5+ distinct FQDNs indicates an attack.
+  MITRE T1557.001 — Adversary-in-the-Middle: LLMNR/NBT-NS Poisoning (DNS equiv)
+  MITRE T1584.002 — Compromise Infrastructure: DNS Server
+severity: High
+requiredDataConnectors:
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT30M
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+- CredentialAccess
+- LateralMovement
+- ResourceDevelopment
+query: |
+  let WindowStart = ago(2h);
+  let WindowMid   = ago(1h);
+  // FQDNs returning NXDOMAIN in hour 1 (did not exist / unregistered)
+  let PreviouslyNxdomain =
+      ASimDnsActivityLogs
+      | where TimeGenerated between (WindowStart .. WindowMid)
+      | where DnsResponseCodeName =~ "NXDOMAIN" or DnsResponseCode == 3
+      | where DnsQueryTypeName in~ ("A", "AAAA")
+      | summarize NxClients = dcount(SrcIpAddr) by DnsQuery
+      | where NxClients >= 2;  // at least 2 different clients looked it up
+  // Same FQDNs now returning NOERROR in hour 2 (suddenly resolved)
+  let NowResolved =
+      ASimDnsActivityLogs
+      | where TimeGenerated between (WindowMid .. now())
+      | where DnsResponseCodeName =~ "NOERROR" or DnsResponseCode == 0
+      | where DnsQueryTypeName in~ ("A", "AAAA")
+      | summarize
+          ResolvedClients = dcount(SrcIpAddr),
+          AffectedHosts   = make_set(SrcHostname, 15),
+          FirstResolution = min(TimeGenerated)
+        by DnsQuery
+      | where ResolvedClients >= 2;
+  // Inner join: only domains that flipped NXDOMAIN → NOERROR
+  PreviouslyNxdomain
+  | join kind=inner NowResolved on DnsQuery
+  | summarize
+      FlippedDomains  = count(),
+      SampleDomains   = make_set(DnsQuery, 25),
+      AffectedClients = max(ResolvedClients),
+      AffectedHosts   = make_set(AffectedHosts, 10),
+      FirstFlipTime   = min(FirstResolution)
+  | where FlippedDomains >= 5
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ADIDNS Wildcard Abuse — {{FlippedDomains}} domains flipped NXDOMAIN to NOERROR'
+  alertDescriptionFormat: '{{FlippedDomains}} hostnames that previously returned NXDOMAIN are now resolving (NOERROR), affecting {{AffectedClients}} clients since {{FirstFlipTime}}. This pattern is characteristic
+    of a wildcard A record being injected into AD-Integrated DNS. Sample domains:'
+customDetails:
+  FlippedDomains: FlippedDomains
+  AffectedClients: AffectedClients
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

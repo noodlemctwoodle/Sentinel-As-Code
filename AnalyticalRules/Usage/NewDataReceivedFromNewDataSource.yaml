@@ -1,21 +1,21 @@
 id: eaa69013-ec9b-41c5-a7cd-b9cdfa7bf7e8
 name: New data received from new data connector
-description: New data received from new data connector
+description: |
+  'New data received from new data connector'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Collection
-techniques:
-  - T1530
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- Collection
+relevantTechniques:
+- T1530
 query: |
   let lastWeekStart = ago(14d);
   let lastWeekEnd = ago(7d);
@@ -71,6 +71,23 @@ query: |
   | where LastWeekSize == 0 and ThisWeekSize > 0
   | join kind=leftouter newDataConnector on $left.DataType == $right.DataConnector
   | project DataType, LastWeekSize, ThisWeekSize, ['Size Change %'], Caller, CallerIpAddress
+entityMappings:
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: DataType
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -81,20 +98,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-entityMappings:
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: Name
-        columnName: DataType
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Workspace Usage

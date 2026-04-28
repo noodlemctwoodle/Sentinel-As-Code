@@ -1,0 +1,71 @@
+id: a5b6c7d8-e9f0-4a1b-2c3d-4e5f6a7b8c9d
+name: SigninLogs — Legacy Authentication Brute Force (IMAP/POP/SMTP)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects brute force attacks using legacy authentication protocols (IMAP, POP3, SMTP, Exchange ActiveSync). Legacy auth bypasses MFA and Conditional Access — any sustained attack via these protocols warrants immediate investigation. MITRE ATT&CK: T1110 (Brute Force), T1550 (Use Alternate Authentication Material).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1110
+- T1550
+query: |
+  let failureThreshold = 10;
+  let legacyProtocols  = dynamic([
+      "IMAP", "POP", "SMTP", "Authenticated SMTP",
+      "Exchange ActiveSync", "Other clients"]);
+  SigninLogs
+  | where TimeGenerated > ago(1h)
+  | where ClientAppUsed in (legacyProtocols)
+  | where ResultType != "0"
+  | summarize
+      FailedAttempts = count(),
+      UniqueUsers    = dcount(UserPrincipalName),
+      TargetedUsers  = make_set(UserPrincipalName, 50),
+      Protocols      = make_set(ClientAppUsed),
+      StartTime      = min(TimeGenerated),
+      EndTime        = max(TimeGenerated),
+      Locations      = make_set(Location, 5)
+    by IPAddress
+  | where FailedAttempts >= failureThreshold
+  | project
+      TimeGenerated = StartTime,
+      IPAddress, FailedAttempts, UniqueUsers,
+      TargetedUsers, Protocols, Locations, EndTime
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Legacy Auth Brute Force from {{IPAddress}} — {{UniqueUsers}} accounts'
+  alertDescriptionFormat: '{{FailedAttempts}} failed legacy auth attempts (IMAP/POP/SMTP) from {{IPAddress}}.'
+customDetails:
+  FailedAttempts: FailedAttempts
+  UniqueUsers: UniqueUsers
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

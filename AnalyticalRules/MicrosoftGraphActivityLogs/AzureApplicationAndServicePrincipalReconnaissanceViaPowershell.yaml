@@ -1,38 +1,36 @@
 id: 8c3ce005-aa8d-4970-9fa5-56e6cd911b8e
 name: Azure Application and Service Principal Reconnaissance via PowerShell
-description: |-
+description: |
   This detection identifies potential reconnaissance activities where users leverage PowerShell to systematically enumerate Azure AD applications, service principals, and their associated permissions through Microsoft Graph API. The rule specifically monitors queries to user directories, organization information, application registrations, and service principal endpoints, which could indicate an attacker mapping the tenant's application ecosystem.
 
   The detection is particularly focused on identifying attempts to discover third-party external applications that users have consented to, which could represent security risks or potential attack vectors. It analyzes the scope and permission patterns of these queries to help identify unusual access attempts. The rule incorporates blast radius assessment by prioritizing activities performed by users with privileged roles or administrative access, who could cause greater harm if their account is compromised or if they are acting maliciously.
 
   Each alert includes detailed context about the specific Graph endpoints accessed, the user's privileges, and the duration and pattern of the activity to help security teams quickly assess whether the behavior represents legitimate administration or potential threat activity. The detection only flags users who have made multiple requests (more than 2), focusing on systematic enumeration rather than one-off legitimate queries.
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - Mic
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - ResourceDevelopment
-  - InitialAccess
-  - LateralMovement
-  - Discovery
-techniques:
-  - T1584
-  - T1595
-  - T1595.002
-  - T1087
-  - T1087.004
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - Mic
-query: |-
+- Reconnaissance
+- ResourceDevelopment
+- InitialAccess
+- LateralMovement
+- Discovery
+relevantTechniques:
+- T1078
+- T1078.004
+- T1087
+- T1087.004
+- T1584
+- T1595
+- T1595.002
+query: |
   let InvokeDumpAppsCalls = dynamic([
   "https://graph.microsoft.com/v1.0/users/",
   "https://graph.microsoft.com/v1.0/organization",
@@ -111,16 +109,18 @@ query: |-
   | project-away Scopes
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserDisplayName
-      - identifier: FullName
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserDisplayName
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -131,7 +131,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

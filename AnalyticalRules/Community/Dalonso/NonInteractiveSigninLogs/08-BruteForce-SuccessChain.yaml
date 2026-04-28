@@ -1,0 +1,92 @@
+id: b3c9d1e2-f7a8-0b4c-5d6e-7f8a9b0c1d2e
+name: Brute Force Success - Credential Stuffing Succeeded
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects the classic credential stuffing / brute force success pattern: a user account
+  experiences multiple non-interactive sign-in failures with brute-force-related error
+  codes (wrong password, locked account, etc.) followed by a successful sign-in — indicating
+  the attacker eventually guessed or stuffed the correct credentials.
+  MITRE ATT&CK: T1110 (Brute Force), T1110.004 (Credential Stuffing)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT3H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1110
+query: |
+  let BruteForceErrors = dynamic(["50126","50055","50056","50064","50053","50034","50057","50128"]);
+  let Failures =
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated > ago(3h)
+      | extend ErrorCode = tostring(ResultType)
+      | where ErrorCode in (BruteForceErrors)
+      | summarize
+          FailCount = count(),
+          LastFail  = max(TimeGenerated),
+          FailIPs   = make_set(IPAddress),
+          Countries = make_set(Location)
+        by UserPrincipalName;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(3h)
+  | where ResultType == 0
+  | summarize
+      FirstSuccess = min(TimeGenerated),
+      SuccessIP    = tostring(make_set(IPAddress)[0])
+    by UserPrincipalName
+  | join kind=inner Failures on UserPrincipalName
+  | where FailCount > 5
+     and  FirstSuccess > LastFail
+  | project
+      UserPrincipalName,
+      FailCount,
+      LastFail,
+      FirstSuccess,
+      TimeBetweenFailAndSuccess = (FirstSuccess - LastFail),
+      FailIPs,
+      SuccessIP,
+      Countries
+  | order by FailCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SuccessIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Brute Force Succeeded - {{UserPrincipalName}} had {{FailCount}} failures then logged in successfully'
+  alertDescriptionFormat: 'Account {{UserPrincipalName}} experienced {{FailCount}} failed sign-in attempts before a successful non-interactive sign-in from {{SuccessIP}}. The pattern matches credential
+    stuffing or brute force success.'
+customDetails:
+  FailureCount: FailCount
+  Countries: Countries
+  FailureIPs: FailIPs
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -7,26 +7,24 @@ description: |
   Default Failure count is 5, Default Success count is 1 and default Time Window is 20 minutes.
   References: https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/reference-sign-ins-error-codes.
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: null
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - InitialAccess
-techniques:
-  - T1110
-  - T1110.001
-  - T1110.003
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SigninLogs
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1110
+- T1110.001
+- T1110.003
 query: |
   let failureCountThreshold = 5;
   let successCountThreshold = 1;
@@ -48,11 +46,17 @@ query: |
   | extend IPAddress = tostring(IPAddress)
   | extend timestamp = StartTimeUtc, AccountCustomEntity = UserPrincipalName, IPCustomEntity = IPAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: AccountCustomEntity
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPCustomEntity
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: AccountCustomEntity
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPCustomEntity
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

@@ -1,0 +1,81 @@
+id: b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e
+name: SigninLogs — Legacy Auth First Appearance for Modern-Only Account
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects accounts that used exclusively modern auth for the past 14 days but then suddenly appear using legacy protocols (IMAP4, POP3, SMTP Auth, Exchange ActiveSync). Legacy auth bypasses Conditional Access and MFA — this is a high-fidelity signal of credential theft or policy evasion. MITRE ATT&CK: T1550 (Use Alternate Auth Material), T1078 (Valid Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT6H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1550
+query: |
+  let lookback       = 1d;
+  let baselinePeriod = 14d;
+  let legacyClients  = dynamic([
+      "Exchange ActiveSync", "IMAP4", "POP3",
+      "Authenticated SMTP", "MAPI over HTTP",
+      "Other clients; IMAP", "Other clients; POP",
+      "Other clients; SMTP"
+  ]);
+  let ModernOnlyAccounts =
+      SigninLogs
+      | where TimeGenerated between (ago(baselinePeriod) .. ago(lookback))
+      | where ResultType == "0"
+      | summarize LegacyCount = countif(ClientAppUsed has_any (legacyClients))
+          by UserPrincipalName
+      | where LegacyCount == 0
+      | project UserPrincipalName;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType == "0"
+  | where ClientAppUsed has_any (legacyClients)
+  | where isnotempty(UserPrincipalName)
+  | join kind=inner ModernOnlyAccounts on UserPrincipalName
+  | project
+      TimeGenerated, UserPrincipalName,
+      IPAddress, Location,
+      ClientAppUsed, AppDisplayName,
+      RiskLevelDuringSignIn, ConditionalAccessStatus
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Legacy Auth First Appearance — {{UserPrincipalName}} using {{ClientAppUsed}}'
+  alertDescriptionFormat: 'Account {{UserPrincipalName}} authenticated via {{ClientAppUsed}} from {{IPAddress}} — account exclusively used modern auth in the prior 14 days. Possible CA bypass.'
+customDetails:
+  ClientAppUsed: ClientAppUsed
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

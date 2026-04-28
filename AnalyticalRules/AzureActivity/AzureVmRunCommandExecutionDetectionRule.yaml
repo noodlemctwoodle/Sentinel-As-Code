@@ -1,25 +1,25 @@
 id: 303e7728-b654-467c-a509-00211879716c
 name: Azure VM Run Command or Custom Script execution detected
-description: A user has either initiated a Azure VM Run Command or Custom Script execution.
+description: |
+  'A user has either initiated a Azure VM Run Command or Custom Script execution.'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActivity
+  dataTypes:
+  - AzureActivity
 queryFrequency: PT30M
 queryPeriod: PT35M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Execution
-  - LateralMovement
-techniques:
-  - T1059
-  - T1059.001
-  - T1059.002
-  - T1072
-requiredDataConnectors:
-  - connectorId: AzureActivity
-    dataTypes:
-      - AzureActivity
+- Execution
+- LateralMovement
+relevantTechniques:
+- T1059
+- T1059.001
+- T1059.002
+- T1072
 query: |
   AzureActivity
   | where CategoryValue == "Administrative"
@@ -27,14 +27,16 @@ query: |
   | extend VMName = tostring(todynamic(Properties).resource)
   | summarize make_list(ActivityStatusValue), TimeGenerated = max(TimeGenerated) by CorrelationId, CallerIpAddress, Caller, ResourceGroup, VMName
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: Caller
-  - entityType: Host
-    fieldMappings:
-      - identifier: HostName
-        columnName: VMName
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: Caller
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: VMName
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -45,7 +47,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Azure Activity

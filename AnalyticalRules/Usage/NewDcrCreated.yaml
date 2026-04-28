@@ -1,20 +1,20 @@
 id: 7090645f-c96d-4edc-98bd-0dd1d0cbfa6a
 name: New DCR Created
-description: Enter rule description here
+description: |
+  'Enter rule description here'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - DefenseEvasion
-  - Impact
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- DefenseEvasion
+- Impact
 query: |
   // New DCR
   AzureActivity
@@ -26,14 +26,18 @@ query: |
   | extend RBAC_Role = tostring(parse_json(tostring(Authorization_d.evidence)).role)
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , DCR_Name, DCR_RG, DCR_Sub, Caller, RBAC_Role, CallerIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -44,7 +48,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Workspace Usage

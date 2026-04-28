@@ -1,0 +1,74 @@
+id: f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c
+name: Lateral Movement - Internal Host Port Sweep on Admin/Pivot Ports
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects an internal host connecting to more than 5 distinct internal targets on ports
+  commonly used for lateral movement: SMB (445), RDP (3389), WinRM (5985/5986), SSH (22),
+  Telnet (23), RPC (135), NetBIOS (139), and common database ports. Fortinet and Palo Alto
+  inter-zone logs are primary sources for internal-to-internal traffic visibility.
+  MITRE ATT&CK: T1021 (Remote Services), T1570 (Lateral Tool Transfer)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: PT6H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- LateralMovement
+relevantTechniques:
+- T1021
+- T1570
+query: |
+  let LateralPorts = dynamic([22, 23, 135, 139, 445, 3389, 5985, 5986, 1433, 3306, 5432]);
+  CommonSecurityLog
+  | where TimeGenerated > ago(6h)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks")
+  | where ipv4_is_private(SourceIP) == true
+  | where ipv4_is_private(DestinationIP) == true
+  | where DestinationPort in (LateralPorts)
+  | summarize
+      UniqueTargets   = dcount(DestinationIP),
+      UniquePorts     = dcount(DestinationPort),
+      TotalAttempts   = count(),
+      TargetIPs       = make_set(DestinationIP, 30),
+      PortsUsed       = make_set(DestinationPort, 10),
+      Actions         = make_set(DeviceAction, 5),
+      FirstSeen       = min(TimeGenerated),
+      LastSeen        = max(TimeGenerated)
+    by SourceIP, DeviceVendor
+  | where UniqueTargets > 5
+  | order by UniqueTargets desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Lateral Movement - {{SourceIP}} swept {{UniqueTargets}} internal hosts'
+  alertDescriptionFormat: 'Host {{SourceIP}} connected to {{UniqueTargets}} internal targets on {{UniquePorts}} admin/pivot ports. Possible lateral movement or reconnaissance.'
+customDetails:
+  UniqueTargets: UniqueTargets
+  UniquePorts: UniquePorts
+  TotalAttempts: TotalAttempts
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

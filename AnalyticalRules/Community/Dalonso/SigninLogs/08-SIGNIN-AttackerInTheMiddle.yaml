@@ -1,0 +1,80 @@
+id: d8e9f0a1-b2c3-4d4e-5f6a-7b8c9d0e1f2a
+name: SigninLogs — Attacker in the Middle (AiTM) Token Theft Detected
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects AiTM proxy attacks (Evilginx, Modlishka) that steal session cookies after MFA. Correlates SecurityAlert 'Anomalous Token' events with AADUserRiskEvents where RiskEventType == attackerinTheMiddle. Requires Entra ID P2. MITRE ATT&CK: T1557 (Adversary-in-the-Middle), T1539 (Steal Web Session Cookie).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: P7D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- Collection
+relevantTechniques:
+- T1539
+- T1557
+query: |
+  let AnomalousTokenRequestIds =
+      SecurityAlert
+      | where TimeGenerated > ago(7d)
+      | where AlertName == "Anomalous Token"
+      | mv-expand todynamic(Entities)
+      | project Entities
+      | extend RequestId = tostring(Entities.RequestId)
+      | distinct RequestId;
+  AADUserRiskEvents
+  | where TimeGenerated > ago(7d)
+  | where RequestId has_any (AnomalousTokenRequestIds)
+  | where RiskEventType == "attackerinTheMiddle"
+  | join kind=leftouter (
+      SigninLogs
+      | where TimeGenerated > ago(7d)
+      | project
+          UserPrincipalName, CorrelationId,
+          Location, AppDisplayName, IPAddress,
+          RiskLevelDuringSignIn
+    ) on $left.CorrelationId == $right.CorrelationId
+  | project
+      TimeGenerated,
+      UserPrincipalName,
+      RiskEventType, IPAddress,
+      Location, AppDisplayName,
+      RiskLevelDuringSignIn
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'AiTM Token Theft — {{UserPrincipalName}} from {{IPAddress}}'
+  alertDescriptionFormat: 'Attacker-in-the-Middle session hijack detected — {{AppDisplayName}} session token stolen post-MFA.'
+customDetails:
+  AppDisplayName: AppDisplayName
+  RiskEventType: RiskEventType
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,89 @@
+id: b7c3d5e6-f1a2-4b8c-9d0e-1f2a3b4c5d6e
+name: Non-Interactive Auth Followed by Privileged Audit Actions
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a user silently refreshes a token via non-interactive sign-in and then
+  performs privileged Azure AD operations (role management, app management, policy changes,
+  device management) within 60 minutes. This pattern is indicative of session hijack or
+  compromised account performing administrative abuse while flying under the radar.
+  MITRE ATT&CK: T1078 (Valid Accounts), T1098 (Account Manipulation)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - AuditLogs
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- PrivilegeEscalation
+- Persistence
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1098
+- T1134
+query: |
+  let NonInteractiveUsers =
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated > ago(2h)
+      | where ResultType == 0
+      | summarize LastNISignIn = max(TimeGenerated) by UserPrincipalName, IPAddress;
+  AuditLogs
+  | where TimeGenerated > ago(2h)
+  | where Category in (
+      "RoleManagement", "ApplicationManagement", "GroupManagement",
+      "Policy", "DeviceManagement", "UserManagement"
+    )
+  | extend UPN = tostring(InitiatedBy.user.userPrincipalName)
+  | where isnotempty(UPN)
+  | join kind=inner NonInteractiveUsers on $left.UPN == $right.UserPrincipalName
+  | where (TimeGenerated - LastNISignIn) between (0m .. 60m)
+  | project
+      AuditTime        = TimeGenerated,
+      UserPrincipalName = UPN,
+      OperationName,
+      AuditResult      = Result,
+      Category,
+      TargetResources,
+      LastNISignIn,
+      IPAddress,
+      TimeSinceNISignIn = (TimeGenerated - LastNISignIn)
+  | order by AuditTime desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Privileged Action After Silent Auth - {{UserPrincipalName}} performed {{OperationName}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed ''{{OperationName}}'' (category: {{Category}}) within 60 min of a non-interactive token refresh. Possible session hijack.'
+customDetails:
+  OperationName: OperationName
+  AuditCategory: Category
+  MinutesSinceNISignIn: TimeSinceNISignIn
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

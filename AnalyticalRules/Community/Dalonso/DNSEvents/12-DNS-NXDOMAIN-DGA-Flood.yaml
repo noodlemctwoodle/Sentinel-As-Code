@@ -1,0 +1,107 @@
+id: a1b2c3d4-0012-4a5b-8c9d-dns012nxdomain
+name: DGA Confirmed — NXDOMAIN Flood with High-Entropy Domain Pattern
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  HIGH CONFIDENCE DGA detection that combines two signals into one rule:
+    1. NXDOMAIN volume: >200 NXDOMAIN responses in 1 hour with >40% failure rate
+    2. Domain entropy: the failed domains exhibit DGA-typical consonant ratio
+       (>65%) and embedded digits — characteristic of pseudo-random generation
+  A client must satisfy BOTH conditions to trigger. This eliminates the high
+  false-positive rate of checking either signal alone.
+  Deduplication vs Sentinel built-ins:
+  - "Excessive NXDOMAIN DNS Queries (Normalized DNS)" fires on volume alone
+  - "Potential DGA via Repetitive Failures (Normalized DNS)" fires on failure
+    rate alone, without character-level domain analysis
+  This rule requires BOTH — providing higher confidence with fewer false positives.
+  Malware families: Emotet, QakBot, Dridex, TrickBot, SolarWinds Sunburst,
+  Nymaim, Banjori, Murofet. Disable the two built-ins above when using this rule
+  to avoid duplicate alerts on confirmed DGA events.
+severity: High
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1568.002
+query: |
+  // Signal 1: High NXDOMAIN volume with high failure rate
+  let NxdomainClients =
+      ASimDnsActivityLogs
+      | where TimeGenerated > ago(1h)
+      | summarize
+          TotalQueries  = count(),
+          NxdomainCount = countif(DnsResponseCodeName =~ "NXDOMAIN" or DnsResponseCode == 3),
+          UniqueDomains = dcount(DnsQuery),
+          FirstSeen     = min(TimeGenerated),
+          LastSeen      = max(TimeGenerated)
+        by SrcIpAddr, SrcHostname
+      | where NxdomainCount > 200
+      | extend NxdomainRate = round(todouble(NxdomainCount) / todouble(TotalQueries) * 100.0, 1)
+      | where NxdomainRate > 40;
+  // Signal 2: The failed domains exhibit DGA-typical consonant ratio + digits
+  let DgaEntropyClients =
+      ASimDnsActivityLogs
+      | where TimeGenerated > ago(1h)
+      | where DnsResponseCodeName =~ "NXDOMAIN" or DnsResponseCode == 3
+      | extend SLD = tostring(split(DnsQuery, ".")[-2])
+      | where strlen(SLD) between (10 .. 40)
+      | extend
+          ConsonantCount = countof(SLD, "b") + countof(SLD, "c") + countof(SLD, "d")
+                         + countof(SLD, "f") + countof(SLD, "g") + countof(SLD, "h")
+                         + countof(SLD, "j") + countof(SLD, "k") + countof(SLD, "l")
+                         + countof(SLD, "m") + countof(SLD, "n") + countof(SLD, "p")
+                         + countof(SLD, "q") + countof(SLD, "r") + countof(SLD, "s")
+                         + countof(SLD, "t") + countof(SLD, "v") + countof(SLD, "w")
+                         + countof(SLD, "x") + countof(SLD, "y") + countof(SLD, "z"),
+          HasDigits = SLD matches regex @"\d"
+      | extend ConsonantRatio = todouble(ConsonantCount) / todouble(strlen(SLD))
+      | where ConsonantRatio > 0.65 and HasDigits == true
+      | summarize
+          DgaLikeDomains = dcount(DnsQuery),
+          SampleDomains  = make_set(DnsQuery, 15)
+        by SrcIpAddr, SrcHostname
+      | where DgaLikeDomains > 5;
+  // Both signals must match the same client — high confidence DGA
+  NxdomainClients
+  | join kind=inner DgaEntropyClients on SrcIpAddr
+  | project
+      SrcIpAddr,
+      SrcHostname,
+      NxdomainCount,
+      NxdomainRate,
+      UniqueDomains,
+      DgaLikeDomains,
+      SampleDomains,
+      FirstSeen,
+      LastSeen
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DGA/NXDOMAIN Flood — {{SrcHostname}} got {{NxdomainCount}} NXDOMAIN responses ({{NxdomainRate}}%)'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) received {{NxdomainCount}} NXDOMAIN responses (% failure rate) across unique domains in 1 hour. This pattern'' is characteristic of DGA malware.
+    Sample domains:'
+customDetails:
+  NxdomainCount: NxdomainCount
+  NxdomainRate: NxdomainRate
+  DgaLikeDomains: DgaLikeDomains
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

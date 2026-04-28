@@ -1,0 +1,98 @@
+id: c4d0e2f3-a8b9-1c5d-6e7f-8a9b0c1d2e3f
+name: MFA Fatigue Attack - Push Bombing Followed by Silent Token Abuse
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects the MFA fatigue (push bombing) attack pattern: a user receives many failed MFA
+  prompts (attacker bombards them), eventually authenticates (possibly by approving to
+  make it stop), and then the attacker begins heavily using non-interactive tokens from
+  that session. This is a common technique used by groups like LAPSUS$ and Scattered Spider.
+  MITRE ATT&CK: T1621 (Multi-Factor Authentication Request Generation)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT4H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1528
+- T1621
+query: |
+  let MFAFatigue =
+      SigninLogs
+      | where TimeGenerated > ago(4h)
+      | where ResultType in (50074, 500121, 50076)  // MFA required, denied, interrupted
+      | summarize
+          MFAAttempts  = count(),
+          FirstAttempt = min(TimeGenerated)
+        by UserPrincipalName;
+  let MFASuccess =
+      SigninLogs
+      | where TimeGenerated > ago(4h)
+      | where ResultType == 0
+      | where AuthenticationRequirement == "multiFactorAuthentication"
+      | summarize MFASuccessTime = min(TimeGenerated), SuccessIP = tostring(make_set(IPAddress)[0])
+        by UserPrincipalName;
+  MFAFatigue
+  | where MFAAttempts >= 3
+  | join kind=inner MFASuccess on UserPrincipalName
+  | where MFASuccessTime > FirstAttempt
+  | join kind=inner (
+      AADNonInteractiveUserSignInLogs
+      | where TimeGenerated > ago(4h)
+      | where ResultType == 0
+      | summarize NI_Count = count(), NI_Countries = make_set(Location), NI_IPs = make_set(IPAddress)
+        by UserPrincipalName
+    ) on UserPrincipalName
+  | where NI_Count > 10
+  | project
+      UserPrincipalName,
+      MFAAttempts,
+      FirstMFAPrompt   = FirstAttempt,
+      MFASuccessTime,
+      SuccessIP,
+      NI_Count,
+      NI_Countries
+  | order by MFAAttempts desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SuccessIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'MFA Fatigue Attack - {{UserPrincipalName}} received {{MFAAttempts}} MFA prompts followed by silent token abuse'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} received {{MFAAttempts}} MFA fatigue prompts. After approval, {{NI_Count}} non-interactive token refreshes followed. Matches MFA fatigue attack pattern.'
+customDetails:
+  MFAAttempts: MFAAttempts
+  NonInteractiveSignIn: NI_Count
+  CountriesSeen: NI_Countries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,82 @@
+id: b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: SigninLogs — Account Enumeration via Error Code Fingerprinting
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects attackers performing user enumeration by analysing sign-in error codes. Error 50034 (UserNotFound) reveals non-existent accounts; error 50126 confirms the account exists. A high ratio of 50034 errors indicates systematic enumeration of valid users before a targeted spray. MITRE ATT&CK: T1087.002 (Domain Account Discovery), T1110 (Brute Force).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT6H
+queryPeriod: PT6H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Discovery
+- CredentialAccess
+relevantTechniques:
+- T1087
+- T1110
+query: |
+  let lookback      = 6h;
+  let minAttempts   = 20;
+  let enumRatioMin  = 0.40;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType in ("50034", "50126", "50057", "70011")
+  | where isnotempty(IPAddress)
+  | summarize
+      TotalAttempts   = count(),
+      UserNotFound    = countif(ResultType == "50034"),
+      InvalidPassword = countif(ResultType == "50126"),
+      AccountDisabled = countif(ResultType == "50057"),
+      UniqueTargets   = dcount(UserPrincipalName),
+      TargetedUsers   = make_set(UserPrincipalName, 30),
+      Locations       = make_set(Location, 3),
+      FirstAttempt    = min(TimeGenerated),
+      LastAttempt     = max(TimeGenerated)
+    by IPAddress
+  | where TotalAttempts >= minAttempts
+  | extend EnumRatio = round(todouble(UserNotFound) / TotalAttempts, 2)
+  | where EnumRatio >= enumRatioMin
+  | project
+      TimeGenerated   = FirstAttempt,
+      IPAddress,
+      TotalAttempts,
+      UserNotFound,
+      InvalidPassword,
+      UniqueTargets,
+      EnumRatio,
+      TargetedUsers,
+      Locations,
+      LastAttempt
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Account Enumeration from {{IPAddress}} — {{EnumRatio}} UserNotFound ratio ({{TotalAttempts}} probes)'
+  alertDescriptionFormat: 'IP {{IPAddress}} probed accounts with {{EnumRatio}} UserNotFound ratio — user enumeration pattern before a targeted spray attack.'
+customDetails:
+  TotalAttempts: TotalAttempts
+  UserNotFound: UserNotFound
+  EnumRatio: EnumRatio
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

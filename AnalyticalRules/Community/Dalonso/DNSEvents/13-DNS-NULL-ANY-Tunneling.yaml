@@ -1,0 +1,66 @@
+id: a1b2c3d4-0013-4a5b-8c9d-dns013null
+name: NULL and ANY DNS Record Type Queries — Tunneling Indicator
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects queries for NULL (type 10) and ANY (type 255) DNS record types.
+  These record types are almost exclusively used by DNS tunneling tools and
+  have essentially no legitimate use in corporate environments:
+  - NULL records: used by dnscrypt, dnscat2, and custom tunneling scripts;
+    can carry arbitrary binary data (RFC 1035 type 10)
+  - ANY queries: elicit all available records from a DNS server, maximizing
+    the amplification factor; rarely used by end-user applications
+  Note: RFC 8482 (2019) requires servers to respond minimally to ANY queries;
+  continued use of these types is a strong anomaly signal.
+  Differentiation from built-in "Potential DNS Tunnel (ASIM DNS)":
+  The built-in evaluates query length and overall entropy across all record
+  types but does not filter by record type. This rule fires exclusively on
+  NULL and ANY record types, which have near-zero legitimate corporate use.
+  Lower volume threshold (>=5 queries) is intentional: even a handful of
+  NULL-type queries is highly suspicious, while the built-in requires
+  sustained high query volume before firing.
+severity: Medium
+requiredDataConnectors:
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(1h)
+  | where DnsQueryTypeName in~ ("NULL", "ANY")
+        or DnsQueryType in (10, 255)
+  | summarize
+      NullAnyCount   = count(),
+      UniqueDomains  = dcount(DnsQuery),
+      RecordTypes    = make_set(DnsQueryTypeName),
+      SampleDomains  = make_set(DnsQuery, 10),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname
+  | where NullAnyCount > 5
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'NULL/ANY DNS Queries — {{SrcHostname}} sent {{NullAnyCount}} unusual record type queries'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) sent {{NullAnyCount}} NULL/ANY DNS queries. These record types have no legitimate use in corporate environments and indicate potential DNS tunneling.
+    Domains:'
+customDetails:
+  NullAnyCount: NullAnyCount
+  RecordTypes: RecordTypes
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

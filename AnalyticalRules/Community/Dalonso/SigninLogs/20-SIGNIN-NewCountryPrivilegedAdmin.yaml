@@ -1,0 +1,79 @@
+id: d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a
+name: SigninLogs — First New Country Sign-In for Privileged Account (Deterministic)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects privileged accounts signing in from a country not seen in their 30-day history. Unlike the ML-based Unfamiliar Sign-in Properties rule this is deterministic, requires no Entra ID P2, and specifically targets privileged identities where the risk of compromise is highest. MITRE ATT&CK: T1078 (Valid Accounts), T1078.004 (Cloud Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT6H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+query: |
+  let lookback           = 6h;
+  let baselinePeriod     = 14d;
+  let privilegedKeywords = dynamic([
+      "admin", "adm-", "adm.", "-adm", "_adm",
+      "da-", "ea-", "ga-", "pa-",
+      "tier0", "tier-0", "t0-",
+      "priv", "svc.adm", "svc-adm",
+      "globaladmin", "secadmin", "cloudadmin"
+  ]);
+  let KnownAdminLocations =
+      SigninLogs
+      | where TimeGenerated between (ago(baselinePeriod) .. ago(lookback))
+      | where ResultType == "0"
+      | where UserPrincipalName has_any (privilegedKeywords)
+      | where isnotempty(Location) and Location != "Unknown"
+      | distinct UserPrincipalName, Location;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType == "0"
+  | where UserPrincipalName has_any (privilegedKeywords)
+  | where isnotempty(Location) and Location != "Unknown"
+  | join kind=leftanti KnownAdminLocations on UserPrincipalName, Location
+  | project
+      TimeGenerated, UserPrincipalName,
+      IPAddress, Location, AppDisplayName,
+      RiskLevel = RiskLevelDuringSignIn, ConditionalAccessStatus,
+      IsInteractive
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'New Country Admin Sign-In — {{UserPrincipalName}} from {{Location}} (first time in 14d)'
+  alertDescriptionFormat: 'Privileged account {{UserPrincipalName}} authenticated from {{Location}} — country not in 14-day history. Investigate for compromised admin credentials.'
+customDetails:
+  Location: Location
+  RiskLevel: RiskLevel
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

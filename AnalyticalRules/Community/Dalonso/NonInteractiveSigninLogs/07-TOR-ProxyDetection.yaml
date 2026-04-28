@@ -1,0 +1,93 @@
+id: a2b8c0d1-e6f7-9a3b-4c5d-6e7f8a9b0c1d
+name: Non-Interactive Sign-In via TOR or Anonymous Proxy
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects non-interactive Azure AD sign-ins from IP addresses tagged as TOR exit nodes,
+  anonymous proxies, or VPN anonymizers in the ThreatIntelIndicators table (unified TI -
+  replaces deprecated ThreatIntelligenceIndicator). Attackers use anonymization
+  infrastructure to hide their true location when replaying stolen refresh tokens. Even if
+  the underlying credential is legitimate, sign-ins from TOR or proxies represent
+  significant risk in enterprise environments.
+  MITRE ATT&CK: T1090 (Proxy), T1090.003 (Multi-hop Proxy), T1528
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+- connectorId: ThreatIntelligence
+  dataTypes:
+  - ThreatIntelIndicators
+queryFrequency: PT15M
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+- CredentialAccess
+- CommandAndControl
+relevantTechniques:
+- T1090
+- T1528
+query: |
+  let TorExitIPs =
+      ThreatIntelIndicators
+      | where TimeGenerated > ago(30d)
+      | where IsActive == true
+      | where isempty(ValidUntil) or ValidUntil > now()
+      | where Tags has_any ("tor", "proxy", "anonymizer", "vpn", "anonymity")
+      | where Pattern has "ipv4-addr:value"
+      | extend NetworkIP = extract(@"ipv4-addr:value = '([^']+)'", 1, Pattern)
+      | where isnotempty(NetworkIP)
+      | summarize AnonymizationType = make_set(Tags) by NetworkIP;
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | join kind=inner TorExitIPs on $left.IPAddress == $right.NetworkIP
+  | project
+      TimeGenerated,
+      UserPrincipalName,
+      AppDisplayName,
+      IPAddress,
+      Location,
+      AnonymizationType,
+      ConditionalAccessStatus,
+      AuthenticationRequirement,
+      CorrelationId,
+      UniqueTokenIdentifier
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'TOR/Proxy Sign-In - {{UserPrincipalName}} from anonymized IP {{IPAddress}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} authenticated non-interactively from anonymized IP {{IPAddress}} (TOR/proxy). Possible stolen token replayed from attacker infrastructure.'
+customDetails:
+  AnonymizationType: AnonymizationType
+  AppDisplayName: AppDisplayName
+  ConditionalAccessSta: ConditionalAccessStatus
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

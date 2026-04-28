@@ -12,27 +12,25 @@ description: |
   A high anomaly score means that the data point is very different from what's expected and
   could be considered anomalous or potentially suspicious. A lower score will mean it is much closer to expected behaviour.'
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+  - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-  - CredentialAccess
-techniques:
-  - T1078
-  - T1078.004
-  - T1110
-  - T1110.001
-  - T1110.003
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SigninLogs
-      - AADNonInteractiveUserSignInLogs
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1110
+- T1110.001
+- T1110.003
 query: |
   let adminLookupTime = 14d;
   let starttime = 14d;
@@ -136,11 +134,17 @@ query: |
       , anomalies
       , ['Anomaly Score'] = score
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

@@ -1,0 +1,135 @@
+id: f935a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b
+name: 'Zscaler ZIA - Patient APT: Multi-Channel Low & Slow Exfiltration'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects "low and slow" multi-channel data exfiltration by users who gradually upload data
+  across non-corporate cloud storage, code-hosting, and messaging platforms over 30 days —
+  staying below per-session DLP thresholds. The query aggregates ZIA upload bytes per user
+  to non-corporate destinations (Google Drive, Dropbox, GitHub, WhatsApp, Telegram, etc.)
+  combined with M365 OfficeActivity external-sharing events (anonymous links, SharingSet)
+  over the same window.
+
+  Users are flagged when their upload volume deviates ≥3 standard deviations from the peer
+  group baseline, when external sharing events include anonymous public links, or when upload
+  activity spans ≥20 days (persistence indicator).
+
+  This technique is characteristic of APT and insider-threat scenarios where the attacker
+  deliberately avoids large single transfers. The resulting output is a prioritised list
+  of "siphon-like" identities for manual investigation.
+
+  MITRE ATT&CK: TA0009 (Exfiltration), T1041 (Exfiltration Over C2 Channel),
+  T1567 (Exfiltration Over Web Service), T1567.002 (Exfiltration to Cloud Storage).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: P1D
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+relevantTechniques:
+- T1041
+- T1567
+query: |
+  let HuntWindow   = 30d;
+  let ExfilDomains = dynamic([
+      "drive.google.com", "docs.google.com", "dropbox.com", "box.com",
+      "mega.nz", "mediafire.com", "sendspace.com", "wetransfer.com",
+      "4shared.com", "anonfiles.com",
+      "github.com", "gitlab.com", "bitbucket.org", "gist.github.com",
+      "web.whatsapp.com", "telegram.org", "t.me", "discord.com",
+      "discordapp.com", "signal.org",
+      "mail.google.com", "outlook.live.com", "protonmail.com", "tutanota.com"]);
+  let ZIA_Daily =
+      CommonSecurityLog
+      | where TimeGenerated > ago(HuntWindow)
+      | where DeviceVendor == "Zscaler"
+      | where DeviceAction !in ("block", "BLOCK", "Blocked", "blocked", "deny")
+      | where isnotempty(SourceUserName)
+      | where DestinationHostName has_any (ExfilDomains)
+      | summarize
+          DaySentBytes    = sum(SentBytes),
+          DayRequestCount = count(),
+          DayDestinCount  = dcount(DestinationHostName)
+        by UserName = tolower(SourceUserName), Day = bin(TimeGenerated, 1d);
+  let ZIA_Users =
+      ZIA_Daily
+      | summarize
+          ZIA_TotalMBSent   = round(toreal(sum(DaySentBytes)) / 1048576, 2),
+          ZIA_ActiveDays    = dcount(Day),
+          ZIA_TotalRequests = sum(DayRequestCount),
+          ZIA_UniqueDestCnt = sum(DayDestinCount)
+        by UserName;
+  let globalAvg = toscalar(ZIA_Users | summarize avg(ZIA_TotalMBSent));
+  let globalStd = toscalar(ZIA_Users | summarize stdev(ZIA_TotalMBSent));
+  let O365_Sharing =
+      OfficeActivity
+      | where TimeGenerated > ago(HuntWindow)
+      | where isnotempty(UserId)
+      | where Operation in (
+          "FileDownloaded", "FileSyncDownloadedFull", "FileCopied",
+          "AnonymousLinkCreated", "AnonymousLinkUsed",
+          "SharingSet", "SharingInvitationCreated",
+          "AddedToSecureLink", "SecureLinkUsed")
+      | summarize
+          O365_EventCount = count(),
+          O365_Operations = make_set(Operation, 10),
+          O365_AnonLinks  = countif(Operation has "Anonymous"),
+          O365_LastEvent  = max(TimeGenerated)
+        by UserName = tolower(UserId);
+  ZIA_Users
+  | join kind=leftouter O365_Sharing on UserName
+  | extend
+      O365_EventCount = coalesce(O365_EventCount, 0),
+      O365_AnonLinks  = coalesce(O365_AnonLinks, 0)
+  | extend
+      Zscore = iff(globalStd > 0,
+                   round((ZIA_TotalMBSent - globalAvg) / globalStd, 2),
+                   0.0),
+      DistinctChannels = iff(ZIA_TotalMBSent > 5, 1, 0)
+                       + iff(O365_EventCount  > 0, 1, 0)
+  | where Zscore >= 3.0
+      or (O365_AnonLinks  >= 3 and ZIA_TotalMBSent > 10)
+      or (ZIA_ActiveDays  >= 20 and ZIA_TotalMBSent > 50)
+  | project
+      UserName,
+      ZIA_TotalMBSent, ZIA_ActiveDays, ZIA_TotalRequests, ZIA_UniqueDestCnt,
+      O365_EventCount, O365_AnonLinks, O365_Operations,
+      DistinctChannels, Zscore
+  | order by Zscore desc, ZIA_TotalMBSent desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Low & Slow Exfil Candidate - {{UserName}} (z={{Zscore}}, {{ZIA_TotalMBSent}} MB over days)'
+  alertDescriptionFormat: 'User {{UserName}} uploaded {{ZIA_TotalMBSent}} MB to non-corporate destinations across {{ZIA_ActiveDays}} active days (z-score: ). Anonymous links created: .'
+customDetails:
+  ZIA_TotalMBSent: ZIA_TotalMBSent
+  ZIA_ActiveDays: ZIA_ActiveDays
+  Zscore: Zscore
+  O365_AnonLinks: O365_AnonLinks
+  DistinctChannels: DistinctChannels
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: P1D
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

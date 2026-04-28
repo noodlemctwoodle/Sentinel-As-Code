@@ -4,30 +4,29 @@ description: |
   'Identifies potential ProxyNotShell attacks where suspicious files have been created by the Internet Information Service process on a Microsoft Exchange server.
   https://security.microsoft.com/threatanalytics3/3269c2bd-ad05-47c9-ac09-cc2aa87475e6/analystreport'
 severity: High
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: MicrosoftDefenderforEndpoints
+  dataTypes:
+  - DeviceFileEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Execution
-  - InitialAccess
-  - Persistence
-techniques:
-  - T1190
-  - T1203
-  - T1543
-  - T1543.003
-  - T1574
-  - T1574.001
-  - T1574.002
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: MicrosoftDefenderforEndpoints
-    dataTypes:
-      - DeviceFileEvents
+- Execution
+- InitialAccess
+- Persistence
+relevantTechniques:
+- T1078
+- T1078.004
+- T1190
+- T1203
+- T1543
+- T1543.003
+- T1574
+- T1574.001
+- T1574.002
 query: |
   DeviceFileEvents
   | where TimeGenerated >= ago(7d)
@@ -36,14 +35,16 @@ query: |
   | where InitiatingProcessCommandLine contains "MSExchange"
   | project FileName, FolderPath, SHA256, InitiatingProcessCommandLine, DeviceId, TimeGenerated
 entityMappings:
-  - entityType: File
-    fieldMappings:
-      - identifier: Name
-        columnName: FileName
-  - entityType: Process
-    fieldMappings:
-      - identifier: CommandLine
-        columnName: InitiatingProcessCommandLine
+- entityType: File
+  fieldMappings:
+  - identifier: Name
+    columnName: FileName
+- entityType: Process
+  fieldMappings:
+  - identifier: CommandLine
+    columnName: InitiatingProcessCommandLine
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -54,7 +55,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Defender XDR

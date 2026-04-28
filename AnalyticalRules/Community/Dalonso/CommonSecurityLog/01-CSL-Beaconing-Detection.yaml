@@ -1,0 +1,79 @@
+id: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+name: Firewall Beaconing Detection - Regular Outbound Connections
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects internal hosts making very regular, high-frequency connections to the same external IP
+  across multiple hours — the hallmark of C2 beaconing. Queries Fortinet, Palo Alto, and Zscaler
+  CEF logs for allowed sessions with >20 connections, spanning ≥3 hourly buckets, with a
+  beacon score (connections/hour) above 5.
+  MITRE ATT&CK: T1071 (Application Layer Protocol), T1571 (Non-Standard Port)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1071
+- T1571
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP", "Reset-Both")
+  | where isnotempty(DestinationIP)
+  | where ipv4_is_private(DestinationIP) == false
+  | where isnotempty(SourceIP)
+  | summarize
+      ConnectionCount  = count(),
+      BytesSent        = sum(SentBytes),
+      BytesReceived    = sum(ReceivedBytes),
+      HourlyBuckets    = dcount(bin(TimeGenerated, 1h)),
+      Ports            = make_set(DestinationPort, 10),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by SourceIP, DestinationIP, DeviceVendor
+  | where ConnectionCount > 20 and HourlyBuckets >= 3
+  | extend BeaconScore = round(toreal(ConnectionCount) / toreal(HourlyBuckets), 1)
+  | where BeaconScore > 5
+  | order by BeaconScore desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: DestinationIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Beaconing Detected - {{SourceIP}} → {{DestinationIP}}'
+  alertDescriptionFormat: 'Internal host {{SourceIP}} made {{ConnectionCount}} connections to external IP {{DestinationIP}} with a regular interval pattern (beacon score: ).'
+customDetails:
+  BeaconScore: BeaconScore
+  ConnectionCount: ConnectionCount
+  HourlyBuckets: HourlyBuckets
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

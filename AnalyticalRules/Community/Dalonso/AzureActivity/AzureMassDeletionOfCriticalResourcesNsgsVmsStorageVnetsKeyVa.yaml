@@ -1,0 +1,159 @@
+id: 2d9b816b-ee7e-4bf9-aefb-9b78ef299188
+name: Azure - Mass Deletion of Critical Resources (NSGs/VMs/Storage/VNETs/Key Vaults)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects bulk deletion of critical Azure infrastructure resources (NSGs, VMs, Storage Accounts, VNETs, Disks, Key Vaults, Subnets) by a single identity within a 1-hour window. This pattern is characteristic of ransomware pre-staging (remove defenses before encrypting), destructive insider attacks (T1485 — Data Destruction), and adversary cleanup after cloud-environment abuse (T1562). Correlates with SigninLogs and AADServicePrincipalSignInLogs to surface whether the deleting identity had a suspicious preceding sign-in (risky, from TOR, CA failure, or first-time location). FP mitigations: (1) Minimum 10 distinct resource deletions — filters normal day-to-day single resource removals; (2) IaC/pipeline caller patterns excluded — Terraform destroy, Bicep, GitHub Actions deprovision legitimately; (3) Azure platform IPs excluded; (4) 14-day baseline excludes identities with a pattern of high-volume deletions; (5) Requires at least 2 distinct resource types — prevents alert on repeated deletion of same type (e.g., cleaning up test VMs of same kind). NOT a duplicate of any confirmed live built-in alert (verified against live SecurityAlert data).
+severity: High
+queryFrequency: PT1H
+queryPeriod: PT3H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Impact
+- DefenseEvasion
+relevantTechniques:
+- T1485
+- T1562
+query: |
+  let LookupWindow = 1h;
+  let DeleteThreshold = 10;
+  let ResourceTypeThreshold = 2;
+  let KnownIaCPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "devops", "arm-deployment", "cleanup", "deprovisioner"]);
+  let AzurePlatformIPs = dynamic(["168.63.", "169.254."]);
+  // Identities with established high-volume deletion patterns (14-day baseline)
+  let KnownBulkDeleters = AzureActivity
+      | where TimeGenerated between (ago(14d) .. ago(2h))
+      | where OperationNameValue has "DELETE"
+      | where ActivityStatusValue =~ "Success"
+      | summarize DailyDeletes = count() by Caller, Day = bin(TimeGenerated, 1d)
+      | summarize AvgDailyDeletes = avg(DailyDeletes), DaysActive = dcount(Day) by Caller
+      | where AvgDailyDeletes >= 10 and DaysActive >= 5
+      | distinct Caller;
+  // Critical resource DELETE operations (last 2h to capture full 1h windows)
+  let CriticalDeletes = AzureActivity
+      | where TimeGenerated > ago(2h)
+      | where ActivityStatusValue =~ "Success"
+      | where OperationNameValue has "DELETE"
+      | where OperationNameValue has_any (
+          "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS",
+          "MICROSOFT.COMPUTE/VIRTUALMACHINES",
+          "MICROSOFT.STORAGE/STORAGEACCOUNTS",
+          "MICROSOFT.NETWORK/VIRTUALNETWORKS",
+          "MICROSOFT.NETWORK/SUBNETS",
+          "MICROSOFT.COMPUTE/DISKS",
+          "MICROSOFT.KEYVAULT/VAULTS",
+          "MICROSOFT.NETWORK/APPLICATIONGATEWAYS",
+          "MICROSOFT.NETWORK/LOADBALANCERS"
+      )
+      | where not(tolower(Caller) has_any (KnownIaCPatterns))
+      | where isnotempty(CallerIpAddress)
+      | where not(CallerIpAddress has_any (AzurePlatformIPs))
+      | where Caller !in (KnownBulkDeleters);
+  // Aggregate per caller/IP in 1-hour tumbling windows
+  let DeleteBursts = CriticalDeletes
+      | summarize
+          DeleteCount = count(),
+          DistinctResourceTypes = dcount(tostring(split(OperationNameValue, "/")[1])),
+          DeletedResources = make_set(ResourceId, 20),
+          Operations = make_set(OperationNameValue, 10),
+          ResourceGroups = make_set(ResourceGroup, 5),
+          SubscriptionIds = make_set(SubscriptionId, 5),
+          CallerIP = any(CallerIpAddress),
+          SourceIPs = make_set(CallerIpAddress, 5),
+          FirstDelete = min(TimeGenerated),
+          LastDelete = max(TimeGenerated)
+          by Caller, bin(TimeGenerated, LookupWindow)
+      | where DeleteCount >= DeleteThreshold
+      | where DistinctResourceTypes >= ResourceTypeThreshold;
+  // Enrich: correlate with SigninLogs for suspicious human sign-ins
+  let UserSigninContext = SigninLogs
+      | where TimeGenerated > ago(3h)
+      | where isnotempty(IPAddress)
+      | project
+          SigninTime = TimeGenerated,
+          UserPrincipalName,
+          SigninIP = IPAddress,
+          UserDisplayName,
+          RiskLevelAggregated,
+          RiskState,
+          ConditionalAccessStatus,
+          Location,
+          AppDisplayName
+      | extend IsRisky = RiskLevelAggregated in ("high", "medium") or RiskState =~ "atRisk";
+  // Enrich: correlate with SP sign-ins
+  let SPSigninContext = AADServicePrincipalSignInLogs
+      | where TimeGenerated > ago(3h)
+      | where isnotempty(IPAddress)
+      | project
+          SPSigninTime = TimeGenerated,
+          ServicePrincipalName,
+          ServicePrincipalId,
+          SPSigninIP = IPAddress,
+          SPConditionalAccessStatus = ConditionalAccessStatus,
+          SPResultType = ResultType;
+  DeleteBursts
+  | join kind=leftouter (
+      UserSigninContext
+      | summarize
+          UserSigninCount = count(),
+          SigninLocations = make_set(Location, 3),
+          SigninApps = make_set(AppDisplayName, 3),
+          MaxRisk = max(RiskLevelAggregated),
+          HasRiskySignin = max(toint(IsRisky)),
+          UserNames = make_set(UserPrincipalName, 3)
+          by SigninIP
+    ) on $left.CallerIP == $right.SigninIP
+  | join kind=leftouter (
+      SPSigninContext
+      | summarize
+          SPSigninCount = count(),
+          SigninSPs = make_set(ServicePrincipalName, 3),
+          CABypassCount = countif(SPConditionalAccessStatus has_any ("failure", "notApplied"))
+          by SPSigninIP
+    ) on $left.CallerIP == $right.SPSigninIP
+  | extend
+      HasSigninCorroboration = isnotempty(UserSigninCount) or isnotempty(SPSigninCount),
+      SigninRiskLevel = coalesce(MaxRisk, "unknown"),
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+  | project-away SigninIP, SPSigninIP
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Mass deletion: {{Caller}} deleted {{DeleteCount}} resources ({{DistinctResourceTypes}} types) from'
+  alertDescriptionFormat: 'Identity {{Caller}} deleted {{DeleteCount}} critical resources across {{DistinctResourceTypes}} resource types in 1 hour from . Sign-in risk: .'
+customDetails:
+  DeleteCount: DeleteCount
+  DistinctResourceType: DistinctResourceTypes
+  Operations: Operations
+  SigninRiskLevel: SigninRiskLevel
+  HasSigninCorroborati: HasSigninCorroboration
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

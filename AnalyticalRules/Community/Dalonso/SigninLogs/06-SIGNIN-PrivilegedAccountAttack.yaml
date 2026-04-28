@@ -1,0 +1,75 @@
+id: b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d0e
+name: SigninLogs — Privileged Account Under Attack (Low-Threshold Failures)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects authentication failures against accounts with admin or privileged naming conventions. Uses a lower threshold (3 failures) than standard brute force rules because any attack against privileged accounts is high-priority. MITRE ATT&CK: T1110 (Brute Force), T1078 (Valid Accounts — Privileged).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1110
+query: |
+  let failureThreshold  = 3;
+  let privilegedKeywords = dynamic([
+      "admin", "administrator", "root", "global", "security",
+      "privileged", "svc", "elevated", "tier0",
+      "da-", "ea-", "ga-", "pa-"]);
+  SigninLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType != "0"
+  | where UserPrincipalName has_any (privilegedKeywords)
+      or UserPrincipalName contains "_adm"
+      or UserPrincipalName startswith "adm"
+  | summarize
+      FailedAttempts = count(),
+      UniqueIPs      = dcount(IPAddress),
+      SourceIPs      = make_set(IPAddress, 20),
+      StartTime      = min(TimeGenerated),
+      EndTime        = max(TimeGenerated),
+      Locations      = make_set(Location, 5),
+      Apps           = make_set(AppDisplayName, 5),
+      FailureReasons = make_set(ResultDescription, 5)
+    by UserPrincipalName
+  | where FailedAttempts >= failureThreshold
+  | project
+      TimeGenerated = StartTime,
+      UserPrincipalName, FailedAttempts, UniqueIPs,
+      SourceIPs, Locations, Apps, FailureReasons, EndTime
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Privileged Account Attack — {{UserPrincipalName}}'
+  alertDescriptionFormat: '{{FailedAttempts}} sign-in failures from {{UniqueIPs}} IPs against privileged account.'
+customDetails:
+  FailedAttempts: FailedAttempts
+  UniqueIPs: UniqueIPs
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

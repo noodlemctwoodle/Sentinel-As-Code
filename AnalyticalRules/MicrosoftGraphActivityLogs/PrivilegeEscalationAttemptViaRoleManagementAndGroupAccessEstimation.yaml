@@ -1,37 +1,35 @@
 id: 00fca433-505e-46c8-8ef7-eaf3d6f7f790
 name: Privilege Escalation Attempt via Role Management and Group Access Estimation
-description: |-
+description: |
   This detection identifies potential privilege escalation attempts where users leverage PowerShell to enumerate groups and assess their ability to modify them through Microsoft Graph API. The rule specifically targets reconnaissance activities where users query the role management "estimateAccess" API or enumerate all groups to identify potential authorization gaps they could exploit. The detection incorporates blast radius assessment by prioritizing activities performed by users with existing privileges, who may be looking to further expand their access.
 
   The rule captures scenarios where an attacker or insider threat first enumerates all available groups in the tenant and then systematically tests their ability to modify these groups using the estimateAccess API endpoint. This pattern indicates deliberate permission probing rather than legitimate administrative actions. Each alert includes contextual information about the user's existing privileges, organizational position, and access patterns to help security teams quickly assess the risk level and determine appropriate response actions.
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: P1D
 queryPeriod: P1D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - InitialAccess
-  - PrivilegeEscalation
-  - Discovery
-techniques:
-  - T1591
-  - T1595
-  - T1595.002
-  - T1078
-  - T1078.004
-  - T1087
-  - T1087.004
-  - T1069
-  - T1069.003
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- Reconnaissance
+- InitialAccess
+- PrivilegeEscalation
+- Discovery
+relevantTechniques:
+- T1069
+- T1069.003
+- T1078
+- T1078.004
+- T1087
+- T1087.004
+- T1591
+- T1595
+- T1595.002
+query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
   | where TimeGenerated > ago(10d)
@@ -112,16 +110,18 @@ query: |-
   UniqueEndpointsAccessed = array_length(RequestURIs)
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: UserPrincipalName
-      - identifier: Name
-        columnName: UserDisplayName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+  - identifier: Name
+    columnName: UserDisplayName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -132,7 +132,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

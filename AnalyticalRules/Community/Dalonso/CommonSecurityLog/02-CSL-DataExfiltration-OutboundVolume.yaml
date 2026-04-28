@@ -1,0 +1,73 @@
+id: b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: Firewall Anomalous Outbound Data Volume - Exfiltration Risk
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects internal hosts sending more than 500 MB to external destinations in a 24-hour
+  period via Fortinet, Palo Alto, or Zscaler. Large outbound transfers that exceed typical
+  baseline volumes are a strong indicator of data exfiltration, particularly when combined
+  with unusual session counts or destination diversity.
+  MITRE ATT&CK: T1048 (Exfiltration Over Alternative Protocol)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Exfiltration
+relevantTechniques:
+- T1048
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP", "Reset-Both")
+  | where isnotempty(SourceIP) and isnotempty(DestinationIP)
+  | where ipv4_is_private(SourceIP) == true
+  | where ipv4_is_private(DestinationIP) == false
+  | summarize
+      TotalBytesSent    = sum(SentBytes),
+      TotalBytesRecv    = sum(ReceivedBytes),
+      SessionCount      = count(),
+      DestIPs           = make_set(DestinationIP, 20),
+      DestPorts         = make_set(DestinationPort, 10),
+      HourlyBuckets     = dcount(bin(TimeGenerated, 1h)),
+      DeviceVendors     = make_set(DeviceVendor)
+    by SourceIP
+  | extend TotalMBSent = round(toreal(TotalBytesSent) / 1048576, 2)
+  | where TotalMBSent > 500
+  | order by TotalMBSent desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Data Exfiltration Risk - {{SourceIP}} sent {{TotalMBSent}} MB outbound'
+  alertDescriptionFormat: 'Host {{SourceIP}} transmitted {{TotalMBSent}} MB to external destinations across {{SessionCount}} sessions. Possible data exfiltration activity.'
+customDetails:
+  TotalMBSent: TotalMBSent
+  SessionCount: SessionCount
+  HourlyBuckets: HourlyBuckets
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,0 +1,87 @@
+id: d7e3f5a6-b1c2-4d8e-9f0a-1b2c3d4e5f6a
+name: Non-Interactive Sign-In from High-Risk Country
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects successful non-interactive sign-ins originating from countries designated as
+  high-risk by organizational policy (e.g., sanctioned nations, high APT origination
+  countries). Silent authentication from these regions is especially concerning because
+  it may indicate stolen token use from attacker infrastructure in high-risk geographies.
+  Customize the HighRiskCountries list to match your organization's risk policy.
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1539
+query: |
+  // Customize this list to your organization's risk policy
+  // ISO 3166-1 alpha-2 country codes
+  let HighRiskCountries = dynamic([
+      "KP",  // North Korea
+      "IR",  // Iran
+      "RU",  // Russia
+      "CN",  // China
+      "BY",  // Belarus
+      "CU",  // Cuba
+      "SY",  // Syria
+      "VE",  // Venezuela
+      "MM"   // Myanmar
+  ]);
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | where Location in (HighRiskCountries)
+  | summarize
+      Count     = count(),
+      Apps      = make_set(AppDisplayName),
+      IPs       = make_set(IPAddress),
+      FirstSeen = min(TimeGenerated),
+      LastSeen  = max(TimeGenerated)
+    by UserPrincipalName, Location
+  | extend IPAddress = tostring(IPs[0])
+  | order by Count desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'High-Risk Country Sign-In - {{UserPrincipalName}} from {{Location}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed {{Count}} non-interactive sign-ins from high-risk country {{Location}}. Investigate for potential token theft from attacker infrastructure.'
+customDetails:
+  Country: Location
+  SignInCount: Count
+  Apps: Apps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

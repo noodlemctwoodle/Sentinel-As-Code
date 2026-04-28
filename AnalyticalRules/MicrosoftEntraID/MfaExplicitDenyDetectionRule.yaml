@@ -3,26 +3,25 @@ name: MFA Explicit Deny
 description: |
   'Identifies explicit MFA denies'
 severity: Medium
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SignInLogs
+  - AADNonInteractiveUserSignInLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - InitialAccess
-techniques:
-  - T1110
-  - T1110.001
-  - T1078
-  - T1078.004
-  - T1621
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SignInLogs
-      - AADNonInteractiveUserSignInLogs
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+- T1110
+- T1110.001
+- T1621
 query: |
   let threshold = 10;
   let aadFunc = (tableName:string) {
@@ -46,10 +45,17 @@ query: |
       , "High"
       )
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserPrincipalName
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+alertDetailsOverride:
+  alertnameFormat: null
+  alertDescriptionFormat: null
+  alertTacticsColumnName: null
+  alertSeverityColumnName: Severity
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -60,12 +66,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-alertDetailsOverride:
-  alertnameFormat: null
-  alertDescriptionFormat: null
-  alertTacticsColumnName: null
-  alertSeverityColumnName: Severity
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

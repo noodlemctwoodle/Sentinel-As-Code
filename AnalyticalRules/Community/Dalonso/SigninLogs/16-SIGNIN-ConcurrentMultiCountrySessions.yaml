@@ -1,0 +1,71 @@
+id: f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c
+name: SigninLogs — Concurrent Sessions from Multiple Countries (Same User)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects a single user successfully signing in from 2 or more distinct countries within a 30-minute window. Unlike ML-based impossible travel this is deterministic, requires no Entra ID P2, and catches concurrent attacker + victim sessions running in parallel from different geos. MITRE ATT&CK: T1078 (Valid Accounts).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+query: |
+  let lookback   = 1h;
+  let maxWindowM = 30;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where ResultType == "0"
+  | where isnotempty(Location) and Location != "Unknown"
+  | summarize
+      UniqueCountries = dcount(Location),
+      Countries       = make_set(Location, 10),
+      SourceIPs       = make_set(IPAddress, 10),
+      Apps            = make_set(AppDisplayName, 5),
+      FirstSignIn     = min(TimeGenerated),
+      LastSignIn      = max(TimeGenerated)
+    by UserPrincipalName
+  | where UniqueCountries >= 2
+  | extend WindowMinutes = datetime_diff("minute", LastSignIn, FirstSignIn)
+  | where WindowMinutes <= maxWindowM
+  | project
+      TimeGenerated = FirstSignIn,
+      UserPrincipalName, UniqueCountries,
+      Countries, SourceIPs, WindowMinutes,
+      Apps, LastSignIn
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Concurrent Multi-Country Sessions — {{UserPrincipalName}} in {{UniqueCountries}} countries ({{WindowMinutes}}min)'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} authenticated from {{UniqueCountries}} different countries within {{WindowMinutes}} minutes — possible concurrent attacker session.'
+customDetails:
+  UniqueCountries: UniqueCountries
+  Countries: Countries
+  WindowMinutes: WindowMinutes
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

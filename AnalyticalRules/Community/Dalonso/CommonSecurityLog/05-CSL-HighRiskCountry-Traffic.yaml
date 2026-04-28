@@ -1,0 +1,75 @@
+id: e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b
+name: Firewall Allowed Traffic to High-Risk Country
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects allowed inbound or outbound firewall traffic to/from countries frequently associated
+  with nation-state threat actors and APT groups (CN, RU, KP, IR, SY, CU, BY, VE, AF, LY).
+  High-volume or repeated connections to these geographies may indicate C2 channels, data
+  exfiltration, or unauthorized access from threat actor infrastructure.
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Exfiltration
+relevantTechniques:
+- T1078
+query: |
+  let HighRiskCountries = dynamic([
+      "China", "Russia", "North Korea", "Iran", "Syria",
+      "Cuba", "Belarus", "Venezuela", "Afghanistan", "Libya"]);
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP", "Reset-Both")
+  | where isnotempty(DestinationIP)
+  | where ipv4_is_private(DestinationIP) == false
+  | extend DestCountry = tostring(geo_info_from_ip_address(DestinationIP).country)
+  | where DestCountry in (HighRiskCountries)
+  | summarize
+      ConnectionCount  = count(),
+      BytesSent        = sum(SentBytes),
+      InternalIPs      = make_set(SourceIP, 20),
+      ExternalIPs      = make_set(DestinationIP, 20),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated),
+      RepresentativeIP = any(SourceIP)
+    by DestCountry, DeviceVendor
+  | order by ConnectionCount desc
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: RepresentativeIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'High-Risk Country Traffic Allowed - {{DestCountry}} ({{ConnectionCount}} connections)'
+  alertDescriptionFormat: '{{ConnectionCount}} allowed firewall connections to {{DestCountry}} detected. Review for C2 or data exfiltration.'
+customDetails:
+  ConnectionCount: ConnectionCount
+  DestCountry: DestCountry
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: AnyAlert
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails:
+    - DestCountry
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

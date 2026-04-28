@@ -1,0 +1,69 @@
+id: f632a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b
+name: Zscaler ZPA - Repeated Connection Failures - Possible Credential Spray Against Internal Apps
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects ZPA users or source IPs generating more than 20 failed or blocked connection attempts to internal applications in a 1-hour window. Unlike network-level brute force, ZPA connection failures can indicate password spraying targeting applications exposed via ZPA, repeated MFA denials, configuration errors causing mass reconnects, or an attacker probing internal app segments using compromised ZPA credentials. MITRE ATT&CK: T1110 (Brute Force), T1133 (External Remote Services).
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1110
+- T1133
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1h)
+  | where DeviceVendor == "Zscaler" and DeviceProduct has "ZPA"
+  | where DeviceAction in (
+      "block", "BLOCK", "Blocked", "Failed", "Error",
+      "Closed", "denied", "DENIED", "reject", "REJECT")
+  | where isnotempty(SourceUserName) or isnotempty(SourceIP)
+  | summarize
+      FailureCount = count(),
+      UniqueApps   = dcount(DestinationHostName),
+      TargetApps   = make_set(DestinationHostName, 10),
+      SourceIPs    = make_set(SourceIP, 5),
+      FirstFailure = min(TimeGenerated),
+      LastFailure  = max(TimeGenerated)
+    by SourceUserName
+  | where FailureCount > 20
+  | order by FailureCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: SourceUserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ZPA Connection Spray - {{SourceUserName}} ({{FailureCount}} failures)'
+  alertDescriptionFormat: 'ZPA user {{SourceUserName}} generated {{FailureCount}} connection failures against {{UniqueApps}} internal apps in 1 hour.'
+customDetails:
+  FailureCount: FailureCount
+  UniqueApps: UniqueApps
+  TargetApps: TargetApps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

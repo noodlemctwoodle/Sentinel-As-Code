@@ -1,0 +1,79 @@
+id: f1a7b9c0-d5e6-8f2a-3b4c-5d6e7f8a9b0c
+name: ROPC Authentication Detected - Credential Pass-Through Bypass
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects Resource Owner Password Credential (ROPC) grant flow in non-interactive sign-ins.
+  ROPC passes user credentials directly to Azure AD, completely bypassing MFA, Conditional
+  Access policies, and any security controls. This grant type should NEVER appear in a
+  healthy enterprise tenant. Its presence indicates either a misconfigured legacy app or
+  an attacker using stolen credentials via command-line tooling.
+  MITRE ATT&CK: T1110 (Brute Force), T1078 (Valid Accounts), T1550 (Use Alternate Auth Material)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT15M
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- DefenseEvasion
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1110
+- T1550
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where AuthenticationProtocol =~ "ropc"
+     or   ClientAppUsed has_any ("Password", "ROPC", "ropc")
+  | summarize
+      Count     = count(),
+      IPs       = make_set(IPAddress),
+      Countries = make_set(Location),
+      Apps      = make_set(AppDisplayName),
+      Errors    = make_set(ResultType),
+      FirstSeen = min(TimeGenerated),
+      LastSeen  = max(TimeGenerated)
+    by UserPrincipalName
+  | extend IPAddress = tostring(IPs[0])
+  | order by Count desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ROPC Authentication Detected for {{UserPrincipalName}} - MFA Bypass Risk'
+  alertDescriptionFormat: 'ROPC authentication detected for user {{UserPrincipalName}} ({{Count}} occurrences from {{Countries}}). ROPC bypasses MFA and Conditional Access. Verify if this is an authorized
+    legacy app or investigate for credential stuffing.'
+customDetails:
+  SignInCount: Count
+  Countries: Countries
+  ResultCodes: Errors
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

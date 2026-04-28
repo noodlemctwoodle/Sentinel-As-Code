@@ -1,0 +1,68 @@
+id: ee24a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b
+name: Zscaler ZIA - Uncategorized or Newly Registered Domain Request Spike
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users or hosts generating a high volume of requests to uncategorized, newly registered, or dynamically-resolved domains through Zscaler ZIA. Legitimate users rarely contact large numbers of uncategorized domains; this pattern is a strong indicator of command-and-control (C2) traffic using domain generation algorithms (DGA), DNS-over-HTTPS tunneling, or attacker infrastructure that has not yet been categorized by Zscaler's cloud intelligence. MITRE ATT&CK: T1071.004, T1568 (Dynamic Resolution), T1071.
+severity: Medium
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1071
+- T1568
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor == "Zscaler"
+  | where DeviceCustomString2 in (
+      "NONE", "UNCATEGORIZED", "OTHER_MISCELLANEOUS",
+      "NEWLY_REGISTERED_DOMAINS", "DYNAMIC_DNS")
+      or isempty(DeviceCustomString2)
+  | where isnotempty(SourceUserName)
+  | summarize
+      RequestCount       = count(),
+      UniqueDestinations = dcount(DestinationHostName),
+      Destinations       = make_set(DestinationHostName, 20),
+      URLSamples         = make_set(RequestURL, 10),
+      FirstSeen          = min(TimeGenerated),
+      LastSeen           = max(TimeGenerated)
+    by UserName = tolower(SourceUserName)
+  | where RequestCount > 100 or UniqueDestinations > 20
+  | order by UniqueDestinations desc, RequestCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Zscaler Uncategorized Domain Spike - {{UserName}} ({{UniqueDestinations}} new destinations)'
+  alertDescriptionFormat: 'User {{UserName}} contacted {{UniqueDestinations}} uncategorized or newly-registered domains via {{RequestCount}} requests — possible covert C2 or DGA activity.'
+customDetails:
+  RequestCount: RequestCount
+  UniqueDestinations: UniqueDestinations
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

@@ -1,33 +1,31 @@
 id: 286d4473-f5e2-4dfc-9c6e-1a9b6e1afd5e
-name: "Entra ID Token Theft Detection: Unbound Sessions on Unmanaged Devices (M356CommunityConf)"
-description: |-
+name: 'Entra ID Token Theft Detection: Unbound Sessions on Unmanaged Devices (M356CommunityConf)'
+description: |
   This detection identifies potential token theft attacks in Entra ID by monitoring for unbound authentication sessions that occur on unverified devices. When an authentication token is stolen, attackers can reuse it to access corporate resources while bypassing password requirements and multi-factor authentication (MFA). The detection focuses on indicators of compromise including session unbinding (code 1002) and the absence of essential device validation attributes, which are strong signals of token replay attacks.
 
   The rule incorporates risk assessment by evaluating device management status, compliance state, and device identification, highlighting high-risk scenarios that require immediate investigation. Each alert includes the identity of the affected user, geographic location details, and the specific application where the suspicious token was used. Security teams should respond by immediately revoking all active sessions for the impacted user, forcing credential reset with MFA, and investigating the initial compromise vector through forensic examination of sign-in logs.
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-  - LateralMovement
-  - DefenseEvasion
-techniques:
-  - T1539
-  - T1528
-  - T1550
-  - T1550.001
-  - T1552
-  - T1552.001
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
-query: |-
+- CredentialAccess
+- LateralMovement
+- DefenseEvasion
+relevantTechniques:
+- T1528
+- T1539
+- T1550
+- T1550.001
+- T1552
+- T1552.001
+query: |
   // Define a list of exclusions (service accounts, expected behaviors, etc.)
   let includedUsers = _GetWatchlist('EntraRiskyUsers') | project UserPrincipalName;
   // Main detection query
@@ -85,18 +83,25 @@ query: |-
   ClientAppUsed
   | order by RiskLevel asc, TimeGenerated desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: Name
-        columnName: AppDisplayName
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: AppDisplayName
+customDetails:
+  City: City
+  Country: Region
+  RiskType: RiskLevel
+  Token: TokenIssuerType
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -107,12 +112,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-customDetails:
-  City: City
-  Country: Region
-  RiskType: RiskLevel
-  Token: TokenIssuerType
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

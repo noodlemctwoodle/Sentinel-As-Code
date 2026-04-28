@@ -1,6 +1,6 @@
 id: d7858e9b-38b6-4b2c-89a7-0718a370849a
 name: Security Group Cloning Detection via PowerShell
-description: |-
+description: |
   This detection identifies potential security group cloning activities performed through PowerShell against Microsoft Graph API. The rule monitors for the characteristic sequence of operations that indicate an attacker or insider threat is enumerating security groups and their memberships, potentially to clone them for privilege escalation or persistence purposes.
 
   The detection specifically targets the pattern where a user:
@@ -15,31 +15,29 @@ description: |-
 
   Early detection of security group cloning attempts is critical as this technique can be used to establish persistent privileged access within the environment, potentially bypassing traditional detection methods focused on direct privilege assignments.
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - CredentialAccess
-  - Discovery
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1590
-  - T1552
-  - T1069
-  - T1069.003
-  - T1098
-  - T1098.003
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- Reconnaissance
+- CredentialAccess
+- Discovery
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1069
+- T1069.003
+- T1098
+- T1098.003
+- T1552
+- T1590
+query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
   | where TimeGenerated > ago(10d)
@@ -145,16 +143,18 @@ query: |-
   LastOperation
   | order by BlastRadiusSeverity asc, OperationCount desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: UserId
-      - identifier: Name
-        columnName: UserPrincipalName
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: UserId
+  - identifier: Name
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -165,7 +165,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

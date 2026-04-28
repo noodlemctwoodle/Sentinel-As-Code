@@ -3,24 +3,23 @@ name: High Privileged Role assigned
 description: |
   'A user was assigned a high privileged role'
 severity: Low
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AuditLogs
 queryFrequency: PT30M
 queryPeriod: PT30M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Persistence
-  - PrivilegeEscalation
-techniques:
-  - T1098
-  - T1098.003
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - AuditLogs
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1078
+- T1078.004
+- T1098
+- T1098.003
 query: |
   let HighPrivRoles = dynamic(["Global Administrator","Company Administrator","Privileged Authentication Administrator","Privileged Role Administrator"]);
   AuditLogs
@@ -33,14 +32,18 @@ query: |
   | extend Actor = iff(isnotempty(InitiatedBy.user.userPrincipalName),InitiatedBy.user.userPrincipalName,InitiatedBy.app.servicePrincipalId)
   | extend TargetUsername = TargetResources.userPrincipalName
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Actor
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: TargetUsername
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Actor
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: TargetUsername
+customDetails:
+  AddedToRole: AddedToRole
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -51,9 +54,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-customDetails:
-  AddedToRole: AddedToRole
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

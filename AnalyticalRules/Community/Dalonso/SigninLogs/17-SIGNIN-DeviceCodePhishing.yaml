@@ -1,0 +1,70 @@
+id: a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d
+name: SigninLogs — Device Code Flow Authentication (Phishing Vector)
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects successful device code flow authentications where one IP collects tokens for 2 or more accounts. Attackers phish victims to device.microsoft.com to enter a code the attacker generated — bypassing password and MFA. Actively used by Storm-0539 and Midnight Blizzard. MITRE ATT&CK: T1566 (Phishing), T1528 (Steal Application Access Token).
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+queryFrequency: PT4H
+queryPeriod: PT4H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1528
+- T1566
+query: |
+  let lookback      = 4h;
+  let multiUserMin  = 2;
+  let highVolumeMin = 5;
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+  | where AuthenticationProtocol == "deviceCode"
+  | where ResultType == "0"
+  | summarize
+      SuccessCount  = count(),
+      UniqueUsers   = dcount(UserPrincipalName),
+      TargetedUsers = make_set(UserPrincipalName, 20),
+      Locations     = make_set(Location, 5),
+      Apps          = make_set(AppDisplayName, 5),
+      FirstSeen     = min(TimeGenerated),
+      LastSeen      = max(TimeGenerated)
+    by IPAddress
+  | where UniqueUsers >= multiUserMin or SuccessCount >= highVolumeMin
+  | project
+      TimeGenerated = FirstSeen,
+      IPAddress, SuccessCount, UniqueUsers,
+      TargetedUsers, Locations, Apps, LastSeen
+entityMappings:
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Device Code Phishing — {{IPAddress}} collected tokens for {{UniqueUsers}} accounts'
+  alertDescriptionFormat: 'IP {{IPAddress}} obtained {{SuccessCount}} device code flow tokens for {{UniqueUsers}} users — classic device-code phishing pattern (Storm-0539, Midnight Blizzard TTP).'
+customDetails:
+  SuccessCount: SuccessCount
+  UniqueUsers: UniqueUsers
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT4H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - IP
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

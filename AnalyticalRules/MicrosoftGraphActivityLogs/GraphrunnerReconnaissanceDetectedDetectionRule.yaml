@@ -1,33 +1,32 @@
 id: c1d23904-a136-4794-b6fb-d5b3fc98e2d4
 name: GraphRunner reconnaissance detected
-description: |-
+description: |
   Microsoft Graph queries that are similar to GraphRunner where detected in your environment. An attacker might have started with the reconnaissance stage of an attack in your environment. This requires access to a compromised identity.
 
   https://github.com/dafthack/GraphRunner
   https://www.blackhillsinfosec.com/introducing-graphrunner/
 severity: Medium
-kind: Scheduled
-version: 1.0.0
 queryFrequency: PT30M
 queryPeriod: PT40M
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - InitialAccess
-  - Discovery
-techniques:
-  - T1595
-  - T1595.002
-  - T1589
-  - T1591
-  - T1078
-  - T1078.004
-  - T1087
-  - T1087.004
-  - T1069
-  - T1069.003
-query: |-
+- Reconnaissance
+- InitialAccess
+- Discovery
+relevantTechniques:
+- T1069
+- T1069.003
+- T1078
+- T1078.004
+- T1087
+- T1087.004
+- T1589
+- T1591
+- T1595
+- T1595.002
+query: |
   let GraphRunnerQueries = dynamic([
       "https:/graph.microsoft.com/version/groups/<UUID>/members",
       "https:/graph.microsoft.com/version/users/<UUID>",
@@ -78,12 +77,18 @@ query: |-
   | join kind=leftouter IPEntities on ObjectId
   | project-away IPAddresses, *1, *2
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: AadUserId
-        columnName: ObjectId
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: ObjectId
 sentinelEntitiesMappings:
-  - columnName: IPInformation
+- columnName: IPInformation
+alertDetailsOverride:
+  alertDynamicProperties:
+  - alertProperty: ConfidenceScore
+    value: ConfidenceScore
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -94,11 +99,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
-alertDetailsOverride:
-  alertDynamicProperties:
-    - alertProperty: ConfidenceScore
-      value: ConfidenceScore
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

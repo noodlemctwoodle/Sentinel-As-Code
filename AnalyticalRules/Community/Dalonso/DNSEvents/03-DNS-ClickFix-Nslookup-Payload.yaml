@@ -1,0 +1,70 @@
+id: a1b2c3d4-0003-4a5b-8c9d-dns003clickfix
+name: ClickFix nslookup Payload Delivery via DNS
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects the ClickFix social engineering technique observed in February 2026
+  (reported by BleepingComputer and Microsoft Threat Intelligence) where victims
+  are instructed to run nslookup pointed at an attacker-controlled DNS server.
+  The malicious DNS server returns a PowerShell payload in the NAME: response field
+  which is then executed by cmd.exe to install malware (e.g., ModeloRAT).
+  This rule detects nslookup.exe invocations that specify an explicit server IP
+  as a second argument, which is characteristic of this attack pattern.
+  Ref: "New ClickFix attack abuses nslookup to retrieve PowerShell payload via DNS"
+severity: High
+requiredDataConnectors:
+- connectorId: SecurityEvents
+  dataTypes:
+  - SecurityEvent
+queryFrequency: PT15M
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Execution
+- CommandAndControl
+relevantTechniques:
+- T1059.001
+- T1071.004
+- T1204.002
+query: |
+  SecurityEvent
+  | where TimeGenerated > ago(1d)
+  | where EventID == 4688
+  | where Process =~ "nslookup.exe"
+  | where CommandLine has_any ("-server", "/server")
+        or CommandLine matches regex @"nslookup\s+\S+\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+        or CommandLine matches regex @"nslookup\s+-type=\w+\s+\S+\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+  | extend
+      ParentIsShell = ParentProcessName in~ ("cmd.exe", "powershell.exe", "wscript.exe",
+                                             "mshta.exe", "cscript.exe", "rundll32.exe")
+  | project
+      TimeGenerated,
+      Computer,
+      Account,
+      CommandLine,
+      ParentProcessName,
+      ParentIsShell
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: Computer
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: Account
+alertDetailsOverride:
+  alertDisplayNameFormat: 'ClickFix DNS Payload — nslookup with explicit server on {{Computer}}'
+  alertDescriptionFormat: 'nslookup.exe launched with an explicit DNS server address on {{Computer}} by {{Account}}. This matches the ClickFix attack pattern (Feb 2026) that delivers PowerShell payloads
+    via DNS NAME field. Command: {{CommandLine}}'
+customDetails:
+  CommandLine: CommandLine
+  ParentProcess: ParentProcessName
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

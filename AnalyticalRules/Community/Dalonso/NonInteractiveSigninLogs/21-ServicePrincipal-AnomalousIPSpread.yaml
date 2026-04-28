@@ -1,0 +1,77 @@
+id: c6d2e4f5-a0b1-3c7d-8e9f-0a1b2c3d4e5f
+name: Service Principal Authenticating from Anomalous IP Spread
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects service principals (workload identities) successfully authenticating from
+  4 or more distinct IP addresses in a 24-hour period. Legitimate service principals
+  typically authenticate from a stable set of IPs (application servers, pipelines).
+  Wide IP spread indicates compromised service principal credentials being used
+  from multiple attacker machines or distributed attack infrastructure.
+  MITRE ATT&CK: T1078.004 (Cloud Accounts), T1528
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT4H
+queryPeriod: PT24H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- Persistence
+- LateralMovement
+relevantTechniques:
+- T1078
+- T1528
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(24h)
+  | where isnotempty(ServicePrincipalId)
+     and  ResultType == 0
+  | summarize
+      SignInCount = count(),
+      UniqueIPs   = dcount(IPAddress),
+      IPs         = make_set(IPAddress),
+      Countries   = make_set(Location),
+      FirstSeen   = min(TimeGenerated)
+    by AppDisplayName, ServicePrincipalId
+  | where UniqueIPs > 3
+  | extend IPAddress = tostring(IPs[0])
+  | order by UniqueIPs desc
+entityMappings:
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: Name
+    columnName: AppDisplayName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Service Principal Anomaly - {{AppDisplayName}} authenticated from {{UniqueIPs}} distinct IPs'
+  alertDescriptionFormat: 'Service principal ''{{AppDisplayName}}'' authenticated from {{UniqueIPs}} distinct IPs in 24 hours. Stable IP footprint expected for workload identities. Investigate for credential
+    compromise.'
+customDetails:
+  ServicePrincipalId: ServicePrincipalId
+  UniqueIPCount: UniqueIPs
+  Countries: Countries
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - CloudApplication
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

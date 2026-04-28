@@ -1,0 +1,84 @@
+id: f3a9b1c2-d7e8-0f4a-5b6c-7d8e9f0a1b2c
+name: Legacy Authentication Bypassing MFA and Conditional Access
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects successful non-interactive sign-ins using legacy authentication protocols
+  (Exchange ActiveSync, IMAP, POP3, SMTP, MAPI, etc.). These protocols cannot participate
+  in MFA challenges or respond to Conditional Access policies, meaning any successful
+  authentication completely bypasses your security controls. Attackers deliberately
+  use legacy protocols to avoid MFA enforcement.
+  MITRE ATT&CK: T1078 (Valid Accounts), T1190 (Exploit Public-Facing Application)
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1550
+query: |
+  let LegacyProtocols = dynamic([
+      "Exchange ActiveSync", "IMAP4", "MAPI Over HTTP",
+      "POP3", "SMTP", "Authenticated SMTP", "AutoDiscover",
+      "Exchange Online PowerShell", "Exchange Web Services",
+      "Other clients", "Other clients; IMAP", "Other clients; POP"
+  ]);
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ClientAppUsed in (LegacyProtocols)
+  | where ResultType == 0
+  | summarize
+      SignInCount = count(),
+      IPs         = make_set(IPAddress),
+      Countries   = make_set(Location),
+      Protocols   = make_set(ClientAppUsed),
+      FirstSeen   = min(TimeGenerated),
+      LastSeen    = max(TimeGenerated)
+    by UserPrincipalName, AppDisplayName
+  | where SignInCount > 3
+  | extend IPAddress = tostring(IPs[0])
+  | order by SignInCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Legacy Auth Bypass - {{UserPrincipalName}} using {{Protocols}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed {{SignInCount}} non-interactive sign-ins using legacy protocols ({{Protocols}}) that bypass MFA and Conditional Access.'
+customDetails:
+  SignInCount: SignInCount
+  LegacyProtocols: Protocols
+  Countries: Countries
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

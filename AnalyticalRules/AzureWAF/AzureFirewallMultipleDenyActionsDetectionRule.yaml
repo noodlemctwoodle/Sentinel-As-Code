@@ -3,31 +3,29 @@ name: Several deny actions registered
 description: |
   'Identifies attack pattern when attacker tries to move, or scan, from resource to resource on the network and creates an incident when a source has more than 1 registered deny action in Azure Firewall.'
 severity: Medium
-kind: Scheduled
-version: 1.1.1
-status: Available
+requiredDataConnectors:
+- connectorId: AzureFirewall
+  dataTypes:
+  - AzureDiagnostics
+  - AZFWApplicationRule
+  - AZFWNetworkRule
 queryFrequency: PT1H
 queryPeriod: PT1H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 1
+enabled: true
 tactics:
-  - CommandAndControl
-  - Discovery
-  - LateralMovement
-  - Reconnaissance
-techniques:
-  - T1046
-  - T1071
-  - T1071.001
-  - T1210
-  - T1595
-  - T1595.002
-requiredDataConnectors:
-  - connectorId: AzureFirewall
-    dataTypes:
-      - AzureDiagnostics
-      - AZFWApplicationRule
-      - AZFWNetworkRule
+- CommandAndControl
+- Discovery
+- LateralMovement
+- Reconnaissance
+relevantTechniques:
+- T1046
+- T1071
+- T1071.001
+- T1210
+- T1595
+- T1595.002
 query: |
   let threshold = 10;
   union isfuzzy=true(
@@ -52,11 +50,17 @@ query: |
   | summarize StartTime = min(TimeGenerated), count() by SourceIp, Fqdn, Action, Protocol
   | where count_ >= ["threshold"])
 entityMappings:
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: SourceIp
-  - entityType: URL
-    fieldMappings:
-      - identifier: Url
-        columnName: Fqdn
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceIp
+- entityType: URL
+  fieldMappings:
+  - identifier: Url
+    columnName: Fqdn
+version: 1.1.1
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Azure WAF

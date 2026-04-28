@@ -3,22 +3,20 @@ name: Non Domain Controller Active Directory Replication
 description: |
   'This query detects potential attempts by non-computer accounts (non domain controllers) to retrieve/synchronize an active directory object leveraging directory replication services (DRS).'
 severity: High
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: SecurityEvent
+  dataTypes:
+  - SecurityEvent
 queryFrequency: P1D
 queryPeriod: P7D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - CredentialAccess
-techniques:
-  - T1003
-  - T1003.006
-requiredDataConnectors:
-  - connectorId: SecurityEvent
-    dataTypes:
-      - SecurityEvent
+- CredentialAccess
+relevantTechniques:
+- T1003
+- T1003.006
 query: |
   let KnownDCList = _GetWatchlist('knownDCAccounts') | project ComputerAccount;
   //The above is querying the 'KnownDCAccounts' Watchlist to check for Domain Controllers we would expect to see in a Client workspace.
@@ -42,15 +40,21 @@ query: |
   | project-reorder TimeGenerated, Computer, Account, IpAddress
   | extend timestamp = TimeGenerated, AccountCustomEntity = Account, HostCustomEntity = Computer, SourceAddress = IpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: AccountCustomEntity
-  - entityType: Host
-    fieldMappings:
-      - identifier: FullName
-        columnName: HostCustomEntity
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: SourceAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: AccountCustomEntity
+- entityType: Host
+  fieldMappings:
+  - identifier: FullName
+    columnName: HostCustomEntity
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SourceAddress
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Windows Security Events

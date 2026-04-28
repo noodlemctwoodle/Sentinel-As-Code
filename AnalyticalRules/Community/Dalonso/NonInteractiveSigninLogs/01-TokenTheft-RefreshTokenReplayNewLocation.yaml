@@ -1,0 +1,90 @@
+id: f3a1c2e4-8b5d-4e7f-a9c1-2b3d4e5f6a7b
+name: Token Theft - Refresh Token Replay from New Location
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when the same user refreshes an OAuth token from a completely different
+  IP address AND country within a 30-minute window. This is a strong indicator of
+  refresh token theft / pass-the-cookie attacks where an attacker has stolen a
+  refresh token and is replaying it from a different network.
+  MITRE ATT&CK: T1528 (Steal Application Access Token), T1539 (Steal Web Session Cookie)
+severity: High
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- LateralMovement
+relevantTechniques:
+- T1528
+- T1539
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | sort by UserPrincipalName asc, AppId asc, TimeGenerated asc
+  | extend PrevIP      = prev(IPAddress, 1)
+  | extend PrevCountry = prev(Location, 1)
+  | extend PrevTime    = prev(TimeGenerated, 1)
+  | extend PrevUser    = prev(UserPrincipalName, 1)
+  | extend PrevApp     = prev(AppId, 1)
+  | where UserPrincipalName == PrevUser
+     and  AppId             == PrevApp
+     and  IPAddress         != PrevIP
+     and  Location          != PrevCountry
+     and  (TimeGenerated - PrevTime) < 30m
+  | project
+      TimeGenerated,
+      PrevTokenTime    = PrevTime,
+      UserPrincipalName,
+      AppDisplayName,
+      CurrentIP        = IPAddress,
+      CurrentCountry   = Location,
+      PreviousIP       = PrevIP,
+      PreviousCountry  = PrevCountry,
+      TimeBetweenTokens = (TimeGenerated - PrevTime),
+      CorrelationId,
+      UniqueTokenIdentifier
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CurrentIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Token Replay Detected - {{UserPrincipalName}} authenticated from new country after prior token from {{CurrentCountry}}'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} refreshed a token from {{CurrentIP}} ({{CurrentCountry}}) within 30 min of a prior refresh from a different country. Possible refresh token theft.'
+  alertSeverityColumnName: ''
+  alertTacticsColumnName: ''
+customDetails:
+  PreviousIP: PreviousIP
+  PreviousCountry: PreviousCountry
+  CurrentCountry: CurrentCountry
+  AppDisplayName: AppDisplayName
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

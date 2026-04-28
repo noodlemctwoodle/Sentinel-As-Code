@@ -1,0 +1,75 @@
+id: e2f8a0b1-c6d7-9e3f-4a5b-6c7d8e9f0a1b
+name: Impossible Travel - Non-Interactive Sign-Ins from Multiple Countries
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects users who successfully authenticate via non-interactive sign-ins from 3 or more
+  distinct countries within a 1-hour window. While single-country legitimate travel can
+  explain 2 countries, 3+ countries in 1 hour is physically impossible and strongly
+  indicates refresh token theft being replayed from multiple attacker-controlled locations.
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1078
+- T1539
+query: |
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType == 0
+  | summarize
+      Countries    = make_set(Location),
+      CountryCount = dcount(Location),
+      IPs          = make_set(IPAddress),
+      Apps         = make_set(AppDisplayName),
+      FirstSeen    = min(TimeGenerated),
+      LastSeen     = max(TimeGenerated)
+    by UserPrincipalName
+  | where CountryCount >= 3
+  | extend IPAddress = tostring(IPs[0])
+  | order by CountryCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Impossible Travel - {{UserPrincipalName}} authenticated from {{CountryCount}} countries in 1 hour'
+  alertDescriptionFormat: 'User {{UserPrincipalName}} performed non-interactive sign-ins from {{CountryCount}} different countries ({{Countries}}) within 1 hour. This is physically impossible and indicates
+    token theft/replay from multiple locations.'
+customDetails:
+  CountriesCount: CountryCount
+  Countries: Countries
+  Apps: Apps
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

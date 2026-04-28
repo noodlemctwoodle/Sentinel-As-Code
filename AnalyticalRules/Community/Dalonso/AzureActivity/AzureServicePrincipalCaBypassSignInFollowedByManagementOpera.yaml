@@ -1,0 +1,84 @@
+id: 25e7da75-0b7f-4aa0-8bf2-eee8d353c72e
+name: Azure - Service Principal CA Bypass Sign-in Followed by Management Operations
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a service principal sign-in has Conditional Access status 'failure' or 'notApplied' (CA bypass) but ResultType=0 (sign-in succeeded), and that same source IP subsequently calls Azure management APIs within 1 hour. This is indicative of stolen SP tokens or credential abuse where the attacker bypassed CA policies (T1528 — Steal Application Access Token). Correlates AADServicePrincipalSignInLogs with AzureActivity on IP. FP mitigations: (1) ResultType=0 required — prevents alerting on simply failed sign-ins; (2) Requires 2+ management operations post sign-in — filters out single read operations; (3) Azure platform and link-local IPs excluded; (4) 1-hour temporal window keeps the correlation tight and reduces coincidental IP matches from shared NATs.
+severity: High
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- CredentialAccess
+relevantTechniques:
+- T1078
+- T1528
+query: |
+  let CABypassSignins = AADServicePrincipalSignInLogs
+      | where TimeGenerated > ago(2h)
+      | where ResultType == 0
+      | where ConditionalAccessStatus has_any ("failure", "notApplied")
+      | where isnotempty(IPAddress)
+      | where IPAddress !startswith "168.63." and IPAddress !startswith "169.254."
+      | project SigninTime = TimeGenerated, ServicePrincipalId, ServicePrincipalName, SigninIP = IPAddress, AppId, ConditionalAccessStatus;
+  AzureActivity
+  | where TimeGenerated > ago(2h)
+  | where ActivityStatusValue =~ "Success"
+  | where OperationNameValue has_any ("WRITE", "DELETE", "ACTION")
+  | where not(OperationNameValue has_any ("READ", "LIST", "GET", "LISTKEYS"))
+  | where isnotempty(CallerIpAddress)
+  | join kind=inner CABypassSignins on $left.CallerIpAddress == $right.SigninIP
+  | where TimeGenerated > SigninTime and TimeGenerated <= SigninTime + 1h
+  | summarize
+      MGMTOpCount = count(),
+      Operations = make_set(OperationNameValue, 10),
+      AffectedResources = make_set(ResourceId, 10),
+      SubscriptionIds = make_set(SubscriptionId, 5),
+      CallerIP = any(CallerIpAddress),
+      CAStatus = any(ConditionalAccessStatus),
+      FirstMGMTOp = min(TimeGenerated),
+      LastMGMTOp = max(TimeGenerated)
+      by Caller, ServicePrincipalName, SigninTime
+  | where MGMTOpCount >= 2
+  | extend
+      AccountName = coalesce(tostring(split(Caller, "@")[0]), ServicePrincipalName),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'CA bypass SP {{ServicePrincipalName}} then {{MGMTOpCount}} MGMT ops from {{CallerIP}}'
+  alertDescriptionFormat: 'SP {{ServicePrincipalName}} signed in with CA status ''''{{CAStatus}}'''' from {{CallerIP}}, then performed management operations within 1 hour:'
+customDetails:
+  CAStatus: CAStatus
+  MGMTOpCount: MGMTOpCount
+  Operations: Operations
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

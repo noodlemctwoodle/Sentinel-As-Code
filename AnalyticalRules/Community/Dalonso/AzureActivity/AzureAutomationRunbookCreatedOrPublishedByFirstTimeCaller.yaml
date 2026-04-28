@@ -1,0 +1,79 @@
+id: 88dd71a7-eecf-4ce5-862e-3c3cb8a88f96
+name: Azure - Automation Runbook Created or Published by First-Time Caller
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects creation or publishing of Azure Automation runbooks by identities with no history of runbook operations in the last 14 days. Attackers create runbooks that execute code at scale with Automation Account managed identity privileges — a cloud-native persistence and execution vector (T1059.009). Seen in APT29 and LAPSUS$ TTPs. FP mitigations: (1) 14-day behavioral baseline excludes developers/automation owners already working with runbooks; (2) known DevOps pipeline caller name patterns excluded; (3) Azure platform IPs excluded; (4) only 'Success' status — draft saves ('Start') excluded.
+severity: High
+queryFrequency: PT6H
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Execution
+- Persistence
+relevantTechniques:
+- T1059
+query: |
+  let KnownRunbookCallers = AzureActivity
+      | where TimeGenerated between (ago(14d) .. ago(6h))
+      | where OperationNameValue has_any ("AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE", "AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/PUBLISH/ACTION", "AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/DRAFT/WRITE")
+      | where ActivityStatusValue =~ "Success"
+      | distinct Caller;
+  let ExcludedPatterns = dynamic(["automation-account", "devops", "pipeline", "github", "bicep", "terraform"]);
+  AzureActivity
+  | where TimeGenerated > ago(6h)
+  | where OperationNameValue has_any ("AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE", "AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/PUBLISH/ACTION")
+  | where ActivityStatusValue =~ "Success"
+  | where not(tolower(Caller) has_any (ExcludedPatterns))
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63." and CallerIpAddress !startswith "169.254."
+  | where Caller !in (KnownRunbookCallers)
+  | summarize
+      RunbookOpCount = count(),
+      RunbookNames = make_set(tostring(split(ResourceId, "/")[-1]), 10),
+      Operations = make_set(OperationNameValue, 5),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+      by Caller, ResourceGroup, SubscriptionId
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'New runbook author: {{Caller}} created {{RunbookNames}} from {{CallerIP}}'
+  alertDescriptionFormat: 'First-time runbook caller {{Caller}} performed {{RunbookOpCount}} runbook operation(s): {{Operations}} on'
+customDetails:
+  RunbookNames: RunbookNames
+  Operations: Operations
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    - IP
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

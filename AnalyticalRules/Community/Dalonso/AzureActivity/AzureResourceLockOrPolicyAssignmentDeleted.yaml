@@ -1,0 +1,79 @@
+id: 4f2e0e45-b548-4c4d-b3b7-79f0f24a2548
+name: Azure - Resource Lock or Policy Assignment Deleted
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects deletion of Azure Resource Locks, Policy Assignments, or Policy Definitions — guardrail controls that prevent unauthorized resource actions. Attackers delete locks/policies before destructive operations (ransomware, crypto-jacking, data wiping) to avoid 'cannot delete locked resource' failures (T1562). FP mitigations: (1) Known IaC tool name patterns excluded — Terraform/Bicep legitimately destroy and re-create policies, but correlation with other rules (e.g., VM deploy) provides context; (2) Azure platform IPs excluded; (3) Only Succeeded operations; (4) Policy exemption WRITE is intentionally covered — attackers create exemptions to bypass policy without triggering a DELETE.
+severity: Medium
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+relevantTechniques:
+- T1562
+query: |
+  let HighImpactOps = dynamic([
+      "MICROSOFT.AUTHORIZATION/LOCKS/DELETE",
+      "MICROSOFT.AUTHORIZATION/POLICYASSIGNMENTS/DELETE",
+      "MICROSOFT.AUTHORIZATION/POLICYDEFINITIONS/DELETE",
+      "MICROSOFT.AUTHORIZATION/POLICYEXEMPTIONS/WRITE",
+      "MICROSOFT.AUTHORIZATION/POLICYSETDEFINITIONS/DELETE",
+      "MICROSOFT.MANAGEMENT/MANAGEMENTGROUPS/SUBSCRIPTIONS/DELETE"
+  ]);
+  let ExcludedPatterns = dynamic(["terraform", "bicep", "pipeline", "arm-", "policy-compliance"]);
+  AzureActivity
+  | where TimeGenerated > ago(2h)
+  | where OperationNameValue has_any (HighImpactOps)
+  | where ActivityStatusValue =~ "Success"
+  | where not(tolower(Caller) has_any (ExcludedPatterns))
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63."
+  | summarize
+      OperationCount = count(),
+      Operations = make_set(OperationNameValue, 10),
+      AffectedResources = make_set(ResourceId, 10),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+      by Caller, SubscriptionId, ResourceGroup
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Guardrail removed: {{Operations}} by {{Caller}}'
+  alertDescriptionFormat: '{{Caller}} removed {{OperationCount}} Azure guardrail control(s): {{Operations}}. Affected:'
+customDetails:
+  Operations: Operations
+  AffectedResources: AffectedResources
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

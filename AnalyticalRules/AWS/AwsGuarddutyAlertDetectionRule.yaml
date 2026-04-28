@@ -1,14 +1,39 @@
 id: 86d74cc5-40f3-4d0b-aa86-c5926f0aff33
-name: "AWS Guard Duty Alert"
-description: Amazon GuardDuty is a threat detection service that continuously monitors your AWS accounts and workloads for malicious activity and delivers detailed security findings for visibility and remediation. This templates create an alert for each Amazon GuardDuty finding.
+name: AWS Guard Duty Alert
+description: |
+  'Amazon GuardDuty is a threat detection service that continuously monitors your AWS accounts and workloads for malicious activity and delivers detailed security findings for visibility and remediation. This templates create an alert for each Amazon GuardDuty finding.'
 severity: Medium
-kind: Scheduled
-version: 1.0.3
 queryFrequency: PT1H
 queryPeriod: PT2H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
-query: |-
+enabled: true
+tactics:
+- InitialAccess
+- Execution
+- Persistence
+- PrivilegeEscalation
+- DefenseEvasion
+- CredentialAccess
+- Discovery
+- LateralMovement
+- Collection
+- Exfiltration
+- Impact
+relevantTechniques:
+- T1046
+- T1078
+- T1078.004
+- T1098
+- T1098.001
+- T1110
+- T1110.001
+- T1110.003
+- T1190
+- T1496
+- T1530
+- T1537
+query: |
   // https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_findings.html
   AWSGuardDuty
   | where ingestion_time() > ago(1h)
@@ -146,50 +171,38 @@ query: |-
   | extend CloudApplicationId = '11599'
   | extend IsSample = iff(ServiceDetails.additionalInfo.['sample'] == "true", true, false)
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: AccountName
-      - identifier: UPNSuffix
-        columnName: UPNSuffix
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: RemoteIpAddress
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: LocalIpAddress
-  - entityType: CloudApplication
-    fieldMappings:
-      - identifier: AppId
-        columnName: CloudApplicationId
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: UPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: RemoteIpAddress
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: LocalIpAddress
+- entityType: CloudApplication
+  fieldMappings:
+  - identifier: AppId
+    columnName: CloudApplicationId
 sentinelEntitiesMappings:
-  - columnName: MalwareEntities
-incidentConfiguration:
-  createIncident: true
-  groupingConfiguration:
-    enabled: true
-    reopenClosedIncident: false
-    lookbackDuration: PT1H
-    matchingMethod: AllEntities
-    groupByEntities: []
-    groupByAlertDetails:
-    groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: AlertPerResult
+- columnName: MalwareEntities
 alertDetailsOverride:
-  alertDisplayNameFormat: "{{Title}}"
-  alertDescriptionFormat: "{{Description}}"
+  alertDisplayNameFormat: '{{Title}}'
+  alertDescriptionFormat: '{{Description}}'
   alertTacticsColumnName: ThreatPurpose
   alertSeverityColumnName: Severity
   alertDynamicProperties:
-    - alertProperty: AlertLink
-      value: FindingLink
-    - alertProperty: ProductName
-      value: ProductName
-    - alertProperty: ProviderName
-      value: ProviderName
+  - alertProperty: AlertLink
+    value: FindingLink
+  - alertProperty: ProductName
+    value: ProductName
+  - alertProperty: ProviderName
+    value: ProviderName
 customDetails:
   ThreatFamilyName: ThreatFamilyName
   ResourceTypeAffected: ResourceTypeAffected
@@ -198,30 +211,21 @@ customDetails:
   Artifact: Artifact
   DetectionMechanism: DetectionMechanism
   IsSample: IsSample
-tactics:
-  - InitialAccess
-  - Execution
-  - Persistence
-  - PrivilegeEscalation
-  - DefenseEvasion
-  - CredentialAccess
-  - Discovery
-  - LateralMovement
-  - Collection
-  - Exfiltration
-  - Impact
-techniques:
-  - T1078
-  - T1078.004
-  - T1110
-  - T1110.001
-  - T1110.003
-  - T1190
-  - T1098
-  - T1098.001
-  - T1046
-  - T1530
-  - T1537
-  - T1496
-suppressionEnabled: false
-suppressionDuration: PT1H
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT1H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: null
+    groupByCustomDetails: []
+version: 1.0.3
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- AWS

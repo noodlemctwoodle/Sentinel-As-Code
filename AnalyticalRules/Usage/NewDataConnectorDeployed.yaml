@@ -1,21 +1,21 @@
 id: 858903d9-0a3f-4ea1-b2b9-03ae139ad484
 name: New Data Connector Deployed
-description: A New Data Connector was deployed
+description: |
+  'A New Data Connector was deployed'
 severity: Informational
-kind: Scheduled
-version: 1.0.0
+requiredDataConnectors:
+- connectorId: YourConnectorId
+  dataTypes:
+  - YourDataType
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Collection
-techniques:
-  - T1530
-requiredDataConnectors:
-  - connectorId: YourConnectorId
-    dataTypes:
-      - YourDataType
+- Collection
+relevantTechniques:
+- T1530
 query: |
   // New Sentinel Data Connector
   let SentinelRG = "your-resource-group";
@@ -27,14 +27,18 @@ query: |
   | extend RBACRole = tostring(parse_json(tostring(Authorization_d.evidence)).role)
   | summarize DataConnectors = make_set(DataConnector) by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Caller, RBACRole, CallerIpAddress
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: Caller
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: CallerIpAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: Caller
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIpAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+suppressionEnabled: true
+suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -45,7 +49,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Workspace Usage

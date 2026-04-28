@@ -6,23 +6,21 @@ description: |
   Authentication attempts should be investigated to ensure the activity was legitimate and if there is other similar activity.
   Ref: https://docs.microsoft.com/azure/active-directory/fundamentals/security-operations-user-accounts#monitoring-for-failed-unusual-sign-ins'
 severity: Medium
-kind: Scheduled
-version: 1.0.2
-status: Available
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - SigninLogs
+  - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P14D
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - InitialAccess
-techniques:
-  - T1078
-  - T1078.004
-requiredDataConnectors:
-  - connectorId: AzureActiveDirectory
-    dataTypes:
-      - SigninLogs
-      - AADNonInteractiveUserSignInLogs
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
 query: |
   let MaxSetSize = 5;
   let AzureRanges =
@@ -71,14 +69,25 @@ query: |
   ExcludedIPs
   | project-reorder FirstSeen, LastSeen, Category, UserPrincipalName, Name, UPNSuffix, Location, UserType, Results
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: FullName
-        columnName: UserPrincipalName
-      - identifier: Name
-        columnName: Name
-      - identifier: UPNSuffix
-        columnName: UPNSuffix
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+  - identifier: Name
+    columnName: Name
+  - identifier: UPNSuffix
+    columnName: UPNSuffix
+customDetails:
+  FirstObservedTime: FirstSeen
+  LastObservedTime: LastSeen
+  LogType: Category
+  CountryOfSignIn: Location
+  DirectoryMemberType: UserType
+  UserAgents: UserAgents
+  failureReason: Results
+  IPAddressInfo: IPInfo
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -89,16 +98,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-customDetails:
-  FirstObservedTime: FirstSeen
-  LastObservedTime: LastSeen
-  LogType: Category
-  CountryOfSignIn: Location
-  DirectoryMemberType: UserType
-  UserAgents: UserAgents
-  failureReason: Results
-  IPAddressInfo: IPInfo
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.2
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Entra ID

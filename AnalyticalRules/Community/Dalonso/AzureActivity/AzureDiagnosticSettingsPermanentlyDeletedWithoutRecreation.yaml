@@ -1,0 +1,79 @@
+id: 2252e245-de0e-434d-9ad2-cf0962d7361d
+name: Azure - Diagnostic Settings Permanently Deleted Without Recreation
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects deletion of Azure Diagnostic Settings that are NOT re-created within 30 minutes. Attackers delete diagnostic settings to blind monitoring/SIEM ingestion before further activity (T1562.008). FP mitigations: (1) IaC/pipeline caller patterns excluded by name — Terraform 'destroy+apply' cycles typically recreate within seconds so the 30-min re-creation window handles those; (2) Only 'Success' status events — 'Start' is pre-execution noise; (3) Requires deletion NOT followed by timely recreation — catches destructive deletions vs. IaC cycles. NOT a duplicate of built-in 'NRT Security Event log cleared' which targets Windows OS event log, not Azure Diagnostic Settings.
+severity: High
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+relevantTechniques:
+- T1562
+query: |
+  let ExcludedCallerPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "arm-"]);
+  let Deletions = AzureActivity
+      | where TimeGenerated > ago(2h)
+      | where OperationNameValue =~ "MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/DELETE"
+      | where ActivityStatusValue =~ "Success"
+      | where not(tolower(Caller) has_any (ExcludedCallerPatterns))
+      | where isnotempty(CallerIpAddress)
+      | project DeletionTime = TimeGenerated, Caller, ResourceId, CallerIpAddress, SubscriptionId, ResourceGroup;
+  let Recreations = AzureActivity
+      | where TimeGenerated > ago(2h)
+      | where OperationNameValue =~ "MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/WRITE"
+      | where ActivityStatusValue =~ "Success"
+      | summarize EarliestRecreation = min(TimeGenerated) by ResourceId;
+  Deletions
+  | join kind=leftouter Recreations on ResourceId
+  | where isnull(EarliestRecreation) or EarliestRecreation > DeletionTime + 30m
+  | summarize
+      DeletionCount = count(),
+      DeletedSettings = make_set(ResourceId, 10),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstDeletion = min(DeletionTime),
+      LastDeletion = max(DeletionTime)
+      by Caller, SubscriptionId, ResourceGroup
+  | where DeletionCount >= 1
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Diag Settings deleted by {{Caller}} — no recreation within 30 min'
+  alertDescriptionFormat: '{{Caller}} deleted {{DeletionCount}} diagnostic setting(s) from {{SubscriptionId}} with no timely recreation. Resources:'
+customDetails:
+  DeletionCount: DeletionCount
+  DeletedSettings: DeletedSettings
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

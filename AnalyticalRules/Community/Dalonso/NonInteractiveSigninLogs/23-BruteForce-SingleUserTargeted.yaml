@@ -1,0 +1,87 @@
+id: e8f4a6b7-c2d3-5e9f-0a1b-2c3d4e5f6a7b
+name: Non-Interactive Brute Force - Single User Targeted by Multiple IPs
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects targeted brute force / credential stuffing attacks against a single user account
+  via non-interactive sign-ins, where the attacker uses multiple IP addresses to avoid
+  rate limiting. The attack manifests as many authentication failures with wrong-password
+  or locked-account error codes across distributed source IPs targeting the same user.
+  MITRE ATT&CK: T1110 (Brute Force), T1110.001 (Password Guessing), T1110.004 (Credential Stuffing)
+severity: Medium
+requiredDataConnectors:
+- connectorId: AzureActiveDirectory
+  dataTypes:
+  - AADNonInteractiveUserSignInLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- InitialAccess
+relevantTechniques:
+- T1110
+query: |
+  let BruteForceErrors = dynamic([
+      "50126",  // InvalidPasswordOrUsernameOrTenantInvalid
+      "50055",  // InvalidPasswordExpiredPassword
+      "50056",  // InvalidPasswordNullPassword
+      "50064",  // CredentialAuthenticationError
+      "50053",  // IdsLocked (account locked)
+      "50034",  // UserAccountNotFound
+      "50057",  // UserDisabled
+      "50128"   // InvalidTenantName
+  ]);
+  AADNonInteractiveUserSignInLogs
+  | where TimeGenerated > ago(1h)
+  | extend ErrorCode = tostring(ResultType)
+  | where ErrorCode in (BruteForceErrors)
+  | summarize
+      FailCount   = count(),
+      UniqueIPs   = dcount(IPAddress),
+      IPs         = make_set(IPAddress, 20),
+      Countries   = make_set(Location),
+      ErrorCodes  = make_set(ErrorCode),
+      FirstSeen   = min(TimeGenerated),
+      LastSeen    = max(TimeGenerated)
+    by UserPrincipalName
+  | where FailCount > 20
+  | extend IPAddress = tostring(IPs[0])
+  | order by FailCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserPrincipalName
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Brute Force Attack - {{UserPrincipalName}} received {{FailCount}} failures from {{UniqueIPs}} IPs'
+  alertDescriptionFormat: 'Account {{UserPrincipalName}} received {{FailCount}} non-interactive sign-in failures from {{UniqueIPs}} distinct IP addresses. Matches a distributed brute force or credential
+    stuffing pattern.'
+customDetails:
+  FailureCount: FailCount
+  UniqueIPs: UniqueIPs
+  Countries: Countries
+  ErrorCodes: ErrorCodes
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AnyAlert
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

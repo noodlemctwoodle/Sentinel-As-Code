@@ -1,0 +1,69 @@
+id: a9b0c1d2-e3f4-4a5b-6c7d-8e9f0a1b2c3d
+name: Protocol Anomaly - HTTP or HTTPS on Non-Standard Ports
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects allowed firewall or proxy connections using HTTP or HTTPS application protocols on
+  ports other than standard ones (80, 8080, 8000, 3128 for HTTP; 443, 8443 for HTTPS).
+  Many C2 frameworks (Cobalt Strike, Metasploit, custom RATs) use alternate ports combined
+  with HTTP/HTTPS to blend into web traffic while evading port-based firewall rules. This
+  pattern is a strong indicator of command-and-control channel establishment.
+  MITRE ATT&CK: T1571 (Non-Standard Port)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1571
+query: |
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP")
+  | where (ApplicationProtocol in ("HTTP", "http") and DestinationPort !in (80, 8080, 8000, 3128))
+      or (ApplicationProtocol in ("HTTPS", "https", "SSL", "ssl") and DestinationPort !in (443, 8443))
+      or (Protocol in ("HTTP", "http") and DestinationPort !in (80, 8080, 8000, 3128))
+      or (Protocol in ("HTTPS", "https") and DestinationPort !in (443, 8443))
+  | summarize
+      ConnectionCount  = count(),
+      SourceIPs        = make_set(SourceIP, 20),
+      DestIPs          = make_set(DestinationIP, 20),
+      BytesSent        = sum(SentBytes),
+      URLSamples       = make_set(RequestURL, 10),
+      DeviceVendors    = make_set(DeviceVendor),
+      FirstSeen        = min(TimeGenerated),
+      LastSeen         = max(TimeGenerated)
+    by DestinationPort, ApplicationProtocol, Protocol
+  | order by ConnectionCount desc
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Non-Standard Protocol Port - {{ApplicationProtocol}} on port {{DestinationPort}}'
+  alertDescriptionFormat: '{{ConnectionCount}} allowed connections using {{ApplicationProtocol}} on non-standard port {{DestinationPort}}. Possible C2 channel disguised as web traffic.'
+customDetails:
+  ConnectionCount: ConnectionCount
+  DestinationPort: DestinationPort
+  ApplicationProtocol: ApplicationProtocol
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AnyAlert
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails:
+    - DestinationPort
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

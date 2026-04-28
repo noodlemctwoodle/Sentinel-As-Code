@@ -1,0 +1,99 @@
+id: b0c1d2e3-f4a5-4b6c-7d8e-9f0a1b2c3d4e
+name: 'Correlation: Firewall Traffic from High-Risk Identity (IdentityInfo)'
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Correlates Fortinet, Palo Alto, and Zscaler firewall/proxy allowed traffic with the
+  IdentityInfo table (UEBA) to identify accounts flagged with elevated investigation priority
+  that are actively generating significant traffic volume. A high-risk or compromised identity
+  generating large firewall sessions amplifies the exfiltration or lateral movement risk and
+  should be prioritized for investigation.
+  Requires: Microsoft Sentinel UEBA (IdentityInfo populated by BehaviorAnalytics).
+  MITRE ATT&CK: T1078 (Valid Accounts)
+severity: High
+requiredDataConnectors:
+- connectorId: CommonSecurityEvents
+  dataTypes:
+  - CommonSecurityLog
+- connectorId: BehaviorAnalytics
+  dataTypes:
+  - BehaviorAnalytics
+queryFrequency: PT1H
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- DefenseEvasion
+relevantTechniques:
+- T1078
+query: |
+  let RiskyIdentities =
+      IdentityInfo
+      | where TimeGenerated > ago(14d)
+      | where isnotempty(AccountUPN)
+      | summarize
+          RiskScore        = max(InvestigationPriority),
+          JobTitle         = any(JobTitle),
+          Department       = any(Department),
+          ManagerUPN       = any(ManagerUPN),
+          AccountEnabled   = any(AccountEnabled)
+        by AccountUPN;
+  CommonSecurityLog
+  | where TimeGenerated > ago(1d)
+  | where DeviceVendor in ("Fortinet", "Palo Alto Networks", "Zscaler")
+  | where DeviceAction !in ("deny", "block", "drop", "BLOCK", "DROP")
+  | where isnotempty(SourceUserName)
+  | summarize
+      FW_RequestCount  = count(),
+      FW_BytesSent     = sum(SentBytes),
+      FW_BytesRecv     = sum(ReceivedBytes),
+      FW_DestIPs       = dcount(DestinationIP),
+      FW_Vendors       = make_set(DeviceVendor),
+      FW_SrcIPs        = make_set(SourceIP, 5),
+      FW_FirstSeen     = min(TimeGenerated)
+    by UserName = tolower(SourceUserName)
+  | join kind=inner RiskyIdentities on $left.UserName == $right.AccountUPN
+  | extend TotalMBSent = round(toreal(FW_BytesSent) / 1048576, 2)
+  | project
+      UserName,
+      JobTitle,
+      Department,
+      RiskScore,
+      FW_RequestCount,
+      TotalMBSent,
+      FW_DestIPs,
+      FW_Vendors,
+      FW_SrcIPs
+  | order by RiskScore desc, TotalMBSent desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: UserName
+alertDetailsOverride:
+  alertDisplayNameFormat: 'Risky Identity Firewall Activity - {{UserName}} (risk: {{RiskScore}})'
+  alertDescriptionFormat: 'High-risk user {{UserName}} (investigation priority: {{RiskScore}}) generated {{TotalMBSent}} MB through the firewall. Identity risk combined with high traffic volume is a critical
+    exfiltration or abuse indicator.'
+customDetails:
+  RiskScore: RiskScore
+  TotalMBSent: TotalMBSent
+  FW_RequestCount: FW_RequestCount
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT12H
+    matchingMethod: Selected
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

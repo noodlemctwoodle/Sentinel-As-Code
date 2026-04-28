@@ -1,43 +1,41 @@
 id: 3ff61aae-69ca-4fa4-8891-32464d5e3dde
 name: Invoke-DumpApps PowerShell Module Usage Detection
-description: |-
+description: |
   This detection identifies the use of the Invoke-DumpApps PowerShell module, which is designed to enumerate Azure application registrations across a tenant. The module systematically queries Microsoft Graph API endpoints to collect comprehensive information about app registrations, including permission scopes, consent grants, and third-party applications.
 
   The detection specifically monitors the characteristic pattern of Graph API calls made by this module, which generates a high volume of requests to user directories, organization information, application registrations, and service principal endpoints. This activity may indicate reconnaissance efforts to identify third-party external applications that users have consented to, which could represent potential security risks or attack vectors.
 
   The rule incorporates user context and blast radius assessment to prioritize alerts based on the privileges of the account performing the enumeration. This helps security teams quickly identify whether the activity represents legitimate administrative work or potentially malicious reconnaissance. Each alert provides detailed information about the specific endpoints accessed, the timing and pattern of requests, and the user's position within the organization to facilitate rapid investigation and response.
 severity: Medium
-kind: Scheduled
-version: 1.0.0
-status: Available
+requiredDataConnectors:
+- connectorId: MicrosoftGraphActivityLogs
+  dataTypes:
+  - MicrosoftGraphActivityLogs
 queryFrequency: PT5H
 queryPeriod: PT5H
-triggerOperator: GreaterThan
+triggerOperator: gt
 triggerThreshold: 0
+enabled: true
 tactics:
-  - Reconnaissance
-  - InitialAccess
-  - DefenseEvasion
-  - CredentialAccess
-  - LateralMovement
-  - Discovery
-techniques:
-  - T1595
-  - T1595.002
-  - T1078
-  - T1078.004
-  - T1589
-  - T1550
-  - T1550.001
-  - T1562
-  - T1539
-  - T1087
-  - T1087.004
-requiredDataConnectors:
-  - connectorId: MicrosoftGraphActivityLogs
-    dataTypes:
-      - MicrosoftGraphActivityLogs
-query: |-
+- Reconnaissance
+- InitialAccess
+- DefenseEvasion
+- CredentialAccess
+- LateralMovement
+- Discovery
+relevantTechniques:
+- T1078
+- T1078.004
+- T1087
+- T1087.004
+- T1539
+- T1550
+- T1550.001
+- T1562
+- T1589
+- T1595
+- T1595.002
+query: |
   let InvokeDumpAppsCalls = dynamic([
   "https://graph.microsoft.com/v1.0/users/",
   "https://graph.microsoft.com/v1.0/organization",
@@ -133,16 +131,18 @@ query: |-
   AppIdsAccessed = array_length(RequestedAppIds)
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-  - entityType: Account
-    fieldMappings:
-      - identifier: Name
-        columnName: UserDisplayName
-      - identifier: AadUserId
-        columnName: UserId
-  - entityType: IP
-    fieldMappings:
-      - identifier: Address
-        columnName: IPAddress
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserDisplayName
+  - identifier: AadUserId
+    columnName: UserId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+eventGroupingSettings:
+  aggregationKind: SingleAlert
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -153,7 +153,9 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
-eventGroupingSettings:
-  aggregationKind: SingleAlert
-suppressionEnabled: false
-suppressionDuration: PT5H
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Microsoft Graph

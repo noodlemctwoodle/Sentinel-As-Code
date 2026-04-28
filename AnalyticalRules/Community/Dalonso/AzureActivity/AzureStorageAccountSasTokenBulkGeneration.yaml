@@ -1,0 +1,79 @@
+id: ec3043b1-affe-4bf3-a6b6-8aead6c15d82
+name: Azure - Storage Account SAS Token Bulk Generation
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects when a single identity generates 3 or more SAS tokens (ListAccountSAS/ListServiceSAS) within a 30-minute window. Attackers that gain Azure management access generate SAS tokens as an alternative authentication material (T1550) to exfiltrate storage data without leaving standard AAD sign-in traces. These exact operation names were observed in this workspace. FP mitigations: (1) known backup and monitoring SP name patterns excluded; (2) threshold of 3+ in 30 min avoids single-use app auth flows; (3) correlated across both AccountSAS and ServiceSAS operation types — legitimate single-SA access typically uses one type.
+severity: Medium
+queryFrequency: PT1H
+queryPeriod: PT2H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CredentialAccess
+- DefenseEvasion
+- Exfiltration
+- LateralMovement
+query: |
+  let ExcludedPatterns = dynamic(["backup", "monitor", "storagesync", "azurebackup", "recov"]);
+  AzureActivity
+  | where TimeGenerated > ago(2h)
+  | where OperationNameValue has_any ("LISTACCOUNTSAS/ACTION", "LISTSERVICESAS/ACTION")
+  | where ActivityStatusValue =~ "Success"
+  | where not(tolower(Caller) has_any (ExcludedPatterns))
+  | where isnotempty(CallerIpAddress)
+  | where CallerIpAddress !startswith "168.63."
+  | summarize
+      SASGenerationCount = count(),
+      TargetAccounts = make_set(tostring(split(ResourceId, "/")[8]), 10),
+      OperationTypes = make_set(OperationNameValue, 3),
+      SourceIPs = make_set(CallerIpAddress, 5),
+      CallerIP = any(CallerIpAddress),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+      by Caller, SubscriptionId, bin(TimeGenerated, 30m)
+  | where SASGenerationCount >= 3
+  | join kind=leftouter (
+      StorageBlobLogs
+      | where TimeGenerated > ago(2h)
+      | where OperationName == "GetBlob" and StatusCode == "200"
+      | summarize BlobReadCount = count(), TotalBytesRead = sum(ResponseBodySize) by RequesterObjectId
+  ) on $left.Caller == $right.RequesterObjectId
+  | extend
+      AccountName = tostring(split(Caller, "@")[0]),
+      AccountUPNSuffix = tostring(split(Caller, "@")[1])
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountName
+  - identifier: UPNSuffix
+    columnName: AccountUPNSuffix
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: CallerIP
+alertDetailsOverride:
+  alertDisplayNameFormat: 'SAS bulk generation: {{SASGenerationCount}} tokens by {{Caller}}'
+  alertDescriptionFormat: '{{Caller}} generated {{SASGenerationCount}} SAS tokens for accounts {{TargetAccounts}} within 30 min from IP'
+customDetails:
+  SASGenerationCount: SASGenerationCount
+  TargetAccounts: TargetAccounts
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: PT6H
+    matchingMethod: AllEntities
+    groupByEntities:
+    - Account
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting

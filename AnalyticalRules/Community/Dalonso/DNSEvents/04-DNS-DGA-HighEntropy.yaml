@@ -1,0 +1,69 @@
+id: a1b2c3d4-0004-4a5b-8c9d-dns004dga
+name: DGA — High-Entropy Subdomain Pattern (Domain Generation Algorithm)
+description: "Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.\n\nDetects clients communicating with Domain Generation Algorithm (DGA)\
+  \ generated\ndomains. DGA malware (Emotet, QakBot, Dridex, TrickBot, SolarWinds Sunburst)\ngenerates pseudo-random domain names at regular intervals, trying many until\none resolves to an active C2 server.\n\
+  Detection is based on the second-level domain character analysis:\n- High ratio of consonants (>65%) — real words are ~40-55% consonant\n- Contains embedded digits — rare in real brand names\n- Length\
+  \ between 10–40 characters — DGA sweet spot\n- High unique character count — randomness indicator\nDifferentiation from built-in \"Potential DGA via Repetitive Failures\n(Normalized DNS)\":\nThe built-in\
+  \ detects DGA via NXDOMAIN failure rate only — if the C2 domain\nhas already been registered and resolves, the built-in misses it. This rule\napplies consonant-ratio entropy analysis to SUCCESSFUL queries\
+  \ (NOERROR), \ncatching active C2 beaconing where the DGA domain resolved. Enables detection\nof DGA malware in its post-initial-C2-registration phase.\n"
+severity: High
+requiredDataConnectors:
+- connectorId: WindowsDnsAma
+  dataTypes:
+  - ASimDnsActivityLogs
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- CommandAndControl
+relevantTechniques:
+- T1568.002
+query: |
+  ASimDnsActivityLogs
+  | where TimeGenerated > ago(1h)
+  | extend SLD = tostring(split(DnsQuery, ".")[-2])
+  | where strlen(SLD) between (10 .. 40)
+  | extend
+      SLDLen         = strlen(SLD),
+      HasDigits      = SLD matches regex @"\d",
+      ConsonantCount = countof(SLD, "b") + countof(SLD, "c") + countof(SLD, "d")
+                     + countof(SLD, "f") + countof(SLD, "g") + countof(SLD, "h")
+                     + countof(SLD, "j") + countof(SLD, "k") + countof(SLD, "l")
+                     + countof(SLD, "m") + countof(SLD, "n") + countof(SLD, "p")
+                     + countof(SLD, "q") + countof(SLD, "r") + countof(SLD, "s")
+                     + countof(SLD, "t") + countof(SLD, "v") + countof(SLD, "w")
+                     + countof(SLD, "x") + countof(SLD, "y") + countof(SLD, "z")
+  | extend ConsonantRatio = todouble(ConsonantCount) / todouble(SLDLen)
+  | where ConsonantRatio > 0.65
+       and HasDigits == true
+  | summarize
+      DgaLikeDomains = dcount(DnsQuery),
+      QueryCount     = count(),
+      SampleDomains  = make_set(DnsQuery, 15),
+      FirstSeen      = min(TimeGenerated),
+      LastSeen       = max(TimeGenerated)
+    by SrcIpAddr, SrcHostname
+  | where DgaLikeDomains > 10
+entityMappings:
+- entityType: Host
+  fieldMappings:
+  - identifier: HostName
+    columnName: SrcHostname
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+alertDetailsOverride:
+  alertDisplayNameFormat: 'DGA Activity — {{SrcHostname}} queried {{DgaLikeDomains}} high-entropy domains'
+  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) queried {{DgaLikeDomains}} high-entropy domains consistent with DGA malware activity. Sample:'
+customDetails:
+  DgaLikeDomains: DgaLikeDomains
+  SampleDomains: SampleDomains
+version: 1.0.0
+kind: Scheduled
+tags:
+- Community
+- David Alonso
+- Threat Hunting
