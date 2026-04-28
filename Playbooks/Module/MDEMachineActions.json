@@ -1,0 +1,646 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "MDEMachineActions",
+    "description": "Reusable automation module: MDEMachineActions.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-MDEMachineActions",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftDefenderXDRConnectionName": "[concat('MicrosoftDefenderXDR-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_HTTP_request_is_received": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "DeviceId": {
+                      "type": "string"
+                    },
+                    "hostName": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "actions": {
+            "Switch": {
+              "runAfter": {
+                "Condition_2": [
+                  "Succeeded"
+                ]
+              },
+              "cases": {
+                "Isolate_Device": {
+                  "case": "IsolateMDEMachine",
+                  "actions": {
+                    "Actions_-_Isolate_machine": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "Host is isolated using playbook Module-MDEMachineActions.",
+                          "IsolationType": "Full"
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(variables('DeviceId'))}/isolate"
+                      }
+                    },
+                    "Append_to_string_Isolate_Response": {
+                      "runAfter": {
+                        "Actions_-_Isolate_machine": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "AppendToStringVariable",
+                      "inputs": {
+                        "name": "Response",
+                        "value": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                      }
+                    }
+                  }
+                },
+                "UnIsolate_Device": {
+                  "case": "UnIsolateMDEMachine",
+                  "actions": {
+                    "Actions_-_Unisolate_machine": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "Host is removed from isolation using playbook Module-MDEMachineActions."
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(variables('DeviceId'))}/unisolate"
+                      }
+                    },
+                    "UnIsolate_Response": {
+                      "runAfter": {
+                        "Actions_-_Unisolate_machine": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                      }
+                    }
+                  }
+                },
+                "Restrict_App_Execution": {
+                  "case": "RestrictAppExecutionMDEMachine",
+                  "actions": {
+                    "Actions_-_Restrict_app_execution": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "App Execution Restricted using playbook Module-MDEMachineActions."
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(variables('DeviceId'))}/restrictCodeExecution"
+                      }
+                    },
+                    "Restrict_Execution_Response": {
+                      "runAfter": {
+                        "Actions_-_Restrict_app_execution": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                      }
+                    }
+                  }
+                },
+                "UnRestrict_App_Execution": {
+                  "case": "UnRestrictAppExecutionMDEMachine",
+                  "actions": {
+                    "Actions_-_Remove_app_execution_restriction": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "Removed App Execution Restriction using playbook Module-MDEMachineActions."
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(variables('DeviceId'))}/unrestrictCodeExecution"
+                      }
+                    },
+                    "UnRestrict_Execution_Response": {
+                      "runAfter": {
+                        "Actions_-_Remove_app_execution_restriction": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                      }
+                    }
+                  }
+                },
+                "Run_AV_Scan": {
+                  "case": "RunAVScanMDEMachine",
+                  "actions": {
+                    "Actions_-_Run_antivirus_scan": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "AV scan has been initiated using playbook Module-MDEMachineActions.",
+                          "ScanType": "Full"
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(triggerBody()?['DeviceId'])}/runAntiVirusScan"
+                      }
+                    },
+                    "AV_Scan_Response": {
+                      "runAfter": {
+                        "Actions_-_Run_antivirus_scan": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                      }
+                    }
+                  }
+                },
+                "Investigation_Package": {
+                  "case": "CollectInvestigationPackageMDE",
+                  "actions": {
+                    "Investigation_Package_Response": {
+                      "runAfter": {
+                        "Actions_-_Collect_investigation_package": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": "@body('Machines_-_Get_single_machine')?['id']"
+                      }
+                    },
+                    "Actions_-_Collect_investigation_package": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Comment": "Collection of an Investigation Package has been initiated using playbook Module-MDEMachineActions."
+                        },
+                        "path": "/api/machines/@{encodeURIComponent(variables('DeviceId'))}/collectInvestigationPackage"
+                      }
+                    }
+                  }
+                },
+                "Get_Investigation_List": {
+                  "case": "Entity-GetInvestigationList",
+                  "actions": {
+                    "Actions_-_Get_list_of_investigation": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['wdatp']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/api/investigations",
+                        "queries": {
+                          "$filter": "machineId eq '@{body('Machines_-_Get_single_machine')?['id']}'",
+                          "$top": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "default": {
+                "actions": {
+                  "Response": {
+                    "type": "Response",
+                    "kind": "Http",
+                    "inputs": {
+                      "statusCode": 404,
+                      "body": "@body('Machines_-_Get_single_machine')?['computerDnsName']"
+                    }
+                  }
+                }
+              },
+              "expression": "@outputs('Compose')",
+              "type": "Switch"
+            },
+            "Compose": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "@split(triggerOutputs()?['headers']?['x-ms-workflow-name'], '-')[1]"
+            },
+            "Condition_1": {
+              "actions": {
+                "Machines_-_Get_single_machine": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['wdatp']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/api/machines/@{encodeURIComponent(triggerBody()?['hostName'])}"
+                  }
+                },
+                "Append_to_string_variable": {
+                  "runAfter": {
+                    "Machines_-_Get_single_machine": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "DeviceId",
+                    "value": "@body('Machines_-_Get_single_machine')?['id']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Initialize_Response_variable": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Machines_-_Get_single_machine-copy": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['wdatp']['connectionId']"
+                        }
+                      },
+                      "method": "get",
+                      "path": "/api/machines/@{encodeURIComponent(triggerBody()?['DeviceId'])}"
+                    }
+                  },
+                  "Append_to_string_variable_1": {
+                    "runAfter": {
+                      "Machines_-_Get_single_machine-copy": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "AppendToStringVariable",
+                    "inputs": {
+                      "name": "DeviceId",
+                      "value": "@body('Machines_-_Get_single_machine-copy')?['id']"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@triggerBody()?['DeviceId']",
+                      "@null"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Initialize_DeviceId_variable": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "DeviceId",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Condition": {
+              "actions": {},
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "or": [
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-IsolateMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-UnIsolateMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-IsolateMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-UnIsolateMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-RestrictAppExecutionMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-UnRestrictAppExecutionMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-RestrictAppExecutionMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-UnRestrictAppExecutionMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-RunAVScanMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-RunAVScanMDEMachine"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-CollectInvestigationPackageMDE"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Incident-CollectInvestigationPackageMDE"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()['headers']?['x-ms-workflow-name']",
+                      "Entity-GetInvestigationList"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "",
+                      ""
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Condition_2": {
+              "actions": {
+                "Compose_Error": {
+                  "type": "Compose",
+                  "inputs": {
+                    "error": {
+                      "code": "InvalidDeviceID",
+                      "message": "The MDE Device ID cannot be null. Please provide a valid Device ID.",
+                      "details": {
+                        "field": "DeviceID",
+                        "required": true
+                      },
+                      "resolution": {
+                        "steps": [
+                          "Verify that the Device ID is included in the request.",
+                          "Ensure the Device ID is correctly formatted and not empty.",
+                          "If the issue persists, contact support with this error code."
+                        ]
+                      }
+                    }
+                  }
+                },
+                "Terminate_no_DeviceId": {
+                  "runAfter": {
+                    "Compose_Error": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Terminate",
+                  "inputs": {
+                    "runStatus": "Cancelled"
+                  }
+                }
+              },
+              "runAfter": {
+                "Condition_1": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {}
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@variables('DeviceId')",
+                      "@null"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Initialize_Response_variable": {
+              "runAfter": {
+                "Initialize_DeviceId_variable": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "Response",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "End_Response": {
+              "runAfter": {
+                "Switch": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@variables('Response')"
+              }
+            }
+          }
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "wdatp": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]",
+                "connectionName": "[variables('MicrosoftDefenderXDRConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftDefenderXDRConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftDefenderXDRConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]"
+        }
+      }
+    }
+  ]
+}

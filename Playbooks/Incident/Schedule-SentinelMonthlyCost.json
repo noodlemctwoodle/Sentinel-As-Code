@@ -1,0 +1,326 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "Schedule-SentinelMonthlyCost",
+    "description": "Sentinel incident-trigger playbook for Schedule-SentinelMonthlyCost targeting Account, Host, IP entities.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [
+      "Account",
+      "Host",
+      "IP"
+    ],
+    "tags": [
+      "Incident",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Schedule-SentinelMonthlyCost",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinel0ConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]",
+    "Office3650ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "ClientName": {
+              "defaultValue": "Client Template",
+              "type": "String"
+            },
+            "Recipients ": {
+              "defaultValue": "socengineer@domain.com",
+              "type": "String"
+            },
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@listCallbackUrl()"
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Email_Template": {
+              "runAfter": {
+                "Create_HTML_table": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link href=\"https://fonts.googleapis.com/css?family=Roboto&display=swap\" rel=\"stylesheet\">\n    <style>\n        /* Sentinel Global Font */\n        body,\n        table {\n            font-family: 'Roboto', sans-serif;\n        }\n\n        /* Add styling for the nested table */\n        table table {\n            width: 100%;\n            border-collapse: collapse;\n        }\n\n        table table th,\n        table table td {\n            padding: 10px;\n            border: 1px solid #ccc;\n        }\n\n        table table th:nth-child(n+2),\n        table table td:nth-child(n+2) {\n            text-align: center;\n        }\n\n        table table thead tr {\n            background-color: #ddd;\n        }\n    </style>\n\n</head>\n\n<body>\n    <p>&nbsp;</p>\n    <!-- Microsoft Sentinel Monthly Cost Template -->\n    <table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">\n        <tbody>\n            <tr>\n                <td style=\"padding: 20px 0;\" align=\"center\">\n                    <table style=\"max-width: 650px; width: 100%; border-collapse: collapse; background-color: #000000;\">\n                        <tbody>\n                            <tr>\n                                <td style=\"padding: 20px;\" align=\"center\"><img class=\"logo\"\n                                        style=\"margin: 20px auto; display: block; width: 450px;\"\n                                        src=\"https://i.postimg.cc/DZ5Kqgb6/sentinel.webp\"\n                                        alt=\"domain.com Logo\" width=\"150\" /></td>\n                            </tr>\n                            <!-- Microsoft Outlook Email Body -->\n                            <tr style=\"background-color: #f2f2f2;\">\n                                <td style=\"padding: 20px;\">\n                                    <h2 style=\"font-size: 26px; color: #2f06e6; text-align: center;\">@{parameters('ClientName')} Microsoft Sentinel Cost</h2>\n                                    <p style=\"text-align: left;\">Date: @{formatDateTime(utcNow(), 'dd-MM-yyyy')}</p>\n                                    <p> Below is a comprehensive breakdown of the Microsoft Sentinel costs incurred from @{formatDateTime(startOfMonth(addDays(utcNow(), -1)), 'dd MMMM yyyy')}, through @{formatDateTime(addDays(startOfMonth(utcNow()), -1), 'dd MMMM yyyy')}. </p>\n                                    <p>For an in-depth exploration of these costs, please refer to the Microsoft Sentinel Cost Workbook.</p>\n                                    <p><a><img src='https://i.ibb.co/42HHMp6/cost-Workbook.png' alt='cost-Workbook.png' border='0'></a></p>\n                                    <p>To locate the Microsoft Sentinel Cost Workbook, please follow this path: </p>\n                                    <p>In Microsoft Sentinel, select 'Workbooks', and then choose 'Microsoft Sentinel\n                                        Cost (GBP)' from the list of deployed Workbooks.</p>\n                                </td>\n                            </tr>\n                            <!-- Microsoft Sentinel Playbook Nested HTML Table -->\n                            <tr style=\"text-align: left; background-color: #f2f2f2;\">\n                                <td>\n                                    @{body('Create_HTML_table')}\n                                </td>\n                            </tr>\n                            <!-- Microsoft Outlook Email Footer -->\n                            <tr>\n                                <td style=\"padding: 20px; background-color: #ebe9e2;\" align=\"center\">\n                                    <p style=\"font-size: 16.0pt;\"><strong>Sentinel Security</strong></p>\n                                    <p>If you have any questions, please reach out to the security team:\n                                        <a style=\"color: #2f06e6;\" href=\"mailto:secops@domain.com\">Sentinel Security Team</a>\n                                    </p>\n                                </td>\n                            </tr>\n                        </tbody>\n                    </table>\n                </td>\n            </tr>\n        </tbody>\n    </table>\n</body>\n\n</html>"
+            },
+            "Send_an_email_(V2)": {
+              "runAfter": {
+                "Terminate": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365-1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "To": "@{parameters('Recipients ')}",
+                  "Subject": "@{parameters('ClientName')} Monthly Cost",
+                  "Body": "<p>@{outputs('Email_Template')}</p>",
+                  "Importance": "Normal"
+                },
+                "path": "/v2/Mail"
+              }
+            },
+            "Entities_-_Get_Accounts": {
+              "runAfter": {
+                "Initialize_variable": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "path": "/entities/account"
+              }
+            },
+            "Entities_-_Get_Hosts": {
+              "runAfter": {
+                "For_each_3": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "path": "/entities/host"
+              }
+            },
+            "Entities_-_Get_IPs": {
+              "runAfter": {
+                "For_each_4": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "path": "/entities/ip"
+              }
+            },
+            "Initialize_variable": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "Entities",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "For_each_3": {
+              "foreach": "@body('Entities_-_Get_Accounts')?['Accounts']",
+              "actions": {
+                "Append_to_array_variable": {
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "Entities",
+                    "value": "@items('For_each_3')?['Name']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Entities_-_Get_Accounts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "For_each_4": {
+              "foreach": "@body('Entities_-_Get_Hosts')?['Hosts']",
+              "actions": {
+                "Append_to_array_variable-copy": {
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "Entities",
+                    "value": "@items('For_each_4')?['HostName']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Entities_-_Get_Hosts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "For_each_5": {
+              "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+              "actions": {
+                "Append_to_array_variable-copy_1": {
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "Entities",
+                    "value": "@items('For_each_5')?['Address']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Entities_-_Get_IPs": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Create_HTML_table": {
+              "runAfter": {
+                "For_each_5": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('Entities')",
+                "format": "HTML"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Email_Template": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              },
+              "office365-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+                "connectionName": "[variables('Office3650ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office3650ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office3650ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,318 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "SendApprovalEmail",
+    "description": "Sentinel incident-trigger playbook for SendApprovalEmail targeting Account entities.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [
+      "Account"
+    ],
+    "tags": [
+      "Incident",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "SendApprovalEmail",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "Office3650ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]",
+    "azuresentinel0ConnectionName": "[concat('azuresentinel0-', parameters('PlaybookName'))]",
+    "azuresentinel1ConnectionName": "[concat('azuresentinel1-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Entities_-_Get_Accounts": {
+              "runAfter": {
+                "Initialize_variable": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "path": "/entities/account"
+              }
+            },
+            "Send_approval_email": {
+              "runAfter": {
+                "For_each": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "body": {
+                  "NotificationUrl": "@listCallbackUrl()",
+                  "Message": {
+                    "To": "acid.burn@domain.com",
+                    "Body": "The User: @{variables('Accounts')} has trigger a potential session theft incident, can we close this or not? \n\n@{triggerBody()?['object']?['properties']?['title']} - @{triggerBody()?['object']?['properties']?['severity']}\n\nIncident Info:\n@{triggerBody()?['object']?['properties']?['incidentUrl']}",
+                    "Importance": "High",
+                    "UseOnlyHTMLMessage": false,
+                    "HideHTMLMessage": false,
+                    "ShowHTMLConfirmationDialog": true,
+                    "Subject": "Approval Request to close Incident",
+                    "Options": "Approve, Reject"
+                  }
+                },
+                "path": "/approvalmail/$subscriptions"
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Update_incident": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                      }
+                    },
+                    "method": "put",
+                    "body": {
+                      "incidentArmId": "@triggerBody()?['object']?['id']",
+                      "severity": "@triggerBody()?['object']?['properties']?['severity']",
+                      "status": "Closed",
+                      "classification": {
+                        "ClassificationAndReason": "BenignPositive - SuspiciousButExpected",
+                        "ClassificationReasonText": "Approval to close incident from User"
+                      }
+                    },
+                    "path": "/Incidents"
+                  }
+                }
+              },
+              "runAfter": {
+                "Send_approval_email": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Add_task_to_incident": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                        }
+                      },
+                      "method": "post",
+                      "body": {
+                        "incidentArmId": "@triggerBody()?['object']?['id']",
+                        "taskTitle": "Contact User",
+                        "taskDescription": "<p class=\"editor-paragraph\">Contact End User about Incicent</p>"
+                      },
+                      "path": "/Incidents/CreateTask"
+                    }
+                  },
+                  "Terminate": {
+                    "runAfter": {
+                      "Add_task_to_incident": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Succeeded"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@body('Send_approval_email')?['SelectedOption']",
+                      "Approve"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "For_each": {
+              "foreach": "@body('Entities_-_Get_Accounts')?['Accounts']",
+              "actions": {
+                "Append_to_string_variable": {
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "Accounts",
+                    "value": "@items('For_each')?['Name']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Entities_-_Get_Accounts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Initialize_variable": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "Accounts",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "office365": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+                "connectionName": "[variables('Office3650ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              },
+              "azuresentinel-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('azuresentinel0ConnectionName'))]",
+                "connectionName": "[variables('azuresentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              },
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('azuresentinel1ConnectionName'))]",
+                "connectionName": "[variables('azuresentinel1ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('azuresentinel0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('azuresentinel1ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office3650ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office3650ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('azuresentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('azuresentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('azuresentinel1ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('azuresentinel1ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    }
+  ]
+}

@@ -1,134 +1,130 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Module-DefenderRestrictDomain",
-        "description": "Add File Hash to Defender XDR Indicators module",
-        "lastUpdateTime": "31-07-2024",
-        "entities": [],
-        "tags": [],
-        "support": {
-            "tier": "community"
-        },
-        "author": {
-            "name": "noodlemctwoodle"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "DefenderRestrictDomain",
+    "description": "Reusable automation module: DefenderRestrictDomain.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": {
-            "defaultValue": "Module-DefenderRestrictDomain",
-            "type": "string"
-        }
-    },
-    "variables": {},
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded",
-                "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "$connections": {
-                            "defaultValue": {},
-                            "type": "Object"
-                        }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-DefenderRestrictDomain",
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_HTTP_request_is_received": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "playbookName": {
+                      "type": "string"
                     },
-                    "triggers": {
-                        "When_a_HTTP_request_is_received": {
-                            "type": "Request",
-                            "kind": "Http",
-                            "inputs": {
-                                "schema": {
-                                    "properties": {
-                                        "playbookName": {
-                                            "type": "string"
-                                        },
-                                        "incidentArmId": {
-                                            "type": "string"
-                                        },
-                                        "indicatorValue": {
-                                            "type": "string"
-                                        },
-                                        "entityProperties": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                    "incidentArmId": {
+                      "type": "string"
                     },
-                    "actions": {
-                        "HTTP": {
-                            "runAfter": {},
-                            "type": "Http",
-                            "inputs": {
-                                "uri": "https://api.securitycenter.windows.com/api/indicators",
-                                "method": "POST",
-                                "body": {
-                                    "action": "AlertAndBlock",
-                                    "application": "Microsoft Sentinel",
-                                    "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
-                                    "expirationTime": "@{addDays(utcNow(), 90)}",
-                                    "indicatorType": "DomainName",
-                                    "indicatorValue": "@{triggerBody()?['indicatorValue']}",
-                                    "title": "@{guid()}"
-                                },
-                                "authentication": {
-                                    "type": "ManagedServiceIdentity",
-                                    "audience": "https://api.securitycenter.windows.com/"
-                                }
-                            },
-                            "runtimeConfiguration": {
-                                "contentTransfer": {
-                                    "transferMode": "Chunked"
-                                }
-                            }
-                        },
-                        "Response": {
-                            "runAfter": {
-                                "HTTP": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Response",
-                            "kind": "Http",
-                            "inputs": {
-                                "statusCode": 200
-                            }
-                        }
+                    "indicatorValue": {
+                      "type": "string"
                     },
-                    "outputs": {}
-                },
-                "parameters": {
-                    "$connections": {
-                        "value": {}
+                    "entityProperties": {
+                      "type": "string"
                     }
-                },
-                "accessControl": {
-                    "triggers": {
-                        "allowedCallerIpAddresses": []
-                    },
-                    "actions": {
-                        "allowedCallerIpAddresses": []
-                    }
+                  },
+                  "type": "object"
                 }
+              }
+            }
+          },
+          "actions": {
+            "HTTP": {
+              "runAfter": {},
+              "type": "Http",
+              "inputs": {
+                "uri": "https://api.securitycenter.windows.com/api/indicators",
+                "method": "POST",
+                "body": {
+                  "action": "AlertAndBlock",
+                  "application": "Microsoft Sentinel",
+                  "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                  "expirationTime": "@{addDays(utcNow(), 90)}",
+                  "indicatorType": "DomainName",
+                  "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                  "title": "@{guid()}"
+                },
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://api.securitycenter.windows.com/"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
             },
-            "name": "[parameters('PlaybookName')]",
-            "type": "Microsoft.Logic/workflows",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "Source": "Sentinel-As-Code",
-                "hidden-SentinelTemplateName": "Module-DefenderRestrictDomain",
-                "hidden-SentinelTemplateVersion": "1.0"
-            },
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "apiVersion": "2017-07-01",
-            "dependsOn": []
+            "Response": {
+              "runAfter": {
+                "HTTP": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
         }
-    ]
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": []
+    }
+  ]
 }

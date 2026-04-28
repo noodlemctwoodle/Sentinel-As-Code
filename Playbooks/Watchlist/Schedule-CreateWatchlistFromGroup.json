@@ -1,0 +1,376 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "Schedule-CreateWatchlistFromGroup",
+    "description": "Watchlist management playbook: Schedule-CreateWatchlistFromGroup.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Watchlist",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Schedule-CreateWatchlistFromGroup",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "SubscriptionId": {
+              "defaultValue": "', subscription().subscriptionId, '",
+              "type": "String"
+            },
+            "ResourceGroup": {
+              "defaultValue": "STL-SEC-SIEM-RG",
+              "type": "String"
+            },
+            "WorkspaceId": {
+              "defaultValue": "17180226-9a08-4e89-bdc2-1e04db4114a2",
+              "type": "String"
+            },
+            "WatchlistAlias": {
+              "defaultValue": "EntraIDUsers",
+              "type": "String"
+            },
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Recurrence": {
+              "recurrence": {
+                "interval": 1,
+                "frequency": "Week",
+                "schedule": {
+                  "hours": [
+                    0
+                  ],
+                  "minutes": [
+                    0
+                  ],
+                  "weekDays": [
+                    "Sunday"
+                  ]
+                }
+              },
+              "evaluatedRecurrence": {
+                "interval": 1,
+                "frequency": "Week",
+                "schedule": {
+                  "hours": [
+                    0
+                  ],
+                  "minutes": [
+                    0
+                  ],
+                  "weekDays": [
+                    "Sunday"
+                  ]
+                }
+              },
+              "type": "Recurrence"
+            }
+          },
+          "actions": {
+            "Graph_Request": {
+              "runAfter": {
+                "Members_Array_Variable": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "uri": "https://graph.microsoft.com/v1.0/groups/539ffe38-b8b2-4941-9cba-b69f8eeb0a92/members?$select=id,displayName,userPrincipalName",
+                "method": "GET",
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://graph.microsoft.com"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Parse_Graph_Request": {
+              "runAfter": {
+                "Graph_Request": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('Graph_Request')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "@@odata.context": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "@@odata.type": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "userPrincipalName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "@@odata.type",
+                          "id",
+                          "displayName",
+                          "userPrincipalName"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Watchlists_-_Create_a_new_Watchlist_with_data_(Raw_Content)": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                      }
+                    },
+                    "method": "put",
+                    "body": {
+                      "description": "A List of all User in a group",
+                      "displayName": "EntraIDUsers",
+                      "itemsSearchKey": "UserPrincipalName",
+                      "rawContent": "@{body('Create_CSV')}",
+                      "source": "LogicApp"
+                    },
+                    "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('SubscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('ResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('WorkspaceId'))}/watchlists/@{encodeURIComponent(parameters('WatchlistAlias'))}"
+                  }
+                }
+              },
+              "runAfter": {
+                "Watchlists_-_Get_a_Watchlist_by_alias": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Watchlists_-_Create_a_new_Watchlist_with_data_(Raw_Content)-copy": {
+                    "runAfter": {
+                      "Delay": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                        }
+                      },
+                      "method": "put",
+                      "body": {
+                        "description": "A List of all User in a group",
+                        "displayName": "EntraIDUsers",
+                        "itemsSearchKey": "UserPrincipalName",
+                        "rawContent": "@{body('Create_CSV')}",
+                        "source": "LogicApp"
+                      },
+                      "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('SubscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('ResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('WorkspaceId'))}/watchlists/@{encodeURIComponent(parameters('WatchlistAlias'))}"
+                    }
+                  },
+                  "Delay": {
+                    "runAfter": {
+                      "Watchlists_-_Delete_a_Watchlist": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Wait",
+                    "inputs": {
+                      "interval": {
+                        "count": 10,
+                        "unit": "Second"
+                      }
+                    }
+                  },
+                  "Watchlists_-_Delete_a_Watchlist": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                        }
+                      },
+                      "method": "delete",
+                      "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('SubscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('ResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('WorkspaceId'))}/watchlists/@{encodeURIComponent(parameters('WatchlistAlias'))}"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@body('Watchlists_-_Get_a_Watchlist_by_alias')?['StatusCode']",
+                      "NotFound"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Watchlists_-_Get_a_Watchlist_by_alias": {
+              "runAfter": {
+                "Create_CSV": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('SubscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('ResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('WorkspaceId'))}/watchlists/@{encodeURIComponent(parameters('WatchlistAlias'))}"
+              }
+            },
+            "For_each": {
+              "foreach": "@body('Parse_Graph_Request')?['value']",
+              "actions": {
+                "Append_Members_Array_Variable": {
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "members",
+                    "value": {
+                      "UserPrincipalName": "@{item()?['userPrincipalName']}",
+                      "FriendlyName": "@{item()?['displayName']}",
+                      "UserId": "@{item()?['id']}"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Parse_Graph_Request": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Members_Array_Variable": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "members",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Create_CSV": {
+              "runAfter": {
+                "For_each": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('members')",
+                "format": "CSV"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinelConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinelConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    }
+  ]
+}

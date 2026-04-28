@@ -1,0 +1,227 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "RemoveMachineIsolation",
+    "description": "Sentinel entity-trigger playbook for RemoveMachineIsolation.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Entity",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "RemoveMachineIsolation",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_entity": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['microsoftsentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/entity/@{encodeURIComponent('Host')}"
+              }
+            }
+          },
+          "actions": {
+            "Get_incident": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['microsoftsentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "incidentArmId": "@triggerBody()?['IncidentArmID']"
+                },
+                "path": "/Incidents"
+              }
+            },
+            "Condition_1": {
+              "actions": {
+                "Module-RemoveMachineIsolation_True": {
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-RemoveMachineIsolation')]"
+                      },
+                      "triggerName": "When_a_HTTP_request_is_received"
+                    },
+                    "body": {
+                      "hostName": "@triggerBody()?['Entity']?['properties']?['HostName']",
+                      "Comment": "Removed Machine Isolation from Sentinel Incident #@{body('Get_incident')?['properties']?['incidentNumber']} - @{body('Get_incident')?['properties']?['title']}"
+                    }
+                  }
+                },
+                "Module-AddSentinelComment": {
+                  "runAfter": {
+                    "Module-RemoveMachineIsolation_True": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                      },
+                      "triggerName": "When_a_HTTP_request_is_received"
+                    },
+                    "body": {
+                      "SentinelComment": "@{triggerBody()?['Entity']?['properties']?['HostName']} was removed from isolation",
+                      "IncidentARMId": "@body('Get_incident')?['id']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_incident": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Module-RemoveMachineIsolation_False": {
+                    "type": "Workflow",
+                    "inputs": {
+                      "host": {
+                        "workflow": {
+                          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-RemoveMachineIsolation')]"
+                        },
+                        "triggerName": "When_a_HTTP_request_is_received"
+                      },
+                      "body": {
+                        "MachineId": "@{triggerBody()?['entity']?['properties']?['additionalData']?['MdatpDeviceId']}",
+                        "Comment": "Removed Machine Isolation from Sentinel Incident #@{body('Get_incident')?['properties']?['incidentNumber']} - @{body('Get_incident')?['properties']?['title']}"
+                      }
+                    }
+                  },
+                  "Module-AddSentinelComment-copy": {
+                    "runAfter": {
+                      "Module-RemoveMachineIsolation_False": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Workflow",
+                    "inputs": {
+                      "host": {
+                        "workflow": {
+                          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                        },
+                        "triggerName": "When_a_HTTP_request_is_received"
+                      },
+                      "body": {
+                        "SentinelComment": "@{triggerBody()?['Entity']?['properties']?['HostName']} was removed from isolation",
+                        "IncidentARMId": "@body('Get_incident')?['id']"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@triggerBody()?['entity']?['properties']?['additionalData']?['MdatpDeviceId']",
+                      "@null"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          }
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "microsoftsentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinelConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinelConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+        }
+      }
+    }
+  ]
+}

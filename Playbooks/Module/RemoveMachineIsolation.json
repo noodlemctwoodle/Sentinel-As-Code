@@ -1,251 +1,252 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Module-RemoveMachineIsolation",
-        "description": "Remove machine isolation in Defender XDR module",
-        "lastUpdateTime": "29-07-2024",
-        "entities": [],
-        "tags": [],
-        "support": {
-            "tier": "community"
-        },
-        "author": {
-            "name": "noodlemctwoodle"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "RemoveMachineIsolation",
+    "description": "Reusable automation module: RemoveMachineIsolation.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": {
-            "defaultValue": "Module-RemoveMachineIsolation",
-            "type": "string"
-        }
-    },
-    "variables": {
-        "MicrosoftDefenderXDRConnectionName": "[concat('MicrosoftDefenderXDR-', parameters('PlaybookName'))]"
-    },
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded",
-                "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "$connections": {
-                            "defaultValue": {},
-                            "type": "Object"
-                        }
-                    },
-                    "triggers": {
-                        "When_a_HTTP_request_is_received": {
-                            "type": "Request",
-                            "kind": "Http",
-                            "inputs": {
-                                "schema": {
-                                    "properties": {
-                                        "MachineId": {
-                                            "type": "string"
-                                        },
-                                        "hostName": {
-                                            "type": "string"
-                                        },
-                                        "Comment": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object",
-                                    "oneOf": [
-                                        {
-                                            "required": [
-                                                "MachineId"
-                                            ]
-                                        },
-                                        {
-                                            "required": [
-                                                "hostName"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "actions": {
-                        "Response": {
-                            "runAfter": {
-                                "Actions_-_Unisolate_machine": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Response",
-                            "kind": "Http",
-                            "inputs": {
-                                "statusCode": 200
-                            }
-                        },
-                        "Actions_-_Unisolate_machine": {
-                            "runAfter": {
-                                "Condition": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['wdatp']['connectionId']"
-                                    }
-                                },
-                                "method": "post",
-                                "body": {
-                                    "Comment": "@triggerBody()?['Comment']"
-                                },
-                                "path": "/api/machines/@{encodeURIComponent(variables('MDEDeviceId'))}/unisolate"
-                            }
-                        },
-                        "Initialize_DeviceId_Var": {
-                            "runAfter": {},
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "MDEDeviceId",
-                                        "type": "string"
-                                    }
-                                ]
-                            }
-                        },
-                        "Condition": {
-                            "actions": {
-                                "Machines_-_Get_single_machine_hostName": {
-                                    "type": "ApiConnection",
-                                    "inputs": {
-                                        "host": {
-                                            "connection": {
-                                                "name": "@parameters('$connections')['wdatp']['connectionId']"
-                                            }
-                                        },
-                                        "method": "get",
-                                        "path": "/api/machines/@{encodeURIComponent(triggerBody()?['hostName'])}"
-                                    }
-                                },
-                                "Append_to_DeviceId_Var_True": {
-                                    "runAfter": {
-                                        "Machines_-_Get_single_machine_hostName": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "AppendToStringVariable",
-                                    "inputs": {
-                                        "name": "MDEDeviceId",
-                                        "value": "@body('Machines_-_Get_single_machine_hostName')?['id']"
-                                    }
-                                }
-                            },
-                            "runAfter": {
-                                "Initialize_DeviceId_Var": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "else": {
-                                "actions": {
-                                    "Machines_-_Get_single_machine_Id": {
-                                        "type": "ApiConnection",
-                                        "inputs": {
-                                            "host": {
-                                                "connection": {
-                                                    "name": "@parameters('$connections')['wdatp']['connectionId']"
-                                                }
-                                            },
-                                            "method": "get",
-                                            "path": "/api/machines/@{encodeURIComponent(triggerBody()?['MachineId'])}"
-                                        }
-                                    },
-                                    "Append_to_DeviceId_Var_False": {
-                                        "runAfter": {
-                                            "Machines_-_Get_single_machine_Id": [
-                                                "Succeeded"
-                                            ]
-                                        },
-                                        "type": "AppendToStringVariable",
-                                        "inputs": {
-                                            "name": "MDEDeviceId",
-                                            "value": "@body('Machines_-_Get_single_machine_Id')?['id']"
-                                        }
-                                    }
-                                }
-                            },
-                            "expression": {
-                                "and": [
-                                    {
-                                        "equals": [
-                                            "@triggerBody()?['hostName']",
-                                            "@null"
-                                        ]
-                                    }
-                                ]
-                            },
-                            "type": "If"
-                        }
-                    },
-                    "outputs": {}
-                },
-                "parameters": {
-                    "$connections": {
-                        "value": {
-                            "wdatp": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]",
-                                "connectionName": "[variables('MicrosoftDefenderXDRConnectionName')]",
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]",
-                                "connectionProperties": {
-                                    "authentication": {
-                                        "type": "ManagedServiceIdentity"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "accessControl": {
-                    "triggers": {
-                        "allowedCallerIpAddresses": []
-                    },
-                    "actions": {
-                        "allowedCallerIpAddresses": []
-                    }
-                }
-            },
-            "name": "[parameters('PlaybookName')]",
-            "type": "Microsoft.Logic/workflows",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "Source": "Sentinel-As-Code",
-                "hidden-SentinelTemplateName": "Module-RemoveMachineIsolation",
-                "hidden-SentinelTemplateVersion": "1.0"
-            },
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "apiVersion": "2017-07-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]"
-            ]
-        },
-        {
-            "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
-            "name": "[variables('MicrosoftDefenderXDRConnectionName')]",
-            "location": "[resourceGroup().location]",
-            "kind": "V1",
-            "properties": {
-                "displayName": "[variables('MicrosoftDefenderXDRConnectionName')]",
-                "customParameterValues": {},
-                "parameterValueType": "Alternative",
-                "api": {
-                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]"
-                }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-RemoveMachineIsolation",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftDefenderXDRConnectionName": "[concat('MicrosoftDefenderXDR-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
             }
+          },
+          "triggers": {
+            "When_a_HTTP_request_is_received": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "MachineId": {
+                      "type": "string"
+                    },
+                    "hostName": {
+                      "type": "string"
+                    },
+                    "Comment": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "oneOf": [
+                    {
+                      "required": [
+                        "MachineId"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "hostName"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "actions": {
+            "Response": {
+              "runAfter": {
+                "Actions_-_Unisolate_machine": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200
+              }
+            },
+            "Actions_-_Unisolate_machine": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['wdatp']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "Comment": "@triggerBody()?['Comment']"
+                },
+                "path": "/api/machines/@{encodeURIComponent(variables('MDEDeviceId'))}/unisolate"
+              }
+            },
+            "Initialize_DeviceId_Var": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "MDEDeviceId",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Machines_-_Get_single_machine_hostName": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['wdatp']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/api/machines/@{encodeURIComponent(triggerBody()?['hostName'])}"
+                  }
+                },
+                "Append_to_DeviceId_Var_True": {
+                  "runAfter": {
+                    "Machines_-_Get_single_machine_hostName": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "MDEDeviceId",
+                    "value": "@body('Machines_-_Get_single_machine_hostName')?['id']"
+                  }
+                }
+              },
+              "runAfter": {
+                "Initialize_DeviceId_Var": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Machines_-_Get_single_machine_Id": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['wdatp']['connectionId']"
+                        }
+                      },
+                      "method": "get",
+                      "path": "/api/machines/@{encodeURIComponent(triggerBody()?['MachineId'])}"
+                    }
+                  },
+                  "Append_to_DeviceId_Var_False": {
+                    "runAfter": {
+                      "Machines_-_Get_single_machine_Id": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "AppendToStringVariable",
+                    "inputs": {
+                      "name": "MDEDeviceId",
+                      "value": "@body('Machines_-_Get_single_machine_Id')?['id']"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@triggerBody()?['hostName']",
+                      "@null"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "wdatp": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]",
+                "connectionName": "[variables('MicrosoftDefenderXDRConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
         }
-    ]
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftDefenderXDRConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftDefenderXDRConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftDefenderXDRConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Wdatp')]"
+        }
+      }
+    }
+  ]
 }

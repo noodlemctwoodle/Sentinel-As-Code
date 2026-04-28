@@ -1,150 +1,151 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Module-AddSentinelComment",
-        "description": "Add comment to Sentinel incident module",
-        "lastUpdateTime": "31-07-2024",
-        "entities": [],
-        "tags": [],
-        "support": {
-            "tier": "community"
-        },
-        "author": {
-            "name": "noodlemctwoodle"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "AddSentinelComment",
+    "description": "Reusable automation module: AddSentinelComment.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": {
-            "defaultValue": "Module-AddSentinelComment",
-            "type": "string"
-        }
-    },
-    "variables": {
-        "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
-    },
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded",
-                "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "$connections": {
-                            "defaultValue": {},
-                            "type": "Object"
-                        }
-                    },
-                    "triggers": {
-                        "When_a_HTTP_request_is_received": {
-                            "type": "Request",
-                            "kind": "Http",
-                            "inputs": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "SentinelComment": {
-                                            "type": "string"
-                                        },
-                                        "IncidentARMId": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "actions": {
-                        "Add_comment_to_incident_(V3)": {
-                            "runAfter": {},
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                                    }
-                                },
-                                "method": "post",
-                                "body": {
-                                    "incidentArmId": "@triggerBody()?['IncidentARMId']",
-                                    "message": "<p>@{triggerBody()?['SentinelComment']}</p>"
-                                },
-                                "path": "/Incidents/Comment"
-                            }
-                        },
-                        "Response": {
-                            "runAfter": {
-                                "Add_comment_to_incident_(V3)": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Response",
-                            "kind": "Http",
-                            "inputs": {
-                                "statusCode": 200,
-                                "body": "@body('Add_comment_to_incident_(V3)')"
-                            }
-                        }
-                    },
-                    "outputs": {}
-                },
-                "parameters": {
-                    "$connections": {
-                        "value": {
-                            "azuresentinel": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
-                                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
-                                "connectionProperties": {
-                                    "authentication": {
-                                        "type": "ManagedServiceIdentity"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "accessControl": {
-                    "triggers": {
-                        "allowedCallerIpAddresses": []
-                    },
-                    "actions": {
-                        "allowedCallerIpAddresses": []
-                    }
-                }
-            },
-            "name": "[parameters('PlaybookName')]",
-            "type": "Microsoft.Logic/workflows",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "Source": "Sentinel-As-Code",
-                "hidden-SentinelTemplateName": "Module-AddSentinelComment",
-                "hidden-SentinelTemplateVersion": "1.0"
-            },
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "apiVersion": "2017-07-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
-            ]
-        },
-        {
-            "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
-            "name": "[variables('MicrosoftSentinelConnectionName')]",
-            "location": "[resourceGroup().location]",
-            "kind": "V1",
-            "properties": {
-                "displayName": "[variables('MicrosoftSentinelConnectionName')]",
-                "customParameterValues": {},
-                "parameterValueType": "Alternative",
-                "api": {
-                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
-                }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-AddSentinelComment",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
             }
+          },
+          "triggers": {
+            "When_a_HTTP_request_is_received": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "SentinelComment": {
+                      "type": "string"
+                    },
+                    "IncidentARMId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "actions": {
+            "Add_comment_to_incident_(V3)": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "incidentArmId": "@triggerBody()?['IncidentARMId']",
+                  "message": "<p>@{triggerBody()?['SentinelComment']}</p>"
+                },
+                "path": "/Incidents/Comment"
+              }
+            },
+            "Response": {
+              "runAfter": {
+                "Add_comment_to_incident_(V3)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@body('Add_comment_to_incident_(V3)')"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
         }
-    ]
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinelConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinelConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+        }
+      }
+    }
+  ]
 }

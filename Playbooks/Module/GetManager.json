@@ -1,134 +1,300 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Module-GetManager",
-        "description": "Get a users manager from Azure AD moduele",
-        "lastUpdateTime": "31-07-2024",
-        "entities": [],
-        "tags": [],
-        "support": {
-            "tier": "community"
-        },
-        "author": {
-            "name": "noodlemctwoodle"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "GetManager",
+    "description": "Reusable automation module: GetManager.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": {
-            "defaultValue": "Module-GetManager",
-            "type": "string"
-        }
-    },
-    "variables": {
-        "Office365usersConnectionName": "[concat('Office365users-', parameters('PlaybookName'))]"
-    },
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded",
-                "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "$connections": {
-                            "defaultValue": {},
-                            "type": "Object"
-                        }
-                    },
-                    "triggers": {
-                        "When_a_HTTP_request_is_received": {
-                            "type": "Request",
-                            "kind": "Http",
-                            "inputs": {
-                                "schema": {
-                                    "properties": {
-                                        "userPrincipalName": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "actions": {
-                        "Get_manager_(V2)": {
-                            "runAfter": {},
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['office365users']['connectionId']"
-                                    }
-                                },
-                                "method": "get",
-                                "path": "/codeless/v1.0/users/@{encodeURIComponent(triggerBody()?['userPrincipalName'])}/manager"
-                            }
-                        },
-                        "Response": {
-                            "runAfter": {
-                                "Get_manager_(V2)": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Response",
-                            "kind": "Http",
-                            "inputs": {
-                                "statusCode": 200,
-                                "body": {
-                                    "manager": "@{body('Get_manager_(V2)')?['userPrincipalName']}",
-                                    "jobTitle": "@{body('Get_manager_(V2)')?['jobTitle']}",
-                                    "department": "@{body('Get_manager_(V2)')?['responsibilities']}",
-                                    "location": "@{body('Get_manager_(V2)')?['officeLocation']}"
-                                }
-                            }
-                        }
-                    },
-                    "outputs": {}
-                },
-                "parameters": {
-                    "$connections": {
-                        "value": {
-                            "office365users": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365usersConnectionName'))]",
-                                "connectionName": "[variables('Office365usersConnectionName')]",
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Office365users')]"
-                            }
-                        }
-                    }
-                }
-            },
-            "name": "[parameters('PlaybookName')]",
-            "type": "Microsoft.Logic/workflows",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "Source": "Sentinel-As-Code",
-                "hidden-SentinelTemplateName": "Module-GetManager",
-                "hidden-SentinelTemplateVersion": "1.0"
-            },
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "apiVersion": "2017-07-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/connections', variables('Office365usersConnectionName'))]"
-            ]
-        },
-        {
-            "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
-            "name": "[variables('Office365usersConnectionName')]",
-            "location": "[resourceGroup().location]",
-            "kind": "V1",
-            "properties": {
-                "displayName": "[variables('Office365usersConnectionName')]",
-                "customParameterValues": {},
-                "api": {
-                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Office365users')]"
-                }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-GetManager",
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
             }
+          },
+          "triggers": {
+            "Logic_App_Get-Manager": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "EntraUserId": {
+                      "type": "string"
+                    },
+                    "UserPrincipalName": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "description": "User as a MS Graph request to get the manager of a user in Entra ID"
+            }
+          },
+          "actions": {
+            "HTTP_GET_to_MS_Graph_Get-Manager": {
+              "runAfter": {
+                "Parse_Get_UserId": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "uri": "https://graph.microsoft.com/v1.0/users/@{body('Parse_Get_UserId')?['id']}/manager",
+                "method": "GET",
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://graph.microsoft.com"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Condition_1": {
+              "actions": {
+                "Response_Success": {
+                  "type": "Response",
+                  "kind": "Http",
+                  "inputs": {
+                    "statusCode": 200,
+                    "body": {
+                      "UserPrincipalName": "@{body('Parse_Get_Manager_Response')?['userPrincipalName']}",
+                      "DisplayName": "@{body('Parse_Get_Manager_Response')?['displayName']}",
+                      "JobTitle": "@{body('Parse_Get_Manager_Response')?['jobTitle']}",
+                      "MobilePhone": "@{body('Parse_Get_Manager_Response')?['mobilePhone']}"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Parse_Get_Manager_Response": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Response_Failed": {
+                    "type": "Response",
+                    "kind": "Http",
+                    "inputs": {
+                      "statusCode": "@outputs('HTTP_GET_to_MS_Graph_Get-Manager')?['statusCode']",
+                      "body": {
+                        "status": "Failed",
+                        "message": "@{body('HTTP_GET_to_MS_Graph_Get-Manager')}"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@outputs('HTTP_GET_to_MS_Graph_Get-Manager')?['statusCode']",
+                      200
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Parse_Get_Manager_Response": {
+              "runAfter": {
+                "HTTP_GET_to_MS_Graph_Get-Manager": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('HTTP_GET_to_MS_Graph_Get-Manager')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "@@odata.context": {
+                      "type": "string"
+                    },
+                    "@@odata.type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "businessPhones": {
+                      "type": "array"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "givenName": {
+                      "type": "string"
+                    },
+                    "jobTitle": {
+                      "type": "string"
+                    },
+                    "mail": {
+                      "type": "string"
+                    },
+                    "mobilePhone": {},
+                    "officeLocation": {
+                      "type": "string"
+                    },
+                    "preferredLanguage": {},
+                    "surname": {
+                      "type": "string"
+                    },
+                    "userPrincipalName": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "HTTP_GET_to_MS_Graph_Get-Id": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}",
+                "method": "GET",
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://graph.microsoft.com/"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Parse_Get_UserId": {
+              "runAfter": {
+                "HTTP_GET_to_MS_Graph_Get-Id": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('HTTP_GET_to_MS_Graph_Get-Id')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "@@odata.context": {
+                      "type": "string"
+                    },
+                    "businessPhones": {
+                      "type": "array"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "givenName": {
+                      "type": "string"
+                    },
+                    "jobTitle": {
+                      "type": "string"
+                    },
+                    "mail": {
+                      "type": "string"
+                    },
+                    "mobilePhone": {},
+                    "officeLocation": {},
+                    "preferredLanguage": {},
+                    "surname": {
+                      "type": "string"
+                    },
+                    "userPrincipalName": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "Condition": {
+              "actions": {},
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                      "Incident-TestPlaybook"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "outputs": {}
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
         }
-    ]
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": []
+    }
+  ]
 }

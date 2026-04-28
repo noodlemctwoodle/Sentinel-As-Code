@@ -1,46 +1,244 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Entity-DefenderRestrictFileHash",
-        "description": "Add File Hash to Defender XDR Indicators",
-        "lastUpdateTime": "31-07-2024",
-        "entities": [], "tags": [],
-        "support": { "tier": "community" },
-        "author": { "name": "noodlemctwoodle" }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "DefenderRestrictFileHash",
+    "description": "Sentinel entity-trigger playbook for DefenderRestrictFileHash.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Entity",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": { "defaultValue": "Entity-DefenderRestrictFileHash", "type": "string" },
-        "AutomationResourceGroup": { "defaultValue": "", "type": "string" },
-        "SentinelWorkpaceName": { "defaultValue": "", "type": "string" }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "DefenderRestrictFileHash",
+      "type": "string"
     },
-    "variables": { "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]" },
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded", "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": { "$connections": { "defaultValue": {}, "type": "Object" } },
-                    "triggers": { "Microsoft_Sentinel_entity_(FileHash)": { "type": "ApiConnectionWebhook", "inputs": { "body": { "callback_url": "@{listCallbackUrl()}" }, "host": { "connection": { "name": "@parameters('$connections')['azuresentinel_2']['connectionId']" } }, "path": "/entity/@{encodeURIComponent('FileHash')}" } } },
-                    "actions": {
-                        "Condition": {
-                            "actions": { "Module-AddSentinelComment": { "runAfter": {}, "type": "Workflow", "inputs": { "body": { "IncidentARMId": "@triggerBody()?['IncidentArmID']", "SentinelComment": "An AlertAndBlock request has been sent to the security centre API for file with hash: @{triggerBody()?['Entity']?['properties']?['Value']}. Note that the expiration time on this is 90 days.\nThe response from the API was:" }, "host": { "triggerName": "When_a_HTTP_request_is_received", "workflow": { "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]" } } } } },
-                            "runAfter": { "Module-DefenderRestrictFileHash": [ "Succeeded" ] },
-                            "expression": { "and": [ { "not": { "equals": [ "@triggerBody()?['IncidentArmID']", "@null" ] } }, { "or": [ { "equals": [ "@triggerBody()?['Entity']?['properties']?['Algorithm']", "SHA1" ] }, { "equals": [ "@triggerBody()?['Entity']?['properties']?['Algorithm']", "SHA256" ] } ] } ] },
-                            "type": "If"
-                        },
-                        "Module-DefenderRestrictFileHash": { "runAfter": {}, "type": "Workflow", "inputs": { "body": { "algorithm": "@triggerBody()?['Entity']?['properties']?['Algorithm']", "entityProperties": "@{triggerBody()?['Entity']?['properties']}", "incidentArmId": "@triggerBody()?['IncidentArmID']", "indicatorValue": "@triggerBody()?['Entity']?['properties']?['Value']", "playbookName": "Entity-DefenderRestrictFileHash" }, "host": { "triggerName": "When_a_HTTP_request_is_received", "workflow": { "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-DefenderRestrictFileHash')]" } } } }
-                    }
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_entity_(DNS)": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                  }
                 },
-                "parameters": { "$connections": { "value": { "azuresentinel_2": { "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]", "connectionName": "[variables('MicrosoftSentinelConnectionName')]", "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]", "connectionProperties": { "authentication": { "type": "ManagedServiceIdentity" } } } } } }
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/entity/@{encodeURIComponent('FileHash')}"
+              }
+            }
+          },
+          "actions": {
+            "Condition": {
+              "actions": {
+                "Module-AddSentinelComment": {
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                      },
+                      "triggerName": "When_a_HTTP_request_is_received"
+                    },
+                    "body": {
+                      "SentinelComment": "An AlertAndBlock request has been sent to the security centre API for the domain: @{triggerBody()?['Entity']?['properties']?['DomainName']}. Note that the expiration time on this request is 90 days.\nThe response from the API was:\n@{body('Create_HTML_table')}",
+                      "IncidentARMId": "@triggerBody()?['IncidentArmID']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Create_HTML_table": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {}
+              },
+              "expression": {
+                "and": [
+                  {
+                    "not": {
+                      "equals": [
+                        "@triggerBody()?['IncidentArmID']",
+                        "@null"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "type": "If"
             },
-            "name": "[parameters('PlaybookName')]", "type": "Microsoft.Logic/workflows", "location": "[resourceGroup().location]",
-            "tags": { "Source": "Sentinel-As-Code", "hidden-SentinelWorkspaceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/microsoft.OperationalInsights/Workspaces/', parameters('SentinelWorkpaceName'))]", "hidden-SentinelTemplateName": "Entity-DefenderRestrictFileHash", "hidden-SentinelTemplateVersion": "1.0" },
-            "identity": { "type": "SystemAssigned" }, "apiVersion": "2017-07-01",
-            "dependsOn": [ "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]" ]
+            "Get_incident": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "incidentArmId": "@triggerBody()?['IncidentArmID']"
+                },
+                "path": "/Incidents"
+              }
+            },
+            "Module-DefenderAddIndicator": {
+              "runAfter": {
+                "Terminate": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Workflow",
+              "inputs": {
+                "host": {
+                  "workflow": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-DefenderAddIndicator')]"
+                  },
+                  "triggerName": "When_an_indicator_is_received"
+                },
+                "body": {
+                  "algorithm": "@triggerBody()?['Entity']?['properties']?['Algorithm']",
+                  "entityProperties": "@triggerBody()?['Entity']?['properties']",
+                  "incidentArmId": "@triggerBody()?['IncidentArmID']",
+                  "indicatorValue": "@triggerBody()?['Entity']?['properties']?['Value']",
+                  "playbookName": "Entity-DefenderRestrictFileHash",
+                  "severity": "@body('Get_incident')?['properties']?['severity']"
+                }
+              }
+            },
+            "Create_HTML_table": {
+              "runAfter": {
+                "Module-DefenderAddIndicator": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Module-DefenderAddIndicator')",
+                "format": "HTML"
+              }
+            },
+            "Module-DefenderAddIndicatorv1": {
+              "runAfter": {
+                "Get_incident": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Workflow",
+              "inputs": {
+                "host": {
+                  "workflow": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-DefenderAddIndicatorv1')]"
+                  },
+                  "triggerName": "When_an_indicator_is_received"
+                },
+                "body": {
+                  "algorithm": "@triggerBody()?['Entity']?['properties']?['Algorithm']",
+                  "entityProperties": "@{triggerBody()?['Entity']?['properties']}",
+                  "incidentArmId": "@triggerBody()?['IncidentArmID']",
+                  "indicatorValue": "@triggerBody()?['Entity']?['properties']?['Value']",
+                  "playbookName": "Entity-DefenderRestrictFileHash",
+                  "severity": "@body('Get_incident')?['properties']?['severity']"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Module-DefenderAddIndicatorv1": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          }
         },
-        { "type": "Microsoft.Web/connections", "apiVersion": "2016-06-01", "name": "[variables('MicrosoftSentinelConnectionName')]", "location": "[resourceGroup().location]", "kind": "V1", "properties": { "displayName": "[variables('MicrosoftSentinelConnectionName')]", "customParameterValues": {}, "parameterValueType": "Alternative", "api": { "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]" } } }
-    ]
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel_1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinelConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinelConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+        }
+      }
+    }
+  ]
 }
