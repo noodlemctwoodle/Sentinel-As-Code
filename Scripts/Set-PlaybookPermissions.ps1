@@ -36,9 +36,23 @@
 
 .EXAMPLE
     ./Set-PlaybookPermissions.ps1 `
-        -PlaybookResourceGroup "SEC-UKS-PROD-SIEM-RG" `
-        -SentinelWorkspaceName "sec-uks-prod-sentinel" `
-        -KeyVaultName "sec-uks-prod-kv"
+        -PlaybookResourceGroup "rg-sentinel-prod" `
+        -SentinelWorkspaceName "law-sentinel-prod" `
+        -KeyVaultName "kv-sentinel-prod"
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.0.0
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    Requires:       Az.Accounts, Az.Resources, Az.LogicApp
+    Permissions:    User Access Administrator OR Owner on the playbook
+                    resource group (and Sentinel resource group, if
+                    different). The deployment SPN's ABAC-conditioned
+                    UAA does NOT permit Sentinel-tier role assignments,
+                    so this script is intended for ad-hoc execution by
+                    a separate elevated identity rather than the
+                    pipeline SPN.
 #>
 
 [CmdletBinding()]

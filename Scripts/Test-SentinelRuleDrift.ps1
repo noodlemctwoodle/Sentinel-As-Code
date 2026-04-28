@@ -103,7 +103,8 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
+    Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts, powershell-yaml
