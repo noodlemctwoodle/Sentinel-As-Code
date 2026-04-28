@@ -46,13 +46,12 @@
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     Requires:       Az.Accounts, Az.Resources, Az.LogicApp
-    Permissions:    User Access Administrator OR Owner on the playbook
-                    resource group (and Sentinel resource group, if
-                    different). The deployment SPN's ABAC-conditioned
-                    UAA does NOT permit Sentinel-tier role assignments,
-                    so this script is intended for ad-hoc execution by
-                    a separate elevated identity rather than the
-                    pipeline SPN.
+    Permissions:    User Access Administrator OR Owner on the playbook resource
+                    group (and Sentinel resource group, if different).
+                    The deployment SPN's ABAC-conditioned UAA does NOT
+                    permit Sentinel-tier role assignments, so this script
+                    is intended for ad-hoc execution by a separate elevated
+                    identity rather than the pipeline SPN.
 #>
 
 [CmdletBinding()]

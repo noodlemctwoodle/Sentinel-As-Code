@@ -101,14 +101,6 @@
 .PARAMETER WhatIf
     Skip writing the JSON/MD artefacts; ADO warnings and summary still emitted.
 
-.NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.1
-    Last Updated:   2026-04-28
-    Repository:     Sentinel-As-Code
-    API Version:    2025-09-01 (GA)
-    Requires:       Az.Accounts, powershell-yaml
-
 .EXAMPLE
     .\Test-SentinelRuleDrift.ps1 `
         -ResourceGroup "rg-sentinel-prod" `
@@ -127,6 +119,14 @@
 
     Detection-only mode: write reports but never edit YAML files. Useful for local
     inspection before letting the pipeline auto-sync.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.0.1
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    API Version:    2025-09-01 (GA)
+    Requires:       Az.Accounts, powershell-yaml
 #>
 
 [CmdletBinding()]

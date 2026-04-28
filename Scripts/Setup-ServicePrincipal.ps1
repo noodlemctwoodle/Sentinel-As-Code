@@ -56,6 +56,17 @@
         -SubscriptionId "5305ccd2-977a-4630-843b-bad582e756a3" `
         -ServicePrincipalAppId "your-app-id-here" `
         -SkipGraphPermission
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.0.0
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    Requires:       Az.Accounts, Az.Resources, Microsoft.Graph
+    Permissions:    The user running this script needs Owner on the target
+                    subscription AND at least Privileged Role Administrator
+                    in Entra ID. Run ONCE; the pipeline SPN is fully
+                    autonomous after.
 #>
 
 [CmdletBinding()]

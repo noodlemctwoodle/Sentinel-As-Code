@@ -32,15 +32,6 @@
     When specified, performs a dry run showing what actions would be taken without
     making changes.
 
-.NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.1
-    Last Updated:   2026-04-28
-    Repository:     Sentinel-As-Code
-    API:            Microsoft Graph Security API (beta)
-    Requires:       Az.Accounts, powershell-yaml
-    Permissions:    CustomDetection.ReadWrite.All (Application)
-
 .EXAMPLE
     .\Deploy-DefenderDetections.ps1
 
@@ -50,6 +41,15 @@
     .\Deploy-DefenderDetections.ps1 -WhatIf
 
     Performs a dry run showing what rules would be deployed.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        1.0.1
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    API Version:    Microsoft Graph Security API (beta)
+    Requires:       Az.Accounts, powershell-yaml
+    Permissions:    CustomDetection.ReadWrite.All (Application)
 #>
 
 [CmdletBinding()]

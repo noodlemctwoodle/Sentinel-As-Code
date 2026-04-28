@@ -74,15 +74,6 @@
 .PARAMETER WhatIf
     When specified, performs a dry run showing what actions would be taken without making changes.
 
-.NOTES
-    Author:         noodlemctwoodle
-    Version:        2.1.0
-    Last Updated:   2026-04-28
-    Repository:     Sentinel-As-Code
-    API Version:    2025-09-01 (GA)
-    Requires:       Az.Accounts PowerShell module
-    Pipeline:       Azure DevOps (ADO) with Azure Service Connection
-
 .EXAMPLE
     .\Deploy-SentinelContentHub.ps1 `
         -ResourceGroup "rg-sentinel-prod" `
@@ -115,6 +106,14 @@
         -WhatIf
 
     Performs a dry run showing what would be deployed without making any changes.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        2.1.0
+    Last Updated:   2026-04-28
+    Repository:     Sentinel-As-Code
+    API Version:    2025-09-01 (GA)
+    Requires:       Az.Accounts
 #>
 
 [CmdletBinding()]
