@@ -2,7 +2,7 @@
 
 Automatically inventories all Data Collection Rule (DCR) associations in a subscription and syncs them to a Microsoft Sentinel watchlist. Designed for billing, audit, and operational visibility.
 
-Source files live under [`Automation/DCR-Watchlist/`](../Automation/DCR-Watchlist/).
+Source files live under [`Automation/DCR-Watchlist/`](../../Automation/DCR-Watchlist/).
 
 ## What It Does
 
@@ -49,7 +49,7 @@ Each row represents a single DCR:
 | `LastUpdatedUtc` | Last sync timestamp |
 | `Status` | `Active` or `Inactive` (DCR no longer has associations) |
 
-For general watchlist authoring conventions, see [Watchlists](Watchlists.md).
+For general watchlist authoring conventions, see [Watchlists](../Content/Watchlists.md).
 
 ## Billing Logic
 
@@ -92,14 +92,14 @@ _GetWatchlist('CustomerResources')
 | **Azure subscription** | Target subscription containing DCRs |
 | **Sentinel workspace** | Log Analytics workspace with Sentinel enabled |
 | **Azure DevOps** | Service connection with **Contributor** on the subscription |
-| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](Pipelines.md)) |
+| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](../Deployment/Pipelines.md)) |
 | **Manual RBAC** | One-time post-deployment (see below) |
 
 ## Deployment
 
 ### 1. Run the Pipeline
 
-The pipeline is at [`Pipelines/DCR-Watchlist-Deploy.yml`](../Pipelines/DCR-Watchlist-Deploy.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
+The pipeline is at [`Pipelines/DCR-Watchlist-Deploy.yml`](../../Pipelines/DCR-Watchlist-Deploy.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
 
 It has two stages:
 
@@ -123,7 +123,7 @@ Pipeline parameters:
 
 ### 2. Apply RBAC (One-Time, Manual)
 
-The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1`](../Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1):
+The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1`](../../Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1):
 
 ```powershell
 ./Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'

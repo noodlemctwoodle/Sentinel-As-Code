@@ -120,7 +120,7 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 | **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional)* |
 | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
 
-> **Least-privilege alternative**: If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles. See the [Pipelines doc](./Docs/Pipelines.md#prerequisites) for the least-privilege role assignment table.
+> **Least-privilege alternative**: If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles. See the [Pipelines doc](./Docs/Deployment/Pipelines.md#prerequisites) for the least-privilege role assignment table.
 
 > **Note on Setup**: Run `Scripts/Setup-ServicePrincipal.ps1` once to automatically grant all required permissions. The script provides a permission summary, requests Y/N consent, and supports `-SkipEntraRole` and `-SkipGraphPermission` switches for optional steps. After running once, the pipeline is fully autonomous.
 
@@ -134,11 +134,11 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 1. **Import** this repository into your Azure DevOps project
 
-2. **Create a service connection** named `sc-sentinel-as-code` — see the [Pipelines doc](./Docs/Pipelines.md) for role requirements
+2. **Create a service connection** named `sc-sentinel-as-code` — see the [Pipelines doc](./Docs/Deployment/Pipelines.md) for role requirements
 
 3. **Run the bootstrap script** once: `Scripts/Setup-ServicePrincipal.ps1` grants all required roles (Contributor, User Access Administrator, Security Administrator, CustomDetection.ReadWrite.All) with your Y/N consent. Optional steps can be skipped with `-SkipEntraRole` or `-SkipGraphPermission` switches.
 
-4. **Create a variable group** named `sentinel-deployment` in **Pipelines > Library** with your desired resource names — the pipeline will create them if they don't exist. Optionally add `playbookResourceGroup` to deploy playbooks to a separate resource group. See the [Pipelines doc](./Docs/Pipelines.md) for details
+4. **Create a variable group** named `sentinel-deployment` in **Pipelines > Library** with your desired resource names — the pipeline will create them if they don't exist. Optionally add `playbookResourceGroup` to deploy playbooks to a separate resource group. See the [Pipelines doc](./Docs/Deployment/Pipelines.md) for details
 
 5. **Create a pipeline** in Azure DevOps pointing to `Pipelines/Sentinel-Deploy.yml`
 
@@ -153,25 +153,42 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 ## Documentation
 
-All documentation now lives under [`Docs/`](./Docs/).
+All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [`Docs/README.md`](./Docs/README.md) for the index.
 
-| Area | Doc | Covers |
-|------|-----|--------|
-| **Bicep** | [Docs/Bicep.md](./Docs/Bicep.md) | Subscription-scoped templates, parameters, dual onboarding mechanism, diagnostic settings, optional playbook RG |
-| **Pipelines** | [Docs/Pipelines.md](./Docs/Pipelines.md) | Pipeline stages, variable group setup, parameters, service connection, usage examples |
-| **Scripts** | [Docs/Scripts.md](./Docs/Scripts.md) | Script parameters, PowerShell usage examples, tested solutions, known limitations |
-| **Analytical Rules** | [Docs/Analytical-Rules.md](./Docs/Analytical-Rules.md) | YAML schema for custom analytics rules, required fields, deploy behaviour, examples |
-| **Community Rules** | [Docs/Community-Rules.md](./Docs/Community-Rules.md) | Opt-in third-party rule contributions, deployment defaults, adding new sources |
-| **Watchlists** | [Docs/Watchlists.md](./Docs/Watchlists.md) | Watchlist metadata schema, CSV format, KQL usage examples |
-| **Playbooks** | [Docs/Playbooks.md](./Docs/Playbooks.md) | ARM template requirements, managed identity connections, auto-injected parameters |
-| **Workbooks** | [Docs/Workbooks.md](./Docs/Workbooks.md) | Gallery template JSON format, stable GUIDs, export guide |
-| **Hunting Queries** | [Docs/Hunting-Queries.md](./Docs/Hunting-Queries.md) | YAML schema for hunting queries, required fields, export guide |
-| **Automation Rules** | [Docs/Automation-Rules.md](./Docs/Automation-Rules.md) | JSON schema for automation rules, action types, trigger conditions |
-| **Summary Rules** | [Docs/Summary-Rules.md](./Docs/Summary-Rules.md) | Summary rule JSON schema, bin sizes, KQL restrictions |
-| **Defender Custom Detections** | [Docs/Defender-Custom-Detections.md](./Docs/Defender-Custom-Detections.md) | Defender XDR YAML schema, Graph API, response actions |
-| **DCR Watchlist Sync** | [Docs/DCR-Watchlist.md](./Docs/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
-| **Sentinel Drift Detection** | [Docs/Sentinel-Drift-Detection.md](./Docs/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
-| **Pester Tests** | [Docs/Pester-Tests.md](./Docs/Pester-Tests.md) | Running and extending the test suite |
+### Content authoring — schemas and conventions
+
+| Area | Doc |
+|------|-----|
+| Analytical Rules | [Docs/Content/Analytical-Rules.md](./Docs/Content/Analytical-Rules.md) |
+| Automation Rules | [Docs/Content/Automation-Rules.md](./Docs/Content/Automation-Rules.md) |
+| Community Rules | [Docs/Content/Community-Rules.md](./Docs/Content/Community-Rules.md) |
+| Defender Custom Detections | [Docs/Content/Defender-Custom-Detections.md](./Docs/Content/Defender-Custom-Detections.md) |
+| Hunting Queries | [Docs/Content/Hunting-Queries.md](./Docs/Content/Hunting-Queries.md) |
+| Playbooks | [Docs/Content/Playbooks.md](./Docs/Content/Playbooks.md) |
+| Summary Rules | [Docs/Content/Summary-Rules.md](./Docs/Content/Summary-Rules.md) |
+| Watchlists | [Docs/Content/Watchlists.md](./Docs/Content/Watchlists.md) |
+| Workbooks | [Docs/Content/Workbooks.md](./Docs/Content/Workbooks.md) |
+
+### Deployment — how content reaches Sentinel
+
+| Area | Doc |
+|------|-----|
+| Bicep | [Docs/Deployment/Bicep.md](./Docs/Deployment/Bicep.md) |
+| Pipelines | [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) |
+| Scripts | [Docs/Deployment/Scripts.md](./Docs/Deployment/Scripts.md) |
+
+### Operations — continuous run-time concerns
+
+| Area | Doc |
+|------|-----|
+| DCR Watchlist Sync | [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md) |
+| Sentinel Drift Detection | [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md) |
+
+### Development — testing and contributing
+
+| Area | Doc |
+|------|-----|
+| Pester Tests | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) |
 
 ## Infrastructure (Bicep)
 

@@ -1,6 +1,6 @@
 # Watchlists
 
-Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Watchlists/`](../Watchlists/) containing a JSON metadata file and a CSV data file.
+Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Watchlists/`](../../Watchlists/) containing a JSON metadata file and a CSV data file.
 
 ## Folder Structure
 
@@ -61,5 +61,5 @@ SigninLogs
 - Maximum CSV size for inline upload is approximately 3.5 MB
 - TSV format is also supported — rename the file to `data.tsv`
 - The `itemsSearchKey` value is case-sensitive and must exactly match a CSV column header
-- Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](Scripts.md#deploy-customcontentps1)
-- For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](DCR-Watchlist.md)
+- Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](../Deployment/Scripts.md#deploy-customcontentps1)
+- For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](../Operations/DCR-Watchlist.md)

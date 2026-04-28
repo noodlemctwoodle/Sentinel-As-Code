@@ -3,13 +3,13 @@
 Custom analytics rules authored in YAML, following the
 [Azure-Sentinel Query Style Guide](https://github.com/Azure/Azure-Sentinel/wiki/Query-Style-Guide).
 YAML files are converted to REST API JSON at deploy time by
-[`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1).
+[`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1).
 
 | Concern | Where |
 | --- | --- |
-| Rule files | [`AnalyticalRules/`](../AnalyticalRules/) |
-| Deploy logic | [`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1) (function `Deploy-CustomDetections`, ~line 1077) |
-| Drift detection | See [Sentinel Drift Detection](Sentinel-Drift-Detection.md) |
+| Rule files | [`AnalyticalRules/`](../../AnalyticalRules/) |
+| Deploy logic | [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) (function `Deploy-CustomDetections`, ~line 1077) |
+| Drift detection | See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 | Community contributions | See [Community Rules](Community-Rules.md) |
 
 ## Folder structure
@@ -37,7 +37,7 @@ AnalyticalRules/
 ```
 
 Categories that exist today are visible in
-[`AnalyticalRules/`](../AnalyticalRules/). Add new ones as needed; the deploy
+[`AnalyticalRules/`](../../AnalyticalRules/). Add new ones as needed; the deploy
 script walks all `*.yaml` and `*.yml` recursively.
 
 ## YAML schema
@@ -72,7 +72,7 @@ tags:                    # Optional: freeform labels
 
 - **`triggerOperator`** must use short form (`gt`, `lt`, `eq`, `ne`). The
   deploy script maps these to API form (`GreaterThan`, etc.) at deploy time
-  — see the table at [`Deploy-CustomContent.ps1:1185-1192`](../Scripts/Deploy-CustomContent.ps1).
+  — see the table at [`Deploy-CustomContent.ps1:1185-1192`](../../Scripts/Deploy-CustomContent.ps1).
 - **`relevantTechniques`** — use this name, not `techniques`. Both are
   accepted by the deploy script for compatibility, but `relevantTechniques`
   is canonical.
@@ -86,17 +86,17 @@ tags:                    # Optional: freeform labels
 
   | Case | Reference |
   | --- | --- |
-  | Rule lives under `AnalyticalRules/Community/**` | [`Deploy-CustomContent.ps1:1155`](../Scripts/Deploy-CustomContent.ps1) |
-  | A required data type / watchlist / parser dependency is missing at deploy time | [`Deploy-CustomContent.ps1:1146`](../Scripts/Deploy-CustomContent.ps1) |
-  | KQL validation fails at deploy (e.g. a freshly deployed watchlist isn't queryable yet) | [`Deploy-CustomContent.ps1:1259`](../Scripts/Deploy-CustomContent.ps1) |
+  | Rule lives under `AnalyticalRules/Community/**` | [`Deploy-CustomContent.ps1:1155`](../../Scripts/Deploy-CustomContent.ps1) |
+  | A required data type / watchlist / parser dependency is missing at deploy time | [`Deploy-CustomContent.ps1:1146`](../../Scripts/Deploy-CustomContent.ps1) |
+  | KQL validation fails at deploy (e.g. a freshly deployed watchlist isn't queryable yet) | [`Deploy-CustomContent.ps1:1259`](../../Scripts/Deploy-CustomContent.ps1) |
 
   Because `enabled` is routinely overridden at deploy time, the [drift
-  detector](Sentinel-Drift-Detection.md) deliberately excludes it from
+  detector](../Operations/Sentinel-Drift-Detection.md) deliberately excludes it from
   comparison — flipping a rule on/off in the portal is not treated as drift.
 
 - **Deprecated rules** — rules with `[Deprecated]` in the display name are
   skipped at deploy time
-  ([`Deploy-SentinelContentHub.ps1:1153-1157`](../Scripts/Deploy-SentinelContentHub.ps1)).
+  ([`Deploy-SentinelContentHub.ps1:1153-1157`](../../Scripts/Deploy-SentinelContentHub.ps1)).
 - **Tactics casing** — camelCase, no spaces: `InitialAccess`,
   `LateralMovement`, `PrivilegeEscalation`, `CredentialAccess`, etc.
 - **`alertDetailsOverride`** — max 3 `{{columnName}}` placeholders per
@@ -128,7 +128,7 @@ tags:                    # Optional: freeform labels
 | `alertDetailsOverride` | object | Optional. Override alert title/description with query columns (max 3 placeholders per field) |
 | `eventGroupingSettings` | object | Optional. `SingleAlert` (default) or `AlertPerResult`. |
 | `incidentConfiguration` | object | Optional. Incident grouping and lookup behaviour. |
-| `version` | string | Semver (e.g., `1.0.0`). The drift sync bumps the patch component when it absorbs portal edits — see [Sentinel Drift Detection](Sentinel-Drift-Detection.md#how-custom-drift-gets-absorbed). |
+| `version` | string | Semver (e.g., `1.0.0`). The drift sync bumps the patch component when it absorbs portal edits — see [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md#how-custom-drift-gets-absorbed). |
 | `tags` | string[] | Optional. Freeform labels (e.g., `DEV-0537`, `Solorigate`) |
 
 ### Entity mapping reference
@@ -276,23 +276,23 @@ category subfolder.
 
 ## Deploy behaviour
 
-The deploy logic lives in [`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1)
+The deploy logic lives in [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1)
 (function `Deploy-CustomDetections`). Notable behaviours that affect how
 you should author rules:
 
 | Behaviour | Reference |
 | --- | --- |
-| Rules deploy `enabled: true` by default. Override with `enabled: false` in the YAML. | [`Deploy-CustomContent.ps1:1155`](../Scripts/Deploy-CustomContent.ps1) |
-| Rules under `AnalyticalRules/Community/**` always deploy disabled. | [`Deploy-CustomContent.ps1:1155`](../Scripts/Deploy-CustomContent.ps1) — see [Community Rules](Community-Rules.md) |
-| If `requiredDataConnectors` reference data types that aren't present yet, the rule deploys disabled and waits. | [`Deploy-CustomContent.ps1:1146`](../Scripts/Deploy-CustomContent.ps1) |
-| If KQL validation fails at deploy time (e.g. a freshly deployed watchlist column isn't queryable yet), the rule retries deployment with `enabled: false`. | [`Deploy-CustomContent.ps1:1259`](../Scripts/Deploy-CustomContent.ps1) |
-| Smart-deploy mode (`-SmartDeployment`) only redeploys files changed since the last successful run. Bumping `version` is not required but the drift sync bumps it automatically when absorbing portal edits. | [`Deploy-CustomContent.ps1:292`](../Scripts/Deploy-CustomContent.ps1) |
+| Rules deploy `enabled: true` by default. Override with `enabled: false` in the YAML. | [`Deploy-CustomContent.ps1:1155`](../../Scripts/Deploy-CustomContent.ps1) |
+| Rules under `AnalyticalRules/Community/**` always deploy disabled. | [`Deploy-CustomContent.ps1:1155`](../../Scripts/Deploy-CustomContent.ps1) — see [Community Rules](Community-Rules.md) |
+| If `requiredDataConnectors` reference data types that aren't present yet, the rule deploys disabled and waits. | [`Deploy-CustomContent.ps1:1146`](../../Scripts/Deploy-CustomContent.ps1) |
+| If KQL validation fails at deploy time (e.g. a freshly deployed watchlist column isn't queryable yet), the rule retries deployment with `enabled: false`. | [`Deploy-CustomContent.ps1:1259`](../../Scripts/Deploy-CustomContent.ps1) |
+| Smart-deploy mode (`-SmartDeployment`) only redeploys files changed since the last successful run. Bumping `version` is not required but the drift sync bumps it automatically when absorbing portal edits. | [`Deploy-CustomContent.ps1:292`](../../Scripts/Deploy-CustomContent.ps1) |
 
 ## Related docs
 
-- [Sentinel Drift Detection](Sentinel-Drift-Detection.md) — daily detection of
+- [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) — daily detection of
   portal-edited rules, with auto-PR back into the repo for Custom drift
 - [Community Rules](Community-Rules.md) — opt-in third-party contributions
   under `AnalyticalRules/Community/`
-- [Pester Tests](Pester-Tests.md) — running and extending the test suite for
+- [Pester Tests](../Development/Pester-Tests.md) — running and extending the test suite for
   the drift-detection logic

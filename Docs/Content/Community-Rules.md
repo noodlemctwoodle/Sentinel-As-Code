@@ -1,7 +1,7 @@
 # Community Rules
 
 Community-contributed analytics rules live under
-[`AnalyticalRules/Community/`](../AnalyticalRules/Community/), organised by
+[`AnalyticalRules/Community/`](../../AnalyticalRules/Community/), organised by
 contributor. They follow the same YAML schema as in-house Custom rules
 (see [Analytical Rules](Analytical-Rules.md)) but ship with deliberately
 restrictive deployment defaults so manual review precedes any production
@@ -12,7 +12,7 @@ enablement.
 | Property | Default | Why |
 | --- | --- | --- |
 | **Opt-in** | Skipped unless explicitly included | Pipeline parameter `Skip Community Detections` defaults to `true`; uncheck to include them in a deploy run |
-| **Disabled at deploy time** | `enabled: false` regardless of the YAML's `enabled` field | Rules are evaluated by the deployer and forced disabled in [`Deploy-CustomContent.ps1:1155`](../Scripts/Deploy-CustomContent.ps1). Reviewers enable individual rules in the Sentinel portal after deployment |
+| **Disabled at deploy time** | `enabled: false` regardless of the YAML's `enabled` field | Rules are evaluated by the deployer and forced disabled in [`Deploy-CustomContent.ps1:1155`](../../Scripts/Deploy-CustomContent.ps1). Reviewers enable individual rules in the Sentinel portal after deployment |
 | **Drift detection** | Same as Custom rules | If someone enables a community rule and edits its KQL in the portal, the daily drift detector picks it up and PRs the change back to the YAML |
 
 This combination — opt-in at deploy time, disabled by default once
@@ -39,8 +39,8 @@ the import is self-organising.
 - **Repository:** [Dalonso-Security-Repo](https://github.com/davidalonsod/Dalonso-Security-Repo)
 - **Author:** [@davidalonsod](https://github.com/davidalonsod)
 - **License:** [The Unlicense](https://unlicense.org/) (public domain)
-- **Path:** [`AnalyticalRules/Community/Dalonso/`](../AnalyticalRules/Community/Dalonso/)
-- **Import script:** [`Scripts/Import-CommunityRules.ps1`](../Scripts/Import-CommunityRules.ps1)
+- **Path:** [`AnalyticalRules/Community/Dalonso/`](../../AnalyticalRules/Community/Dalonso/)
+- **Import script:** [`Scripts/Import-CommunityRules.ps1`](../../Scripts/Import-CommunityRules.ps1)
 
 Full credit for the detection logic, KQL queries, and rule design belongs
 to David Alonso.
@@ -51,7 +51,7 @@ the upstream repo, normalises every rule, and writes:
 | Output | Path | Purpose |
 | --- | --- | --- |
 | Rule YAMLs | `AnalyticalRules/Community/Dalonso/{Category}/*.yaml` | Deployable detections |
-| Auto-generated summary | [`Docs/Community/Dalonso.md`](Community/Dalonso.md) | Per-category rule listings, last-sync date, source commit. **Not hand-edited** — regenerated each run alongside this governance doc |
+| Auto-generated summary | [`Docs/Community/Dalonso.md`](../Community/Dalonso.md) | Per-category rule listings, last-sync date, source commit. **Not hand-edited** — regenerated each run alongside this governance doc |
 | Manifest | `AnalyticalRules/Community/Dalonso/import-manifest.json` | Content-hash per file for drift-vs-upstream detection (operational artifact, stays next to the rules) |
 
 Latest counts (regenerated on each import; the auto-generated README is
@@ -128,7 +128,7 @@ For Dalonso, the dedicated importer handles everything:
 The script clones the upstream repo, applies the project's normalisation
 (forces `enabled: false`, prepends attribution to descriptions, merges
 required tags, expands short trigger operators), and rewrites every YAML
-in the target folder. It also regenerates [`Docs/Community/Dalonso.md`](Community/Dalonso.md)
+in the target folder. It also regenerates [`Docs/Community/Dalonso.md`](../Community/Dalonso.md)
 (the auto-generated rule listing, sibling to this governance doc) and
 `import-manifest.json` (the content-hash manifest, kept next to the
 rules) so all metadata always matches what was just imported.
@@ -150,7 +150,7 @@ The PR review then becomes "look at what changed since last import" — the
 import-manifest's content hashes make stale rules and new rules
 self-evident in `git diff`.
 
-See [`Scripts/Import-CommunityRules.ps1`](../Scripts/Import-CommunityRules.ps1)
+See [`Scripts/Import-CommunityRules.ps1`](../../Scripts/Import-CommunityRules.ps1)
 header for the full parameter reference.
 
 ### Sources without an import script
@@ -202,5 +202,5 @@ implementation to fork.
 
 - [Analytical Rules](Analytical-Rules.md) — YAML schema applies identically
   to community rules
-- [Sentinel Drift Detection](Sentinel-Drift-Detection.md) — what happens
+- [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) — what happens
   when an enabled community rule is edited in the portal

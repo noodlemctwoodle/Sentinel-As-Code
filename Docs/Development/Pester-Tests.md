@@ -2,13 +2,13 @@
 
 Unit tests for PowerShell scripts in this repo use [Pester 5](https://pester.dev),
 the standard PowerShell testing framework. Tests live alongside the scripts
-they cover under [`Tests/`](../Tests/) and exercise pure functions in
+they cover under [`Tests/`](../../Tests/) and exercise pure functions in
 isolation — no Azure connectivity, no live workspaces, no side effects on
 the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../Tests/) — one `<ScriptName>.Tests.ps1` per source script |
+| Test files | [`Tests/`](../../Tests/) — one `<ScriptName>.Tests.ps1` per source script |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 
@@ -71,7 +71,7 @@ Reports which lines of the source script each test exercised.
 ## Test file layout
 
 Each test file follows this skeleton (see
-[`Tests/Test-SentinelRuleDrift.Tests.ps1`](../Tests/Test-SentinelRuleDrift.Tests.ps1)
+[`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1)
 for the full real example):
 
 ```powershell
@@ -298,6 +298,6 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 | File | Coverage | Tests |
 | --- | --- | --- |
-| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource` | 41 |
+| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource` | 41 |
 
 Add new entries to this table as you cover more scripts.

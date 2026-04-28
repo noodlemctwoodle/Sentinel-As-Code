@@ -12,7 +12,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
 | `Export-Playbooks.ps1` | Exports Logic App playbooks as ARM templates | [#export-playbooksps1](#export-playbooksps1) |
 | `Set-PlaybookPermissions.ps1` | Grants managed-identity roles to deployed playbooks | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
-| `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](Sentinel-Drift-Detection.md) |
+| `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1
 
@@ -329,13 +329,13 @@ Content deploys in the following order (also driven by `dependencies.json`):
 8. **Summary Rules** — Cost-optimised aggregation
 
 Schema details for each content type:
-- [Analytical-Rules.md](Analytical-Rules.md) — YAML analytics rule schema
-- [Watchlists.md](Watchlists.md) — Watchlist metadata and CSV format
-- [Playbooks.md](Playbooks.md) — ARM template requirements
-- [Workbooks.md](Workbooks.md) — Gallery template JSON format
-- [Hunting-Queries.md](Hunting-Queries.md) — Hunting query YAML schema
-- [Automation-Rules.md](Automation-Rules.md) — Automation rule JSON schema
-- [Summary-Rules.md](Summary-Rules.md) — Summary rule JSON schema
+- [Analytical-Rules.md](../Content/Analytical-Rules.md) — YAML analytics rule schema
+- [Watchlists.md](../Content/Watchlists.md) — Watchlist metadata and CSV format
+- [Playbooks.md](../Content/Playbooks.md) — ARM template requirements
+- [Workbooks.md](../Content/Workbooks.md) — Gallery template JSON format
+- [Hunting-Queries.md](../Content/Hunting-Queries.md) — Hunting query YAML schema
+- [Automation-Rules.md](../Content/Automation-Rules.md) — Automation rule JSON schema
+- [Summary-Rules.md](../Content/Summary-Rules.md) — Summary rule JSON schema
 
 ---
 
@@ -395,13 +395,13 @@ Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph
 
 ### Content Folder Structure
 
-See [Defender-Custom-Detections.md](Defender-Custom-Detections.md) for the full YAML schema, response action types, and impacted asset identifiers.
+See [Defender-Custom-Detections.md](../Content/Defender-Custom-Detections.md) for the full YAML schema, response action types, and impacted asset identifiers.
 
 ---
 
 ## Import-CommunityRules.ps1
 
-Imports community analytical rules from external repositories into the local codebase. Currently supports the David Alonso (Dalonso) Security repository. See [Community-Rules.md](Community-Rules.md) for the full contribution model.
+Imports community analytical rules from external repositories into the local codebase. Currently supports the David Alonso (Dalonso) Security repository. See [Community-Rules.md](../Content/Community-Rules.md) for the full contribution model.
 
 ### Key Features
 

@@ -1,6 +1,6 @@
 # Defender XDR Custom Detection Rules
 
-Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`DefenderCustomDetections/`](../DefenderCustomDetections/).
+Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`DefenderCustomDetections/`](../../DefenderCustomDetections/).
 
 ## Overview
 
@@ -255,7 +255,7 @@ The service principal used by the pipeline requires:
 |------------|------|-------------|
 | `CustomDetection.ReadWrite.All` | Application | Create, read, update, and delete custom detections |
 
-Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Scripts/Setup-ServicePrincipal.ps1`](../Scripts/Setup-ServicePrincipal.ps1) handles this — see [Scripts](Scripts.md#setup-serviceprincipalps1).
+Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Scripts/Setup-ServicePrincipal.ps1`](../../Scripts/Setup-ServicePrincipal.ps1) handles this — see [Scripts](../Deployment/Scripts.md#setup-serviceprincipalps1).
 
 ### Authentication
 
@@ -263,7 +263,7 @@ The pipeline acquires a Graph API token separately from the ARM token used for S
 
 ## Deployment
 
-Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../Scripts/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](Pipelines.md).
+Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../../Scripts/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deployment/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Deployment/Pipelines.md).
 
 ## API Reference
 
