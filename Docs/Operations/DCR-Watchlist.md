@@ -99,7 +99,7 @@ _GetWatchlist('CustomerResources')
 
 ### 1. Run the Pipeline
 
-The pipeline is at [`Pipelines/DCR-Watchlist-Deploy.yml`](../../Pipelines/DCR-Watchlist-Deploy.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
+The pipeline is at [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
 
 It has two stages:
 
@@ -162,7 +162,7 @@ Automation/DCR-Watchlist/
     └── Set-RunbookPermissions.ps1     # Post-deployment RBAC assignment script
 
 Pipelines/
-└── DCR-Watchlist-Deploy.yml           # Azure DevOps pipeline
+└── Sentinel-DCR-Inventory.yml           # Azure DevOps pipeline
 ```
 
 ## API Versions

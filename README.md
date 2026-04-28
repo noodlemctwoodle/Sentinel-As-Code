@@ -102,7 +102,7 @@ For details on what's inside each folder and how content is authored, see the
 Two further pipelines run on their own schedule alongside the main deploy:
 
 - **`Pipelines/Sentinel-Drift-Detect.yml`** — detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. See [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md).
-- **`Pipelines/DCR-Watchlist-Deploy.yml`** — deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).
+- **`Pipelines/Sentinel-DCR-Inventory.yml`** — deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).
 
 ## Documentation
 
