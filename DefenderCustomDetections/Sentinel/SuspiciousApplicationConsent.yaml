@@ -1,0 +1,45 @@
+displayName: Suspicious OAuth application consent granted
+isEnabled: true
+queryCondition:
+  queryText: |
+    AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName == "Consent to application"
+    | where Result == "success"
+    | extend AccountUpn = tostring(InitiatedBy.user.userPrincipalName)
+    | extend AccountObjectId = tostring(InitiatedBy.user.id)
+    | extend AppDisplayName = tostring(TargetResources[0].displayName)
+    | extend AppId = tostring(TargetResources[0].id)
+    | extend ConsentedPermissions = tostring(TargetResources[0].modifiedProperties)
+    | where ConsentedPermissions has_any ("Mail.Read", "Mail.ReadWrite",
+        "Files.ReadWrite.All", "Directory.ReadWrite.All",
+        "User.ReadWrite.All", "Sites.ReadWrite.All",
+        "Mail.Send", "MailboxSettings.ReadWrite")
+    | project TimeGenerated, AccountUpn, AccountObjectId,
+              AppDisplayName, AppId, ConsentedPermissions,
+              CorrelationId
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Suspicious OAuth application consent granted"
+    description: |
+      A user consented to an application that requests high-risk permissions
+      such as mail access, file access, or directory write. Illicit consent
+      grants are a common technique where attackers trick users into granting
+      a malicious application access to organisational data.
+    severity: high
+    category: CredentialAccess
+    mitreTechniques:
+      - T1528
+    recommendedActions: |
+      1. Review the application and its publisher for legitimacy.
+      2. Check the permissions granted against business need.
+      3. If the application is unknown, revoke the consent immediately.
+      4. Review the user account for phishing indicators around the consent time.
+      5. Check admin consent settings to restrict user self-service consent.
+      6. Block the application ID in Entra ID enterprise applications.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId

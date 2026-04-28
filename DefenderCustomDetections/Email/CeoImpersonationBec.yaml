@@ -1,0 +1,53 @@
+displayName: Business email compromise CEO display name impersonation
+isEnabled: true
+queryCondition:
+  queryText: |
+    EmailEvents
+    | where Timestamp > ago(1h)
+    | where DeliveryAction == "Delivered"
+    | where SenderFromDomain != SenderMailFromDomain
+    | where SenderDisplayName has_any ("CEO", "Chief Executive", "Managing Director")
+        or SenderDisplayName has_any ("CFO", "Chief Financial", "Finance Director")
+    | where SenderFromDomain !endswith "yourdomain.com"
+    | where EmailDirection == "Inbound"
+    | join kind=leftsemi (
+        EmailEvents
+        | where Timestamp > ago(1h)
+        | where Subject has_any ("wire", "transfer", "payment", "invoice",
+            "urgent", "confidential", "bank details", "account change")
+    ) on NetworkMessageId
+    | project Timestamp, ReportId, NetworkMessageId,
+              SenderFromAddress, SenderDisplayName, SenderMailFromAddress,
+              SenderFromDomain, SenderMailFromDomain,
+              RecipientEmailAddress, RecipientObjectId,
+              Subject, DeliveryAction
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Business email compromise CEO display name impersonation"
+    description: |
+      An inbound email was delivered where the sender display name mimics a
+      C-level executive but the sending domain does not match the organisation.
+      Combined with financial keywords in the subject, this is consistent with
+      business email compromise attacks.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1566.002
+    recommendedActions: |
+      1. Quarantine the email from the recipient mailbox immediately.
+      2. Contact the recipient to verify if they interacted with the email.
+      3. Check if any payment or wire transfer instructions were followed.
+      4. Block the sender domain and address in the tenant allow/block list.
+      5. Review mail flow rules for spoofing protection gaps.
+      6. Report the sender to Microsoft via the admin submission portal.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedMailboxAsset"
+        identifier: recipientEmailAddress
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.hardDeleteResponseAction"
+      identifier: "networkMessageId, recipientEmailAddress"
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: recipientObjectId

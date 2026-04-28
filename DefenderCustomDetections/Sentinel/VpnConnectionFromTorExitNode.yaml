@@ -1,0 +1,43 @@
+displayName: Sign-in from known TOR exit node IP
+isEnabled: true
+queryCondition:
+  queryText: |
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType == 0
+    | where RiskEventTypes_V2 has "anonymizedIPAddress"
+        or NetworkLocationDetails has "anonymizer"
+    | extend AccountObjectId = UserId
+    | extend AccountUpn = UserPrincipalName
+    | extend City = tostring(LocationDetails.city)
+    | extend Country = tostring(LocationDetails.countryOrRegion)
+    | project TimeGenerated, AccountObjectId, AccountUpn, IPAddress,
+              City, Country, AppDisplayName, DeviceDetail,
+              RiskLevelDuringSignIn, RiskState,
+              ConditionalAccessStatus, NetworkLocationDetails
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Sign-in from known TOR exit node IP"
+    description: |
+      A successful sign-in originated from an IP address identified as a TOR
+      exit node or anonymiser service. Attackers use TOR to hide their true
+      location when accessing compromised accounts.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1090.003
+    recommendedActions: |
+      1. Verify with the account owner whether they use TOR legitimately.
+      2. Review the sign-in details and post-authentication activity.
+      3. If unauthorised, revoke sessions and force password reset.
+      4. Block anonymous IP addresses via Conditional Access named locations.
+      5. Review Identity Protection risk policies for gaps.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

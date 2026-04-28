@@ -1,0 +1,44 @@
+displayName: Privileged Entra ID role assigned to user
+isEnabled: true
+queryCondition:
+  queryText: |
+    AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName == "Add member to role"
+    | where TargetResources has_any ("Global Administrator", "Privileged Role Administrator",
+        "Security Administrator", "Exchange Administrator",
+        "SharePoint Administrator", "Application Administrator",
+        "Cloud Application Administrator", "Privileged Authentication Administrator")
+    | extend AccountUpn = tostring(InitiatedBy.user.userPrincipalName)
+    | extend AccountObjectId = tostring(InitiatedBy.user.id)
+    | extend TargetUpn = tostring(TargetResources[0].userPrincipalName)
+    | extend TargetObjectId = tostring(TargetResources[0].id)
+    | extend RoleName = tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[1].newValue)
+    | project TimeGenerated, AccountUpn, AccountObjectId,
+              TargetUpn, TargetObjectId, RoleName,
+              OperationName, CorrelationId
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Privileged Entra ID role assigned to user"
+    description: |
+      A highly privileged Entra ID directory role was assigned to a user.
+      Unauthorised role assignments can grant an attacker full control over
+      the tenant, including the ability to modify security settings and
+      access all organisational data.
+    severity: high
+    category: PrivilegeEscalation
+    mitreTechniques:
+      - T1098.003
+    recommendedActions: |
+      1. Verify the role assignment was approved through the proper access governance process.
+      2. Check if the initiating account is authorised to assign privileged roles.
+      3. Review the target account for recent suspicious activity.
+      4. If unauthorised, remove the role assignment immediately.
+      5. Check PIM (Privileged Identity Management) for policy bypass.
+      6. Audit all role assignments made by the initiating account.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId

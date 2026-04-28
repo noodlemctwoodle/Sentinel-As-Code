@@ -1,0 +1,57 @@
+displayName: Ransomware file extension activity detected
+isEnabled: true
+queryCondition:
+  queryText: |
+    let ransomwareExtensions = dynamic([".encrypted", ".locked", ".crypto", ".crypt",
+        ".locky", ".wcry", ".wncry", ".wncryt", ".cerber", ".cerber3",
+        ".zepto", ".thor", ".aaa", ".xyz", ".zzz", ".micro", ".vvv"]);
+    DeviceFileEvents
+    | where Timestamp > ago(1h)
+    | where ActionType in ("FileCreated", "FileRenamed")
+    | where FileName has_any (ransomwareExtensions)
+    | where FolderPath !startswith "C:\\Windows\\Temp"
+    | summarize (Timestamp, ReportId) = arg_max(Timestamp, ReportId),
+        FileCount = count(), FileList = make_set(FileName, 10)
+        by DeviceId, DeviceName,
+           InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
+           InitiatingProcessFileName, InitiatingProcessCommandLine,
+           InitiatingProcessSHA1
+    | where FileCount > 5
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              InitiatingProcessSHA1, FileCount, FileList
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Ransomware file extension activity detected"
+    description: |
+      Multiple files with known ransomware extensions were created or renamed
+      on an endpoint. This pattern is consistent with active ransomware encryption.
+      Immediate containment is critical to prevent lateral spread.
+    severity: high
+    category: Impact
+    mitreTechniques:
+      - T1486
+    recommendedActions: |
+      1. Verify the device is isolated and confirm no lateral movement occurred.
+      2. Identify the initiating process and check if it is a known ransomware binary.
+      3. Review the initiating process SHA1 hash against threat intelligence feeds.
+      4. Check for ransom notes in affected directories.
+      5. Assess backup availability for encrypted files.
+      6. Escalate to incident response if confirmed ransomware.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
+      identifier: deviceId
+      isolationType: full
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.initiateInvestigationResponseAction"
+      identifier: deviceId

@@ -1,0 +1,49 @@
+displayName: Living-off-the-land binary execution chain detected
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceProcessEvents
+    | where Timestamp > ago(1h)
+    | where InitiatingProcessFileName in~ ("cmd.exe", "powershell.exe", "pwsh.exe")
+    | where FileName in~ ("certutil.exe", "bitsadmin.exe", "mshta.exe",
+        "regsvr32.exe", "rundll32.exe", "wmic.exe", "cmstp.exe",
+        "msdt.exe", "msiexec.exe", "installutil.exe")
+    | where ProcessCommandLine has_any ("http://", "https://", "ftp://",
+        "-urlcache", "/transfer", "javascript:", "scrobj.dll",
+        "/s /n /u", "/i:http")
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              FileName, ProcessCommandLine, FolderPath,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              InitiatingProcessSHA1,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Living-off-the-land binary execution chain detected"
+    description: |
+      A command interpreter spawned a known living-off-the-land binary (LOLBin)
+      with arguments suggesting remote content download or proxy execution.
+      This technique uses legitimate system tools to bypass application controls.
+    severity: high
+    category: Execution
+    mitreTechniques:
+      - T1218
+      - T1105
+    recommendedActions: |
+      1. Review the full command line for remote URLs or encoded payloads.
+      2. Check if the LOLBin was used to download or execute remote content.
+      3. Investigate the parent process chain for initial access vectors.
+      4. Review network connections from the device around the event time.
+      5. If confirmed malicious, isolate the device and block the remote indicators.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.restrictAppExecutionResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId

@@ -1,0 +1,50 @@
+displayName: Privileged account login from previously unseen country
+isEnabled: true
+queryCondition:
+  queryText: |
+    let privilegedAccounts =
+        IdentityLogonEvents
+        | where Timestamp > ago(30d)
+        | where ActionType == "LogonSuccess"
+        | where AccountUpn has_any ("admin", "svc-", "break-glass")
+        | distinct AccountUpn, Location;
+    let recentLogins =
+        IdentityLogonEvents
+        | where Timestamp > ago(1h)
+        | where ActionType == "LogonSuccess"
+        | where AccountUpn has_any ("admin", "svc-", "break-glass")
+        | project Timestamp, ReportId, AccountUpn, AccountObjectId, AccountSid,
+                  IPAddress, Location, Application, DeviceName, LogonType;
+    recentLogins
+    | join kind=leftanti privilegedAccounts on AccountUpn, Location
+    | where isnotempty(Location)
+    | project Timestamp, ReportId, AccountUpn, AccountObjectId, AccountSid,
+              IPAddress, Location, Application, DeviceName, LogonType
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Privileged account login from previously unseen country"
+    description: |
+      A privileged account successfully authenticated from a country that has
+      not been seen in the past 30 days of login history. This may indicate
+      compromised credentials being used from an attacker-controlled location.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1078.004
+    recommendedActions: |
+      1. Contact the account owner to verify whether they are travelling.
+      2. Review the sign-in IP address against threat intelligence feeds.
+      3. Check for follow-on activity from the same session.
+      4. Review Conditional Access policies for the account.
+      5. If unauthorised, disable the account and reset credentials immediately.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.disableUserResponseAction"
+      identifier: accountSid
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

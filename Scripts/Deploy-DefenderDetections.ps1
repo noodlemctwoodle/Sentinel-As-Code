@@ -474,6 +474,10 @@ function Deploy-DefenderDetections {
             }
 
             # Validate schedule period
+            # Note: '0' (NRT/continuous) is listed in the Graph API ruleSchedule schema but
+            # Microsoft only documents NRT configuration via the portal UI. No API example
+            # uses period "0". It is accepted here since the schema permits it, but may not
+            # work as expected. Use the Defender portal for NRT rules.
             $validPeriods = @('0', '1H', '3H', '12H', '24H')
             if ($validPeriods -notcontains $rule['schedule']['period']) {
                 Write-PipelineMessage "Skipping '$($file.Name)': invalid schedule period '$($rule['schedule']['period'])'. Valid values: $($validPeriods -join ', ')." -Level Warning
@@ -484,6 +488,10 @@ function Deploy-DefenderDetections {
             $ruleName = $rule['displayName']
             $schedulePeriod = $rule['schedule']['period']
             $scheduleDisplay = if ($schedulePeriod -eq '0') { 'NRT' } else { "Every $schedulePeriod" }
+
+            if ($schedulePeriod -eq '0') {
+                Write-PipelineMessage "Warning: NRT (period '0') is defined in the Graph API schema but only documented for portal configuration. API deployment may not work as expected." -Level Warning
+            }
 
             Write-PipelineMessage "Processing: $ruleName ($scheduleDisplay) [$($file.Name)]" -Level Info
 

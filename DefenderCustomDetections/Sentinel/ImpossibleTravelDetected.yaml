@@ -1,0 +1,55 @@
+displayName: Impossible travel between two successful sign-ins
+isEnabled: true
+queryCondition:
+  queryText: |
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType == 0
+    | where IsInteractive == true
+    | extend AccountObjectId = UserId
+    | extend AccountUpn = UserPrincipalName
+    | extend City = tostring(LocationDetails.city)
+    | extend Country = tostring(LocationDetails.countryOrRegion)
+    | extend Latitude = todouble(LocationDetails.geoCoordinates.latitude)
+    | extend Longitude = todouble(LocationDetails.geoCoordinates.longitude)
+    | sort by AccountObjectId asc, TimeGenerated asc
+    | serialize
+    | extend PrevTime = prev(TimeGenerated, 1)
+    | extend PrevLat = prev(Latitude, 1)
+    | extend PrevLong = prev(Longitude, 1)
+    | extend PrevCountry = prev(Country, 1)
+    | extend PrevUser = prev(AccountObjectId, 1)
+    | where AccountObjectId == PrevUser
+    | where Country != PrevCountry
+    | extend TimeDiffMinutes = datetime_diff("minute", TimeGenerated, PrevTime)
+    | where TimeDiffMinutes < 60
+    | project TimeGenerated, AccountObjectId, AccountUpn, IPAddress,
+              City, Country, PrevCountry, TimeDiffMinutes,
+              AppDisplayName, DeviceDetail
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Impossible travel between two successful sign-ins"
+    description: |
+      A user account completed successful interactive sign-ins from two
+      different countries within less than 60 minutes. Unless using a VPN,
+      this travel speed is physically impossible and suggests credential
+      compromise with concurrent use from a different location.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1078.004
+    recommendedActions: |
+      1. Review both sign-in locations and verify with the user.
+      2. Check if either location matches a known VPN or corporate egress IP.
+      3. If one location is anomalous, revoke sessions and force password reset.
+      4. Review post-authentication activity from the suspicious location.
+      5. Enable location-based Conditional Access policies if not already active.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

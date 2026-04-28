@@ -1,0 +1,40 @@
+displayName: Mailbox delegation or permission added via Exchange
+isEnabled: true
+queryCondition:
+  queryText: |
+    AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName has_any ("Add delegated permission grant",
+        "Add app role assignment grant to user")
+    | where TargetResources has_any ("full_access_as_app", "Mail.",
+        "Mailbox", "Exchange")
+    | extend AccountUpn = tostring(InitiatedBy.user.userPrincipalName)
+    | extend AccountObjectId = tostring(InitiatedBy.user.id)
+    | extend TargetResource = tostring(TargetResources[0].displayName)
+    | extend PermissionDetails = tostring(TargetResources[0].modifiedProperties)
+    | project TimeGenerated, AccountUpn, AccountObjectId,
+              TargetResource, PermissionDetails,
+              OperationName, CorrelationId
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Mailbox delegation or permission added via Exchange"
+    description: |
+      A mailbox delegation or mail-related permission was granted. Attackers
+      who compromise an admin account often add mailbox delegation to read
+      email from high-value targets without triggering sign-in alerts.
+    severity: medium
+    category: Collection
+    mitreTechniques:
+      - T1098.002
+    recommendedActions: |
+      1. Verify the delegation was requested through proper channels.
+      2. Review who initiated the change and from what IP address.
+      3. Check the target mailbox for sensitive content exposure.
+      4. If unauthorised, remove the delegation immediately.
+      5. Review the initiating account for compromise indicators.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
