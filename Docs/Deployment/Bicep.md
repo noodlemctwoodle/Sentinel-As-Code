@@ -7,10 +7,10 @@ resource group for playbooks.
 
 | File | Scope | Purpose |
 | --- | --- | --- |
-| [`Bicep/main.bicep`](../Bicep/main.bicep) | Subscription | Orchestrator — creates resource groups and invokes the Sentinel module |
-| [`Bicep/sentinel.bicep`](../Bicep/sentinel.bicep) | Resource group | Workspace, Sentinel onboarding, diagnostic settings |
+| [`Bicep/main.bicep`](../../Bicep/main.bicep) | Subscription | Orchestrator — creates resource groups and invokes the Sentinel module |
+| [`Bicep/sentinel.bicep`](../../Bicep/sentinel.bicep) | Resource group | Workspace, Sentinel onboarding, diagnostic settings |
 
-These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](Pipelines.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
+These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](Pipelines.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
 
 ## main.bicep
 
@@ -118,7 +118,7 @@ The pipeline can deploy playbooks (Logic Apps) to a separate resource group. To 
 
 If those conditions aren't met, the conditional resource is skipped and playbooks land in the main Sentinel RG.
 
-The deploy script ([`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1)) reads the same `playbookResourceGroup` variable and routes Logic App ARM deployments accordingly. See [Playbooks](Playbooks.md) for the deploy-side detail.
+The deploy script ([`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1)) reads the same `playbookResourceGroup` variable and routes Logic App ARM deployments accordingly. See [Playbooks](../Content/Playbooks.md) for the deploy-side detail.
 
 ## Pipeline invocation
 
@@ -159,11 +159,11 @@ The pipeline GETs the current setting (to capture the ETag) and PUTs the new sta
 - **Daily quota of 0 is a sentinel value**. Bicep maps `0` to the API's `-1` (unlimited). Setting an explicit `dailyQuota` of `1` is the smallest valid cap; values below 1 GB are rejected by the platform.
 - **Total retention defaulting**: when `totalRetentionInDays = 0`, Bicep substitutes `retentionInDays`. To enable archive-tier retention, pass an explicit `totalRetentionInDays` greater than `retentionInDays`.
 - **Sentinel feature settings** (Entity Analytics, UEBA, Anomalies, EyesOn) are configured outside Bicep — see the table above.
-- **No role assignments**. RBAC for the deploy service principal is granted via [`Scripts/Setup-ServicePrincipal.ps1`](../Scripts/Setup-ServicePrincipal.ps1) — see [Scripts](Scripts.md#setup-serviceprincipalps1).
+- **No role assignments**. RBAC for the deploy service principal is granted via [`Scripts/Setup-ServicePrincipal.ps1`](../../Scripts/Setup-ServicePrincipal.ps1) — see [Scripts](Scripts.md#setup-serviceprincipalps1).
 
 ## Related docs
 
 - [Pipelines](Pipelines.md) — how Stage 2 runs Bicep and the post-Bicep settings step
 - [Scripts](Scripts.md#setup-serviceprincipalps1) — service principal RBAC bootstrap
-- [Playbooks](Playbooks.md) — how the optional playbook RG is consumed
-- [DCR Watchlist](DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (lives under `Automation/DCR-Watchlist/`, not this folder)
+- [Playbooks](../Content/Playbooks.md) — how the optional playbook RG is consumed
+- [DCR Watchlist](../Operations/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (lives under `Automation/DCR-Watchlist/`, not this folder)

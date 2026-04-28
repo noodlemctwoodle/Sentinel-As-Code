@@ -1,6 +1,6 @@
 # Playbooks
 
-Custom playbooks (Azure Logic Apps) for automated incident response, entity enrichment, and scheduled automation. Each playbook is an ARM JSON template under [`Playbooks/`](../Playbooks/) organised by trigger category.
+Custom playbooks (Azure Logic Apps) for automated incident response, entity enrichment, and scheduled automation. Each playbook is an ARM JSON template under [`Playbooks/`](../../Playbooks/) organised by trigger category.
 
 ## Folder Structure
 
@@ -124,7 +124,7 @@ The export script:
 - Handles MSI vs standard connections correctly
 - Generates metadata with author and description
 
-See [Scripts.md](Scripts.md#export-playbooksps1) for the full Export-Playbooks parameter reference.
+See [Scripts.md](../Deployment/Scripts.md#export-playbooksps1) for the full Export-Playbooks parameter reference.
 
 ## Notes
 
@@ -133,4 +133,4 @@ See [Scripts.md](Scripts.md#export-playbooksps1) for the full Export-Playbooks p
 - Module playbooks are called by parent playbooks via `Workflow` actions — the `Module-` prefix in `PlaybookName` must match the workflow reference
 - WhatIf mode validates the template without deploying
 - The `Template/` folder is always excluded from deployment
-- Post-deploy: managed-identity role assignments are handled by [`Scripts/Set-PlaybookPermissions.ps1`](../Scripts/Set-PlaybookPermissions.ps1) — see [Scripts.md](Scripts.md#set-playbookpermissionsps1)
+- Post-deploy: managed-identity role assignments are handled by [`Scripts/Set-PlaybookPermissions.ps1`](../../Scripts/Set-PlaybookPermissions.ps1) — see [Scripts.md](../Deployment/Scripts.md#set-playbookpermissionsps1)

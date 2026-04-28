@@ -7,8 +7,8 @@ Content Hub and orphan drift are reported but not auto-merged.
 
 | What | Where |
 | --- | --- |
-| Detection script | [`Scripts/Test-SentinelRuleDrift.ps1`](../Scripts/Test-SentinelRuleDrift.ps1) |
-| ADO pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../Pipelines/Sentinel-Drift-Detect.yml) |
+| Detection script | [`Scripts/Test-SentinelRuleDrift.ps1`](../../Scripts/Test-SentinelRuleDrift.ps1) |
+| ADO pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) |
 | Generated reports | `reports/sentinel-drift-{UTC-timestamp}.{md,json}` |
 | Auto-sync branch | `auto/sentinel-drift-sync` (rolling, force-pushed each run) |
 | Schedule | Daily at 06:00 UTC |
@@ -64,14 +64,14 @@ Deliberately **not** compared:
   `alertDetailsOverride`, `incidentConfiguration` — JSON shapes differ
   between API responses, ARM templates, and YAML, producing false positives
   on every rule. Mirrors the comment block at
-  [`Deploy-SentinelContentHub.ps1:904-907`](../Scripts/Deploy-SentinelContentHub.ps1).
+  [`Deploy-SentinelContentHub.ps1:904-907`](../../Scripts/Deploy-SentinelContentHub.ps1).
 - `enabled` — `Deploy-CustomContent.ps1` legitimately deploys rules as
   `enabled=false` when dependencies are missing or KQL validation fails;
   `Deploy-SentinelContentHub.ps1`'s `-DisableRules` switch does the same for
   OoB content. Comparing this field would flag every rule deployed via either
   path. Drift detection focuses on intentional content edits.
 - `[Deprecated]` rules — skipped by display-name match, mirroring
-  [`Deploy-SentinelContentHub.ps1:1153-1157`](../Scripts/Deploy-SentinelContentHub.ps1).
+  [`Deploy-SentinelContentHub.ps1:1153-1157`](../../Scripts/Deploy-SentinelContentHub.ps1).
 
 ## What the pipeline does
 
@@ -280,8 +280,8 @@ before comparing.
 Pester 5 tests covering the four substantive pure functions
 (`Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`,
 `Resolve-RuleSource`) live at
-[`Tests/Test-SentinelRuleDrift.Tests.ps1`](../Tests/Test-SentinelRuleDrift.Tests.ps1).
-See [Pester Tests](Pester-Tests.md) for prerequisites, the AST-extraction
+[`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1).
+See [Pester Tests](../Development/Pester-Tests.md) for prerequisites, the AST-extraction
 pattern this repo uses, and how to add new test files.
 
 ```powershell
@@ -303,12 +303,12 @@ Manual integration smoke test against a live workspace (read-only):
 
 ## Related scripts
 
-- [`Scripts/Deploy-SentinelContentHub.ps1`](../Scripts/Deploy-SentinelContentHub.ps1) —
+- [`Scripts/Deploy-SentinelContentHub.ps1`](../../Scripts/Deploy-SentinelContentHub.ps1) —
   deploys OoB content. Function `Test-RuleIsCustomised` (line 826) is the
   comparison-logic ancestor of `Compare-SentinelRule`. The deploy script
   uses it at deploy-time to skip overwriting customised rules; the drift
   script uses an extended version of it at detection-time to surface them.
-- [`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1) —
+- [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) —
   deploys Custom YAML rules. Function `Deploy-CustomDetections` (line 1077)
   is the source of the `triggerOperator` mapping table the drift script
   reuses.
