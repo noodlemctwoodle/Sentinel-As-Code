@@ -1,0 +1,307 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Detect Sentinel Analytics Rule Drift
+# ---------------------------------------------------------------------------
+# Detects rules edited directly in the Sentinel portal (bypassing the deploy
+# pipelines), absorbs the changes back into the repo, and opens a PR for
+# review.
+#
+# Behaviour:
+#   - Custom drift   -> matching AnalyticalRules/**.yaml is updated to reflect
+#                       the deployed state (single-line scalars + query block).
+#                       Patch version is bumped.
+#   - ContentHub     -> reported in reports/sentinel-drift-latest.md only.
+#   - Orphan         -> reported in reports/sentinel-drift-latest.md only.
+#   - No drift       -> nothing committed. Working tree stays clean. No PR.
+#
+# When drift IS detected:
+#   1. Push the changes to the rolling branch 'auto/sentinel-drift-sync'.
+#   2. Open (or refresh) a PR from that branch into main.
+#
+# Runs daily at 06:00 UTC (independent from Sentinel-Deploy.yml's weekly cron).
+#
+# Prerequisites:
+#   - Variable group 'sentinel-deployment' (shared with Sentinel-Deploy.yml).
+#   - Azure Service Connection ($(serviceConnection)) with 'Microsoft Sentinel
+#     Reader' on the workspace.
+#   - 'Project Collection Build Service ($org)' identity granted 'Contribute',
+#     'Create branch', and 'Contribute to pull requests' on the repo. This is
+#     the identity used when persistCredentials: true exposes System.AccessToken
+#     for the git push and the 'az repos pr create' call.
+# ---------------------------------------------------------------------------
+
+trigger: none
+
+schedules:
+  - cron: "0 6 * * *"
+    displayName: "Daily 06:00 UTC"
+    branches:
+      include:
+        - main
+    always: true
+
+parameters:
+  # ── General ────────────────────────────────────────────────────────────
+  - name: failOnDrift
+    displayName: "Fail Pipeline When Drift Detected"
+    type: boolean
+    default: false
+
+  - name: reportOnly
+    displayName: "Report Only — do not write YAML edits or open a PR"
+    type: boolean
+    default: false
+
+  # ── Drift › Filters ────────────────────────────────────────────────────
+  # NOTE: solution-name filtering is intentionally not exposed here.
+  # ADO parameter 'values:' lists are evaluated at compile time, so we cannot
+  # dynamically populate a dropdown from the live workspace catalogue — and
+  # hardcoding solution names couples this pipeline to one specific workspace.
+  # The drift script always scans every Content Hub rule it finds; the report
+  # under reports/sentinel-drift-latest.md groups results per-solution so you
+  # can see which ones drifted without filtering on input.
+  #
+  # For ad-hoc per-solution runs, invoke the script directly:
+  #   ./Scripts/Test-SentinelRuleDrift.ps1 -Solutions "Microsoft Defender XDR" ...
+
+  - name: skipContentHub
+    displayName: "  Drift › Skip Content Hub Bucket"
+    type: boolean
+    default: false
+
+  - name: skipCustom
+    displayName: "  Drift › Skip Custom (Repo YAML) Bucket"
+    type: boolean
+    default: false
+
+  - name: skipOrphans
+    displayName: "  Drift › Skip Orphan (Ungoverned) Bucket"
+    type: boolean
+    default: false
+
+variables:
+  - group: sentinel-deployment      # Variable group containing:
+                                    #   - azureSubscriptionId
+                                    #   - sentinelResourceGroup
+                                    #   - sentinelWorkspaceName
+                                    #   - sentinelRegion
+  - name: serviceConnection
+    value: "sc-sentinel-as-code"
+  - name: SuppressAzurePowerShellBreakingChangeWarnings
+    value: "true"
+
+  # Branch configuration. These are deliberately variables (not parameters) so the
+  # 'Run pipeline' panel stays minimal — the rolling sync branch and PR target are
+  # bot-managed and shouldn't be tweaked per-run.
+  - name: syncBranch
+    value: "auto/sentinel-drift-sync"
+  - name: targetBranch
+    value: "main"
+
+  # Map boolean parameters to switch flag strings at compile time.
+  # Mirrors the convention used in Sentinel-Deploy.yml (lines 188-300).
+  - name: flagFailOnDrift
+    ${{ if eq(parameters.failOnDrift, true) }}:
+      value: "-FailOnDrift"
+    ${{ else }}:
+      value: ""
+
+  - name: flagReportOnly
+    ${{ if eq(parameters.reportOnly, true) }}:
+      value: "-ReportOnly"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipContentHub
+    ${{ if eq(parameters.skipContentHub, true) }}:
+      value: "-SkipContentHub"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipCustom
+    ${{ if eq(parameters.skipCustom, true) }}:
+      value: "-SkipCustom"
+    ${{ else }}:
+      value: ""
+
+  - name: flagSkipOrphans
+    ${{ if eq(parameters.skipOrphans, true) }}:
+      value: "-SkipOrphans"
+    ${{ else }}:
+      value: ""
+
+stages:
+  - stage: DetectAndSyncDrift
+    displayName: "Detect Sentinel Rule Drift"
+    jobs:
+      - job: RunDriftDetection
+        displayName: "Compare, Sync, and Open PR"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          # persistCredentials exposes System.AccessToken to the git CLI so we
+          # can push back to the repo on the same checkout.
+          - checkout: self
+            persistCredentials: true
+
+          - task: PowerShell@2
+            displayName: "Install powershell-yaml Module"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                Write-Host "##[section]Installing powershell-yaml module"
+                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                Write-Host "powershell-yaml installed successfully."
+
+          - task: AzurePowerShell@5
+            displayName: "Detect Sentinel Rule Drift"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: LatestVersion
+              pwsh: true
+              errorActionPreference: "Continue"
+              Inline: |
+                $scriptParams = @{
+                    SubscriptionId = "$(azureSubscriptionId)"
+                    ResourceGroup  = "$(sentinelResourceGroup)"
+                    Workspace      = "$(sentinelWorkspaceName)"
+                    Region         = "$(sentinelRegion)"
+                    RepoPath       = "$(Build.SourcesDirectory)"
+                }
+
+                if ("$(flagFailOnDrift)")    { $scriptParams['FailOnDrift']    = $true }
+                if ("$(flagReportOnly)")     { $scriptParams['ReportOnly']     = $true }
+                if ("$(flagSkipContentHub)") { $scriptParams['SkipContentHub'] = $true }
+                if ("$(flagSkipCustom)")     { $scriptParams['SkipCustom']     = $true }
+                if ("$(flagSkipOrphans)")    { $scriptParams['SkipOrphans']    = $true }
+
+                Write-Host "##[section]Launching Sentinel Rule Drift Detection"
+                Write-Host "Workspace: $(sentinelWorkspaceName) (RG: $(sentinelResourceGroup))"
+                Write-Host "Switches:  $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
+
+                & "$(Build.SourcesDirectory)/Scripts/Test-SentinelRuleDrift.ps1" @scriptParams
+
+          # Commit + push + PR. Bash so 'az' and 'git' behave predictably.
+          # Skipped entirely when -ReportOnly was passed: nothing on disk to commit.
+          - bash: |
+              set -euo pipefail
+
+              cd "$(Build.SourcesDirectory)"
+
+              if ! git status --porcelain | grep -q .; then
+                  echo "##[section]No drift detected — working tree clean. Skipping commit/PR."
+                  exit 0
+              fi
+
+              echo "##[section]Drift detected — staging changes"
+              git config user.email "noreply@sentinel-as-code.local"
+              git config user.name  "Sentinel Drift Sync"
+              git status --short
+
+              SYNC_BRANCH="$(syncBranch)"
+              TARGET_BRANCH="$(targetBranch)"
+
+              # Reset the rolling sync branch from the LATEST target tip so the
+              # branch always descends from the current main. This fixes the
+              # 'Added in both' merge conflict that occurred when local HEAD was
+              # a stale snapshot (e.g. a previous drift PR had been merged into
+              # main between the checkout step and this commit step).
+              #
+              # We need to preserve the working-tree changes the script wrote,
+              # so we stash, reset, then pop.
+              git stash push --include-untracked --message "drift-changes" --quiet
+              git fetch origin "$TARGET_BRANCH"
+              git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
+              git stash pop --quiet || true
+
+              # Stage only paths the script may legitimately have touched.
+              git add AnalyticalRules reports
+
+              # Commit message includes the timestamp; the report filename is
+              # also timestamped so multiple runs accumulate without collision.
+              REPORT_PATH=$(ls -1t reports/sentinel-drift-*.md 2>/dev/null | head -1)
+              git commit -m "chore(sentinel): sync drift from portal $(date -u +%Y-%m-%dT%H:%MZ)" \
+                         -m "Auto-generated by Pipelines/Sentinel-Drift-Detect.yml. See ${REPORT_PATH:-reports/} for details."
+
+              # Force-push the rolling branch (it's a bot branch, never hand-edited).
+              git push --force-with-lease origin "$SYNC_BRANCH"
+
+              echo "##[section]Opening / refreshing PR"
+              # Auth for `az repos pr` uses System.AccessToken
+              echo "$(System.AccessToken)" | az devops login --organization "$(System.CollectionUri)"
+
+              # Resolve the most recent timestamped report (lex order == chrono order).
+              FULL_REPORT=$(ls -1 reports/sentinel-drift-*.md 2>/dev/null | tail -1)
+
+              # ADO truncates --description at ~4000 chars, so the full report
+              # (which embeds full deployed/template KQL bodies) silently loses
+              # the second-onwards drifted rule. Build a concise PR description
+              # from the report instead, and link reviewers to the file in the
+              # Files Changed tab for the complete diff.
+              PR_BODY_FILE="$(mktemp)"
+              {
+                  echo "# Sentinel Rule Drift Auto-Sync"
+                  echo ""
+                  if [ -n "$FULL_REPORT" ] && [ -f "$FULL_REPORT" ]; then
+                      echo "**Full report:** [\`$FULL_REPORT\`]($FULL_REPORT) — see the **Files Changed** tab for diff blocks and full KQL bodies."
+                      echo ""
+                      # Pull the Summary section verbatim (header + table). The sed
+                      # range stops at the next '## ' heading; the awk strips it.
+                      sed -n '/^## Summary/,/^## /p' "$FULL_REPORT" | sed '$d'
+                      echo ""
+                      # Compact list of every drifted rule, one per line.
+                      DRIFTED_HEADINGS=$(grep -E '^### ' "$FULL_REPORT" | sed 's/^### //')
+                      if [ -n "$DRIFTED_HEADINGS" ]; then
+                          echo "## Rules with drift"
+                          echo ""
+                          echo "$DRIFTED_HEADINGS" | sed 's/^/- /'
+                      fi
+                  else
+                      echo "Drift detected. See commit history."
+                  fi
+              } > "$PR_BODY_FILE"
+
+              echo "##[debug]PR body preview:"
+              cat "$PR_BODY_FILE"
+              echo "##[debug]PR body length: $(wc -c < "$PR_BODY_FILE") bytes"
+
+              # Try to find an existing open PR from this branch; if found, ADO will
+              # reuse it on the next push automatically (we just refreshed the branch).
+              EXISTING=$(az repos pr list \
+                  --repository "$(Build.Repository.Name)" \
+                  --status active \
+                  --source-branch "refs/heads/$SYNC_BRANCH" \
+                  --target-branch "refs/heads/$TARGET_BRANCH" \
+                  --organization "$(System.CollectionUri)" \
+                  --project "$(System.TeamProject)" \
+                  --query "[0].pullRequestId" \
+                  -o tsv 2>/dev/null || true)
+
+              if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+                  echo "Existing PR #$EXISTING refreshed by branch push — updating description."
+                  az repos pr update \
+                      --id "$EXISTING" \
+                      --description "$(cat "$PR_BODY_FILE")" \
+                      --organization "$(System.CollectionUri)" \
+                      --output none
+              else
+                  az repos pr create \
+                      --repository "$(Build.Repository.Name)" \
+                      --source-branch "$SYNC_BRANCH" \
+                      --target-branch "$TARGET_BRANCH" \
+                      --title "chore(sentinel): sync drift from portal $(date -u +%Y-%m-%d)" \
+                      --description "$(cat "$PR_BODY_FILE")" \
+                      --organization "$(System.CollectionUri)" \
+                      --project "$(System.TeamProject)" \
+                      --auto-complete false \
+                      --delete-source-branch false \
+                      --output table
+              fi
+
+              rm -f "$PR_BODY_FILE"
+            displayName: "Commit, Push, and Open PR (when drift detected)"
+            condition: succeeded()
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
