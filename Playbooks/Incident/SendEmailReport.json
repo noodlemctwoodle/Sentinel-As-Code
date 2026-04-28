@@ -1,0 +1,249 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "SendEmailReport",
+    "description": "Sentinel incident-trigger playbook for SendEmailReport.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Incident",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "SendEmailReport",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinel0ConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]",
+    "Office3650ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "reportName": {
+              "defaultValue": "Sentinel Security Ops",
+              "type": "String"
+            },
+            "SecOpsEmail": {
+              "defaultValue": "secops@yourdomain.com",
+              "type": "String"
+            },
+            "emailLogoHeader": {
+              "defaultValue": "https://domain.com/content/images/2025/04/36127.png",
+              "type": "String"
+            },
+            "dateTimeFormat": {
+              "defaultValue": "dd-MM-yyyy HH:mm:ss",
+              "type": "String"
+            },
+            "Recipient": {
+              "defaultValue": "socengineer@domain.com",
+              "type": "String"
+            },
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Create_HTML_table_with_Alerts": {
+              "runAfter": {
+                "Select_Alerts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Select_Alerts')",
+                "format": "HTML"
+              }
+            },
+            "Create_HTML_table_with_Entities": {
+              "runAfter": {
+                "Select_Entities": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Select_Entities')",
+                "format": "HTML"
+              }
+            },
+            "Select_Alerts": {
+              "runAfter": {
+                "Create_HTML_table_with_Entities": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@triggerBody()?['object']?['properties']?['Alerts']",
+                "select": {
+                  "Alerts": "@{item()?['properties']?['alertDisplayName']}"
+                }
+              }
+            },
+            "Select_Entities": {
+              "runAfter": {},
+              "type": "Select",
+              "inputs": {
+                "from": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "select": {
+                  "Entity": "@{item()?['properties']?['friendlyName']}",
+                  "Entity type": "@{item()?['kind']}"
+                }
+              }
+            },
+            "Send_an_email_with_Incident_details": {
+              "runAfter": {
+                "Compose_Email_response": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365-1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "To": "@parameters('Recipient')",
+                  "Subject": "New Microsoft Sentinel incident - @{triggerBody()?['object']?['properties']?['title']}",
+                  "Body": "<p>@{outputs('Compose_Email_response')}</p>",
+                  "Importance": "High"
+                },
+                "path": "/v2/Mail"
+              }
+            },
+            "Compose_Entity_Count": {
+              "runAfter": {
+                "Create_HTML_table_with_Alerts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "@length(triggerBody()?['object']?['properties']?['relatedEntities'])"
+            },
+            "Compose_Email_response": {
+              "runAfter": {
+                "Compose_Entity_Count": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "<!DOCTYPE html>\n<html>\n\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Security Alert</title>\n    <style>\n        /* Basic page styling */\n        body {\n            font-family: 'Segoe UI', Arial, sans-serif; /* Microsoft's Segoe UI for better visual alignment */\n            margin: 0; \n            padding: 0; \n            background-color: #f5f5f5; /* Light gray background for better contrast */\n            color: #252525; /* Darker text for better readability */\n            line-height: 1.5; /* Better line spacing for readability */\n        }\n\n        /* Main container with max width and centered */\n        .container { \n            max-width: 700px; /* Slightly wider container */\n            margin: 20px auto; /* Add top/bottom margin */\n            background-color: #ffffff; /* White background for content */\n            box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* Enhanced shadow for depth */\n            border-radius: 4px; /* Subtle rounded corners for modern look */\n            overflow: hidden; /* Ensure no content spills out */\n        }\n\n        /* Header styling with logo on right, title on left */\n        .header {\n            background-color: #0078D4; /* Microsoft blue background */\n            padding: 24px 20px; /* Increased vertical padding */\n            color: white; /* White text for contrast on blue */\n            display: flex; /* Use flexbox for layout */\n            justify-content: space-between; /* Push elements to opposite ends */\n            align-items: center; /* Vertically center elements */\n            min-height: 80px; /* Ensure header has enough height */\n        }\n\n        /* Logo styling - positioned on the right */\n        .header img { \n            width: 120px !important; /* Force the width with !important to override email client defaults */\n            height: auto !important; /* Maintain aspect ratio */\n            max-width: none !important; /* Override any max-width constraints */\n            object-fit: contain; /* Ensure image isn't distorted */\n            margin: 0;\n            order: 2; /* Places the image second in the flex order (right side) */\n        }\n\n        /* Title styling - positioned on the left */\n        .header h1 {\n            margin: 0;\n            font-size: 28px; /* Larger font size */\n            text-align: left;\n            order: 1; /* Places the title first in the flex order (left side) */\n            font-weight: 600; /* Slightly bolder */\n            letter-spacing: 0.5px; /* Subtle letter spacing for better legibility */\n        }\n\n        /* Main content area */\n        .content {\n            padding: 24px; /* Consistent padding */\n            background-color: #ffffff;\n        }\n\n        /* Report name banner styling - displayed below header */\n        .report-name-banner {\n            background-color: #f0f7ff;\n            padding: 12px 16px;\n            margin-bottom: 20px;\n            font-weight: 600;\n            font-size: 16px;\n            color: #0078D4;\n            border-left: 4px solid #0078D4;\n            border-radius: 0 4px 4px 0; /* Rounded on right side only */\n        }\n\n        /* Title section containing alert title and severity */\n        .title-section {\n            margin: 0 0 24px 0;\n        }\n\n        /* Alert header containing title and severity */\n        .alert-header {\n            margin: 20px 0;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            flex-direction: column;\n        }\n\n        /* Title wrapper to contain both title and badge */\n        .alert-title-wrapper {\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            flex-wrap: wrap;\n            gap: 12px;\n            margin-bottom: 8px;\n        }\n\n        .alert-container {\n            background-color: #f0f7ff;\n            border-left: 4px solid #0078D4;\n            border-radius: 0 4px 4px 0;\n            padding: 16px 20px;\n            margin: 20px 0;\n            display: flex;\n            flex-direction: column;\n            width: 100%;\n            box-sizing: border-box;\n            position: relative; /* For absolute positioning of severity */\n        }\n\n        .alert-row {\n            display: flex;\n            align-items: center;\n            justify-content: space-between; /* Push title and severity to opposite ends */\n            width: 100%;\n        }\n\n        .alert-title {\n            color: #333 !important; /* Force color override */\n            font-size: 18px !important;\n            font-weight: 600 !important;\n            margin: 0 !important;\n            padding-right: 100px; /* Make room for severity indicator */\n            flex-grow: 1;\n        }\n\n        .severity-indicator {\n            background-color: #dbc522; /* Yellow for low severity */\n            color: white !important;\n            padding: 5px 12px;\n            border-radius: 30px;\n            font-weight: 600;\n            font-size: 13px;\n            text-transform: uppercase;\n            letter-spacing: 0.5px;\n            box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n            display: inline-block;\n            position: absolute; /* Position absolutely */\n            right: 20px; /* Position on the right */\n            top: 50%; /* Center vertically */\n            transform: translateY(-50%); /* Perfect vertical centering */\n        }\n\n        /* Override for other severity colors */\n        .severity-high {\n            background-color: #D13438 !important;\n        }\n\n        .severity-medium {\n            background-color: #FF8C00 !important;\n        }\n\n        .severity-low {\n            background-color: #dbc522 !important;\n        }\n\n        .severity-informational {\n            background-color: #767676 !important;\n        }\n\n        /* Executive summary section styling */\n        .summary {\n            background-color: #f9f9f9; /* Light gray background */\n            border-left: 4px solid #0078D4; /* Blue left border for visual interest */\n            padding: 16px;\n            margin: 0 0 24px 0;\n            border-radius: 0 4px 4px 0; /* Rounded on right side only */\n            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Very subtle shadow */\n        }\n\n        /* Basic information row styling */\n        .info-row {\n            margin-bottom: 16px;\n            display: flex;\n            flex-wrap: wrap;\n        }\n\n        /* Label styling for info pairs */\n        .info-label {\n            font-weight: 600;\n            width: 130px;\n            display: inline-block;\n            vertical-align: top;\n            color: #444;\n        }\n\n        /* Metrics section with improved mobile responsiveness */\n        .metrics {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 10px;\n            margin: 15px 0 25px 0;\n        }\n\n        /* Individual metric card styling */\n        .metric-card {\n            flex: 1;\n            min-width: 120px;\n            background-color: #f9f9f9; /* Light gray background */\n            padding: 15px;\n            border-radius: 4px;\n            text-align: center;\n            border: 1px solid #eee; /* Light border */\n        }\n\n        /* Metric value (number) styling */\n        .metric-value {\n            font-size: 20px;\n            font-weight: bold;\n            color: #0078D4; /* Microsoft blue */\n            margin-bottom: 5px;\n        }\n\n        /* Metric label styling */\n        .metric-label {\n            font-size: 12px;\n            color: #666; /* Medium gray */\n        }\n\n        /* Link styling */\n        .link {\n            color: #0078D4; /* Microsoft blue for links */\n            text-decoration: none;\n            transition: color 0.2s ease; /* Smooth color transition */\n        }\n\n        .link:hover {\n            color: #005a9e; /* Darker blue on hover */\n            text-decoration: underline;\n        }\n\n        /* Timeline visualization styling */\n        .timeline {\n            margin: 28px 0;\n            position: relative;\n            border-left: 4px solid #0078D4; /* Increased from 3px to 4px to match other sections */\n            padding-left: 24px;\n        }\n\n        .timeline-item {\n            position: relative;\n            margin-bottom: 20px;\n        }\n\n        /* Timeline dots for each event - adjusted positioning for the thicker line */\n        .timeline-item:before {\n            content: '';\n            position: absolute;\n            left: -34px; /* Adjusted for the thicker line */\n            top: 0;\n            width: 18px;\n            height: 18px;\n            border-radius: 50%; /* Create circular dots */\n            background-color: #0078D4;\n            border: 4px solid white; /* White border around dots */\n            box-shadow: 0 0 0 1px rgba(0,120,212,0.2); /* Subtle outline */\n        }\n\n        /* Timeline date styling */\n        .timeline-date {\n            color: #555;\n            font-size: 14px;\n            margin-bottom: 4px;\n            font-weight: 500;\n        }\n\n        /* Timeline event title */\n        .timeline-title {\n            font-weight: 600;\n            margin-bottom: 5px;\n            color: #333;\n            font-size: 16px;\n        }\n\n        /* MITRE ATT&CK Tactics section */\n        .tactics {\n            background-color: #f9f9f9;\n            border-left: 4px solid #0078D4; /* Blue left border */\n            padding: 16px;\n            margin: 24px 0;\n            border-radius: 0 4px 4px 0; /* Rounded on right side only */\n            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Very subtle shadow */\n        }\n\n        .tactics ul {\n            margin: 12px 0 0 0;\n            padding-left: 20px;\n        }\n\n        .tactics li {\n            margin-bottom: 8px;\n        }\n\n        /* Recommended actions section */\n        .recommendations {\n            background-color: #f0f7ff; /* Light blue background */\n            padding: 18px;\n            margin: 24px 0;\n            border-left: 4px solid #0078D4; /* Blue left border */\n            border-radius: 0 4px 4px 0; /* Rounded on right side only */\n            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Very subtle shadow */\n        }\n\n        .recommendations ul {\n            margin: 12px 0 0 0;\n            padding-left: 20px;\n        }\n\n        .recommendations li {\n            margin-bottom: 10px;\n            position: relative;\n        }\n\n        /* Action buttons container */\n        .action-buttons {\n            text-align: center;\n            margin: 30px 0;\n        }\n\n        /* Button styling */\n        .button {\n            padding: 14px 24px;\n            background-color: #0078D4; /* Microsoft blue */\n            color: white !important; /* Force white color with !important */\n            text-decoration: none;\n            border-radius: 4px;\n            font-weight: 600;\n            font-size: 15px;\n            text-align: center;\n            border: none;\n            cursor: pointer;\n            display: inline-block;\n            min-width: 180px; /* Ensure minimum width */\n            height: auto !important; /* Prevent height overrides */\n            line-height: 1.5 !important; /* Ensure proper line height */\n            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Add shadow for depth */\n            transition: all 0.2s ease; /* Smooth transition for hover effect */\n            -webkit-text-size-adjust: none; /* Prevent iOS text size adjustment */\n            -ms-text-size-adjust: none; /* Prevent Windows text size adjustment */\n        }\n\n        .button:hover {\n            background-color: #005a9e; /* Darker blue on hover */\n            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* Enhanced shadow on hover */\n            transform: translateY(-2px); /* Slight rise effect */\n        }\n\n        .button span {\n            color: white !important;\n            display: inline-block !important;\n            width: auto !important;\n            visibility: visible !important;\n        }\n\n        /* Section styling for main content divisions */\n        .section {\n            margin: 30px 0;\n            border-top: 1px solid #eee; /* Light top border */\n            padding-top: 20px;\n        }\n\n        /* Section title styling with indicator */\n        .section-title {\n            font-size: 18px;\n            margin-bottom: 15px;\n            color: #333;\n            font-weight: 600;\n            display: flex;\n            align-items: center;\n        }\n\n        /* Colored dot before section titles */\n        .section-title-indicator {\n            width: 12px;\n            height: 12px;\n            border-radius: 50%; /* Create circular indicator */\n            background-color: #0078D4;\n            display: inline-block;\n            margin-right: 10px;\n        }\n\n        /* IP location text styling */\n        .ip-location {\n            font-size: 12px;\n            color: #666;\n            margin-top: 4px;\n        }\n\n        /* Footer styling */\n        .footer {\n            padding: 24px;\n            background-color: #f0f0f0; /* Light gray background */\n            text-align: center;\n            border-top: 1px solid #ddd; /* Light top border */\n        }\n\n        .footer h3 {\n            margin-top: 0;\n            color: #333;\n        }\n\n        /* Table styling for Sentinel tables - minimal to avoid conflicts but improved */\n        .sentinel-tables table {\n            width: 100%;\n            margin-bottom: 24px;\n            border-collapse: collapse;\n            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */\n            border-radius: 4px; /* Rounded corners */\n            overflow: hidden; /* Ensure rounded corners work with table */\n        }\n\n        .sentinel-tables th {\n            background-color: #0078D4; /* Microsoft blue headers */\n            color: white;\n            text-align: left;\n            padding: 12px 15px;\n            font-weight: 500;\n            font-size: 14px;\n        }\n\n        .sentinel-tables tr:nth-child(even) {\n            background-color: #f5f5f5; /* Striped rows for readability */\n        }\n\n        .sentinel-tables tr:hover {\n            background-color: #f0f7ff; /* Highlight row on hover */\n        }\n\n        .sentinel-tables td {\n            padding: 12px 15px;\n            border-bottom: 1px solid #eee; /* Light borders between rows */\n            font-size: 14px;\n        }\n\n        /* Print-specific styling for better readability when printed */\n        @media print {\n            body {\n                background-color: white;\n                color: black;\n            }\n            \n            .container {\n                max-width: 100%;\n                box-shadow: none;\n            }\n            \n            .button {\n                border: 1px solid #333;\n                color: black;\n                background: none;\n            }\n            \n            a {\n                color: black;\n                text-decoration: underline;\n            }\n            \n            .header {\n                background-color: #f0f0f0;\n                color: black;\n            }\n        }\n\n        /* Mobile responsive adjustments */\n        @media (max-width: 600px) {\n            .header {\n                flex-direction: column;\n                text-align: center;\n                padding: 16px;\n            }\n            \n            .header h1 {\n                order: 1;\n                margin-bottom: 12px;\n            }\n            \n            .header img {\n                order: 2;\n            }\n            \n            .info-label {\n                display: block;\n                width: 100%;\n                margin-bottom: 4px;\n            }\n            \n            .action-buttons {\n                flex-direction: column;\n            }\n            \n            /* Improved metrics styling for mobile */\n            .metrics {\n                display: flex;\n                flex-direction: row; /* Force horizontal layout even on mobile */\n                justify-content: space-between;\n                flex-wrap: nowrap; /* Prevent wrapping to maintain horizontal alignment */\n            }\n            \n            .metric-card {\n                min-width: 0; /* Allow cards to shrink */\n                flex-basis: 32%; /* Set approximate width for 3 cards */\n                margin: 0; /* Remove any margin that might cause wrapping */\n            }\n            \n            .metric-value {\n                font-size: 18px; /* Slightly smaller font for mobile */\n            }\n            \n            .metric-label {\n                font-size: 10px; /* Smaller label text for mobile */\n            }\n            \n            /* Fix alert container on mobile */\n            .alert-container {\n                padding: 12px 15px; /* Reduce padding slightly */\n            }\n            \n            .alert-row {\n                flex-direction: column;\n                align-items: flex-start;\n            }\n            \n            .alert-title {\n                padding-right: 0;\n                margin-bottom: 10px !important;\n                font-size: 16px !important; /* Smaller font size on mobile */\n            }\n            \n            .severity-indicator {\n                position: static;\n                transform: none;\n                margin-top: 8px;\n                align-self: flex-start; /* Align to the left */\n            }\n            \n            /* Timeline adjustments for mobile */\n            .timeline {\n                padding-left: 18px;\n            }\n            \n            .timeline-item:before {\n                left: -27px;\n                width: 14px;\n                height: 14px;\n            }\n        }\n    </style>\n</head>\n\n<body>\n    <div class=\"container\">\n        <!-- Header with SECURITY ALERT title on left and logo on right -->\n        <div class=\"header\">\n            <h1>SECURITY ALERT</h1>\n            <img src=\"@{parameters('emailLogoHeader')}\" alt=\"Company Logo\">\n        </div>\n        \n        <div class=\"content\">\n            <!-- Report name banner below header -->\n            <div class=\"report-name-banner\">\n                @{parameters('reportName')}\n            </div>\n            \n            <!-- Date time at top right -->\n            <div class=\"incident-date\">\n                <strong>Date & Time:</strong>\n                @{formatDateTime(triggerBody()?['object']?['properties']?['createdTimeUtc'],\n                parameters('dateTimeFormat'))}\n            </div>\n\n            <!-- New alert header container with fixed positioning -->\n            <div class=\"alert-container\">\n                <div class=\"alert-row\">\n                    <!-- Title with forced styling -->\n                    <h2 class=\"alert-title\">\n                        @{triggerBody()?['object']?['properties']?['title']}\n                    </h2>\n                    \n                    <!-- Severity with absolute positioning -->\n                    <span class=\"severity-indicator severity-@{toLower(triggerBody()?['object']?['properties']?['severity'])}\">\n                        @{triggerBody()?['object']?['properties']?['severity']}\n                    </span>\n                </div>\n            </div>\n        \n            <!-- Executive Summary -->\n            <div class=\"summary\">\n                <strong>Executive Summary:</strong> Security alert triggered for\n                @{if(equals(coalesce(triggerBody()?['object']?['properties']?['additionalData']?['tactics'], ''), ''),\n                'suspicious activity',\n                concat(first(triggerBody()?['object']?['properties']?['additionalData']?['tactics']), ' activity'))}\n                involving multiple entities.\n                Immediate investigation recommended.\n            </div>\n\n\n            <!-- Metrics section with improved mobile responsiveness -->\n            <div class=\"metrics\">\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">\n                        @{coalesce(triggerBody()?['object']?['properties']?['additionalData']?['alertsCount'], '1')}\n                    </div>\n                    <div class=\"metric-label\">Alerts</div>\n                </div>\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">\n                        @{outputs('Compose_Entity_Count')}\n                    </div>\n                    <div class=\"metric-label\">Entities</div>\n                </div>\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">\n                        @{coalesce(triggerBody()?['object']?['properties']?['severity'], 'Med')}\n                    </div>\n                    <div class=\"metric-label\">Severity</div>\n                </div>\n            </div>\n\n            <!-- Basic info -->\n            <div class=\"info-row\">\n                <span class=\"info-label\">Incident ID:</span>\n                <span>@{coalesce(triggerBody()?['object']?['properties']?['incidentNumber'], 'N/A')}</span>\n            </div>\n\n            <div class=\"info-row\">\n                <span class=\"info-label\">Description:</span>\n                <span>@{triggerBody()?['object']?['properties']?['description']}\n@{triggerBody()?['object']?['properties']?['additionalData']?['alertProductNames']}</span>\n            </div>\n\n            <!-- Visual Timeline -->\n            <div class=\"timeline\">\n                <div class=\"timeline-item\">\n                    <div class=\"timeline-date\">\n                        @{if(equals(coalesce(triggerBody()?['object']?['properties']?['firstActivityTimeUtc'], ''), ''),\n                        formatDateTime(triggerBody()?['object']?['properties']?['createdTimeUtc'],\n                        parameters('dateTimeFormat')),\n                        formatDateTime(triggerBody()?['object']?['properties']?['firstActivityTimeUtc'],\n                        parameters('dateTimeFormat')))}\n                    </div>\n                    <div class=\"timeline-title\">First Activity Detected</div>\n                    <div>Initial suspicious activity observed</div>\n                </div>\n                <div class=\"timeline-item\">\n                    <div class=\"timeline-date\">\n                        @{formatDateTime(triggerBody()?['object']?['properties']?['createdTimeUtc'],\n                        parameters('dateTimeFormat'))}\n                    </div>\n                    <div class=\"timeline-title\">Incident Created</div>\n                    <div>Alert generated by Microsoft Sentinel</div>\n                </div>\n                <div class=\"timeline-item\">\n                    <div class=\"timeline-date\">Now</div>\n                    <div class=\"timeline-title\">Notification Sent</div>\n                    <div>Security team notified</div>\n                </div>\n            </div>\n\n            <!-- Tactics Section -->\n            <div class=\"tactics\">\n                <div class=\"section-title\">\n                    <span class=\"section-title-indicator\"></span>\n                    MITRE ATT&CK Tactics\n                </div>\n                <ul>\n                    @{if(equals(coalesce(triggerBody()?['object']?['properties']?['additionalData']?['tactics'], ''),\n                    ''),\n                    '<li>No tactics identified</li>',\n                    join(triggerBody()?['object']?['properties']?['additionalData']?['tactics'], '<br>'))}\n                </ul>\n            </div>\n\n            <!-- Recommended actions section - Made more specific -->\n            <div class=\"recommendations\">\n                <div class=\"section-title\">\n                    <span class=\"section-title-indicator\"></span>\n                    Recommended Actions\n                </div>\n                <ul>\n                    <li>Investigate the affected resources and validate the alert</li>\n                    <li>Check for unusual authentication patterns or access attempts</li>\n                    <li>Review related logs in Microsoft Sentinel for additional context</li>\n                </ul>\n            </div>\n\n            <!-- Single action button with improved mobile compatibility -->\n            <div class=\"action-buttons\">\n                <a class=\"button\" href=\"@{triggerBody()?['object']?['properties']?['incidentUrl']}\">\n                    <span>Investigate Incident</span>\n                </a>\n            </div>\n\n            <!-- Entities Section - With tag directly -->\n            <div class=\"section\">\n                <div class=\"section-title\">\n                    <span class=\"section-title-indicator\"></span>\n                    Affected Entities\n                </div>\n                <!-- Remove custom table styling and let Sentinel's table render as is -->\n                <div class=\"sentinel-tables\">\n                    @{body('Create_HTML_table_with_Entities')}\n                </div>\n            </div>\n\n            <!-- Alerts Section - Modified to avoid styling conflicts -->\n            <div class=\"section\">\n                <div class=\"section-title\">\n                    <span class=\"section-title-indicator\"></span>\n                    Related Alerts\n                </div>\n                <!-- Remove custom table styling and let Sentinel's table render as is -->\n                <div class=\"sentinel-tables\">\n                    @{body('Create_HTML_table_with_Alerts')}\n                </div>\n            </div>\n        </div>\n\n        <div class=\"footer\">\n            <h3>Sentinel Security Team</h3>\n            <p>If you have any questions, please contact us:</p>\n            <p><a class=\"link\" href=\"mailto:@{parameters('SecOpsEmail')}\">@{parameters('SecOpsEmail')}</a></p>\n            <p style=\"margin-top: 15px; font-size: 12px; color: #999;\">This is an automated security alert.</p>\n        </div>\n    </div>\n</body>\n\n</html>"
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              },
+              "office365-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+                "connectionName": "[variables('Office3650ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office3650ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office3650ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    }
+  ]
+}

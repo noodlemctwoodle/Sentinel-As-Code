@@ -1,0 +1,370 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "VirusTotalDomainReport",
+    "description": "Sentinel incident-trigger playbook for VirusTotalDomainReport targeting URL entities.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [
+      "URL"
+    ],
+    "tags": [
+      "Incident",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "VirusTotalDomainReport",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "Virustotal0ConnectionName": "[concat('Virustotal-', parameters('PlaybookName'))]",
+    "Azureloganalyticsdatacollector0ConnectionName": "[concat('Azureloganalyticsdatacollector-', parameters('PlaybookName'))]",
+    "MicrosoftSentinel0ConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                  }
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Add_comment_to_incident_(V3)": {
+              "runAfter": {
+                "Create_Reputation_HTML": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "body": {
+                  "incidentArmId": "@triggerBody()?['object']?['id']",
+                  "message": "<p>@{body('Create_Reputation_HTML')}<br>\n<br>\nQuery: VTURLReport_CL | where id_s == \"URL_NAME\"<br>\n<br>\nWHOIS:<br>\n@{variables('whoisData')}</p>"
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/Incidents/Comment"
+              }
+            },
+            "Create_Reputation_HTML": {
+              "runAfter": {
+                "For_each": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "format": "HTML",
+                "from": "@variables('DomainInfo')"
+              }
+            },
+            "Entities_-_Get_URLs": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel_1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/entities/url"
+              }
+            },
+            "For_each": {
+              "foreach": "@body('Entities_-_Get_URLs')?['URLs']",
+              "actions": {
+                "Append_to_whoisData": {
+                  "runAfter": {
+                    "Get_Domain_report": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "whoisData",
+                    "value": "@body('Get_Domain_report')?['data']?['attributes']?['whois']"
+                  }
+                },
+                "Condition": {
+                  "actions": {
+                    "Append_to_array_variable": {
+                      "runAfter": {
+                        "Send_Data": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "DomainInfo",
+                        "value": {
+                          "DomainReport": "@{items('For_each')?['Url']}",
+                          "Registrar": "@{body('Get_Domain_report')?['data']?['attributes']?['registrar']}",
+                          "Reputation": "@{body('Get_Domain_report')?['data']?['attributes']?['reputation']}",
+                          "Risk": "Likely Harmless"
+                        }
+                      }
+                    },
+                    "Send_Data": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": "@{body('Get_Domain_report')?['data']}",
+                        "headers": {
+                          "Log-Type": "VTDomainReport",
+                          "time-generated-field": "@{utcNow()}"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azureloganalyticsdatacollector_1']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/api/logs"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Append_to_whoisData": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Append_to_array_variable_2": {
+                        "runAfter": {
+                          "Send_Data_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "AppendToArrayVariable",
+                        "inputs": {
+                          "name": "DomainInfo",
+                          "value": {
+                            "DomainReport": "@{items('For_each')?['Url']}",
+                            "Registrar": "@{body('Get_Domain_report')?['data']?['attributes']?['registrar']}",
+                            "Reputation": "@{body('Get_Domain_report')?['data']?['attributes']?['reputation']}",
+                            "Risk": "Likely Malicious"
+                          }
+                        }
+                      },
+                      "Send_Data_2": {
+                        "runAfter": {},
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "body": "@{body('Get_Domain_report')?['data']}",
+                          "headers": {
+                            "Log-Type": "VTDomainReport",
+                            "time-generated-field": "@{utcNow()}"
+                          },
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['azureloganalyticsdatacollector_1']['connectionId']"
+                            }
+                          },
+                          "method": "post",
+                          "path": "/api/logs"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "or": [
+                      {
+                        "greaterOrEquals": [
+                          "@body('Get_Domain_report')?['data']?['attributes']?['reputation']",
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Get_Domain_report": {
+                  "runAfter": {},
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['virustotal_1']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/api/v3/domains/@{encodeURIComponent(split(items('For_each')?['Url'], '/')[2])}"
+                  }
+                }
+              },
+              "runAfter": {
+                "Initialize_whoisData": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Initialize_DomainInfo": {
+              "runAfter": {
+                "Entities_-_Get_URLs": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "DomainInfo",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Initialize_whoisData": {
+              "runAfter": {
+                "Initialize_DomainInfo": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "whoisData",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "virustotal_1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Virustotal0ConnectionName'))]",
+                "connectionName": "[variables('Virustotal0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/virustotal')]"
+              },
+              "azureloganalyticsdatacollector_1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Azureloganalyticsdatacollector0ConnectionName'))]",
+                "connectionName": "[variables('Azureloganalyticsdatacollector0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+              },
+              "azuresentinel_1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('Azureloganalyticsdatacollector0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('Virustotal0ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Virustotal0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Virustotal0ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/virustotal')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Azureloganalyticsdatacollector0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Azureloganalyticsdatacollector0ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    }
+  ]
+}

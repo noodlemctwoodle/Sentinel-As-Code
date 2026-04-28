@@ -1,0 +1,425 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "RevokeSessions",
+    "description": "Sentinel incident-trigger playbook for RevokeSessions targeting Account entities.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [
+      "Account"
+    ],
+    "tags": [
+      "Incident",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "RevokeSessions",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "MicrosoftSentinel0ConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]",
+    "Office3650ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Entities_-_Get_Accounts": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "path": "/entities/account"
+              }
+            },
+            "Add_comment_to_incident_(V3)": {
+              "runAfter": {
+                "Create_HTML_table": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "incidentArmId": "@triggerBody()?['object']?['id']",
+                  "message": "<p class=\"editor-paragraph\">@{body('Create_HTML_table')}</p>"
+                },
+                "path": "/Incidents/Comment"
+              }
+            },
+            "For_each_Account": {
+              "foreach": "@body('Entities_-_Get_Accounts')?['Accounts']",
+              "actions": {
+                "Module-RevokeSessions": {
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-RevokeSessions')]"
+                      },
+                      "triggerName": "Manual"
+                    },
+                    "body": {
+                      "entraIdUserId": "@item()?['AadUserId']"
+                    }
+                  }
+                },
+                "Append_to_Response_Variable_(Array)": {
+                  "runAfter": {
+                    "Module-RevokeSessions": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "RevokeSessionsResponse",
+                    "value": "@body('Module-RevokeSessions')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Terminate_1": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Revoke_Sessions_Response": {
+              "runAfter": {
+                "Entities_-_Get_Accounts": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "RevokeSessionsResponse",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Create_HTML_table": {
+              "runAfter": {
+                "For_each_Account": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('RevokeSessionsResponse')",
+                "format": "HTML"
+              }
+            },
+            "For_each": {
+              "foreach": "@body('Entities_-_Get_Accounts')?['Accounts']",
+              "actions": {
+                "Append_EntraId_Count_(Array)": {
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "EntraIdCounts",
+                    "value": "@item()?['AadUserId']"
+                  }
+                },
+                "Append_Affected_Accounts_(Array)": {
+                  "runAfter": {
+                    "Append_EntraId_Count_(Array)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "AffectedAccounts",
+                    "value": {
+                      "UserPrincipalName": "@{item()?['additionalData']?['MailAddress']}"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Affected_Accounts_(Array)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Accounts_Greater_Than_One": {
+              "actions": {},
+              "runAfter": {
+                "For_each": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Terminate_Failed": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Failed"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "greater": [
+                      "@length(variables('EntraIdCounts'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "EntraId_Count_(Array)": {
+              "runAfter": {
+                "Revoke_Sessions_Response": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "EntraIdCounts",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Send_approval_email": {
+              "runAfter": {
+                "Compose_HTML_Response": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "body": {
+                  "NotificationUrl": "@listCallbackUrl()",
+                  "Message": {
+                    "To": "socengineer@domain.com",
+                    "Body": "@{outputs('Compose_HTML_Response')}",
+                    "Importance": "High",
+                    "UseOnlyHTMLMessage": true,
+                    "HideHTMLMessage": false,
+                    "ShowHTMLConfirmationDialog": false,
+                    "Subject": "Approval Request",
+                    "Options": "Approve, Reject"
+                  }
+                },
+                "path": "/approvalmail/$subscriptions"
+              }
+            },
+            "Approval_Condtition": {
+              "actions": {},
+              "runAfter": {
+                "Send_approval_email": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@body('Send_approval_email')?['SelectedOption']",
+                      "Approve"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Affected_Accounts_(Array)": {
+              "runAfter": {
+                "EntraId_Count_(Array)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "AffectedAccounts",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Create_Accounts_HTML": {
+              "runAfter": {
+                "Accounts_Greater_Than_One": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('AffectedAccounts')",
+                "format": "HTML"
+              }
+            },
+            "Compose_HTML_Response": {
+              "runAfter": {
+                "Create_Accounts_HTML": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "<!DOCTYPE html>\n<html>\n<head>\n    <style>\n        body {\n            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f3f2f1;\n            margin: 0;\n            padding: 20px;\n        }\n        \n        .email-container {\n            max-width: 700px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            box-shadow: 0 2px 6px rgba(0,0,0,0.1);\n            overflow: hidden;\n        }\n        \n        .email-header {\n            background: linear-gradient(90deg, #0078d4 0%, #40e0d0 100%);\n            color: white;\n            padding: 25px;\n            text-align: center;\n        }\n        \n        .email-header h1 {\n            margin: 0;\n            font-size: 24px;\n            font-weight: 600;\n        }\n        \n        .email-body {\n            padding: 30px;\n        }\n        \n        .alert-box {\n            background-color: #fff4e5;\n            border-left: 4px solid #ff8c00;\n            padding: 15px;\n            margin-bottom: 20px;\n            border-radius: 4px;\n        }\n        \n        .alert-box p {\n            margin: 0;\n            color: #323130;\n        }\n        \n        table {\n            border-collapse: collapse;\n            width: 100%;\n            margin: 20px 0;\n            border-radius: 8px;\n            overflow: hidden;\n            box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n        }\n        \n        th {\n            background-color: #0078d4;\n            color: white;\n            padding: 14px;\n            text-align: left;\n            font-weight: 600;\n            font-size: 14px;\n            text-transform: uppercase;\n            letter-spacing: 0.5px;\n        }\n        \n        td {\n            padding: 12px 14px;\n            border-bottom: 1px solid #edebe9;\n            background-color: #ffffff;\n            color: #323130;\n            font-size: 14px;\n        }\n        \n        tbody tr:nth-child(even) td {\n            background-color: #faf9f8;\n        }\n        \n        tbody tr:hover td {\n            background-color: #e1f5fe;\n            transition: background-color 0.3s ease;\n        }\n        \n        tbody tr:last-child td {\n            border-bottom: none;\n        }\n        \n        .summary-section {\n            background-color: #f0f8ff;\n            padding: 20px;\n            border-radius: 6px;\n            margin-top: 25px;\n        }\n        \n        .summary-section h3 {\n            margin-top: 0;\n            color: #0078d4;\n            font-size: 16px;\n        }\n        \n        .count-badge {\n            display: inline-block;\n            background-color: #0078d4;\n            color: white;\n            padding: 4px 12px;\n            border-radius: 12px;\n            font-weight: 600;\n            font-size: 14px;\n        }\n        \n        .email-footer {\n            background-color: #f3f2f1;\n            padding: 20px;\n            text-align: center;\n            font-size: 12px;\n            color: #605e5c;\n            border-top: 1px solid #edebe9;\n        }\n        \n        .email-footer a {\n            color: #0078d4;\n            text-decoration: none;\n        }\n        \n        .timestamp {\n            color: #605e5c;\n            font-size: 12px;\n            margin-top: 20px;\n            text-align: right;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"email-header\">\n            <h1>Microsoft Sentinel Alert</h1>\n        </div>\n        \n        <div class=\"email-body\">\n            <div class=\"alert-box\">\n                <p><strong>Alert:</strong> User accounts detected requiring attention</p>\n            </div>\n            \n            <h2 style=\"color: #323130; font-size: 18px; margin-bottom: 15px;\">Affected User Accounts</h2>\n            \n            @{body('Create_Accounts_HTML')}\n            \n            <div class=\"summary-section\">\n                <h3>Summary</h3>\n                <p>Total accounts affected: <span class=\"count-badge\">@{length(variables('AffectedAccounts'))}</span></p>\n                <p>Detection time: @{formatDateTime(utcNow(), 'dd-MM-yyyy HH:mm:ss')}</p>\n                <p>Severity: Medium</p>\n            </div>\n            \n            <div class=\"timestamp\">\n                Generated: @{formatDateTime(utcNow(), 'dd-MM-yyyy HH:mm:ss')} UTC\n            </div>\n        </div>\n        \n        <div class=\"email-footer\">\n            <p>This is an automated alert from Microsoft Sentinel</p>\n            <p><a href=\"@{triggerBody()?['object']?['properties']?['incidentUrl']}>View in Azure Sentinel</a></p>\n        </div>\n    </div>\n</body>\n</html>"
+            },
+            "Terminate_1": {
+              "runAfter": {
+                "Approval_Condtition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              },
+              "office365": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+                "connectionName": "[variables('Office3650ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office3650ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office3650ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    }
+  ]
+}

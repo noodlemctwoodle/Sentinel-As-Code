@@ -1,0 +1,232 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "ExcelPlaybook",
+    "description": "Automation playbook: ExcelPlaybook.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Other",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "ExcelPlaybook",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "AzureMonitorLogs0ConnectionName": "[concat('AzureMonitorLogs-', parameters('PlaybookName'))]",
+    "Office3650ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "SubscriptionID": {
+              "defaultValue": "', subscription().subscriptionId, '",
+              "type": "String"
+            },
+            "ResourceGroup": {
+              "defaultValue": "stl-sec-siem-rg",
+              "type": "String"
+            },
+            "WorkspaceID": {
+              "defaultValue": "17180226-9a08-4e89-bdc2-1e04db4114a2",
+              "type": "String"
+            },
+            "WatchlistAlias": {
+              "defaultValue": " PasswordSharingUsersv1",
+              "type": "String"
+            },
+            "companyLogo": {
+              "defaultValue": "https://domain.com/content/images/size/w1000/2025/04/36127.png",
+              "type": "String"
+            },
+            "socEmail": {
+              "defaultValue": "security@company.com",
+              "type": "String"
+            },
+            "incidentName": {
+              "defaultValue": "Safeguard (SPP) Multiple Passwords Checked-Out in a Short Timeframe",
+              "type": "String"
+            },
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Recurrence": {
+              "recurrence": {
+                "interval": 30,
+                "frequency": "Day"
+              },
+              "evaluatedRecurrence": {
+                "interval": 30,
+                "frequency": "Day"
+              },
+              "type": "Recurrence"
+            }
+          },
+          "actions": {
+            "Run_query_and_list_results": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "SecurityAlert\n| where TimeGenerated > ago(90d)\n| where DisplayName == \"Entra ID Token Theft Detection: Unbound Sessions on Unmanaged Devices (M356CommunityConf)\"\n| mv-expand Entity = todynamic(Entities)\n| extend UserPrincipalName = tostring(Entity.Name)\n| extend FormattedTime = format_datetime(TimeGenerated, 'dd/MM/yyyy HH:mm:ss')\n| order by UserPrincipalName asc, TimeGenerated desc\n| summarize IncidentsGenerated = count(), \n          IncidentDates = make_list(FormattedTime) by UserPrincipalName,DisplayName\n| where IncidentsGenerated > 1 \n| join kind=inner (IdentityInfo\n    | summarize arg_max(TimeGenerated, *) by UserPrincipalName = AccountUPN)\n    on UserPrincipalName\n| join kind=leftouter (IdentityInfo\n    | extend ManagerName = AccountDisplayName\n    | extend ManagerEmail = AccountUPN\n    | summarize arg_max(TimeGenerated, ManagerEmail) by ManagerName)\n    on $left.Manager == $right.ManagerName\n| project UserPrincipalName = tostring(UserPrincipalName), AccountDisplayName, IncidentsGenerated, IncidentDates, Manager, ManagerEmail, DisplayName\n| sort by IncidentsGenerated desc\n| where isnotempty(UserPrincipalName)",
+                "path": "/queryData",
+                "queries": {
+                  "subscriptions": "', subscription().subscriptionId, '",
+                  "resourcegroups": "STL-SEC-SIEM-RG",
+                  "resourcetype": "Log Analytics Workspace",
+                  "resourcename": "stl-sec-siem-law",
+                  "timerange": "7d"
+                }
+              }
+            },
+            "Send_an_email_(V2)": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "To": "socengineer@domain.com",
+                  "Subject": "SafeGaurd Report",
+                  "Body": "<p class=\"editor-paragraph\">@{outputs('Compose')}</p>",
+                  "Importance": "High"
+                },
+                "path": "/v2/Mail"
+              }
+            },
+            "Compose": {
+              "runAfter": {
+                "Create_HTML_table_1": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "<!DOCTYPE html>\n<html>\n\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Security Alert</title>\n    <style>\n        /* Basic page styling */\n        body {\n            font-family: 'Segoe UI', Arial, sans-serif;\n            margin: 0; \n            padding: 0; \n            background-color: #f5f5f5;\n            color: #252525;\n            line-height: 1.5;\n        }\n\n        /* Main container */\n        .container { \n            max-width: 650px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e0e0e0;\n            border-radius: 4px;\n            overflow: hidden;\n        }\n\n        /* Header styling */\n        .header {\n            background-color: #0078D4;\n            padding: 15px 20px;\n            color: white;\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n        }\n\n        .header img { \n            height: 130px;\n            width: auto;\n        }\n\n        .header h1 {\n            margin: 0;\n            font-size: 24px;\n            font-weight: 600;\n        }\n\n        /* Content area */\n        .content {\n            padding: 20px;\n        }\n\n        /* Info layout */\n        .info-item {\n            margin-bottom: 10px;\n            display: flex;\n        }\n\n        .info-item {\n            margin-bottom: 10px;\n            display: flex;\n        }\n\n        .info-label {\n            font-weight: 600;\n            width: 100px;\n            color: #444;\n        }\n\n        /* Query section */\n        .query-section {\n            margin: 20px 0;\n            border-left: 4px solid #0078D4;\n            padding-left: 15px;\n            background-color: #f9f9f9;\n            position: relative;\n        }\n\n        .query-label {\n            font-weight: 600;\n            margin-bottom: 10px;\n            padding-top: 15px;\n            padding-left: 15px;\n        }\n\n        /* KQL query block */\n        .kql-query {\n            background-color: #f5f5f5;\n            border: 1px solid #e0e0e0;\n            border-radius: 4px;\n            padding: 15px;\n            margin: 10px 15px 15px 15px;\n            font-family: Consolas, Monaco, 'Courier New', monospace;\n            font-size: 13px;\n            line-height: 1.5;\n            color: #333;\n            position: relative;\n        }\n\n        /* Comment styling */\n        .comment {\n            color: #008000;\n            font-style: italic;\n        }\n\n        /* Section styling */\n        .section {\n            margin: 30px 0;\n            border-top: 1px solid #eee;\n            padding-top: 20px;\n        }\n\n        .section-title {\n            font-size: 18px;\n            margin-bottom: 15px;\n            color: #333;\n            font-weight: 600;\n            display: flex;\n            align-items: center;\n        }\n\n        .section-title-indicator {\n            width: 12px;\n            height: 12px;\n            border-radius: 50%;\n            background-color: #0078D4;\n            display: inline-block;\n            margin-right: 10px;\n        }\n\n        /* Table styling */\n        .sentinel-tables table {\n            width: 100%;\n            margin-bottom: 24px;\n            border-collapse: collapse;\n            border-radius: 4px;\n            overflow: hidden;\n            table-layout: fixed;\n        }\n\n        .sentinel-tables th {\n            background-color: #0078D4;\n            color: white;\n            text-align: left;\n            padding: 12px 15px;\n            font-weight: 500;\n        }\n\n        .sentinel-tables tr:nth-child(even) {\n            background-color: #f5f5f5;\n        }\n\n        .sentinel-tables td {\n            padding: 12px 15px;\n            border-bottom: 1px solid #eee;\n            word-wrap: break-word;\n            overflow-wrap: break-word;\n        }\n\n        /* Footer */\n        .footer {\n            padding: 24px;\n            background-color: #f0f0f0;\n            text-align: center;\n            border-top: 1px solid #ddd;\n        }\n\n        .footer h3 {\n            margin-top: 0;\n            color: #333;\n        }\n\n        .link {\n            color: #0078D4;\n            text-decoration: none;\n        }\n    </style>\n    \n</head>\n\n<body>\n    <div class=\"container\">\n        <!-- Header with alert title and company logo -->\n        <div class=\"header\">\n            <h1>Safeguard Checked-Out Report</h1>\n            <img src=\"@{parameters('companyLogo')}\" alt=\"Company Logo\">\n        </div>\n        \n        <div class=\"content\">\n            <!-- Basic alert info -->\n            <div class=\"info-item\">\n                <span class=\"info-label\">Date:</span>\n                <span>@{formatDateTime(utcNow(), 'dd/MM/yyyy HH:mm:ss')}</span>\n            </div>\n\n            <div class=\"info-item\">\n                <span class=\"info-label\">Since:</span>\n                <span>@{formatDateTime(addDays(utcNow(), -30), 'dd/MM/yyyy HH:mm:ss')}</span>\n            </div>\n            \n              <div class=\"info-item\">\n                <span class=\"info-label\">Description:</span>\n                <span>@{parameters('incidentName')}</span>\n            </div>\n        \n            <!-- Query section -->\n            <div class=\"query-section\">\n                <div class=\"query-label\">Sentinel Query:</div>\n                \n                <div class=\"kql-query\">\n<span class=\"comment\">// Get security alerts from the past 90 days</span><br>\nSecurityAlert<br>\n| where TimeGenerated > ago(90d)<br>\n| where DisplayName == \"Safeguard (SPP) Multiple Passwords Checked-Out in a Short Timeframe\"<br>\n<span class=\"comment\">// Extract entity information</span><br>\n| mv-expand Entity = todynamic(Entities)<br>\n| extend UserPrincipalName = tostring(Entity.Name)<br>\n| extend FormattedTime = format_datetime(TimeGenerated, 'dd/MM/yyyy HH:mm:ss')<br>\n<span class=\"comment\">// Sort results by user and time</span><br>\n| order by UserPrincipalName asc, TimeGenerated desc<br>\n<span class=\"comment\">// Summarize incidents by user</span><br>\n| summarize IncidentsGenerated = count(),<br>\n&nbsp;&nbsp;IncidentDates = make_list(FormattedTime)<br>\n&nbsp;&nbsp;by UserPrincipalName<br>\n| where IncidentsGenerated > 1<br>\n<span class=\"comment\">// Join with IdentityInfo to get user details</span><br>\n| join kind=inner (<br>\n&nbsp;&nbsp;IdentityInfo<br>\n&nbsp;&nbsp;| summarize arg_max(TimeGenerated, *) by UserPrincipalName = AccountUPN<br>\n) on UserPrincipalName<br>\n<span class=\"comment\">// Join with IdentityInfo again to get manager details</span><br>\n| join kind=leftouter (<br>\n&nbsp;&nbsp;IdentityInfo<br>\n&nbsp;&nbsp;| extend ManagerName = AccountDisplayName<br>\n&nbsp;&nbsp;| extend ManagerEmail = AccountUPN<br>\n&nbsp;&nbsp;| summarize arg_max(TimeGenerated, ManagerEmail) by ManagerName<br>\n) on $left.Manager == $right.ManagerName<br>\n<span class=\"comment\">// Project relevant fields</span><br>\n| project UserPrincipalName, AccountDisplayName, IncidentsGenerated, IncidentDates, Manager, ManagerEmail<br>\n| sort by IncidentsGenerated desc\n                </div>\n            </div>\n\n            <!-- Affected entities details section -->\n            <div class=\"section\">\n                <div class=\"section-title\">\n                    <span class=\"section-title-indicator\"></span>\n                    Affected Entities\n                </div>\n                <!-- Entities table from Sentinel -->\n                <div class=\"sentinel-tables\">\n                    @{body('Create_HTML_table_1')}\n                </div>\n            </div>\n\n            <!-- Contact information footer -->\n            <div class=\"footer\">\n                <h3>Sentinel Security Team</h3>\n                <p>If you have any questions, please contact us:</p>\n                <p><a class=\"link\" href=\"mailto:@{parameters('socEmail')}\">@{parameters('socEmail')}</a></p>\n                <p style=\"margin-top: 15px; font-size: 12px; color: #999;\">This is an automated security alert.</p>\n            </div>\n        </div>\n    </div>\n</body>\n</html>"
+            },
+            "Select": {
+              "runAfter": {
+                "Run_query_and_list_results": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@body('Run_query_and_list_results')?['value']",
+                "select": {
+                  "Account Name": "@{item()?['AccountDisplayName']}",
+                  "Incidents Generated": "@{item()?['IncidentsGenerated']}",
+                  "Manager": "@{item()?['Manager']}",
+                  "Manager Email": "@{item()?['ManagerEmail']}"
+                }
+              }
+            },
+            "Create_HTML_table_1": {
+              "runAfter": {
+                "Select": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Select')",
+                "format": "HTML"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuremonitorlogs-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs0ConnectionName'))]",
+                "connectionName": "[variables('AzureMonitorLogs0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+              },
+              "office365": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]",
+                "connectionName": "[variables('Office3650ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('Office3650ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('AzureMonitorLogs0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('AzureMonitorLogs0ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office3650ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office3650ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    }
+  ]
+}

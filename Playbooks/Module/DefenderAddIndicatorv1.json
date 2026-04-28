@@ -1,0 +1,793 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "DefenderAddIndicatorv1",
+    "description": "Reusable automation module: DefenderAddIndicatorv1.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-DefenderAddIndicatorv1",
+      "type": "string"
+    },
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_an_indicator_is_received": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "algorithm": {
+                      "type": "string"
+                    },
+                    "entityProperties": {
+                      "type": "string"
+                    },
+                    "incidentArmId": {
+                      "type": "string"
+                    },
+                    "indicatorValue": {
+                      "type": "string"
+                    },
+                    "playbookName": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "actions": {
+            "Condition": {
+              "actions": {},
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "or": [
+                  {
+                    "equals": [
+                      "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                      "Entity-DefenderRestrictDomain"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                      "Entity-DefenderRestrictFileHash"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                      "Entity-DefenderRestrictIP"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                      "Entity-DefenderRestrictUrl"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "ResponseMessage": {
+              "runAfter": {
+                "Response_Code": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "ResponseMessage",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Response_Code": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "ResponseCode",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Successful_Response": {
+              "runAfter": {
+                "Approval_Process": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@variables('ResponseMessage')"
+              }
+            },
+            "Request-TeamsApproval": {
+              "runAfter": {
+                "ResponseMessage": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Workflow",
+              "inputs": {
+                "host": {
+                  "workflow": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-Request-TeamsApproval')]"
+                  },
+                  "triggerName": "When_an_approval_is_received"
+                },
+                "body": {
+                  "algorithm": "@triggerBody()?['algorithm']",
+                  "entityProperties": "@triggerBody()?['entityProperties']",
+                  "incidentArmId": "@triggerBody()?['incidentArmId']",
+                  "indicatorValue": "@triggerBody()?['indicatorValue']",
+                  "playbookName": "@triggerBody()?['playbookName']",
+                  "severity": "@triggerBody()?['severity']"
+                }
+              }
+            },
+            "Parse_JSON": {
+              "runAfter": {
+                "Request-TeamsApproval": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('Request-TeamsApproval')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "Approval_Process": {
+              "actions": {
+                "Playbook_Switch": {
+                  "cases": {
+                    "DefenderRestrictDomain": {
+                      "case": "Entity-DefenderRestrictDomain",
+                      "actions": {
+                        "Domain_Name_Response_Code": {
+                          "runAfter": {
+                            "POST_Add_Domain_Indicator": [
+                              "Succeeded",
+                              "Failed"
+                            ]
+                          },
+                          "type": "AppendToStringVariable",
+                          "inputs": {
+                            "name": "ResponseCode",
+                            "value": "@outputs('POST_Add_Domain_Indicator')?['statusCode']"
+                          }
+                        },
+                        "Domain_Name_Success_Condition": {
+                          "actions": {
+                            "Domain_Name_Success_Response_Message": {
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "ResponseMessage",
+                                "value": {
+                                  "action": "@{body('POST_Add_Domain_Indicator')?['action']}",
+                                  "application": "@{body('POST_Add_Domain_Indicator')?['application']}",
+                                  "calledUsing": "@{triggerBody()?['playbookName']}",
+                                  "createdByDisplayName": "@{body('POST_Add_Domain_Indicator')?['createdByDisplayName']}",
+                                  "creationTimeDateTimeUtc": "@{formatDateTime(body('POST_Add_Domain_Indicator')?['creationTimeDateTimeUtc'], 'dd-MM-yyyy HH:mm:ss')\n}",
+                                  "expirationTime": "@{formatDateTime(body('POST_Add_Domain_Indicator')?['expirationTime'], 'dd-MM-yyyy HH:mm:ss')\n}",
+                                  "indicatorType": "@{body('POST_Add_Domain_Indicator')?['indicatorType']}",
+                                  "indicatorValue": "@{body('POST_Add_Domain_Indicator')?['indicatorValue']}",
+                                  "lastUpdateTime": "@{formatDateTime(body('POST_Add_Domain_Indicator')?['lastUpdateTime'], 'dd-MM-yyyy HH:mm:ss')\n}",
+                                  "severity": "@{body('POST_Add_Domain_Indicator')?['severity']}",
+                                  "title": "@{body('POST_Add_Domain_Indicator')?['title']}"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Domain_Name_Response_Code": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Domain_Name_Failed_Response_Message": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "ResponseMessage",
+                                  "value": {
+                                    "code": "@{body('POST_Add_Domain_Indicator')?['error']?['code']}",
+                                    "message": "@{body('POST_Add_Domain_Indicator')?['error']?['message']}"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "and": [
+                              {
+                                "equals": [
+                                  "@int(variables('ResponseCode'))",
+                                  200
+                                ]
+                              }
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "POST_Add_Domain_Indicator": {
+                          "type": "Http",
+                          "inputs": {
+                            "uri": "https://api.securitycenter.windows.com/api/indicators",
+                            "method": "POST",
+                            "body": {
+                              "action": "AlertAndBlock",
+                              "application": "Microsoft Sentinel",
+                              "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                              "expirationTime": "@{addDays(utcNow(), 90)}",
+                              "indicatorType": "DomainName",
+                              "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                              "severity": "@{triggerBody()?['severity']}",
+                              "title": "@{guid()}"
+                            },
+                            "authentication": {
+                              "audience": "https://api.securitycenter.windows.com/",
+                              "type": "ManagedServiceIdentity"
+                            }
+                          },
+                          "runtimeConfiguration": {
+                            "contentTransfer": {
+                              "transferMode": "Chunked"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "DefenderRestrictFileHash": {
+                      "case": "Entity-DefenderRestrictFileHash",
+                      "actions": {
+                        "Switch_on_Algorithm": {
+                          "cases": {
+                            "Case": {
+                              "case": "SHA1",
+                              "actions": {
+                                "POST_Add_SHA1_Indicator": {
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://api.securitycenter.windows.com/api/indicators",
+                                    "method": "POST",
+                                    "body": {
+                                      "action": "AlertAndBlock",
+                                      "application": "Microsoft Sentinel",
+                                      "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                                      "expirationTime": "@{addDays(utcNow(), 90)}",
+                                      "indicatorType": "FileSha1",
+                                      "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                                      "severity": "@{triggerBody()?['severity']}",
+                                      "title": "@{guid()}"
+                                    },
+                                    "authentication": {
+                                      "audience": "https://api.securitycenter.windows.com/",
+                                      "type": "ManagedServiceIdentity"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                },
+                                "SHA1_Response_Code": {
+                                  "runAfter": {
+                                    "POST_Add_SHA1_Indicator": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "ResponseCode",
+                                    "value": "@outputs('POST_Add_SHA1_Indicator')?['statusCode']"
+                                  }
+                                },
+                                "SHA1_Success_Condition": {
+                                  "actions": {
+                                    "SHA1_Success_Response_Message": {
+                                      "type": "AppendToArrayVariable",
+                                      "inputs": {
+                                        "name": "ResponseMessage",
+                                        "value": {
+                                          "action": "@{body('POST_Add_SHA1_Indicator')?['action']}",
+                                          "application": "@{body('POST_Add_SHA1_Indicator')?['application']}",
+                                          "calledUsing": "@{triggerBody()?['playbookName']}",
+                                          "createdByDisplayName": "@{body('POST_Add_SHA1_Indicator')?['createdByDisplayName']}",
+                                          "creationTimeDateTimeUtc": "@{formatDateTime(body('POST_Add_SHA1_Indicator')?['creationTimeDateTimeUtc'], 'dd-MM-yyyy HH:mm:ss')\n}",
+                                          "expirationTime": "@{formatDateTime(body('POST_Add_SHA1_Indicator')?['expirationTime'], 'dd-MM-yyyy HH:mm:ss')\n}",
+                                          "indicatorType": "@{body('POST_Add_SHA1_Indicator')?['indicatorType']}",
+                                          "indicatorValue": "@{body('POST_Add_SHA1_Indicator')?['indicatorValue']}",
+                                          "lastUpdateTime": "@{formatDateTime(body('POST_Add_SHA1_Indicator')?['lastUpdateTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                          "severity": "@{body('POST_Add_SHA1_Indicator')?['severity']}",
+                                          "title": "@{body('POST_Add_SHA1_Indicator')?['title']}"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "SHA1_Response_Code": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "else": {
+                                    "actions": {
+                                      "SHA1_Failed_Response_Message": {
+                                        "type": "AppendToArrayVariable",
+                                        "inputs": {
+                                          "name": "ResponseMessage",
+                                          "value": {
+                                            "code": "@{body('POST_Add_SHA1_Indicator')?['error']?['code']}",
+                                            "message": "@{body('POST_Add_SHA1_Indicator')?['error']?['message']}"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "expression": {
+                                    "and": [
+                                      {
+                                        "equals": [
+                                          "@int(variables('ResponseCode'))",
+                                          200
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "type": "If"
+                                }
+                              }
+                            },
+                            "Case 2": {
+                              "case": "SHA256",
+                              "actions": {
+                                "POST_Add_SHA265_Indicator": {
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://api.securitycenter.windows.com/api/indicators",
+                                    "method": "POST",
+                                    "body": {
+                                      "action": "AlertAndBlock",
+                                      "application": "Microsoft Sentinel",
+                                      "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                                      "expirationTime": "@{addDays(utcNow(), 90)}",
+                                      "indicatorType": "FileSha256",
+                                      "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                                      "severity": "@{triggerBody()?['severity']}",
+                                      "title": "@{guid()}"
+                                    },
+                                    "authentication": {
+                                      "audience": "https://api.securitycenter.windows.com/",
+                                      "type": "ManagedServiceIdentity"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                },
+                                "SHA256_Response_Code": {
+                                  "runAfter": {
+                                    "POST_Add_SHA265_Indicator": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "ResponseCode",
+                                    "value": "@outputs('POST_Add_SHA265_Indicator')?['statusCode']"
+                                  }
+                                },
+                                "SHA256_Success_Condition": {
+                                  "actions": {
+                                    "SHA256_Success_Response_Message": {
+                                      "type": "AppendToArrayVariable",
+                                      "inputs": {
+                                        "name": "ResponseMessage",
+                                        "value": {
+                                          "action": "@{body('POST_Add_SHA265_Indicator')?['action']}",
+                                          "application": "@{body('POST_Add_SHA265_Indicator')?['application']}",
+                                          "calledUsing": "@{triggerBody()?['playbookName']}",
+                                          "createdByDisplayName": "@{body('POST_Add_SHA265_Indicator')?['createdByDisplayName']}",
+                                          "creationTimeDateTimeUtc": "@{formatDateTime(body('POST_Add_SHA265_Indicator')?['creationTimeDateTimeUtc'], 'dd-MM-yyyy HH:mm:ss')}",
+                                          "expirationTime": "@{formatDateTime(body('POST_Add_SHA265_Indicator')?['expirationTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                          "indicatorType": "@{body('POST_Add_SHA265_Indicator')?['indicatorType']}",
+                                          "indicatorValue": "@{body('POST_Add_SHA265_Indicator')?['indicatorValue']}",
+                                          "lastUpdateTime": "@{formatDateTime(body('POST_Add_SHA265_Indicator')?['lastUpdateTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                          "severity": "@{body('POST_Add_SHA265_Indicator')?['severity']}",
+                                          "title": "@{body('POST_Add_SHA265_Indicator')?['title']}"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "SHA256_Response_Code": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "else": {
+                                    "actions": {
+                                      "SHA256_Failed_Response_Message": {
+                                        "type": "AppendToArrayVariable",
+                                        "inputs": {
+                                          "name": "ResponseMessage",
+                                          "value": {
+                                            "code": "@{body('POST_Add_SHA265_Indicator')?['error']?['code']}",
+                                            "message": "@{body('POST_Add_SHA265_Indicator')?['error']?['message']}"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "expression": {
+                                    "and": [
+                                      {
+                                        "equals": [
+                                          "@int(variables('ResponseCode'))",
+                                          200
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "type": "If"
+                                }
+                              }
+                            }
+                          },
+                          "default": {
+                            "actions": {
+                              "Unknown_File_Hash": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "ResponseMessage",
+                                  "value": {
+                                    "code": "UnknownHash",
+                                    "message": "An unknown hash value or type was sent to the Logic App"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": "@triggerBody()?['algorithm']",
+                          "type": "Switch"
+                        }
+                      }
+                    },
+                    "DefenderRestrictIP": {
+                      "case": "Entity-DefenderRestrictIP",
+                      "actions": {
+                        "IP_Address_Response_Code": {
+                          "runAfter": {
+                            "POST_Add_IP_Address_Indicator": [
+                              "Succeeded",
+                              "Failed"
+                            ]
+                          },
+                          "type": "AppendToStringVariable",
+                          "inputs": {
+                            "name": "ResponseCode",
+                            "value": "@outputs('POST_Add_IP_Address_Indicator')?['statusCode']"
+                          }
+                        },
+                        "IP_Address_Success_Condition": {
+                          "actions": {
+                            "IP_Address_Success_Response_Message": {
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "ResponseMessage",
+                                "value": {
+                                  "action": "@{body('POST_Add_IP_Address_Indicator')?['action']}",
+                                  "application": "@{body('POST_Add_IP_Address_Indicator')?['application']}",
+                                  "calledUsing": "@{triggerBody()?['playbookName']}",
+                                  "createdByDisplayName": "@{body('POST_Add_IP_Address_Indicator')?['createdByDisplayName']}",
+                                  "creationTimeDateTimeUtc": "@{formatDateTime(body('POST_Add_IP_Address_Indicator')?['creationTimeDateTimeUtc'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "expirationTime": "@{formatDateTime(body('POST_Add_IP_Address_Indicator')?['expirationTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "indicatorType": "@{body('POST_Add_IP_Address_Indicator')?['indicatorType']}",
+                                  "indicatorValue": "@{body('POST_Add_IP_Address_Indicator')?['indicatorValue']}",
+                                  "lastUpdateTime": "@{formatDateTime(body('POST_Add_IP_Address_Indicator')?['lastUpdateTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "severity": "@{body('POST_Add_IP_Address_Indicator')?['severity']}",
+                                  "title": "@{body('POST_Add_IP_Address_Indicator')?['title']}"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "IP_Address_Response_Code": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "IP_Address_Failed_Response_Message": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "ResponseMessage",
+                                  "value": {
+                                    "code": "@{body('POST_Add_IP_Address_Indicator')?['error']?['code']}",
+                                    "message": "@{body('POST_Add_IP_Address_Indicator')?['error']?['message']}"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "and": [
+                              {
+                                "equals": [
+                                  "@int(variables('ResponseCode'))",
+                                  200
+                                ]
+                              }
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "POST_Add_IP_Address_Indicator": {
+                          "type": "Http",
+                          "inputs": {
+                            "uri": "https://api.securitycenter.windows.com/api/indicators",
+                            "method": "POST",
+                            "body": {
+                              "action": "AlertAndBlock",
+                              "application": "Microsoft Sentinel",
+                              "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                              "expirationTime": "@{addDays(utcNow(), 90)}",
+                              "indicatorType": "IpAddress",
+                              "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                              "severity": "@{triggerBody()?['severity']}",
+                              "title": "@{guid()}"
+                            },
+                            "authentication": {
+                              "audience": "https://api.securitycenter.windows.com/",
+                              "type": "ManagedServiceIdentity"
+                            }
+                          },
+                          "runtimeConfiguration": {
+                            "contentTransfer": {
+                              "transferMode": "Chunked"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "DefenderRestrictUrl": {
+                      "case": "Entity-DefenderRestrictUrl",
+                      "actions": {
+                        "POST_Add_URL_Indicator": {
+                          "type": "Http",
+                          "inputs": {
+                            "uri": "https://api.securitycenter.windows.com/api/indicators",
+                            "method": "POST",
+                            "body": {
+                              "action": "AlertAndBlock",
+                              "application": "Microsoft Sentinel",
+                              "description": "This block command has been made through the @{triggerBody()?['playbookName']}. Ran on URL Entity from Microsoft Sentinel Incident with ARM ID: @{triggerBody()?['incidentArmId']}. Entity properties: @{triggerBody()?['entityProperties']}",
+                              "expirationTime": "@{addDays(utcNow(), 90)}",
+                              "indicatorType": "Url",
+                              "indicatorValue": "@{triggerBody()?['indicatorValue']}",
+                              "severity": "@{triggerBody()?['severity']}",
+                              "title": "@{guid()}"
+                            },
+                            "authentication": {
+                              "audience": "https://api.securitycenter.windows.com/",
+                              "type": "ManagedServiceIdentity"
+                            }
+                          },
+                          "runtimeConfiguration": {
+                            "contentTransfer": {
+                              "transferMode": "Chunked"
+                            }
+                          }
+                        },
+                        "URL_Response_Code": {
+                          "runAfter": {
+                            "POST_Add_URL_Indicator": [
+                              "Succeeded",
+                              "Failed"
+                            ]
+                          },
+                          "type": "AppendToStringVariable",
+                          "inputs": {
+                            "name": "ResponseCode",
+                            "value": "@outputs('POST_Add_URL_Indicator')?['statusCode']"
+                          }
+                        },
+                        "URL_Success_Condition": {
+                          "actions": {
+                            "URL_Success_Response_Message": {
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "ResponseMessage",
+                                "value": {
+                                  "action": "@{body('POST_Add_URL_Indicator')?['action']}",
+                                  "application": "@{body('POST_Add_URL_Indicator')?['application']}",
+                                  "calledUsing": "@{triggerBody()?['playbookName']}",
+                                  "createdByDisplayName": "@{body('POST_Add_URL_Indicator')?['createdByDisplayName']}",
+                                  "creationTimeDateTimeUtc": "@{formatDateTime(body('POST_Add_URL_Indicator')?['creationTimeDateTimeUtc'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "expirationTime": "@{formatDateTime(body('POST_Add_URL_Indicator')?['expirationTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "indicatorType": "@{body('POST_Add_URL_Indicator')?['indicatorType']}",
+                                  "indicatorValue": "@{body('POST_Add_URL_Indicator')?['indicatorValue']}",
+                                  "lastUpdateTime": "@{formatDateTime(body('POST_Add_URL_Indicator')?['lastUpdateTime'], 'dd-MM-yyyy HH:mm:ss')}",
+                                  "severity": "@{body('POST_Add_URL_Indicator')?['severity']}",
+                                  "title": "@{body('POST_Add_URL_Indicator')?['title']}"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "URL_Response_Code": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "URL_Failed_Response_Message": {
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "ResponseMessage",
+                                  "value": {
+                                    "code": "@{body('POST_Add_URL_Indicator')?['error']?['code']}",
+                                    "message": "@{body('POST_Add_URL_Indicator')?['error']?['message']}"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "and": [
+                              {
+                                "equals": [
+                                  "@int(variables('ResponseCode'))",
+                                  200
+                                ]
+                              }
+                            ]
+                          },
+                          "type": "If"
+                        }
+                      }
+                    }
+                  },
+                  "default": {
+                    "actions": {
+                      "Unknown_Defender_Indicator": {
+                        "type": "AppendToArrayVariable",
+                        "inputs": {
+                          "name": "ResponseMessage",
+                          "value": {
+                            "code": "UnknownDefenderIndicator",
+                            "message": "An unknown indicator or type was sent to the Logic App"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "expression": "@triggerBody()?['playbookName']",
+                  "type": "Switch"
+                }
+              },
+              "runAfter": {
+                "Parse_JSON": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Terminate_1": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@body('Parse_JSON')?['success']",
+                      "Approved"
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "outputs": {}
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": []
+    }
+  ]
+}

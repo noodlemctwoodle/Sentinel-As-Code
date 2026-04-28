@@ -1,0 +1,191 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "Resquest-SendEmailReport",
+    "description": "Reusable automation module: Resquest-SendEmailReport.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-Resquest-SendEmailReport",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "Office365ConnectionName": "[concat('Office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_HTTP_request_is_received": {
+              "type": "Request",
+              "kind": "Http"
+            }
+          },
+          "actions": {
+            "Create_HTML_table": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@triggerBody()",
+                "format": "HTML"
+              }
+            },
+            "Compose": {
+              "runAfter": {
+                "Create_HTML_table": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <link href=\"https://fonts.googleapis.com/css?family=Roboto&display=swap\" rel=\"stylesheet\" />\n  <style>\n    /* Global Font */\n    body,\n    table {\n      font-family: 'Roboto', sans-serif;\n    }\n\n    /* Styling for the nested table */\n    table table {\n      width: 100%;\n      border-collapse: collapse;\n      table-layout: auto;\n    }\n\n    table table th,\n    table table td {\n      padding: 10px;\n      border: 1px solid #ccc;\n      white-space: nowrap; /* Prevent wrapping */\n    }\n\n    /* Optionally, set custom widths for each column.\n       Adjust the percentages or min-width values as needed. */\n    table table th:nth-child(1),\n    table table td:nth-child(1) {\n      min-width: 150px; /* ApplicationName */\n    }\n    table table th:nth-child(2),\n    table table td:nth-child(2) {\n      min-width: 250px; /* ApplicationId */\n    }\n    table table th:nth-child(3),\n    table table td:nth-child(3) {\n      min-width: 120px; /* CredentialType */\n    }\n    table table th:nth-child(4),\n    table table td:nth-child(4) {\n      min-width: 200px; /* ExpiryDate */\n    }\n    table table th:nth-child(5),\n    table table td:nth-child(5) {\n      min-width: 100px; /* DaysUntilExpiry */\n    }\n\n    table table th:nth-child(n+2),\n    table table td:nth-child(n+2) {\n      text-align: center;\n    }\n\n    table table thead tr {\n      background-color: #ddd;\n    }\n\n    /* Custom styling for top section */\n    .email-header {\n      background-color: #C9C9C9;\n      color: white;\n      padding: 20px;\n      text-align: center;\n    }\n\n    .email-header h1 {\n      font-size: 28px;\n      margin: 0;\n    }\n\n    .email-body {\n      background-color: #f2f2f2;\n      padding: 20px;\n    }\n\n    .email-body p {\n      font-size: 16px;\n      margin: 10px 0;\n    }\n\n    .incident-link {\n      font-size: 18px;\n      color: #2f06e6;\n    }\n\n    .tactics-section {\n      font-size: 16px;\n      color: #333;\n    }\n\n    .tactics-section p {\n      margin: 5px 0;\n    }\n  </style>\n</head>\n\n<body>\n  <!-- Microsoft Sentinel Monthly Cost Template -->\n  <table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">\n    <tbody>\n      <tr>\n        <td style=\"padding: 20px 0;\" align=\"center\">\n          <table style=\"max-width: 1000px; width: 100%; border-collapse: collapse;\">\n            <tbody>\n              <!-- Top Section (Logo + Title) -->\n              <tr class=\"email-header\">\n                <td align=\"center\">\n                  <img class=\"logo\" style=\"margin: 20px auto; display: block; width: 250px;\" src=\"https://i.postimg.cc/DZ5Kqgb6/sentinel.webp\" alt=\"domain.com Logo\" width=\"150\" />\n                </td>\n              </tr>\n              <!-- Microsoft Outlook Email Body -->\n              <tr class=\"email-body\">\n                <td>\n                  <h2 style=\"font-size: 26px; color: #2f06e6; text-align: center;\"> Microsoft EntraID SPN Expiry</h2>\n                  <p>Date: @{formatDateTime(utcNow(), 'dd-MM-yyyy HH:mm:ss')}</p>\n                  <p>This email is intended to provide a quick, at-a-glance view of all applications at risk due to expiring credentials. Ensure that necessary actions can be taken promptly to renew or replace the affected secrets and certificates, thereby minimising service disruptions and mitigating potential security risks.</p>\n                </td>\n              </tr>\n              <!-- Microsoft Sentinel Playbook Nested HTML Table -->\n              <tr style=\"text-align: left; background-color: #f2f2f2;\">\n                <td>\n                  @{body('Create_HTML_table')}\n                </td>\n              </tr>\n              <!-- Microsoft Outlook Email Footer -->\n              <tr>\n                <td style=\"padding: 20px; background-color: #ebe9e2;\" align=\"center\">\n                  <p style=\"font-size: 16.0pt;\"><strong>Sentinel Security</strong></p>\n                  <p>If you have any questions, please reach out to the security team:\n                    <a style=\"color: #2f06e6;\" href=\"mailto:secops@domain.com\">Sentinel Security Team</a>\n                  </p>\n                </td>\n              </tr>\n            </tbody>\n          </table>\n        </td>\n      </tr>\n    </tbody>\n  </table>\n</body>\n</html>"
+            },
+            "Send_an_email_(V2)": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "To": "socengineer@domain.com",
+                  "Subject": "AD Expiry",
+                  "Body": "<p class=\"editor-paragraph\">@{outputs('Compose')}</p>",
+                  "Importance": "Normal"
+                },
+                "path": "/v2/Mail"
+              }
+            },
+            "Response": {
+              "runAfter": {
+                "Send_an_email_(V2)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": {
+                  "status": "Success",
+                  "timestamp": "@{utcNow('dd-MM-yyyy HH:mm:ss')}",
+                  "message": "The following applications have credentials that are nearing expiration.",
+                  "expiringCredentials": "@triggerBody()"
+                }
+              }
+            },
+            "Condition": {
+              "actions": {},
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Succeeded"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "not": {
+                      "equals": [
+                        "@triggerBody()",
+                        "@null"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "office365": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365ConnectionName'))]",
+                "connectionName": "[variables('Office365ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('Office365ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('Office365ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('Office365ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+        }
+      }
+    }
+  ]
+}

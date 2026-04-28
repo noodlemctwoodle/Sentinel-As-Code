@@ -1,283 +1,270 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "metadata": {
-        "title": "Entity-TorIPEnrichment",
-        "description": "TOR exit node enrichment for IP entities",
-        "lastUpdateTime": "31-07-2024",
-        "entities": [],
-        "tags": [],
-        "support": {
-            "tier": "community"
-        },
-        "author": {
-            "name": "noodlemctwoodle"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "TorIPEnrichment",
+    "description": "Sentinel entity-trigger playbook for TorIPEnrichment.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Entity",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
     },
-    "parameters": {
-        "PlaybookName": {
-            "defaultValue": "Entity-TorIPEnrichment",
-            "type": "string"
-        },
-        "AutomationResourceGroup": {
-            "defaultValue": "",
-            "type": "string"
-        },
-        "SentinelWorkpaceName": {
-            "defaultValue": "your-workspace",
-            "type": "string"
-        },
-        "SentinelResourceGroup": {
-            "defaultValue": "",
-            "type": "string"
-        },
-        "SubscriptionId": {
-            "defaultValue": "00000000-0000-0000-0000-000000000000",
-            "type": "string"
-        }
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "TorIPEnrichment",
+      "type": "string"
     },
-    "variables": {
-        "MicrosoftSentinelConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]",
-        "AzuremonitorlogsConnectionName": "[concat('Azuremonitorlogs-', parameters('PlaybookName'))]"
+    "AutomationResourceGroup": {
+      "defaultValue": "",
+      "type": "string"
     },
-    "resources": [
-        {
-            "properties": {
-                "provisioningState": "Succeeded",
-                "state": "Enabled",
-                "definition": {
-                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "$connections": {
-                            "defaultValue": {},
-                            "type": "Object"
-                        }
-                    },
-                    "triggers": {
-                        "Microsoft_Sentinel_entity": {
-                            "type": "ApiConnectionWebhook",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                                    }
-                                },
-                                "body": {
-                                    "callback_url": "@{listCallbackUrl()}"
-                                },
-                                "path": "/entity/@{encodeURIComponent('IP')}"
-                            }
-                        }
-                    },
-                    "actions": {
-                        "Condition": {
-                            "actions": {
-                                "Module-IPHazzardReport": {
-                                    "type": "Workflow",
-                                    "inputs": {
-                                        "host": {
-                                            "workflow": {
-                                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-IPHazzardReport')]"
-
-                                            },
-                                            "triggerName": "When_a_HTTP_request_is_received"
-                                        },
-                                        "body": {
-                                            "IPAddress": "@triggerBody()?['Entity']?['properties']?['Address']"
-                                        }
-                                    }
-                                },
-                                "Create_HTML_table": {
-                                    "runAfter": {
-                                        "Compose": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "Table",
-                                    "inputs": {
-                                        "from": "@body('Module-IPHazzardReport')",
-                                        "format": "HTML"
-                                    }
-                                },
-                                "Module-AddSentinelComment_True": {
-                                    "runAfter": {
-                                        "Create_HTML_table": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "Workflow",
-                                    "inputs": {
-                                        "host": {
-                                            "workflow": {
-                                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
-                                            },
-                                            "triggerName": "When_a_HTTP_request_is_received"
-                                        },
-                                        "body": {
-                                            "SentinelComment": "TOR IP Address found in Watchlist.
-@{body('Create_HTML_table')}",
-                                            "IncidentARMId": "@triggerBody()?['IncidentArmID']"
-                                        }
-                                    }
-                                },
-                                "Compose": {
-                                    "runAfter": {
-                                        "Module-IPHazzardReport": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "Compose",
-                                    "inputs": []
-                                }
-                            },
-                            "runAfter": {
-                                "Run_query_and_list_results_V2_(Preview)": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "else": {
-                                "actions": {
-                                    "Terminate": {
-                                        "runAfter": {
-                                            "Module-AddSentinelComment_False": [
-                                                "Succeeded"
-                                            ]
-                                        },
-                                        "type": "Terminate",
-                                        "inputs": {
-                                            "runStatus": "Succeeded"
-                                        }
-                                    },
-                                    "Module-AddSentinelComment_False": {
-                                        "type": "Workflow",
-                                        "inputs": {
-                                            "host": {
-                                                "workflow": {
-                                                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
-                                                },
-                                                "triggerName": "When_a_HTTP_request_is_received"
-                                            },
-                                            "body": {
-                                                "SentinelComment": "TOR IP not found in the watchlist",
-                                                "IncidentARMId": "@triggerBody()?['IncidentArmID']"
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            "expression": {
-                                "and": [
-                                    {
-                                        "greaterOrEquals": [
-                                            "@length(body('Run_query_and_list_results_V2_(Preview)')?['value'])",
-                                            1
-                                        ]
-                                    }
-                                ]
-                            },
-                            "type": "If"
-                        },
-                        "Run_query_and_list_results_V2_(Preview)": {
-                            "runAfter": {},
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
-                                    }
-                                },
-                                "method": "post",
-                                "body": {
-                                    "query": "let TorNodes = _GetWatchlist('TorExitNodes');
-TorNodes
-| where SearchKey == \"@{triggerBody()?['Entity']?['properties']?['Address']}\"",
-                                    "timerangetype": "2",
-                                    "timerange": {
-                                        "relativeTimeRange": "Last 48 hours"
-                                    }
-                                },
-                                "path": "/queryDataV2",
-                                "queries": {
-                                    "subscriptions": "[parameters('SubscriptionId')]",
-                                    "resourcegroups": "[parameters('SentinelResourceGroup')]", 
-                                    "resourcetype": "Log Analytics Workspace",
-                                    "resourcename": "[parameters('SentinelWorkpaceName')]"
-                                }
-                            }
-                        }
-                    },
-                    "outputs": {}
+    "SentinelWorkpaceName": {
+      "defaultValue": "",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "AzureMonitorLogs0ConnectionName": "[concat('AzureMonitorLogs-', parameters('PlaybookName'))]",
+    "MicrosoftSentinel0ConnectionName": "[concat('MicrosoftSentinel-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_entity": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
                 },
-                "parameters": {
-                    "$connections": {
-                        "value": {
-                            "azuresentinel": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
-                                "connectionName": "[variables('MicrosoftSentinelConnectionName')]",
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
-                                "connectionProperties": {
-                                    "authentication": {
-                                        "type": "ManagedServiceIdentity"
-                                    }
-                                }
-                            },
-                            "azuremonitorlogs": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzuremonitorlogsConnectionName'))]",
-                                "connectionName": "[variables('AzuremonitorlogsConnectionName')]",
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuremonitorlogs')]",
-                                "connectionProperties": {
-                                }
-                            }
-                        }
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/entity/@{encodeURIComponent('IP')}"
+              }
+            }
+          },
+          "actions": {
+            "Condition": {
+              "actions": {
+                "Module-IPHazzardReport": {
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-IPHazzardReport')]"
+                      },
+                      "triggerName": "When_a_HTTP_request_is_received"
+                    },
+                    "body": {
+                      "IPAddress": "@triggerBody()?['Entity']?['properties']?['Address']"
                     }
+                  }
+                },
+                "Create_HTML_table": {
+                  "runAfter": {
+                    "Compose": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Table",
+                  "inputs": {
+                    "from": "@body('Module-IPHazzardReport')",
+                    "format": "HTML"
+                  }
+                },
+                "Module-AddSentinelComment_True": {
+                  "runAfter": {
+                    "Create_HTML_table": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflow": {
+                        "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                      },
+                      "triggerName": "When_a_HTTP_request_is_received"
+                    },
+                    "body": {
+                      "SentinelComment": "TOR IP Address found in Watchlist.\n@{body('Create_HTML_table')}",
+                      "IncidentARMId": "@triggerBody()?['IncidentArmID']"
+                    }
+                  }
+                },
+                "Compose": {
+                  "runAfter": {
+                    "Module-IPHazzardReport": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": []
                 }
-            },
-            "name": "[parameters('PlaybookName')]",
-            "type": "Microsoft.Logic/workflows",
-            "location": "[resourceGroup().location]",
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "tags": {
-                "Source": "Sentinel-As-Code",
-                "hidden-SentinelWorkspaceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/microsoft.OperationalInsights/Workspaces/', parameters('SentinelWorkpaceName'))]",
-                "hidden-SentinelTemplateName": "Entity-TorIPEnrichment",
-                "hidden-SentinelTemplateVersion": "1.0"
-            },
-            "apiVersion": "2017-07-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinelConnectionName'))]",
-                "[resourceId('Microsoft.Web/connections', variables('AzuremonitorlogsConnectionName'))]"
-            ]
-        },
-        {
-            "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
-            "name": "[variables('MicrosoftSentinelConnectionName')]",
-            "location": "[resourceGroup().location]",
-            "kind": "V1",
-            "properties": {
-                "displayName": "[variables('MicrosoftSentinelConnectionName')]",
-                "customParameterValues": {},
-                "parameterValueType": "Alternative",
-                "api": {
-                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+              },
+              "runAfter": {
+                "Run_query_and_list_results_V2_(Preview)": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "runAfter": {
+                      "Module-AddSentinelComment_False": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Succeeded"
+                    }
+                  },
+                  "Module-AddSentinelComment_False": {
+                    "type": "Workflow",
+                    "inputs": {
+                      "host": {
+                        "workflow": {
+                          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('AutomationResourceGroup'), '/providers/Microsoft.Logic/workflows/Module-AddSentinelComment')]"
+                        },
+                        "triggerName": "When_a_HTTP_request_is_received"
+                      },
+                      "body": {
+                        "SentinelComment": "TOR IP not found in the watchlist",
+                        "IncidentARMId": "@triggerBody()?['IncidentArmID']"
+                      }
+                    }
+                  }
                 }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "greaterOrEquals": [
+                      "@length(body('Run_query_and_list_results_V2_(Preview)')?['value'])",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Run_query_and_list_results_V2_(Preview)": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "query": "let TorNodes = _GetWatchlist('TorExitNodes');\nTorNodes\n| where SearchKey == \"@{triggerBody()?['Entity']?['properties']?['Address']}\"",
+                  "timerangetype": "2",
+                  "timerange": {
+                    "relativeTimeRange": "Last 48 hours"
+                  }
+                },
+                "path": "/queryDataV2",
+                "queries": {
+                  "subscriptions": "', subscription().subscriptionId, '",
+                  "resourcegroups": "STL-SEC-SIEM-RG",
+                  "resourcetype": "Log Analytics Workspace",
+                  "resourcename": "stl-sec-siem-law"
+                }
+              }
             }
+          },
+          "outputs": {}
         },
-        {
-            "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
-            "name": "[variables('AzuremonitorlogsConnectionName')]",
-            "location": "[resourceGroup().location]",
-            "kind": "V1",
-            "properties": {
-                "displayName": "[variables('AzuremonitorlogsConnectionName')]",
-                "api": {
-                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuremonitorlogs')]"
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuremonitorlogs": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs0ConnectionName'))]",
+                "connectionName": "[variables('AzureMonitorLogs0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuremonitorlogs')]"
+              },
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+                "connectionName": "[variables('MicrosoftSentinel0ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
                 }
+              }
             }
+          }
         }
-    ]
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('MicrosoftSentinel0ConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs0ConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('AzureMonitorLogs0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('AzureMonitorLogs0ConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuremonitorlogs')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('MicrosoftSentinel0ConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('MicrosoftSentinel0ConnectionName')]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Azuresentinel')]"
+        }
+      }
+    }
+  ]
 }

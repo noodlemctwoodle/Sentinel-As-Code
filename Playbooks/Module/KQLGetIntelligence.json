@@ -1,0 +1,358 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "KQLGetIntelligence",
+    "description": "Reusable automation module: KQLGetIntelligence.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Module",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "Module-KQLGetIntelligence",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "AzureMonitorLogsConnectionName": "[concat('AzureMonitorLogs-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Module-KQLGetIntelligence": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                  "properties": {
+                    "entity": {
+                      "type": "string"
+                    },
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "playboookNmae": {
+                      "type": "string"
+                    },
+                    "IncidentARMId": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "actions": {
+            "Condition": {
+              "actions": {},
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "not": {
+                      "endsWith": [
+                        "@triggerOutputs()?['headers']?['x-ms-workflow-name']",
+                        "x"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Switch": {
+              "runAfter": {
+                "Initialize_queryResults": [
+                  "Succeeded"
+                ]
+              },
+              "cases": {
+                "userPrincipalName": {
+                  "case": "userPrincipalName",
+                  "actions": {
+                    "Run_userPrincipalName_query": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": "union isfuzzy=true BehaviorAnalytics, AADNonInteractiveUserSignInLogs, ThreatIntelligenceIndicator, SigninLogs\n| extend Status = iff(isempty( Status_dynamic ), todynamic(Status_string), Status_dynamic)\n| extend DeviceDetail = iff(isempty( DeviceDetail_dynamic ), todynamic(DeviceDetail_string), DeviceDetail_dynamic)\n| extend LocationDetails = iff(isempty( LocationDetails_dynamic ), todynamic(LocationDetails_string), LocationDetails_dynamic)\n// Remove duplicated columns\n| project-away *_dynamic, *_string",
+                        "path": "/queryData",
+                        "queries": {
+                          "subscriptions": "', subscription().subscriptionId, '",
+                          "resourcegroups": "STL-SEC-SIEM-RG",
+                          "resourcetype": "Log Analytics Workspace",
+                          "resourcename": "stl-sec-siem-law",
+                          "timerange": "Last 24 hours"
+                        }
+                      }
+                    },
+                    "Parse_userPrincipalName_query": {
+                      "runAfter": {
+                        "Run_userPrincipalName_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Run_userPrincipalName_query')?['value']",
+                        "schema": [
+                          {}
+                        ]
+                      }
+                    },
+                    "userPrincipalName_variable": {
+                      "runAfter": {
+                        "Parse_userPrincipalName_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "queryResults",
+                        "value": "@body('Parse_userPrincipalName_query')"
+                      }
+                    }
+                  }
+                },
+                "domainName": {
+                  "case": "domainName",
+                  "actions": {
+                    "Run_domainName_query": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": "union isfuzzy=true BehaviorAnalytics, AADNonInteractiveUserSignInLogs, ThreatIntelligenceIndicator, SigninLogs\n| extend Status = iff(isempty( Status_dynamic ), todynamic(Status_string), Status_dynamic)\n| extend DeviceDetail = iff(isempty( DeviceDetail_dynamic ), todynamic(DeviceDetail_string), DeviceDetail_dynamic)\n| extend LocationDetails = iff(isempty( LocationDetails_dynamic ), todynamic(LocationDetails_string), LocationDetails_dynamic)\n// Remove duplicated columns\n| project-away *_dynamic, *_string",
+                        "path": "/queryData",
+                        "queries": {
+                          "subscriptions": "', subscription().subscriptionId, '",
+                          "resourcegroups": "STL-SEC-SIEM-RG",
+                          "resourcetype": "Log Analytics Workspace",
+                          "resourcename": "stl-sec-siem-law",
+                          "timerange": "Last 24 hours"
+                        }
+                      }
+                    },
+                    "Parse_domainName_query": {
+                      "runAfter": {
+                        "Run_domainName_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Run_domainName_query')?['value']",
+                        "schema": [
+                          {}
+                        ]
+                      }
+                    },
+                    "domainName_variable": {
+                      "runAfter": {
+                        "Parse_domainName_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "queryResults",
+                        "value": "@body('Parse_domainName_query')"
+                      }
+                    }
+                  }
+                },
+                "ipAddress": {
+                  "case": "ipAddress",
+                  "actions": {
+                    "Run_ipAddress_query": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": "union isfuzzy=true BehaviorAnalytics, AADNonInteractiveUserSignInLogs, ThreatIntelligenceIndicator, SigninLogs\n| extend Status = iff(isempty( Status_dynamic ), todynamic(Status_string), Status_dynamic)\n| extend DeviceDetail = iff(isempty( DeviceDetail_dynamic ), todynamic(DeviceDetail_string), DeviceDetail_dynamic)\n| extend LocationDetails = iff(isempty( LocationDetails_dynamic ), todynamic(LocationDetails_string), LocationDetails_dynamic)\n// Remove duplicated columns\n| project-away *_dynamic, *_string",
+                        "path": "/queryData",
+                        "queries": {
+                          "subscriptions": "', subscription().subscriptionId, '",
+                          "resourcegroups": "STL-SEC-SIEM-RG",
+                          "resourcetype": "Log Analytics Workspace",
+                          "resourcename": "stl-sec-siem-law",
+                          "timerange": "Last 24 hours"
+                        }
+                      }
+                    },
+                    "Parse_ipAddress_query": {
+                      "runAfter": {
+                        "Run_ipAddress_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Run_ipAddress_query')?['value']",
+                        "schema": [
+                          {}
+                        ]
+                      }
+                    },
+                    "ipAddress_variable": {
+                      "runAfter": {
+                        "Parse_ipAddress_query": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "queryResults",
+                        "value": "@body('Parse_ipAddress_query')"
+                      }
+                    }
+                  }
+                }
+              },
+              "default": {
+                "actions": {
+                  "Response_Failure": {
+                    "type": "Response",
+                    "kind": "Http",
+                    "inputs": {
+                      "statusCode": 200,
+                      "body": {
+                        "status": "error",
+                        "code": 400,
+                        "message": "Request failed due to invalid input.",
+                        "timestamp": "@utcNow()"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": "@triggerBody()?['entityType']",
+              "type": "Switch"
+            },
+            "Initialize_queryResults": {
+              "runAfter": {
+                "Condition": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "queryResults",
+                    "type": "array"
+                  }
+                ]
+              }
+            },
+            "Response": {
+              "runAfter": {
+                "Switch": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@variables('queryResults')"
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuremonitorlogs-1": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogsConnectionName'))]",
+                "connectionName": "[variables('AzureMonitorLogsConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+              }
+            }
+          }
+        },
+        "accessControl": {
+          "triggers": {
+            "allowedCallerIpAddresses": []
+          },
+          "actions": {
+            "allowedCallerIpAddresses": []
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogsConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('AzureMonitorLogsConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('AzureMonitorLogsConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+        }
+      }
+    }
+  ]
+}

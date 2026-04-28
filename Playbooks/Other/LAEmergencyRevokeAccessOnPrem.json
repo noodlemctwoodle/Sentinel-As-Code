@@ -1,0 +1,2084 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "LAEmergencyRevokeAccessOnPrem",
+    "description": "Automation playbook: LAEmergencyRevokeAccessOnPrem.",
+    "lastUpdateTime": "24-03-2026",
+    "entities": [],
+    "tags": [
+      "Other",
+      "Source: Sentinel-As-Code"
+    ],
+    "support": {
+      "tier": "community"
+    },
+    "author": {
+      "name": "noodlemctwoodle"
+    }
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "LAEmergencyRevokeAccessOnPrem",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "SharePointOnlineConnectionName": "[concat('SharePointOnline-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "properties": {
+        "provisioningState": "Succeeded",
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_an_item_is_created": {
+              "recurrence": {
+                "interval": 3,
+                "frequency": "Minute"
+              },
+              "evaluatedRecurrence": {
+                "interval": 3,
+                "frequency": "Minute"
+              },
+              "splitOn": "@triggerBody()?['value']",
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/onnewitems"
+              }
+            }
+          },
+          "actions": {
+            "Compose_Author": {
+              "runAfter": {
+                "Initialize_variable_varDeleteAuthMethods": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose",
+              "inputs": "@Last(split(triggerBody()['Author#Claims'],'|'))"
+            },
+            "HTTP_GET_Author_member_of": {
+              "runAfter": {
+                "Compose_Author": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "uri": "https://graph.microsoft.com/v1.0/users/@{outputs('Compose_Author')}/memberOf/@{variables('varGroupObjectID')}",
+                "method": "GET",
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://graph.microsoft.com"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Condition_Groupmembership_status_code": {
+              "actions": {
+                "HTTP_POST_revokeSignInSessions": {
+                  "runAfter": {
+                    "Condition_Password_reset_status_code": [
+                      "Succeeded",
+                      "Failed",
+                      "Skipped",
+                      "TimedOut"
+                    ]
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/revokeSignInSessions",
+                    "method": "POST",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    }
+                  }
+                },
+                "Condition_disable_account_status_code": {
+                  "actions": {
+                    "Update_item_user_account_disabled": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Useraccountdisabled": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_vanDisableUserStatus": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_user_account_disabled_failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Useraccountdisabled": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "contains": [
+                            "@outputs('Compose_vanDisableUserStatus')",
+                            "Failed"
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Condition_revokeSignInSessions_status_code": {
+                  "actions": {
+                    "Update_item_revokeSignInSessions_success": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Signoutofallsessions": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "HTTP_POST_revokeSignInSessions": [
+                      "Succeeded",
+                      "Failed"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_revokeSignInSessions_failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Signoutofallsessions": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@outputs('HTTP_POST_revokeSignInSessions')?['statusCode']",
+                          200
+                        ]
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "HTTP_GET_registeredDevices_(Entra_ID)": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/registeredDevices?$select=id,displayName,deviceId,operatingSystem",
+                    "method": "GET",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    }
+                  }
+                },
+                "Parse_JSON_GET_registeredDevices": {
+                  "runAfter": {
+                    "HTTP_GET_registeredDevices_(Entra_ID)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('HTTP_GET_registeredDevices_(Entra_ID)')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "@@odata.type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "type": "string"
+                              },
+                              "deviceId": {
+                                "type": "string"
+                              },
+                              "operatingSystem": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "@@odata.type",
+                              "id",
+                              "displayName",
+                              "deviceId",
+                              "operatingSystem"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "HTTP_PATCH_Password_reset": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}",
+                    "method": "PATCH",
+                    "headers": {
+                      "Content-Type": "application/json"
+                    },
+                    "body": {
+                      "passwordProfile": {
+                        "forceChangePasswordNextSignIn": false,
+                        "password": "NewSecurePassword123!"
+                      }
+                    },
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    },
+                    "secureData": {
+                      "properties": [
+                        "inputs"
+                      ]
+                    }
+                  }
+                },
+                "Condition_Password_reset_status_code": {
+                  "actions": {
+                    "Update_item_Password_reset_success": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Passwordreset": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "HTTP_PATCH_Password_reset": [
+                      "Succeeded",
+                      "Failed"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_Password_reset_failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Passwordreset": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@outputs('HTTP_PATCH_Password_reset')?['statusCode']",
+                          204
+                        ]
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "For_each_Entra_registered_device": {
+                  "foreach": "@body('Filter_array_OperatingSystem_equals_Windows')",
+                  "actions": {
+                    "HTTP_PATCH_Disable_Entra_device_accounts": {
+                      "type": "Http",
+                      "inputs": {
+                        "uri": "https://graph.microsoft.com/v1.0/devices/@{item()['id']}",
+                        "method": "PATCH",
+                        "body": {
+                          "accountEnabled": false
+                        },
+                        "authentication": {
+                          "type": "ManagedServiceIdentity",
+                          "audience": "https://graph.microsoft.com"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "contentTransfer": {
+                          "transferMode": "Chunked"
+                        }
+                      }
+                    },
+                    "Condition_Disable_Entra_device_account_status_code": {
+                      "actions": {
+                        "Append_to_string_variable_varDisableEntraDeviceStatus_Success": {
+                          "type": "AppendToStringVariable",
+                          "inputs": {
+                            "name": "varDisableEntraDeviceStatus",
+                            "value": "Succes"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "HTTP_PATCH_Disable_Entra_device_accounts": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Append_to_string_variable_varDisableEntraDeviceStatus_failed": {
+                            "type": "AppendToStringVariable",
+                            "inputs": {
+                              "name": "varDisableEntraDeviceStatus",
+                              "value": "Failed"
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "and": [
+                          {
+                            "equals": [
+                              "@outputs('HTTP_PATCH_Disable_Entra_device_accounts')?['statusCode']",
+                              204
+                            ]
+                          }
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Filter_array_OperatingSystem_equals_Windows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "HTTP_GET_authentication_methods": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/methods/?$select=id",
+                    "method": "GET",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    }
+                  }
+                },
+                "Parse_JSON_GET_authentication_methods": {
+                  "runAfter": {
+                    "HTTP_GET_authentication_methods": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('HTTP_GET_authentication_methods')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "@@odata.type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "@@odata.type",
+                              "id"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "Select_authentication_methods": {
+                  "runAfter": {
+                    "Parse_JSON_GET_authentication_methods": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Parse_JSON_GET_authentication_methods')?['value']",
+                    "select": {
+                      "odataType": "@item()?['@odata.type']",
+                      "Id": "@item()?['id']"
+                    }
+                  }
+                },
+                "Parse_JSON_authentication_methods": {
+                  "runAfter": {
+                    "Select_authentication_methods": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('Select_authentication_methods')",
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "odataType": {
+                            "type": "string"
+                          },
+                          "Id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "odataType",
+                          "Id"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "For_each_authentication_method": {
+                  "foreach": "@outputs('Parse_JSON_authentication_methods')['body']",
+                  "actions": {
+                    "Switch": {
+                      "cases": {
+                        "Case_windowsHelloForBusinessAuthenticationMethod": {
+                          "case": "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod",
+                          "actions": {
+                            "Until_Delete_windowsHelloForBusinessAuthenticationMethod": {
+                              "actions": {
+                                "HTTP_Delete_windowsHelloForBusinessAuthenticationMethod": {
+                                  "runAfter": {
+                                    "Delay_Delete_windowsHelloForBusinessAuthenticationMethod": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/windowsHelloForBusinessMethods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                },
+                                "Delay_Delete_windowsHelloForBusinessAuthenticationMethod": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_Delete_windowsHelloForBusinessAuthenticationMethod')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            },
+                            "Condition_Delete_windowsHelloForBusinessAuthenticationMethod_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_windowsHelloForBusinessAuthenticationMethod_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Succes"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_Delete_windowsHelloForBusinessAuthenticationMethod": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_windowsHelloForBusinessAuthenticationMethod_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_Delete_windowsHelloForBusinessAuthenticationMethod')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "Case_microsoftAuthenticatorAuthenticationMethod": {
+                          "case": "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod",
+                          "actions": {
+                            "Condition_Delete_microsoftAuthenticatorAuthenticationMethod_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_microsoftAuthenticatorAuthenticationMethod_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_DELETE_microsoftAuthenticatorAuthenticationMethod": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_microsoftAuthenticatorAuthenticationMethod_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_DELETE_microsoftAuthenticatorAuthenticationMethod')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Until_DELETE_microsoftAuthenticatorAuthenticationMethod": {
+                              "actions": {
+                                "HTTP_DELETE_microsoftAuthenticatorAuthenticationMethod": {
+                                  "runAfter": {
+                                    "Delay_Delete_microsoftAuthenticatorAuthenticationMethod": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/microsoftAuthenticatorMethods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                },
+                                "Delay_Delete_microsoftAuthenticatorAuthenticationMethod": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_DELETE_microsoftAuthenticatorAuthenticationMethod')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            }
+                          }
+                        },
+                        "Case_fido2AuthenticationMethod": {
+                          "case": "#microsoft.graph.fido2AuthenticationMethod",
+                          "actions": {
+                            "Condition_Delete_fido2AuthenticationMethod_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_fido2AuthenticationMethod_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Succes"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_DELETE_fido2AuthenticationMethod": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_fido2AuthenticationMethod_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_DELETE_fido2AuthenticationMethod')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Until_DELETE_fido2AuthenticationMethod": {
+                              "actions": {
+                                "Delay_Delete_fido2AuthenticationMethod": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                },
+                                "HTTP_DELETE_fido2AuthenticationMethod": {
+                                  "runAfter": {
+                                    "Delay_Delete_fido2AuthenticationMethod": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/fido2Methods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_DELETE_fido2AuthenticationMethod')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            }
+                          }
+                        },
+                        "Case_phoneAuthenticationMethod": {
+                          "case": "#microsoft.graph.phoneAuthenticationMethod",
+                          "actions": {
+                            "Condition_Delete_phoneAuthenticationMethod_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_phoneAuthenticationMethod_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_Delete_phoneAuthenticationMethod_status_code": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_phoneAuthenticationMethod_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_DELETE_phoneAuthenticationMethod')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Until_Delete_phoneAuthenticationMethod_status_code": {
+                              "actions": {
+                                "Delay_Delete_phoneAuthenticationMethod_status_code": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                },
+                                "HTTP_DELETE_phoneAuthenticationMethod": {
+                                  "runAfter": {
+                                    "Delay_Delete_phoneAuthenticationMethod_status_code": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/phoneMethods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_DELETE_phoneAuthenticationMethod')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            }
+                          }
+                        },
+                        "Case_temporaryAccessPassAuthenticationMethod": {
+                          "case": "#microsoft.graph.temporaryAccessPassAuthenticationMethod",
+                          "actions": {
+                            "Condition_Delete_temporaryAccessPassAuthenticationMethod_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_temporaryAccessPassAuthenticationMethod_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_Delete_temporaryAccessPassAuthenticationMethod": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_temporaryAccessPassAuthenticationMethod_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_Delete_temporaryAccessPassMethods')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Until_Delete_temporaryAccessPassAuthenticationMethod": {
+                              "actions": {
+                                "HTTP_Delete_temporaryAccessPassMethods": {
+                                  "runAfter": {
+                                    "Delay_Delete_temporaryAccessPassAuthenticationMethod": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/temporaryAccessPassMethods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                },
+                                "Delay_Delete_temporaryAccessPassAuthenticationMethod": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_Delete_temporaryAccessPassMethods')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            }
+                          }
+                        },
+                        "Case_emailAuthenticationMethod": {
+                          "case": "#microsoft.graph.emailAuthenticationMethod",
+                          "actions": {
+                            "Condition_Delete_emailMethods_status_code": {
+                              "actions": {
+                                "Append_to_string_variable_emailMethods_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeleteAuthMethods",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Until_Delete_emailMethods": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_emailMethods_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeleteAuthMethods",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_Delete_emailMethods')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Until_Delete_emailMethods": {
+                              "actions": {
+                                "Delay_Delete_emailMethods": {
+                                  "type": "Wait",
+                                  "inputs": {
+                                    "interval": {
+                                      "count": 5,
+                                      "unit": "Second"
+                                    }
+                                  }
+                                },
+                                "HTTP_Delete_emailMethods": {
+                                  "runAfter": {
+                                    "Delay_Delete_emailMethods": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "Http",
+                                  "inputs": {
+                                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}/authentication/emailMethods/@{item()['Id']}",
+                                    "method": "DELETE",
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "audience": "https://graph.microsoft.com"
+                                    }
+                                  },
+                                  "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                      "transferMode": "Chunked"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": "@equals(outputs('HTTP_Delete_emailMethods')?['statusCode'],204)",
+                              "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                              },
+                              "type": "Until"
+                            }
+                          }
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@items('For_each_authentication_method')['odataType']",
+                      "type": "Switch"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON_authentication_methods": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "HTTP_GET_managedDevices": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$filter=userPrincipalName%20eq%20'@{triggerBody()?['UserPrincipalName']}'&$select=id,azureADDeviceId,deviceName,operatingSystem,userPrincipalName",
+                    "method": "GET",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    }
+                  }
+                },
+                "Parse_JSON_GET_managedDevices": {
+                  "runAfter": {
+                    "HTTP_GET_managedDevices": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('HTTP_GET_managedDevices')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "@@odata.count": {
+                          "type": "integer"
+                        },
+                        "value": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "azureADDeviceId": {
+                                "type": "string"
+                              },
+                              "deviceName": {
+                                "type": "string"
+                              },
+                              "operatingSystem": {
+                                "type": "string"
+                              },
+                              "userPrincipalName": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "azureADDeviceId",
+                              "deviceName",
+                              "operatingSystem",
+                              "userPrincipalName"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "For_each_operatingSystem": {
+                  "foreach": "@outputs('Parse_JSON_GET_managedDevices')?['body']?['value']",
+                  "actions": {
+                    "Switch_operatingSystem": {
+                      "cases": {
+                        "Case_operatingSystem_Windows": {
+                          "case": "Windows",
+                          "actions": {
+                            "HTTP_POST_rebootNow": {
+                              "type": "Http",
+                              "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{item()?['id']}/rebootNow",
+                                "method": "POST",
+                                "authentication": {
+                                  "type": "ManagedServiceIdentity",
+                                  "audience": "https://graph.microsoft.com"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "contentTransfer": {
+                                  "transferMode": "Chunked"
+                                }
+                              }
+                            },
+                            "Condition_rebootNow": {
+                              "actions": {
+                                "Append_to_string_variable_rebootNow_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeviceAction",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "HTTP_POST_rebootNow": [
+                                  "Succeeded",
+                                  "Failed"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_rebootNow_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeviceAction",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_POST_rebootNow')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "Case_operatingSystem_macOS": {
+                          "case": "macOS",
+                          "actions": {
+                            "HTTP_POST_retire_macOS": {
+                              "type": "Http",
+                              "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{item()?['id']}/retire",
+                                "method": "POST",
+                                "authentication": {
+                                  "type": "ManagedServiceIdentity",
+                                  "audience": "https://graph.microsoft.com"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "contentTransfer": {
+                                  "transferMode": "Chunked"
+                                }
+                              }
+                            },
+                            "Condition_retire_macOS": {
+                              "actions": {
+                                "Append_to_string_variable_retire_macOS_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeviceAction",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "HTTP_POST_retire_macOS": [
+                                  "Succeeded",
+                                  "Failed"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_retire_macOS_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeviceAction",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_POST_retire_macOS')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "Case_operatingSystem_Android": {
+                          "case": "Android",
+                          "actions": {
+                            "HTTP_POST_retire_Android": {
+                              "type": "Http",
+                              "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{item()?['id']}/retire",
+                                "method": "POST",
+                                "authentication": {
+                                  "type": "ManagedServiceIdentity",
+                                  "audience": "https://graph.microsoft.com"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "contentTransfer": {
+                                  "transferMode": "Chunked"
+                                }
+                              }
+                            },
+                            "Condition_retire_Android": {
+                              "actions": {
+                                "Append_to_string_variable_retire_Android_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeviceAction",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "HTTP_POST_retire_Android": [
+                                  "Succeeded",
+                                  "Failed"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_retire_Android_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeviceAction",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_POST_retire_Android')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "Case_operatingSystem_iOS": {
+                          "case": "iOS",
+                          "actions": {
+                            "HTTP_POST_retire_iOS": {
+                              "type": "Http",
+                              "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{item()?['id']}/retire",
+                                "method": "POST",
+                                "authentication": {
+                                  "type": "ManagedServiceIdentity",
+                                  "audience": "https://graph.microsoft.com"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "contentTransfer": {
+                                  "transferMode": "Chunked"
+                                }
+                              }
+                            },
+                            "Condition_retire_iOS": {
+                              "actions": {
+                                "Append_to_string_variable_retire_iOS_Success": {
+                                  "type": "AppendToStringVariable",
+                                  "inputs": {
+                                    "name": "varDeviceAction",
+                                    "value": "Success"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "HTTP_POST_retire_iOS": [
+                                  "Succeeded",
+                                  "Failed"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Append_to_string_variable_retire_iOS_Failed": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                      "name": "varDeviceAction",
+                                      "value": "Failed"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@outputs('HTTP_POST_retire_iOS')?['statusCode']",
+                                      204
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@item()?['operatingSystem']",
+                      "type": "Switch"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON_GET_managedDevices": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Condition_varDisableEntraDeviceStatus": {
+                  "actions": {
+                    "Update_item_Entra_devices_disabled_Success": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Devicesdisabled": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_varDisableEntraDeviceStatus": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_Entra_devices_disabled_Failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Devicesdisabled": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "contains": [
+                            "@outputs('Compose_varDisableEntraDeviceStatus')",
+                            "Failed"
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Compose_varDisableEntraDeviceStatus": {
+                  "runAfter": {
+                    "For_each_Entra_registered_device": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('varDisableEntraDeviceStatus')"
+                },
+                "Filter_array_OperatingSystem_equals_Windows": {
+                  "runAfter": {
+                    "Parse_JSON_GET_registeredDevices": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Parse_JSON_GET_registeredDevices')?['value']",
+                    "where": "@equals(item()?['operatingSystem'],'Windows')"
+                  }
+                },
+                "Compose_varDeleteAuthMethods_Status": {
+                  "runAfter": {
+                    "For_each_authentication_method": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('varDeleteAuthMethods')"
+                },
+                "Condition_varDeleteAuthMethods": {
+                  "actions": {
+                    "Update_item_Auth_Methods_Deleted_Success": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Sessionsrevoked": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_varDeleteAuthMethods_Status": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_Auth_Methods_Deleted_Failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Sessionsrevoked": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "contains": [
+                            "@outputs('Compose_varDeleteAuthMethods_Status')",
+                            "Failed"
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Compose_varDeviceAction": {
+                  "runAfter": {
+                    "For_each_operatingSystem": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('varDeviceAction')"
+                },
+                "Condition_vardeviceAction": {
+                  "actions": {
+                    "Update_item_Device_actions_Success": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "body": {
+                          "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                          "Deviceactiontaken": "Yes"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_varDeviceAction": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_item_Device_actions_Failed": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                            }
+                          },
+                          "method": "patch",
+                          "body": {
+                            "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                            "Deviceactiontaken": "Failed"
+                          },
+                          "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent('2ff8b4cd-d4df-4f5e-a155-51a097bba57c'))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "contains": [
+                            "@outputs('Compose_varDeviceAction')",
+                            "Failed"
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "HTTP_GET_User_details": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}?$select=id,userPrincipalName,displayName,givenName,surname,employeeId,onPremisesSyncEnabled",
+                    "method": "GET",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://graph.microsoft.com/"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "contentTransfer": {
+                      "transferMode": "Chunked"
+                    }
+                  }
+                },
+                "Parse_JSON_GET_User_detail": {
+                  "runAfter": {
+                    "HTTP_GET_User_details": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('HTTP_GET_User_details')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "userPrincipalName": {
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "givenName": {
+                          "type": "string"
+                        },
+                        "surname": {
+                          "type": "string"
+                        },
+                        "employeeId": {
+                          "type": "string"
+                        },
+                        "onPremisesSyncEnabled": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "Condition_onPremisesSyncEnabled": {
+                  "actions": {
+                    "HTTP_PATCH_disable_user_account_(Entra_ID)1": {
+                      "type": "Http",
+                      "inputs": {
+                        "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}",
+                        "method": "PATCH",
+                        "body": {
+                          "accountEnabled": false
+                        },
+                        "authentication": {
+                          "type": "ManagedServiceIdentity",
+                          "audience": "https://graph.microsoft.com"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "contentTransfer": {
+                          "transferMode": "Chunked"
+                        }
+                      }
+                    },
+                    "HTTP_POST_disable_user_account_(on-prem_AD)": {
+                      "type": "Http",
+                      "inputs": {
+                        "uri": "",
+                        "method": "POST",
+                        "headers": {
+                          "Content-Type": "application/scim+json"
+                        },
+                        "body": {
+                          "schemas": [
+                            "urn:ietf:params:scim:api:messages:2.0:BulkRequest"
+                          ],
+                          "Operations": [
+                            {
+                              "method": "POST",
+                              "bulkId": "00aa00aa-bb11-cc22-dd33-44ee44ee44ee",
+                              "path": "/Users",
+                              "data": {
+                                "schemas": [
+                                  "urn:ietf:params:scim:schemas:core:2.0:User",
+                                  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+                                ],
+                                "externalId": "@{body('Parse_JSON_GET_User_detail')?['employeeId']}",
+                                "active": false
+                              }
+                            }
+                          ],
+                          "failOnErrors": null
+                        },
+                        "authentication": {
+                          "type": "ManagedServiceIdentity",
+                          "audience": "https://graph.microsoft.com"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "contentTransfer": {
+                          "transferMode": "Chunked"
+                        }
+                      }
+                    },
+                    "Condition_disable_user_account_(on-prem_AD)": {
+                      "actions": {
+                        "Append_to_string_variable_disable_on-prem_AD_Success": {
+                          "type": "AppendToStringVariable",
+                          "inputs": {
+                            "name": "varDisableUserStatus",
+                            "value": "Success"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "HTTP_PATCH_disable_user_account_(Entra_ID)1": [
+                          "Succeeded",
+                          "Failed"
+                        ],
+                        "HTTP_POST_disable_user_account_(on-prem_AD)": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Append_to_string_variable_disable_on-prem_AD_Failed": {
+                            "type": "AppendToStringVariable",
+                            "inputs": {
+                              "name": "varDisableUserStatus",
+                              "value": "Failed"
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "equals": [
+                              "@body('HTTP_POST_disable_user_account_(on-prem_AD)')",
+                              200
+                            ]
+                          },
+                          {
+                            "equals": [
+                              "@body('HTTP_PATCH_disable_user_account_(Entra_ID)1')",
+                              204
+                            ]
+                          }
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON_GET_User_detail": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "HTTP_PATCH_disable_user_account_(Entra_ID)": {
+                        "type": "Http",
+                        "inputs": {
+                          "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['UserPrincipalName']}",
+                          "method": "PATCH",
+                          "body": {
+                            "accountEnabled": false
+                          },
+                          "authentication": {
+                            "type": "ManagedServiceIdentity",
+                            "audience": "https://graph.microsoft.com"
+                          }
+                        },
+                        "runtimeConfiguration": {
+                          "contentTransfer": {
+                            "transferMode": "Chunked"
+                          }
+                        }
+                      },
+                      "Condition_disable_user_account_(Entra_ID)": {
+                        "actions": {
+                          "Append_to_string_variable_disable_Entra_ID_User_Success": {
+                            "type": "AppendToStringVariable",
+                            "inputs": {
+                              "name": "varDisableUserStatus",
+                              "value": "Success"
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "HTTP_PATCH_disable_user_account_(Entra_ID)": [
+                            "Succeeded",
+                            "Failed"
+                          ]
+                        },
+                        "else": {
+                          "actions": {
+                            "Append_to_string_variable_disable_Entra_ID_User_Failed": {
+                              "type": "AppendToStringVariable",
+                              "inputs": {
+                                "name": "varDisableUserStatus",
+                                "value": "Failed"
+                              }
+                            }
+                          }
+                        },
+                        "expression": {
+                          "and": [
+                            {
+                              "equals": [
+                                "@body('HTTP_PATCH_disable_user_account_(Entra_ID)')",
+                                204
+                              ]
+                            }
+                          ]
+                        },
+                        "type": "If"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@body('Parse_JSON_GET_User_detail')?['onPremisesSyncEnabled']",
+                          true
+                        ]
+                      }
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Compose_vanDisableUserStatus": {
+                  "runAfter": {
+                    "Condition_onPremisesSyncEnabled": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('varDisableUserStatus')"
+                }
+              },
+              "runAfter": {
+                "HTTP_GET_Author_member_of": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Update_item_action_forbidden": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                      },
+                      "method": "patch",
+                      "body": {
+                        "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                        "Status": "Action forbidden"
+                      },
+                      "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+                    }
+                  },
+                  "Terminate_action_forbidden": {
+                    "runAfter": {
+                      "Update_item_action_forbidden": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Failed",
+                      "runError": {
+                        "code": "404"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@outputs('HTTP_GET_Author_member_of')?['statusCode']",
+                      200
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            },
+            "Initialize_variable_varDisableEntraDeviceStatus": {
+              "runAfter": {
+                "Initialize_variable_varDisableUserStatus": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "varDisableEntraDeviceStatus",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Initialize_variable_varDeleteAuthMethods": {
+              "runAfter": {
+                "Initialize_variable_varDeviceAction": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "varDeleteAuthMethods",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Update_item_error": {
+              "runAfter": {
+                "Condition_Groupmembership_status_code": [
+                  "Failed",
+                  "TimedOut"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                  }
+                },
+                "method": "patch",
+                "body": {
+                  "UserPrincipalName": "@triggerBody()?['UserPrincipalName']",
+                  "Status": "Error!"
+                },
+                "path": "/datasets/@{encodeURIComponent(encodeURIComponent(''))}/tables/@{encodeURIComponent(encodeURIComponent(''))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_item_error": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "404",
+                  "message": "Unknown error"
+                }
+              }
+            },
+            "Initialize_variable_varGroupObjectID": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "varGroupObjectID",
+                    "type": "string",
+                    "value": ""
+                  }
+                ]
+              }
+            },
+            "Initialize_variable_varDeviceAction": {
+              "runAfter": {
+                "Initialize_variable_varDisableEntraDeviceStatus": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "varDeviceAction",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "Initialize_variable_varDisableUserStatus": {
+              "runAfter": {
+                "Initialize_variable_varGroupObjectID": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "varDisableUserStatus",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "sharepointonline": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('SharePointOnlineConnectionName'))]",
+                "connectionName": "[variables('SharePointOnlineConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/sharepointonline')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('PlaybookName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Source": "Sentinel-As-Code"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2017-07-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('SharePointOnlineConnectionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('SharePointOnlineConnectionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[variables('SharePointOnlineConnectionName')]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/sharepointonline')]"
+        }
+      }
+    }
+  ]
+}
