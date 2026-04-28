@@ -761,6 +761,7 @@ function Update-RuleYamlFile {
 
     $original = Get-Content -Path $FilePath -Raw
     $text = $original
+    $textBeforeFieldEdits = $text
 
     foreach ($mod in $Modifications) {
         $field = $mod.Field
@@ -807,8 +808,12 @@ function Update-RuleYamlFile {
         }
     }
 
-    # Bump patch version so the deploy script's smart-deploy logic picks up the change
-    if ($text -match '(?m)^version:[ \t]*([0-9]+)\.([0-9]+)\.([0-9]+)\b') {
+    # Bump patch version ONLY if at least one field edit actually fired. Otherwise
+    # passing in a modification list with only unrecognised fields would still
+    # bump the version, churning the YAML for no real reason.
+    $fieldEditsApplied = ($text -ne $textBeforeFieldEdits)
+    if ($fieldEditsApplied -and
+        $text -match '(?m)^version:[ \t]*([0-9]+)\.([0-9]+)\.([0-9]+)\b') {
         $major = [int]$Matches[1]; $minor = [int]$Matches[2]; $patch = [int]$Matches[3] + 1
         $newVersion = "$major.$minor.$patch"
         $text = [regex]::Replace($text, '(?m)^version:[ \t]*[0-9]+\.[0-9]+\.[0-9]+\b', "version: $newVersion")

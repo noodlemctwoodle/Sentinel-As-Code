@@ -140,6 +140,9 @@ param(
     [switch]$SkipDetections
     ,
     [Parameter(Mandatory = $false)]
+    [switch]$SkipCommunityDetections
+    ,
+    [Parameter(Mandatory = $false)]
     [switch]$SkipWatchlists
     ,
     [Parameter(Mandatory = $false)]
@@ -394,7 +397,7 @@ function Get-PrioritizedFiles {
 # Deployment State: Persist successful deployments across pipeline runs so
 # that smart deployment can retry items that failed previously without making
 # expensive per-item API existence checks.
-# File: .deployment-state.json at $BasePath
+# File: deployment-state.json at $BasePath
 # Structure: { "deployedItems": { "relative/path": { "lastDeployed": "ISO8601", "status": "success" } } }
 # ---------------------------------------------------------------------------
 $script:DeploymentState = $null
@@ -404,7 +407,13 @@ function Initialize-DeploymentState {
     [CmdletBinding()]
     param()
 
-    $script:DeploymentStatePath = Join-Path $BasePath ".deployment-state.json"
+    $script:DeploymentStatePath = Join-Path $BasePath "deployment-state.json"
+
+    # DownloadBuildArtifacts creates a subfolder with the artifact name
+    $artifactSubfolder = Join-Path $BasePath "deployment-state" "deployment-state.json"
+    if (-not (Test-Path $script:DeploymentStatePath) -and (Test-Path $artifactSubfolder)) {
+        Copy-Item -Path $artifactSubfolder -Destination $script:DeploymentStatePath -Force
+    }
 
     if (Test-Path $script:DeploymentStatePath) {
         try {
@@ -724,6 +733,10 @@ function Connect-AzureEnvironment {
 
     Write-PipelineMessage "Target workspace: $Workspace (Resource Group: $ResourceGroup, Region: $Region)" -Level Info
     if ($script:PlaybookRG -ne $ResourceGroup) {
+        $playbookRgCheck = Get-AzResourceGroup -Name $script:PlaybookRG -ErrorAction SilentlyContinue
+        if (-not $playbookRgCheck) {
+            throw "Playbook resource group '$($script:PlaybookRG)' does not exist. Create it via Bicep (set the playbookRgName parameter in main.bicep) or manually in the Azure portal before running the pipeline."
+        }
         Write-PipelineMessage "Playbooks will deploy to resource group: $($script:PlaybookRG)" -Level Info
     }
     if ($IsGov) {
@@ -798,6 +811,26 @@ function Invoke-PreFlightChecks {
     }
 
     Write-PipelineMessage "Running pre-flight dependency checks..." -Level Section
+
+    # Validate deployment state against actual workspace content
+    # If state claims many items deployed but workspace is empty, invalidate state
+    if ($script:DeploymentState -and $script:DeploymentState.deployedItems.Count -gt 0) {
+        try {
+            $rulesUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
+            $rulesResponse = Invoke-SentinelApi -Uri $rulesUri -Method Get -Headers $script:AuthHeader
+            $existingRuleCount = @($rulesResponse.value).Count
+
+            $stateRuleCount = @($script:DeploymentState.deployedItems.Keys | Where-Object { $_ -like 'AnalyticalRules/*' }).Count
+
+            if ($stateRuleCount -gt 10 -and $existingRuleCount -eq 0) {
+                Write-PipelineMessage "Deployment state claims $stateRuleCount rules deployed but workspace has 0 — state is stale. Resetting." -Level Warning
+                $script:DeploymentState = @{ deployedItems = @{} }
+            }
+        }
+        catch {
+            Write-PipelineMessage "  Could not validate deployment state against workspace: $($_.Exception.Message)" -Level Warning
+        }
+    }
 
     # Bulk-fetch workspace tables (single API call)
     try {
@@ -1069,6 +1102,18 @@ function Deploy-CustomDetections {
     }
 
     $yamlFiles = @(Get-PrioritizedFiles -Files $yamlFiles)
+
+    # Separate community rules
+    $communityFiles = @($yamlFiles | Where-Object { $_.FullName -match '[/\\]Community[/\\]' })
+    $customFiles = @($yamlFiles | Where-Object { $_.FullName -notmatch '[/\\]Community[/\\]' })
+
+    if ($SkipCommunityDetections -and $communityFiles.Count -gt 0) {
+        Write-PipelineMessage "Skipped $($communityFiles.Count) community detection(s) (SkipCommunityDetections flag set)." -Level Info
+        $yamlFiles = $customFiles
+    } else {
+        $yamlFiles = $customFiles + $communityFiles
+    }
+
     Write-PipelineMessage "Found $($yamlFiles.Count) detection file(s) to process." -Level Info
 
     foreach ($file in $yamlFiles) {
@@ -1105,8 +1150,12 @@ function Deploy-CustomDetections {
             Write-PipelineMessage "Processing: $ruleName ($ruleKind) [$($file.Name)]" -Level Info
 
             # Build the API properties — force disabled if dependencies are missing
+            $isCommunityRule = $file.FullName -match '[/\\]Community[/\\]'
             $ruleDescription = if ($rule.ContainsKey('description')) { $rule['description'] } else { "" }
-            $ruleEnabled     = if ($missingDeps) { $false } elseif ($rule.ContainsKey('enabled')) { [bool]$rule['enabled'] } else { $true }
+            $ruleEnabled     = if ($isCommunityRule) { $false } elseif ($missingDeps) { $false } elseif ($rule.ContainsKey('enabled')) { [bool]$rule['enabled'] } else { $true }
+            if ($isCommunityRule) {
+                Write-PipelineMessage "  Community rule — deploying as disabled" -Level Info
+            }
 
             $properties = @{
                 displayName       = $ruleName
@@ -1297,8 +1346,10 @@ function Deploy-CustomWatchlists {
             # Check CSV file size (3.5 MB limit for inline upload)
             $csvSize = (Get-Item $csvPath).Length
             if ($csvSize -gt 3.5MB) {
-                Write-PipelineMessage "Skipping '$($dir.Name)': data.csv exceeds 3.5 MB inline upload limit ($([math]::Round($csvSize / 1MB, 2)) MB)." -Level Warning
+                Write-PipelineMessage "Skipping '$($dir.Name)': data.csv exceeds 3.5 MB inline upload limit ($([math]::Round($csvSize / 1MB, 2)) MB). Upload manually via portal." -Level Warning
                 $counters.Skipped++
+                Set-DeploymentItemState -FilePath $metadataPath -Status "success"
+                Set-DeploymentItemState -FilePath $csvPath -Status "success"
                 continue
             }
 
@@ -1341,12 +1392,14 @@ function Deploy-CustomWatchlists {
                 Write-PipelineMessage "Deployed: $($metadata.displayName)" -Level Success
                 $counters.Deployed++
                 Set-DeploymentItemState -FilePath $metadataPath -Status "success"
+                Set-DeploymentItemState -FilePath $csvPath -Status "success"
             }
         }
         catch {
             Write-PipelineMessage "Failed to deploy watchlist '$($dir.Name)': $($_.Exception.Message)" -Level Error
             $counters.Failed++
             Set-DeploymentItemState -FilePath $metadataPath -Status "failed"
+            Set-DeploymentItemState -FilePath $csvPath -Status "failed"
         }
     }
 
@@ -1380,30 +1433,105 @@ function Deploy-CustomPlaybooks {
 
     Write-PipelineMessage "Found $($templateFiles.Count) playbook(s) to process." -Level Info
 
-    # Deploy Module playbooks first — other playbooks reference them as child workflows.
-    # Within Module/, sort so modules that reference other modules deploy last.
+    # ----- Build dependency graph and topologically sort all playbooks -----
+    # Scan every template for Microsoft.Logic/workflows/{name} references to build a DAG.
+    # Modules deploy first (in dependency order), then non-modules.
     $moduleFiles = @($templateFiles | Where-Object { $_.Directory.Name -eq 'Module' })
     $nonModuleFiles = @($templateFiles | Where-Object { $_.Directory.Name -ne 'Module' })
 
-    # Split modules into leaf (no module deps) and dependent (references other modules)
-    $leafModules = @()
-    $dependentModules = @()
+    # Map: playbook logical name -> file object (Module-{BaseName} for modules, {Category}-{BaseName} for others)
+    $nameToFile = @{}
+    # Map: playbook logical name -> [string[]] dependencies (other playbook logical names)
+    $dependencyMap = @{}
+    # Set of all module names available in the repo
+    $availableModules = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
     foreach ($mf in $moduleFiles) {
-        $content = Get-Content -Path $mf.FullName -Raw
-        $ownName = "Module-$($mf.BaseName)"
-        $refs = @([regex]::Matches($content, 'Module-[A-Za-z]+') | ForEach-Object { $_.Value } | Where-Object { $_ -ne $ownName } | Select-Object -Unique)
-        if ($refs.Count -gt 0) {
-            $dependentModules += $mf
+        $logicalName = "Module-$($mf.BaseName)"
+        $nameToFile[$logicalName] = $mf
+        [void]$availableModules.Add($logicalName)
+    }
+
+    # Scan all files for workflow references
+    foreach ($tf in $templateFiles) {
+        $category = $tf.Directory.Name
+        $logicalName = if ($category -eq 'Module') { "Module-$($tf.BaseName)" } else { "$category-$($tf.BaseName)" }
+        $nameToFile[$logicalName] = $tf
+
+        $content = Get-Content -Path $tf.FullName -Raw
+        # Extract referenced workflow names from [concat()] ARM expressions and plain paths
+        $refs = @([regex]::Matches($content, 'Microsoft\.Logic/workflows/([^"''\]\s]+)') |
+            ForEach-Object { $_.Groups[1].Value } |
+            Where-Object { $_ -ne $logicalName -and $_ -ne $tf.BaseName } |
+            Select-Object -Unique)
+        $dependencyMap[$logicalName] = $refs
+    }
+
+    # Pre-flight: warn about missing module dependencies
+    $missingDeps = @()
+    foreach ($entry in $dependencyMap.GetEnumerator()) {
+        foreach ($dep in $entry.Value) {
+            if (-not $availableModules.Contains($dep) -and -not $availableModules.Contains("Module-$dep")) {
+                $missingDeps += "  $($entry.Key) -> $dep"
+            }
         }
-        else {
-            $leafModules += $mf
+    }
+    if ($missingDeps.Count -gt 0) {
+        Write-PipelineMessage "Warning: The following playbooks reference modules not found in the repo:" -Level Warning
+        foreach ($md in $missingDeps) {
+            Write-PipelineMessage $md -Level Warning
         }
     }
 
-    $orderedFiles = @($leafModules) + @($dependentModules) + @($nonModuleFiles)
+    # Topological sort for modules using Kahn's algorithm
+    $moduleOrder = [System.Collections.ArrayList]::new()
+    $inDegree = @{}
+    $adjList = @{}
+    foreach ($mf in $moduleFiles) {
+        $name = "Module-$($mf.BaseName)"
+        if (-not $inDegree.ContainsKey($name)) { $inDegree[$name] = 0 }
+        if (-not $adjList.ContainsKey($name)) { $adjList[$name] = @() }
+    }
+
+    foreach ($mf in $moduleFiles) {
+        $name = "Module-$($mf.BaseName)"
+        foreach ($dep in $dependencyMap[$name]) {
+            $depKey = if ($availableModules.Contains($dep)) { $dep } elseif ($availableModules.Contains("Module-$dep")) { "Module-$dep" } else { $null }
+            if ($depKey -and $inDegree.ContainsKey($depKey)) {
+                $adjList[$depKey] += $name
+                $inDegree[$name]++
+            }
+        }
+    }
+
+    $queue = [System.Collections.Queue]::new()
+    foreach ($kv in $inDegree.GetEnumerator()) {
+        if ($kv.Value -eq 0) { $queue.Enqueue($kv.Key) }
+    }
+    while ($queue.Count -gt 0) {
+        $current = $queue.Dequeue()
+        [void]$moduleOrder.Add($nameToFile[$current])
+        foreach ($dependent in $adjList[$current]) {
+            $inDegree[$dependent]--
+            if ($inDegree[$dependent] -eq 0) { $queue.Enqueue($dependent) }
+        }
+    }
+
+    # Any modules not in the sorted list have circular dependencies — append with warning
+    $sortedModuleNames = $moduleOrder | ForEach-Object { "Module-$($_.BaseName)" }
+    $unsorted = @($moduleFiles | Where-Object { "Module-$($_.BaseName)" -notin $sortedModuleNames })
+    if ($unsorted.Count -gt 0) {
+        Write-PipelineMessage "Warning: Circular dependency detected among $($unsorted.Count) module(s) — deploying in file order." -Level Warning
+        foreach ($u in $unsorted) { [void]$moduleOrder.Add($u) }
+    }
+
+    $leafCount = @($moduleOrder | Where-Object { ($dependencyMap["Module-$($_.BaseName)"] | Measure-Object).Count -eq 0 }).Count
+    $depCount = $moduleOrder.Count - $leafCount
+
+    $orderedFiles = @($moduleOrder) + @($nonModuleFiles)
 
     if ($moduleFiles.Count -gt 0) {
-        Write-PipelineMessage "  Deploying $($moduleFiles.Count) Module playbook(s) first ($($leafModules.Count) leaf, $($dependentModules.Count) dependent)." -Level Info
+        Write-PipelineMessage "  Deploying $($moduleFiles.Count) Module playbook(s) first ($leafCount leaf, $depCount dependent) in dependency order." -Level Info
     }
 
     # Build a map of known ARM parameter names to inject from pipeline context
@@ -1421,6 +1549,9 @@ function Deploy-CustomPlaybooks {
     }
 
     foreach ($templateFile in $orderedFiles) {
+        # Pre-set so the catch block can always log a useful name even if we throw
+        # before the real $displayName is computed below (e.g. malformed JSON).
+        $displayName = $templateFile.Name
         try {
             if (-not (Test-ShouldDeployFile -FilePath $templateFile.FullName)) {
                 Write-PipelineMessage "Unchanged: $($templateFile.Name) — skipping (smart deployment)" -Level Info
@@ -1493,30 +1624,13 @@ function Deploy-CustomPlaybooks {
                 $counters.Deployed++
             }
             else {
-                $deployment = New-AzResourceGroupDeployment @deployParams -ErrorAction Stop
+                New-AzResourceGroupDeployment @deployParams -ErrorAction Stop | Out-Null
                 Write-PipelineMessage "Deployed: $displayName" -Level Success
                 $counters.Deployed++
                 Set-DeploymentItemState -FilePath $templateFile.FullName -Status "success"
 
-                # Tag Logic App resources with Source = Sentinel-As-Code (API connections don't support tags reliably)
-                try {
-                    $deployedResources = Get-AzResourceGroupDeployment -ResourceGroupName $script:PlaybookRG -Name $deploymentName -ErrorAction Stop
-                    if ($deployedResources.OutputResources) {
-                        foreach ($res in $deployedResources.OutputResources) {
-                            if ($res.Id -match 'Microsoft\.Logic/workflows') {
-                                $resource = Get-AzResource -ResourceId $res.Id -ErrorAction SilentlyContinue
-                                if ($resource) {
-                                    $tags = $resource.Tags ?? @{}
-                                    $tags['Source'] = 'Sentinel-As-Code'
-                                    Set-AzResource -ResourceId $res.Id -Tag $tags -Force -ErrorAction SilentlyContinue | Out-Null
-                                }
-                            }
-                        }
-                    }
-                }
-                catch {
-                    Write-PipelineMessage "  Warning: Could not tag resources for '$displayName': $($_.Exception.Message)" -Level Warning
-                }
+                # Note: Resource tagging (Source: Sentinel-As-Code) is handled declaratively
+                # in the ARM template itself — no post-deployment tagging needed.
             }
         }
         catch {
@@ -1582,9 +1696,10 @@ function Deploy-CustomWorkbooks {
             # Read the gallery template JSON
             $workbookContent = Get-Content -Path $workbookPath -Raw
 
-            # Determine display name and workbook ID from metadata or folder name
+            # Determine display name, workbook ID, and category from metadata or folder name
             $displayName = $dir.Name -replace '([a-z])([A-Z])', '$1 $2'
             $workbookId = $null
+            $category = "sentinel"
 
             if (Test-Path $metadataPath) {
                 $metadata = Get-Content -Path $metadataPath -Raw | ConvertFrom-Json
@@ -1621,7 +1736,7 @@ function Deploy-CustomWorkbooks {
                     displayName    = $displayName
                     serializedData = $serializedData
                     version        = "1.0"
-                    category       = "sentinel"
+                    category       = $category
                     sourceId       = $script:WorkspaceResourceId
                 }
             } | ConvertTo-Json -Depth 10
@@ -2061,6 +2176,7 @@ function Main {
     Write-PipelineMessage "  Smart Deploy:  $(if ($SmartDeployment) { 'ENABLED' } else { 'DISABLED (full deploy)' })" -Level Info
     Write-PipelineMessage "  Parsers:       $(if ($SkipParsers) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Detections:    $(if ($SkipDetections) { 'SKIP' } else { 'ENABLED' })" -Level Info
+    Write-PipelineMessage "  Community:     $(if ($SkipCommunityDetections) { 'SKIP' } else { 'ENABLED (deploy as disabled)' })" -Level Info
     Write-PipelineMessage "  Watchlists:    $(if ($SkipWatchlists) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Playbooks:     $(if ($SkipPlaybooks) { 'SKIP' } else { 'ENABLED' })" -Level Info
     Write-PipelineMessage "  Workbooks:     $(if ($SkipWorkbooks) { 'SKIP' } else { 'ENABLED' })" -Level Info

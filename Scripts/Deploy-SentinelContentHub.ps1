@@ -314,19 +314,33 @@ function Invoke-SentinelApi {
                 Uri     = $Uri
                 Method  = $Method
                 Headers = $Headers
+                ContentType = 'application/json'
             }
 
             if ($Body) {
                 $params.Body = $Body
             }
 
-            $response = Invoke-RestMethod @params
-            return $response
+            $webResponse = Invoke-WebRequest @params -UseBasicParsing -ErrorAction Stop
+            return ($webResponse.Content | ConvertFrom-Json)
         }
         catch {
             $statusCode = $null
+            $responseBody = $null
+
             if ($_.Exception.Response) {
                 $statusCode = [int]$_.Exception.Response.StatusCode
+                try {
+                    $stream = $_.Exception.Response.GetResponseStream()
+                    $reader = [System.IO.StreamReader]::new($stream)
+                    $responseBody = $reader.ReadToEnd()
+                    $reader.Dispose()
+                }
+                catch { }
+            }
+
+            if (-not $responseBody -and $_.ErrorDetails.Message) {
+                $responseBody = $_.ErrorDetails.Message
             }
 
             # Retry on throttling (429) or transient server errors (500, 502, 503, 504)
@@ -338,20 +352,7 @@ function Invoke-SentinelApi {
                 continue
             }
 
-            # Extract detailed error information
-            $errorDetail = $_.Exception.Message
-            if ($_.Exception.Response) {
-                try {
-                    $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-                    $responseBody = $reader.ReadToEnd()
-                    $reader.Close()
-                    $errorDetail = "HTTP $statusCode - $responseBody"
-                }
-                catch {
-                    # Use the original exception message if stream reading fails
-                }
-            }
-
+            $errorDetail = if ($responseBody) { "HTTP $statusCode - $responseBody" } else { $_.Exception.Message }
             throw "API call failed: $errorDetail"
         }
     }
@@ -505,6 +506,28 @@ function Get-ContentHubSolutions {
     [CmdletBinding()]
     param()
 
+    # Wait for Sentinel onboarding to propagate (fresh deployments can take 2-3 minutes)
+    Write-PipelineMessage "Verifying Sentinel onboarding status..." -Level Section
+    $onboardingUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/onboardingStates/default?api-version=$($script:SentinelApiVersion)"
+    $maxWait = 180
+    $elapsed = 0
+    $interval = 15
+    while ($elapsed -lt $maxWait) {
+        try {
+            $onboardResult = Invoke-SentinelApi -Uri $onboardingUrl -Method Get -Headers $script:AuthHeader -MaxRetries 1
+            Write-PipelineMessage "Sentinel onboarding confirmed." -Level Success
+            break
+        }
+        catch {
+            $elapsed += $interval
+            if ($elapsed -ge $maxWait) {
+                throw "Sentinel workspace '$($script:WorkspaceName)' is not onboarded after waiting ${maxWait}s. Ensure Bicep deployment completed successfully."
+            }
+            Write-PipelineMessage "Workspace not yet onboarded — waiting ${interval}s ($elapsed/${maxWait}s)..." -Level Warning
+            Start-Sleep -Seconds $interval
+        }
+    }
+
     Write-PipelineMessage "Fetching available Content Hub solutions..." -Level Section
 
     $catalogUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentProductPackages?api-version=$($script:SentinelApiVersion)"
@@ -610,8 +633,36 @@ function Get-SolutionStatus {
             $result.Action = "ForceUpdate"
         }
         else {
-            $result.Status = "Installed"
-            $result.Action = "None"
+            # Verify solution is truly installed — contentPackages can have stale entries
+            # from deleted/recreated workspaces. Cross-check with contentProductPackages
+            # which is what Content Hub UI uses to show installed state.
+            $catContentId = if ($catalogMatch.properties.PSObject.Properties.Name -contains "contentId") { $catalogMatch.properties.contentId } else { $null }
+            $isGenuinelyInstalled = $false
+            if ($catContentId) {
+                $verifyUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentProductPackages/$($catalogMatch.name)?api-version=$($script:SentinelApiVersion)"
+                try {
+                    $verifyResult = Invoke-SentinelApi -Uri $verifyUrl -Method Get -Headers $script:AuthHeader -MaxRetries 1
+                    # Check if the product package reports isInstalled or has valid installedVersion
+                    $prodProps = $verifyResult.properties
+                    if ($prodProps.PSObject.Properties.Name -contains "isInstalled" -and $prodProps.isInstalled -eq $true) {
+                        $isGenuinelyInstalled = $true
+                    }
+                    elseif ($prodProps.PSObject.Properties.Name -contains "installedVersion" -and $prodProps.installedVersion) {
+                        $isGenuinelyInstalled = $true
+                    }
+                }
+                catch { }
+            }
+
+            if ($isGenuinelyInstalled) {
+                $result.Status = "Installed"
+                $result.Action = "None"
+            }
+            else {
+                Write-PipelineMessage "  $SolutionName shows as installed in contentPackages but not in Content Hub — forcing reinstall." -Level Warning
+                $result.Status = "Installed"
+                $result.Action = "ForceUpdate"
+            }
         }
     }
     else {
@@ -754,18 +805,20 @@ function Get-ExistingAnalyticsRules {
     Write-PipelineMessage "Fetching existing Analytics Rules..." -Level Info
 
     $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
+    $ruleList = [System.Collections.Generic.List[object]]::new()
     $result = Invoke-SentinelApi -Uri $rulesUrl -Method Get -Headers $script:AuthHeader
-    $rules = @(if ($result.PSObject.Properties.Name -contains "value") { $result.value } else { @() })
+    if ($result.PSObject.Properties.Name -contains "value") {
+        foreach ($r in $result.value) { $ruleList.Add($r) }
+    }
 
-    # Handle pagination
     while ($result.PSObject.Properties.Name -contains "nextLink" -and $result.nextLink) {
         $result = Invoke-SentinelApi -Uri $result.nextLink -Method Get -Headers $script:AuthHeader
         if ($result.PSObject.Properties.Name -contains "value") {
-            $rules += @($result.value)
+            foreach ($r in $result.value) { $ruleList.Add($r) }
         }
     }
 
-    $rules = @($rules)
+    $rules = @($ruleList)
     Write-PipelineMessage "Found $($rules.Count) existing Analytics Rules." -Level Info
     return ,$rules
 }
@@ -848,20 +901,86 @@ function Test-RuleIsCustomised {
         }
     }
 
-    # Compare entity mappings (check count and content)
-    if ($existingProps.PSObject.Properties.Name -contains "entityMappings" -and
-        $TemplateProperties.PSObject.Properties.Name -contains "entityMappings") {
-        $existingJson = ($existingProps.entityMappings | ConvertTo-Json -Depth 10 -Compress)
-        $templateJson = ($TemplateProperties.entityMappings | ConvertTo-Json -Depth 10 -Compress)
-        if ($existingJson -ne $templateJson) {
-            $isCustomised = $true
-            $modifications += "entityMappings"
-        }
-    }
+    # Note: entityMappings are NOT compared for customisation detection.
+    # JSON serialisation differences between API responses and templates
+    # cause false positives on every rule. Entity mappings are rarely
+    # manually customised and will be updated with the template version.
 
     return @{
         IsCustomised  = $isCustomised
         Modifications = $modifications
+    }
+}
+
+function Write-RuleMetadata {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Template,
+        [Parameter(Mandatory)][string]$RuleId,
+        [Parameter(Mandatory)][string]$RuleName,
+        [string]$TemplateName,
+        [string]$TemplateVersion,
+        [array]$AvailableSolutions,
+        [hashtable]$SolutionIdLookup,
+        [hashtable]$SolutionDetailLookup,
+        [string]$DisplayName
+    )
+
+    $pkgId = if ($Template.properties.PSObject.Properties.Name -contains "packageId") { $Template.properties.packageId } else { $null }
+    if (-not $pkgId) {
+        Write-PipelineMessage "    Metadata skip: no packageId for $DisplayName" -Level Warning
+        return
+    }
+
+    # Use the pre-built solution detail lookup (packageId -> {name, contentId})
+    if ($SolutionDetailLookup -and $SolutionDetailLookup.ContainsKey($pkgId)) {
+        $solDetail = $SolutionDetailLookup[$pkgId]
+        $solDisplayName = $solDetail.Name
+        $solContentId = $solDetail.ContentId
+    }
+    elseif ($SolutionIdLookup -and $SolutionIdLookup.ContainsKey($pkgId)) {
+        # Fallback to basic lookup
+        $solDisplayName = $SolutionIdLookup[$pkgId]
+        $solContentId = $pkgId
+    }
+    else {
+        Write-PipelineMessage "    Metadata skip: packageId '$pkgId' not in solution lookup for $DisplayName" -Level Warning
+        return
+    }
+
+    # Validate parentId has leading slash (required by API)
+    if ($RuleId -and -not $RuleId.StartsWith('/')) {
+        $RuleId = "/$RuleId"
+    }
+
+    $metaBody = @{
+        properties = @{
+            contentId = $TemplateName
+            parentId  = $RuleId
+            kind      = "AnalyticsRule"
+            version   = if ($TemplateVersion) { $TemplateVersion } else { "1.0.0" }
+            source    = @{
+                kind     = "Solution"
+                name     = $solDisplayName
+                sourceId = $solContentId
+            }
+        }
+    } | ConvertTo-Json -Depth 10 -Compress
+
+    $metaUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/metadata/analyticsrule-${RuleName}?api-version=$($script:MetadataApiVersion)"
+
+    try {
+        Invoke-SentinelApi -Uri $metaUri -Method Put -Headers $script:AuthHeader -Body $metaBody | Out-Null
+        Write-PipelineMessage "    Metadata linked: $DisplayName -> $solDisplayName" -Level Info
+        $script:MetadataLinked++
+    }
+    catch {
+        $metaError = $_.Exception.Message
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) { $metaError = $_.ErrorDetails.Message }
+        Write-PipelineMessage "    Metadata FAILED for $DisplayName : $metaError" -Level Warning
+        Write-PipelineMessage "    Metadata body: $metaBody" -Level Warning
+        Write-PipelineMessage "    Metadata URI: $metaUri" -Level Warning
+        $script:MetadataFailed++
     }
 }
 
@@ -884,18 +1003,21 @@ function Deploy-AnalyticsRules {
     # Fetch content templates for Analytics Rules (must expand mainTemplate)
     $templatesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates?api-version=$($script:SentinelApiVersion)&`$filter=(properties/contentKind eq 'AnalyticsRule')&`$expand=properties/mainTemplate"
     try {
+        $templateList = [System.Collections.Generic.List[object]]::new()
         $templatesResult = Invoke-SentinelApi -Uri $templatesUrl -Method Get -Headers $script:AuthHeader
-        $allTemplates = @(if ($templatesResult.PSObject.Properties.Name -contains "value") { $templatesResult.value } else { @() })
+        if ($templatesResult.PSObject.Properties.Name -contains "value") {
+            foreach ($t in $templatesResult.value) { $templateList.Add($t) }
+        }
 
         # Handle pagination
         while ($templatesResult.PSObject.Properties.Name -contains "nextLink" -and $templatesResult.nextLink) {
             $templatesResult = Invoke-SentinelApi -Uri $templatesResult.nextLink -Method Get -Headers $script:AuthHeader
             if ($templatesResult.PSObject.Properties.Name -contains "value") {
-                $allTemplates += @($templatesResult.value)
+                foreach ($t in $templatesResult.value) { $templateList.Add($t) }
             }
         }
 
-        $allTemplates = @($allTemplates)
+        $allTemplates = @($templateList)
         Write-PipelineMessage "Found $($allTemplates.Count) Analytics Rule templates." -Level Info
     }
     catch {
@@ -903,17 +1025,34 @@ function Deploy-AnalyticsRules {
         return @{ Deployed = 0; Updated = 0; Skipped = 0; CustomisedSkipped = 0; Failed = 0 }
     }
 
-    # Build solution ID lookup
+    # Build solution ID lookup (case-insensitive name matching)
+    $SolutionNamesLower = @($SolutionNames | ForEach-Object { $_.ToLower() })
     $solutionIdLookup = @{}
     foreach ($sol in $AvailableSolutions) {
         $solName = if ($sol.properties.PSObject.Properties.Name -contains "displayName") { $sol.properties.displayName } else { $null }
-        if ($solName -and $SolutionNames -contains $solName) {
+        if ($solName -and $SolutionNamesLower -contains $solName.ToLower()) {
             if ($sol.properties.PSObject.Properties.Name -contains "contentId" -and $sol.properties.contentId) {
                 $solutionIdLookup[$sol.properties.contentId] = $solName
             }
             if ($sol.name) { $solutionIdLookup[$sol.name] = $solName }
         }
     }
+
+    # Build detailed solution lookup: packageId -> {Name, ContentId}
+    $solutionDetailLookup = @{}
+    foreach ($sol in $AvailableSolutions) {
+        $solName = if ($sol.properties.PSObject.Properties.Name -contains "displayName") { $sol.properties.displayName } else { $null }
+        $solCid = if ($sol.properties.PSObject.Properties.Name -contains "contentId") { $sol.properties.contentId } else { $sol.name }
+        if ($solName -and $solCid) {
+            if ($solutionIdLookup.ContainsKey($solCid)) {
+                $solutionDetailLookup[$solCid] = @{ Name = $solName; ContentId = $solCid }
+            }
+            if ($sol.name -and $solutionIdLookup.ContainsKey($sol.name)) {
+                $solutionDetailLookup[$sol.name] = @{ Name = $solName; ContentId = $solCid }
+            }
+        }
+    }
+    Write-PipelineMessage "Solution detail lookup: $($solutionDetailLookup.Count) entries for metadata linking." -Level Info
 
     # Filter templates to target solutions
     $targetTemplates = @($allTemplates | Where-Object {
@@ -1023,6 +1162,13 @@ function Deploy-AnalyticsRules {
             continue
         }
 
+        # Resolve the parent solution name for this template
+        $templatePackageId = if ($template.properties.PSObject.Properties.Name -contains "packageId") { $template.properties.packageId } else { $null }
+        $parentSolutionName = if ($templatePackageId -and $solutionIdLookup.ContainsKey($templatePackageId)) { $solutionIdLookup[$templatePackageId] } else { $null }
+
+        # Check if this rule belongs to a freshly deployed solution
+        $isFromNewSolution = $parentSolutionName -and $script:NewlyDeployedSolutions -and ($script:NewlyDeployedSolutions -contains $parentSolutionName)
+
         # Check if rule already exists
         $existingRule = $null
         $needsUpdate = $false
@@ -1033,12 +1179,31 @@ function Deploy-AnalyticsRules {
                 $existingRule.properties.templateVersion
             } else { $null }
 
-            if ($currentVersion -and $templateVersion) {
+            # If DisableRules is set and the existing rule is enabled, force an update to disable it
+            $existingEnabled = $true
+            if ($existingRule.properties.PSObject.Properties.Name -contains "enabled") {
+                $existingEnabled = $existingRule.properties.enabled
+            }
+            $needsDisable = $DisableRules -and $existingEnabled
+
+            # Force-process content from freshly installed solutions
+            if ($isFromNewSolution) {
+                $needsUpdate = $true
+            }
+            elseif ($needsDisable) {
+                $needsUpdate = $true
+            }
+            elseif ($currentVersion -and $templateVersion) {
                 $versionCmp = Compare-SemanticVersion -Version1 $templateVersion -Version2 $currentVersion
                 if ($versionCmp -gt 0) {
                     $needsUpdate = $true
                 }
                 elseif (-not $ForceContentDeployment) {
+                    # Ensure metadata is correct even for skipped rules
+                    Write-RuleMetadata -Template $template -RuleId $existingRule.id -RuleName $existingRule.name `
+                        -TemplateName $templateName -TemplateVersion $templateVersion `
+                        -AvailableSolutions $AvailableSolutions -SolutionIdLookup $solutionIdLookup -SolutionDetailLookup $solutionDetailLookup `
+                        -DisplayName $displayName
                     $counters.Skipped++
                     continue
                 }
@@ -1047,6 +1212,11 @@ function Deploy-AnalyticsRules {
                 }
             }
             elseif (-not $ForceContentDeployment) {
+                # Ensure metadata is correct even for skipped rules
+                Write-RuleMetadata -Template $template -RuleId $existingRule.id -RuleName $existingRule.name `
+                    -TemplateName $templateName -TemplateVersion $templateVersion `
+                    -AvailableSolutions $AvailableSolutions -SolutionIdLookup $solutionIdLookup -SolutionDetailLookup $solutionDetailLookup `
+                    -DisplayName $displayName
                 $counters.Skipped++
                 continue
             }
@@ -1088,6 +1258,13 @@ function Deploy-AnalyticsRules {
         # Prepare rule properties for deployment
         $deployProperties = $ruleProperties.PSObject.Copy()
 
+        # Strip ARM template artifacts that are not valid in the alertRules API body
+        foreach ($armProp in @('apiVersion', 'type', 'name', 'id', 'dependsOn', 'metadata', 'contentId', 'contentKind', 'contentProductId')) {
+            if ($deployProperties.PSObject.Properties.Name -contains $armProp) {
+                $deployProperties.PSObject.Properties.Remove($armProp)
+            }
+        }
+
         # Set enabled state based on DisableRules switch
         if ($DisableRules) {
             $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $false -Force
@@ -1102,10 +1279,44 @@ function Deploy-AnalyticsRules {
         $deployProperties | Add-Member -NotePropertyName "alertRuleTemplateName" -NotePropertyValue $templateName -Force
         $deployProperties | Add-Member -NotePropertyName "templateVersion" -NotePropertyValue $templateVersion -Force
 
-        # Ensure entityMappings is an array
+        # NRT rules do not support queryFrequency or queryPeriod — strip them
+        if ($kind -eq "NRT") {
+            if ($deployProperties.PSObject.Properties.Name -contains "queryFrequency") {
+                $deployProperties.PSObject.Properties.Remove("queryFrequency")
+            }
+            if ($deployProperties.PSObject.Properties.Name -contains "queryPeriod") {
+                $deployProperties.PSObject.Properties.Remove("queryPeriod")
+            }
+            if ($deployProperties.PSObject.Properties.Name -contains "triggerOperator") {
+                $deployProperties.PSObject.Properties.Remove("triggerOperator")
+            }
+            if ($deployProperties.PSObject.Properties.Name -contains "triggerThreshold") {
+                $deployProperties.PSObject.Properties.Remove("triggerThreshold")
+            }
+
+            # If updating an existing NRT rule created with an older API version,
+            # delete it first and create fresh — Azure routes PUTs through the original
+            # api-version which may not support NRT kind
+            if ($needsUpdate -and $existingRule) {
+                try {
+                    $deleteUri = "${baseAlertUri}$($existingRule.name)?api-version=$($script:SentinelApiVersion)"
+                    Invoke-SentinelApi -Uri $deleteUri -Method Delete -Headers $script:AuthHeader | Out-Null
+                }
+                catch {
+                    Write-PipelineMessage "  Warning: Could not delete existing NRT rule $displayName for recreation: $($_.Exception.Message)" -Level Warning
+                }
+                $existingRule = $null
+                $needsUpdate = $false
+            }
+        }
+
+        # Ensure entityMappings is an array and within API limit (max 5)
         if ($deployProperties.PSObject.Properties.Name -contains "entityMappings") {
             if ($deployProperties.entityMappings -and $deployProperties.entityMappings -isnot [System.Array]) {
                 $deployProperties.entityMappings = @($deployProperties.entityMappings)
+            }
+            if ($deployProperties.entityMappings -and $deployProperties.entityMappings.Count -gt 5) {
+                $deployProperties.entityMappings = @($deployProperties.entityMappings | Select-Object -First 5)
             }
         }
 
@@ -1163,40 +1374,20 @@ function Deploy-AnalyticsRules {
             }
 
             # Create metadata to link rule back to solution
-            $templatePackageId = if ($template.properties.PSObject.Properties.Name -contains "packageId") { $template.properties.packageId } else { $null }
-            $solutionMatch = if ($templatePackageId) {
-                $AvailableSolutions | Where-Object {
-                    (($_.properties.PSObject.Properties.Name -contains "contentId") -and ($_.properties.contentId -eq $templatePackageId)) -or
-                    ($_.name -eq $templatePackageId)
-                } | Select-Object -First 1
-            } else { $null }
-
-            if ($solutionMatch) {
-                $solDisplayName = if ($solutionMatch.properties.PSObject.Properties.Name -contains "displayName") { $solutionMatch.properties.displayName } else { "Unknown" }
-                $solContentId = if ($solutionMatch.properties.PSObject.Properties.Name -contains "contentId") { $solutionMatch.properties.contentId } else { $solutionMatch.name }
-                $metaBody = @{
-                    properties = @{
-                        contentId = $templateName
-                        parentId  = $ruleResult.id
-                        kind      = "AnalyticsRule"
-                        version   = $templateVersion
-                        source    = @{
-                            kind     = "Solution"
-                            name     = $solDisplayName
-                            sourceId = $solContentId
-                        }
-                    }
-                }
-
-                $metaUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/metadata/analyticsrule-$($ruleResult.name)?api-version=$($script:MetadataApiVersion)"
-
-                try {
-                    Invoke-SentinelApi -Uri $metaUri -Method Put -Headers $script:AuthHeader -Body ($metaBody | ConvertTo-Json -Depth 10 -Compress) | Out-Null
-                }
-                catch {
-                    Write-PipelineMessage "  Warning: Failed to create metadata for rule $displayName : $($_.Exception.Message)" -Level Warning
-                }
+            $resultId = if ($ruleResult.PSObject.Properties.Name -contains "id" -and $ruleResult.id) {
+                $ruleResult.id
+            } else {
+                "${baseAlertUri}${ruleId}"
             }
+            $resultName = if ($ruleResult.PSObject.Properties.Name -contains "name" -and $ruleResult.name) {
+                $ruleResult.name
+            } else {
+                $ruleId
+            }
+            Write-RuleMetadata -Template $template -RuleId $resultId -RuleName $resultName `
+                -TemplateName $templateName -TemplateVersion $templateVersion `
+                -AvailableSolutions $AvailableSolutions -SolutionIdLookup $solutionIdLookup -SolutionDetailLookup $solutionDetailLookup `
+                -DisplayName $displayName
 
             Start-Sleep -Milliseconds 500
         }
@@ -1226,8 +1417,9 @@ function Deploy-AnalyticsRules {
                 $counters.Skipped++
             }
             elseif ($combinedError -match "BadRequest|400") {
-                Write-PipelineMessage "  Skipping $displayName ($kind) - bad request (likely unsupported rule properties)." -Level Warning
-                Write-PipelineMessage "    Detail: $($combinedError.Substring(0, [Math]::Min(300, $combinedError.Length)))" -Level Debug
+                $nrtHint = if ($kind -eq "NRT") { " NRT rules must not include queryFrequency/queryPeriod." } else { "" }
+                $detail = $combinedError.Substring(0, [Math]::Min(300, $combinedError.Length))
+                Write-PipelineMessage "  Skipping $displayName ($kind) - bad request.$nrtHint Detail: $detail" -Level Warning
                 $counters.Skipped++
             }
             else {
@@ -1255,8 +1447,8 @@ function Deploy-Workbooks {
 
     Write-PipelineMessage "Deploying Workbooks..." -Level Section
 
-    # Fetch workbook content templates (list only, no $expand needed yet)
-    $templatesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates?api-version=$($script:SentinelApiVersion)&`$filter=(properties/contentKind eq 'Workbook')"
+    # Fetch workbook content templates (details fetched individually per workbook)
+    $templatesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates?api-version=$($script:SentinelApiVersion)&`$filter=(properties/contentKind eq 'Workbook') or (properties/contentKind eq 'WorkbookTemplate')&`$expand=properties/mainTemplate"
     try {
         $templatesResult = Invoke-SentinelApi -Uri $templatesUrl -Method Get -Headers $script:AuthHeader
         $allTemplates = @(if ($templatesResult.PSObject.Properties.Name -contains "value") { $templatesResult.value } else { @() })
@@ -1275,11 +1467,12 @@ function Deploy-Workbooks {
         return @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
     }
 
-    # Build solution ID lookup
+    # Build solution ID lookup (case-insensitive name matching)
+    $SolutionNamesLower = @($SolutionNames | ForEach-Object { $_.ToLower() })
     $solutionIdLookup = @{}
     foreach ($sol in $AvailableSolutions) {
         $solName = if ($sol.properties.PSObject.Properties.Name -contains "displayName") { $sol.properties.displayName } else { $null }
-        if ($solName -and $SolutionNames -contains $solName) {
+        if ($solName -and $SolutionNamesLower -contains $solName.ToLower()) {
             if (($sol.properties.PSObject.Properties.Name -contains "contentId") -and $sol.properties.contentId) {
                 $solutionIdLookup[$sol.properties.contentId] = $solName
             }
@@ -1311,12 +1504,16 @@ function Deploy-Workbooks {
         Write-PipelineMessage "Could not fetch workbook metadata: $($_.Exception.Message)" -Level Warning
     }
 
-    # Build lookup by contentId
+    # Build lookup by contentId — only include metadata that points at a saved workbook
+    # resource. Content Hub solution install writes metadata whose parentId points at a
+    # contentTemplate; that means the template is registered but no workbook has been
+    # saved to the workspace, so we must deploy it ourselves rather than treat it as done.
     $existingByContentId = @{}
     foreach ($wb in $existingWorkbooks) {
-        if ($wb.properties.PSObject.Properties.Name -contains "contentId") {
-            $existingByContentId[$wb.properties.contentId] = $wb
-        }
+        if ($wb.properties.PSObject.Properties.Name -notcontains "contentId") { continue }
+        $parentId = if ($wb.properties.PSObject.Properties.Name -contains "parentId") { $wb.properties.parentId } else { $null }
+        if (-not ($parentId -match '/providers/Microsoft\.Insights/workbooks/')) { continue }
+        $existingByContentId[$wb.properties.contentId] = $wb
     }
 
     $counters = @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
@@ -1332,17 +1529,25 @@ function Deploy-Workbooks {
             continue
         }
 
+        # Check if this workbook belongs to a freshly deployed solution
+        $wbPackageId = if ($template.properties.PSObject.Properties.Name -contains "packageId") { $template.properties.packageId } else { $null }
+        $wbParentSolution = if ($wbPackageId -and $solutionIdLookup.ContainsKey($wbPackageId)) { $solutionIdLookup[$wbPackageId] } else { $null }
+        $isFromNewSolution = $wbParentSolution -and $script:NewlyDeployedSolutions -and ($script:NewlyDeployedSolutions -contains $wbParentSolution)
+
         # Check if already deployed
         $existingMeta = if ($contentId) { $existingByContentId[$contentId] } else { $null }
         $needsUpdate = $false
 
-        if ($existingMeta -and -not $ForceContentDeployment) {
+        if ($existingMeta -and -not $ForceContentDeployment -and -not $isFromNewSolution) {
             # Check version
             $existingVersion = if ($existingMeta.properties.PSObject.Properties.Name -contains "version") { $existingMeta.properties.version } else { $null }
             if ($existingVersion -and $templateVersion -and $existingVersion -eq $templateVersion) {
                 $counters.Skipped++
                 continue
             }
+            $needsUpdate = $true
+        }
+        elseif ($existingMeta) {
             $needsUpdate = $true
         }
 
@@ -1353,22 +1558,37 @@ function Deploy-Workbooks {
             continue
         }
 
-        # Fetch the detailed template to get mainTemplate
-        $detailUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates/$($template.name)?api-version=$($script:SentinelApiVersion)"
-        try {
-            $detailedTemplate = Invoke-SentinelApi -Uri $detailUrl -Method Get -Headers $script:AuthHeader
-        }
-        catch {
-            Write-PipelineMessage "  Failed to fetch template details for workbook: $displayName - $($_.Exception.Message)" -Level Error
-            $counters.Failed++
-            continue
+        # Fetch detailed template — try contentId first, fall back to name
+        $detailedTemplate = $null
+        $templateIdentifiers = @($contentId, $template.name) | Where-Object { $_ }
+
+        foreach ($tmplId in $templateIdentifiers) {
+            $detailUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/contentTemplates/${tmplId}?api-version=$($script:SentinelApiVersion)"
+            try {
+                $detailedTemplate = Invoke-SentinelApi -Uri $detailUrl -Method Get -Headers $script:AuthHeader
+                break
+            }
+            catch {
+                continue
+            }
         }
 
-        # Extract resources from mainTemplate
+        if (-not $detailedTemplate) {
+            # Fall back to the listing template itself — some templates include mainTemplate inline
+            if ($template.properties.PSObject.Properties.Name -contains "mainTemplate" -and $template.properties.mainTemplate) {
+                $detailedTemplate = $template
+            }
+            else {
+                Write-PipelineMessage "  Failed to fetch template details for workbook: $displayName — skipping" -Level Warning
+                $counters.Failed++
+                continue
+            }
+        }
+
         $hasMainTemplate = ($detailedTemplate.properties.PSObject.Properties.Name -contains "mainTemplate") -and
                            ($null -ne $detailedTemplate.properties.mainTemplate)
         if (-not $hasMainTemplate) {
-            Write-PipelineMessage "  No mainTemplate for workbook: $displayName" -Level Warning
+            Write-PipelineMessage "  No mainTemplate for workbook: $displayName — skipping" -Level Warning
             $counters.Skipped++
             continue
         }
@@ -1390,7 +1610,7 @@ function Deploy-Workbooks {
             continue
         }
 
-        # Generate GUID for the workbook
+        # Generate GUID for the workbook — reuse existing GUID when updating to avoid orphans
         $guid = if ($needsUpdate -and $existingMeta -and ($existingMeta.properties.PSObject.Properties.Name -contains "parentId")) {
             if ($existingMeta.properties.parentId -match '/([^/]+)$') { $matches[1] } else { (New-Guid).Guid }
         }
@@ -1398,16 +1618,51 @@ function Deploy-Workbooks {
             (New-Guid).Guid
         }
 
-        # Prepare workbook payload - strip ARM template metadata, add required fields
-        $newWorkbook = $workbookResource | Select-Object * -ExcludeProperty apiVersion, metadata, name
-        $newWorkbook | Add-Member -NotePropertyName name -NotePropertyValue $guid -Force
-        $newWorkbook | Add-Member -NotePropertyName location -NotePropertyValue $Region -Force
-
-        if (-not ($newWorkbook.PSObject.Properties.Name -contains "kind")) {
-            $newWorkbook | Add-Member -NotePropertyName kind -NotePropertyValue "shared"
+        # Extract serializedData from the workbook resource properties
+        $wbProps = $workbookResource.properties
+        $serializedData = if ($wbProps -and ($wbProps.PSObject.Properties.Name -contains "serializedData")) {
+            $wbProps.serializedData
+        }
+        else {
+            $null
         }
 
-        $workbookPayload = $newWorkbook | ConvertTo-Json -Depth 50 -EnumsAsStrings
+        if (-not $serializedData) {
+            Write-PipelineMessage "  No serializedData found in workbook template: $displayName — skipping" -Level Warning
+            $counters.Skipped++
+            continue
+        }
+
+        $wbDisplayName = if ($wbProps -and ($wbProps.PSObject.Properties.Name -contains "displayName")) {
+            $wbProps.displayName
+        }
+        else {
+            $displayName
+        }
+
+        # Workspace resource ID (no https://management.azure.com prefix) — Sentinel uses this
+        # tag to bind the workbook to the workspace; with the host prefix it won't surface in
+        # the Sentinel Workbooks blade even though the Azure Monitor resource is created.
+        $workspaceResourceId = $script:BaseUri.Replace($script:ServerUrl, "")
+
+        # Build a clean workbook resource body — direct PUT to Microsoft.Insights/workbooks
+        $workbookBody = @{
+            location = $Region
+            kind     = "shared"
+            properties = @{
+                displayName    = $wbDisplayName
+                serializedData = $serializedData
+                version        = "1.0"
+                sourceId       = $workspaceResourceId
+                category       = "sentinel"
+            }
+            tags = @{
+                "hidden-sentinelWorkspaceId"  = $workspaceResourceId
+                "hidden-sentinelContentType"  = "Workbook"
+            }
+        }
+
+        $workbookPayload = $workbookBody | ConvertTo-Json -Depth 50 -EnumsAsStrings
 
         # Deploy workbook via Invoke-AzRestMethod (direct resource creation, not ARM deployment)
         $workbookPath = "/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.Insights/workbooks/${guid}?api-version=2022-04-01"
@@ -1426,25 +1681,43 @@ function Deploy-Workbooks {
                 }
 
                 # Create metadata to link workbook back to solution
-                if ($metadataResource) {
-                    $metadataDeployment = $metadataResource | Select-Object * -ExcludeProperty apiVersion, name
-                    $metadataDeployment | Add-Member -NotePropertyName name -NotePropertyValue "workbook-$guid" -Force
+                $workbookResourceId = "/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.Insights/workbooks/$guid"
+                $wbPackageId = if ($template.properties.PSObject.Properties.Name -contains "packageId") { $template.properties.packageId } else { $null }
 
-                    # Update parentId to point to the new workbook
-                    if ($metadataDeployment.properties.PSObject.Properties.Name -contains "parentId") {
-                        $newParentId = $metadataDeployment.properties.parentId -replace '/[^/]+$', "/$guid"
-                        $metadataDeployment.properties | Add-Member -NotePropertyName parentId -NotePropertyValue $newParentId -Force
+                # Resolve solution display name and contentId for the metadata source block
+                $wbSolEntry = if ($wbPackageId) {
+                    $AvailableSolutions | Where-Object {
+                        (($_.properties.PSObject.Properties.Name -contains "contentId") -and ($_.properties.contentId -eq $wbPackageId)) -or
+                        ($_.name -eq $wbPackageId)
+                    } | Select-Object -First 1
+                }
+                else { $null }
+
+                $wbSolDisplayName = if ($wbSolEntry -and ($wbSolEntry.properties.PSObject.Properties.Name -contains "displayName")) { $wbSolEntry.properties.displayName } else { "Unknown" }
+                $wbSolContentId   = if ($wbSolEntry -and ($wbSolEntry.properties.PSObject.Properties.Name -contains "contentId")) { $wbSolEntry.properties.contentId } else { $wbPackageId }
+
+                $metadataBody = @{
+                    properties = @{
+                        contentId = $contentId
+                        parentId  = $workbookResourceId
+                        kind      = "Workbook"
+                        version   = $templateVersion
+                        source    = @{
+                            kind     = "Solution"
+                            name     = $wbSolDisplayName
+                            sourceId = $wbSolContentId
+                        }
                     }
+                }
 
-                    $metadataPayload = $metadataDeployment | ConvertTo-Json -Depth 50 -EnumsAsStrings
-                    $metadataPath = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/metadata/workbook-${guid}".Replace($script:ServerUrl, "")
-                    $metadataPath += "?api-version=$($script:MetadataApiVersion)"
+                $metadataPayload = $metadataBody | ConvertTo-Json -Depth 10 -Compress
+                $metadataPath = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/metadata/workbook-${guid}?api-version=$($script:MetadataApiVersion)"
+                $metadataPath = $metadataPath.Replace($script:ServerUrl, "")
 
-                    $metadataResult = Invoke-AzRestMethod -Path $metadataPath -Method PUT -Payload $metadataPayload
+                $metadataResult = Invoke-AzRestMethod -Path $metadataPath -Method PUT -Payload $metadataPayload
 
-                    if ($metadataResult.StatusCode -notin 200, 201) {
-                        Write-PipelineMessage "  Workbook deployed but metadata failed: $displayName (HTTP $($metadataResult.StatusCode))" -Level Warning
-                    }
+                if ($metadataResult.StatusCode -notin 200, 201) {
+                    Write-PipelineMessage "  Workbook deployed but metadata failed: $displayName (HTTP $($metadataResult.StatusCode))" -Level Warning
                 }
             }
             else {
@@ -1488,10 +1761,11 @@ function Get-AutomationRuleStatus {
         return @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
     }
 
+    $SolutionNamesLower = @($SolutionNames | ForEach-Object { $_.ToLower() })
     $solutionIdLookup = @{}
     foreach ($sol in $AvailableSolutions) {
         $solName = if ($sol.properties.PSObject.Properties.Name -contains "displayName") { $sol.properties.displayName } else { $null }
-        if ($solName -and $SolutionNames -contains $solName) {
+        if ($solName -and $SolutionNamesLower -contains $solName.ToLower()) {
             if (($sol.properties.PSObject.Properties.Name -contains "contentId") -and $sol.properties.contentId) {
                 $solutionIdLookup[$sol.properties.contentId] = $solName
             }
@@ -1534,10 +1808,11 @@ function Get-HuntingQueryStatus {
         return @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
     }
 
+    $SolutionNamesLower = @($SolutionNames | ForEach-Object { $_.ToLower() })
     $solutionIdLookup = @{}
     foreach ($sol in $AvailableSolutions) {
         $solName = if ($sol.properties.PSObject.Properties.Name -contains "displayName") { $sol.properties.displayName } else { $null }
-        if ($solName -and $SolutionNames -contains $solName) {
+        if ($solName -and $SolutionNamesLower -contains $solName.ToLower()) {
             if (($sol.properties.PSObject.Properties.Name -contains "contentId") -and $sol.properties.contentId) {
                 $solutionIdLookup[$sol.properties.contentId] = $solName
             }
@@ -1606,6 +1881,15 @@ function Main {
     param()
 
     $scriptStartTime = Get-Date
+
+    # Handle comma-separated string input (from pipeline variable groups or CLI)
+    if ($Solutions.Count -eq 1 -and $Solutions[0] -match ',') {
+        $Solutions = $Solutions[0] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    }
+
+    # Metadata tracking counters
+    $script:MetadataLinked = 0
+    $script:MetadataFailed = 0
 
     Write-PipelineMessage "================================================================" -Level Section
     Write-PipelineMessage "  Microsoft Sentinel Content Hub Deployment" -Level Section
@@ -1681,6 +1965,15 @@ function Main {
     }
     else {
         Write-PipelineMessage "Skipping solution deployment (SkipSolutionDeployment specified)." -Level Info
+    }
+
+    # Track which solutions were freshly installed or updated this run
+    $script:NewlyDeployedSolutions = @($solutionStatuses | Where-Object {
+        $_.Action -in @("Install", "Update", "ForceUpdate")
+    } | ForEach-Object { $_.Name })
+
+    if ($script:NewlyDeployedSolutions.Count -gt 0) {
+        Write-PipelineMessage "Freshly deployed solutions (content will be force-processed): $($script:NewlyDeployedSolutions -join ', ')" -Level Info
     }
 
     # Determine which solutions to deploy content for
@@ -1776,6 +2069,9 @@ function Main {
     Write-PipelineMessage "" -Level Info
     Write-PipelineMessage "  Hunting Queries:" -Level Info
     Write-PipelineMessage "    Deployed: $($overallResults.HuntingQueries.Deployed)  Skipped: $($overallResults.HuntingQueries.Skipped)  Failed: $($overallResults.HuntingQueries.Failed)" -Level Info
+    Write-PipelineMessage "" -Level Info
+    Write-PipelineMessage "  Metadata:" -Level Info
+    Write-PipelineMessage "    Linked: $($script:MetadataLinked)  Failed: $($script:MetadataFailed)" -Level Info
     Write-PipelineMessage "" -Level Info
     Write-PipelineMessage "  Duration: $($scriptDuration.ToString('hh\:mm\:ss'))" -Level Info
     Write-PipelineMessage "================================================================" -Level Section

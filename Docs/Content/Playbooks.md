@@ -107,24 +107,29 @@ If `playbookResourceGroup` is empty or not set, playbooks deploy to the Sentinel
 
 ## Exporting from Azure
 
-Use the included export script to pull all playbooks from an existing resource group:
+To pull existing playbooks out of an Azure resource group as ARM
+templates, use the Azure CLI or `Export-AzResourceGroup` against
+individual Logic Apps:
 
 ```powershell
-./Scripts/Export-Playbooks.ps1 `
-    -SubscriptionId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
+# Single Logic App
+Export-AzResourceGroup `
     -ResourceGroupName "rg-sentinel-prod" `
-    -OutputPath "./Playbooks"
+    -Resource "/subscriptions/<sub>/resourceGroups/rg-sentinel-prod/providers/Microsoft.Logic/workflows/<playbookName>" `
+    -Path "./Playbooks/<Category>"
 ```
 
-The export script:
-- Discovers all Logic Apps via REST API (with pagination)
-- Detects trigger type to categorise (Incident, Entity, Alert, Module, Watchlist, Other)
-- Sanitises hardcoded subscription IDs and resource group names into ARM expressions
-- Builds clean ARM templates with parameterised connections
-- Handles MSI vs standard connections correctly
-- Generates metadata with author and description
-
-See [Scripts.md](../Deployment/Scripts.md#export-playbooksps1) for the full Export-Playbooks parameter reference.
+The exported template needs a small amount of manual cleanup before
+committing:
+- Replace hardcoded subscription IDs and resource-group names with
+  ARM expressions (`[subscription().subscriptionId]`,
+  `[resourceGroup().name]`).
+- Add a `metadata` block with `title`, `description`, and `author` —
+  see existing files in [`Playbooks/Module/`](../../Playbooks/Module/)
+  for the convention.
+- Tag the workflow resource with `"Source": "Sentinel-As-Code"` so
+  [`Set-PlaybookPermissions.ps1`](../Deployment/Scripts.md#set-playbookpermissionsps1)
+  picks it up post-deployment.
 
 ## Notes
 
