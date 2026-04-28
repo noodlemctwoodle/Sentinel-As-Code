@@ -7,84 +7,30 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 ## Repository Structure
 
 ```
-├── .github/workflows/                  # GitHub Actions workflow
-│   └── sentinel-deploy.yml             # 5-stage deployment (OIDC auth)
-├── Archive/                            # Deprecated legacy files
-│   ├── azure-pipelines.yml             # Legacy pipeline (v1)
-│   └── Set-SentinelContent.ps1         # Legacy deployment script (v1)
-├── AnalyticalRules/                    # Custom Sentinel analytics rules (YAML)
-│   ├── README.md                       # Schema docs and export guide
-│   ├── Identity/                       # Rules organised by category
-│   │   └── AzurePortalBruteForce.yaml  # Scheduled: brute force detection
-│   └── PrivilegeEscalation/
-│       └── UserAddedToPrivilegedGroup.yaml
-├── AutomationRules/                    # Custom automation rules (JSON)
-│   ├── README.md                       # Schema docs and action reference
-│   ├── AutoCloseInformational.json     # Example: auto-close informational incidents
-│   └── AddTaskOnHighSeverity.json      # Example: add task to high severity incidents
-├── Bicep/                              # Bicep templates for infrastructure
-│   ├── main.bicep                      # Main deployment template
-│   ├── sentinel.bicep                  # Sentinel-specific resources
-│   └── spn-role-assignment.bicep       # SPN role assignment (ABAC-conditioned UAA)
-├── DefenderCustomDetections/           # Defender XDR custom detection rules (YAML)
-│   ├── README.md                       # Schema docs and Graph API reference
-│   ├── Email/                          # Email detection rules
-│   │   └── PhishingLinkClickedByUser.yaml
-│   ├── Endpoint/                       # Endpoint detection rules
-│   │   ├── LateralMovementViaPsExec.yaml
-│   │   └── SuspiciousEncodedPowerShell.yaml
-│   └── Identity/                       # Identity detection rules
-│       └── BruteForceEntraIDAccounts.yaml
-├── HuntingQueries/                     # Custom hunting queries (YAML)
-│   ├── README.md                       # Schema docs and export guide
-│   ├── Identity/                       # Queries organised by category
-│   │   └── SuspiciousSignInFromNewCountry.yaml
-│   └── Persistence/
-│       └── NewServicePrincipalCredential.yaml
-├── Parsers/                            # KQL parsers/functions (YAML)
-│   └── README.md                       # Parser schema docs
-├── Pipelines/                          # Azure DevOps pipeline definitions
-│   ├── README.md                       # Pipeline documentation
-│   └── Sentinel-Deploy.yml             # Deployment pipeline (5 stages)
-├── Playbooks/                          # Custom playbooks (ARM templates)
-│   ├── README.md                       # ARM template docs and export guide
-│   ├── Module/                         # Reusable playbook modules
-│   ├── Incident/                       # Incident response playbooks
-│   ├── Entity/                         # Entity enrichment playbooks
-│   ├── AutoCloseIncidents/             # Auto-close automation
-│   ├── SyncDfCAlerts/                  # Alert sync playbooks
-│   ├── Watchlist/                      # Watchlist management playbooks
-│   └── Template/                       # Playbook templates (not deployed)
-├── Scripts/                            # PowerShell automation scripts
-│   ├── README.md                       # Script documentation
-│   ├── Setup-ServicePrincipal.ps1      # One-time SPN bootstrap script
-│   ├── Deploy-SentinelContentHub.ps1   # Content Hub deployment script
-│   ├── Deploy-CustomContent.ps1        # Custom content deployment script
-│   └── Deploy-DefenderDetections.ps1   # Defender XDR detections deployment script
-├── SummaryRules/                       # Custom summary rules (JSON)
-│   ├── README.md                       # Schema docs and bin size reference
-│   ├── SignInSummaryByCountry.json     # Example: hourly sign-in aggregation
-│   └── SecurityAlertSummary.json       # Example: hourly alert aggregation
-├── Watchlists/                         # Custom watchlists (JSON + CSV)
-│   ├── README.md                       # Schema docs
-│   ├── breakGlassAccounts/             # Break-glass admin accounts
-│   ├── confirmedLeavers/               # Offboarded users
-│   ├── environmentIPs/                 # Corporate IP ranges
-│   ├── EntraRiskyUsers/                # Risky user accounts
-│   ├── GoogleOneVPNIPRanges/           # Google One VPN IPs
-│   ├── HighRiskApps/                   # High-risk applications
-│   ├── iCloudPrivateRelayIPRanges/     # Apple iCloud Relay IPs
-│   ├── knownDCAccounts/                # Domain controller service accounts
-│   ├── regionalMap/                    # Country/region mapping
-│   ├── socManagedIdentities/           # SOC-managed identities
-│   ├── SuspiciousUsers/                # Suspicious user watch list
-│   └── TorExitNodes/                   # Tor exit node IP ranges
-├── Workbooks/                          # Custom workbooks (gallery JSON)
-│   └── README.md                       # Workbook template docs
-├── dependencies.json                   # Dependency graph for content items
-├── sentinel-deployment.config          # Smart deployment configuration
-└── README.md                           # This file
+.archive/                  # Deprecated legacy files
+.github/                   # GitHub Actions workflow (5-stage deployment, OIDC auth)
+AnalyticalRules/           # Custom Sentinel analytics rules (YAML, see Docs/Content/Analytical-Rules.md)
+Automation/                # Standalone Azure Automation runbooks (DCR-Watchlist sync)
+AutomationRules/           # Custom automation rules (JSON, see Docs/Content/Automation-Rules.md)
+Bicep/                     # Infrastructure templates (see Docs/Deployment/Bicep.md)
+DefenderCustomDetections/  # Defender XDR custom detection rules (YAML, see Docs/Content/Defender-Custom-Detections.md)
+Docs/                      # All documentation, grouped by concern (start at Docs/README.md)
+HuntingQueries/            # Custom hunting queries (YAML, see Docs/Content/Hunting-Queries.md)
+Parsers/                   # KQL parsers/functions (YAML)
+Pipelines/                 # Azure DevOps pipeline definitions (see Docs/Deployment/Pipelines.md)
+Playbooks/                 # Custom playbooks (ARM templates, see Docs/Content/Playbooks.md)
+Scripts/                   # PowerShell automation scripts (see Docs/Deployment/Scripts.md)
+SummaryRules/              # Custom summary rules (JSON, see Docs/Content/Summary-Rules.md)
+Tests/                     # Pester test suite (see Docs/Development/Pester-Tests.md)
+Watchlists/                # Custom watchlists (JSON + CSV, see Docs/Content/Watchlists.md)
+Workbooks/                 # Custom workbooks (gallery JSON, see Docs/Content/Workbooks.md)
+dependencies.json          # Cross-content dependency graph
+sentinel-deployment.config # Smart-deployment configuration
+README.md                  # This file
 ```
+
+For details on what's inside each folder and how content is authored, see the
+[Documentation](#documentation) section below.
 
 ## Features
 
@@ -151,6 +97,13 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
    - Deploy custom content (analytical rules, watchlists, playbooks, workbooks, hunting queries, parsers, automation rules, summary rules)
    - Deploy Defender XDR custom detection rules via Graph API
 
+### Optional: standalone pipelines
+
+Two further pipelines run on their own schedule alongside the main deploy:
+
+- **`Pipelines/Sentinel-Drift-Detect.yml`** — detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. See [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md).
+- **`Pipelines/DCR-Watchlist-Deploy.yml`** — deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).
+
 ## Documentation
 
 All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [`Docs/README.md`](./Docs/README.md) for the index.
@@ -192,19 +145,9 @@ All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [
 
 ## Infrastructure (Bicep)
 
-The `Bicep/` directory contains templates for provisioning Sentinel infrastructure, called by the pipeline's infrastructure stage:
+Subscription-scoped Bicep templates in `Bicep/` provision the resource group, Log Analytics workspace, Sentinel onboarding (both legacy `OperationsManagement/solutions` and modern `SecurityInsights/onboardingStates`), diagnostic settings, and an optional separate playbook resource group. Sentinel feature settings (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in the same pipeline stage.
 
-- **main.bicep**: Subscription-level deployment that creates the resource group and calls the Sentinel module
-- **sentinel.bicep**: Deploys and configures:
-  - Log Analytics workspace (configurable retention, daily quota, tags)
-  - Microsoft Sentinel onboarding (via `Microsoft.OperationsManagement/solutions` for idempotency)
-  - Workspace diagnostic settings (audit logs and metrics)
-  - Sentinel Health diagnostics (SentinelHealth and SentinelAudit tables)
-- **Post-Bicep pipeline step** configures Sentinel settings via REST API:
-  - Entity Analytics (Entra ID provider)
-  - UEBA (AuditLogs, AzureActivity, SigninLogs, SecurityEvent)
-  - Anomalies (built-in ML detection)
-  - EyesOn (SOC incident review)
+For the full parameter reference, resource list, API versions, and limitations, see [Docs/Deployment/Bicep.md](./Docs/Deployment/Bicep.md).
 
 ## Contributing
 
