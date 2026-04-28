@@ -7,7 +7,7 @@ deployment, and operational tooling.
 | --- | --- | --- |
 | [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) | End-to-end deploy: Bicep infra + Content Hub + custom content + Defender XDR | Weekly, Mon 04:00 UTC |
 | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) | Detect rules edited in the portal, auto-PR Custom drift back into the repo | Daily, 06:00 UTC. See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
-| [`Pipelines/DCR-Watchlist-Deploy.yml`](../../Pipelines/DCR-Watchlist-Deploy.yml) | Deploy the DCR-watchlist sync runbook | On change to `Automation/DCR-Watchlist/**`. See [DCR Watchlist](../Operations/DCR-Watchlist.md) |
+| [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) | Deploy the DCR-watchlist sync runbook | On change to `Automation/DCR-Watchlist/**`. See [DCR Watchlist](../Operations/DCR-Watchlist.md) |
 
 ## Sentinel-Deploy.yml
 
