@@ -125,6 +125,11 @@ parameters:
     type: boolean
     default: false
 
+  - name: skipCommunityDetections
+    displayName: "  Custom > Skip Community Detections (Dalonso)"
+    type: boolean
+    default: true
+
   - name: skipCustomWatchlists
     displayName: "  Custom › Skip Watchlists (JSON+CSV)"
     type: boolean
@@ -240,6 +245,12 @@ variables:
     ${{ else }}:
       value: ""
 
+  - name: flagSkipCommunityDetections
+    ${{ if eq(parameters.skipCommunityDetections, true) }}:
+      value: "-SkipCommunityDetections"
+    ${{ else }}:
+      value: ""
+
   - name: flagSkipCustomWatchlists
     ${{ if eq(parameters.skipCustomWatchlists, true) }}:
       value: "-SkipWatchlists"
@@ -318,26 +329,47 @@ stages:
                 Write-Host "Workspace: $(sentinelWorkspaceName)"
 
                 $resourcesExist = "false"
+                $bicepNeeded = $false
 
-                # First check if the Resource Group exists
+                # Check Sentinel Resource Group
                 $rg = Get-AzResourceGroup -Name "$(sentinelResourceGroup)" -ErrorAction SilentlyContinue
                 if (-not $rg) {
-                    Write-Host "Resource Group '$(sentinelResourceGroup)' not found — full Bicep deployment required."
+                    Write-Host "Resource Group '$(sentinelResourceGroup)' not found — Bicep deployment required."
+                    $bicepNeeded = $true
                 } else {
                     Write-Host "Resource Group '$(sentinelResourceGroup)' exists."
 
-                    # Check if the Log Analytics Workspace exists within the RG
+                    # Check Log Analytics Workspace
                     $law = Get-AzOperationalInsightsWorkspace `
                         -ResourceGroupName "$(sentinelResourceGroup)" `
                         -Name "$(sentinelWorkspaceName)" `
                         -ErrorAction SilentlyContinue
 
                     if ($law) {
-                        Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' already exists — skipping Bicep deployment."
-                        $resourcesExist = "true"
+                        Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' exists."
                     } else {
                         Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' not found — Bicep deployment required."
+                        $bicepNeeded = $true
                     }
+                }
+
+                # Check optional Playbook Resource Group
+                # ADO leaves unset variables as the literal '$(varName)' — treat that as empty
+                $playbookRG = "$(playbookResourceGroup)"
+                if ($playbookRG -like '`$(*') { $playbookRG = '' }
+                if ($playbookRG -and $playbookRG -ne "$(sentinelResourceGroup)") {
+                    $pRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
+                    if (-not $pRg) {
+                        Write-Host "Playbook Resource Group '$playbookRG' not found — Bicep deployment required."
+                        $bicepNeeded = $true
+                    } else {
+                        Write-Host "Playbook Resource Group '$playbookRG' exists."
+                    }
+                }
+
+                if (-not $bicepNeeded) {
+                    Write-Host "All required resources exist — skipping Bicep deployment."
+                    $resourcesExist = "true"
                 }
 
                 echo "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
@@ -391,16 +423,22 @@ stages:
                 echo "Daily Quota: ${{ parameters.dailyQuota }} GB"
                 echo "Retention: ${{ parameters.retentionInDays }} days (interactive), ${{ parameters.totalRetentionInDays }} days (total)"
 
+                # Build base Bicep parameters
+                PARAMS="rgLocation=$(sentinelRegion) rgName=$(sentinelResourceGroup) lawName=$(sentinelWorkspaceName) dailyQuota=${{ parameters.dailyQuota }} retentionInDays=${{ parameters.retentionInDays }} totalRetentionInDays=${{ parameters.totalRetentionInDays }}"
+
+                # Add optional playbook RG if set and different from Sentinel RG
+                # ADO leaves unset variables as the literal '$(varName)' — treat that as empty
+                PLAYBOOK_RG="$(playbookResourceGroup)"
+                if [[ "$PLAYBOOK_RG" == \$\(* ]]; then PLAYBOOK_RG=""; fi
+                if [ -n "$PLAYBOOK_RG" ] && [ "$PLAYBOOK_RG" != "$(sentinelResourceGroup)" ]; then
+                  echo "Including playbook resource group: $PLAYBOOK_RG"
+                  PARAMS="$PARAMS playbookRgName=$PLAYBOOK_RG"
+                fi
+
                 az deployment sub create \
                   --location "$(sentinelRegion)" \
                   --template-file Bicep/main.bicep \
-                  --parameters \
-                    rgLocation="$(sentinelRegion)" \
-                    rgName="$(sentinelResourceGroup)" \
-                    lawName="$(sentinelWorkspaceName)" \
-                    dailyQuota=${{ parameters.dailyQuota }} \
-                    retentionInDays=${{ parameters.retentionInDays }} \
-                    totalRetentionInDays=${{ parameters.totalRetentionInDays }}
+                  --parameters $PARAMS
 
           - task: PowerShell@2
             displayName: "Wait for Workspace Indexing"
@@ -617,11 +655,14 @@ stages:
                     BasePath       = "$(Build.SourcesDirectory)"
                 }
 
+                # ADO leaves unset variables as the literal '$(varName)' — treat that as empty
                 $playbookRG = "$(playbookResourceGroup)"
+                if ($playbookRG -like '`$(*') { $playbookRG = '' }
                 if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
                 if ("$(flagSkipCustomParsers)")           { $scriptParams['SkipParsers']         = $true }
                 if ("$(flagSkipCustomDetections)")       { $scriptParams['SkipDetections']      = $true }
+                if ("$(flagSkipCommunityDetections)")    { $scriptParams['SkipCommunityDetections'] = $true }
                 if ("$(flagSkipCustomWatchlists)")      { $scriptParams['SkipWatchlists']     = $true }
                 if ("$(flagSkipCustomPlaybooks)")       { $scriptParams['SkipPlaybooks']      = $true }
                 if ("$(flagSkipCustomWorkbooks)")       { $scriptParams['SkipWorkbooks']      = $true }
@@ -644,7 +685,7 @@ stages:
             condition: always()
             continueOnError: true
             inputs:
-              targetPath: "$(Build.SourcesDirectory)/.deployment-state.json"
+              targetPath: "$(Build.SourcesDirectory)/deployment-state.json"
               artifactName: "deployment-state"
 
   # =================================================================================
