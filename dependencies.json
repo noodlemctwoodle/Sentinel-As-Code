@@ -3,163 +3,791 @@
   "description": "Dependency graph for Sentinel-As-Code content. The deployment script checks these prerequisites before deploying each item. Internal dependencies (parsers, watchlists in this repo) are deployed first automatically. External dependencies (tables, watchlists not in this repo) are validated via API.",
   "dependencies": {
     "AnalyticalRules/AzureActivity/PotentialTorExitNodeDetected.yaml": {
-      "watchlists": ["TorExitNodes"]
+      "watchlists": [
+        "TorExitNodes"
+      ]
     },
     "AnalyticalRules/AzureActivity/TokenReplayWorkloadIdentityOutsideAzureDetectionRule.yaml": {
-      "tables": ["PrivilegedWorkloadIdentityInfo", "AADManagedIdentitySignInLogs"],
-      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+      "tables": [
+        "PrivilegedWorkloadIdentityInfo",
+        "AADManagedIdentitySignInLogs"
+      ],
+      "externalData": [
+        "https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/01-CSL-Beaconing-Detection.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/02-CSL-DataExfiltration-OutboundVolume.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/03-CSL-ThreatIntelligence-IPMatch.yaml": {
+      "tables": [
+        "CommonSecurityLog",
+        "ThreatIntelligenceIndicator"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/04-CSL-PortScan-Detection.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/05-CSL-HighRiskCountry-Traffic.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/06-CSL-LateralMovement-InternalPortSweep.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/07-CSL-Fortinet-IPSAlerts.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/08-CSL-PaloAlto-ThreatLogs.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/09-CSL-Zscaler-MaliciousCategoryBlocks.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/10-CSL-Zscaler-ShadowIT-FileSharing.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/11-CSL-DNSTunneling-LongHostnames.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/12-CSL-NewFirstSeen-ExternalIP.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/13-CSL-Firewall-AADSignIn-Correlation.yaml": {
+      "tables": [
+        "CommonSecurityLog",
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/14-CSL-Firewall-SecurityAlert-IOCCorrelation.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/15-CSL-ThreatIntelligence-DomainMatch.yaml": {
+      "tables": [
+        "CommonSecurityLog",
+        "ThreatIntelligenceIndicator"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/16-CSL-PaloAlto-ZonePolicyDenies.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/17-CSL-Fortinet-VPN-BruteForce.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/18-CSL-Zscaler-ImpossibleTravel.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/19-CSL-ProtocolAnomaly-NonStandardPorts.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/20-CSL-RiskyIdentity-FirewallTraffic.yaml": {
+      "tables": [
+        "BehaviorAnalytics",
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/21-CSL-Zscaler-DLP-DataUploadViolation.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/22-CSL-Zscaler-ATP-SandboxMaliciousFile.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/23-CSL-Zscaler-MassCloudStorageDownload.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/24-CSL-Zscaler-UncategorizedDomainSpike.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/25-CSL-Zscaler-TunnelProxyBypass.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/26-CSL-Zscaler-OffHours-HighVolumeActivity.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/27-CSL-Zscaler-MultiUser-PhishingCampaign.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/28-CSL-Zscaler-HighThreatRiskLevel-Allowed.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/29-CSL-Zscaler-CategoryShift-Anomaly.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/30-CSL-Zscaler-VisibilityLoss-NoTraffic.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/31-CSL-ZPA-AnomalousGeolocation-Access.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/32-CSL-ZPA-RepeatedConnectionFailures.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/33-CSL-ZPA-FirstTimeAppAccess.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/34-CSL-ZPA-AppVolumeSpike.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/35-CSL-ZIA-LowSlowMultiChannel-Exfiltration.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/36-CSL-ZPA-PerfectImpostor-AccountTakeover.yaml": {
+      "tables": [
+        "CommonSecurityLog"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/CommonSecurityLog/37-CSL-ZIA-ControlEvasion-VisibilityDegradation.yaml": {
+      "tables": [
+        "CommonSecurityLog",
+        "DeviceEvents",
+        "SecurityEvent"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/01-DNS-Tunneling-TXT-HighVolume.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/02-DNS-C2-Beaconing-Periodic.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/03-DNS-ClickFix-Nslookup-Payload.yaml": {
+      "tables": [
+        "SecurityEvent"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/04-DNS-DGA-HighEntropy.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/05-DNS-ZoneTransfer-AXFR.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/06-DNS-Amplification-OpenResolver.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/07-DNS-Rebinding-RapidTTL.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/08-DNS-DataExfil-LongLabels.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/09-DNS-WPAD-Abuse.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/10-DNS-InternalRecon-Sweep.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/11-DNS-Certutil-LOLBin-Chain.yaml": {
+      "tables": [
+        "SecurityEvent"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/12-DNS-NXDOMAIN-DGA-Flood.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/13-DNS-NULL-ANY-Tunneling.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/14-DNS-MX-Payload-Staging.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/15-DNS-SubdomainEnum-BruteForce.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/16-DNS-DNSAdmin-DLLInjection.yaml": {
+      "tables": [
+        "SecurityEvent"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/DNSEvents/17-DNS-ADIDNS-Wildcard-Abuse.yaml": {
+      "tables": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/01-TokenTheft-RefreshTokenReplayNewLocation.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/02-NIAuth-PrivilegedAuditActions.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "AuditLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/03-NIAuth-ThreatIntelligenceFeed.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "ThreatIntelIndicators"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/04-Interactive-ToNIPivotTokenTheft.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/05-DeviceCodeFlow-Abuse.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/06-ROPC-AuthenticationDetected.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/07-TOR-ProxyDetection.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "ThreatIntelIndicators"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/08-BruteForce-SuccessChain.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/09-MFAFatigue-SilentTokenAbuse.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/10-StaleToken-AfterPasswordChange.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "AuditLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/11-AccountTakeover-EmailForwarding.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "OfficeActivity"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/12-PIMAbuse-NonInteractiveAdminAction.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "AuditLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/13-OAuthConsent-ImmediateAbuse.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "AuditLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/14-NIAuth-BulkDataDownload.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "OfficeActivity"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/15-NIAuth-RiskyUsers.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs",
+        "AADRiskyUsers"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/16-PasswordSpray-NonInteractive.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/17-ImpossibleTravel-MultipleCountries.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/18-LegacyAuth-MFABypass.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/19-HighFrequency-TokenRefresh.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/20-NewRogue-OAuthApplication.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/21-ServicePrincipal-AnomalousIPSpread.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/22-HighRiskCountry-SignIn.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/NonInteractiveSigninLogs/23-BruteForce-SingleUserTargeted.yaml": {
+      "tables": [
+        "AADNonInteractiveUserSignInLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/01-SIGNIN-PasswordSpray.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/02-SIGNIN-BruteForceSuccessChain.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/03-SIGNIN-CredentialStuffing.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/04-SIGNIN-ImpossibleTravel.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/05-SIGNIN-LegacyAuthBruteForce.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/06-SIGNIN-PrivilegedAccountAttack.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/07-SIGNIN-NationStateIP.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/08-SIGNIN-AttackerInTheMiddle.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/09-SIGNIN-DistributedCoordinatedAttack.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/10-SIGNIN-MFAFatigue.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/11-SIGNIN-SlowLowPasswordSpray.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/12-SIGNIN-AccountEnumeration.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/13-SIGNIN-ServiceAccountInteractiveLogin.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/14-SIGNIN-PasswordResetThenForeignSignIn.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/15-SIGNIN-OffHoursPrivilegedSignIn.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/16-SIGNIN-ConcurrentMultiCountrySessions.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/17-SIGNIN-DeviceCodePhishing.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/18-SIGNIN-LegacyAuthFirstAppearance.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/19-SIGNIN-HighFrequencyAutomatedSignIns.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/20-SIGNIN-NewCountryPrivilegedAdmin.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/21-SIGNIN-ConditionalAccessBypass.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
+    "AnalyticalRules/Community/Dalonso/SigninLogs/22-SIGNIN-FreshIPMultiAccountAuth.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
     },
     "AnalyticalRules/Custom/ChangeWasMadeToTailscale.yaml": {
-      "tables": ["Tailscale_CL"]
+      "tables": [
+        "Tailscale_CL"
+      ]
     },
     "AnalyticalRules/Custom/PotentialMaliciousDomainRegistrationDetectionRule.yaml": {
-      "tables": ["RegisteredDomains_CL"]
+      "tables": [
+        "RegisteredDomains_CL"
+      ]
     },
     "AnalyticalRules/Custom/SummaryRuleDemoCountry.yaml": {
-      "tables": ["AuthenticationAttemptFromNewCountry_CL"]
-    },
-    "AnalyticalRules/DeviceEvents/SmartScreenPotentialPhishingUrlClicked.yaml": {
-      "tables": ["DeviceEvents"]
-    },
-    "AnalyticalRules/DeviceTvmSoftwareVulnerabilities/VulnerabilityDetectedOnDomainController.yaml": {
-      "tables": ["DeviceTvmSoftwareVulnerabilities"]
+      "tables": [
+        "AuthenticationAttemptFromNewCountry_CL"
+      ]
     },
     "AnalyticalRules/DNS/PotentialExploitationOfCve202449112LdapNightmare.yaml": {
-      "functions": ["ASimDnsActivityLogs"]
+      "functions": [
+        "ASimDnsActivityLogs"
+      ]
+    },
+    "AnalyticalRules/DeviceEvents/SmartScreenPotentialPhishingUrlClicked.yaml": {
+      "tables": [
+        "DeviceEvents"
+      ]
+    },
+    "AnalyticalRules/DeviceTvmSoftwareVulnerabilities/VulnerabilityDetectedOnDomainController.yaml": {
+      "tables": [
+        "DeviceTvmSoftwareVulnerabilities"
+      ]
     },
     "AnalyticalRules/GWorkspace/GoogleDriveUnauthorizedChangesDetectionRule.yaml": {
-      "tables": ["GWorkspace_ReportsAPI_drive_CL"]
+      "tables": [
+        "GWorkspace_ReportsAPI_drive_CL"
+      ]
     },
     "AnalyticalRules/ImpervaAttackAnalytics/ImpervaAttackAnalyticsIncompleteAttackBlockingDetected.yaml": {
-      "tables": ["ImpervaAttackAnalytics"]
+      "tables": [
+        "ImpervaAttackAnalytics"
+      ]
     },
     "AnalyticalRules/Microsoft365/SuspiciousUserWatchlistActivityDetectionRule.yaml": {
-      "watchlists": ["SuspiciousUsers"]
+      "watchlists": [
+        "SuspiciousUsers"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/AuthenticationAttemptNewCountryDetectionRule.yaml": {
-      "functions": ["UnifiedSignInLogs"],
-      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ],
+      "externalData": [
+        "https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/AzureAdServicePrincipalAuthFailureDetectionRule.yaml": {
-      "watchlists": ["socManagedIdentities"]
+      "watchlists": [
+        "socManagedIdentities"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/AzurePortalFailedLoginAttemptsDetectionRule.yaml": {
-      "functions": ["UnifiedSignInLogs"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/BreakGlassAccountAuthenticationDetectionRule.yaml": {
-      "watchlists": ["breakGlassAccounts"]
+      "watchlists": [
+        "breakGlassAccounts"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/BreakGlassAccountMultipleAuthFailuresDetectionRule.yaml": {
-      "watchlists": ["breakGlassAccounts"]
+      "watchlists": [
+        "breakGlassAccounts"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/DisabledAccountSigninAttemptsDetectionRule.yaml": {
-      "watchlists": ["environmentIPs", "confirmedLeavers"]
+      "watchlists": [
+        "environmentIPs",
+        "confirmedLeavers"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/HighPrivilegedAppOwnerAdditionDetectionRule.yaml": {
-      "watchlists": ["HighRiskApps"]
+      "watchlists": [
+        "HighRiskApps"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/HighPrivilegedAppSecretAdditionDetectionRule.yaml": {
-      "watchlists": ["HighRiskApps"]
+      "watchlists": [
+        "HighRiskApps"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/ImpossibleTravelActivityDetectionRule.yaml": {
-      "functions": ["UnifiedSignInLogs"],
-      "watchlists": ["regionalMap"],
-      "externalData": ["https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ],
+      "watchlists": [
+        "regionalMap"
+      ],
+      "externalData": [
+        "https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/PrivilegedAccountAuthMethodsChangeDetectionRule.yaml": {
-      "watchlists": ["environmentIPs"]
+      "watchlists": [
+        "environmentIPs"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/SuccessfulLogonDifferentIpFailureDetectionRule.yaml": {
-      "tables": ["IdentityLogonEvents"]
+      "tables": [
+        "IdentityLogonEvents"
+      ]
     },
     "AnalyticalRules/MicrosoftEntraID/TokenTheftDetectionUnboundSessionsOnUnmanagedDevices.yaml": {
-      "functions": ["UnifiedSignInLogs"],
-      "watchlists": ["EntraRiskyUsers"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ],
+      "watchlists": [
+        "EntraRiskyUsers"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/AzureApplicationAndServicePrincipalReconnaissanceViaPowershell.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/AzurehoundActivityDetectedDetectionRule.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/AzurehoundReconnaissanceDetectedDetectionRule.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/CrossOriginDeviceCodeFlowAuthenticationAnomaly.yaml": {
-      "functions": ["UnifiedSignInLogs"],
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ],
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/GraphrunnerReconnaissanceDetectedDetectionRule.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/InvokeDumpappsPowershellModuleUsageDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/MaliciousOauthAppRegistrationDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/PrivilegeEscalationAttemptViaRoleManagementAndGroupAccessEstimation.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/PrivilegedUserSecurityGroupEnumerationViaPowershell.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/PurpleknightReconnaissanceDetectedDetectionRule.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/MicrosoftGraphActivityLogs/SecurityGroupCloningDetectionViaPowershell.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "AnalyticalRules/SecurityEvent/NonDomainControllerAdReplicationDetectionRule.yaml": {
-      "watchlists": ["knownDCAccounts"]
+      "watchlists": [
+        "knownDCAccounts"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/ApplicationAndServicePrincipalReconnaissance.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/MicrosoftGraphSecurityGroupReconnaissance.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/OauthApplicationAbuse.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellAppEnumerationBlastRadiusDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellAppRegistrationEnumerationDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellGraphReconTenantEnumerationDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellMaliciousOauthAppInjectionDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellOauthAppInjectionBlastRadiusDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellSecurityGroupCloningBlastRadiusDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellSecurityGroupCloningDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellUpdatableGroupsPermissionEnumerationDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PrivilegedRoleManagementActivities.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PrivilegedRoleManagementActivitiesBlastRadiusDetection.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/SecurityGroupCloning.yaml": {
-      "tables": ["MicrosoftGraphActivityLogs"]
+      "tables": [
+        "MicrosoftGraphActivityLogs"
+      ]
     },
     "HuntingQueries/UnifiedSignInLogs/CrossOriginDeviceCodeFlowDetection.yaml": {
-      "functions": ["UnifiedSignInLogs"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ]
     },
     "HuntingQueries/UnifiedSignInLogs/DeviceCodePhishingCorrelationDetection.yaml": {
-      "functions": ["UnifiedSignInLogs"]
+      "functions": [
+        "UnifiedSignInLogs"
+      ]
     }
   }
 }
