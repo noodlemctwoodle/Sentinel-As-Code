@@ -67,6 +67,17 @@ resource sentinel 'Microsoft.OperationsManagement/solutions@2015-11-01-preview' 
 }
 
 // -----------------------------------------------------------------------
+// Sentinel Onboarding State (required by newer API versions)
+// -----------------------------------------------------------------------
+
+resource onboardingState 'Microsoft.SecurityInsights/onboardingStates@2024-09-01' = {
+  name: 'default'
+  scope: logAnalyticsWorkspace
+  properties: {}
+  dependsOn: [sentinel]
+}
+
+// -----------------------------------------------------------------------
 // Diagnostic Settings
 // -----------------------------------------------------------------------
 

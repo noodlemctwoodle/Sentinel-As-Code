@@ -32,6 +32,9 @@ param retentionInDays int = 90
 @maxValue(2555)
 param totalRetentionInDays int = 0
 
+@description('Optional separate Resource Group for playbooks/Logic Apps. If empty, playbooks deploy to the main RG.')
+param playbookRgName string = ''
+
 @description('Resource tags applied to all resources.')
 param tags object = {}
 
@@ -41,6 +44,16 @@ param tags object = {}
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-07-01' = {
   name: rgName
+  location: rgLocation
+  tags: tags
+}
+
+// -----------------------------------------------------------------------
+// Playbook Resource Group (optional)
+// -----------------------------------------------------------------------
+
+resource playbookRg 'Microsoft.Resources/resourceGroups@2024-07-01' = if (!empty(playbookRgName) && playbookRgName != rgName) {
+  name: playbookRgName
   location: rgLocation
   tags: tags
 }
