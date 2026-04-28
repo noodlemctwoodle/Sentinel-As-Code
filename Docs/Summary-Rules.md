@@ -4,6 +4,8 @@
 
 Summary rules are an Azure Monitor (Log Analytics) feature that execute scheduled batch KQL queries and write aggregated results into a custom `_CL` destination table. They run automatically on a fixed time cadence called a **bin**, processing all data that arrived within each bin's time window.
 
+Source files live under [`SummaryRules/`](../SummaryRules/).
+
 ### Why Use Summary Rules?
 
 **Cost reduction** — Verbose tables ingested into Basic or Auxiliary tier (e.g. `SigninLogs`, `AuditLogs`, `CommonSecurityLog`) can be pre-aggregated into small Analytics-tier custom tables. Downstream queries, workbooks, and analytics rules then hit the cheap summary table instead of the expensive source.
@@ -30,7 +32,6 @@ JSON files can be placed directly in `SummaryRules/` or organised into subfolder
 
 ```
 SummaryRules/
-├── README.md
 ├── SignInSummaryByCountry.json
 ├── SecurityAlertSummary.json
 ├── Identity/
@@ -155,7 +156,7 @@ The following columns are automatically appended to every row written to the des
 
 ## Prerequisites
 
-The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`.
+The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](Pipelines.md) for end-to-end pipeline RBAC.
 
 ---
 

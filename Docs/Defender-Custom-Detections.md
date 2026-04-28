@@ -1,18 +1,17 @@
 # Defender XDR Custom Detection Rules
 
-Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API.
+Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`DefenderCustomDetections/`](../DefenderCustomDetections/).
 
 ## Overview
 
 These rules run Advanced Hunting (KQL) queries on a schedule in the Defender XDR portal. They can trigger alerts and take automated response actions such as isolating devices, disabling users, or collecting investigation packages.
 
-> **Important**: Defender custom detections use the **Advanced Hunting** KQL schema (e.g. `DeviceProcessEvents`, `IdentityLogonEvents`), which is different from the **Log Analytics** schema used by Sentinel analytics rules.
+> **Important**: Defender custom detections use the **Advanced Hunting** KQL schema (e.g. `DeviceProcessEvents`, `IdentityLogonEvents`), which is different from the **Log Analytics** schema used by Sentinel analytics rules. For Sentinel analytics rules, see [Analytical Rules](Analytical-Rules.md).
 
 ## Folder Structure
 
 ```
 DefenderCustomDetections/
-  README.md                     # This file
   <RuleName>.yaml               # One YAML file per detection rule
 ```
 
@@ -256,11 +255,15 @@ The service principal used by the pipeline requires:
 |------------|------|-------------|
 | `CustomDetection.ReadWrite.All` | Application | Create, read, update, and delete custom detections |
 
-Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**.
+Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Scripts/Setup-ServicePrincipal.ps1`](../Scripts/Setup-ServicePrincipal.ps1) handles this — see [Scripts](Scripts.md#setup-serviceprincipalps1).
 
 ### Authentication
 
 The pipeline acquires a Graph API token separately from the ARM token used for Sentinel operations. The service principal must be granted the Graph permission above and admin consent must be provided.
+
+## Deployment
+
+Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../Scripts/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](Pipelines.md).
 
 ## API Reference
 

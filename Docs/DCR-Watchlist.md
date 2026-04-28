@@ -2,6 +2,8 @@
 
 Automatically inventories all Data Collection Rule (DCR) associations in a subscription and syncs them to a Microsoft Sentinel watchlist. Designed for billing, audit, and operational visibility.
 
+Source files live under [`Automation/DCR-Watchlist/`](../Automation/DCR-Watchlist/).
+
 ## What It Does
 
 1. **Lists all DCRs** in the subscription via the ARM REST API
@@ -47,6 +49,8 @@ Each row represents a single DCR:
 | `LastUpdatedUtc` | Last sync timestamp |
 | `Status` | `Active` or `Inactive` (DCR no longer has associations) |
 
+For general watchlist authoring conventions, see [Watchlists](Watchlists.md).
+
 ## Billing Logic
 
 The watchlist is designed for billing where **removed servers must still be billed for the time they were active**:
@@ -88,14 +92,14 @@ _GetWatchlist('CustomerResources')
 | **Azure subscription** | Target subscription containing DCRs |
 | **Sentinel workspace** | Log Analytics workspace with Sentinel enabled |
 | **Azure DevOps** | Service connection with **Contributor** on the subscription |
-| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` |
+| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](Pipelines.md)) |
 | **Manual RBAC** | One-time post-deployment (see below) |
 
 ## Deployment
 
 ### 1. Run the Pipeline
 
-The pipeline is at `Pipelines/DCR-Watchlist-Deploy.yml` and triggers on changes to `Automation/DCR-Watchlist/**`.
+The pipeline is at [`Pipelines/DCR-Watchlist-Deploy.yml`](../Pipelines/DCR-Watchlist-Deploy.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
 
 It has two stages:
 
@@ -119,10 +123,10 @@ Pipeline parameters:
 
 ### 2. Apply RBAC (One-Time, Manual)
 
-The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run `Set-RunbookPermissions.ps1`:
+The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1`](../Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1):
 
 ```powershell
-.\Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'
+./Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'
 ```
 
 This assigns:
@@ -135,7 +139,7 @@ This assigns:
 To remove the permissions:
 
 ```powershell
-.\Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>' -Remove
+./Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>' -Remove
 ```
 
 ### 3. Verify
@@ -153,10 +157,9 @@ Automation/DCR-Watchlist/
 ├── main.bicep                         # Subscription-scoped Bicep orchestrator
 ├── modules/
 │   └── automationAccount.bicep        # Automation Account, schedule, runbook shell
-├── scripts/
-│   ├── Invoke-DCRWatchlistSync.ps1    # Runbook — DCR enumeration and watchlist sync
-│   └── Set-RunbookPermissions.ps1     # Post-deployment RBAC assignment script
-└── README.md                          # This file
+└── scripts/
+    ├── Invoke-DCRWatchlistSync.ps1    # Runbook — DCR enumeration and watchlist sync
+    └── Set-RunbookPermissions.ps1     # Post-deployment RBAC assignment script
 
 Pipelines/
 └── DCR-Watchlist-Deploy.yml           # Azure DevOps pipeline

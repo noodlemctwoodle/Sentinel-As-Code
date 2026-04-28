@@ -6,15 +6,16 @@ Automation rules run automatically when incidents or alerts are created or updat
 
 Rules are evaluated in order (ascending by the `order` field). The first matching rule runs; subsequent rules may also run unless a terminal action (such as closing the incident) stops further evaluation.
 
+Source files live under [`AutomationRules/`](../AutomationRules/).
+
 ---
 
 ## Folder Structure
 
-Each automation rule is stored as a single JSON file. Files can be placed directly in this folder or organised into subfolders by function or environment:
+Each automation rule is stored as a single JSON file. Files can be placed directly in the folder or organised into subfolders by function or environment:
 
 ```
 AutomationRules/
-├── README.md
 ├── AutoCloseInformational.json
 ├── AddTaskOnHighSeverity.json
 ├── Triage/
@@ -23,7 +24,7 @@ AutomationRules/
     └── RunEnrichmentPlaybook.json
 ```
 
-The deployment script (`Scripts/Deploy-CustomContent.ps1`) discovers all `*.json` files recursively under this directory and deploys each one via the REST API.
+The deployment script ([`Scripts/Deploy-CustomContent.ps1`](../Scripts/Deploy-CustomContent.ps1)) discovers all `*.json` files recursively under this directory and deploys each one via the REST API.
 
 ---
 
@@ -213,7 +214,7 @@ Modifies one or more properties of the incident. All fields within `actionConfig
 
 #### `RunPlaybook`
 
-Triggers a Logic App playbook. The playbook must be accessible from the Sentinel workspace and have the Sentinel trigger configured.
+Triggers a Logic App playbook. The playbook must be accessible from the Sentinel workspace and have the Sentinel trigger configured. See [Playbooks](Playbooks.md) for playbook authoring conventions.
 
 ```json
 {
@@ -261,11 +262,11 @@ Adds a structured task to the incident's task list, visible under the incident's
 
 ### Close all informational incidents on creation
 
-See [AutoCloseInformational.json](AutoCloseInformational.json).
+See [`AutomationRules/AutoCloseInformational.json`](../AutomationRules/AutoCloseInformational.json).
 
 ### Add an investigation task to high severity incidents
 
-See [AddTaskOnHighSeverity.json](AddTaskOnHighSeverity.json).
+See [`AutomationRules/AddTaskOnHighSeverity.json`](../AutomationRules/AddTaskOnHighSeverity.json).
 
 ### Assign owner when severity is changed to High (update trigger)
 
@@ -322,7 +323,7 @@ $rule = Invoke-AzRestMethod -Method GET `
 ($rule.Content | ConvertFrom-Json).properties | ConvertTo-Json -Depth 10
 ```
 
-5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in this directory.
+5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`AutomationRules/`](../AutomationRules/).
 
 ---
 
@@ -335,4 +336,4 @@ The identity running the deployment pipeline requires the following role assignm
 | **Microsoft Sentinel Contributor** | Resource group or workspace | Create and update automation rules |
 | **Microsoft Sentinel Playbook Operator** | Logic App resource(s) | Required only for `RunPlaybook` actions |
 
-These roles should be assigned to the service principal or managed identity configured in the pipeline. See the top-level [`README.md`](../README.md) for pipeline configuration details.
+These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](Pipelines.md) for pipeline configuration details and [Scripts](Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
