@@ -1,0 +1,47 @@
+displayName: Email with malicious attachment delivered to mailbox
+isEnabled: true
+queryCondition:
+  queryText: |
+    EmailAttachmentInfo
+    | where Timestamp > ago(1h)
+    | where ThreatTypes has "Malware"
+    | join kind=inner (
+        EmailEvents
+        | where Timestamp > ago(2h)
+        | where DeliveryAction == "Delivered"
+        | project NetworkMessageId, SenderFromAddress, Subject,
+                  RecipientEmailAddress, RecipientObjectId
+    ) on NetworkMessageId
+    | project Timestamp, ReportId, NetworkMessageId,
+              SenderFromAddress, Subject, RecipientEmailAddress, RecipientObjectId,
+              FileName, FileType, SHA256, ThreatTypes, ThreatNames
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Email with malicious attachment delivered to mailbox"
+    description: |
+      An email containing an attachment classified as malware was successfully
+      delivered to a user mailbox. The attachment may contain ransomware,
+      trojans, or other malicious payloads. Immediate remediation is required
+      to prevent execution.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1566.001
+    recommendedActions: |
+      1. Purge the email from all recipient mailboxes immediately.
+      2. Check if the attachment was opened or executed by any recipient.
+      3. Review the file hash against threat intelligence feeds.
+      4. Block the sender domain if confirmed malicious.
+      5. Scan recipient devices for indicators of compromise.
+      6. Review mail flow rules for delivery bypass conditions.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedMailboxAsset"
+        identifier: recipientEmailAddress
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.hardDeleteResponseAction"
+      identifier: "networkMessageId, recipientEmailAddress"
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: recipientObjectId

@@ -1,0 +1,45 @@
+displayName: Suspicious DLL sideloading from writable directory
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceImageLoadEvents
+    | where Timestamp > ago(1h)
+    | where FolderPath startswith "C:\\Users\\"
+        or FolderPath startswith "C:\\ProgramData\\"
+        or FolderPath startswith "C:\\Windows\\Temp\\"
+    | where InitiatingProcessFileName in~ ("msbuild.exe", "csc.exe", "regsvr32.exe",
+        "mshta.exe", "presentationhost.exe", "dfsvc.exe", "xwizard.exe")
+    | where FileName !endswith ".mui"
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              FileName, FolderPath, SHA1,
+              InitiatingProcessFileName, InitiatingProcessFolderPath,
+              InitiatingProcessCommandLine, InitiatingProcessSHA1,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Suspicious DLL sideloading from writable directory"
+    description: |
+      A signed Microsoft binary loaded a DLL from a user-writable directory.
+      This technique allows attackers to execute malicious code by placing a
+      crafted DLL in a location searched before the legitimate system path.
+    severity: medium
+    category: DefenseEvasion
+    mitreTechniques:
+      - T1574.002
+    recommendedActions: |
+      1. Review the loaded DLL path and verify it is not a legitimate application dependency.
+      2. Check the DLL hash against threat intelligence and VirusTotal.
+      3. Examine the initiating process for signs of abuse (unusual parent, command line).
+      4. Review recent file creation events in the same directory.
+      5. If confirmed malicious, isolate the device and remove the DLL.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId

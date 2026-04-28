@@ -1,0 +1,39 @@
+displayName: Guest user granted privileged role or group membership
+isEnabled: true
+queryCondition:
+  queryText: |
+    AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName has_any ("Add member to role", "Add member to group")
+    | extend TargetUpn = tostring(TargetResources[0].userPrincipalName)
+    | where TargetUpn contains "#EXT#"
+    | extend AccountUpn = tostring(InitiatedBy.user.userPrincipalName)
+    | extend AccountObjectId = tostring(InitiatedBy.user.id)
+    | extend TargetObjectId = tostring(TargetResources[0].id)
+    | extend RoleOrGroup = tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[1].newValue)
+    | project TimeGenerated, AccountUpn, AccountObjectId,
+              TargetUpn, TargetObjectId, RoleOrGroup,
+              OperationName, CorrelationId
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Guest user granted privileged role or group membership"
+    description: |
+      An external guest account (B2B collaboration) was added to a directory
+      role or group. Guest accounts with elevated permissions can access
+      internal resources beyond their intended collaboration scope.
+    severity: medium
+    category: PrivilegeEscalation
+    mitreTechniques:
+      - T1098.001
+    recommendedActions: |
+      1. Review the role or group the guest was added to.
+      2. Verify the assignment was approved through access governance.
+      3. Check if the guest account is still needed for collaboration.
+      4. If unauthorised, remove the assignment and review the guest account.
+      5. Audit all guest accounts with elevated permissions across the tenant.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId

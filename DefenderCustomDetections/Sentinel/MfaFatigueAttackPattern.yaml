@@ -1,0 +1,44 @@
+displayName: MFA fatigue attack with repeated push notifications
+isEnabled: true
+queryCondition:
+  queryText: |
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType == 500121
+    | extend AccountObjectId = UserId
+    | extend AccountUpn = UserPrincipalName
+    | summarize MfaDeniedCount = count(),
+        TimeGenerated = max(TimeGenerated),
+        IPAddresses = make_set(IPAddress, 5)
+        by AccountObjectId, AccountUpn
+    | where MfaDeniedCount > 5
+    | project TimeGenerated, AccountObjectId, AccountUpn,
+              MfaDeniedCount, IPAddresses
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "MFA fatigue attack with repeated push notifications"
+    description: |
+      A user account received more than 5 MFA denial responses within one hour.
+      This pattern indicates an MFA fatigue or push bombing attack where an
+      attacker with valid credentials repeatedly triggers MFA prompts hoping
+      the user will approve one to stop the notifications.
+    severity: high
+    category: CredentialAccess
+    mitreTechniques:
+      - T1621
+    recommendedActions: |
+      1. Contact the user to verify if they received unexpected MFA prompts.
+      2. If the user approved any prompt, revoke all sessions immediately.
+      3. Force password reset for the account.
+      4. Review sign-in logs for any successful authentication from unusual locations.
+      5. Enable number matching MFA to mitigate fatigue attacks.
+      6. Block the source IPs at Conditional Access if identified as malicious.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

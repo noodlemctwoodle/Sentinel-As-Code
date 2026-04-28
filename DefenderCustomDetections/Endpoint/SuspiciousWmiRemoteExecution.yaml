@@ -1,0 +1,43 @@
+displayName: Suspicious WMI remote process execution
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceProcessEvents
+    | where Timestamp > ago(1h)
+    | where InitiatingProcessFileName == "WmiPrvSE.exe"
+    | where FileName in~ ("powershell.exe", "pwsh.exe", "cmd.exe",
+        "mshta.exe", "rundll32.exe", "regsvr32.exe", "cscript.exe", "wscript.exe")
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              FileName, ProcessCommandLine, FolderPath,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
+              InitiatingProcessSHA1
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Suspicious WMI remote process execution"
+    description: |
+      WmiPrvSE.exe spawned a script interpreter or proxy execution binary.
+      This pattern is consistent with remote code execution via WMI, commonly
+      used for lateral movement after obtaining valid credentials.
+    severity: high
+    category: LateralMovement
+    mitreTechniques:
+      - T1047
+    recommendedActions: |
+      1. Identify the source machine that initiated the WMI call.
+      2. Review the spawned process command line for malicious payloads.
+      3. Check the account used for WMI execution for signs of compromise.
+      4. Review logon events on the device for the timeframe.
+      5. If unauthorised, isolate both source and destination devices.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
+      identifier: deviceId
+      isolationType: selective
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId

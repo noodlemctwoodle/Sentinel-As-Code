@@ -1,0 +1,35 @@
+displayName: Windows Security event log cleared
+isEnabled: true
+queryCondition:
+  queryText: |
+    SecurityEvent
+    | where TimeGenerated > ago(1h)
+    | where EventID == 1102
+    | extend AccountName = SubjectUserName
+    | extend AccountDomain = SubjectDomainName
+    | extend AccountSid = SubjectUserSid
+    | project TimeGenerated, Computer, EventID, AccountName,
+              AccountDomain, AccountSid, Activity
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Windows Security event log cleared"
+    description: |
+      The Windows Security event log was cleared on a system. Attackers commonly
+      clear event logs to remove evidence of their activities after gaining access
+      to a system. Event ID 1102 indicates the audit log was explicitly cleared.
+    severity: high
+    category: DefenseEvasion
+    mitreTechniques:
+      - T1070.001
+    recommendedActions: |
+      1. Identify who cleared the log and verify if it was an authorised action.
+      2. Review any available backup logs or SIEM data for the time period.
+      3. Check the system for other indicators of compromise.
+      4. Review the account that cleared the logs for signs of compromise.
+      5. If unauthorised, isolate the system and initiate incident response.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountSid

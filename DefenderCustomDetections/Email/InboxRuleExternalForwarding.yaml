@@ -1,0 +1,42 @@
+displayName: Inbox rule created to forward email externally
+isEnabled: true
+queryCondition:
+  queryText: |
+    CloudAppEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "New-InboxRule"
+    | where RawEventData has_any ("ForwardTo", "ForwardAsAttachmentTo", "RedirectTo")
+    | extend ForwardTarget = tostring(RawEventData.Parameters[2].Value)
+    | where ForwardTarget !endswith "yourdomain.com"
+    | where ForwardTarget contains "@"
+    | project Timestamp, ReportId,
+              AccountObjectId, AccountDisplayName,
+              IPAddress, ForwardTarget, ActionType,
+              RawEventData
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Inbox rule created to forward email externally"
+    description: |
+      A mailbox inbox rule was created that forwards or redirects email to an
+      external address. Attackers commonly create forwarding rules after
+      compromising a mailbox to exfiltrate email without the user's knowledge.
+    severity: high
+    category: Collection
+    mitreTechniques:
+      - T1114.003
+    recommendedActions: |
+      1. Review the inbox rule details and the external forwarding address.
+      2. Check if the account owner created the rule intentionally.
+      3. If unauthorised, delete the rule immediately.
+      4. Review the account sign-in logs for compromise indicators.
+      5. Force password reset and revoke active sessions.
+      6. Check for other mailbox rules or delegate permissions added.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

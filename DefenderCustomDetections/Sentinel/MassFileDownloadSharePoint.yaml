@@ -1,0 +1,43 @@
+displayName: Mass file download from SharePoint or OneDrive
+isEnabled: true
+queryCondition:
+  queryText: |
+    OfficeActivity
+    | where TimeGenerated > ago(1h)
+    | where OfficeWorkload in ("SharePoint", "OneDrive")
+    | where Operation in ("FileDownloaded", "FileSyncDownloadedFull")
+    | extend AccountUpn = UserId
+    | summarize DownloadCount = count(),
+        DistinctFiles = dcount(OfficeObjectId),
+        DistinctSites = dcount(Site_Url),
+        TimeGenerated = max(TimeGenerated)
+        by AccountUpn, ClientIP
+    | where DownloadCount > 50
+    | where DistinctFiles > 30
+    | project TimeGenerated, AccountUpn, ClientIP,
+              DownloadCount, DistinctFiles, DistinctSites
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Mass file download from SharePoint or OneDrive"
+    description: |
+      A user account downloaded more than 50 files from SharePoint or OneDrive
+      within one hour, spanning more than 30 distinct files. This volume of
+      downloads may indicate data exfiltration or a compromised account
+      harvesting organisational documents.
+    severity: medium
+    category: Exfiltration
+    mitreTechniques:
+      - T1530
+    recommendedActions: |
+      1. Verify with the user whether the downloads were business-related.
+      2. Review the types of files downloaded for sensitivity classification.
+      3. Check the source IP and device for anomalies.
+      4. If unauthorised, revoke sessions and force password reset.
+      5. Review DLP policies for SharePoint and OneDrive coverage gaps.
+      6. Check for external sharing or forwarding activity from the same account.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountUpn

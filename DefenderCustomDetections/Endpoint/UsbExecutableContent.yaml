@@ -1,0 +1,51 @@
+displayName: Executable file run from USB removable media
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceProcessEvents
+    | where Timestamp > ago(1h)
+    | where FolderPath matches regex @"^[D-Z]:\\\\"
+    | where FolderPath !startswith "C:\\"
+    | where FileName endswith ".exe" or FileName endswith ".scr"
+        or FileName endswith ".bat" or FileName endswith ".cmd"
+        or FileName endswith ".vbs" or FileName endswith ".js"
+    | join kind=leftsemi (
+        DeviceEvents
+        | where Timestamp > ago(2h)
+        | where ActionType == "PnpDeviceConnected"
+        | where AdditionalFields has "RemovableMedia"
+        | project DeviceId
+    ) on DeviceId
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              FileName, FolderPath, ProcessCommandLine,
+              SHA1, SHA256,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Executable file run from USB removable media"
+    description: |
+      An executable or script file was launched from a removable USB device.
+      USB-based attacks remain a common initial access vector, particularly
+      in air-gapped or restricted environments.
+    severity: medium
+    category: InitialAccess
+    mitreTechniques:
+      - T1091
+    recommendedActions: |
+      1. Identify the USB device and the user who connected it.
+      2. Review the executable hash against threat intelligence.
+      3. Check device control policies for USB enforcement gaps.
+      4. Scan the device for additional indicators of compromise.
+      5. If suspicious, quarantine the device and image the USB media.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId

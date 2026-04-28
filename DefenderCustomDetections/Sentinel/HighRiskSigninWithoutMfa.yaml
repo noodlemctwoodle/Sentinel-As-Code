@@ -1,0 +1,44 @@
+displayName: High risk sign-in succeeded without MFA challenge
+isEnabled: true
+queryCondition:
+  queryText: |
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType == 0
+    | where RiskLevelDuringSignIn in ("high", "medium")
+    | where AuthenticationRequirement == "singleFactorAuthentication"
+    | where AppDisplayName != "Windows Sign In"
+    | extend AccountObjectId = UserId
+    | extend AccountUpn = UserPrincipalName
+    | project TimeGenerated, AccountUpn, AccountObjectId, IPAddress,
+              AppDisplayName, RiskLevelDuringSignIn, RiskState,
+              AuthenticationRequirement, ConditionalAccessStatus,
+              LocationDetails, DeviceDetail
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "High risk sign-in succeeded without MFA challenge"
+    description: |
+      A sign-in flagged as medium or high risk by Entra ID Identity Protection
+      succeeded using single-factor authentication only. This indicates either
+      a gap in Conditional Access policies or a policy exclusion that allowed
+      a risky sign-in without MFA enforcement.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1078.004
+    recommendedActions: |
+      1. Review the sign-in details including location and device.
+      2. Verify whether MFA is enforced by Conditional Access for this user/app.
+      3. Check for Conditional Access exclusions that may have bypassed MFA.
+      4. Review the risk detection that flagged this sign-in.
+      5. If suspicious, revoke the user session and force MFA re-registration.
+      6. Audit Conditional Access policies for coverage gaps.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
+      identifier: accountObjectId

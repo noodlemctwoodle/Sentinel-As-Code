@@ -1,0 +1,41 @@
+displayName: Conditional Access policy modified outside change window
+isEnabled: true
+queryCondition:
+  queryText: |
+    AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName has_any ("Update conditional access policy",
+        "Delete conditional access policy",
+        "Add conditional access policy")
+    | where TimeGenerated !between (datetime(06:00) .. datetime(10:00))
+    | extend AccountUpn = tostring(InitiatedBy.user.userPrincipalName)
+    | extend AccountObjectId = tostring(InitiatedBy.user.id)
+    | extend InitiatedByIp = tostring(InitiatedBy.user.ipAddress)
+    | extend TargetPolicy = tostring(TargetResources[0].displayName)
+    | extend ModifiedProperties = tostring(TargetResources[0].modifiedProperties)
+    | project TimeGenerated, OperationName, AccountUpn, AccountObjectId,
+              InitiatedByIp, TargetPolicy, ModifiedProperties, CorrelationId
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Conditional Access policy modified outside change window"
+    description: |
+      A Conditional Access policy was created, modified, or deleted outside the
+      approved change window (06:00-10:00 UTC). Unauthorised changes to CA policies
+      can weaken security posture by removing MFA requirements, location restrictions,
+      or device compliance controls.
+    severity: high
+    category: DefenseEvasion
+    mitreTechniques:
+      - T1562.001
+    recommendedActions: |
+      1. Verify the change was authorised through the change management process.
+      2. Review the specific modifications made to the policy.
+      3. Check if the initiating account shows signs of compromise.
+      4. If unauthorised, revert the policy change immediately.
+      5. Review sign-in logs for the initiating account around the time of change.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountUpn

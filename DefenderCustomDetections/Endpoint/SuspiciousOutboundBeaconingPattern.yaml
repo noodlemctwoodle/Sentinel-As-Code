@@ -1,0 +1,61 @@
+displayName: Suspicious outbound beaconing pattern detected
+isEnabled: true
+queryCondition:
+  queryText: |
+    DeviceNetworkEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "ConnectionSuccess"
+    | where RemoteIPType == "Public"
+    | where RemotePort in (443, 8443, 8080, 4443)
+    | where InitiatingProcessFileName !in~ ("chrome.exe", "msedge.exe", "firefox.exe",
+        "teams.exe", "outlook.exe", "OneDrive.exe", "svchost.exe")
+    | summarize (Timestamp, ReportId) = arg_max(Timestamp, ReportId),
+        ConnectionCount = count(),
+        DistinctUrls = dcount(RemoteUrl),
+        FirstSeen = min(Timestamp),
+        LastSeen = max(Timestamp)
+        by DeviceId, DeviceName,
+           RemoteIP, RemotePort, InitiatingProcessFileName,
+           InitiatingProcessCommandLine, InitiatingProcessSHA1,
+           InitiatingProcessAccountUpn, InitiatingProcessAccountSid
+    | where ConnectionCount > 20
+    | where DistinctUrls <= 3
+    | extend BeaconDurationMinutes = datetime_diff("minute", LastSeen, FirstSeen)
+    | where BeaconDurationMinutes > 10
+    | project Timestamp, DeviceId, DeviceName, ReportId,
+              RemoteIP, RemotePort, InitiatingProcessFileName,
+              InitiatingProcessCommandLine, InitiatingProcessSHA1,
+              InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
+              ConnectionCount, DistinctUrls, BeaconDurationMinutes
+  lastModifiedDateTime: "2026-03-23T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Suspicious outbound beaconing pattern detected"
+    description: |
+      A non-browser process on an endpoint is making repeated outbound connections
+      to a small number of external destinations. This pattern is consistent with
+      command and control beaconing behaviour where malware periodically checks in
+      with an attacker-controlled server.
+    severity: medium
+    category: CommandAndControl
+    mitreTechniques:
+      - T1071.001
+      - T1573
+    recommendedActions: |
+      1. Identify the initiating process and verify if it is legitimate software.
+      2. Check the remote IP against threat intelligence and reputation services.
+      3. Review the process command line for suspicious arguments.
+      4. Examine network traffic patterns for regularity (fixed intervals).
+      5. If confirmed malicious, isolate the device and block the remote IP.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
+        identifier: deviceId
+  responseActions:
+    - "@odata.type": "#microsoft.graph.security.restrictAppExecutionResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
+      identifier: deviceId
+    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
+      identifier: deviceId
