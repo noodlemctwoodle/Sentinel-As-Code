@@ -175,7 +175,9 @@ function Get-PlaybookRequiredRoles {
     }
 
     if ($needsContributor -and $roles.ContainsKey("Microsoft Sentinel Responder")) {
-        $roles.Remove("Microsoft Sentinel Responder")
+        # Cast Remove() output to [void] — Dictionary.Remove returns a Boolean
+        # that would otherwise leak into the function's pipeline output.
+        [void]$roles.Remove("Microsoft Sentinel Responder")
         $roles["Microsoft Sentinel Contributor"] = "rg"
     }
     elseif ($needsContributor) {
