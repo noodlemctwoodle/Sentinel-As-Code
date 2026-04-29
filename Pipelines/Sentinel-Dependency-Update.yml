@@ -1,0 +1,225 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Daily Dependency Manifest Auto-PR
+# ---------------------------------------------------------------------------
+# Equivalent of .github/workflows/sentinel-dependency-update.yml.
+#
+# Runs Scripts/Build-DependencyManifest.ps1 -Mode Update against the
+# current main branch. If the regenerated dependencies.json diverges from
+# the on-disk version, pushes the regenerated file to a rolling auto-sync
+# branch and opens (or refreshes) a PR for review.
+#
+# Why daily not on-merge:
+#   The PR-validation gate (job: dependency-manifest in
+#   Sentinel-PR-Validation.yml) prevents a PR from merging without a fresh
+#   manifest. This pipeline catches the long-tail edge cases the gate's
+#   path filter misses — doc-only commits that adjust a rule's query
+#   inline, fork merges through the ADO UI that bypassed the filter, etc.
+#
+# Behaviour:
+#   - No drift     -> no commit, no PR. Pipeline exits 0 quietly.
+#   - Drift found  -> push the regenerated manifest to the auto-sync
+#                     branch and open / refresh a PR titled
+#                     "chore(deps): refresh dependency manifest".
+#
+# Runs daily at 02:00 UTC. Scheduled to complete before
+# Sentinel-Drift-Detect.yml (06:00) and before Sentinel-Deploy.yml's
+# weekly Monday cron (04:00) so a fresh manifest is in place.
+#
+# No Azure auth required — discovery is fully offline (YAML parse only).
+# That makes this pipeline cheaper and more reliable than the drift
+# detection one; no service-principal permissions needed.
+#
+# Prerequisites:
+#   - 'Project Collection Build Service ($org)' identity granted
+#     'Contribute', 'Create branch', and 'Contribute to pull requests' on
+#     the repo (same identity already configured for
+#     Sentinel-Drift-Detect.yml's auto-PR mechanism).
+# ---------------------------------------------------------------------------
+
+trigger: none
+
+schedules:
+  - cron: "0 2 * * *"
+    displayName: "Daily 02:00 UTC"
+    branches:
+      include:
+        - main
+    always: true
+
+parameters:
+  - name: reportOnly
+    displayName: "Report Only — show drift but do not commit / open a PR"
+    type: boolean
+    default: false
+
+variables:
+  - name: syncBranch
+    value: "auto/dependency-manifest-sync"
+  - name: targetBranch
+    value: "main"
+
+  - name: flagReportOnly
+    ${{ if eq(parameters.reportOnly, true) }}:
+      value: "true"
+    ${{ else }}:
+      value: "false"
+
+stages:
+  - stage: RefreshDependencyManifest
+    displayName: "Refresh Dependency Manifest"
+    jobs:
+      - job: RunUpdate
+        displayName: "Discover, Update, and Open PR"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 10
+        steps:
+          # persistCredentials exposes System.AccessToken to git so we can
+          # push back to the repo on the same checkout.
+          - checkout: self
+            persistCredentials: true
+
+          - task: PowerShell@2
+            displayName: "Install powershell-yaml Module"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $needsYaml = -not (Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -ge [version]'0.4.12' })
+                if ($needsYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '0.4.12' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+
+          - task: PowerShell@2
+            displayName: "Run dependency-manifest update"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                # -Mode Update writes the regenerated manifest to disk on
+                # drift and exits 0; the pipeline owns commit + push + PR.
+                # On no drift it leaves the file untouched and exits 0.
+                & "$(Build.SourcesDirectory)/Scripts/Build-DependencyManifest.ps1" `
+                    -Mode Update `
+                    -RepoPath "$(Build.SourcesDirectory)"
+
+          # Commit + push + PR. Skipped when -reportOnly is true (the run
+          # log already shows the diff) or when the working tree is clean.
+          - bash: |
+              set -euo pipefail
+              cd "$(Build.SourcesDirectory)"
+
+              if [ "$(flagReportOnly)" = "true" ]; then
+                  echo "##[section]Report-only run requested. Skipping commit/PR."
+                  exit 0
+              fi
+
+              if ! git status --porcelain dependencies.json | grep -q .; then
+                  echo "##[section]Manifest already current — no PR needed."
+                  exit 0
+              fi
+
+              echo "##[section]Manifest drift detected — staging dependencies.json"
+              git config user.email "noreply@sentinel-as-code.local"
+              git config user.name  "Sentinel Dependency Sync"
+              git status --short
+
+              SYNC_BRANCH="$(syncBranch)"
+              TARGET_BRANCH="$(targetBranch)"
+
+              # Reset the rolling sync branch from the latest TARGET tip
+              # so the branch always descends from current main. Same
+              # stash/reset/pop pattern as Sentinel-Drift-Detect.yml.
+              git stash push --include-untracked --message "manifest-update" --quiet
+              git fetch origin "$TARGET_BRANCH"
+              git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
+              git stash pop --quiet || true
+
+              # Stage only the manifest. The script never touches anything
+              # else; staging strictly avoids accidentally including a
+              # stray local file.
+              git add dependencies.json
+
+              ENTRY_COUNT=$(pwsh -NoProfile -Command \
+                  "((Get-Content dependencies.json -Raw | ConvertFrom-Json).dependencies.PSObject.Properties | Measure-Object).Count")
+
+              git commit \
+                  -m "chore(deps): refresh dependency manifest $(date -u +%Y-%m-%dT%H:%MZ)" \
+                  -m "Auto-generated by Pipelines/Sentinel-Dependency-Update.yml. Discovery walked content and produced a manifest with $ENTRY_COUNT entries that differs from the on-disk version. Re-run Scripts/Build-DependencyManifest.ps1 -Mode Generate locally to reproduce."
+
+              git push --force-with-lease origin "$SYNC_BRANCH"
+
+              echo "##[section]Opening / refreshing PR"
+              echo "$(System.AccessToken)" | az devops login --organization "$(System.CollectionUri)"
+
+              PR_BODY_FILE="$(mktemp)"
+              {
+                  echo "# Dependency Manifest Auto-Refresh"
+                  echo ""
+                  echo "Automated regeneration of \`dependencies.json\` from the current content tree."
+                  echo ""
+                  echo "**Discovered entries:** $ENTRY_COUNT"
+                  echo ""
+                  echo "## What this means"
+                  echo ""
+                  echo "Discovery walked every \`AnalyticalRules/**.yaml\` and \`HuntingQueries/**.yaml\`,"
+                  echo "scanned each file's embedded KQL via \`Modules/Sentinel.Common\`, and produced a"
+                  echo "dependency manifest that differs from the on-disk \`dependencies.json\`."
+                  echo ""
+                  echo "Common reasons drift accumulates between runs:"
+                  echo ""
+                  echo "- A new rule was merged that the PR did not regenerate the manifest for"
+                  echo "- An existing rule's query was edited inline in a non-rule PR"
+                  echo "  (e.g. a doc-only change that bumped a query body)"
+                  echo "- An ASim or in-repo function reference was added or removed"
+                  echo ""
+                  echo "## Reviewer checklist"
+                  echo ""
+                  echo "- [ ] The Files Changed diff makes sense given recent merges"
+                  echo "- [ ] No legitimate rule has lost its dependency entry"
+                  echo "- [ ] No previously-classified function got demoted to a table"
+                  echo "  (or vice versa) without an explaining content change"
+                  echo ""
+                  echo "If the diff looks correct, **squash and merge**. The PR-validation"
+                  echo "Verify dependency manifest step will revalidate against the merged commit."
+              } > "$PR_BODY_FILE"
+
+              EXISTING=$(az repos pr list \
+                  --repository "$(Build.Repository.Name)" \
+                  --status active \
+                  --source-branch "refs/heads/$SYNC_BRANCH" \
+                  --target-branch "refs/heads/$TARGET_BRANCH" \
+                  --organization "$(System.CollectionUri)" \
+                  --project "$(System.TeamProject)" \
+                  --query "[0].pullRequestId" \
+                  -o tsv 2>/dev/null || true)
+
+              if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+                  echo "Existing PR #$EXISTING refreshed — updating description."
+                  az repos pr update \
+                      --id "$EXISTING" \
+                      --description "$(cat "$PR_BODY_FILE")" \
+                      --organization "$(System.CollectionUri)" \
+                      --output none
+              else
+                  az repos pr create \
+                      --repository "$(Build.Repository.Name)" \
+                      --source-branch "$SYNC_BRANCH" \
+                      --target-branch "$TARGET_BRANCH" \
+                      --title "chore(deps): refresh dependency manifest $(date -u +%Y-%m-%d)" \
+                      --description "$(cat "$PR_BODY_FILE")" \
+                      --organization "$(System.CollectionUri)" \
+                      --project "$(System.TeamProject)" \
+                      --auto-complete false \
+                      --delete-source-branch false \
+                      --output table
+              fi
+
+              rm -f "$PR_BODY_FILE"
+            displayName: "Commit, Push, and Open PR (when drift detected)"
+            condition: succeeded()
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
