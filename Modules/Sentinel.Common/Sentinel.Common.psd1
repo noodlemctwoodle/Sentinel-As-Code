@@ -1,6 +1,6 @@
 @{
     RootModule        = 'Sentinel.Common.psm1'
-    ModuleVersion     = '1.0.0'
+    ModuleVersion     = '1.1.0'
     GUID              = '8d0c8a73-2b16-4f5a-8e7f-1c5e6f1a8d4b'
     Author            = 'noodlemctwoodle'
     CompanyName       = 'Sentinel-As-Code'
@@ -14,6 +14,12 @@
         'Write-PipelineMessage'
         'Invoke-SentinelApi'
         'Connect-AzureEnvironment'
+        'Remove-KqlComments'
+        'Get-KqlWatchlistReferences'
+        'Get-KqlExternalDataReferences'
+        'Get-KqlBareIdentifiers'
+        'Get-ContentKqlQuery'
+        'Get-ContentDependencies'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
@@ -23,7 +29,7 @@
             Tags         = @('Sentinel', 'Azure', 'Internal')
             ProjectUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code'
             LicenseUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/LICENSE'
-            ReleaseNotes = 'Initial release. Extracted from inline duplication across the four pre-Wave-4 consumer scripts. Connect-AzureEnvironment refactored to take explicit parameters and return a state hashtable (the pre-extraction version mutated $script: scope of the caller, which doesn''t survive a module boundary).'
+            ReleaseNotes = '1.1.0 — added KQL dependency-discovery helpers (Remove-KqlComments, Get-KqlWatchlistReferences, Get-KqlExternalDataReferences, Get-KqlBareIdentifiers, Get-ContentKqlQuery, Get-ContentDependencies). Used by Scripts/Build-DependencyManifest.ps1 to derive dependencies.json from content rather than hand-maintaining it. 1.0.0 — initial release. Extracted from inline duplication across the four pre-Wave-4 consumer scripts. Connect-AzureEnvironment refactored to take explicit parameters and return a state hashtable.'
         }
     }
 }

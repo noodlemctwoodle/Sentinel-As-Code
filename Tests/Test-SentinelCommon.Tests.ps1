@@ -23,6 +23,13 @@ BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
     $modulePath = Join-Path $repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1'
     Import-Module $modulePath -Force -ErrorAction Stop
+
+    # The new discovery functions need powershell-yaml to read content
+    # files; ensure it's available for the round-trip tests.
+    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+        Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber | Out-Null
+    }
+    Import-Module powershell-yaml -ErrorAction Stop
 }
 
 Describe 'Write-PipelineMessage' {
@@ -240,5 +247,328 @@ Describe 'Connect-AzureEnvironment' {
             { Connect-AzureEnvironment -ResourceGroup 'rg-x' -Workspace 'law-x' -Region 'uksouth' } |
                 Should -Throw -ExpectedMessage '*Failed to establish Azure context*'
         }
+    }
+}
+
+# ===========================================================================
+# Discovery helpers (Wave 4 Item 4)
+# ===========================================================================
+
+Describe 'Remove-KqlComments' {
+    It 'strips // line comments to end of line' {
+        $kql = "SecurityAlert`n| where x == 1 // ignore me`n| take 1"
+        Remove-KqlComments -Query $kql | Should -Not -Match 'ignore me'
+    }
+
+    It 'preserves URLs containing :// (negative lookbehind)' {
+        $kql = 'let url = "https://foo.com/path"; print url'
+        $result = Remove-KqlComments -Query $kql
+        $result | Should -Match 'https://foo.com/path'
+    }
+
+    It 'strips /* block */ comments including across newlines' {
+        $kql = "SecurityAlert`n/* multi-line`n   block comment */`n| take 1"
+        $result = Remove-KqlComments -Query $kql
+        $result | Should -Not -Match 'block comment'
+        $result | Should -Match 'SecurityAlert'
+        $result | Should -Match 'take 1'
+    }
+
+    It 'returns the input unchanged when no comments are present' {
+        $kql = 'SecurityAlert | where Severity == "High" | take 1'
+        Remove-KqlComments -Query $kql | Should -Be $kql
+    }
+}
+
+Describe 'Get-KqlWatchlistReferences' {
+    It "extracts a single _GetWatchlist('alias') reference" {
+        $kql = "let bg = _GetWatchlist('breakGlassAccounts'); SigninLogs | where x in (bg)"
+        $refs = Get-KqlWatchlistReferences -Query $kql
+        @($refs).Count | Should -Be 1
+        @($refs)[0]    | Should -Be 'breakGlassAccounts'
+    }
+
+    It 'extracts double-quoted alias forms' {
+        $refs = Get-KqlWatchlistReferences -Query '_GetWatchlist("DoubleQuoted")'
+        @($refs).Count | Should -Be 1
+        @($refs)[0]    | Should -Be 'DoubleQuoted'
+    }
+
+    It 'deduplicates aliases referenced multiple times' {
+        $kql = "_GetWatchlist('Foo') | union (_GetWatchlist('Foo'))"
+        $refs = Get-KqlWatchlistReferences -Query $kql
+        @($refs).Count | Should -Be 1
+    }
+
+    It 'returns multiple aliases sorted' {
+        $kql = "_GetWatchlist('Zoo') | union (_GetWatchlist('Apple'), _GetWatchlist('Mango'))"
+        $refs = Get-KqlWatchlistReferences -Query $kql
+        @($refs)        | Should -Be @('Apple', 'Mango', 'Zoo')
+    }
+
+    It 'returns @() for queries with no _GetWatchlist calls' {
+        @(Get-KqlWatchlistReferences -Query 'SecurityAlert | take 1').Count | Should -Be 0
+    }
+
+    It 'ignores _GetWatchlist references inside comments' {
+        $kql = "// _GetWatchlist('Commented') is ignored`nSecurityAlert"
+        @(Get-KqlWatchlistReferences -Query $kql).Count | Should -Be 0
+    }
+}
+
+Describe 'Get-KqlExternalDataReferences' {
+    It 'extracts a URL from a single externaldata block' {
+        $kql = @'
+externaldata(col1: string)
+    ["https://example.com/feed.json"] with(format='multijson')
+'@
+        $urls = Get-KqlExternalDataReferences -Query $kql
+        @($urls).Count | Should -Be 1
+        @($urls)[0]    | Should -Be 'https://example.com/feed.json'
+    }
+
+    It 'extracts multiple URLs from a single bracket list' {
+        $kql = @'
+externaldata(col1: string)
+    ["https://a.example/feed", "https://b.example/feed"] with(format='multijson')
+'@
+        $urls = Get-KqlExternalDataReferences -Query $kql
+        @($urls).Count | Should -Be 2
+        @($urls -contains 'https://a.example/feed') | Should -BeTrue
+        @($urls -contains 'https://b.example/feed') | Should -BeTrue
+    }
+
+    It 'returns @() when no externaldata block is present' {
+        @(Get-KqlExternalDataReferences -Query 'SecurityAlert | take 1').Count | Should -Be 0
+    }
+}
+
+Describe 'Get-KqlBareIdentifiers' {
+    It 'identifies a table at the start of a simple query' {
+        $ids = Get-KqlBareIdentifiers -Query 'SecurityAlert | where Severity == "High"'
+        @($ids) | Should -Contain 'SecurityAlert'
+    }
+
+    It 'identifies a table after `let X = `' {
+        $ids = Get-KqlBareIdentifiers -Query 'let recent = SigninLogs | where TimeGenerated > ago(1h); recent'
+        @($ids) | Should -Contain 'SigninLogs'
+    }
+
+    It 'identifies a table after the `union` operator (with kind= modifier)' {
+        $kql = 'SigninLogs | union kind=outer AADNonInteractiveUserSignInLogs | take 1'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SigninLogs'
+        @($ids) | Should -Contain 'AADNonInteractiveUserSignInLogs'
+    }
+
+    It 'identifies a table after `union isfuzzy=true`' {
+        $ids = Get-KqlBareIdentifiers -Query 'union isfuzzy=true SigninLogs, AuditLogs'
+        @($ids) | Should -Contain 'SigninLogs'
+    }
+
+    It 'identifies a table inside a join subquery' {
+        $kql = 'SigninLogs | join kind=inner (AADRiskyUsers | where State == "atRisk") on UserId'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'AADRiskyUsers'
+    }
+
+    It 'does NOT pick up column names from project/extend continuation lines' {
+        $kql = @'
+SecurityAlert
+| project Timestamp,
+    AlertName,
+    Severity,
+    Description
+| take 10
+'@
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SecurityAlert'
+        @($ids) | Should -Not -Contain 'AlertName'
+        @($ids) | Should -Not -Contain 'Severity'
+        @($ids) | Should -Not -Contain 'Description'
+    }
+
+    It 'does NOT pick up identifiers inside string literals (POP/SMTP false positive)' {
+        $kql = @'
+let legacyClients = dynamic([
+    "IMAP", "POP", "SMTP", "Other clients; POP"
+]);
+SigninLogs | where ClientAppUsed in (legacyClients)
+'@
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SigninLogs'
+        @($ids) | Should -Not -Contain 'POP'
+        @($ids) | Should -Not -Contain 'SMTP'
+    }
+
+    It 'does NOT pick up let-bound variable names' {
+        $kql = 'let myLocal = SigninLogs | take 1; myLocal | project Time = TimeGenerated'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SigninLogs'
+        @($ids) | Should -Not -Contain 'myLocal'
+    }
+
+    It 'does NOT pick up lambda parameter names' {
+        $kql = 'let aadFunc = (tableName: string, start: datetime) { table(tableName) | where TimeGenerated > start }; aadFunc("SigninLogs", ago(1h))'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Not -Contain 'tableName'
+        @($ids) | Should -Not -Contain 'start'
+    }
+
+    It 'does NOT pick up KQL keywords (isfuzzy, kind, etc.)' {
+        $ids = Get-KqlBareIdentifiers -Query 'union isfuzzy=true kind=outer SigninLogs, AuditLogs'
+        @($ids) | Should -Not -Contain 'isfuzzy'
+        @($ids) | Should -Not -Contain 'kind'
+    }
+
+    It 'does NOT pick up KQL function-call sites (toscalar, materialize, iif)' {
+        $kql = 'let count = toscalar(SigninLogs | count); print count'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Not -Contain 'toscalar'
+    }
+
+    It 'identifies a table inside a `materialize(...)` subquery' {
+        $kql = @'
+let cached = materialize (
+    MicrosoftGraphActivityLogs
+    | where ingestion_time() > ago(30m)
+    | take 1
+);
+cached
+'@
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'MicrosoftGraphActivityLogs'
+        @($ids) | Should -Not -Contain 'materialize'
+    }
+
+    It 'identifies a table inside a `toscalar(...)` subquery' {
+        $kql = 'let total = toscalar(SecurityAlert | count); print total'
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SecurityAlert'
+    }
+
+    It 'identifies tables passed as string args to KQL `table()` (lambda wrapper pattern)' {
+        $kql = @'
+let aadFunc = (tableName: string) {
+    table(tableName)
+    | where ResultType == "0"
+    | take 1
+};
+let aadSignin = aadFunc("SigninLogs");
+let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+union isfuzzy=true aadSignin, aadNonInt
+'@
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SigninLogs'
+        @($ids) | Should -Contain 'AADNonInteractiveUserSignInLogs'
+    }
+
+    It 'identifies a direct `table(''X'')` call with a literal table name' {
+        $kql = "table('SigninLogs') | take 1"
+        $ids = Get-KqlBareIdentifiers -Query $kql
+        @($ids) | Should -Contain 'SigninLogs'
+    }
+}
+
+Describe 'Get-ContentDependencies' {
+    BeforeAll {
+        # Repo-driven model: only KnownFunctions is needed (built from
+        # Parsers/ in the real script). Anything not matched as a function
+        # defaults to a table.
+        $script:knownFunctions = @{
+            UnifiedSignInLogs = $true
+        }
+    }
+
+    It 'classifies a Microsoft-provided table at a data-source position' {
+        $tmp = Join-Path $TestDrive 'rule.yaml'
+        Set-Content -Path $tmp -Value @"
+id: aaaa1111-2222-3333-4444-555555555555
+name: Test rule
+query: |
+    SigninLogs | where ResultType != "0" | take 1
+"@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions $script:knownFunctions
+        @($deps.tables)    | Should -Contain 'SigninLogs'
+        @($deps.functions) | Should -BeNullOrEmpty
+    }
+
+    It 'classifies a custom-log _CL identifier as a table by default' {
+        $tmp = Join-Path $TestDrive 'rule-cl.yaml'
+        Set-Content -Path $tmp -Value @"
+id: aaaa1111-2222-3333-4444-555555555556
+name: Test rule
+query: |
+    MyCustomTable_CL | take 1
+"@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions $script:knownFunctions
+        @($deps.tables) | Should -Contain 'MyCustomTable_CL'
+    }
+
+    It 'classifies an in-repo function (KnownFunctions) under functions' {
+        $tmp = Join-Path $TestDrive 'rule-func.yaml'
+        Set-Content -Path $tmp -Value @"
+id: aaaa1111-2222-3333-4444-555555555557
+name: Test rule
+query: |
+    UnifiedSignInLogs | where ResultType != "0" | take 1
+"@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions $script:knownFunctions
+        @($deps.functions) | Should -Contain 'UnifiedSignInLogs'
+        @($deps.tables)    | Should -BeNullOrEmpty
+    }
+
+    It 'classifies an ASIM Microsoft-provided function via the regex pattern' {
+        $tmp = Join-Path $TestDrive 'rule-asim.yaml'
+        Set-Content -Path $tmp -Value @"
+id: aaaa1111-2222-3333-4444-555555555558
+name: Test rule
+query: |
+    ASimDnsActivityLogs | where DnsResponseName has_any (1, 2) | take 1
+"@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions $script:knownFunctions
+        @($deps.functions) | Should -Contain 'ASimDnsActivityLogs'
+        @($deps.tables)    | Should -BeNullOrEmpty
+    }
+
+    It 'extracts watchlists, externalData, and tables in one pass' {
+        $tmp = Join-Path $TestDrive 'rule-multi.yaml'
+        Set-Content -Path $tmp -Value @'
+id: aaaa1111-2222-3333-4444-555555555559
+name: Test rule
+query: |
+    let bg = _GetWatchlist('breakGlassAccounts');
+    let azureRanges = externaldata(values: dynamic) ["https://example.com/azureranges.json"] with(format='multijson');
+    SigninLogs | where UserPrincipalName in (bg) | take 1
+'@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions $script:knownFunctions
+        @($deps.watchlists)   | Should -Contain 'breakGlassAccounts'
+        @($deps.externalData) | Should -Contain 'https://example.com/azureranges.json'
+        @($deps.tables)       | Should -Contain 'SigninLogs'
+    }
+
+    It 'returns empty arrays when the file has no embedded query' {
+        $tmp = Join-Path $TestDrive 'no-query.yaml'
+        Set-Content -Path $tmp -Value 'name: just metadata'
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions @{}
+        @($deps.tables).Count       | Should -Be 0
+        @($deps.watchlists).Count   | Should -Be 0
+        @($deps.functions).Count    | Should -Be 0
+        @($deps.externalData).Count | Should -Be 0
+    }
+
+    It 'does not emit an unclassified bucket' {
+        # Repo-driven model: every bare identifier is either a function
+        # or a table. There is no third bucket.
+        $tmp = Join-Path $TestDrive 'rule-noun.yaml'
+        Set-Content -Path $tmp -Value @"
+id: aaaa1111-2222-3333-4444-555555555560
+name: Test rule
+query: |
+    SomeBrandNewTable | take 1
+"@
+        $deps = Get-ContentDependencies -Path $tmp -KnownFunctions @{}
+        $deps.ContainsKey('unclassified') | Should -BeFalse
+        @($deps.tables) | Should -Contain 'SomeBrandNewTable'
     }
 }
