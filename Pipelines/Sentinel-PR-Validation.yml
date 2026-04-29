@@ -1,0 +1,119 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: PR Validation Gate
+# ---------------------------------------------------------------------------
+# Equivalent of .github/workflows/pr-validation.yml for Azure-DevOps-hosted
+# repos. Calls Scripts/Invoke-PRValidation.ps1, which runs every Pester
+# suite under Tests/ (drift-detector pure functions + AnalyticalRules /
+# HuntingQueries YAML schema). The pipeline fails if any test fails, which
+# blocks the PR when wired up as a build-validation policy.
+#
+# Wiring this as a hard merge gate:
+#
+#   Project Settings -> Repos -> Repositories -> <repo> -> Policies
+#     Branch policies for: main
+#       Build validation -> + Add build policy
+#         Build pipeline:        Sentinel-PR-Validation
+#         Path filter:           AnalyticalRules/*;HuntingQueries/*;Scripts/*;Tests/*
+#         Trigger:               Automatic
+#         Policy requirement:    Required
+#         Build expiration:      Immediately when {repo} is updated
+#         Display name:          PR Validation
+#
+# Once the policy is required, the PR's Complete button is disabled until
+# this pipeline reports success against the latest commit.
+#
+# No Azure auth needed - validation is fully offline (YAML parse + schema
+# checks + AST-based PowerShell function tests with mocks). The pool is
+# ubuntu-latest for parity with the GitHub workflow.
+# ---------------------------------------------------------------------------
+
+# 'pr' triggers run when a PR is opened/updated. Build-validation policy
+# (configured per the comment block above) is what enforces the gate; this
+# 'pr' block ensures the pipeline runs automatically against PR commits even
+# without the policy in place.
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - AnalyticalRules
+      - HuntingQueries
+      - Scripts
+      - Tests
+      - Pipelines/Sentinel-PR-Validation.yml
+
+# CI on push to main ensures we have a green baseline; if main ever goes red
+# the most recent run is the place to start the post-mortem.
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - AnalyticalRules
+      - HuntingQueries
+      - Scripts
+      - Tests
+      - Pipelines/Sentinel-PR-Validation.yml
+
+variables:
+  - name: testResultsFile
+    value: "$(Build.SourcesDirectory)/test-results/pester-results.xml"
+
+stages:
+  - stage: Validate
+    displayName: "PR Validation"
+    jobs:
+      - job: RunPRValidation
+        displayName: "Pester suite + YAML schema"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 15
+
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: PowerShell@2
+            displayName: "Install Pester and powershell-yaml"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $needsPester = -not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -ge [version]'5.0.0' })
+                if ($needsPester) {
+                    Install-Module -Name Pester -MinimumVersion '5.0.0' -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
+                }
+                if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+                    Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable Pester, powershell-yaml | Format-Table Name, Version
+
+          - task: PowerShell@2
+            displayName: "Run PR validation"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                & "$(Build.SourcesDirectory)/Scripts/Invoke-PRValidation.ps1" `
+                    -RepoPath        "$(Build.SourcesDirectory)" `
+                    -TestResultsPath "$(testResultsFile)" `
+                    -InstallModules:$false
+
+          - task: PublishTestResults@2
+            displayName: "Publish Pester results"
+            condition: always()
+            inputs:
+              testResultsFormat: "NUnit"
+              testResultsFiles: "$(testResultsFile)"
+              testRunTitle: "Pester PR Validation"
+              failTaskOnFailedTests: false   # Pester step already exited non-zero
+              publishRunAttachments: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Pester report"
+            condition: always()
+            inputs:
+              targetPath: "$(Build.SourcesDirectory)/test-results"
+              artifactName: "pester-results-$(Build.BuildId)"
