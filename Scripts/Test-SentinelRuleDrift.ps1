@@ -208,234 +208,13 @@ $script:ManagedRuleKinds = @(
 )
 
 # ---------------------------------------------------------------------------
-# Helper: Write ADO pipeline commands where applicable, otherwise standard output
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:191
-#   Scripts/Deploy-CustomContent.ps1:515
+# Shared helpers from Sentinel.Common
 # ---------------------------------------------------------------------------
-function Write-PipelineMessage {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [string]$Message
-        ,
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("Info", "Warning", "Error", "Section", "Success", "Debug")]
-        [string]$Level = "Info"
-    )
-
-    $isAdo = $null -ne $env:BUILD_BUILDID
-
-    switch ($Level) {
-        "Info"    {
-            Write-Host $Message
-        }
-        "Warning" {
-            if ($isAdo) {
-                Write-Host "##[warning]$Message"
-            }
-            else {
-                Write-Warning $Message
-            }
-        }
-        "Error"   {
-            if ($isAdo) {
-                Write-Host "##[error]$Message"
-            }
-            else {
-                Write-Error $Message -ErrorAction Continue
-            }
-        }
-        "Section" {
-            if ($isAdo) {
-                Write-Host "##[section]$Message"
-            }
-            else {
-                Write-Host "`n$Message" -ForegroundColor Cyan
-            }
-        }
-        "Success" {
-            if ($isAdo) {
-                Write-Host $Message
-            }
-            else {
-                Write-Host $Message -ForegroundColor Green
-            }
-        }
-        "Debug"   {
-            Write-Verbose $Message
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Helper: Invoke REST API with retry logic for transient failures
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:285
-#   Scripts/Deploy-CustomContent.ps1:574
-# ---------------------------------------------------------------------------
-function Invoke-SentinelApi {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Uri
-        ,
-        [Parameter(Mandatory = $true)]
-        [string]$Method
-        ,
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Headers
-        ,
-        [Parameter(Mandatory = $false)]
-        [string]$Body
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$MaxRetries = 3
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$RetryDelaySeconds = 5
-    )
-
-    $attempt = 0
-
-    while ($attempt -lt $MaxRetries) {
-        $attempt++
-
-        try {
-            $params = @{
-                Uri         = $Uri
-                Method      = $Method
-                Headers     = $Headers
-                ContentType = 'application/json'
-            }
-
-            if ($Body) {
-                $params.Body = $Body
-            }
-
-            $webResponse = Invoke-WebRequest @params -UseBasicParsing -ErrorAction Stop
-            return ($webResponse.Content | ConvertFrom-Json)
-        }
-        catch {
-            $statusCode = $null
-            $responseBody = $null
-
-            if ($_.Exception.Response) {
-                $statusCode = [int]$_.Exception.Response.StatusCode
-                try {
-                    $stream = $_.Exception.Response.GetResponseStream()
-                    $reader = [System.IO.StreamReader]::new($stream)
-                    $responseBody = $reader.ReadToEnd()
-                    $reader.Dispose()
-                }
-                catch { }
-            }
-
-            if (-not $responseBody -and $_.ErrorDetails.Message) {
-                $responseBody = $_.ErrorDetails.Message
-            }
-
-            $retryableCodes = @(429, 500, 502, 503, 504)
-            if ($statusCode -and $retryableCodes -contains $statusCode -and $attempt -lt $MaxRetries) {
-                $delay = $RetryDelaySeconds * $attempt
-                Write-PipelineMessage "API call returned $statusCode. Retrying in ${delay}s (attempt $attempt of $MaxRetries)..." -Level Warning
-                Start-Sleep -Seconds $delay
-                continue
-            }
-
-            $errorDetail = if ($responseBody) { "HTTP $statusCode - $responseBody" } else { $_.Exception.Message }
-            throw "API call failed: $errorDetail"
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Authentication
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:412
-#   Scripts/Deploy-CustomContent.ps1:654
-# ---------------------------------------------------------------------------
-function Connect-AzureEnvironment {
-    [CmdletBinding()]
-    param()
-
-    Write-PipelineMessage "Establishing Azure authentication..." -Level Section
-
-    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue | Out-Null
-
-    $context = Get-AzContext
-
-    if (-not $context) {
-        Write-PipelineMessage "No Azure context found. Attempting login..." -Level Info
-        if ($IsGov) {
-            Connect-AzAccount -Environment AzureUSGovernment -ErrorAction Stop | Out-Null
-        }
-        else {
-            Connect-AzAccount -ErrorAction Stop | Out-Null
-        }
-        $context = Get-AzContext
-    }
-
-    if (-not $context) {
-        throw "Failed to establish Azure context. Ensure you are authenticated."
-    }
-
-    if ($script:SubscriptionId) {
-        Set-AzContext -SubscriptionId $script:SubscriptionId -ErrorAction Stop | Out-Null
-        $context = Get-AzContext
-    }
-    else {
-        $script:SubscriptionId = $context.Subscription.Id
-    }
-
-    Write-PipelineMessage "Authenticated to subscription: $($context.Subscription.Id) ($($context.Subscription.Name))" -Level Success
-
-    $script:ServerUrl = if ($IsGov) {
-        "https://management.usgovcloudapi.net"
-    }
-    else {
-        "https://management.azure.com"
-    }
-
-    $script:BaseUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace"
-
-    $resourceEndpoint = $script:ServerUrl
-    try {
-        $tokenResponse = Get-AzAccessToken -ResourceUrl $resourceEndpoint -ErrorAction Stop
-
-        if ($tokenResponse.Token -is [System.Security.SecureString]) {
-            $accessToken = $tokenResponse.Token | ConvertFrom-SecureString -AsPlainText
-        }
-        elseif ($tokenResponse.Token -is [string]) {
-            $accessToken = $tokenResponse.Token
-        }
-        else {
-            throw "Unexpected token type: $($tokenResponse.Token.GetType().FullName)"
-        }
-    }
-    catch {
-        Write-PipelineMessage "Get-AzAccessToken failed ($($_.Exception.Message)). Falling back to context profile token." -Level Warning
-        $instanceProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-        $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($instanceProfile)
-        $tokenObj = $profileClient.AcquireAccessToken($context.Subscription.TenantId)
-        $accessToken = $tokenObj.AccessToken
-    }
-
-    if (-not $accessToken) {
-        throw "Failed to acquire an access token. Check Service Principal permissions."
-    }
-
-    $script:AuthHeader = @{
-        'Content-Type'  = 'application/json'
-        'Authorization' = "Bearer $accessToken"
-    }
-
-    Write-PipelineMessage "Target workspace: $Workspace (Resource Group: $ResourceGroup, Region: $Region)" -Level Info
-    if ($IsGov) {
-        Write-PipelineMessage "Azure Government cloud mode enabled." -Level Info
-    }
-}
+# Sourcing this module brings in Write-PipelineMessage, Invoke-SentinelApi,
+# and Connect-AzureEnvironment. Pre-Wave-4 these were inline copies in this
+# file and three deployer scripts; consolidating them into the module
+# is Wave 4 Item 1.
+Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 
 # ---------------------------------------------------------------------------
 # Deployed rule discovery
@@ -1470,7 +1249,20 @@ function Write-DriftReport {
 # Main
 # ---------------------------------------------------------------------------
 function Invoke-Main {
-    Connect-AzureEnvironment
+    # Connect-AzureEnvironment lives in Modules/Sentinel.Common now and
+    # returns a state hashtable rather than mutating $script: scope.
+    $azCtx = Connect-AzureEnvironment `
+        -ResourceGroup  $ResourceGroup `
+        -Workspace      $Workspace `
+        -Region         $Region `
+        -SubscriptionId $script:SubscriptionId `
+        -IsGov:$IsGov
+    $script:SubscriptionId      = $azCtx.SubscriptionId
+    $script:ServerUrl           = $azCtx.ServerUrl
+    $script:BaseUri             = $azCtx.BaseUri
+    $script:WorkspaceResourceId = $azCtx.WorkspaceResourceId
+    $script:WorkspaceId         = $azCtx.WorkspaceId
+    $script:AuthHeader          = $azCtx.AuthHeader
 
     $deployedRules = Get-ExistingAnalyticsRules
     $templates     = if (-not $SkipContentHub) { Get-ContentHubAnalyticsRuleTemplates } else { @() }
