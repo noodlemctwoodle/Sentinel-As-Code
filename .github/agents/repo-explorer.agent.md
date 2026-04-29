@@ -1,4 +1,5 @@
 ---
+name: 'Sentinel-As-Code: Repo Explorer'
 description: Guide to the Sentinel-As-Code repo. Explains architecture, content flow, deploy pipeline, and where things live. Read-only.
 tools: ['search/codebase', 'search/usages', 'search/changes', 'search/githubRepo', 'web/fetch']
 ---

@@ -71,13 +71,20 @@ Persona configurations recognised across github.com (Chat + cloud
 agent) and every supported IDE (VS Code, Visual Studio, JetBrains,
 Eclipse, Xcode), plus Copilot CLI.
 
-| Agent | Purpose |
-| --- | --- |
-| `repo-explorer.agent.md` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
-| `rule-author.agent.md` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end. |
-| `content-editor.agent.md` | **Edit.** General-purpose edits across any content type with the right post-edit tests. |
-| `rule-tuner.agent.md` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
-| `code-explainer.agent.md` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
+All five agents prefix their display name with `Sentinel-As-Code:`
+so they group together in the agent picker (which mixes
+workspace-level, org-level, and marketplace agents). The short
+slug — `rule-author`, `repo-explorer`, etc. — is what cross-
+references in this doc and the rest of the repo use; the prefixed
+form is what appears in the dropdown.
+
+| File | Display name | Purpose |
+| --- | --- | --- |
+| `repo-explorer.agent.md` | `Sentinel-As-Code: Repo Explorer` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
+| `rule-author.agent.md` | `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end. |
+| `content-editor.agent.md` | `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit tests. |
+| `rule-tuner.agent.md` | `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
+| `code-explainer.agent.md` | `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
 
 #### How to invoke
 
@@ -149,7 +156,11 @@ matching agents — so if you're on github.com Chat, invoke the
 2. Body is plain Markdown — the persona's instructions. 30,000-
    character limit.
 
-3. Commit and merge to `main`. The agent appears in the
+3. Set the `name:` frontmatter to `Sentinel-As-Code: <Role>` so the
+   agent groups with the rest of the repo's agents in the picker
+   (which mixes workspace, org, and marketplace entries).
+
+4. Commit and merge to `main`. The agent appears in the
    github.com agent dropdown after the merge; in VS Code it
    appears in the chat-mode dropdown after a chat reload.
 

@@ -1,4 +1,5 @@
 ---
+name: 'Sentinel-As-Code: Code Explainer'
 description: Explains what a piece of code, KQL query, ARM template, or workflow does in plain prose. Read-only.
 tools: ['search/codebase', 'search/usages', 'search/githubRepo']
 ---

@@ -1,4 +1,5 @@
 ---
+name: 'Sentinel-As-Code: Rule Author'
 description: Authors new Sentinel content (analytical rules, hunting queries, Defender XDR detections) end-to-end including dep-manifest regeneration and Pester runs.
 tools: ['search/codebase', 'search/usages', 'edit/applyPatch', 'terminal/run']
 ---

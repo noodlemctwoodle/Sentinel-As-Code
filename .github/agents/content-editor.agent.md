@@ -1,4 +1,5 @@
 ---
+name: 'Sentinel-As-Code: Content Editor'
 description: Edits existing repo content (rules, queries, watchlists, playbooks, docs, scripts) following the repo's conventions and re-running the right tests.
 tools: ['search/codebase', 'search/usages', 'search/changes', 'edit/applyPatch', 'terminal/run']
 ---

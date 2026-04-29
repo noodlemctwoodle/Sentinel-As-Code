@@ -1,4 +1,5 @@
 ---
+name: 'Sentinel-As-Code: Rule Tuner'
 description: Adjusts existing rules (threshold, severity, query filters, frequency) to fit the user's environment without changing detection intent.
 tools: ['search/codebase', 'search/usages', 'edit/applyPatch', 'terminal/run']
 ---
