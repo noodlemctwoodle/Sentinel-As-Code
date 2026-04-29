@@ -8,9 +8,12 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests/) — one `<ScriptName>.Tests.ps1` per source script |
+| Test files | [`Tests/`](../../Tests/) — one `<ScriptName>.Tests.ps1` per source script, plus content-validation suites |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
+| PR-gate entrypoint | [`Scripts/Invoke-PRValidation.ps1`](../../Scripts/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
+| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) — triggers on `pull_request` to `main` |
+| ADO pipeline | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) — wired as a build-validation policy on `main` |
 
 ## Prerequisites
 
@@ -28,14 +31,31 @@ Get-Module -ListAvailable Pester | Select-Object Name, Version
 
 ## Running tests
 
-### All tests
+### As the PR gate runs them
+
+```powershell
+./Scripts/Invoke-PRValidation.ps1
+```
+
+`Invoke-PRValidation.ps1` is the single entrypoint both pipelines call. It
+installs Pester + powershell-yaml if missing, runs every suite under
+`Tests/`, writes a NUnit-2.5 XML report to `test-results/pester-results.xml`,
+and exits non-zero on any failure. Use this locally to mirror exactly what
+the PR check does.
+
+Pass `-InstallModules:$false` to skip the auto-install when you have the
+modules already pinned via your profile, and `-TestNameFilter '<pattern>'`
+to scope down to a specific Describe / Context.
+
+### All tests directly via Pester
 
 ```powershell
 Invoke-Pester -Path Tests -CI
 ```
 
 `-CI` exits non-zero on any failure and is the right flag for pipelines and
-local pre-commit hooks.
+local pre-commit hooks. Equivalent to `Invoke-PRValidation.ps1` but without
+the NUnit XML output.
 
 ### A specific test file
 
@@ -67,6 +87,103 @@ Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 `
 ```
 
 Reports which lines of the source script each test exercised.
+
+## PR-validation gate
+
+Every pull request to `main` must pass the Pester suite before it can merge.
+The gate is enforced on both platforms:
+
+| Platform | Workflow / pipeline | Triggered by |
+| --- | --- | --- |
+| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) | `pull_request` events on `main`, plus path-scoped pushes to feature branches |
+| Azure DevOps | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | The `pr:` trigger inside the YAML; required as a build-validation policy on `main` |
+
+Both call the same [`Scripts/Invoke-PRValidation.ps1`](../../Scripts/Invoke-PRValidation.ps1)
+entrypoint, so the validation logic stays in one place. The pipelines just
+handle environment setup, NUnit-XML publishing, and merge gating.
+
+### What gets validated
+
+The GitHub workflow ([`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml))
+runs four parallel jobs, each surfacing as its own status check the
+ruleset can require independently:
+
+| Job | What | Auth | Setup |
+| --- | --- | --- | --- |
+| `validate` | Every Pester suite under `Tests/` (~5,500 assertions) | None | Already wired |
+| `bicep-build` | `az bicep build` against every `Bicep/**/*.bicep` | None | Already wired |
+| `arm-validate` | `Test-AzResourceGroupDeployment -WhatIf` against every `Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) |
+| `kql-validate` | KQL syntax check via the Microsoft.Azure.Kusto.Language parser across all rule queries | None | Already wired |
+
+#### Pester suites covered by `validate`
+
+| Suite | File | Coverage |
+| --- | --- | --- |
+| Drift detector | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` |
+| Analytical rule YAML schema | [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1) | 193 analytical rules + 51 hunting queries × per-file schema; cross-file `id` uniqueness |
+| Dependency manifest | [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) | `dependencies.json` shape; per-entry path resolution; watchlist + function alias resolution |
+| Defender custom detections | [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) | 32 Defender YAMLs × required + alertTemplate fields; response-action enum validation |
+| Watchlists | [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; cross-directory alias uniqueness |
+| Automation rules | [`Tests/Test-AutomationRuleJson.Tests.ps1`](../../Tests/Test-AutomationRuleJson.Tests.ps1) | Action types, trigger logic, propertyValues array shape; cross-file id uniqueness |
+| Summary rules | [`Tests/Test-SummaryRuleJson.Tests.ps1`](../../Tests/Test-SummaryRuleJson.Tests.ps1) | binSize enum, destinationTable suffix, KQL restriction patterns |
+| Parsers | [`Tests/Test-ParserYaml.Tests.ps1`](../../Tests/Test-ParserYaml.Tests.ps1) | Required fields + KQL-identifier validation; cross-file functionAlias uniqueness |
+| Workbooks | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection; cross-directory GUID uniqueness for ARM workbooks |
+| Playbooks (structural) | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence |
+| Helper module self-test | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip |
+| Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
+| Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised` |
+| Deploy-DefenderDetections | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) |
+| Set-PlaybookPermissions | [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` |
+| Import-CommunityRules | [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) |
+
+The YAML / JSON schema suites use `-ForEach` to generate one `It` block
+per file, so per-file pass/fail surfaces directly in the PR check UI
+rather than collapsing into a single combined assertion.
+
+### Wiring the merge gate
+
+The pipelines exit non-zero on test failure, but a non-zero pipeline only
+blocks the merge button when explicitly required by branch protection /
+build policy. Configure the gate once per platform:
+
+**GitHub** — Repo Settings → Branches → Branch protection rules → Add rule:
+- Branch name pattern: `main`
+- Require status checks to pass before merging: ON
+- Require branches to be up to date before merging: ON
+- Required checks (add each as it lands):
+  - `validate` (Pester suites)
+  - `bicep-build` (Bicep build)
+  - `kql-validate` (KQL syntax)
+  - `arm-validate` (ARM What-If — only after [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) is complete)
+
+**Azure DevOps** — Project Settings → Repos → Repositories → `<repo>` →
+Policies → Branch policies for `main`:
+- Build validation → + Add build policy
+- Build pipeline: `Sentinel-PR-Validation`
+- Path filter: `AnalyticalRules/*;HuntingQueries/*;Scripts/*;Tests/*`
+- Trigger: Automatic
+- Policy requirement: Required
+- Build expiration: Immediately when the source branch is updated
+- Display name: `PR Validation`
+
+Once the policy is required, the merge button stays disabled until the
+pipeline reports success against the latest commit.
+
+### Community-rule relaxations
+
+Two schema rules are intentionally relaxed for files under
+`AnalyticalRules/Community/`:
+
+1. **GUID-format `id:`** — David Alonso's upstream repo uses
+   deliberately-non-GUID identifiers (e.g. `a1b2c3d4-0011-4a5b-8c9d-dns011certutil`).
+   We can't change upstream content, and community rules are opt-in
+   (`-SkipCommunityDetections` defaults to true) and force-disabled at deploy.
+2. **Cross-file `id:` uniqueness** — David's upstream reuses ids across
+   categories (e.g. `b2c3d4e5...` is used for both SigninLogs and CSL
+   rules). The uniqueness check applies only to in-house rules.
+
+Both relaxations are documented in the test file and in
+[Community Rules](../Content/Community-Rules.md).
 
 ## Test file layout
 
