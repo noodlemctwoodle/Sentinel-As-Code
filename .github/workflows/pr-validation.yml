@@ -1,29 +1,28 @@
 # ---------------------------------------------------------------------------
 # GitHub Actions Workflow: PR Validation Gate
 # ---------------------------------------------------------------------------
-# Runs on every pull request opened against main. Discovers and runs every
-# Pester test under Tests/ and exits non-zero if any test fails.
+# Runs four jobs on every pull request to main:
 #
-# Self-contained: no dependency on other repo scripts. The Pester invocation
-# is inline so this workflow registers as a status check from the moment it
-# lands on main, regardless of what else is in the repo at the time.
+#   validate      Pester suites under Tests/ (offline)
+#   bicep-build   Bicep syntax + parameter type check (offline)
+#   arm-validate  ARM template What-If for every Playbooks/**.json (OIDC)
+#   kql-validate  KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
 #
-# Wiring this as a hard merge gate (one-off):
+# Each becomes its own status check the branch-protection ruleset can
+# require independently — useful while OIDC for arm-validate is being
+# wired up. Setup runbook: Docs/Deployment/PR-Validation-Setup.md
 #
-#   Repo Settings -> Rules -> Rulesets -> New branch ruleset
-#     Enforcement status:  Active
-#     Target branches:     Include default branch
-#     Rules:
-#       - Require a pull request before merging
-#       - Require status checks to pass:
-#           Required check: validate
-#       - Block force pushes
-#       - Restrict deletions
+# Wiring required checks (one-off, after each job has run at least once):
 #
-# Once the ruleset is active, the merge button stays disabled until the
-# 'validate' job reports success against the latest commit on the PR.
+#   Repo Settings -> Rules -> Rulesets -> Main Branch Protection -> Edit
+#     Require status checks to pass -> Add checks:
+#       - validate
+#       - bicep-build
+#       - arm-validate     (only after PR-Validation-Setup.md is followed)
+#       - kql-validate
 #
-# No Azure auth required - validation runs offline against repo content only.
+# Once active, the merge button stays disabled until every required gate
+# reports success against the PR's latest commit.
 # ---------------------------------------------------------------------------
 
 name: PR Validation
@@ -144,3 +143,324 @@ jobs:
           }
 
           Write-Host '##[section]All Pester tests passed.'
+
+  # ---------------------------------------------------------------------------
+  # C1: Bicep build
+  # ---------------------------------------------------------------------------
+  # Compiles every .bicep file under Bicep/ to ARM JSON. Catches syntax
+  # errors, undefined parameter references, type mismatches, and lint
+  # violations before they reach the deploy pipeline. No Azure auth needed
+  # — `az bicep build` is fully offline.
+  bicep-build:
+    name: bicep-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure Bicep CLI is available
+        shell: bash
+        run: |
+          # The runner has az pre-installed; ensure the Bicep extension is current.
+          az bicep install
+          az bicep version
+
+      - name: Build every .bicep file
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+
+          failed=0
+          for f in Bicep/**/*.bicep; do
+              echo "::group::az bicep build $f"
+              if ! az bicep build --file "$f" --stdout > /dev/null; then
+                  echo "::error file=$f::Bicep build failed for $f"
+                  failed=1
+              fi
+              echo "::endgroup::"
+          done
+
+          if [ "$failed" -eq 1 ]; then
+              echo "::error::One or more Bicep files failed to build. PR cannot merge until they compile cleanly."
+              exit 1
+          fi
+          echo "##[section]All Bicep files built cleanly."
+
+  # ---------------------------------------------------------------------------
+  # C2: ARM What-If for every playbook template
+  # ---------------------------------------------------------------------------
+  # Runs Test-AzResourceGroupDeployment -WhatIf against every Playbooks/**/*.json
+  # to catch malformed ARM templates, missing required parameters, and
+  # schema-version mismatches before they reach the deploy pipeline.
+  #
+  # Auth: federated OIDC against the existing deploy SP. One-off setup is
+  # documented in Docs/Deployment/PR-Validation-Setup.md.
+  #
+  # Fork PRs cannot get an OIDC token (the federated subject mismatches),
+  # so this job no-ops on fork events and is marked optional in the ruleset.
+  arm-validate:
+    name: arm-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      id-token: write     # required for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Skip on fork PRs (no OIDC token available)
+        id: fork_check
+        shell: bash
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              echo "is_fork=true" >> "$GITHUB_OUTPUT"
+              echo "##[warning]Fork PR detected — arm-validate cannot run (no OIDC token). Maintainers must validate ARM templates manually before approving."
+          else
+              echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.fork_check.outputs.is_fork != 'true'
+        uses: Azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Validate every playbook ARM template
+        if: steps.fork_check.outputs.is_fork != 'true'
+        shell: pwsh
+        env:
+          PR_VALIDATION_RG: ${{ vars.PR_VALIDATION_RESOURCE_GROUP }}
+        run: |
+          if (-not $env:PR_VALIDATION_RG) {
+              Write-Host '##[error]Repository variable PR_VALIDATION_RESOURCE_GROUP is not set. See Docs/Deployment/PR-Validation-Setup.md.'
+              exit 1
+          }
+
+          # Stub parameter values that satisfy every playbook's required
+          # parameters. The deploy SP performs ARM validation only — no
+          # resources are actually created. Real values get injected at
+          # deploy time by Sentinel-Deploy.yml.
+          $stubParams = @{
+              PlaybookName               = 'pr-validation-stub'
+              LogicAppName               = 'pr-validation-stub'
+              AutomationResourceGroup    = $env:PR_VALIDATION_RG
+              SentinelWorkpaceName       = 'law-sentinel-pr-test'
+              SentinelWorkspaceName      = 'law-sentinel-pr-test'
+              SentinelResourceGroupName  = $env:PR_VALIDATION_RG
+              SentinelConnectionName     = 'azuresentinel-pr-test'
+              Recipients                 = 'pr-validation@example.com'
+          }
+
+          $playbooks = Get-ChildItem -Path 'Playbooks' -Recurse -Filter '*.json' -File
+          if (-not $playbooks) {
+              Write-Host '##[warning]No playbook ARM templates found under Playbooks/.'
+              exit 0
+          }
+
+          $failed = @()
+          foreach ($pb in $playbooks) {
+              $rel = $pb.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+              Write-Host "::group::Test-AzResourceGroupDeployment $rel"
+              try {
+                  # Build a parameter object with only the params this template declares,
+                  # otherwise New-AzResourceGroupDeployment rejects extras.
+                  $arm = Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  $declaredParams = @{}
+                  if ($arm.PSObject.Properties.Name -contains 'parameters' -and $arm.parameters) {
+                      foreach ($paramName in $arm.parameters.PSObject.Properties.Name) {
+                          if ($stubParams.ContainsKey($paramName)) {
+                              $declaredParams[$paramName] = $stubParams[$paramName]
+                          }
+                      }
+                  }
+
+                  $result = Test-AzResourceGroupDeployment `
+                      -ResourceGroupName $env:PR_VALIDATION_RG `
+                      -TemplateFile $pb.FullName `
+                      -TemplateParameterObject $declaredParams `
+                      -ErrorAction Stop
+
+                  if ($result) {
+                      foreach ($err in $result) {
+                          Write-Host "::error file=$rel::$($err.Code): $($err.Message)"
+                      }
+                      $failed += $rel
+                  }
+              }
+              catch {
+                  Write-Host "::error file=$rel::$($_.Exception.Message)"
+                  $failed += $rel
+              }
+              Write-Host '::endgroup::'
+          }
+
+          Write-Host ''
+          Write-Host '##[section]ARM validation summary'
+          Write-Host ("  Templates checked:  {0}" -f $playbooks.Count)
+          Write-Host ("  Templates failed:   {0}" -f $failed.Count)
+
+          if ($failed.Count -gt 0) {
+              Write-Host '##[error]One or more playbook ARM templates failed validation:'
+              foreach ($f in $failed) { Write-Host "##[error]  $f" }
+              exit 1
+          }
+          Write-Host '##[section]All playbook ARM templates validated cleanly.'
+
+  # ---------------------------------------------------------------------------
+  # C3: KQL syntax validation
+  # ---------------------------------------------------------------------------
+  # Parses every KQL query embedded in repo content via the Microsoft Kusto
+  # language parser (Microsoft.Azure.Kusto.Language NuGet package). Catches
+  # syntax errors, missing operators, and parser-level diagnostics without
+  # needing a workspace.
+  #
+  # Cannot catch column-existence errors (no schema) but does catch the
+  # majority of typos: unmatched parentheses, unknown keywords, missing
+  # pipe operators, malformed string literals, etc.
+  #
+  # Offline — no Azure auth needed.
+  kql-validate:
+    name: kql-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Pin Kusto.Language so a NuGet release that tightens the parser
+      # cannot fail this gate without an explicit version bump.
+      KUSTO_LANGUAGE_VERSION: "12.2.4"
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Cache Kusto.Language NuGet build
+        id: kusto_cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/kusto-lang
+          key: kusto-language-${{ env.KUSTO_LANGUAGE_VERSION }}-${{ runner.os }}
+
+      - name: Build a NuGet probe project for Kusto.Language
+        if: steps.kusto_cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kusto-lang
+          cd /tmp/kusto-lang
+          dotnet new console -n KustoLangProbe --force
+          cd KustoLangProbe
+          dotnet add package Microsoft.Azure.Kusto.Language --version "${KUSTO_LANGUAGE_VERSION}"
+          dotnet build --configuration Release --nologo
+
+      - name: Validate KQL across all repo content
+        shell: pwsh
+        run: |
+          $kustoDll = Get-ChildItem -Path /tmp/kusto-lang/KustoLangProbe/bin -Recurse -Filter 'Kusto.Language.dll' |
+              Select-Object -First 1
+          if (-not $kustoDll) {
+              Write-Host '##[error]Kusto.Language.dll not found after NuGet build. Inspect the previous step.'
+              exit 1
+          }
+          Write-Host "Loading Kusto.Language from $($kustoDll.FullName)"
+          Add-Type -Path $kustoDll.FullName
+
+          # Discover queries across all relevant content types. Each entry is
+          # @{ Path; Query; QueryFieldDescription }.
+          $queries = @()
+
+          if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+              Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+          }
+          Import-Module powershell-yaml -ErrorAction Stop
+
+          # Analytical rules + hunting queries + parsers (YAML, query field)
+          foreach ($dir in @('AnalyticalRules', 'HuntingQueries', 'Parsers')) {
+              if (-not (Test-Path $dir)) { continue }
+              Get-ChildItem -Path $dir -Recurse -Filter '*.yaml' -File | ForEach-Object {
+                  try {
+                      $y = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
+                      if ($y -and $y.ContainsKey('query') -and $y.query) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$y.query; Field = 'query' }
+                      }
+                  }
+                  catch {
+                      # Schema test owns parse errors; skip silently here.
+                  }
+              }
+          }
+
+          # Summary rules (JSON, query field)
+          if (Test-Path 'SummaryRules') {
+              Get-ChildItem -Path 'SummaryRules' -Recurse -Filter '*.json' -File | ForEach-Object {
+                  try {
+                      $j = Get-Content $_.FullName -Raw | ConvertFrom-Json
+                      if ($j.PSObject.Properties.Name -contains 'query' -and $j.query) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$j.query; Field = 'query' }
+                      }
+                  }
+                  catch {}
+              }
+          }
+
+          # Defender custom detections (YAML, queryCondition.queryText)
+          if (Test-Path 'DefenderCustomDetections') {
+              Get-ChildItem -Path 'DefenderCustomDetections' -Recurse -Filter '*.yaml' -File | ForEach-Object {
+                  try {
+                      $y = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
+                      if ($y -and $y.ContainsKey('queryCondition') -and $y.queryCondition.ContainsKey('queryText')) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$y.queryCondition.queryText; Field = 'queryCondition.queryText' }
+                      }
+                  }
+                  catch {}
+              }
+          }
+
+          Write-Host "Discovered $($queries.Count) queries to validate."
+
+          # Parse each. KustoCode.Parse returns a parsed tree; .GetSyntaxDiagnostics()
+          # returns syntax-level errors (not semantic — we have no schema).
+          $failed = @()
+          foreach ($q in $queries) {
+              try {
+                  $parsed = [Kusto.Language.KustoCode]::Parse($q.Query)
+                  $diags = @($parsed.GetSyntaxDiagnostics())
+                  if ($diags.Count -gt 0) {
+                      $msg = ($diags | ForEach-Object { "L$($_.Start): $($_.Message)" }) -join '; '
+                      Write-Host "::error file=$($q.Path)::KQL syntax error in '$($q.Field)': $msg"
+                      $failed += $q.Path
+                  }
+              }
+              catch {
+                  Write-Host "::error file=$($q.Path)::KQL parser threw: $($_.Exception.Message)"
+                  $failed += $q.Path
+              }
+          }
+
+          Write-Host ''
+          Write-Host '##[section]KQL validation summary'
+          Write-Host ("  Queries checked: {0}" -f $queries.Count)
+          Write-Host ("  Queries failed:  {0}" -f $failed.Count)
+
+          if ($failed.Count -gt 0) {
+              Write-Host '##[error]One or more KQL queries have syntax errors:'
+              foreach ($f in $failed) { Write-Host "##[error]  $f" }
+              exit 1
+          }
+          Write-Host '##[section]All KQL queries parsed cleanly.'
