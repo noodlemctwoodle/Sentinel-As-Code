@@ -71,12 +71,17 @@ Persona configurations recognised across github.com (Chat + cloud
 agent) and every supported IDE (VS Code, Visual Studio, JetBrains,
 Eclipse, Xcode), plus Copilot CLI.
 
-All five agents prefix their display name with `Sentinel-As-Code:`
+All thirteen agents prefix their display name with `Sentinel-As-Code:`
 so they group together in the agent picker (which mixes
 workspace-level, org-level, and marketplace agents). The short
-slug — `rule-author`, `repo-explorer`, etc. — is what cross-
+slug — `rule-author`, `powershell-engineer`, etc. — is what cross-
 references in this doc and the rest of the repo use; the prefixed
 form is what appears in the dropdown.
+
+The set is organised into two tiers:
+
+**Persona-broad agents** — pick by the kind of help you want
+(understand / build / edit / adjust / explain).
 
 | File | Display name | Purpose |
 | --- | --- | --- |
@@ -85,7 +90,19 @@ form is what appears in the dropdown.
 | `content-editor.agent.md` | `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit tests. |
 | `rule-tuner.agent.md` | `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
 | `code-explainer.agent.md` | `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
+
+**Engineering specialists** — pick by area of expertise.
+
+| File | Display name | Purpose |
+| --- | --- | --- |
 | `pipeline-engineer.agent.md` | `Sentinel-As-Code: Pipeline Engineer` | **CI/CD.** Edits GitHub Actions + ADO pipelines, maintains parity, manages composite actions and schedules, diagnoses failures. |
+| `powershell-engineer.agent.md` | `Sentinel-As-Code: PowerShell Engineer` | **PowerShell / module engineering.** Owns `Modules/Sentinel.Common`, AST extraction patterns, the foot-gun list (`[void]` Boolean leak, single-element array indexing, strict-mode property access). |
+| `bicep-engineer.agent.md` | `Sentinel-As-Code: Bicep Engineer` | **Infrastructure-as-Code.** Bicep templates, parameter design, the dual Sentinel onboarding pattern, the test-workspace template. |
+| `kql-engineer.agent.md` | `Sentinel-As-Code: KQL Engineer` | **KQL optimisation.** Query performance, parser extraction, watchlist promotion, ASIM compatibility, discovery-friendliness. |
+| `test-engineer.agent.md` | `Sentinel-As-Code: Test Engineer` | **Pester engineering.** Adds coverage, refactors test files, designs mocking strategies, identifies coverage gaps. Goes beyond `/new-pester-test`. |
+| `security-reviewer.agent.md` | `Sentinel-As-Code: Security Reviewer` | **Security review.** Reviews playbooks, scripts, role assignments, federated credentials, and workflows through a security lens. Read-only; produces structured findings for hand-off. |
+| `drift-engineer.agent.md` | `Sentinel-As-Code: Drift Engineer` | **Rule drift.** Owns `Test-SentinelRuleDrift.ps1`, the daily auto-PR workflow, the Custom / ContentHub / Orphan absorption flow. |
+| `dependencies-engineer.agent.md` | `Sentinel-As-Code: Dependencies Engineer` | **Dependency discovery.** Owns the KQL extractors in `Sentinel.Common`, `Build-DependencyManifest`, the `dependency-manifest` PR-validation gate, and the daily auto-PR refresh. |
 
 #### How to invoke
 

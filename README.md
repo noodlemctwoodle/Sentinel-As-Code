@@ -136,14 +136,30 @@ on change          sentinel-dcr-inventory        DCR runbook deploy
 
 The repo ships with a complete GitHub Copilot customisation set so authors get repo-aware AI help out of the box. No VS Code settings or feature toggles required — open the workspace in any IDE with Copilot Chat enabled, or pick the agent from the dropdown on github.com.
 
+Twelve agents in two tiers:
+
+**Persona-broad** — pick by what kind of help you want.
+
 | Agent | Purpose |
 |---|---|
 | `Sentinel-As-Code: Repo Explorer` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
-| `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end, including dep-manifest regeneration and Pester runs. |
+| `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end. |
 | `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit Pester suite. |
 | `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
 | `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
-| `Sentinel-As-Code: Pipeline Engineer` | **CI/CD.** Edits GitHub Actions + ADO pipelines, maintains parity, manages composite actions and schedules, diagnoses failures. |
+
+**Engineering specialists** — pick by area of expertise.
+
+| Agent | Purpose |
+|---|---|
+| `Sentinel-As-Code: Pipeline Engineer` | GitHub Actions + ADO pipelines, parity, composite actions, schedules, failure diagnosis. |
+| `Sentinel-As-Code: PowerShell Engineer` | `Sentinel.Common` module, scripts, AST extraction, the repo's foot-gun list. |
+| `Sentinel-As-Code: Bicep Engineer` | Bicep templates, parameter design, Sentinel onboarding, test-workspace template. |
+| `Sentinel-As-Code: KQL Engineer` | Query optimisation, parser extraction, watchlist promotion, ASIM compatibility. |
+| `Sentinel-As-Code: Test Engineer` | Pester suite engineering, coverage analysis, mocking strategy. |
+| `Sentinel-As-Code: Security Reviewer` | Reviews playbooks, scripts, role assignments, federated credentials. Read-only. |
+| `Sentinel-As-Code: Drift Engineer` | Rule drift sub-system, daily auto-PR triage, Custom / ContentHub / Orphan absorption. |
+| `Sentinel-As-Code: Dependencies Engineer` | Dependency-discovery extractor, `Build-DependencyManifest`, the drift gate, the daily refresh workflow. |
 
 Plus nine path-scoped instruction files under [`.github/instructions/`](./.github/instructions/) that load automatically when you edit a matching file (analytical rules, hunting queries, Defender detections, watchlists, playbooks, parsers, scripts, KQL queries, workflows), and six reusable prompts under [`.github/prompts/`](./.github/prompts/) (`/new-analytical-rule`, `/new-hunting-query`, `/new-defender-detection`, `/new-pester-test`, `/review-rule`, `/regenerate-deps`).
 

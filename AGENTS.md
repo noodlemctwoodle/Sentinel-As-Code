@@ -28,10 +28,19 @@ canonical instructions in
 5. **Custom agents** under [`.github/agents/`](./.github/agents/)
    are persona configurations recognised by GitHub Copilot Chat
    (github.com), Copilot cloud agent, Copilot CLI, VS Code,
-   JetBrains, Eclipse, and Xcode. Use the matching agent for the
-   task: `repo-explorer`, `rule-author`, `content-editor`,
-   `rule-tuner`, `code-explainer`, `pipeline-engineer`. Other
-   agentic tools can treat the `.agent.md` files as role
+   JetBrains, Eclipse, and Xcode. Twelve agents in two tiers:
+
+   **Persona-broad (5)** — `repo-explorer`, `rule-author`,
+   `content-editor`, `rule-tuner`, `code-explainer`. Pick one
+   based on the kind of help you want.
+
+   **Engineering specialists (8)** — `pipeline-engineer`,
+   `powershell-engineer`, `bicep-engineer`, `kql-engineer`,
+   `test-engineer`, `security-reviewer`, `drift-engineer`,
+   `dependencies-engineer`. Pick one when the task is firmly in
+   one engineering specialism.
+
+   Other agentic tools can treat the `.agent.md` files as role
    definitions.
 
 ## Hard rules
@@ -59,7 +68,14 @@ canonical instructions in
 | Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Agent `repo-explorer` |
 | Explain a rule's KQL | The rule file | Agent `code-explainer` |
 | Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
-| Refresh `dependencies.json` | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
+| Add a function to `Sentinel.Common` or refactor a script | [Docs/Deployment/Scripts.md](./Docs/Deployment/Scripts.md) | Agent `powershell-engineer` |
+| Edit a Bicep template | [Docs/Deployment/Bicep.md](./Docs/Deployment/Bicep.md) | Agent `bicep-engineer` |
+| Optimise a KQL query (performance, parser extraction, watchlist promotion) | [`.github/instructions/kql-queries.instructions.md`](./.github/instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
+| Add coverage / refactor a Pester suite | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
+| Security-review a playbook / script / workflow | The file in question | Agent `security-reviewer` |
+| Triage a drift auto-PR or fix the drift detector | [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
+| Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Refresh `dependencies.json` (routine regeneration) | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Test before you ship
 

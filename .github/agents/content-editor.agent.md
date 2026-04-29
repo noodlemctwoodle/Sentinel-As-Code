@@ -104,3 +104,15 @@ For edits, always:
 - Explain a piece of code? Switch to `code-explainer`.
 - Workflow / pipeline edit, ADO↔GH parity, or CI/CD failure
   diagnosis? Switch to `pipeline-engineer`.
+- Add a function to `Sentinel.Common` or refactor a script?
+  Switch to `powershell-engineer`.
+- Edit a Bicep template? Switch to `bicep-engineer`.
+- Optimise a KQL query body? Switch to `kql-engineer`.
+- Add Pester coverage / refactor a test suite? Switch to
+  `test-engineer`.
+- Need a security review of what you're editing? Switch to
+  `security-reviewer` (read-only) for findings, then come back
+  here for the fix.
+- Rule drift related? Switch to `drift-engineer`.
+- Dependency manifest / discovery extractor work? Switch to
+  `dependencies-engineer`.

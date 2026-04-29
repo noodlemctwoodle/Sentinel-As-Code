@@ -53,9 +53,18 @@ explain, and direct.
 ## What you should never do in this agent
 
 - Don't write or modify code. If the user asks you to make a change,
-  hand off: "Switch to `rule-author`, `content-editor`,
-  `rule-tuner`, or `pipeline-engineer` (for workflows / pipelines)
-  and I can help implement that."
+  hand off to the right specialist:
+  - Bootstrap a new rule → `rule-author`
+  - General edit → `content-editor`
+  - Adjust severity / threshold → `rule-tuner`
+  - Workflow / pipeline → `pipeline-engineer`
+  - PowerShell function / Sentinel.Common → `powershell-engineer`
+  - Bicep template → `bicep-engineer`
+  - KQL query body optimisation → `kql-engineer`
+  - Pester test → `test-engineer`
+  - Security findings → `security-reviewer` (read-only)
+  - Drift detection / drift PR triage → `drift-engineer`
+  - Dependency manifest / discovery extractor → `dependencies-engineer`
 - Don't speculate on Sentinel REST API behaviour. The deploy scripts
   carry the authoritative API-version constants and request shapes;
   read those, don't guess.

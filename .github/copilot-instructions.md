@@ -137,7 +137,14 @@ Conventional commit format: `type(scope): brief description`.
 | Tune an existing rule | n/a | Agent `rule-tuner` |
 | Understand the repo | [Docs/README.md](../Docs/README.md) | Agent `repo-explorer` |
 | Edit / diagnose a pipeline | [Docs/Deployment/Pipelines.md](../Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
-| Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
+| Add or refactor a function in `Sentinel.Common` | [Docs/Deployment/Scripts.md](../Docs/Deployment/Scripts.md) | Agent `powershell-engineer` |
+| Edit a Bicep template | [Docs/Deployment/Bicep.md](../Docs/Deployment/Bicep.md) | Agent `bicep-engineer` |
+| Optimise a KQL query | [`.github/instructions/kql-queries.instructions.md`](./instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
+| Add coverage for an untested script / refactor a Pester suite | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
+| Security-review a playbook / script / workflow | n/a | Agent `security-reviewer` |
+| Triage a drift auto-PR | [Docs/Operations/Sentinel-Drift-Detection.md](../Docs/Operations/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
+| Investigate why dependencies.json is wrong / extend the discovery extractor | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` (or agent `dependencies-engineer` for non-trivial issues) |
 
 ## Testing
 
