@@ -161,7 +161,7 @@ jobs:
       resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -170,7 +170,7 @@ jobs:
 
       - name: Check for Existing Resources
         id: check
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -211,7 +211,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -219,14 +219,14 @@ jobs:
           enable-AzPSSession: true
 
       - name: Register Resource Providers
-        uses: azure/cli@v2
+        uses: Azure/cli@v2
         with:
           inlineScript: |
             az provider register --namespace Microsoft.OperationsManagement --wait
             az provider register --namespace Microsoft.SecurityInsights --wait
 
       - name: Deploy Bicep Templates
-        uses: azure/cli@v2
+        uses: Azure/cli@v2
         with:
           inlineScript: |
             az deployment sub create \
@@ -248,7 +248,7 @@ jobs:
           Write-Host "Done."
 
       - name: Configure Sentinel Settings
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -328,7 +328,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -336,7 +336,7 @@ jobs:
           enable-AzPSSession: true
 
       - name: Deploy Content Hub Solutions
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -390,7 +390,7 @@ jobs:
             deployment-state-${{ env.WORKSPACE_NAME }}-
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -403,7 +403,7 @@ jobs:
           Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
 
       - name: Deploy Custom Content
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -456,7 +456,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -469,7 +469,7 @@ jobs:
           Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
 
       - name: Deploy Defender Custom Detections
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
