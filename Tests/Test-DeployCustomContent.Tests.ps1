@@ -35,13 +35,13 @@ BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath
 
-    # Stub Write-PipelineMessage so the imported functions can call it
-    # without complaining about ADO/local detection state. Nothing the
-    # tests assert on depends on its output.
-    function Write-PipelineMessage {
-        param([string]$Message, [string]$Level = 'Info')
-        # no-op
-    }
+    # Pull in Write-PipelineMessage from the shared module rather than
+    # stubbing it locally. The AST extractor pulls just function definitions
+    # out of the source script and skips the top-level Import-Module
+    # statement at the top of Deploy-CustomContent.ps1, so the imported
+    # functions need their dependency made available another way; importing
+    # the module here gives them the real Write-PipelineMessage at runtime.
+    Import-Module (Join-Path $repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 }
 
 Describe 'Initialize-DependencyGraph' {

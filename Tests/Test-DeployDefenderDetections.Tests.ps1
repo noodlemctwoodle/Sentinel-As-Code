@@ -28,9 +28,10 @@ BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath
 
-    function Write-PipelineMessage {
-        param([string]$Message, [string]$Level = 'Info')
-    }
+    # Pull in Write-PipelineMessage from the shared module rather than
+    # stubbing it locally — the AST extractor skips the top-level
+    # Import-Module statement, so this restores the dependency at runtime.
+    Import-Module (Join-Path $repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 
     # Minimal-shape factory for a detection rule. Covers required fields;
     # individual tests add optional fields via Override.

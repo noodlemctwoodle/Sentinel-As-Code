@@ -22,10 +22,10 @@ BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath
 
-    # Stub Write-PipelineMessage since extracted functions may call it.
-    function Write-PipelineMessage {
-        param([string]$Message, [string]$Level = 'Info')
-    }
+    # Pull in Write-PipelineMessage from the shared module rather than
+    # stubbing it locally — the AST extractor skips the top-level
+    # Import-Module statement, so this restores the dependency at runtime.
+    Import-Module (Join-Path $repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 
     # Mock builders. Both functions take PSObject-shaped rule/template
     # objects mirroring what the Sentinel REST API returns.
