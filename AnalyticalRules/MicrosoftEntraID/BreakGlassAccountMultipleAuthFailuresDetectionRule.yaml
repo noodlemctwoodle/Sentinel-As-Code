@@ -9,10 +9,6 @@ requiredDataConnectors:
 - connectorId: AzureActiveDirectory
   dataTypes:
   - SignInLogs
-queryFrequency: PT5M
-queryPeriod: PT5M
-triggerOperator: gt
-triggerThreshold: 0
 enabled: true
 tactics:
 - InitialAccess
