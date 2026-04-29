@@ -1,9 +1,10 @@
 # Sentinel Analytics Rule Drift Detection
 
 Detects rules that have been edited directly in the Microsoft Sentinel portal,
-bypassing the DevOps deployment pipelines. When drift is found, Custom rule
-edits are absorbed back into the repo via an auto-generated pull request.
-Content Hub and orphan drift are reported but not auto-merged.
+bypassing the DevOps deployment pipelines. Every drift bucket is absorbed back
+into the repo as YAML under `AnalyticalRules/`, then committed onto a rolling
+auto-sync branch and surfaced via an auto-generated pull request for human
+review.
 
 | What | Where |
 | --- | --- |
@@ -15,34 +16,45 @@ Content Hub and orphan drift are reported but not auto-merged.
 
 ## Why this exists
 
-Two governance gaps the existing deploy pipelines don't close:
+Three governance gaps the existing deploy pipelines don't close:
 
 1. **Portal edits to Custom rules silently overwrite the repo.** When the
-   next deploy runs, the YAML in the repo wins — and the portal change is
-   lost without anyone realising.
-2. **Portal edits to Content Hub (OoB) rules are partially handled.**
+   next deploy runs, the YAML in the repo wins, and the portal change is lost
+   without anyone realising.
+2. **Portal edits to Content Hub (OoB) rules drift away from upstream.**
    `Deploy-SentinelContentHub.ps1` already protects modified OoB rules from
-   being overwritten on update via `-ProtectCustomisedRules`, but there's no
-   ongoing visibility into which rules diverge from their templates.
+   being overwritten on update via `-ProtectCustomisedRules`, but the rule
+   keeps drifting without becoming a tracked, version-controlled artefact.
+3. **Rules created entirely in the portal are ungoverned.** With no template
+   link and no repo YAML, an "orphan" rule has no source of truth at all.
 
-This script runs daily and produces a paper trail. For Custom rules it goes
-further: it absorbs the portal change back into the repo via a PR so the YAML
-becomes the new source of truth.
+This script runs daily and absorbs every drift bucket back into the repo as
+a Custom YAML, then opens a PR so the change can be reviewed and merged.
 
 ## How a rule maps to a bucket
 
-Each deployed Analytics Rule resolves to exactly one bucket:
+Each deployed Analytics Rule resolves to exactly one bucket. Resolution checks
+the YAML id lookup first, so a rule that has already been absorbed into
+`AnalyticalRules/AbsorbedFromPortal/` is governed via the Custom branch on
+every subsequent run, even if it still carries an `alertRuleTemplateName` link
+on the workspace side.
 
 | Bucket | Match logic | Action on drift |
 | --- | --- | --- |
-| **ContentHub** | `properties.alertRuleTemplateName` matches a Content Hub `contentTemplate.contentId` | Report only |
-| **Custom** | The rule's resource-name GUID matches a YAML `id:` under `AnalyticalRules/**` | YAML rewritten + PR |
-| **Orphan** | Neither of the above matches | Report only |
+| **Custom** | The rule's resource-name GUID matches a YAML `id:` under `AnalyticalRules/**` | Existing YAML rewritten in place; patch version bumped |
+| **ContentHub** | `properties.alertRuleTemplateName` matches a Content Hub `contentTemplate.contentId` | New YAML written to `AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/{Slug}.yaml`; reuses the rule's resource GUID as `id:` so the next deploy run takes over governance from the template |
+| **Orphan** | Neither of the above matches | New YAML written to `AnalyticalRules/AbsorbedFromPortal/Orphans/{Slug}.yaml` so the rule becomes a governed Custom rule |
 | **Managed** | `kind` is `Fusion`, `MicrosoftSecurityIncidentCreation`, `MLBehaviorAnalytics`, or `ThreatIntelligence` | Excluded entirely |
 
 Managed rules are Microsoft-built and not user-editable, so drift detection
 doesn't apply to them. They're counted in the summary as `managed (excluded)`
 but skipped from all three buckets.
+
+After a ContentHub or Orphan rule has been absorbed, its YAML lives alongside
+the rest of the Custom rules. Reviewers can keep the file under
+`AbsorbedFromPortal/` (the auto-generated location) or move it into a more
+descriptive category folder during PR review. Future drift on the same rule
+flows through the in-place Custom-rule update path.
 
 ## What "drift" means
 
@@ -82,9 +94,14 @@ Deliberately **not** compared:
 │  1. Auth (sc-sentinel-as-code service connection — Sentinel Reader)      │
 │  2. Fetch deployed rules + Content Hub templates + repo YAML index       │
 │  3. For each deployed rule:                                              │
-│       • Resolve source → ContentHub / Custom / Orphan / Managed          │
+│       • Resolve source → Custom (YAML wins) / ContentHub / Orphan /      │
+│         Managed                                                          │
 │       • Compare fields (above)                                           │
-│       • If Custom drift: rewrite the YAML in place, bump patch version   │
+│       • Custom drift   → rewrite the matched YAML in place, bump patch  │
+│       • ContentHub drift → write a new YAML to                          │
+│         AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/        │
+│       • Orphan drift   → write a new YAML to                            │
+│         AnalyticalRules/AbsorbedFromPortal/Orphans/                      │
 │  4. If any drift detected:                                               │
 │       • Write reports/sentinel-drift-{timestamp}.md  (full diffs)        │
 │       • Write reports/sentinel-drift-{timestamp}.json (machine-readable) │
@@ -174,10 +191,10 @@ Runs automatically every day at 06:00 UTC. No action needed.
 | Toggle | Default | Effect |
 | --- | --- | --- |
 | Fail Pipeline When Drift Detected | off | Exits non-zero if anything drifted (use to gate downstream pipelines) |
-| Report Only | off | Writes the report but does not edit YAML or open a PR |
-| Drift › Skip Content Hub Bucket | off | Suppresses ContentHub comparison entirely |
-| Drift › Skip Custom (Repo YAML) Bucket | off | Suppresses Custom comparison entirely |
-| Drift › Skip Orphan (Ungoverned) Bucket | off | Suppresses orphan reporting entirely |
+| Report Only | off | Writes the report but does not absorb drift (no YAML edits, no new YAMLs, no PR) |
+| Drift › Skip Content Hub Bucket | off | Suppresses ContentHub comparison and absorption entirely |
+| Drift › Skip Custom (Repo YAML) Bucket | off | Suppresses Custom comparison and absorption entirely |
+| Drift › Skip Orphan (Ungoverned) Bucket | off | Suppresses orphan reporting and absorption entirely |
 
 The Content Hub solution catalogue is **not** exposed as a parameter — every
 solution in the workspace is scanned every run. The report groups results by
@@ -208,7 +225,9 @@ single-solution runs, invoke the script locally (next section).
 The script auto-installs `powershell-yaml` if missing. Az authentication
 falls back to `Connect-AzAccount` when no current Azure context exists.
 
-## How Custom drift gets absorbed
+## How drift gets absorbed
+
+### Custom drift (in-place YAML rewrite)
 
 When a Custom rule is detected as drifted, the matching YAML file under
 `AnalyticalRules/**` is rewritten in place using surgical regex replacements:
@@ -228,6 +247,60 @@ If the regex doesn't match (e.g. a YAML uses non-standard formatting), the
 script logs `No-op on YAML: ... (regex did not match — manual edit required)`
 and the JSON report records `yamlUpdated: false`. The reviewer can then make
 the edit by hand based on the full deployed/expected values in the report.
+
+### ContentHub drift (template promoted to Custom YAML)
+
+When a Content-Hub-deployed rule has been edited in the portal, the script
+serialises the deployed state into a fresh Custom YAML at:
+
+```
+AnalyticalRules/AbsorbedFromPortal/ContentHub/{SolutionSlug}/{RuleSlug}.yaml
+```
+
+The serialiser emits the same field set the rest of the repo's Custom rules
+use: `id`, `name`, `description`, `severity`, scheduling fields (Scheduled
+only), `enabled`, `tactics`, `relevantTechniques`, `query` (block scalar),
+`entityMappings`, `eventGroupingSettings`, `incidentConfiguration`,
+`version: 1.0.0`, `kind`, and `tags`. The rule's existing resource GUID is
+reused as the YAML's `id:` value, and the YAML is tagged with
+`AbsorbedFromPortal-ContentHub` plus the originating solution name for audit.
+
+Because the YAML now exists, the next deploy run treats the rule as Custom
+(governance handed off from `Deploy-SentinelContentHub.ps1` to
+`Deploy-CustomContent.ps1`). The Custom deployer's PUT request to the same
+resource URI overwrites the template-tracked rule with the absorbed YAML's
+contents, completing the promotion.
+
+### Orphan drift (export to a governed Custom YAML)
+
+A rule with neither a template link nor a matching repo YAML is exported to:
+
+```
+AnalyticalRules/AbsorbedFromPortal/Orphans/{RuleSlug}.yaml
+```
+
+Same serialisation as the ContentHub case, but tagged
+`AbsorbedFromPortal-Orphan`. After the PR merges, the next deploy treats the
+rule as a normal Custom rule.
+
+### Reviewer workflow for absorbed YAMLs
+
+The auto-generated `AbsorbedFromPortal/` location is intentionally separated
+from the curated category folders. Reviewers can:
+
+1. Approve the PR as-is and let the file live under `AbsorbedFromPortal/`.
+2. Move the file into the appropriate category folder (e.g.
+   `AnalyticalRules/MicrosoftEntraID/`) during PR review. The `id:` GUID stays
+   the same, so the next drift run still resolves the rule to the new path.
+3. Delete the file in the PR if the rule should not be governed (e.g. it was
+   a one-off test in the portal). The Custom branch will fail to find a YAML
+   on the next run and the rule is re-exported as an orphan; that is the
+   signal to delete the rule from the portal as well.
+
+The slug used in the filename comes from the rule's `displayName` (non-word
+characters collapsed to single hyphens, capped at 80 characters). The
+solution slug uses the same rules with a 60-character cap. When no solution
+attribution is available the rule lands under `ContentHub/Unattributed/`.
 
 ## Limitations
 
