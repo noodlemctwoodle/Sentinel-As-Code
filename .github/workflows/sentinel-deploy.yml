@@ -159,7 +159,12 @@ permissions:
 env:
   RESOURCE_GROUP: ${{ vars.SENTINEL_RESOURCE_GROUP }}
   WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE_NAME }}
-  REGION: ${{ vars.SENTINEL_REGION }}
+  REGION:         ${{ vars.SENTINEL_REGION }}
+
+  # Pin powershell-yaml so a PSGallery release that tightens parser
+  # behaviour cannot break a scheduled deploy. Bumping is a one-line PR
+  # that re-runs the gate against the new version before merging.
+  YAML_VERSION:   "0.4.12"
 
 jobs:
   # ===========================================================================
@@ -173,10 +178,10 @@ jobs:
       resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Check for Existing Resources
@@ -222,10 +227,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Register Resource Providers
@@ -338,10 +343,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Content Hub Solutions
@@ -400,10 +405,11 @@ jobs:
           restore-keys: |
             deployment-state-${{ env.WORKSPACE_NAME }}-
 
-      - name: Install powershell-yaml Module
-        shell: pwsh
-        run: |
-          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
       # Pre-deploy guard: dependencies.json must match what discovery
       # produces from current content. The PR-validation gate already
@@ -423,10 +429,10 @@ jobs:
           }
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content
@@ -484,16 +490,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install powershell-yaml Module
-        shell: pwsh
-        run: |
-          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
       - name: Deploy Defender Custom Detections
         uses: Azure/powershell@v2

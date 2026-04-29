@@ -78,6 +78,11 @@ env:
   SYNC_BRANCH:   "auto/sentinel-drift-sync"
   TARGET_BRANCH: "main"
 
+  # Pin powershell-yaml so a PSGallery release that tightens parser
+  # behaviour cannot break a scheduled drift detection run. Bumping is
+  # a one-line PR that re-runs the gate against the new version.
+  YAML_VERSION:  "0.4.12"
+
 jobs:
   detect-drift:
     name: Detect Drift, Sync, and Open PR
@@ -95,19 +100,17 @@ jobs:
           fetch-depth: 0   # full history so 'git rebase' / 'git fetch origin main' works cleanly
 
       - name: Azure login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
-      - name: Install powershell-yaml
-        shell: pwsh
-        run: |
-          if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
-              Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
-          }
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
       - name: Run Sentinel drift detection
         uses: Azure/powershell@v2

@@ -116,7 +116,33 @@ job name), add it to the existing branch-protection ruleset:
 >
 > Required: `arm-validate`
 
-Apply the same to `bicep-build` and `kql-validate` once they have run.
+Apply the same to `bicep-build`, `kql-validate`, and `dependency-manifest`
+once they have run.
+
+## Composite actions
+
+Two composite actions live under `.github/actions/` and are reused by
+every workflow that needs them. Use them in new workflows instead of
+inlining the patterns again:
+
+- `./.github/actions/azure-login-oidc` — federated OIDC login wrapper.
+  Replaces the six-line `Azure/login@v2` block at every call site with
+  a four-line invocation. Defaults `enable-AzPSSession: true` because
+  most call sites use both the `az` CLI and Az PowerShell. Pass
+  `enable-azps-session: 'false'` for CLI-only jobs to slightly reduce
+  auth-step time.
+
+- `./.github/actions/setup-pwsh-modules` — Pester + powershell-yaml
+  cache + pinned install + verify pattern. Replaces ~30-line install
+  blocks. Pass `install-pester: 'false'` for jobs that only consume
+  YAML (e.g. the `dependency-manifest` gate). Default version pins
+  match the workflow-level `PESTER_VERSION` / `YAML_VERSION` env vars
+  the existing workflows define.
+
+When wiring up a new workflow that needs Azure auth or PowerShell
+modules, use these. Don't inline `Azure/login@v2` or `Install-Module`
+in fresh code — the composite actions are the single source of truth
+for both patterns.
 
 After this, every PR's merge button stays disabled until all required
 gates pass.
