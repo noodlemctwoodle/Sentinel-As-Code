@@ -400,17 +400,34 @@ jobs:
           restore-keys: |
             deployment-state-${{ env.WORKSPACE_NAME }}-
 
+      - name: Install powershell-yaml Module
+        shell: pwsh
+        run: |
+          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+
+      # Pre-deploy guard: dependencies.json must match what discovery
+      # produces from current content. The PR-validation gate already
+      # checks this on every PR to main, but a scheduled deploy from main
+      # could still race if a non-deploy commit (e.g. a doc-only change
+      # that bumps an analytical rule's query inline) bypassed the gate.
+      # Failing fast here is cheap and prevents the deployer from running
+      # against a stale dependency graph.
+      - name: Verify dependency manifest is current
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "##[error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
+              Write-Host "##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              exit 1
+          }
+
       - name: Azure Login (OIDC)
         uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Install powershell-yaml Module
-        shell: pwsh
-        run: |
-          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
 
       - name: Deploy Custom Content
         uses: Azure/powershell@v2

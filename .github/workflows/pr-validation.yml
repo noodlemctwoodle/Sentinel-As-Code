@@ -1,12 +1,13 @@
 # ---------------------------------------------------------------------------
 # GitHub Actions Workflow: PR Validation Gate
 # ---------------------------------------------------------------------------
-# Runs four jobs on every pull request to main:
+# Runs five jobs on every pull request to main:
 #
-#   validate      Pester suites under Tests/ (offline)
-#   bicep-build   Bicep syntax + parameter type check (offline)
-#   arm-validate  ARM template What-If for every Playbooks/**.json (OIDC)
-#   kql-validate  KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
+#   validate              Pester suites under Tests/ (offline)
+#   bicep-build           Bicep syntax + parameter type check (offline)
+#   arm-validate          ARM template What-If for every Playbooks/**.json (OIDC)
+#   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
+#   dependency-manifest   dependencies.json drift check vs auto-discovery (offline)
 #
 # Each becomes its own status check the branch-protection ruleset can
 # require independently — useful while OIDC for arm-validate is being
@@ -20,6 +21,7 @@
 #       - bicep-build
 #       - arm-validate     (only after PR-Validation-Setup.md is followed)
 #       - kql-validate
+#       - dependency-manifest
 #
 # Once active, the merge button stays disabled until every required gate
 # reports success against the PR's latest commit.
@@ -464,3 +466,66 @@ jobs:
               exit 1
           }
           Write-Host '##[section]All KQL queries parsed cleanly.'
+
+  # ---------------------------------------------------------------------------
+  # C4: Dependency manifest drift gate
+  # ---------------------------------------------------------------------------
+  # Runs Scripts/Build-DependencyManifest.ps1 -Mode Verify, which walks every
+  # AnalyticalRules/**.yaml + HuntingQueries/**.yaml, runs the discovery
+  # extractors from Modules/Sentinel.Common, and compares the discovered
+  # manifest against the on-disk dependencies.json. Any drift fails the gate.
+  #
+  # Why this matters: dependencies.json is the input to Deploy-CustomContent.ps1's
+  # internal-dependency ordering. A rule whose manifest entry is stale or
+  # missing will deploy with an incorrect dependency graph, which can cause
+  # the deploy to attempt to create a rule before its parser, watchlist, or
+  # external function exists in the workspace.
+  #
+  # Authors fix drift by running the script locally and committing the
+  # regenerated manifest:
+  #
+  #   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+  #   git add dependencies.json && git commit
+  #
+  # Or by waiting for the daily Update workflow (see
+  # sentinel-dependency-update.yml — Wave 4 Item 4D) to open an auto-PR.
+  #
+  # Offline — no Azure auth needed; the script reads YAML/JSON only.
+  dependency-manifest:
+    name: dependency-manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: pwsh-modules-${{ runner.os }}-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
+
+      - name: Install powershell-yaml (pinned)
+        shell: pwsh
+        run: |
+          $yamlVersion = '${{ env.YAML_VERSION }}'
+          $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+              Where-Object { $_.Version -eq [version]$yamlVersion }
+          if (-not $haveYaml) {
+              Install-Module -Name powershell-yaml `
+                  -RequiredVersion $yamlVersion `
+                  -Force -Scope CurrentUser -AllowClobber
+          }
+
+      - name: Verify dependency manifest matches discovery
+        shell: pwsh
+        run: |
+          ./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host '##[error]dependencies.json is out of sync with content.'
+              Write-Host '##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
+              exit 1
+          }

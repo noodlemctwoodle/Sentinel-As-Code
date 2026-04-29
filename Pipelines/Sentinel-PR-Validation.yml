@@ -39,8 +39,10 @@ pr:
     include:
       - AnalyticalRules
       - HuntingQueries
+      - Modules
       - Scripts
       - Tests
+      - dependencies.json
       - Pipelines/Sentinel-PR-Validation.yml
 
 # CI on push to main ensures we have a green baseline; if main ever goes red
@@ -53,8 +55,10 @@ trigger:
     include:
       - AnalyticalRules
       - HuntingQueries
+      - Modules
       - Scripts
       - Tests
+      - dependencies.json
       - Pipelines/Sentinel-PR-Validation.yml
 
 variables:
@@ -100,6 +104,26 @@ stages:
                     -RepoPath        "$(Build.SourcesDirectory)" `
                     -TestResultsPath "$(testResultsFile)" `
                     -InstallModules:$false
+
+          # Drift-check the dependency manifest against discovery. Same gate
+          # as the GH Actions dependency-manifest job — fails the PR if the
+          # on-disk dependencies.json doesn't match what discovery produces
+          # from the current content. Author fix: run
+          # `./Scripts/Build-DependencyManifest.ps1 -Mode Generate` locally
+          # and commit the result, or wait for the daily auto-PR workflow
+          # to open one.
+          - task: PowerShell@2
+            displayName: "Verify dependency manifest"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                & "$(Build.SourcesDirectory)/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync with content."
+                    Write-Host "##vso[task.logissue type=error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result."
+                    exit 1
+                }
 
           - task: PublishTestResults@2
             displayName: "Publish Pester results"
