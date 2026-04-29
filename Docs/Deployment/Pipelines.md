@@ -8,6 +8,19 @@ deployment, and operational tooling.
 | [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) | End-to-end deploy: Bicep infra + Content Hub + custom content + Defender XDR | Weekly, Mon 04:00 UTC |
 | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) | Detect rules edited in the portal, auto-PR Custom drift back into the repo | Daily, 06:00 UTC. See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 | [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) | Deploy the DCR-watchlist sync runbook | On change to `Automation/DCR-Watchlist/**`. See [DCR Watchlist](../Operations/DCR-Watchlist.md) |
+| [`Pipelines/Sentinel-Dependency-Update.yml`](../../Pipelines/Sentinel-Dependency-Update.yml) | Run `Build-DependencyManifest -Mode Update` against main; auto-PR if `dependencies.json` drifts | Daily, 02:00 UTC. See [Dependency Manifest](../Operations/Dependency-Manifest.md) |
+| [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | PR-merge gate: runs every Pester suite plus the dependency-manifest drift gate | On every PR / push to main. See [Pester Tests](../Development/Pester-Tests.md) |
+
+> **GitHub Actions equivalents** of every pipeline live under
+> [`.github/workflows/`](../../.github/workflows/). They share the same
+> schedules and behaviour. Plus two GitHub-only workflows that have no
+> ADO equivalent:
+>
+> - [`pr-validation.yml`](../../.github/workflows/pr-validation.yml) —
+>   five-job merge gate (validate, bicep-build, arm-validate,
+>   kql-validate, dependency-manifest)
+> - [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml) —
+>   nightly E2E smoke test against the test workspace, daily 03:00 UTC
 
 ## Sentinel-Deploy.yml
 

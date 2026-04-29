@@ -105,15 +105,16 @@ handle environment setup, NUnit-XML publishing, and merge gating.
 ### What gets validated
 
 The GitHub workflow ([`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml))
-runs four parallel jobs, each surfacing as its own status check the
+runs five parallel jobs, each surfacing as its own status check the
 ruleset can require independently:
 
 | Job | What | Auth | Setup |
 | --- | --- | --- | --- |
-| `validate` | Every Pester suite under `Tests/` (~5,500 assertions) | None | Already wired |
+| `validate` | Every Pester suite under `Tests/` (~6,000 assertions; grows with content) | None | Already wired |
 | `bicep-build` | `az bicep build` against every `Bicep/**/*.bicep` | None | Already wired |
 | `arm-validate` | `Test-AzResourceGroupDeployment -WhatIf` against every `Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) |
 | `kql-validate` | KQL syntax check via the Microsoft.Azure.Kusto.Language parser across all rule queries | None | Already wired |
+| `dependency-manifest` | `Build-DependencyManifest -Mode Verify` — fails if `dependencies.json` drifts from discovery | None | Already wired. See [Dependency Manifest](../Operations/Dependency-Manifest.md) |
 
 #### Pester suites covered by `validate`
 
@@ -130,7 +131,7 @@ ruleset can require independently:
 | Workbooks | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection; cross-directory GUID uniqueness for ARM workbooks |
 | Playbooks (structural) | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence |
 | Helper module self-test | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip |
-| Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching |
+| Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching · KQL extractors (`Remove-KqlComments`, `Get-KqlWatchlistReferences`, `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers` incl. `materialize()`/`table('X')` patterns) · `Get-ContentDependencies` orchestrator |
 | Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
 | Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised` |
 | Deploy-DefenderDetections | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) |
@@ -155,13 +156,14 @@ build policy. Configure the gate once per platform:
   - `validate` (Pester suites)
   - `bicep-build` (Bicep build)
   - `kql-validate` (KQL syntax)
+  - `dependency-manifest` (`dependencies.json` drift gate)
   - `arm-validate` (ARM What-If — only after [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) is complete)
 
 **Azure DevOps** — Project Settings → Repos → Repositories → `<repo>` →
 Policies → Branch policies for `main`:
 - Build validation → + Add build policy
 - Build pipeline: `Sentinel-PR-Validation`
-- Path filter: `AnalyticalRules/*;HuntingQueries/*;Scripts/*;Tests/*`
+- Path filter: `AnalyticalRules/*;HuntingQueries/*;Modules/*;Scripts/*;Tests/*;dependencies.json`
 - Trigger: Automatic
 - Policy requirement: Required
 - Build expiration: Immediately when the source branch is updated
@@ -466,8 +468,28 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-| File | Coverage | Tests |
+Counts are approximate (some suites use `-ForEach` to generate per-file
+`It` blocks at discovery time, so the count grows with the content
+tree). Run `Invoke-Pester -Path Tests` for a current total.
+
+| File | Coverage | Approx. tests |
 | --- | --- | --- |
-| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource` | 41 |
+| [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1) | Per-rule schema (193 analytical + 51 hunting) + cross-file `id` uniqueness | ~24 + per-file |
+| [`Tests/Test-AutomationRuleJson.Tests.ps1`](../../Tests/Test-AutomationRuleJson.Tests.ps1) | Action / trigger / propertyValues shape; cross-file id uniqueness | 14 |
+| [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) | Defender XDR YAML schema + alertTemplate + response-action enums | 15 |
+| [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) | `dependencies.json` shape + per-entry path / watchlist / function alias resolution | ~1000 (per-entry) |
+| [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` | 15 |
+| [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) | 14 |
+| [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised` | 17 |
+| [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) | 25 |
+| [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip | 6 |
+| [`Tests/Test-ParserYaml.Tests.ps1`](../../Tests/Test-ParserYaml.Tests.ps1) | Required fields + KQL identifier validation; functionAlias uniqueness | 4 |
+| [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence | 10 |
+| [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | Pipeline logging + REST wrapper + Az context bootstrap + KQL discovery extractors | 57 |
+| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` | 58 |
+| [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` | 14 |
+| [`Tests/Test-SummaryRuleJson.Tests.ps1`](../../Tests/Test-SummaryRuleJson.Tests.ps1) | binSize enum + destinationTable suffix + KQL restriction patterns | 10 |
+| [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; alias uniqueness | 9 |
+| [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 
 Add new entries to this table as you cover more scripts.

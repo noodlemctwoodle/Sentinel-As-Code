@@ -11,6 +11,8 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
 | `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
 | `Set-PlaybookPermissions.ps1` | Post-deploy: grants managed-identity roles based on each playbook's actual workflow content | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
+| `Build-DependencyManifest.ps1` | Auto-derives `dependencies.json` from KQL discovery (Generate / Verify / Update modes) | [#build-dependencymanifestps1](#build-dependencymanifestps1) |
+| `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint — runs every Pester suite under `Tests/` and emits a JUnit XML report | See [Pester Tests](../Development/Pester-Tests.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1
@@ -583,3 +585,109 @@ default — `Setup-ServicePrincipal.ps1` only grants it under an ABAC
 condition that doesn't permit Sentinel-tier role assignments. Run this
 script under a separate elevated identity (typically a one-off run by
 an admin user, not the pipeline SPN).
+
+---
+
+## Build-DependencyManifest.ps1
+
+Walks `AnalyticalRules/` and `HuntingQueries/`, parses every embedded
+KQL query, and emits or verifies `dependencies.json` — the manifest the
+deploy pipeline reads to drive content-ordering decisions. Replaces the
+previously hand-maintained workflow.
+
+See [Operations / Dependency Manifest](../Operations/Dependency-Manifest.md)
+for the full discovery model, schema, and reasoning. This section
+covers the script's parameter surface and operating modes.
+
+### Key features
+
+- **Three operating modes** — Generate (write the manifest from
+  discovery), Verify (drift-check vs the on-disk manifest, used by
+  the PR-validation gate), Update (drift-detect + write to disk for
+  the daily auto-PR workflow).
+- **Repo-driven inventory** — no hard-coded table list. Functions
+  come from `Parsers/**/*.yaml`, watchlists from
+  `Watchlists/*/watchlist.json`, playbooks from `Playbooks/**/*.json`.
+  Tables default to "anything not classified as a function" because
+  tables are external (data plane) and not deployable from the repo.
+- **KQL pattern coverage** — extracts identifiers from start of
+  statement, after `let X =`, after `union`, inside `join` / `lookup`
+  / `materialize` / `view` / `toscalar` subqueries, and from
+  `table('X')` string-arg patterns (lambda-wrapper invocations).
+- **Watchlist cross-validation** — flags `_GetWatchlist('alias')`
+  references that don't resolve to an in-repo watchlist as warnings.
+- **Offline** — no Azure auth required; reads YAML and JSON only.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `Mode` | string (`Generate` \| `Verify` \| `Update`) | Yes | - | Operating mode (see below) |
+| `RepoPath` | string | No | Parent of `Scripts/` folder | Repository root |
+| `ManifestPath` | string | No | `<RepoPath>/dependencies.json` | Manifest file path |
+
+### Operating modes
+
+#### Generate
+
+Walks content, builds the manifest, writes `dependencies.json`. Authors
+run this locally after editing rules and commit the regenerated file
+alongside the rule changes.
+
+```powershell
+./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+```
+
+#### Verify
+
+Builds the manifest in-memory and compares against the on-disk file.
+Exits 0 on match, 1 on drift with a structured diff. Used by:
+
+- The PR-validation `dependency-manifest` job
+  ([`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml))
+  and its ADO equivalent
+  ([`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml)).
+- The pre-deploy guard at the start of the Deploy Custom Content stage
+  in both [`sentinel-deploy.yml`](../../.github/workflows/sentinel-deploy.yml)
+  and [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml).
+
+```powershell
+./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+# exit 0 = manifest matches; exit 1 = drift (with diff printed)
+```
+
+#### Update
+
+Like Verify, but on detected drift writes the regenerated manifest to
+disk and exits 0. The calling pipeline owns the commit + branch + PR
+step. Used by the daily auto-PR workflow
+([`sentinel-dependency-update.yml`](../../.github/workflows/sentinel-dependency-update.yml)
+and its ADO equivalent).
+
+```powershell
+./Scripts/Build-DependencyManifest.ps1 -Mode Update
+```
+
+### Author workflow
+
+After editing or adding a rule that references new tables, watchlists,
+or functions:
+
+```powershell
+./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+git add dependencies.json
+git commit
+```
+
+If you forget, the PR-validation gate fails with a clear "out of sync"
+error and the regenerate command. If you forget AND the gate's path
+filter misses the change (rare — happens for doc-only commits that
+adjust an inline query), the daily workflow opens a chore PR within
+24 hours.
+
+### Prerequisites
+
+- PowerShell 7.2+
+- `powershell-yaml` module (auto-installed by the script if missing)
+- `Modules/Sentinel.Common` (auto-imported from the script — provides
+  `Get-ContentDependencies` and the KQL extractors)

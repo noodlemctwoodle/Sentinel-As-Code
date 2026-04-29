@@ -10,7 +10,7 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 ```
 .archive/                  # Deprecated legacy files
-.github/                   # GitHub Actions workflow (5-stage deployment, OIDC auth)
+.github/                   # GitHub Actions workflows (deploy / drift / DCR / nightly E2E / dependency update / PR-validation) + composite actions
 AnalyticalRules/           # Custom Sentinel analytics rules (YAML, see Docs/Content/Analytical-Rules.md)
 Automation/                # Standalone Azure Automation runbooks (DCR-Watchlist sync)
 AutomationRules/           # Custom automation rules (JSON, see Docs/Content/Automation-Rules.md)
@@ -18,6 +18,7 @@ Bicep/                     # Infrastructure templates (see Docs/Deployment/Bicep
 DefenderCustomDetections/  # Defender XDR custom detection rules (YAML, see Docs/Content/Defender-Custom-Detections.md)
 Docs/                      # All documentation, grouped by concern (start at Docs/README.md)
 HuntingQueries/            # Custom hunting queries (YAML, see Docs/Content/Hunting-Queries.md)
+Modules/                   # In-repo PowerShell modules (Sentinel.Common — shared deployer + KQL discovery helpers)
 Parsers/                   # KQL parsers/functions (YAML)
 Pipelines/                 # Azure DevOps pipeline definitions (see Docs/Deployment/Pipelines.md)
 Playbooks/                 # Custom playbooks (ARM templates, see Docs/Content/Playbooks.md)
@@ -26,7 +27,7 @@ SummaryRules/              # Custom summary rules (JSON, see Docs/Content/Summar
 Tests/                     # Pester test suite (see Docs/Development/Pester-Tests.md)
 Watchlists/                # Custom watchlists (JSON + CSV, see Docs/Content/Watchlists.md)
 Workbooks/                 # Custom workbooks (gallery JSON, see Docs/Content/Workbooks.md)
-dependencies.json          # Cross-content dependency graph
+dependencies.json          # Auto-derived content dependency graph (see Docs/Operations/Dependency-Manifest.md)
 sentinel-deployment.config # Smart-deployment configuration
 README.md                  # This file
 ```
@@ -39,7 +40,7 @@ For details on what's inside each folder and how content is authored, see the
 - **End-to-End Deployment**: Single pipeline provisions infrastructure via Bicep, deploys Content Hub content, custom Sentinel content, and Defender XDR custom detections
 - **Smart Infrastructure Checks**: Detects existing resources and skips Bicep deployment if infrastructure is already in place
 - **Smart Deployment**: Use git diff to detect changed files and only deploy modified content — state file tracks deployment outcomes across runs to automatically retry previously failed items
-- **Dependency Graph System**: Declare prerequisites per content item (tables, watchlists, functions); pre-flight checks validate dependencies, missing detections deploy disabled
+- **Auto-derived Dependency Graph**: `dependencies.json` is generated from KQL content discovery, not hand-maintained. PR-validation gate refuses to merge on drift; daily auto-PR keeps the manifest fresh. See [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md)
 - **Content Hub Automation**: Deploy solutions, analytics rules, workbooks, automation rules, and hunting queries via REST API
 - **KQL Parsers/Functions**: Deploy workspace saved searches as reusable KQL parser functions from YAML
 - **Custom Content Deployment**: Deploy custom analytical rules (YAML), watchlists (JSON+CSV), playbooks (ARM), workbooks (gallery JSON), hunting queries (YAML), automation rules (JSON), parsers (YAML), and summary rules (JSON) from the repo
@@ -52,6 +53,8 @@ For details on what's inside each folder and how content is authored, see the
 - **Granular Content Control**: Toggle deployment of individual content types via pipeline parameters
 - **Dry Run Support**: Preview changes with `-WhatIf` before applying
 - **Azure Government Support**: Target both commercial and government cloud environments
+- **PR Validation Gate**: Five-job merge gate (Pester · Bicep build · ARM What-If · KQL syntax · dependency-manifest drift) on every PR to `main`. See [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md)
+- **Nightly E2E Smoke Test**: Validates every deploy code path against a test workspace each night so production-deploy regressions are caught six days before the Monday cron runs
 
 ## Quick Start
 
@@ -101,10 +104,16 @@ For details on what's inside each folder and how content is authored, see the
 
 ### Optional: standalone pipelines
 
-Two further pipelines run on their own schedule alongside the main deploy:
+Pipelines that run on their own schedule alongside the main deploy:
 
-- **`Pipelines/Sentinel-Drift-Detect.yml`** — detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. See [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md).
-- **`Pipelines/Sentinel-DCR-Inventory.yml`** — deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).
+- **`Pipelines/Sentinel-Drift-Detect.yml`** (daily 06:00 UTC) — detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. See [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md).
+- **`Pipelines/Sentinel-DCR-Inventory.yml`** (on-change) — deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).
+- **`Pipelines/Sentinel-Dependency-Update.yml`** (daily 02:00 UTC) — runs `Build-DependencyManifest -Mode Update` and opens a PR if `dependencies.json` drifts from discovery. See [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md).
+- **`Pipelines/Sentinel-PR-Validation.yml`** (on PR) — runs every Pester suite plus the dependency-manifest drift gate. See [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md).
+
+GitHub-only:
+
+- **`.github/workflows/sentinel-deploy-nightly.yml`** (daily 03:00 UTC) — nightly E2E smoke test against the Phase C test workspace. Catches deploy-pipeline regressions before the weekly Monday production cron.
 
 ## Documentation
 
@@ -138,6 +147,7 @@ All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [
 |------|-----|
 | DCR Watchlist Sync | [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md) |
 | Sentinel Drift Detection | [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md) |
+| Dependency Manifest | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) |
 
 ### Development — testing and contributing
 

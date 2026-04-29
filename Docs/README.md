@@ -41,6 +41,7 @@ Continuous run-time concerns: detection drift, DCR inventory, scheduled jobs.
 | --- | --- |
 | [DCR Watchlist Sync](Operations/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
 | [Sentinel Drift Detection](Operations/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
+| [Dependency Manifest](Operations/Dependency-Manifest.md) | Auto-derived `dependencies.json` from KQL discovery; PR-validation drift gate; daily auto-PR refresh |
 
 ## Development
 
