@@ -130,6 +130,7 @@ ruleset can require independently:
 | Workbooks | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection; cross-directory GUID uniqueness for ARM workbooks |
 | Playbooks (structural) | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence |
 | Helper module self-test | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip |
+| Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching |
 | Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
 | Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised` |
 | Deploy-DefenderDetections | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) |
@@ -266,6 +267,58 @@ $script:DiffSnippetLength  = 0
 $script:SentinelApiVersion = '2025-09-01'
 $script:ManagedRuleKinds   = @('Fusion', 'MicrosoftSecurityIncidentCreation')
 ```
+
+### Module-imports the AST extractor doesn't pull in
+
+The AST extractor pulls *only* function definitions out of the source
+script. Top-level statements — `param()`, `#Requires`, `Set-StrictMode`,
+and **`Import-Module`** — are deliberately skipped to avoid running the
+script's entry-point machinery. Most of the time that's exactly what you
+want.
+
+The exception is when an extracted function depends on a function defined
+in a module the source script imports at top level. The four deployer
+scripts do this for `Sentinel.Common`:
+
+```powershell
+# Top of Scripts/Deploy-CustomContent.ps1 (skipped by AST extractor)
+Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force
+
+# An extracted function calls Write-PipelineMessage from that module.
+function Write-DeploymentSummary {
+    Write-PipelineMessage 'Done' -Level Section
+}
+```
+
+Two equivalent options for the test scope:
+
+1. **Re-import the module after the AST dot-source.** Mirrors the runtime
+   contract; the extracted functions call the real implementation.
+
+   ```powershell
+   BeforeAll {
+       $repoRoot = Split-Path -Parent $PSScriptRoot
+       Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force
+       Import-ScriptFunctions -Path "$repoRoot/Scripts/Deploy-CustomContent.ps1"
+
+       # Pull in the same module the source script imports at runtime.
+       Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
+   }
+   ```
+
+2. **Stub the dependency as a no-op function.** Useful when you want to
+   isolate the test from any logging/output side effects.
+
+   ```powershell
+   function Write-PipelineMessage {
+       param([string]$Message, [string]$Level = 'Info')
+       # no-op
+   }
+   ```
+
+The Phase B suites use option 1 (real module). The new
+`Tests/Test-SentinelCommon.Tests.ps1` covers `Sentinel.Common` itself
+using Pester `Mock` to stub Az PowerShell calls.
 
 ## Mock builders
 
