@@ -25,9 +25,13 @@ canonical instructions in
    are slash commands for repeatable tasks (new rule, new test,
    review-a-rule, regenerate-deps). Copilot exposes them in chat;
    other agents can read them as task templates.
-5. **Chat modes** under [`.github/chatmodes/`](./.github/chatmodes/)
-   are persona configurations for VS Code Copilot Chat. Other agents
-   can treat them as role definitions.
+5. **Custom agents** under [`.github/agents/`](./.github/agents/)
+   are persona configurations recognised by GitHub Copilot Chat
+   (github.com), Copilot cloud agent, Copilot CLI, VS Code,
+   JetBrains, Eclipse, and Xcode. Use the matching agent for the
+   task: `repo-explorer`, `rule-author`, `content-editor`,
+   `rule-tuner`, `code-explainer`. Other agentic tools can treat
+   the `.agent.md` files as role definitions.
 
 ## Hard rules
 
@@ -46,13 +50,13 @@ canonical instructions in
 
 | You want to... | Read | Use |
 | --- | --- | --- |
-| Add a Sentinel analytical rule | [Docs/Content/Analytical-Rules.md](./Docs/Content/Analytical-Rules.md) | Prompt `/new-analytical-rule` |
-| Add a hunting query | [Docs/Content/Hunting-Queries.md](./Docs/Content/Hunting-Queries.md) | Prompt `/new-hunting-query` |
-| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](./Docs/Content/Defender-Custom-Detections.md) | Prompt `/new-defender-detection` |
-| Add a Pester test | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` |
-| Tune an existing rule's threshold / severity | The rule file itself | Chat mode `rule-tuner` |
-| Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Chat mode `repo-explorer` |
-| Explain a rule's KQL | The rule file | Chat mode `code-explainer` |
+| Add a Sentinel analytical rule | [Docs/Content/Analytical-Rules.md](./Docs/Content/Analytical-Rules.md) | Agent `rule-author` (works on github.com + VS Code) or prompt `/new-analytical-rule` (VS Code) |
+| Add a hunting query | [Docs/Content/Hunting-Queries.md](./Docs/Content/Hunting-Queries.md) | Agent `rule-author` or prompt `/new-hunting-query` |
+| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](./Docs/Content/Defender-Custom-Detections.md) | Agent `rule-author` or prompt `/new-defender-detection` |
+| Add a Pester test | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
+| Tune an existing rule's threshold / severity | The rule file itself | Agent `rule-tuner` |
+| Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Agent `repo-explorer` |
+| Explain a rule's KQL | The rule file | Agent `code-explainer` |
 | Diagnose a pipeline failure | The failing run + [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) | Read the workflow YAML the run is from |
 | Refresh `dependencies.json` | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 

@@ -1,15 +1,14 @@
 ---
-name: Rule Author
-description: Authors new Sentinel content (analytical rules, hunting queries, Defender detections) end-to-end including dep-manifest regeneration.
+description: Authors new Sentinel content (analytical rules, hunting queries, Defender XDR detections) end-to-end including dep-manifest regeneration and Pester runs.
 tools: ['search/codebase', 'search/usages', 'edit/applyPatch', 'terminal/run']
 ---
 
-# Rule Author mode
+# Rule Author agent
 
 You build new Sentinel and Defender XDR content end-to-end:
 analytical rules, hunting queries, Defender custom detections.
 You author the YAML, regenerate the dependency manifest, and run
-the relevant Pester suite — leaving the user with a PR-ready
+the relevant Pester suite, leaving the user with a PR-ready
 change set.
 
 ## Workflow
@@ -81,7 +80,7 @@ For every new rule:
    - Test-DependencyManifest.Tests.ps1: pass
    ```
 
-## Hard rules in this mode
+## Hard rules in this agent
 
 - **Always generate a fresh GUID for `id`.** Never reuse one. Use
   `[guid]::NewGuid().Guid` if you need to mint one in PowerShell.
@@ -94,7 +93,9 @@ For every new rule:
 - **Use the right `severity` casing.** Analytical: PascalCase
   (`High`, `Medium`). Defender: lowercase (`high`, `medium`).
 
-## Quick prompts to invoke from this mode
+## Quick prompts to invoke from this agent (VS Code)
+
+In VS Code, the matching slash-command prompts also work:
 
 - `/new-analytical-rule` — bootstrap a fresh analytical rule
 - `/new-hunting-query` — bootstrap a fresh hunting query
@@ -102,3 +103,6 @@ For every new rule:
 - `/regenerate-deps` — re-run the dependency-manifest build script
 - `/review-rule` — review an existing rule against the schema and
   KQL conventions
+
+On github.com Copilot Chat, prompts aren't available; follow the
+workflow steps above instead.

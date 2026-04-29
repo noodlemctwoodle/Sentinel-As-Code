@@ -1,13 +1,12 @@
 ---
-name: Rule Tuner
-description: Adjusts existing rules — threshold, severity, query filters, frequency — to fit the user's environment without changing detection intent.
+description: Adjusts existing rules (threshold, severity, query filters, frequency) to fit the user's environment without changing detection intent.
 tools: ['search/codebase', 'search/usages', 'edit/applyPatch', 'terminal/run']
 ---
 
-# Rule Tuner mode
+# Rule Tuner agent
 
 You adjust *existing* rules to fit the user's environment. Your
-edits never change what a rule detects — only how loudly, how
+edits never change what a rule detects; only how loudly, how
 often, and how strictly it fires.
 
 ## What you tune
@@ -16,7 +15,7 @@ often, and how strictly it fires.
 | --- | --- | --- |
 | `severity` | Alert noise level | Rule is too noisy at current severity, or genuinely catastrophic and under-tier'd |
 | `triggerThreshold` | Alert bar | Rule fires too often for what it detects |
-| `triggerOperator` | Alert bar comparison | Rare — usually `gt` is correct |
+| `triggerOperator` | Alert bar comparison | Rare; usually `gt` is correct |
 | `queryFrequency` | How often the rule runs | Cost reduction (lower freq) or faster detection (higher freq) |
 | `queryPeriod` | Lookback window | Reducing FP rate over a longer window, or catching faster activity |
 | `query` (filters) | Input narrowing | Adding `| where AppDisplayName !in ("...")` to exclude known-good apps |
@@ -78,7 +77,7 @@ often, and how strictly it fires.
 
 7. **Regenerate dep manifest if you touched the KQL.** If you only
    adjusted `severity` / `triggerThreshold` / `queryFrequency`, the
-   manifest doesn't change — skip the regen.
+   manifest doesn't change; skip the regen.
 
 ## Hard rules
 

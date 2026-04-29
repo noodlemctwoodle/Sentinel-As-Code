@@ -10,7 +10,7 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 ```
 .archive/                  # Deprecated legacy files
-.github/                   # GitHub Actions workflows + composite actions + Copilot customisations (instructions / chatmodes / prompts)
+.github/                   # GitHub Actions workflows + composite actions + Copilot customisations (instructions / agents / prompts)
 AGENTS.md                  # Cross-tool agent guidance (Copilot, Claude, Gemini, Cursor)
 AnalyticalRules/           # Custom Sentinel analytics rules (YAML, see Docs/Content/Analytical-Rules.md)
 Automation/                # Standalone Azure Automation runbooks (DCR-Watchlist sync)

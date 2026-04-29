@@ -5,7 +5,7 @@ Repo-wide guidance for GitHub Copilot. Loaded automatically by Copilot
 in this workspace. Path-scoped instructions live under
 [`.github/instructions/`](./instructions/) and stack on top of this file.
 
-For the full Copilot setup map (chat modes, prompts, instructions),
+For the full Copilot setup map (agents, prompts, instructions),
 see [`Docs/Development/GitHub-Copilot.md`](../Docs/Development/GitHub-Copilot.md).
 
 ---
@@ -130,13 +130,13 @@ Conventional commit format: `type(scope): brief description`.
 
 | Goal | Read first | Then run |
 | --- | --- | --- |
-| Add a new analytical rule | [Docs/Content/Analytical-Rules.md](../Docs/Content/Analytical-Rules.md) | Use prompt `/new-analytical-rule` or chat mode `rule-author` |
-| Add a hunting query | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) | Use prompt `/new-hunting-query` |
-| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) | Use prompt `/new-defender-detection` |
-| Add a Pester test | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Use prompt `/new-pester-test` |
-| Tune an existing rule | n/a | Use chat mode `rule-tuner` |
-| Understand the repo | [Docs/README.md](../Docs/README.md) | Use chat mode `repo-explorer` |
-| Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Use prompt `/regenerate-deps` |
+| Add a new analytical rule | [Docs/Content/Analytical-Rules.md](../Docs/Content/Analytical-Rules.md) | Agent `rule-author` (cross-platform) or prompt `/new-analytical-rule` (VS Code) |
+| Add a hunting query | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) | Agent `rule-author` or prompt `/new-hunting-query` |
+| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) | Agent `rule-author` or prompt `/new-defender-detection` |
+| Add a Pester test | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
+| Tune an existing rule | n/a | Agent `rule-tuner` |
+| Understand the repo | [Docs/README.md](../Docs/README.md) | Agent `repo-explorer` |
+| Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Testing
 
