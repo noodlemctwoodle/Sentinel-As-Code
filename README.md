@@ -6,6 +6,8 @@
 
 This repository provides a complete end-to-end CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines or GitHub Actions. Starting from an empty subscription, the pipeline provisions all required infrastructure via Bicep, deploys Content Hub solutions (the source of truth for out-of-the-box content), deploys custom content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploys Defender XDR custom detection rules — all from a single repo.
 
+It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, an auto-derived dependency graph, and a set of six GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
+
 ## Repository Structure
 
 ```
@@ -56,6 +58,9 @@ For details on what's inside each folder and how content is authored, see the
 - **Azure Government Support**: Target both commercial and government cloud environments
 - **PR Validation Gate**: Five-job merge gate (Pester · Bicep build · ARM What-If · KQL syntax · dependency-manifest drift) on every PR to `main`. See [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md)
 - **Nightly E2E Smoke Test**: Validates every deploy code path against a test workspace each night so production-deploy regressions are caught six days before the Monday cron runs
+- **Shared PowerShell Module**: `Modules/Sentinel.Common` exports the deployer helpers every script depends on (`Write-PipelineMessage`, `Invoke-SentinelApi`, `Connect-AzureEnvironment`) plus six KQL discovery functions used by the dependency-manifest builder. Single source of truth eliminates the bug-fix-in-one-copy class of regression
+- **Reusable GitHub Actions Composites**: `azure-login-oidc` and `setup-pwsh-modules` under `.github/actions/`. Replace inlined `Azure/login@v2` and `Install-Module` patterns at every call site; pin every PSGallery dependency by version
+- **GitHub Copilot Integration**: Six cross-platform Copilot agents (build / edit / tune / explain / understand / CI/CD), nine path-scoped instruction files, and six reusable prompts. Works on github.com Chat, github.com cloud agent, VS Code, Visual Studio, JetBrains, and Copilot CLI without configuration. See [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md)
 
 ## Quick Start
 
@@ -115,6 +120,34 @@ Pipelines that run on their own schedule alongside the main deploy:
 GitHub-only:
 
 - **`.github/workflows/sentinel-deploy-nightly.yml`** (daily 03:00 UTC) — nightly E2E smoke test against the Phase C test workspace. Catches deploy-pipeline regressions before the weekly Monday production cron.
+
+### Schedule alignment
+
+```
+02:00 UTC daily    sentinel-dependency-update    Refresh dependencies.json + auto-PR
+03:00 UTC daily    sentinel-deploy-nightly       E2E smoke test (GitHub-only)
+04:00 UTC Monday   sentinel-deploy               Production deploy
+06:00 UTC daily    sentinel-drift-detect         Portal-drift detection + auto-PR
+on every PR        sentinel-pr-validation        5-job merge gate
+on change          sentinel-dcr-inventory        DCR runbook deploy
+```
+
+## GitHub Copilot agents
+
+The repo ships with a complete GitHub Copilot customisation set so authors get repo-aware AI help out of the box. No VS Code settings or feature toggles required — open the workspace in any IDE with Copilot Chat enabled, or pick the agent from the dropdown on github.com.
+
+| Agent | Purpose |
+|---|---|
+| `Sentinel-As-Code: Repo Explorer` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
+| `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end, including dep-manifest regeneration and Pester runs. |
+| `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit Pester suite. |
+| `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
+| `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
+| `Sentinel-As-Code: Pipeline Engineer` | **CI/CD.** Edits GitHub Actions + ADO pipelines, maintains parity, manages composite actions and schedules, diagnoses failures. |
+
+Plus nine path-scoped instruction files under [`.github/instructions/`](./.github/instructions/) that load automatically when you edit a matching file (analytical rules, hunting queries, Defender detections, watchlists, playbooks, parsers, scripts, KQL queries, workflows), and six reusable prompts under [`.github/prompts/`](./.github/prompts/) (`/new-analytical-rule`, `/new-hunting-query`, `/new-defender-detection`, `/new-pester-test`, `/review-rule`, `/regenerate-deps`).
+
+Repo-wide guidance lives in [`.github/copilot-instructions.md`](./.github/copilot-instructions.md). Cross-tool agent guidance (Claude, Gemini, Cursor) lives in [`AGENTS.md`](./AGENTS.md). Full reference: [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md).
 
 ## Documentation
 
