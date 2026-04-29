@@ -10,7 +10,8 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 ```
 .archive/                  # Deprecated legacy files
-.github/                   # GitHub Actions workflows (deploy / drift / DCR / nightly E2E / dependency update / PR-validation) + composite actions
+.github/                   # GitHub Actions workflows + composite actions + Copilot customisations (instructions / chatmodes / prompts)
+AGENTS.md                  # Cross-tool agent guidance (Copilot, Claude, Gemini, Cursor)
 AnalyticalRules/           # Custom Sentinel analytics rules (YAML, see Docs/Content/Analytical-Rules.md)
 Automation/                # Standalone Azure Automation runbooks (DCR-Watchlist sync)
 AutomationRules/           # Custom automation rules (JSON, see Docs/Content/Automation-Rules.md)
@@ -154,6 +155,7 @@ All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [
 | Area | Doc |
 |------|-----|
 | Pester Tests | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) |
+| GitHub Copilot | [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md) |
 
 ## Infrastructure (Bicep)
 

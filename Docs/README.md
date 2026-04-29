@@ -50,6 +50,7 @@ Testing, contributing, and extending the tooling.
 | Doc | What it covers |
 | --- | --- |
 | [Pester Tests](Development/Pester-Tests.md) | Running and extending the Pester suite, the AST-extraction pattern this repo uses |
+| [GitHub Copilot](Development/GitHub-Copilot.md) | Copilot customisations shipped with the repo: instructions, chat modes, prompts |
 
 ## Auto-generated artefacts
 
