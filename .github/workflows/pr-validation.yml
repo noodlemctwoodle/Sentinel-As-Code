@@ -1,0 +1,146 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: PR Validation Gate
+# ---------------------------------------------------------------------------
+# Runs on every pull request opened against main. Discovers and runs every
+# Pester test under Tests/ and exits non-zero if any test fails.
+#
+# Self-contained: no dependency on other repo scripts. The Pester invocation
+# is inline so this workflow registers as a status check from the moment it
+# lands on main, regardless of what else is in the repo at the time.
+#
+# Wiring this as a hard merge gate (one-off):
+#
+#   Repo Settings -> Rules -> Rulesets -> New branch ruleset
+#     Enforcement status:  Active
+#     Target branches:     Include default branch
+#     Rules:
+#       - Require a pull request before merging
+#       - Require status checks to pass:
+#           Required check: validate
+#       - Block force pushes
+#       - Restrict deletions
+#
+# Once the ruleset is active, the merge button stays disabled until the
+# 'validate' job reports success against the latest commit on the PR.
+#
+# No Azure auth required - validation runs offline against repo content only.
+# ---------------------------------------------------------------------------
+
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+  # Lets maintainers run the same validation manually against any branch.
+  workflow_dispatch:
+
+# Cancel any in-flight run for the same PR when a new commit is pushed; saves
+# CI minutes and keeps the latest status check fresh.
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Pin every module the gate depends on. The PR-validation check is a hard
+# merge requirement, so a breaking change shipped from PSGallery must NOT
+# be able to silently fail the gate on an unrelated repo change. Bumping
+# either pin is a one-line PR that re-runs the gate against the new
+# version before merging.
+env:
+  PESTER_VERSION: "5.7.1"
+  YAML_VERSION:   "0.4.12"
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Cache key embeds the pinned versions so a version bump invalidates
+      # the cache cleanly without manual intervention.
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: pwsh-modules-${{ runner.os }}-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
+
+      - name: Install Pester and powershell-yaml (pinned)
+        shell: pwsh
+        run: |
+          $pesterVersion = '${{ env.PESTER_VERSION }}'
+          $yamlVersion   = '${{ env.YAML_VERSION }}'
+
+          $havePester = Get-Module -ListAvailable -Name Pester |
+              Where-Object { $_.Version -eq [version]$pesterVersion }
+          if (-not $havePester) {
+              Install-Module -Name Pester `
+                  -RequiredVersion $pesterVersion `
+                  -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
+          }
+
+          $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+              Where-Object { $_.Version -eq [version]$yamlVersion }
+          if (-not $haveYaml) {
+              Install-Module -Name powershell-yaml `
+                  -RequiredVersion $yamlVersion `
+                  -Force -Scope CurrentUser -AllowClobber
+          }
+
+          Get-Module -ListAvailable Pester, powershell-yaml |
+              Where-Object { $_.Version -in @([version]$pesterVersion, [version]$yamlVersion) } |
+              Format-Table Name, Version
+
+      - name: Verify pinned modules are loaded
+        shell: pwsh
+        run: |
+          $pesterVersion = '${{ env.PESTER_VERSION }}'
+          $yamlVersion   = '${{ env.YAML_VERSION }}'
+
+          # Import the exact pinned versions. If the cache is stale or the
+          # install step grabbed a newer version, this will fail fast with a
+          # clear error rather than letting a drifted module poison the run.
+          Import-Module Pester          -RequiredVersion $pesterVersion -ErrorAction Stop
+          Import-Module powershell-yaml -RequiredVersion $yamlVersion   -ErrorAction Stop
+          Write-Host "##[section]Pinned versions verified: Pester $pesterVersion, powershell-yaml $yamlVersion"
+
+      - name: Run Pester
+        shell: pwsh
+        run: |
+          Import-Module Pester          -RequiredVersion '${{ env.PESTER_VERSION }}' -ErrorAction Stop
+          Import-Module powershell-yaml -RequiredVersion '${{ env.YAML_VERSION }}'   -ErrorAction Stop
+
+          if (-not (Test-Path 'Tests')) {
+              Write-Host '##[warning]No Tests/ folder found — nothing to validate.'
+              exit 0
+          }
+
+          $config = New-PesterConfiguration
+          $config.Run.Path        = 'Tests'
+          $config.Run.PassThru    = $true
+          $config.Run.Exit        = $false
+          $config.Output.Verbosity = 'Detailed'
+
+          $result = Invoke-Pester -Configuration $config
+
+          Write-Host ''
+          Write-Host '##[section]Test summary'
+          Write-Host ("  Passed:  {0}" -f $result.PassedCount)
+          Write-Host ("  Failed:  {0}" -f $result.FailedCount)
+          Write-Host ("  Skipped: {0}" -f $result.SkippedCount)
+
+          if ($result.FailedCount -gt 0) {
+              Write-Host '##[error]One or more Pester tests failed. PR cannot merge until they pass.'
+              foreach ($t in $result.Failed) {
+                  Write-Host ('##[error]  {0}' -f $t.ExpandedPath)
+              }
+              exit 1
+          }
+
+          Write-Host '##[section]All Pester tests passed.'
