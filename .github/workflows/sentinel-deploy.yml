@@ -92,6 +92,14 @@ on:
         description: "Content Hub: Skip Hunting Queries"
         type: boolean
         default: false
+      force_solution_update:
+        description: "Content Hub: Force Solution Update (even if current)"
+        type: boolean
+        default: false
+      force_content_deployment:
+        description: "Content Hub: Force Content Redeployment (even if current)"
+        type: boolean
+        default: false
 
       # ── Custom Content (Stage 4) ─────────────────────────────────────
       skip_custom_parsers:
@@ -102,6 +110,10 @@ on:
         description: "Custom: Skip Analytical Rules (YAML)"
         type: boolean
         default: false
+      skip_community_detections:
+        description: "Custom: Skip Community Detections (Dalonso)"
+        type: boolean
+        default: true
       skip_custom_watchlists:
         description: "Custom: Skip Watchlists (JSON+CSV)"
         type: boolean
@@ -161,7 +173,7 @@ jobs:
       resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -169,7 +181,7 @@ jobs:
 
       - name: Check for Existing Resources
         id: check
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -210,21 +222,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Register Resource Providers
-        uses: azure/cli@v2
+        uses: Azure/cli@v2
         with:
           inlineScript: |
             az provider register --namespace Microsoft.OperationsManagement --wait
             az provider register --namespace Microsoft.SecurityInsights --wait
 
       - name: Deploy Bicep Templates
-        uses: azure/cli@v2
+        uses: Azure/cli@v2
         with:
           inlineScript: |
             az deployment sub create \
@@ -246,7 +258,7 @@ jobs:
           Write-Host "Done."
 
       - name: Configure Sentinel Settings
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -326,14 +338,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Content Hub Solutions
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -349,12 +361,14 @@ jobs:
                 SeveritiesToInclude = $severityList
             }
 
-            if ("${{ inputs.disable_rules }}" -ne "false")            { $scriptParams['DisableRules']            = $true }
+            if ("${{ inputs.disable_rules }}" -ne "false")             { $scriptParams['DisableRules']             = $true }
             if ("${{ inputs.protect_customised_rules }}" -ne "false")  { $scriptParams['ProtectCustomisedRules']   = $true }
             if ("${{ inputs.skip_analytics_rules }}" -eq "true")       { $scriptParams['SkipAnalyticsRules']       = $true }
             if ("${{ inputs.skip_workbooks }}" -eq "true")             { $scriptParams['SkipWorkbooks']            = $true }
             if ("${{ inputs.skip_automation_rules }}" -eq "true")      { $scriptParams['SkipAutomationRules']      = $true }
             if ("${{ inputs.skip_hunting_queries }}" -eq "true")       { $scriptParams['SkipHuntingQueries']       = $true }
+            if ("${{ inputs.force_solution_update }}" -eq "true")      { $scriptParams['ForceSolutionUpdate']      = $true }
+            if ("${{ inputs.force_content_deployment }}" -eq "true")   { $scriptParams['ForceContentDeployment']   = $true }
             if ("${{ inputs.what_if }}" -eq "true")                    { $scriptParams['WhatIf']                   = $true }
 
             & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
@@ -387,7 +401,7 @@ jobs:
             deployment-state-${{ env.WORKSPACE_NAME }}-
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -399,7 +413,7 @@ jobs:
           Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
 
       - name: Deploy Custom Content
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -414,9 +428,10 @@ jobs:
             $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
             if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
-            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']         = $true }
-            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']      = $true }
-            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']     = $true }
+            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']               = $true }
+            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']            = $true }
+            if ("${{ inputs.skip_community_detections }}" -ne "false")   { $scriptParams['SkipCommunityDetections']  = $true }
+            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']            = $true }
             if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
             if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
             if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
@@ -452,7 +467,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: Azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -464,7 +479,7 @@ jobs:
           Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
 
       - name: Deploy Defender Custom Detections
-        uses: azure/powershell@v2
+        uses: Azure/powershell@v2
         with:
           azPSVersion: "latest"
           inlineScript: |
