@@ -136,6 +136,7 @@ Conventional commit format: `type(scope): brief description`.
 | Add a Pester test | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
 | Tune an existing rule | n/a | Agent `rule-tuner` |
 | Understand the repo | [Docs/README.md](../Docs/README.md) | Agent `repo-explorer` |
+| Edit / diagnose a pipeline | [Docs/Deployment/Pipelines.md](../Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
 | Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Testing

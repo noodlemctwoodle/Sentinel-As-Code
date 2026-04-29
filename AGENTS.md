@@ -30,8 +30,9 @@ canonical instructions in
    (github.com), Copilot cloud agent, Copilot CLI, VS Code,
    JetBrains, Eclipse, and Xcode. Use the matching agent for the
    task: `repo-explorer`, `rule-author`, `content-editor`,
-   `rule-tuner`, `code-explainer`. Other agentic tools can treat
-   the `.agent.md` files as role definitions.
+   `rule-tuner`, `code-explainer`, `pipeline-engineer`. Other
+   agentic tools can treat the `.agent.md` files as role
+   definitions.
 
 ## Hard rules
 
@@ -57,7 +58,7 @@ canonical instructions in
 | Tune an existing rule's threshold / severity | The rule file itself | Agent `rule-tuner` |
 | Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Agent `repo-explorer` |
 | Explain a rule's KQL | The rule file | Agent `code-explainer` |
-| Diagnose a pipeline failure | The failing run + [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) | Read the workflow YAML the run is from |
+| Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
 | Refresh `dependencies.json` | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Test before you ship

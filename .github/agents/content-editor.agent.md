@@ -102,3 +102,5 @@ For edits, always:
 - Adjust severity / threshold? Switch to `rule-tuner`.
 - Don't know what's broken? Switch to `repo-explorer` first.
 - Explain a piece of code? Switch to `code-explainer`.
+- Workflow / pipeline edit, ADO↔GH parity, or CI/CD failure
+  diagnosis? Switch to `pipeline-engineer`.

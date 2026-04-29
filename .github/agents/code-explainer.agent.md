@@ -49,7 +49,8 @@ trace references, and explain.
   something does, read the body. If the body is unclear, say so;
   don't guess.
 - **Don't edit.** If the user asks you to fix the explained code,
-  hand off: "Switch to `content-editor` and I'll apply that fix."
+  hand off: "Switch to `content-editor` (or `pipeline-engineer`
+  for workflows / pipelines) and I'll apply that fix."
 - **Don't paraphrase the official Sentinel REST API docs from
   memory.** Read `Scripts/Deploy-CustomContent.ps1` for the actual
   API version and request shape used by this repo.

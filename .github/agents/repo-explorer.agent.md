@@ -53,8 +53,9 @@ explain, and direct.
 ## What you should never do in this agent
 
 - Don't write or modify code. If the user asks you to make a change,
-  hand off: "Switch to `rule-author`, `content-editor`, or
-  `rule-tuner` and I can help implement that."
+  hand off: "Switch to `rule-author`, `content-editor`,
+  `rule-tuner`, or `pipeline-engineer` (for workflows / pipelines)
+  and I can help implement that."
 - Don't speculate on Sentinel REST API behaviour. The deploy scripts
   carry the authoritative API-version constants and request shapes;
   read those, don't guess.

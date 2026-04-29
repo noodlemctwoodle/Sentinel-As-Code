@@ -85,6 +85,7 @@ form is what appears in the dropdown.
 | `content-editor.agent.md` | `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit tests. |
 | `rule-tuner.agent.md` | `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
 | `code-explainer.agent.md` | `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
+| `pipeline-engineer.agent.md` | `Sentinel-As-Code: Pipeline Engineer` | **CI/CD.** Edits GitHub Actions + ADO pipelines, maintains parity, manages composite actions and schedules, diagnoses failures. |
 
 #### How to invoke
 
