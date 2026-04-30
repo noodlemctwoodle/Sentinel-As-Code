@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Scripts/Export-SentinelWorkbooks.ps1
-#
-# Created by noodlemctwoodle on 30/04/2026.
-#
-
 <#
 .SYNOPSIS
     Exports Microsoft Sentinel workbooks from a workspace to disk in the
@@ -386,6 +380,168 @@ function Format-WorkbookJson {
     return ($JsonObject | ConvertTo-Json -Depth 32)
 }
 
+function Merge-WorkbookMetadata {
+    <#
+    .SYNOPSIS
+        Build the metadata.json hashtable for a single workbook,
+        preferring author-curated values from any pre-existing
+        metadata.json over the API's defaults.
+
+    .DESCRIPTION
+        The Sentinel REST API returns sparse workbook metadata —
+        most workbooks come back with `description = ''` and
+        `category = 'sentinel'`. Hand-authored repo metadata.json
+        files often carry richer values:
+
+            description : 'Multi-site management workbook for ...'
+            category    : 'Network'
+
+        A naive overwrite-on-export strategy destroys this curation.
+        This helper merges, with the following preference rules:
+
+          - displayName  : prefer the API value, EXCEPT when the
+                           existing value matches case-insensitively
+                           (the author has likely tweaked
+                           capitalisation, e.g. 'UniFi' vs 'Unifi').
+          - description  : prefer the API value when non-empty;
+                           else preserve any existing curated value.
+          - category     : prefer the existing value when set
+                           (the API default 'sentinel' is too
+                           generic); fall back to the API value.
+          - sourceId     : always the folder name (an in-repo
+                           identifier; existing values may be
+                           inconsistent and should be normalised).
+          - workbookId   : always the API-supplied resource GUID
+                           (the canonical stable binding to Azure).
+
+        Plus: any extra keys present in the existing metadata.json
+        that this helper doesn't write (custom annotations, tags,
+        deploy-pipeline hints) are preserved verbatim.
+
+    .PARAMETER ApiDisplayName
+        The cleaned displayName from the workbook resource (after
+        workspace-suffix strip). Drives the canonical UI name.
+
+    .PARAMETER ApiDescription
+        The description property from the workbook resource. May be
+        empty.
+
+    .PARAMETER ApiCategory
+        The category property from the workbook resource. Typically
+        'sentinel' as the default.
+
+    .PARAMETER FolderName
+        The on-disk folder name (PascalCase compaction of the
+        cleaned displayName). Used as the sourceId.
+
+    .PARAMETER WorkbookId
+        The trailing GUID segment of the workbook's ARM resource ID.
+
+    .PARAMETER ExistingMetadata
+        The deserialised existing metadata.json hashtable (or
+        $null if no metadata.json exists yet).
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $ApiDisplayName,
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $ApiDescription,
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $ApiCategory,
+        [Parameter(Mandatory)]                       [string] $FolderName,
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $WorkbookId,
+        [Parameter()]                                         $ExistingMetadata
+    )
+
+    $existing = $ExistingMetadata
+
+    # displayName: prefer API; preserve existing case if names match
+    # case-insensitively (author-curated capitalisation).
+    $resolvedDisplayName = $ApiDisplayName
+    if ($existing -and (Get-MetaValue -Object $existing -Key 'displayName')) {
+        $existingDn = [string](Get-MetaValue -Object $existing -Key 'displayName')
+        if ($existingDn -ieq $ApiDisplayName -and $existingDn -cne $ApiDisplayName) {
+            $resolvedDisplayName = $existingDn
+        }
+    }
+
+    # description: prefer existing curated value when API returns empty.
+    $resolvedDescription = $ApiDescription
+    if ([string]::IsNullOrWhiteSpace($resolvedDescription) -and $existing) {
+        $existingDesc = [string](Get-MetaValue -Object $existing -Key 'description')
+        if (-not [string]::IsNullOrWhiteSpace($existingDesc)) {
+            $resolvedDescription = $existingDesc
+        }
+    }
+
+    # category: prefer existing curated value over the generic API
+    # default. The API's 'sentinel' is what every workbook gets by
+    # default; an author-supplied value is almost always more
+    # specific.
+    $apiCategoryEffective = if ([string]::IsNullOrWhiteSpace($ApiCategory)) { 'sentinel' } else { $ApiCategory }
+    $resolvedCategory = $apiCategoryEffective
+    if ($existing) {
+        $existingCat = [string](Get-MetaValue -Object $existing -Key 'category')
+        if (-not [string]::IsNullOrWhiteSpace($existingCat)) {
+            $resolvedCategory = $existingCat
+        }
+    }
+
+    $metadata = [ordered]@{
+        displayName = $resolvedDisplayName
+        description = $resolvedDescription
+        category    = $resolvedCategory
+        sourceId    = $FolderName
+        workbookId  = $WorkbookId
+    }
+
+    # Preserve extra keys (tags, custom annotations) that the
+    # author added but this helper doesn't write.
+    if ($existing) {
+        $existingKeys = if ($existing.PSObject -and $existing.PSObject.Properties) {
+            @($existing.PSObject.Properties | ForEach-Object { $_.Name })
+        }
+        elseif ($existing -is [System.Collections.IDictionary]) {
+            @($existing.Keys)
+        }
+        else {
+            @()
+        }
+        foreach ($key in $existingKeys) {
+            if (-not $metadata.Contains($key)) {
+                $metadata[$key] = Get-MetaValue -Object $existing -Key $key
+            }
+        }
+    }
+
+    return $metadata
+}
+
+function Get-MetaValue {
+    <#
+    .SYNOPSIS
+        Read a property from an arbitrary deserialised JSON object,
+        whether it was parsed as PSCustomObject (default for
+        ConvertFrom-Json) or hashtable (-AsHashtable). Returns $null
+        if the key is missing.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Object,
+        [Parameter(Mandatory)] [string] $Key
+    )
+
+    if ($null -eq $Object) { return $null }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Key)) { return $Object[$Key] }
+        return $null
+    }
+    if ($Object.PSObject -and $Object.PSObject.Properties[$Key]) {
+        return $Object.PSObject.Properties[$Key].Value
+    }
+    return $null
+}
+
 function Write-WorkbookFolder {
     <#
     .SYNOPSIS
@@ -657,40 +813,33 @@ foreach ($wb in $workbooks) {
             $workbookId = ($wb.id -split '/')[-1]
         }
 
-        # Match the existing-repo convention:
-        #   sourceId = the folder name (an in-repo identifier),
-        #              NOT the workspace ARM resource ID.
-        # The deploy script (Deploy-CustomWorkbooks) hardcodes the
-        # workspace resource ID at deploy time and does NOT read
-        # sourceId from metadata.json, so there's no functional
-        # consequence to this — but the convention keeps the file
-        # readable as a human-curated record of the workbook's
-        # repo identity.
-        $metadata = [ordered]@{
-            displayName = $displayName
-            description = if ($wb.properties.description) { $wb.properties.description } else { '' }
-            category    = if ($wb.properties.category) { $wb.properties.category } else { 'sentinel' }
-            sourceId    = $folderName
-            workbookId  = $workbookId
-        }
-
-        # If a metadata.json already exists, preserve any extra fields
-        # (e.g. tags an author has added that we don't model). Only the
-        # keys this script writes are overwritten; the rest survive.
-        $existingMetaPath = Join-Path $folderPath 'metadata.json'
+        # Read any existing metadata.json so the merge helper can
+        # preserve author-curated values where the API returns
+        # empty/default. See Merge-WorkbookMetadata for the merge
+        # rules — short version: API wins for displayName /
+        # workbookId; existing wins for description / category /
+        # any extra keys.
+        $existingMetadata  = $null
+        $existingMetaPath  = Join-Path $folderPath 'metadata.json'
         if (Test-Path $existingMetaPath) {
             try {
-                $existing = Get-Content -Path $existingMetaPath -Raw | ConvertFrom-Json -Depth 8
-                foreach ($prop in $existing.PSObject.Properties) {
-                    if (-not $metadata.Contains($prop.Name)) {
-                        $metadata[$prop.Name] = $prop.Value
-                    }
-                }
+                $existingMetadata = Get-Content -Path $existingMetaPath -Raw | ConvertFrom-Json -Depth 8
             }
             catch {
-                Write-PipelineMessage "  Warning: existing metadata.json at '$existingMetaPath' failed to parse; overwriting." -Level Warning
+                Write-PipelineMessage "  Warning: existing metadata.json at '$existingMetaPath' failed to parse; treating as absent." -Level Warning
             }
         }
+
+        $apiDescription = if ($wb.properties.description) { [string]$wb.properties.description } else { '' }
+        $apiCategory    = if ($wb.properties.category)    { [string]$wb.properties.category    } else { '' }
+
+        $metadata = Merge-WorkbookMetadata `
+            -ApiDisplayName    $displayName `
+            -ApiDescription    $apiDescription `
+            -ApiCategory       $apiCategory `
+            -FolderName        $folderName `
+            -WorkbookId        ([string]$workbookId) `
+            -ExistingMetadata  $existingMetadata
 
         Write-PipelineMessage "Exporting: $displayName -> Workbooks/$folderName/" -Level Info
 

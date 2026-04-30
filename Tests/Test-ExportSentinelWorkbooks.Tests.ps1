@@ -209,6 +209,162 @@ Describe 'Remove-WorkspaceArmId' {
     }
 }
 
+Describe 'Merge-WorkbookMetadata' {
+
+    Context 'no existing metadata.json' {
+
+        It 'returns API values verbatim' {
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Foo Bar' `
+                -ApiDescription    'API description' `
+                -ApiCategory       'Sentinel' `
+                -FolderName        'FooBar' `
+                -WorkbookId        '12345' `
+                -ExistingMetadata  $null
+
+            $merged.displayName | Should -Be 'Foo Bar'
+            $merged.description | Should -Be 'API description'
+            $merged.category    | Should -Be 'Sentinel'
+            $merged.sourceId    | Should -Be 'FooBar'
+            $merged.workbookId  | Should -Be '12345'
+        }
+
+        It 'fills empty API category with the default sentinel' {
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName 'X' -ApiDescription '' -ApiCategory '' `
+                -FolderName 'X' -WorkbookId 'g' -ExistingMetadata $null
+            $merged.category | Should -Be 'sentinel'
+        }
+    }
+
+    Context 'existing metadata.json with curated values' {
+
+        BeforeAll {
+            $script:curated = [pscustomobject]@{
+                displayName = 'UniFi Site Manager'
+                description = 'Multi-site management workbook for UniFi environments.'
+                category    = 'Network'
+                sourceId    = 'UnifiSiteManager'
+            }
+        }
+
+        It 'preserves curated description when API returns empty' {
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'UniFi Site Manager' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'UnifiSiteManager' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $curated
+            $merged.description | Should -Be 'Multi-site management workbook for UniFi environments.'
+        }
+
+        It 'preserves curated category over the generic API default' {
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'UniFi Site Manager' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'UnifiSiteManager' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $curated
+            $merged.category | Should -Be 'Network'
+        }
+
+        It "preserves the author's displayName casing when names match case-insensitively" {
+            # API returns 'Unifi Site Manager' (lowercase f), curated
+            # has 'UniFi Site Manager' (capital F brand spelling) —
+            # keep the curated case.
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Unifi Site Manager' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'UnifiSiteManager' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $curated
+            $merged.displayName | Should -Be 'UniFi Site Manager'
+        }
+
+        It 'always overrides sourceId with the folder name (not the existing value)' {
+            $stale = [pscustomobject]@{
+                sourceId = '/subscriptions/old-arm-path/...'
+            }
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Foo' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'Foo' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $stale
+            $merged.sourceId | Should -Be 'Foo'
+        }
+
+        It 'always uses the API workbookId (resource GUID is canonical)' {
+            $stale = [pscustomobject]@{
+                workbookId = 'old-stale-guid'
+            }
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Foo' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'Foo' `
+                -WorkbookId        'fresh-guid-from-api' `
+                -ExistingMetadata  $stale
+            $merged.workbookId | Should -Be 'fresh-guid-from-api'
+        }
+
+        It 'uses API displayName when names differ semantically (rename, not just casing)' {
+            $renamed = [pscustomobject]@{
+                displayName = 'Old Name'
+                description = 'Whatever'
+                category    = 'Network'
+            }
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'New Name' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'NewName' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $renamed
+            $merged.displayName | Should -Be 'New Name'
+        }
+
+        It 'uses API description when API returns a non-empty value' {
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Foo' `
+                -ApiDescription    'API has a description now' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'Foo' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $curated
+            $merged.description | Should -Be 'API has a description now'
+        }
+    }
+
+    Context 'extra keys preserved' {
+
+        It 'preserves keys this helper does not write (e.g. tags, custom annotations)' {
+            $existing = [pscustomobject]@{
+                displayName = 'Foo'
+                description = 'desc'
+                category    = 'Network'
+                sourceId    = 'Foo'
+                tags        = @('a', 'b')
+                customNote  = 'do not delete'
+            }
+            $merged = Merge-WorkbookMetadata `
+                -ApiDisplayName    'Foo' `
+                -ApiDescription    '' `
+                -ApiCategory       'sentinel' `
+                -FolderName        'Foo' `
+                -WorkbookId        'gid' `
+                -ExistingMetadata  $existing
+            $merged.Contains('tags')       | Should -BeTrue
+            $merged.Contains('customNote') | Should -BeTrue
+            $merged.customNote             | Should -Be 'do not delete'
+        }
+    }
+}
+
 Describe 'Format-WorkbookJson' {
 
     It 'pretty-prints a hashtable as multi-line JSON' {
