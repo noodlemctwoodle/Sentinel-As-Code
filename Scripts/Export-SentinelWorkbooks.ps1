@@ -246,51 +246,76 @@ function Remove-WorkspaceSuffix {
 function ConvertTo-FolderName {
     <#
     .SYNOPSIS
-        Convert a workbook displayName to a folder-name-safe form.
+        Convert a workbook displayName to a PascalCase folder name.
 
     .DESCRIPTION
-        Folder name = displayName verbatim, with one transformation:
-        Windows-illegal characters (`< > : " / \ | ? *`) are replaced
-        with a hyphen, and trailing dots / whitespace are trimmed
-        (Windows rejects those). Spaces and parentheses are valid in
-        folder names on every OS the deployer supports — they just
-        need shell quoting.
+        Folder names are PascalCase (no spaces, no punctuation) so
+        they're shell-friendly and match the existing convention in
+        this repo's Workbooks/ tree.
 
-        Per the user's instruction: "the exported folder names
-        should only be the workbook name" — so no PascalCase
-        compaction, no acronym title-casing. The displayName is the
-        canonical identifier.
+        Algorithm:
+          1. Split on any run of non-alphanumeric characters
+             (spaces, parens, hyphens, slashes — all become word
+             boundaries).
+          2. For each word:
+             - If the word contains internal camelCase
+               (lowercase-then-uppercase pattern, e.g. "pfSense",
+               "ApacheTomcat", "MicrosoftSentinel"), preserve the
+               case as authored — only the leading char is forced
+               to uppercase. This keeps user-curated camelCase
+               brands (pfSense -> PfSense) intact.
+             - Otherwise the word is a single-case form
+               (all-lower, all-upper, or all-digit) — apply
+               TitleCase: first char upper, rest lower. So "GBP"
+               becomes "Gbp" and "machines" becomes "Machines",
+               matching the existing repo convention (e.g.
+               "MicrosoftSentinelCostGbp", not
+               "MicrosoftSentinelCostGBP").
+          3. Concatenate words.
 
     .EXAMPLE
         ConvertTo-FolderName 'Microsoft Sentinel Monitoring'
-        # -> 'Microsoft Sentinel Monitoring'
+        # -> 'MicrosoftSentinelMonitoring'
 
     .EXAMPLE
         ConvertTo-FolderName 'Microsoft Sentinel Cost (GBP) v2'
-        # -> 'Microsoft Sentinel Cost (GBP) v2'
+        # -> 'MicrosoftSentinelCostGbpV2'
+
+    .EXAMPLE
+        ConvertTo-FolderName 'pfSense Firewall'
+        # -> 'PfSenseFirewall'    (camelCase brand preserved)
 
     .EXAMPLE
         ConvertTo-FolderName 'Bad/Name:With*Illegal?Chars'
-        # -> 'Bad-Name-With-Illegal-Chars'
+        # -> 'BadNameWithIllegalChars'    (illegal chars become word boundaries)
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)] [string]$DisplayName)
 
-    # Replace Windows-illegal filename characters with a hyphen so the
-    # folder is portable across OSes. Spaces, parens, and other valid
-    # characters survive.
-    $sanitised = [regex]::Replace($DisplayName, '[<>:"/\\|?*]', '-')
-
-    # Windows also rejects trailing dots and whitespace on folder
-    # names. Trim them.
-    $sanitised = $sanitised.TrimEnd('.', ' ', "`t")
-
-    # Collapse runs of whitespace so 'Foo   Bar' becomes 'Foo Bar'
-    # (cosmetic; matches what users would type if naming manually).
-    $sanitised = [regex]::Replace($sanitised, '\s+', ' ')
-
-    return $sanitised
+    $words = [regex]::Split($DisplayName, '[^A-Za-z0-9]+') |
+        Where-Object { $_ -ne '' } |
+        ForEach-Object {
+            if ($_.Length -lt 2) {
+                $_.ToUpperInvariant()
+            }
+            elseif ($_ -cmatch '[a-z][A-Z]') {
+                # Internal camelCase — preserve, just force the
+                # leading character to uppercase. This keeps
+                # user-curated brand spellings like 'pfSense' or
+                # 'MicrosoftSentinelMonitoring' intact when the
+                # input arrives already in compact form.
+                $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1)
+            }
+            else {
+                # Single-case word (all-upper, all-lower, or
+                # all-digit) — apply TitleCase. 'GBP' -> 'Gbp',
+                # 'machines' -> 'Machines'.
+                $_.Substring(0, 1).ToUpperInvariant() +
+                $_.Substring(1).ToLowerInvariant()
+            }
+        }
+    return ($words -join '')
 }
 
 function Format-WorkbookJson {

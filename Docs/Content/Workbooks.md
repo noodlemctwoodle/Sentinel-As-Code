@@ -34,9 +34,7 @@ This:
 - Lists every Sentinel workbook in the workspace via the `Microsoft.Insights/workbooks` API (`category=sentinel`, filtered by `sourceId == workspaceResourceId`).
 - Skips Content Hub-managed workbooks by default (override with `-IncludeContentHub`).
 - For each remaining (Custom) workbook, writes `Workbooks/<FolderName>/workbook.json` (the gallery template) and `Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
-- **Folder name = workbook `displayName` verbatim**, with Windows-illegal characters (`< > : " / \ | ? *`) replaced by hyphens and trailing dots / whitespace trimmed. Spaces and parens are preserved.
-
-> **Note on existing folders**: this repo's pre-existing folders use a PascalCase short identifier (e.g. `MicrosoftSentinelCostGbp` for the workbook displayed as "Microsoft Sentinel Cost (GBP)"). New exports use the displayName verbatim instead. Existing folders continue to deploy correctly because the deploy reads `displayName` from `metadata.json` (not the folder name). If you re-export an existing workbook, the script will create a new folder alongside the old one — delete or rename the old folder if you want to consolidate.
+- **Folder name = PascalCase compaction of `displayName`** (with the workspace-name suffix stripped). Non-alphanumeric runs become word boundaries; all-upper acronyms TitleCase to match the repo convention (`GBP` → `Gbp`); user-curated camelCase (e.g. `pfSense`) is preserved.
 
 Useful flags:
 

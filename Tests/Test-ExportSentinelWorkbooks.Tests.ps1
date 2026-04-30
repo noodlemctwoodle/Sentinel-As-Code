@@ -37,56 +37,72 @@ BeforeAll {
 
 Describe 'ConvertTo-FolderName' {
 
-    # Per the user's instruction: folder name = workbook displayName
-    # verbatim, with only filesystem-illegal characters replaced. No
-    # PascalCase compaction, no case transformation.
+    # Folder names are PascalCase, no spaces, no punctuation. Matches
+    # the convention used by every existing Workbooks/<Folder>/ in
+    # the repo. Acronyms (GBP, DNS) are TitleCased to match the
+    # repo's style ('Gbp' not 'GBP'); user-curated camelCase
+    # (pfSense, MicrosoftSentinel) is preserved.
 
-    It 'returns the displayName verbatim when it has no illegal characters' {
+    It 'compacts a multi-word displayName to PascalCase' {
         ConvertTo-FolderName -DisplayName 'Microsoft Sentinel Monitoring' |
-            Should -Be 'Microsoft Sentinel Monitoring'
+            Should -Be 'MicrosoftSentinelMonitoring'
     }
 
-    It 'preserves spaces in multi-word displayNames' {
+    It 'compacts simple two-word names' {
         ConvertTo-FolderName -DisplayName 'Unifi Site Manager' |
-            Should -Be 'Unifi Site Manager'
+            Should -Be 'UnifiSiteManager'
     }
 
-    It 'preserves parentheses' {
+    It 'TitleCases all-upper acronyms (GBP -> Gbp)' {
         ConvertTo-FolderName -DisplayName 'Microsoft Sentinel Cost (GBP) v2' |
-            Should -Be 'Microsoft Sentinel Cost (GBP) v2'
+            Should -Be 'MicrosoftSentinelCostGbpV2'
     }
 
-    It 'preserves digits' {
-        ConvertTo-FolderName -DisplayName 'Perimeter 81' | Should -Be 'Perimeter 81'
+    It 'preserves user-curated camelCase brands (pfSense)' {
+        ConvertTo-FolderName -DisplayName 'pfSense Firewall' |
+            Should -Be 'PfSenseFirewall'
     }
 
-    It 'preserves case exactly as the displayName provides it' {
-        ConvertTo-FolderName -DisplayName 'pfSense Firewall' | Should -Be 'pfSense Firewall'
+    It 'handles digits adjacent to letters' {
+        ConvertTo-FolderName -DisplayName 'Perimeter 81' | Should -Be 'Perimeter81'
     }
 
-    It 'replaces Windows-illegal characters with hyphens' {
+    It 'TitleCases all-lowercase words' {
+        ConvertTo-FolderName -DisplayName 'my custom workbook' | Should -Be 'MyCustomWorkbook'
+    }
+
+    It 'leaves an already-compact PascalCase identifier intact' {
+        ConvertTo-FolderName -DisplayName 'MicrosoftSentinelMonitoring' |
+            Should -Be 'MicrosoftSentinelMonitoring'
+    }
+
+    It 'treats every non-alphanumeric run as a word boundary' {
         ConvertTo-FolderName -DisplayName 'Bad/Name:With*Illegal?Chars' |
-            Should -Be 'Bad-Name-With-Illegal-Chars'
+            Should -Be 'BadNameWithIllegalChars'
     }
 
-    It 'replaces backslash and pipe' {
-        ConvertTo-FolderName -DisplayName 'a\b|c' | Should -Be 'a-b-c'
+    It 'collapses multiple spaces' {
+        ConvertTo-FolderName -DisplayName 'Foo   Bar' | Should -Be 'FooBar'
     }
 
-    It 'replaces angle brackets and quotes' {
-        ConvertTo-FolderName -DisplayName 'a<b>c"d' | Should -Be 'a-b-c-d'
+    It 'real-world: Summary Rules Workbook' {
+        ConvertTo-FolderName -DisplayName 'Summary Rules Workbook' |
+            Should -Be 'SummaryRulesWorkbook'
     }
 
-    It 'trims trailing dots (Windows-illegal)' {
-        ConvertTo-FolderName -DisplayName 'Workbook Name...' | Should -Be 'Workbook Name'
+    It 'real-world: Microsoft Sentinel Optimization Workbook' {
+        ConvertTo-FolderName -DisplayName 'Microsoft Sentinel Optimization Workbook' |
+            Should -Be 'MicrosoftSentinelOptimizationWorkbook'
     }
 
-    It 'trims trailing whitespace' {
-        ConvertTo-FolderName -DisplayName 'Workbook Name   ' | Should -Be 'Workbook Name'
+    It 'real-world: Data Collection Rule Toolkit' {
+        ConvertTo-FolderName -DisplayName 'Data Collection Rule Toolkit' |
+            Should -Be 'DataCollectionRuleToolkit'
     }
 
-    It 'collapses runs of whitespace to a single space' {
-        ConvertTo-FolderName -DisplayName 'Foo   Bar' | Should -Be 'Foo Bar'
+    It 'real-world: Sentinel Data Lake' {
+        ConvertTo-FolderName -DisplayName 'Sentinel Data Lake' |
+            Should -Be 'SentinelDataLake'
     }
 }
 

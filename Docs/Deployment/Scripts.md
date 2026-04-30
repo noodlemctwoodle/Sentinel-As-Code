@@ -747,12 +747,14 @@ resource rather than spawning duplicates.
   Override with `-IncludeContentHub` if you have a specific reason
   (e.g. forking a solution-provided workbook into your own
   governance — rare).
-- **Folder name = `displayName` verbatim** — the on-disk folder is
-  the workbook's displayName as authored in the portal, with
-  Windows-illegal characters (`< > : " / \ | ? *`) replaced by
-  hyphens and trailing dots / whitespace trimmed. Spaces and
-  parens are preserved. No PascalCase compaction or case
-  transformation; this is what the user sees in the Sentinel UI.
+- **Folder name = PascalCase compaction of `displayName`** — the
+  on-disk folder is the workbook's displayName with non-alphanumeric
+  runs (spaces, punctuation, parens) treated as word boundaries
+  and each word TitleCased. All-upper acronyms become TitleCase
+  (`GBP` → `Gbp`); user-curated camelCase brands (e.g. `pfSense`)
+  are preserved. This matches the existing `Workbooks/*` convention
+  in the repo (e.g. `MicrosoftSentinelCostGbp`,
+  `MicrosoftSentinelMonitoring`).
 - **Workspace-name suffix stripped** — Microsoft-published
   workbook templates that get instantiated per-workspace pick up
   a ` - <workspace-name>` suffix on their displayName (e.g.
@@ -881,7 +883,7 @@ resource rather than spawning duplicates.
 | Concern | Export side | Deploy side |
 | --- | --- | --- |
 | API version | `2022-04-01` | `2022-04-01` |
-| Folder name | `displayName` verbatim (filesystem-safe) | Folder name walked as-is; no transformation needed |
+| Folder name | PascalCase compaction of `displayName` (with workspace suffix stripped) | Folder name walked as-is; deploy reads `displayName` from `metadata.json` |
 | `workbook.json` content | The full gallery template | Read into `serializedData` of the deploy body |
 | `metadata.json` keys read | `displayName`, `description`, `category`, `sourceId`, `workbookId` | Same keys consumed |
 | Resource GUID | Preserved via `workbookId` | Used as the URI's `{workbookId}` segment |
