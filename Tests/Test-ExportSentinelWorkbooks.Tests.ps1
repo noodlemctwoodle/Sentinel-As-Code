@@ -90,6 +90,62 @@ Describe 'ConvertTo-FolderName' {
     }
 }
 
+Describe 'Remove-WorkspaceSuffix' {
+
+    It 'strips a trailing " - <workspace>" suffix' {
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Data Collection Rule Toolkit - stl-eus-siem-law' `
+            -WorkspaceName 'stl-eus-siem-law' |
+            Should -Be 'Data Collection Rule Toolkit'
+    }
+
+    It 'leaves the displayName unchanged when no suffix is present' {
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Microsoft Sentinel Cost (GBP) v2' `
+            -WorkspaceName 'stl-eus-siem-law' |
+            Should -Be 'Microsoft Sentinel Cost (GBP) v2'
+    }
+
+    It 'is anchored to the end (does not strip a workspace name appearing mid-string)' {
+        Remove-WorkspaceSuffix `
+            -DisplayName  'A - stl-eus-siem-law - in middle' `
+            -WorkspaceName 'stl-eus-siem-law' |
+            Should -Be 'A - stl-eus-siem-law - in middle'
+    }
+
+    It 'requires the space-hyphen-space pattern (does not strip flush-prefixed)' {
+        # 'Foo-stl-eus-siem-law' lacks the leading ' - ' so should
+        # NOT match — that pattern is more likely the workspace
+        # name baked into the workbook's actual name, not an
+        # auto-attached suffix.
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Foo-stl-eus-siem-law' `
+            -WorkspaceName 'stl-eus-siem-law' |
+            Should -Be 'Foo-stl-eus-siem-law'
+    }
+
+    It 'escapes regex metacharacters in the workspace name' {
+        # If the workspace name contains characters with regex
+        # meaning (dots, brackets, parens), the helper must escape
+        # them so the match is literal.
+        Remove-WorkspaceSuffix `
+            -DisplayName  'My Workbook - law.with.dots' `
+            -WorkspaceName 'law.with.dots' |
+            Should -Be 'My Workbook'
+    }
+
+    It 'is case-sensitive (matches exact workspace name casing)' {
+        # Workspace names in Azure are case-sensitive in URLs but
+        # not in the portal. The strip is conservative — exact
+        # match only — to avoid false positives if a workbook
+        # legitimately ends with a similarly-cased phrase.
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Foo - STL-EUS-SIEM-LAW' `
+            -WorkspaceName 'stl-eus-siem-law' |
+            Should -Be 'Foo - STL-EUS-SIEM-LAW'
+    }
+}
+
 Describe 'Format-WorkbookJson' {
 
     It 'pretty-prints a hashtable as multi-line JSON' {

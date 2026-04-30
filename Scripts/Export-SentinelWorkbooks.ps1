@@ -196,6 +196,53 @@ $script:SentinelApiVersion = '2025-09-01'
 # Helpers
 # ---------------------------------------------------------------------------
 
+function Remove-WorkspaceSuffix {
+    <#
+    .SYNOPSIS
+        Strip a trailing workspace-name annotation from a workbook
+        displayName.
+
+    .DESCRIPTION
+        Microsoft-published workbook templates that get instantiated
+        per-workspace pick up a ` - <workspace-name>` suffix on their
+        displayName (e.g. "Data Collection Rule Toolkit -
+        stl-eus-siem-law"). The suffix is noise from a repo-storage
+        perspective — the workbook would be redeployed under a
+        clean name and Sentinel attaches the workspace suffix at
+        display time anyway. Strip it for a cleaner folder structure
+        and metadata.json.
+
+        Match pattern: ` - <workspace-name>` at the very end of the
+        string. The workspace name is interpreted as a literal
+        (regex-escaped) so workspace names containing regex
+        metacharacters work correctly.
+
+        If the displayName doesn't end with the suffix, the input is
+        returned unchanged.
+
+    .EXAMPLE
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Data Collection Rule Toolkit - stl-eus-siem-law' `
+            -WorkspaceName 'stl-eus-siem-law'
+        # -> 'Data Collection Rule Toolkit'
+
+    .EXAMPLE
+        Remove-WorkspaceSuffix `
+            -DisplayName  'Microsoft Sentinel Cost (GBP) v2' `
+            -WorkspaceName 'stl-eus-siem-law'
+        # -> 'Microsoft Sentinel Cost (GBP) v2'    (unchanged — no suffix)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string] $DisplayName,
+        [Parameter(Mandatory)] [string] $WorkspaceName
+    )
+
+    $pattern = ' - ' + [regex]::Escape($WorkspaceName) + '$'
+    return [regex]::Replace($DisplayName, $pattern, '')
+}
+
 function ConvertTo-FolderName {
     <#
     .SYNOPSIS
@@ -429,22 +476,34 @@ $counters = @{
 
 foreach ($wb in $workbooks) {
     try {
-        $displayName = $wb.properties.displayName
+        $rawDisplayName = $wb.properties.displayName
 
         # Skip Content Hub workbooks — they belong to their installing
         # solution, not the customer. Bringing them under repo
         # governance would conflict with the Content Hub update flow.
         # Override with -IncludeContentHub for advanced cases.
         if (-not $IncludeContentHub -and $contentHubWorkbookIds.Contains($wb.id)) {
-            Write-PipelineMessage "Skipping '$displayName' — Content Hub-managed workbook (use -IncludeContentHub to override)." -Level Info
+            Write-PipelineMessage "Skipping '$rawDisplayName' — Content Hub-managed workbook (use -IncludeContentHub to override)." -Level Info
             $counters.Skipped++
             continue
         }
 
-        if (-not ($displayName -match $Filter)) {
-            Write-PipelineMessage "Skipping '$displayName' — does not match -Filter '$Filter'" -Level Info
+        if (-not ($rawDisplayName -match $Filter)) {
+            Write-PipelineMessage "Skipping '$rawDisplayName' — does not match -Filter '$Filter'" -Level Info
             $counters.Skipped++
             continue
+        }
+
+        # Strip the ` - <workspace-name>` suffix Microsoft attaches to
+        # workspace-instantiated templates (e.g. "Data Collection Rule
+        # Toolkit - stl-eus-siem-law"). The cleaned name drives both
+        # the folder and the metadata.json displayName so on redeploy
+        # Sentinel re-attaches the suffix at display time, keeping
+        # the round-trip stable.
+        $displayName = Remove-WorkspaceSuffix -DisplayName $rawDisplayName -WorkspaceName $Workspace
+
+        if ($displayName -ne $rawDisplayName) {
+            Write-PipelineMessage "  Stripped workspace suffix: '$rawDisplayName' -> '$displayName'" -Level Info
         }
 
         $folderName = ConvertTo-FolderName -DisplayName $displayName

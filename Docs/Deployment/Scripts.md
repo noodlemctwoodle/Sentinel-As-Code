@@ -753,6 +753,13 @@ resource rather than spawning duplicates.
   hyphens and trailing dots / whitespace trimmed. Spaces and
   parens are preserved. No PascalCase compaction or case
   transformation; this is what the user sees in the Sentinel UI.
+- **Workspace-name suffix stripped** — Microsoft-published
+  workbook templates that get instantiated per-workspace pick up
+  a ` - <workspace-name>` suffix on their displayName (e.g.
+  `Data Collection Rule Toolkit - stl-eus-siem-law`). The script
+  strips this suffix before deriving the folder name AND from
+  the metadata.json's displayName. Sentinel re-attaches it at
+  display time on redeploy, so the round-trip stays stable.
 - **Workbook GUID preservation** — writes the workbook's resource
   GUID into `metadata.json` as `workbookId`. The next deploy
   reads it back and hits the same Azure resource, avoiding the
@@ -856,12 +863,16 @@ resource rather than spawning duplicates.
    - Skip if the workbook ID is in the Content Hub set (unless
      `-IncludeContentHub` was supplied)
    - Filter by regex on `displayName` if `-Filter` was supplied
+   - Strip any trailing ` - <WorkspaceName>` suffix from the
+     displayName (Microsoft attaches this to workspace-instantiated
+     templates; not useful for repo storage)
    - Skip if `-OnlyMissing` and the folder already exists
    - Reformat `serializedData` (a JSON string) via
      `ConvertFrom-Json` + `ConvertTo-Json -Depth 32` so the
      on-disk file is pretty-printed
    - Write `Workbooks/<FolderName>/workbook.json` and
-     `Workbooks/<FolderName>/metadata.json`
+     `Workbooks/<FolderName>/metadata.json` (using the cleaned
+     displayName for both folder name and metadata.json)
 6. **Status reporting**: Prints a summary table with exported /
    skipped / failed counts.
 
