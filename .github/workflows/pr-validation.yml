@@ -1,9 +1,13 @@
 # ---------------------------------------------------------------------------
 # GitHub Actions Workflow: PR Validation Gate
 # ---------------------------------------------------------------------------
-# Runs five jobs on every pull request to main:
+# Runs five jobs on every pull request to main, every push to main, and
+# every workflow_dispatch:
 #
-#   validate              Pester suites under Tests/ (offline)
+#   validate              Pester suites under Tests/ (offline) — calls
+#                         Scripts/Invoke-PRValidation.ps1 (same entry-
+#                         point ADO uses); publishes JUnit XML to the
+#                         PR check UI and uploads it as an artefact
 #   bicep-build           Bicep syntax + parameter type check (offline)
 #   arm-validate          ARM template What-If for every Playbooks/**.json (OIDC)
 #   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
@@ -34,11 +38,22 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+  # CI baseline on push to main. Mirrors the ADO pipeline's `trigger:`
+  # block (Pipelines/Sentinel-PR-Validation.yml). Branch protection
+  # makes direct pushes rare in practice, but this catches the
+  # admin-override / force-push / squash-merge edge cases — if main
+  # ever goes red, the most recent run is the place to start the
+  # post-mortem.
+  push:
+    branches: [main]
+
   # Lets maintainers run the same validation manually against any branch.
   workflow_dispatch:
 
 # Cancel any in-flight run for the same PR when a new commit is pushed; saves
-# CI minutes and keeps the latest status check fresh.
+# CI minutes and keeps the latest status check fresh. The fallback to
+# github.ref keeps push-to-main runs grouped per ref rather than colliding
+# with PR runs.
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -70,40 +85,43 @@ jobs:
           pester-version: ${{ env.PESTER_VERSION }}
           yaml-version:   ${{ env.YAML_VERSION }}
 
-      - name: Run Pester
+      # Calls the cross-platform PR-validation entrypoint that the ADO
+      # pipeline also calls. Single source of truth for test discovery,
+      # NUnit-XML emission, and exit-code logic. Any change to test-
+      # running behaviour lands once in Scripts/Invoke-PRValidation.ps1
+      # and applies to both platforms.
+      - name: Run Pester via Invoke-PRValidation.ps1
         shell: pwsh
         run: |
-          Import-Module Pester          -RequiredVersion '${{ env.PESTER_VERSION }}' -ErrorAction Stop
-          Import-Module powershell-yaml -RequiredVersion '${{ env.YAML_VERSION }}'   -ErrorAction Stop
+          ./Scripts/Invoke-PRValidation.ps1 `
+              -RepoPath        '${{ github.workspace }}' `
+              -TestResultsPath '${{ github.workspace }}/test-results/pester-results.xml' `
+              -InstallModules:$false
 
-          if (-not (Test-Path 'Tests')) {
-              Write-Host '##[warning]No Tests/ folder found — nothing to validate.'
-              exit 0
-          }
+      # Surface per-test pass/fail in the PR check UI. Without this,
+      # a failure shows as "validate failed" with no granularity; the
+      # only way to see which test failed is to expand the run log.
+      # Runs always (incl. on test failure) so failed-test details
+      # are visible.
+      - name: Publish Pester results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/pester-results.xml
+          check_name: Pester results
+          comment_mode: off
 
-          $config = New-PesterConfiguration
-          $config.Run.Path        = 'Tests'
-          $config.Run.PassThru    = $true
-          $config.Run.Exit        = $false
-          $config.Output.Verbosity = 'Detailed'
-
-          $result = Invoke-Pester -Configuration $config
-
-          Write-Host ''
-          Write-Host '##[section]Test summary'
-          Write-Host ("  Passed:  {0}" -f $result.PassedCount)
-          Write-Host ("  Failed:  {0}" -f $result.FailedCount)
-          Write-Host ("  Skipped: {0}" -f $result.SkippedCount)
-
-          if ($result.FailedCount -gt 0) {
-              Write-Host '##[error]One or more Pester tests failed. PR cannot merge until they pass.'
-              foreach ($t in $result.Failed) {
-                  Write-Host ('##[error]  {0}' -f $t.ExpandedPath)
-              }
-              exit 1
-          }
-
-          Write-Host '##[section]All Pester tests passed.'
+      # Upload the JUnit XML as a downloadable artefact. Useful for
+      # local triage and matches the ADO pipeline's
+      # PublishPipelineArtifact step.
+      - name: Upload Pester results artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 30
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # C1: Bicep build
