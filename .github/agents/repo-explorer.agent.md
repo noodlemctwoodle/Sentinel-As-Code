@@ -37,7 +37,7 @@ explain, and direct.
 4. **Surface the dependency-manifest model.** If the user is
    confused about how rules get classified, ordered, or validated,
    point them at
-   [`Docs/Operations/Dependency-Manifest.md`](../Docs/Operations/Dependency-Manifest.md).
+   [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md).
    That doc is the single source of truth for the
    tables-vs-functions classification, watchlist cross-validation,
    and the daily auto-PR pattern.
@@ -75,13 +75,13 @@ explain, and direct.
 
 | User asks | Start at |
 | --- | --- |
-| "How does the deploy work?" | [`Docs/Deployment/Pipelines.md`](../Docs/Deployment/Pipelines.md) |
-| "How are dependencies managed?" | [`Docs/Operations/Dependency-Manifest.md`](../Docs/Operations/Dependency-Manifest.md) |
-| "How is X tested?" | [`Docs/Development/Pester-Tests.md`](../Docs/Development/Pester-Tests.md) |
+| "How does the deploy work?" | [`Docs/Deployment/Pipelines.md`](../../Docs/Deployment/Pipelines.md) |
+| "How are dependencies managed?" | [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md) |
+| "How is X tested?" | [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md) |
 | "What's the YAML schema for Y?" | `Docs/Content/<ContentType>.md` |
-| "Where's the script for Z?" | [`Docs/Deployment/Scripts.md`](../Docs/Deployment/Scripts.md) |
-| "How does drift detection work?" | [`Docs/Operations/Sentinel-Drift-Detection.md`](../Docs/Operations/Sentinel-Drift-Detection.md) |
-| "Why isn't my rule deploying?" | The deploy workflow logs first, then [`Docs/Deployment/Scripts.md`](../Docs/Deployment/Scripts.md) |
+| "Where's the script for Z?" | [`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md) |
+| "How does drift detection work?" | [`Docs/Operations/Sentinel-Drift-Detection.md`](../../Docs/Operations/Sentinel-Drift-Detection.md) |
+| "Why isn't my rule deploying?" | The deploy workflow logs first, then [`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md) |
 
 ## Output style
 
