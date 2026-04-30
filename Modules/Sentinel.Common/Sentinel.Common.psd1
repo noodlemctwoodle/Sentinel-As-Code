@@ -1,6 +1,6 @@
 @{
     RootModule        = 'Sentinel.Common.psm1'
-    ModuleVersion     = '1.1.0'
+    ModuleVersion     = '1.1.1'
     GUID              = '8d0c8a73-2b16-4f5a-8e7f-1c5e6f1a8d4b'
     Author            = 'noodlemctwoodle'
     CompanyName       = 'Sentinel-As-Code'
@@ -29,7 +29,7 @@
             Tags         = @('Sentinel', 'Azure', 'Internal')
             ProjectUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code'
             LicenseUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/LICENSE'
-            ReleaseNotes = '1.1.0 — added KQL dependency-discovery helpers (Remove-KqlComments, Get-KqlWatchlistReferences, Get-KqlExternalDataReferences, Get-KqlBareIdentifiers, Get-ContentKqlQuery, Get-ContentDependencies). Used by Scripts/Build-DependencyManifest.ps1 to derive dependencies.json from content rather than hand-maintaining it. 1.0.0 — initial release. Extracted from inline duplication across the four pre-Wave-4 consumer scripts. Connect-AzureEnvironment refactored to take explicit parameters and return a state hashtable.'
+            ReleaseNotes = '1.1.1 — extended Get-KqlBareIdentifiers with two additional data-source-position patterns: (1) tables inside materialize() / view() / toscalar() subqueries, (2) tables passed as string arguments to KQL table() — the lambda-wrapper pattern (let f = (t: string) { table(t) }; f("SigninLogs")). Both patterns surfaced in real content during the dependency-manifest comparison; without them four legitimate rules had no manifest entry. Also adds direct table(''X'') / table("X") literal capture. Four new unit tests in Test-SentinelCommon.Tests.ps1. 1.1.0 — added KQL dependency-discovery helpers (Remove-KqlComments, Get-KqlWatchlistReferences, Get-KqlExternalDataReferences, Get-KqlBareIdentifiers, Get-ContentKqlQuery, Get-ContentDependencies). Used by Scripts/Build-DependencyManifest.ps1 to derive dependencies.json from content rather than hand-maintaining it. 1.0.0 — initial release. Extracted from inline duplication across the four pre-Wave-4 consumer scripts. Connect-AzureEnvironment refactored to take explicit parameters and return a state hashtable.'
         }
     }
 }
