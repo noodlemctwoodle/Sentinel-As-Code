@@ -65,6 +65,13 @@
     Skip workbooks that already have a folder under Workbooks/. Useful
     for one-off import without overwriting in-repo customisations.
 
+.PARAMETER IncludeContentHub
+    By default, workbooks installed via a Content Hub solution are
+    excluded — they belong to the solution, not the customer, and
+    putting them under repo governance conflicts with the Content
+    Hub update flow. Pass this switch to include them anyway
+    (advanced; almost always wrong).
+
 .PARAMETER WhatIf
     Read everything, write nothing. Reports per-workbook what would
     change.
@@ -127,6 +134,18 @@
         are named).
       - workbookId preserved via metadata.json so redeploy lands
         on the same Azure resource.
+
+    Content Hub filtering:
+
+      - Default behaviour skips workbooks installed via a Content
+        Hub solution (identified via the Microsoft.SecurityInsights/
+        metadata resource where source.kind == 'Solution').
+      - Content Hub workbooks belong to their solution; bringing
+        them under repo governance conflicts with Content Hub's
+        update flow. The matching deploy
+        (Deploy-CustomContent.ps1's Deploy-CustomWorkbooks)
+        intentionally only handles repo-authored workbooks.
+      - Pass -IncludeContentHub to override (advanced).
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -153,6 +172,9 @@ param(
     [switch]$OnlyMissing,
 
     [Parameter(Mandatory = $false)]
+    [switch]$IncludeContentHub,
+
+    [Parameter(Mandatory = $false)]
     [switch]$IsGov
 )
 
@@ -168,6 +190,7 @@ if (-not $BasePath) {
 }
 
 $script:WorkbookApiVersion = '2022-04-01'
+$script:SentinelApiVersion = '2025-09-01'
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -266,11 +289,82 @@ $ctx = Connect-AzureEnvironment `
     -SubscriptionId $SubscriptionId `
     -IsGov:$IsGov
 
+# ---------------------------------------------------------------------------
+# Build the Content Hub workbook exclusion set
+# ---------------------------------------------------------------------------
+# Sentinel marks Content-Hub-installed content via a parallel
+# `Microsoft.SecurityInsights/metadata` resource with `source.kind ==
+# 'Solution'`. The workbook resource itself is identical in shape to
+# a Custom workbook, so the only reliable filter is to enumerate the
+# metadata records and build a set of workbook resource IDs that the
+# Content Hub owns. Any workbook whose ID matches gets skipped (unless
+# -IncludeContentHub overrides).
+#
+# Content Hub workbooks belong to their solution, not the customer.
+# Re-deploying them via Deploy-CustomContent.ps1 doesn't help (the
+# Content Hub solution will overwrite on update); putting them under
+# repo governance is almost always the wrong call. The default of
+# skipping them is the right behaviour.
+$contentHubWorkbookIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase)
+
+if (-not $IncludeContentHub) {
+    $metadataUri = "{0}{1}/providers/Microsoft.SecurityInsights/metadata?api-version={2}" -f `
+        $ctx.ServerUrl,
+        $ctx.WorkspaceResourceId,
+        $script:SentinelApiVersion
+
+    Write-PipelineMessage "Querying Sentinel metadata to identify Content Hub workbooks..." -Level Info
+    try {
+        $metaResp = Invoke-SentinelApi -Uri $metadataUri -Method Get -Headers $ctx.AuthHeader
+        $metaRecords = @($metaResp.value)
+
+        # Sentinel paginates large metadata responses. Follow nextLink
+        # until exhausted so we don't miss Content Hub workbooks just
+        # because they fall on a later page.
+        $nextLink = $metaResp.nextLink
+        while ($nextLink) {
+            $page = Invoke-SentinelApi -Uri $nextLink -Method Get -Headers $ctx.AuthHeader
+            if ($page.value) { $metaRecords += @($page.value) }
+            $nextLink = $page.nextLink
+        }
+
+        foreach ($rec in $metaRecords) {
+            if ($rec.properties.kind -ne 'Workbook') { continue }
+            $sourceKind = $null
+            if ($rec.properties.PSObject.Properties['source'] -and $rec.properties.source) {
+                $sourceKind = $rec.properties.source.kind
+            }
+            if ($sourceKind -eq 'Solution' -and $rec.properties.parentId) {
+                [void]$contentHubWorkbookIds.Add($rec.properties.parentId)
+            }
+        }
+
+        Write-PipelineMessage "  Identified $($contentHubWorkbookIds.Count) Content Hub workbook(s) — these will be skipped." -Level Info
+    }
+    catch {
+        Write-PipelineMessage "  Could not enumerate Sentinel metadata: $($_.Exception.Message)" -Level Warning
+        Write-PipelineMessage "  Continuing without Content Hub filtering. Pass -IncludeContentHub to suppress this warning if intentional." -Level Warning
+    }
+}
+else {
+    Write-PipelineMessage "-IncludeContentHub specified — Content Hub workbooks WILL be exported alongside Custom." -Level Warning
+}
+
 # List Sentinel-scoped workbooks. The Microsoft.Insights/workbooks API
 # accepts a `category=sentinel` filter and a `sourceId={workspaceResourceId}`
 # filter; combining both narrows the result to exactly the workbooks
 # Deploy-CustomWorkbooks would manage.
-$listUri = "{0}/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.Insights/workbooks?api-version={3}&category=sentinel&sourceId={4}" -f `
+#
+# `canFetchContent=true` is REQUIRED. Without it, the LIST response
+# returns only resource metadata — the `serializedData` property
+# (the gallery template content we actually need) is omitted to keep
+# response sizes small. With the flag, the LIST returns full content
+# for workbooks the caller has read access to. For any workbook where
+# the LIST still doesn't return content (Microsoft-published Content
+# Hub workbooks that the workspace inherits but doesn't own, certain
+# permission edge cases), we fall back to a per-workbook GET below.
+$listUri = "{0}/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.Insights/workbooks?api-version={3}&category=sentinel&sourceId={4}&canFetchContent=true" -f `
     $ctx.ServerUrl,
     $ctx.SubscriptionId,
     $ResourceGroup,
@@ -313,6 +407,17 @@ $counters = @{
 foreach ($wb in $workbooks) {
     try {
         $displayName = $wb.properties.displayName
+
+        # Skip Content Hub workbooks — they belong to their installing
+        # solution, not the customer. Bringing them under repo
+        # governance would conflict with the Content Hub update flow.
+        # Override with -IncludeContentHub for advanced cases.
+        if (-not $IncludeContentHub -and $contentHubWorkbookIds.Contains($wb.id)) {
+            Write-PipelineMessage "Skipping '$displayName' — Content Hub-managed workbook (use -IncludeContentHub to override)." -Level Info
+            $counters.Skipped++
+            continue
+        }
+
         if (-not ($displayName -match $Filter)) {
             Write-PipelineMessage "Skipping '$displayName' — does not match -Filter '$Filter'" -Level Info
             $counters.Skipped++
@@ -331,9 +436,32 @@ foreach ($wb in $workbooks) {
         # The serializedData property is a JSON string; reformat it via
         # parse + ConvertTo-Json so the on-disk file is pretty-printed
         # and matches the existing repo's formatting.
+        #
+        # If the LIST response (even with canFetchContent=true) didn't
+        # return serializedData for this workbook, fall back to a
+        # per-workbook GET. Microsoft-published Content Hub workbooks
+        # that the workspace inherits but hasn't customised typically
+        # need the per-resource fetch to surface their content.
         $serialised = $wb.properties.serializedData
         if (-not $serialised) {
-            Write-PipelineMessage "Skipping '$displayName' — no serializedData on the resource." -Level Warning
+            $detailUri = "{0}{1}?api-version={2}&canFetchContent=true" -f `
+                $ctx.ServerUrl,
+                $wb.id,
+                $script:WorkbookApiVersion
+            try {
+                Write-PipelineMessage "  '$displayName' had no content in the list response; fetching detail..." -Level Info
+                $detail = Invoke-SentinelApi -Uri $detailUri -Method Get -Headers $ctx.AuthHeader
+                $serialised = $detail.properties.serializedData
+            }
+            catch {
+                Write-PipelineMessage "Skipping '$displayName' — detail fetch failed: $($_.Exception.Message)" -Level Warning
+                $counters.Skipped++
+                continue
+            }
+        }
+
+        if (-not $serialised) {
+            Write-PipelineMessage "Skipping '$displayName' — still no serializedData after detail fetch (likely a Content Hub gallery template not customised in this workspace)." -Level Warning
             $counters.Skipped++
             continue
         }

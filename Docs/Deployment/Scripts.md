@@ -739,6 +739,14 @@ resource rather than spawning duplicates.
 - **Bulk export** — lists every Sentinel-scoped workbook in one
   REST call (`Microsoft.Insights/workbooks` filtered by
   `category=sentinel` and `sourceId={workspaceResourceId}`).
+- **Content Hub workbooks excluded by default** — only Custom
+  workbooks land in the repo. The script enumerates the
+  workspace's `Microsoft.SecurityInsights/metadata` resources to
+  identify which workbooks were installed by a Content Hub
+  solution (via `source.kind == 'Solution'`), and skips them.
+  Override with `-IncludeContentHub` if you have a specific reason
+  (e.g. forking a solution-provided workbook into your own
+  governance — rare).
 - **Folder-name parity** — derives the on-disk folder name from
   `displayName` via PascalCase compaction. Folder names match
   the existing `Workbooks/*` convention so no folders rename on
@@ -769,6 +777,7 @@ resource rather than spawning duplicates.
 | `BasePath` | string | No | Parent of `Scripts/` | Repo root path; output is written to `<BasePath>/Workbooks/` |
 | `Filter` | string | No | `'.'` | Regex applied to each workbook's `displayName`; non-matching workbooks skipped |
 | `OnlyMissing` | switch | No | `$false` | Skip workbooks that already have a folder under `Workbooks/` |
+| `IncludeContentHub` | switch | No | `$false` | By default, Content Hub-managed workbooks are excluded. Pass to include them (advanced; usually wrong because Content Hub will overwrite on update) |
 | `WhatIf` | switch | No | `$false` | Preview without writing |
 | `IsGov` | switch | No | `$false` | Target Azure Government cloud |
 
@@ -818,10 +827,32 @@ resource rather than spawning duplicates.
 1. **Authentication and Setup**: Imports the `Sentinel.Common`
    module and calls `Connect-AzureEnvironment` to acquire an
    access token + workspace resource ID.
-2. **List**: Calls
-   `GET /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Insights/workbooks?api-version=2022-04-01&category=sentinel&sourceId={workspaceResourceId}`
-   to enumerate Sentinel workbooks in the workspace.
-3. **Per-workbook export**: For each result:
+2. **Identify Content Hub workbooks**: Unless `-IncludeContentHub`
+   was supplied, the script first calls
+   `GET .../providers/Microsoft.SecurityInsights/metadata?api-version=2025-09-01`
+   (with pagination) and builds a HashSet of workbook resource IDs
+   where `properties.kind == 'Workbook'` AND
+   `properties.source.kind == 'Solution'`. Any workbook found in
+   this set is skipped during the export pass.
+3. **List**: Calls
+   `GET /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Insights/workbooks?api-version=2022-04-01&category=sentinel&sourceId={workspaceResourceId}&canFetchContent=true`
+   to enumerate Sentinel workbooks. **`canFetchContent=true` is
+   essential** — without it the LIST API returns only resource
+   metadata, omitting the `serializedData` (the gallery template
+   content) to keep response sizes small. The flag tells ARM to
+   include full content for workbooks the caller has read access to.
+4. **Per-workbook GET fallback**: If a workbook's content is still
+   absent from the LIST response (rare — typically a Microsoft-
+   published Content Hub workbook the workspace inherits, which
+   the metadata-based filter in step 2 should have already
+   excluded), the script does a per-resource
+   `GET /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Insights/workbooks/{name}?canFetchContent=true`
+   to resolve content one workbook at a time. Only workbooks where
+   neither the list nor the detail fetch returns content get
+   skipped (with a clear warning explaining the cause).
+5. **Per-workbook export**: For each result:
+   - Skip if the workbook ID is in the Content Hub set (unless
+     `-IncludeContentHub` was supplied)
    - Filter by regex on `displayName` if `-Filter` was supplied
    - Skip if `-OnlyMissing` and the folder already exists
    - Reformat `serializedData` (a JSON string) via
@@ -829,7 +860,7 @@ resource rather than spawning duplicates.
      on-disk file is pretty-printed
    - Write `Workbooks/<FolderName>/workbook.json` and
      `Workbooks/<FolderName>/metadata.json`
-4. **Status reporting**: Prints a summary table with exported /
+6. **Status reporting**: Prints a summary table with exported /
    skipped / failed counts.
 
 ### Symmetry contract with `Deploy-CustomWorkbooks`
@@ -852,4 +883,5 @@ resource rather than spawning duplicates.
 ### Known limitations
 
 - Only workbooks where `category == sentinel` are exported. Application Insights / general-purpose workbooks living under the same workspace are filtered out by design.
-- Workbooks created via Content Hub solutions (which set their own `sourceId`) appear if `sourceId == workspaceResourceId`. Templates not yet customised in the workspace don't appear — they're served from the Content Hub catalogue, not the workspace's resource list.
+- Content Hub-managed workbooks are excluded by default (see step 2 of How it works). If the workspace has many Content Hub solutions installed, you may see a long list of "Skipping ... — Content Hub-managed workbook" messages. This is intentional; pass `-IncludeContentHub` only if you have a specific reason.
+- Templates that haven't been customised in the workspace don't appear at all — they're served from the Content Hub catalogue, not the workspace's resource list, so there's nothing to export.
