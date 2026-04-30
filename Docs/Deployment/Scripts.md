@@ -747,10 +747,12 @@ resource rather than spawning duplicates.
   Override with `-IncludeContentHub` if you have a specific reason
   (e.g. forking a solution-provided workbook into your own
   governance — rare).
-- **Folder-name parity** — derives the on-disk folder name from
-  `displayName` via PascalCase compaction. Folder names match
-  the existing `Workbooks/*` convention so no folders rename on
-  re-export.
+- **Folder name = `displayName` verbatim** — the on-disk folder is
+  the workbook's displayName as authored in the portal, with
+  Windows-illegal characters (`< > : " / \ | ? *`) replaced by
+  hyphens and trailing dots / whitespace trimmed. Spaces and
+  parens are preserved. No PascalCase compaction or case
+  transformation; this is what the user sees in the Sentinel UI.
 - **Workbook GUID preservation** — writes the workbook's resource
   GUID into `metadata.json` as `workbookId`. The next deploy
   reads it back and hits the same Azure resource, avoiding the
@@ -868,7 +870,7 @@ resource rather than spawning duplicates.
 | Concern | Export side | Deploy side |
 | --- | --- | --- |
 | API version | `2022-04-01` | `2022-04-01` |
-| Folder name | PascalCase from `displayName` | Spaces re-introduced from PascalCase via `[a-z]([A-Z])` regex split |
+| Folder name | `displayName` verbatim (filesystem-safe) | Folder name walked as-is; no transformation needed |
 | `workbook.json` content | The full gallery template | Read into `serializedData` of the deploy body |
 | `metadata.json` keys read | `displayName`, `description`, `category`, `sourceId`, `workbookId` | Same keys consumed |
 | Resource GUID | Preserved via `workbookId` | Used as the URI's `{workbookId}` segment |

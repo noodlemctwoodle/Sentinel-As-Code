@@ -199,28 +199,51 @@ $script:SentinelApiVersion = '2025-09-01'
 function ConvertTo-FolderName {
     <#
     .SYNOPSIS
-        Convert a workbook displayName to a PascalCase folder name that
-        matches the convention used by existing Workbooks/<Folder>/.
+        Convert a workbook displayName to a folder-name-safe form.
+
+    .DESCRIPTION
+        Folder name = displayName verbatim, with one transformation:
+        Windows-illegal characters (`< > : " / \ | ? *`) are replaced
+        with a hyphen, and trailing dots / whitespace are trimmed
+        (Windows rejects those). Spaces and parentheses are valid in
+        folder names on every OS the deployer supports — they just
+        need shell quoting.
+
+        Per the user's instruction: "the exported folder names
+        should only be the workbook name" — so no PascalCase
+        compaction, no acronym title-casing. The displayName is the
+        canonical identifier.
+
     .EXAMPLE
         ConvertTo-FolderName 'Microsoft Sentinel Monitoring'
-        # -> 'MicrosoftSentinelMonitoring'
+        # -> 'Microsoft Sentinel Monitoring'
+
+    .EXAMPLE
+        ConvertTo-FolderName 'Microsoft Sentinel Cost (GBP) v2'
+        # -> 'Microsoft Sentinel Cost (GBP) v2'
+
+    .EXAMPLE
+        ConvertTo-FolderName 'Bad/Name:With*Illegal?Chars'
+        # -> 'Bad-Name-With-Illegal-Chars'
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)] [string]$DisplayName)
 
-    # Strip non-alphanumerics, capitalise each word, concatenate.
-    $words = [regex]::Split($DisplayName, '[^A-Za-z0-9]+') |
-        Where-Object { $_ -ne '' } |
-        ForEach-Object {
-            if ($_.Length -gt 1) {
-                $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1)
-            }
-            else {
-                $_.ToUpperInvariant()
-            }
-        }
-    return ($words -join '')
+    # Replace Windows-illegal filename characters with a hyphen so the
+    # folder is portable across OSes. Spaces, parens, and other valid
+    # characters survive.
+    $sanitised = [regex]::Replace($DisplayName, '[<>:"/\\|?*]', '-')
+
+    # Windows also rejects trailing dots and whitespace on folder
+    # names. Trim them.
+    $sanitised = $sanitised.TrimEnd('.', ' ', "`t")
+
+    # Collapse runs of whitespace so 'Foo   Bar' becomes 'Foo Bar'
+    # (cosmetic; matches what users would type if naming manually).
+    $sanitised = [regex]::Replace($sanitised, '\s+', ' ')
+
+    return $sanitised
 }
 
 function Format-WorkbookJson {
@@ -486,11 +509,20 @@ foreach ($wb in $workbooks) {
             $workbookId = ($wb.id -split '/')[-1]
         }
 
+        # Match the existing-repo convention:
+        #   sourceId = the folder name (an in-repo identifier),
+        #              NOT the workspace ARM resource ID.
+        # The deploy script (Deploy-CustomWorkbooks) hardcodes the
+        # workspace resource ID at deploy time and does NOT read
+        # sourceId from metadata.json, so there's no functional
+        # consequence to this — but the convention keeps the file
+        # readable as a human-curated record of the workbook's
+        # repo identity.
         $metadata = [ordered]@{
             displayName = $displayName
             description = if ($wb.properties.description) { $wb.properties.description } else { '' }
             category    = if ($wb.properties.category) { $wb.properties.category } else { 'sentinel' }
-            sourceId    = $wb.properties.sourceId
+            sourceId    = $folderName
             workbookId  = $workbookId
         }
 
