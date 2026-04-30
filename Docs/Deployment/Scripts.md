@@ -762,6 +762,17 @@ resource rather than spawning duplicates.
   strips this suffix before deriving the folder name AND from
   the metadata.json's displayName. Sentinel re-attaches it at
   display time on redeploy, so the round-trip stays stable.
+- **Workspace ARM ID stripped from workbook content** — Sentinel
+  bakes the source workspace's full ARM resource ID into
+  `fallbackResourceIds` and sometimes inline resource references
+  (e.g. `/subscriptions/<sub>/resourceGroups/<rg>/providers/microsoft.operationalinsights/workspaces/<ws>`).
+  The script replaces every case-insensitive occurrence with the
+  placeholder convention used by hand-curated repo workbooks
+  (`/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace`),
+  so the workbook isn't pinned to one specific workspace. The
+  field only affects standalone Workbooks-portal viewing; opening
+  the workbook from within a Sentinel workspace uses the
+  workspace context regardless.
 - **Workbook GUID preservation** — writes the workbook's resource
   GUID into `metadata.json` as `workbookId`. The next deploy
   reads it back and hits the same Azure resource, avoiding the
@@ -872,6 +883,11 @@ resource rather than spawning duplicates.
    - Reformat `serializedData` (a JSON string) via
      `ConvertFrom-Json` + `ConvertTo-Json -Depth 32` so the
      on-disk file is pretty-printed
+   - Replace every occurrence of the source workspace's ARM
+     resource ID in the JSON with the placeholder
+     `/subscriptions/00000000-0000-0000-0000-000000000000/...`
+     (case-insensitive) so the workbook isn't pinned to one
+     workspace
    - Write `Workbooks/<FolderName>/workbook.json` and
      `Workbooks/<FolderName>/metadata.json` (using the cleaned
      displayName for both folder name and metadata.json)

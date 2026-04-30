@@ -162,6 +162,53 @@ Describe 'Remove-WorkspaceSuffix' {
     }
 }
 
+Describe 'Remove-WorkspaceArmId' {
+
+    BeforeAll {
+        $script:wsId = '/subscriptions/5305ccd2-977a-4630-843b-bad582e756a3/resourcegroups/stl-eus-siem-rg/providers/microsoft.operationalinsights/workspaces/stl-eus-siem-law'
+        $script:placeholder = '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace'
+    }
+
+    It 'replaces a literal occurrence of the workspace ARM ID with the placeholder' {
+        $json = '"fallbackResourceIds": ["' + $wsId + '"]'
+        $out = Remove-WorkspaceArmId -Json $json -WorkspaceResourceId $wsId
+        $out | Should -Be ('"fallbackResourceIds": ["' + $placeholder + '"]')
+    }
+
+    It 'leaves unrelated content unchanged' {
+        $json = '{"fallbackResourceIds": [""], "isLocked": true, "items": []}'
+        Remove-WorkspaceArmId -Json $json -WorkspaceResourceId $wsId | Should -Be $json
+    }
+
+    It 'replaces every occurrence (multiple matches)' {
+        $json = '"a": "' + $wsId + '", "b": "' + $wsId + '"'
+        $out = Remove-WorkspaceArmId -Json $json -WorkspaceResourceId $wsId
+        ($out -split [regex]::Escape($placeholder)).Count | Should -Be 3   # 2 splits = 3 segments
+        $out | Should -Not -Match ([regex]::Escape($wsId))
+    }
+
+    It 'matches case-insensitively (real serialized data uses lowercase resource provider names)' {
+        # Az PowerShell sometimes returns workspace IDs with mixed-case
+        # resource provider segments (Microsoft.OperationalInsights),
+        # while the serialized workbook data uses all-lowercase
+        # (microsoft.operationalinsights). The case-insensitive
+        # match covers both.
+        $mixedCaseId = '/subscriptions/5305ccd2-977a-4630-843b-bad582e756a3/resourceGroups/stl-eus-siem-rg/providers/Microsoft.OperationalInsights/workspaces/stl-eus-siem-law'
+        $allLowerJson = '"fallbackResourceIds": ["' + $wsId.ToLowerInvariant() + '"]'
+
+        $out = Remove-WorkspaceArmId -Json $allLowerJson -WorkspaceResourceId $mixedCaseId
+        $out | Should -Be ('"fallbackResourceIds": ["' + $placeholder + '"]')
+    }
+
+    It 'handles regex metacharacters in the workspace ID safely' {
+        # Workspace ARM IDs contain dots, hyphens, slashes — all
+        # regex metacharacters. The helper must escape them.
+        $json = '"x": "' + $wsId + '"'
+        $out = Remove-WorkspaceArmId -Json $json -WorkspaceResourceId $wsId
+        $out | Should -Match ([regex]::Escape($placeholder))
+    }
+}
+
 Describe 'Format-WorkbookJson' {
 
     It 'pretty-prints a hashtable as multi-line JSON' {
