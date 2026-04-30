@@ -691,3 +691,32 @@ adjust an inline query), the daily workflow opens a chore PR within
 - `powershell-yaml` module (auto-installed by the script if missing)
 - `Modules/Sentinel.Common` (auto-imported from the script — provides
   `Get-ContentDependencies` and the KQL extractors)
+
+---
+
+## Authoring with GitHub Copilot
+
+When editing files under `Scripts/**` or `Modules/**`, Copilot
+automatically loads
+[`.github/instructions/powershell-scripts.instructions.md`](../../.github/instructions/powershell-scripts.instructions.md).
+The path-scoped instructions cover the file-header convention,
+`Sentinel.Common` import patterns, and the foot-gun list
+(`[void]` Boolean leak, single-element array indexing, strict-mode
+property access, `$script:` scope rules).
+
+Copilot tooling for scripts and modules:
+
+- Agent `Sentinel-As-Code: PowerShell Engineer` — owns
+  `Modules/Sentinel.Common` end-to-end. Add functions, refactor
+  scripts, modernise legacy patterns, harden against strict-mode
+  failures. Knows the module-manifest discipline (version bump +
+  ReleaseNotes + Pester tests in lockstep).
+- Agent `Sentinel-As-Code: Dependencies Engineer` — when a change
+  touches the discovery extractors (`Get-KqlBareIdentifiers`,
+  `Get-ContentDependencies`, etc.).
+- Agent `Sentinel-As-Code: Security Reviewer` — for review of
+  secret-handling, log-leak surface, RBAC-impacting scripts.
+- Slash command `/regenerate-deps` (VS Code) — runs
+  `Build-DependencyManifest -Mode Generate`.
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

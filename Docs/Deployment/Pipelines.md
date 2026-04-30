@@ -266,3 +266,28 @@ Add to the `sentinel-deployment` variable group:
 Override at queue time:
 - `forceSolutionUpdate`: `true`
 - `forceContentDeployment`: `true`
+
+---
+
+## Authoring with GitHub Copilot
+
+When editing files under `.github/workflows/`, `.github/actions/`,
+or `Pipelines/`, Copilot automatically loads
+[`.github/instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md).
+The path-scoped instructions cover ADO-as-source-of-truth, the
+composite-action adoption rule, schedule alignment, and the
+ADO → GitHub Actions translation table.
+
+Copilot tooling for pipelines:
+
+- Agent `Sentinel-As-Code: Pipeline Engineer` — owns CI/CD
+  end-to-end. Authors / edits workflows, maintains parity between
+  ADO and GitHub, manages composite actions, diagnoses pipeline
+  failures, manages cron schedules.
+- Agent `Sentinel-As-Code: Bicep Engineer` — for the
+  `deploy-infrastructure` stage and the underlying Bicep
+  templates.
+- Agent `Sentinel-As-Code: Security Reviewer` — for permissions
+  blocks, OIDC federated-credential scoping, secret references.
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

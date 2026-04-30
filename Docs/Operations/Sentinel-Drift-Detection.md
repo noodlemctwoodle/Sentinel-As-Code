@@ -386,15 +386,31 @@ Manual integration smoke test against a live workspace (read-only):
   is the source of the `triggerOperator` mapping table the drift script
   reuses.
 
+## Authoring with GitHub Copilot
+
+Copilot tooling for the drift sub-system:
+
+- Agent `Sentinel-As-Code: Drift Engineer` — owns the whole drift
+  flow: triaging the daily 06:00 UTC auto-PR, adjusting diff
+  sensitivity in `Test-SentinelRuleDrift.ps1`, deciding what to
+  absorb / reject / promote across the Custom / ContentHub /
+  Orphan buckets.
+- Agent `Sentinel-As-Code: Test Engineer` — for changes to
+  `Tests/Test-SentinelRuleDrift.Tests.ps1`.
+- Agent `Sentinel-As-Code: Pipeline Engineer` — for changes to
+  the workflow / pipeline YAML.
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
 ## TODO
 
-- Extract `Write-PipelineMessage`, `Invoke-SentinelApi`, and
-  `Connect-AzureEnvironment` into a shared `Sentinel.Common.psm1` module.
-  They're currently duplicated across this script,
-  `Deploy-SentinelContentHub.ps1`, and `Deploy-CustomContent.ps1`. The
-  drift script carries `# TODO: extract to Sentinel.Common.psm1` breadcrumbs
-  on each duplicated function.
 - Optional report cleanup step in the pipeline once `reports/` exceeds a
   practical size.
-- Pester tests for `Update-RuleYamlFile`, `Compare-SentinelRule`,
-  `Get-LineDiff`, and `Resolve-RuleSource`.
+
+The Wave 4 module-extraction work shipped: `Sentinel.Common.psm1` is
+now the single source of truth for `Write-PipelineMessage`,
+`Invoke-SentinelApi`, and `Connect-AzureEnvironment`. The Pester
+suite for `Update-RuleYamlFile`, `Compare-SentinelRule`,
+`Get-LineDiff`, and `Resolve-RuleSource` is at
+[`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1)
+(58 assertions).

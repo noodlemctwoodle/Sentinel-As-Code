@@ -58,6 +58,20 @@ Provides a stable GUID and display name. If omitted, the display name is derived
 
 Without a stable `workbookId`, re-deployments may create duplicate workbooks instead of updating the existing one. Generate a GUID once with `New-Guid` and commit it in `metadata.json`.
 
+## Authoring with GitHub Copilot
+
+Workbooks don't have a dedicated path-scoped instruction file —
+the gallery JSON is portal-exported and rarely hand-authored. The
+repo-wide [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+covers the metadata + GUID conventions.
+
+Copilot tooling for workbooks:
+
+- Agent `Sentinel-As-Code: Content Editor` — general edits with
+  the right post-edit Pester suite (`Test-WorkbookJson.Tests.ps1`)
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
 ## Notes
 
 - Workbooks deploy via the `Microsoft.Insights/workbooks` REST API with `category: sentinel`

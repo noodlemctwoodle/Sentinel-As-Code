@@ -493,3 +493,24 @@ tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 
 Add new entries to this table as you cover more scripts.
+
+## Authoring with GitHub Copilot
+
+When editing files under `Tests/**`, Copilot automatically loads
+[`.github/instructions/pester-tests.instructions.md`](../../.github/instructions/pester-tests.instructions.md).
+The path-scoped instructions cover the two test patterns this repo
+uses (schema validation `-ForEach` and AST-extraction unit tests),
+the mocking conventions (especially `Mock -ModuleName Sentinel.Common`),
+and the foot-gun list (single-element array indexing, `$TestDrive`
+scoping).
+
+Copilot tooling for tests:
+
+- Slash command `/new-pester-test` (VS Code) — bootstrap a fresh
+  test file using the AST-extraction pattern
+- Agent `Sentinel-As-Code: Test Engineer` — adds coverage for
+  untested scripts, refactors slow / fragile suites, designs
+  mocking strategies for tricky dependencies (Az SDK, time-of-day,
+  `Invoke-WebRequest` failures)
+
+See [GitHub Copilot setup](GitHub-Copilot.md) for the full layout.

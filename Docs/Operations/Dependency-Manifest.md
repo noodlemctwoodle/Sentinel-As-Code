@@ -183,6 +183,23 @@ output found:
 Auto-derivation fixes all four classes of problem and keeps them
 fixed.
 
+## Authoring with GitHub Copilot
+
+Cross-cutting [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
+loads automatically when editing any KQL-bearing content; it
+includes the discovery-friendly patterns table that maps directly
+to what `Get-KqlBareIdentifiers` recognises.
+
+Copilot tooling for the dependency-manifest sub-system:
+
+- Slash command `/regenerate-deps` (VS Code) — runs
+  `Build-DependencyManifest -Mode Generate` and explains the diff
+- Agent `Sentinel-As-Code: Dependencies Engineer` — owns the whole
+  sub-system: extending the discovery extractor, debugging wrong
+  manifest output, triaging the daily auto-PR refresh
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
 ## Related
 
 - [`Scripts/Build-DependencyManifest.ps1`](../../Scripts/Build-DependencyManifest.ps1) — the build script
