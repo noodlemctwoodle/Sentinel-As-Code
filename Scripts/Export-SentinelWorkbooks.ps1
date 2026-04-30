@@ -196,6 +196,60 @@ $script:SentinelApiVersion = '2025-09-01'
 # Helpers
 # ---------------------------------------------------------------------------
 
+function Remove-WorkspaceArmId {
+    <#
+    .SYNOPSIS
+        Replace literal workspace ARM resource IDs in a workbook
+        gallery template with a portable placeholder.
+
+    .DESCRIPTION
+        Sentinel saves workbooks with `fallbackResourceIds` and
+        sometimes inline resource references that bake the source
+        workspace's ARM resource ID directly into the gallery
+        template:
+
+            "/subscriptions/<sub-guid>/resourcegroups/<rg>/providers/microsoft.operationalinsights/workspaces/<workspace>"
+
+        Committing that value to a repo would lock the workbook to
+        one specific workspace. The existing in-repo workbooks use
+        the convention of a generic placeholder:
+
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace"
+
+        This helper does a case-insensitive substitution of the
+        source workspace's ARM ID with that placeholder, applied to
+        the serialised JSON string (so all fields that reference
+        the workspace get rewritten, not just `fallbackResourceIds`).
+
+        `fallbackResourceIds` is only consulted by the standalone
+        Workbooks-portal view — when a deployed workbook is opened
+        from within its parent Sentinel workspace, the placeholder
+        is irrelevant. So the substitution is safe at deploy time.
+
+    .PARAMETER Json
+        The serialised workbook gallery template (a JSON string).
+
+    .PARAMETER WorkspaceResourceId
+        The full ARM resource ID of the source workspace, e.g.
+        '/subscriptions/.../workspaces/<name>'.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string] $Json,
+        [Parameter(Mandatory)] [string] $WorkspaceResourceId
+    )
+
+    $placeholder = '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace'
+
+    return [regex]::Replace(
+        $Json,
+        [regex]::Escape($WorkspaceResourceId),
+        $placeholder,
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    )
+}
+
 function Remove-WorkspaceSuffix {
     <#
     .SYNOPSIS
@@ -583,6 +637,16 @@ foreach ($wb in $workbooks) {
         }
 
         $workbookJson = Format-WorkbookJson -JsonObject $workbookContent
+
+        # Strip the source workspace's ARM ID and replace with the
+        # placeholder convention used by every existing repo
+        # workbook. Otherwise the workbook would be locked to one
+        # specific workspace.
+        $beforeArmStrip = $workbookJson
+        $workbookJson = Remove-WorkspaceArmId -Json $workbookJson -WorkspaceResourceId $ctx.WorkspaceResourceId
+        if ($workbookJson -ne $beforeArmStrip) {
+            Write-PipelineMessage "  Replaced workspace ARM ID with placeholder in workbook content." -Level Info
+        }
 
         # Build the metadata block. Preserve the workbookId so a
         # round-trip (export → commit → redeploy) lands on the same
