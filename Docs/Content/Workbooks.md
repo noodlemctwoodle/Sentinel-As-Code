@@ -16,13 +16,46 @@ Workbooks/
 
 ## Workbook Template (workbook.json)
 
-The gallery template JSON exported from the Sentinel workbook editor. To export:
+The gallery template JSON exported from the Sentinel workbook editor. Two ways to get it into the repo.
+
+### Option 1: bulk export via `Export-SentinelWorkbooks.ps1` (recommended)
+
+For exporting many workbooks at once, or for a one-off bootstrap of a workspace into the repo:
+
+```powershell
+./Scripts/Export-SentinelWorkbooks.ps1 `
+    -ResourceGroup 'rg-sentinel-prod' `
+    -Workspace     'law-sentinel-prod' `
+    -Region        'uksouth'
+```
+
+This:
+
+- Lists every Sentinel workbook in the workspace via the `Microsoft.Insights/workbooks` API (`category=sentinel`, filtered by `sourceId == workspaceResourceId`).
+- For each workbook, writes `Workbooks/<FolderName>/workbook.json` (the gallery template) and `Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
+- Folder name is derived from `displayName` via PascalCase compaction so a round-trip (export → commit → redeploy) is idempotent.
+
+Useful flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `-Filter '^Identity'` | Regex applied to `displayName`; only matching workbooks export |
+| `-OnlyMissing` | Skip workbooks that already have a folder under `Workbooks/`. Useful for incremental import without overwriting in-repo customisations |
+| `-WhatIf` | Read everything, write nothing |
+| `-IsGov` | Target Azure Government cloud |
+
+Symmetry contract — the output shape exactly matches what [`Deploy-CustomWorkbooks`](../../Scripts/Deploy-CustomContent.ps1) reads back, including the workbook resource GUID, so the next deploy run updates the same Azure resource rather than spawning a duplicate.
+
+### Option 2: manual per-workbook export
+
+For exporting a single workbook ad hoc:
 
 1. Open the workbook in **Microsoft Sentinel > Workbooks**
 2. Click **Edit**, then **Advanced Editor** (the `</>` icon)
 3. Select the **Gallery Template** tab
 4. Copy the full JSON content
 5. Save as `workbook.json` in a new subfolder
+6. Optionally hand-author the matching `metadata.json` (the deploy script can derive a deterministic GUID from the folder name if you skip the metadata file, but you'll lose the stable resource binding — prefer including it)
 
 The JSON should look like:
 

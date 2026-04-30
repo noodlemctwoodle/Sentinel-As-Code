@@ -67,14 +67,13 @@ the repo uses for script-level testing.
 #>
 
 BeforeAll {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
-    Import-Module "$repoRoot/Tests/_helpers/Import-ScriptFunctions.psm1" -Force
+    $repoRoot   = Split-Path -Parent $PSScriptRoot
+    $scriptPath = Join-Path $repoRoot 'Scripts/<TargetName>.ps1'
 
-    $script:functions = Import-ScriptFunctions `
-        -ScriptPath "$repoRoot/Scripts/<TargetName>.ps1"
-    . ([scriptblock]::Create($script:functions))
+    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
+    Import-ScriptFunctions -Path $scriptPath
 
-    Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
+    Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force -ErrorAction Stop
 }
 
 Describe '<FunctionUnderTest>' {

@@ -71,20 +71,20 @@ cmdlets and connect to Azure) never runs.
 
 ```powershell
 BeforeAll {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
-    Import-Module "$repoRoot/Tests/_helpers/Import-ScriptFunctions.psm1" -Force
+    $repoRoot   = Split-Path -Parent $PSScriptRoot
+    $scriptPath = Join-Path $repoRoot 'Scripts/Deploy-CustomContent.ps1'
 
-    # AST-extract functions from the script under test.
-    $script:functions = Import-ScriptFunctions `
-        -ScriptPath "$repoRoot/Scripts/Deploy-CustomContent.ps1"
+    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
 
-    # Dot-source the function bodies into the current scope.
-    . ([scriptblock]::Create($script:functions))
+    # The helper dot-sources the script's top-level functions directly
+    # into the caller's session via InvokeWithContext — no need to
+    # capture a string and re-execute it.
+    Import-ScriptFunctions -Path $scriptPath
 
     # If the script imports Sentinel.Common at top level, the AST
     # extractor skips that statement — import the module here so
     # extracted functions can call its exports at runtime.
-    Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
+    Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force -ErrorAction Stop
 }
 
 Describe 'Get-PrioritizedFiles' {

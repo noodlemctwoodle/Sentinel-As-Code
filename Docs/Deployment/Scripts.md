@@ -12,6 +12,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
 | `Set-PlaybookPermissions.ps1` | Post-deploy: grants managed-identity roles based on each playbook's actual workflow content | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
 | `Build-DependencyManifest.ps1` | Auto-derives `dependencies.json` from KQL discovery (Generate / Verify / Update modes) | [#build-dependencymanifestps1](#build-dependencymanifestps1) |
+| `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint — runs every Pester suite under `Tests/` and emits a JUnit XML report | See [Pester Tests](../Development/Pester-Tests.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 
@@ -720,3 +721,135 @@ Copilot tooling for scripts and modules:
   `Build-DependencyManifest -Mode Generate`.
 
 See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
+---
+
+## Export-SentinelWorkbooks.ps1
+
+Exports every Sentinel workbook in a workspace into the
+`Workbooks/<FolderName>/` shape that
+[`Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1)'s
+`Deploy-CustomWorkbooks` function redeploys from. The exported tree
+is byte-compatible with what the deployer reads — round-trip
+(export → commit → redeploy) lands updates on the same Azure
+resource rather than spawning duplicates.
+
+### Key features
+
+- **Bulk export** — lists every Sentinel-scoped workbook in one
+  REST call (`Microsoft.Insights/workbooks` filtered by
+  `category=sentinel` and `sourceId={workspaceResourceId}`).
+- **Folder-name parity** — derives the on-disk folder name from
+  `displayName` via PascalCase compaction. Folder names match
+  the existing `Workbooks/*` convention so no folders rename on
+  re-export.
+- **Workbook GUID preservation** — writes the workbook's resource
+  GUID into `metadata.json` as `workbookId`. The next deploy
+  reads it back and hits the same Azure resource, avoiding the
+  duplicate-workbook failure mode.
+- **`-OnlyMissing` mode** — skip workbooks that already have a
+  folder. Useful for incremental import without overwriting
+  in-repo customisations.
+- **`-Filter` regex** — narrow the export to a subset by
+  `displayName` match.
+- **`-WhatIf` mode** — read everything, write nothing.
+- **Azure Government Support** — `-IsGov` switch.
+- **Existing-metadata preservation** — extra keys in an existing
+  `metadata.json` (tags, custom annotations) survive overwrite;
+  only the keys this script writes are replaced.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `SubscriptionId` | string | No | Current Az context | Azure Subscription ID |
+| `ResourceGroup` | string | Yes | - | Resource group containing the Sentinel workspace |
+| `Workspace` | string | Yes | - | Log Analytics workspace name (used to derive `WorkspaceResourceId` for the `sourceId` filter) |
+| `Region` | string | Yes | - | Azure region (passed through to `Connect-AzureEnvironment`) |
+| `BasePath` | string | No | Parent of `Scripts/` | Repo root path; output is written to `<BasePath>/Workbooks/` |
+| `Filter` | string | No | `'.'` | Regex applied to each workbook's `displayName`; non-matching workbooks skipped |
+| `OnlyMissing` | switch | No | `$false` | Skip workbooks that already have a folder under `Workbooks/` |
+| `WhatIf` | switch | No | `$false` | Preview without writing |
+| `IsGov` | switch | No | `$false` | Target Azure Government cloud |
+
+### Usage examples
+
+#### Export every workbook in the workspace
+
+```powershell
+.\Export-SentinelWorkbooks.ps1 `
+    -ResourceGroup 'rg-sentinel-prod' `
+    -Workspace     'law-sentinel-prod' `
+    -Region        'uksouth'
+```
+
+#### Incremental import — only workbooks not in the repo yet
+
+```powershell
+.\Export-SentinelWorkbooks.ps1 `
+    -ResourceGroup 'rg-sentinel-prod' `
+    -Workspace     'law-sentinel-prod' `
+    -Region        'uksouth' `
+    -OnlyMissing
+```
+
+#### Preview without writing
+
+```powershell
+.\Export-SentinelWorkbooks.ps1 `
+    -ResourceGroup 'rg-sentinel-prod' `
+    -Workspace     'law-sentinel-prod' `
+    -Region        'uksouth' `
+    -WhatIf
+```
+
+#### Export only workbooks whose display name starts with 'Identity'
+
+```powershell
+.\Export-SentinelWorkbooks.ps1 `
+    -ResourceGroup 'rg-sentinel-prod' `
+    -Workspace     'law-sentinel-prod' `
+    -Region        'uksouth' `
+    -Filter        '^Identity'
+```
+
+### How it works
+
+1. **Authentication and Setup**: Imports the `Sentinel.Common`
+   module and calls `Connect-AzureEnvironment` to acquire an
+   access token + workspace resource ID.
+2. **List**: Calls
+   `GET /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Insights/workbooks?api-version=2022-04-01&category=sentinel&sourceId={workspaceResourceId}`
+   to enumerate Sentinel workbooks in the workspace.
+3. **Per-workbook export**: For each result:
+   - Filter by regex on `displayName` if `-Filter` was supplied
+   - Skip if `-OnlyMissing` and the folder already exists
+   - Reformat `serializedData` (a JSON string) via
+     `ConvertFrom-Json` + `ConvertTo-Json -Depth 32` so the
+     on-disk file is pretty-printed
+   - Write `Workbooks/<FolderName>/workbook.json` and
+     `Workbooks/<FolderName>/metadata.json`
+4. **Status reporting**: Prints a summary table with exported /
+   skipped / failed counts.
+
+### Symmetry contract with `Deploy-CustomWorkbooks`
+
+| Concern | Export side | Deploy side |
+| --- | --- | --- |
+| API version | `2022-04-01` | `2022-04-01` |
+| Folder name | PascalCase from `displayName` | Spaces re-introduced from PascalCase via `[a-z]([A-Z])` regex split |
+| `workbook.json` content | The full gallery template | Read into `serializedData` of the deploy body |
+| `metadata.json` keys read | `displayName`, `description`, `category`, `sourceId`, `workbookId` | Same keys consumed |
+| Resource GUID | Preserved via `workbookId` | Used as the URI's `{workbookId}` segment |
+
+### Prerequisites
+
+- PowerShell 7.2+
+- `Az.Accounts` (auto-imported by `Sentinel.Common`)
+- Authenticated Azure context (`Connect-AzAccount` or service-principal context)
+- The deploy SP needs at least **Microsoft Sentinel Reader** on the workspace to list workbooks. The standard `Setup-ServicePrincipal.ps1` Contributor grant covers this.
+
+### Known limitations
+
+- Only workbooks where `category == sentinel` are exported. Application Insights / general-purpose workbooks living under the same workspace are filtered out by design.
+- Workbooks created via Content Hub solutions (which set their own `sourceId`) appear if `sourceId == workspaceResourceId`. Templates not yet customised in the workspace don't appear — they're served from the Content Hub catalogue, not the workspace's resource list.
