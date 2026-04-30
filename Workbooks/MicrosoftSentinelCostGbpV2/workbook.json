@@ -1,0 +1,1624 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# 💰 Microsoft Sentinel Cost Analysis (2026)\n\n**Unified Pricing Model** | **Auxiliary Logs Support** | **ML-Powered Insights** | **Multi-Workspace Analytics**\n\n---\n\nThis workbook provides comprehensive cost analysis using the latest Sentinel pricing models (2024+), including Auxiliary Logs, Search Jobs, and modern commitment tiers.\n\n**Last Updated:** January 2026 | **Data Retention:** Interactive (90d) + Archive Support"
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "subscription-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscription",
+            "label": "☁️ Subscription",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "Resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| summarize count() by subscriptionId\r\n| project value = subscriptionId, label = subscriptionId, selected = true",
+            "crossComponentResources": [
+              "value::selected"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "workspace-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "Workspaces",
+            "label": "🗂️ Workspaces",
+            "type": 5,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "Resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| order by name asc\r\n| project id, name",
+            "crossComponentResources": [
+              "{Subscription}"
+            ],
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources"
+          },
+          {
+            "id": "timerange-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "⏱️ Time Range",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 2592000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "currency-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "Currency",
+            "label": "💱 Currency",
+            "type": 2,
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"GBP\", \"USD\", \"EUR\", \"AUD\", \"CAD\"]",
+            "value": "GBP"
+          },
+          {
+            "id": "analytics-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "AnalyticsPrice",
+            "label": "💵 Analytics Price/GB",
+            "type": 1,
+            "description": "Unified pricing for Sentinel + Log Analytics (2024+ model)",
+            "value": "4.38"
+          },
+          {
+            "id": "auxiliary-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "AuxiliaryPrice",
+            "label": "📦 Auxiliary Logs Price/GB",
+            "type": 1,
+            "description": "Auxiliary tier pricing (~85% cheaper)",
+            "value": "0.67"
+          },
+          {
+            "id": "retention-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "RetentionPrice",
+            "label": "🗄️ Interactive Retention/GB/Month",
+            "type": 1,
+            "value": "0.10"
+          },
+          {
+            "id": "archive-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "ArchivePrice",
+            "label": "📚 Archive Retention/GB/Month",
+            "type": 1,
+            "description": "Archive tier (long-term storage)",
+            "value": "0.02"
+          },
+          {
+            "id": "data-lake-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "DataLakePrice",
+            "label": "🏔️ Data Lake Storage/GB/Month",
+            "type": 1,
+            "description": "Data Lake storage pricing (long-term >1yr)",
+            "value": "0.02"
+          },
+          {
+            "id": "search-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "SearchPrice",
+            "label": "🔍 Search Job Price/GB",
+            "type": 1,
+            "value": "0.005"
+          },
+          {
+            "id": "transformation-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "TransformationPrice",
+            "label": "🔄 Transformation Price/GB",
+            "type": 1,
+            "value": "0.50"
+          },
+          {
+            "id": "e5-seats-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "E5Seats",
+            "label": "👥 E5/A5/F5/G5 Seats",
+            "type": 1,
+            "description": "Total eligible seats for Microsoft 365 benefit (10MB/user/day)",
+            "value": "0"
+          },
+          {
+            "id": "logic-app-price-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "LogicAppPrice",
+            "label": "⚙️ Logic App Execution Cost",
+            "type": 1,
+            "value": "0.000125"
+          },
+          {
+            "id": "budget-param",
+            "version": "KqlParameterItem/1.0",
+            "name": "MonthlyBudget",
+            "label": "💰 Monthly Budget",
+            "type": 1,
+            "description": "Set your monthly budget for tracking",
+            "value": "0"
+          }
+        ],
+        "style": "above",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "tab-overview",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📊 Overview",
+            "subTarget": "Overview",
+            "style": "link"
+          },
+          {
+            "id": "tab-ingestion",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📥 Ingestion",
+            "subTarget": "Ingestion",
+            "style": "link"
+          },
+          {
+            "id": "tab-optimization",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🎯 Optimization",
+            "subTarget": "Optimization",
+            "style": "link"
+          },
+          {
+            "id": "tab-auxiliary",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📦 Auxiliary",
+            "subTarget": "Auxiliary",
+            "style": "link"
+          },
+          {
+            "id": "tab-datalake",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🏔️ Data Lake",
+            "subTarget": "DataLake",
+            "style": "link"
+          },
+          {
+            "id": "tab-commitment",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🔒 Commitment",
+            "subTarget": "Commitment",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "tabs"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 📊 Cost Overview\n\nHigh-level summary of your Sentinel costs across all selected workspaces."
+            },
+            "name": "overview-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize TotalGB = sum(Quantity) / 1000\r\n| extend EstimatedCost = TotalGB * {AnalyticsPrice}",
+              "size": 4,
+              "title": "Total Billable Ingestion",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "EstimatedCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "customWidth": "33",
+            "name": "total-tile"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)\r\n| summarize AvgDaily = avg(DailyGB)\r\n| extend EstimatedMonthlyCost = AvgDaily * 30 * {AnalyticsPrice}",
+              "size": 4,
+              "title": "Average Daily Ingestion",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "AvgDaily",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "EstimatedMonthlyCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "orange"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "customWidth": "33",
+            "name": "avg-daily-tile"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let CurrentMonth = Usage\r\n| where TimeGenerated >= startofmonth(now())\r\n| where IsBillable == true\r\n| summarize CurrentGB = sum(Quantity) / 1000\r\n| extend CurrentCost = CurrentGB * {AnalyticsPrice};\r\nlet Budget = {MonthlyBudget};\r\nCurrentMonth\r\n| extend BudgetRemaining = Budget - CurrentCost\r\n| extend PercentUsed = round((CurrentCost / Budget) * 100, 1)",
+              "size": 4,
+              "title": "Budget Status (MTD)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "BudgetRemaining",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "PercentUsed",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 1,
+                    "options": {
+                      "style": "decimal"
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "customWidth": "33",
+            "conditionalVisibility": {
+              "parameterName": "MonthlyBudget",
+              "comparison": "isNotEqualTo",
+              "value": "0"
+            },
+            "name": "budget-tile"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)\r\n| extend DailyCost = DailyGB * {AnalyticsPrice}",
+              "size": 0,
+              "title": "Daily Ingestion Trend",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "timechart"
+            },
+            "name": "daily-trend"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize GB = sum(Quantity) / 1000 by DataType\r\n| extend Cost = GB * {AnalyticsPrice}\r\n| top 10 by Cost desc",
+              "size": 0,
+              "title": "Top 10 Tables by Cost",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "barchart"
+            },
+            "customWidth": "50",
+            "name": "top-tables"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| extend Category = case(\r\n    DataType has \"AAD\" or DataType has \"Signin\", \"Identity\",\r\n    DataType has \"Device\", \"Endpoints\",\r\n    DataType has \"Email\", \"Email Security\",\r\n    DataType has \"Cloud\", \"Cloud Apps\",\r\n    DataType has \"Firewall\", \"Network\",\r\n    \"Other\"\r\n)\r\n| summarize GB = sum(Quantity) / 1000 by Category\r\n| extend Cost = GB * {AnalyticsPrice}",
+              "size": 0,
+              "title": "Cost by Category",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "category-pie"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let RetentionDays = 90;\nlet ArchiveStart = ago(RetentionDays * 1d);\nunion withsource=_TableName *\n| where TimeGenerated < ArchiveStart\n| summarize ArchiveGB = sum(_BilledSize) / 1024 / 1024 / 1024\n| extend ArchiveCost = ArchiveGB * {ArchivePrice}\n| extend InteractiveCost = ArchiveGB * {RetentionPrice}\n| extend MonthlySavings = InteractiveCost - ArchiveCost\n| project \n    ['Archive Storage (GB)'] = round(ArchiveGB, 2),\n    ['Archive Cost/Month (£0.02/GB)'] = round(ArchiveCost, 2),\n    ['If Interactive (£0.10/GB)'] = round(InteractiveCost, 2),\n    ['Monthly Savings (80%)'] = round(MonthlySavings, 2)",
+              "size": 3,
+              "title": "Archive Storage (90d+) - Monthly Retention Cost",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Archive Storage (GB)",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "purple",
+                      "customColumnWidthSetting": "20%"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Archive Cost/Month",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue",
+                      "customColumnWidthSetting": "25%"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "If Interactive",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "orange",
+                      "customColumnWidthSetting": "25%"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Savings",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "green",
+                      "customColumnWidthSetting": "25%"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "ArchiveGB",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "ArchiveGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "purple"
+                  },
+                  "numberFormat": {
+                    "unit": 5,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "secondaryContent": {
+                  "columnMatch": "RetentionCostPerMonth",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "MonthlySavings",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "green"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "customWidth": "100",
+            "name": "archive-retention-card"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let RetentionDays = 90;\nlet ArchiveStart = ago(RetentionDays * 1d);\nunion withsource=_TableName *\n| where TimeGenerated < ArchiveStart\n| summarize ArchiveGB = sum(_BilledSize) / 1024 / 1024 / 1024 by _TableName\n| where ArchiveGB > 0.1\n| extend MonthlyCost = ArchiveGB * {ArchivePrice}\n| order by ArchiveGB desc\n| take 20\n| project \n    ['Table Name'] = _TableName,\n    ['Archive Size (GB)'] = round(ArchiveGB, 2),\n    ['Monthly Retention Cost'] = round(MonthlyCost, 2)",
+              "size": 0,
+              "title": "Top 20 Tables by Archive Storage (>90 days)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Archive Size (GB)",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "purple"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Retention Cost",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "name": "archive-breakdown-grid"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| make-series DailyGB = sum(Quantity)/1000 default=0 on TimeGenerated from {TimeRange:start} to {TimeRange:end} step 1d\r\n| extend anomalies = series_decompose_anomalies(DailyGB, 1.5, -1, 'linefit')\r\n| mv-expand TimeGenerated to typeof(datetime), DailyGB to typeof(double), anomalies to typeof(double)\r\n| where anomalies != 0\r\n| extend AnomalyType = iff(anomalies > 0, \"Spike\", \"Dip\")\r\n| extend Severity = abs(anomalies)\r\n| top 10 by Severity desc",
+              "size": 0,
+              "title": "Cost Anomalies Detected",
+              "noDataMessage": "No anomalies detected",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "DailyGB",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "AnomalyType",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Spike",
+                          "representation": "redBright"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Dip",
+                          "representation": "blue"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "anomalies"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "Overview"
+      },
+      "name": "overview-group"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 📥 Ingestion Analysis\n\nDetailed breakdown of data ingestion across all tables."
+            },
+            "name": "ingestion-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize TotalGB = sum(Quantity) / 1000, RecordCount = count() by DataType\r\n| extend Cost = TotalGB * {AnalyticsPrice}, AvgRecordSize = (TotalGB * 1024 * 1024) / RecordCount\r\n| top 50 by Cost desc\r\n| project DataType, TotalGB, RecordCount, AvgRecordSize, Cost",
+              "size": 0,
+              "title": "Top 50 Tables by Cost",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "TotalGB",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "RecordCount",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgRecordSize",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 2,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Cost",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "greenRed"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "name": "detailed-tables"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| where DataType endswith \"_CL\"\r\n| summarize TotalGB = sum(Quantity) / 1000, RecordCount = count() by DataType\r\n| extend Cost = TotalGB * {AnalyticsPrice}\r\n| project \r\n    ['Custom Table'] = DataType,\r\n    ['Size (GB)'] = TotalGB,\r\n    ['Records'] = RecordCount,\r\n    ['Monthly Cost'] = Cost * 30\r\n| order by ['Monthly Cost'] desc",
+              "size": 0,
+              "title": "Custom Logs Analysis",
+              "noDataMessage": "No custom logs found",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Size (GB)",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "purple"
+                    },
+                    "numberFormat": {
+                      "unit": 5,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Records",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Cost",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "greenRed"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              "sortBy": []
+            },
+            "name": "custom-logs"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "Ingestion"
+      },
+      "name": "ingestion-group"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🎯 Cost Optimization\n\nAI-powered insights to reduce Sentinel costs."
+            },
+            "name": "optimization-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| where DataType !in (\"SecurityAlert\", \"SecurityIncident\")\r\n| summarize TotalGB = sum(Quantity) / 1000 by DataType\r\n| extend CurrentCost = TotalGB * {AnalyticsPrice}, AuxiliaryCost = TotalGB * {AuxiliaryPrice}, MonthlySavings = (TotalGB * {AnalyticsPrice} - TotalGB * {AuxiliaryPrice}) * 30\r\n| where MonthlySavings > 50\r\n| project DataType, TotalGB, MonthlySavings\r\n| top 20 by MonthlySavings desc",
+              "size": 0,
+              "title": "📦 Auxiliary Logs Candidates (85% Savings)",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "TotalGB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "MonthlySavings",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "auxiliary-candidates"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| where DataType endswith \"_CL\"\r\n| summarize TotalGB = sum(Quantity) / 1000, RecordCount = count() by DataType\r\n| extend AvgRecordSizeKB = (TotalGB * 1024 * 1024) / RecordCount\r\n| where AvgRecordSizeKB > 10\r\n| extend MonthlyCost = TotalGB * {AnalyticsPrice} * 30\r\n| extend PotentialSavings = MonthlyCost * 0.30\r\n| order by MonthlyCost desc\r\n| project \r\n    ['Custom Table'] = DataType,\r\n    ['Avg Record Size (KB)'] = AvgRecordSizeKB,\r\n    ['Monthly Cost'] = MonthlyCost,\r\n    ['Potential Monthly Savings'] = PotentialSavings,\r\n    ['Recommendation'] = \"Review data collection - consider filtering or transformation\"",
+              "size": 0,
+              "title": "🔧 Oversized Custom Logs (Transformation Opportunities)",
+              "noDataMessage": "No oversized custom logs detected",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Avg Record Size (KB)",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "orange"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Cost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Potential Monthly Savings",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Recommendation",
+                    "formatter": 1
+                  }
+                ]
+              }
+            },
+            "name": "oversized-logs"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "Optimization"
+      },
+      "name": "optimization-group"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 📦 Auxiliary Logs Analysis\n\n**Auxiliary Logs** provide up to **85% cost savings** for data that:\n- Doesn't require real-time analytics\n- Needs long-term retention for compliance\n- Is used primarily for investigations\n\n**Limitations:**\n- 8-day latency for queries\n- Cannot be used in analytics rules\n- No built-in alerting"
+            },
+            "name": "auxiliary-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| where DataType !in (\"SecurityAlert\", \"SecurityIncident\", \"Heartbeat\")\r\n| summarize TotalGB = sum(Quantity) / 1000\r\n| extend CurrentCost = TotalGB * {AnalyticsPrice}, AuxiliaryCost = TotalGB * {AuxiliaryPrice}\r\n| extend Savings = CurrentCost - AuxiliaryCost, SavingsPercent = round(((CurrentCost - AuxiliaryCost) / CurrentCost) * 100, 0)\r\n| project \r\n    ['Current Analytics Cost'] = CurrentCost,\r\n    ['Auxiliary Logs Cost'] = AuxiliaryCost,\r\n    ['Potential Savings'] = Savings,\r\n    ['Savings %'] = SavingsPercent",
+              "size": 4,
+              "title": "Cost Comparison: Analytics vs Auxiliary",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Current Analytics Cost",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "orange"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Auxiliary Logs Cost",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Potential Savings",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Savings %",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "tileSettings": {
+                "leftContent": {
+                  "columnMatch": "CurrentCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "orange"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "secondaryContent": {
+                  "columnMatch": "AuxiliaryCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "PotentialSavings",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "green"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "name": "auxiliary-comparison"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize TotalGB = sum(Quantity) / 1000 by DataType\r\n| extend CurrentCost = TotalGB * {AnalyticsPrice}, AuxiliaryCost = TotalGB * {AuxiliaryPrice}\r\n| extend MonthlySavings = (CurrentCost - AuxiliaryCost) * 30\r\n| extend Eligibility = case(\r\n    DataType in (\"SecurityAlert\", \"SecurityIncident\"), \"❌ Not Eligible\",\r\n    DataType has \"Heartbeat\", \"❌ Not Eligible\",\r\n    DataType endswith \"_CL\" and TotalGB > 10, \"✅ Excellent Candidate\",\r\n    DataType has \"Firewall\" or DataType has \"Proxy\", \"✅ Excellent Candidate\",\r\n    TotalGB > 5, \"✅ Good Candidate\",\r\n    \"⚠️ Review Required\"\r\n)\r\n| where Eligibility startswith \"✅\"\r\n| order by MonthlySavings desc\r\n| project \r\n    ['Table Name'] = DataType,\r\n    Eligibility,\r\n    ['Size (GB)'] = TotalGB,\r\n    ['Monthly Savings'] = MonthlySavings",
+              "size": 0,
+              "title": "Auxiliary Logs Eligibility Assessment",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Eligibility",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "✅ Excellent",
+                          "representation": "success",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "✅ Good",
+                          "representation": "Available",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Size (GB)",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 5,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Savings",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "name": "auxiliary-eligibility"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "Auxiliary"
+      },
+      "name": "auxiliary-group"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🔒 Commitment Tier Analysis\n\n**Commitment Tiers** provide discounts for predictable ingestion:\n\n| Tier | Discount | Break-even |\n|------|----------|------------|\n| 100 GB/day | 50% | ~51+ GB/day |\n| 200 GB/day | 55% | ~181+ GB/day |\n| 500 GB/day | 60% | ~477+ GB/day |\n| 1000 GB/day | 61% | ~976+ GB/day |\n| 2000 GB/day | 63% | ~1898+ GB/day |"
+            },
+            "name": "commitment-header"
+          },
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "commitment-workspace-param",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "CommitmentWorkspace",
+                  "label": "Select Workspace",
+                  "type": 5,
+                  "isRequired": true,
+                  "query": "Resources\n| where type =~ 'microsoft.operationalinsights/workspaces'\n| where id in ({Workspaces})\n| project id, name",
+                  "crossComponentResources": [
+                    "value::selected"
+                  ],
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources",
+                  "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace"
+                },
+                {
+                  "id": "current-ct-param",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "CurrentCT",
+                  "type": 1,
+                  "query": "resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| where id == '{CommitmentWorkspace}'\r\n| extend ct = properties.sku.capacityReservationLevel\r\n| project ct = iff(isempty(ct), \"0\", tostring(ct))",
+                  "crossComponentResources": [
+                    "value::selected"
+                  ],
+                  "isHiddenWhenLocked": true,
+                  "queryType": 1,
+                  "resourceType": "microsoft.resourcegraph/resources"
+                }
+              ],
+              "style": "pills",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources"
+            },
+            "name": "commitment-parameters"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)\r\n| summarize AvgDaily = avg(DailyGB), P95 = percentile(DailyGB, 95), StdDev = stdev(DailyGB)",
+              "size": 4,
+              "title": "Daily Ingestion Statistics",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{CommitmentWorkspace}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "AvgDaily",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "P95",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "StdDev",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "commitment-stats"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)\r\n| summarize P95Daily = percentile(DailyGB, 95)\r\n| extend RecommendedCT = case(\r\n    P95Daily <= 51, 0,\r\n    P95Daily between (51 .. 180), 100,\r\n    P95Daily between (181 .. 286), 200,\r\n    P95Daily between (287 .. 390), 300,\r\n    P95Daily between (391 .. 476), 400,\r\n    P95Daily between (477 .. 975), 500,\r\n    P95Daily between (976 .. 1897), 1000,\r\n    P95Daily between (1898 .. 4729), 2000,\r\n    P95Daily >= 4730, 5000,\r\n    0\r\n)\r\n| extend CurrentCT = toint('{CurrentCT}')\r\n| extend Status = iff(CurrentCT == RecommendedCT, \"✅ Optimal\", iff(CurrentCT > RecommendedCT, \"⚠️ Over-committed\", \"💡 Under-committed\"))\r\n| extend CurrentTier = iff(CurrentCT == 0, \"PAYG\", strcat(CurrentCT, \" GB/day\")), RecommendedTier = iff(RecommendedCT == 0, \"PAYG\", strcat(RecommendedCT, \" GB/day\"))\r\n| project Status, CurrentTier, RecommendedTier, P95Daily",
+              "size": 0,
+              "title": "Commitment Tier Recommendation (Based on P95)",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{CommitmentWorkspace}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Status",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "✅",
+                          "representation": "success"
+                        },
+                        {
+                          "operator": "contains",
+                          "thresholdValue": "⚠️",
+                          "representation": "warning"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "info"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "P95Daily",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 39,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "commitment-recommendation"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where TimeGenerated {TimeRange:query}\r\n| where IsBillable == true\r\n| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)\r\n| extend CT100 = 100, CT200 = 200, CT500 = 500, CT1000 = 1000\r\n| project TimeGenerated, DailyGB, CT100, CT200, CT500, CT1000",
+              "size": 0,
+              "title": "Daily Ingestion vs Commitment Tier Levels",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{CommitmentWorkspace}"
+              ],
+              "visualization": "linechart"
+            },
+            "name": "commitment-trend"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "Commitment"
+      },
+      "name": "commitment-group"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## 🏔️ Sentinel Data Lake Analysis\n\n**Microsoft Sentinel Data Lake** provides ultra-long-term storage for compliance and audit requirements.\n\n**Pricing (as of 2026):**\n- Storage: £0.02/GB/month (same as Archive tier)\n- Search: £0.005/GB scanned\n- No ingestion charges for data moved from Sentinel\n\n**When to Use Data Lake:**\n- Data older than 2 years\n- Legal hold / eDiscovery requirements\n- Compliance mandates (7+ year retention)\n- Historical trend analysis\n\n**Key Differences from Archive Tier:**\n\n| Feature | Archive Tier | Data Lake |\n|---------|--------------|------------|\n| **Retention Period** | 90 days - 2 years | 2+ years (unlimited) |\n| **Query Method** | Search Jobs + Restore | Data Lake queries |\n| **Location** | Log Analytics workspace | Separate Data Lake storage |\n| **Cost** | £0.02/GB/month | £0.02/GB/month + search |\n| **Best For** | Medium-term compliance | Long-term audit/legal |"
+            },
+            "name": "datalake-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DataLakeThreshold = ago(365d);\nunion withsource=_TableName *\n| where TimeGenerated < DataLakeThreshold\n| summarize DataLakeGB = sum(_BilledSize) / 1024 / 1024 / 1024\n| extend ArchiveCost = DataLakeGB * {ArchivePrice}\n| extend DataLakeCost = DataLakeGB * {DataLakePrice}\n| extend Savings = ArchiveCost - DataLakeCost\n| project DataLakeGB, ArchiveCost, DataLakeCost, Savings",
+              "size": 4,
+              "title": "Data Lake Migration Opportunity (Data >1 year old)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "DataLakeGB",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "DataLakeGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 5,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "secondaryContent": {
+                  "columnMatch": "DataLakeCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "Savings",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "green"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "{Currency}",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true
+              }
+            },
+            "name": "datalake-summary-tile"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DataLakeThreshold = ago(365d);\nunion withsource=_TableName *\n| where TimeGenerated < DataLakeThreshold\n| summarize DataLakeGB = sum(_BilledSize) / 1024 / 1024 / 1024 by _TableName\n| where DataLakeGB > 1\n| extend MonthlySavings = DataLakeGB * ({ArchivePrice} - {DataLakePrice})\n| order by DataLakeGB desc\n| take 20\n| project \n    ['Table Name'] = _TableName,\n    ['Size Over 1yr (GB)'] = round(DataLakeGB, 2),\n    ['Current Archive Cost'] = round(DataLakeGB * {ArchivePrice}, 2),\n    ['Data Lake Cost'] = round(DataLakeGB * {DataLakePrice}, 2),\n    ['Monthly Savings'] = round(MonthlySavings, 2)",
+              "size": 0,
+              "title": "Top 20 Tables for Data Lake Migration (Data >1 year old)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspaces}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Size Over 1yr (GB)",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Current Archive Cost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Data Lake Cost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Monthly Savings",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "currency": "{Currency}",
+                        "style": "currency",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "name": "datalake-candidates-grid"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "### 📋 Implementation Steps\n\n**To migrate data to Sentinel Data Lake:**\n\n1. **Enable Data Lake in your Sentinel workspace**\n   - Navigate to Microsoft Sentinel → Settings → Data retention\n   - Enable \"Long-term retention\" and configure Data Lake storage\n\n2. **Configure retention policies**\n   - Set which tables should move to Data Lake after Archive tier\n   - Default: Move to Data Lake after 2 years in Archive\n\n3. **Query Data Lake**\n   ```kql\n   // Query example for Data Lake\n   externaldata (TimeGenerated:datetime, ...)\n   [\n     \"https://<storageaccount>.blob.core.windows.net/...\"\n   ]\n   ```\n\n4. **Monitor costs**\n   - Storage costs: Fixed per GB/month\n   - Query costs: Per GB scanned\n   - Set up alerts for unexpected query volumes\n\n**Best Practices:**\n- Move data >2 years old to Data Lake\n- Keep frequently queried data in Archive tier\n- Use Data Lake for compliance/legal hold scenarios\n- Consider data lifecycle: Interactive → Archive → Data Lake"
+            },
+            "name": "datalake-implementation"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "DataLake"
+      },
+      "name": "datalake-group"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "---\n\n## 📚 Resources\n\n- [Microsoft Sentinel Pricing](https://azure.microsoft.com/pricing/details/microsoft-sentinel/)\n- [Azure Monitor Pricing](https://azure.microsoft.com/pricing/details/monitor/)\n- [Auxiliary Logs Documentation](https://learn.microsoft.com/azure/sentinel/basic-logs-configure)\n- [Commitment Tiers Guide](https://learn.microsoft.com/azure/sentinel/billing#commitment-tiers)\n- [Cost Optimization Best Practices](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs)\n\n**Workbook Version:** 2026.01 | **Created by:** [noodlemctwoodle](https://sentinel.blog)"
+      },
+      "name": "footer"
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": [
+    "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook"
+}
