@@ -69,7 +69,7 @@ One-time bootstrap script that grants the service principal all required Azure, 
 ### How It Works
 
 1. **Prompt for Confirmation**: Displays a comprehensive permission summary and requests Y/N consent before proceeding
-2. **Grant Contributor**: Grants subscription-level Contributor role for resource group, workspace, Bicep, and content deployment
+2. **Grant Contributor**: Grants subscription-level Contributor role for resource group, workspace, Bicep, and content deployment. (Contributor implies Reader at the same scope, which is what ADO needs to save a workload-identity-federation service connection — see [ADO OIDC Setup](ADO-OIDC-Setup.md) for context.)
 3. **Grant UAA (ABAC-Conditioned)**: Grants User Access Administrator at resource group scope with ABAC conditions restricting assignment to 5 specific roles
 4. **Grant Security Administrator** (optional): Grants Entra ID Security Administrator role for UEBA and Entity Analytics settings
 5. **Grant Graph Permission** (optional): Grants CustomDetection.ReadWrite.All Graph application permission for Defender XDR custom detection rules

@@ -32,6 +32,8 @@ How content reaches Sentinel — infrastructure, pipelines, scripts.
 | [Bicep](Deployment/Bicep.md) | Subscription-scoped templates, parameters, dual onboarding mechanism, diagnostic settings, optional playbook RG |
 | [Pipelines](Deployment/Pipelines.md) | Pipeline stages, variable group, parameters, service connection, usage examples |
 | [Scripts](Deployment/Scripts.md) | PowerShell scripts that drive the pipelines — parameters, examples, known limitations |
+| [PR Validation Setup](Deployment/PR-Validation-Setup.md) | One-off GitHub Actions OIDC federated-credential setup for the `arm-validate` PR job |
+| [ADO OIDC Setup](Deployment/ADO-OIDC-Setup.md) | One-off Azure DevOps workload-identity-federation setup for `sc-sentinel-as-code` |
 
 ## Operations
 

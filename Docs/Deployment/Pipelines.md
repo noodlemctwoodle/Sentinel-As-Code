@@ -191,6 +191,12 @@ No additional parameters — Stage 5 is controlled by the `deployDefenderDetecti
 
 The pipeline uses a service connection named `sc-sentinel-as-code` by default. To change this, update the `serviceConnection` variable in the YAML file.
 
+**Use workload identity federation, not a stored secret.** ADO has supported OIDC since 2024 and it's now the recommended default. The matching service principal in Entra ID gets a federated credential that trusts ADO's token issuer for the matching subject claim — no client secret stored anywhere, per-job tokens with ~1h TTL, parity with the GitHub Actions OIDC setup.
+
+> **Critical prerequisite**: ADO will not let you save the service connection if the SP cannot see the subscription. The SP must hold at least **Reader** on the subscription before clicking Save. `Scripts/Setup-ServicePrincipal.ps1` grants Contributor at subscription scope (which implies Reader), so the standard bootstrap satisfies this. If you skip the bootstrap and try to wire up ADO first, Save fails with a generic permission error.
+
+Full step-by-step: [ADO OIDC Setup](ADO-OIDC-Setup.md).
+
 > **Workspace Name**: Must be at least 4 characters (Azure requirement). The Bicep template validates this at deployment time.
 
 ### How It Works
