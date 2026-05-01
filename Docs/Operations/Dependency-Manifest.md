@@ -183,6 +183,34 @@ output found:
 Auto-derivation fixes all four classes of problem and keeps them
 fixed.
 
+## ADO Build Service permissions for the daily auto-PR
+
+`Pipelines/Sentinel-Dependency-Update.yml` runs `Build-DependencyManifest -Mode Update` daily at 02:00 UTC. When drift is detected, it pushes a regenerated manifest to the rolling `auto/dependency-manifest-sync` branch and opens a PR via `az repos pr create`.
+
+Both operations authenticate using `$(System.AccessToken)` exposed via `persistCredentials: true` on the checkout step. That token is issued to the **project-scoped Build Service identity**, NOT to the service principal that drives the rest of the deploy pipeline. The two are separate; granting the SP roles in Azure does nothing for ADO repository write access.
+
+### One-off setup
+
+> Project Settings → Repos → Repositories → `<repo>` → Security
+
+Find the identity named `<Project Name> Build Service (<Org Name>)` (search by `Build Service`). Set these to **Allow**:
+
+| Permission | API name | Why |
+| --- | --- | --- |
+| **Contribute** | `GenericContribute` | `git push` to the auto-sync branch |
+| **Create branch** | `CreateBranch` | First-time creation of `auto/dependency-manifest-sync` |
+| **Contribute to pull requests** | `PullRequestContribute` | `az repos pr create` and refresh on subsequent runs |
+
+Without these, the pipeline fails at the `git push` step with:
+
+```
+remote: TF401027: You need the Git 'GenericContribute' permission to perform this action.
+remote: Details: identity 'Build\<guid>', scope 'repository'.
+fatal: unable to access '...': The requested URL returned error: 403
+```
+
+The drift-detect pipeline uses the same identity, so the permissions are configured once and shared across both auto-PR pipelines. Full walkthrough in [ADO OIDC Setup → Step 7](../Deployment/ADO-OIDC-Setup.md#step-7-grant-the-build-service-identity-git-permissions).
+
 ## Authoring with GitHub Copilot
 
 Cross-cutting [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
