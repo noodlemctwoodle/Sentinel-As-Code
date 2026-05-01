@@ -167,7 +167,7 @@ function Write-Status {
     }
 }
 
-function Ensure-YamlModule {
+function Initialize-YamlModule {
     if (-not (Get-Module -ListAvailable -Name 'powershell-yaml')) {
         Write-Status "Installing powershell-yaml module (CurrentUser scope)..."
         Install-Module powershell-yaml -Scope CurrentUser -Force -AllowClobber
@@ -188,7 +188,7 @@ function Get-ContentHash256 {
     return [System.BitConverter]::ToString($hash).Replace('-', '')
 }
 
-function Normalise-TriggerOperator {
+function Format-TriggerOperator {
     param([string]$Value)
     if ([string]::IsNullOrWhiteSpace($Value)) { return $Value }
     $mapped = $script:TriggerOpMap[$Value.ToLower()]
@@ -255,7 +255,7 @@ function Build-RuleYaml {
 
     # Normalise triggerOperator
     if ($Rule.ContainsKey('triggerOperator') -and $Rule['triggerOperator']) {
-        $Rule['triggerOperator'] = Normalise-TriggerOperator -Value $Rule['triggerOperator']
+        $Rule['triggerOperator'] = Format-TriggerOperator -Value $Rule['triggerOperator']
     }
 
     return ConvertTo-Yaml $Rule
@@ -485,9 +485,9 @@ function Build-Readme {
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# Entry point
 # ---------------------------------------------------------------------------
-function Main {
+function Invoke-Main {
     Write-Status "Import Community Rules - Dalonso Security Repo" -Level Section
 
     if ($DryRun) {
@@ -499,7 +499,7 @@ function Main {
     Write-Status "Output path: $OutputPath"
 
     # Ensure powershell-yaml is available
-    Ensure-YamlModule
+    Initialize-YamlModule
 
     # Create a temp directory for the clone
     $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "dalonso-import-$([System.IO.Path]::GetRandomFileName())"
@@ -754,4 +754,4 @@ function Main {
     }
 }
 
-Main
+Invoke-Main
