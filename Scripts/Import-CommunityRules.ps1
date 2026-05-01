@@ -317,7 +317,7 @@ function ConvertFrom-ArmAlertRule {
     if ($p.queryFrequency)   { $rule['queryFrequency']   = ConvertTo-Iso8601Duration $p.queryFrequency }
     if ($p.queryPeriod)      { $rule['queryPeriod']      = ConvertTo-Iso8601Duration $p.queryPeriod }
     if ($p.triggerOperator)  { $rule['triggerOperator']  = $p.triggerOperator }
-    if ($p.triggerThreshold -ne $null) { $rule['triggerThreshold'] = $p.triggerThreshold }
+    if ($null -ne $p.triggerThreshold) { $rule['triggerThreshold'] = $p.triggerThreshold }
 
     if ($p.tactics -and @($p.tactics).Count -gt 0) {
         $rule['tactics'] = @($p.tactics)
