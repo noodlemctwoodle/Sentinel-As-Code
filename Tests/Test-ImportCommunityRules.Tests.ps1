@@ -9,7 +9,7 @@
 .DESCRIPTION
     Six pure functions worth pinning with tests:
       - Get-ContentHash256 (SHA256 hashing for the import manifest)
-      - Normalise-TriggerOperator (gt/lt/eq/ne -> GreaterThan/etc.)
+      - Format-TriggerOperator (gt/lt/eq/ne -> GreaterThan/etc.)
       - Merge-Tags (case-insensitive, dedup-and-sort tag merge)
       - ConvertTo-Iso8601Duration (24h/7d -> PT24H/P7D shorthand expansion)
       - Build-RuleYaml (forces enabled=false, prepends attribution,
@@ -69,24 +69,24 @@ Describe 'Get-ContentHash256' {
     }
 }
 
-Describe 'Normalise-TriggerOperator' {
+Describe 'Format-TriggerOperator' {
     It 'maps short forms to long forms (case-insensitive)' {
-        Normalise-TriggerOperator -Value 'gt' | Should -Be 'GreaterThan'
-        Normalise-TriggerOperator -Value 'lt' | Should -Be 'LessThan'
-        Normalise-TriggerOperator -Value 'eq' | Should -Be 'Equal'
-        Normalise-TriggerOperator -Value 'ne' | Should -Be 'NotEqual'
-        Normalise-TriggerOperator -Value 'GT' | Should -Be 'GreaterThan' -Because 'lookup is case-insensitive'
+        Format-TriggerOperator -Value 'gt' | Should -Be 'GreaterThan'
+        Format-TriggerOperator -Value 'lt' | Should -Be 'LessThan'
+        Format-TriggerOperator -Value 'eq' | Should -Be 'Equal'
+        Format-TriggerOperator -Value 'ne' | Should -Be 'NotEqual'
+        Format-TriggerOperator -Value 'GT' | Should -Be 'GreaterThan' -Because 'lookup is case-insensitive'
     }
 
     It 'returns the original value unchanged when not in the map' {
-        Normalise-TriggerOperator -Value 'GreaterThan' | Should -Be 'GreaterThan'
-        Normalise-TriggerOperator -Value 'Custom'      | Should -Be 'Custom'
+        Format-TriggerOperator -Value 'GreaterThan' | Should -Be 'GreaterThan'
+        Format-TriggerOperator -Value 'Custom'      | Should -Be 'Custom'
     }
 
     It 'returns the original value unchanged for null/empty/whitespace' {
-        Normalise-TriggerOperator -Value $null | Should -BeNullOrEmpty
-        Normalise-TriggerOperator -Value ''    | Should -Be ''
-        Normalise-TriggerOperator -Value '   ' | Should -Be '   '
+        Format-TriggerOperator -Value $null | Should -BeNullOrEmpty
+        Format-TriggerOperator -Value ''    | Should -Be ''
+        Format-TriggerOperator -Value '   ' | Should -Be '   '
     }
 }
 
