@@ -19,14 +19,6 @@ name: <human-readable hunting query title>
 description: |
   Plain-prose description of the threat scenario this query helps
   hunt. State what an analyst should look for in the results.
-requiredDataConnectors:
-  - connectorId: <ConnectorId>
-    dataTypes:
-      - <TableName>
-tactics:
-  - <MITRE tactic, PascalCase>
-relevantTechniques:
-  - T1078
 query: |
   // KQL hunting query
   SigninLogs
@@ -34,11 +26,15 @@ query: |
   | where ResultType !in ("0", "50140")
   | summarize FailureCount = count() by UserPrincipalName
   | where FailureCount > 100
-tags:
-  - Description: <short summary, optional>
-  - Tactics: <comma-joined tactics, optional>
-  - Techniques: <comma-joined technique IDs, optional>
+tactics:
+  - <MITRE tactic, PascalCase>
+techniques:
+  - T1078
 ```
+
+`requiredDataConnectors` and `tags` are optional — the schema test
+accepts both their presence and absence. Most hunting queries in
+this repo omit them.
 
 ## Hunting vs analytical rule — when to use which
 
@@ -57,9 +53,10 @@ hunting query, not an analytical rule.
    or other hunting queries.
 2. **Hunting queries don't have `severity`, `triggerThreshold`, or
    `enabled`.** They're saved searches, not alert rules.
-3. **`tactics` and `relevantTechniques`** follow the same MITRE
-   conventions as analytical rules (PascalCase tactics, T#### technique
-   IDs).
+3. **`tactics` and `techniques`** follow MITRE conventions
+   (PascalCase tactics, `T####` technique IDs). Note: hunting
+   queries use `techniques:` (47 of 51 files in this repo);
+   analytical rules use `relevantTechniques:`. Don't mix the two.
 4. **Don't use `_GetWatchlist` for transient IOC lists.** Hunting is
    for exploring; if you need to pin down IOCs, write an analytical
    rule.

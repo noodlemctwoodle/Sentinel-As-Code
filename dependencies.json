@@ -1069,7 +1069,7 @@
         "DeviceProcessEvents"
       ]
     },
-    "HuntingQueries/Identity/SuspiciousSigninFromNewCountry.yaml": {
+    "HuntingQueries/Identity/SuspiciousSignInFromNewCountry.yaml": {
       "tables": [
         "SigninLogs"
       ]
