@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Modules/Sentinel.Common/Sentinel.Common.psm1
-#
-# Created by noodlemctwoodle on 29/04/2026.
-#
-
 <#
 .SYNOPSIS
     Shared helpers used across the Sentinel-As-Code deployer scripts and the
@@ -411,8 +405,11 @@ function Get-KqlWatchlistReferences {
     if ([string]::IsNullOrWhiteSpace($Query)) { return @() }
     $clean = Remove-KqlComments -Query $Query
 
-    $matches = [regex]::Matches($clean, "_GetWatchlist\s*\(\s*['""]([^'""]+)['""]\s*\)")
-    return @($matches | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    # `$matches` is a PowerShell automatic variable populated by the
+    # -match operator; assigning to it would shadow that. Use a
+    # local-scoped name instead (PSAvoidAssignmentToAutomaticVariable).
+    $matchResults = [regex]::Matches($clean, "_GetWatchlist\s*\(\s*['""]([^'""]+)['""]\s*\)")
+    return @($matchResults | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
 }
 
 function Get-KqlExternalDataReferences {
