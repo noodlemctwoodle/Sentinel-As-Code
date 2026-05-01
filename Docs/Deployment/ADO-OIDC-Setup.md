@@ -193,20 +193,68 @@ that go through the same gate.
 
 The two auto-PR pipelines push to a rolling
 `auto/sentinel-drift-sync` / `auto/dependency-manifest-sync` branch
-and open PRs via `az repos pr create`. They authenticate as the
-`<Project> Build Service (<Org>)` identity, which needs:
+and open PRs via `az repos pr create`. They authenticate using
+`System.AccessToken`, which is issued to the project-scoped
+**Build Service identity**, NOT the service principal you wired
+up in Step 1. The two identities are separate; granting the SP
+roles in Azure does nothing for ADO repository write access.
 
-> Project Settings → Repos → Repositories → `<repo>` → Security →
-> `<Project> Build Service (<Org>)`:
+### How to find the right identity
 
-| Permission | Setting |
-| --- | --- |
-| Contribute | Allow |
-| Create branch | Allow |
-| Contribute to pull requests | Allow |
+1. Open **Project Settings → Repos → Repositories → `<repo>` → Security**.
+2. In the identity search box, type the project name, e.g.
+   `Sentinel-As-Code (GitHub) Build Service`. The full identity
+   shows up as `<Project Name> Build Service (<Org Name>)`.
+3. If the search returns nothing, type `Build Service` alone — at
+   least one project-scoped Build Service identity will exist.
+4. **Tip**: when a pipeline run fails, the error log includes the
+   identity GUID (e.g. `Build\4f9a0878-8c9c-4c9f-a7cb-5ee8476f1492`).
+   That GUID is the underlying account; the search box shows the
+   friendly name.
 
-Without these, the auto-PR pipelines fail at the `git push` /
-`az repos pr create` step.
+### Permissions to grant
+
+Set each to **Allow** (not Inherit, not Not set — Allow explicitly):
+
+| Permission | Required for | Underlying right (API name) |
+| --- | --- | --- |
+| **Contribute** | `git push` to any branch the pipeline writes | `GenericContribute` |
+| **Create branch** | First-time creation of `auto/sentinel-drift-sync` and `auto/dependency-manifest-sync` | `CreateBranch` |
+| **Contribute to pull requests** | `az repos pr create` and `az repos pr update` calls in the workflow | `PullRequestContribute` |
+
+Do **not** grant `Force push (rewrite history and delete branches)`
+or `Bypass policies when pushing` — the auto-PR pipelines use
+`--force-with-lease` against their own bot-managed branches, which
+works with just `Contribute`.
+
+### Common error this rule catches
+
+If you skip this step, the auto-PR pipelines fail at the
+`git push` step with:
+
+```
+remote: TF401027: You need the Git 'GenericContribute' permission to perform this action.
+remote: Details: identity 'Build\<guid>', scope 'repository'.
+fatal: unable to access '...': The requested URL returned error: 403
+```
+
+`GenericContribute` is the API name for the **Contribute** UI
+checkbox. Set it to Allow on the identity in the error message
+and re-queue the pipeline.
+
+### Verifying without waiting for the cron schedule
+
+Both auto-PR pipelines have manual triggers — pick **Run pipeline**
+from the pipeline page in ADO. The drift-detect pipeline accepts a
+`reportOnly: true` parameter that runs the discovery without
+attempting to commit, so you can split verification into two
+phases:
+
+1. First run with `reportOnly: true` to confirm the read path
+   (Sentinel API auth, drift detection logic).
+2. Second run without `reportOnly` to confirm the write path
+   (`git push`, `az repos pr create`). This is what the
+   GenericContribute permission unlocks.
 
 ## Verification checklist
 
@@ -229,6 +277,9 @@ After the steps above, confirm:
 | ADO Save returns generic permission error | SP has no role on the target subscription | Run `Scripts/Setup-ServicePrincipal.ps1` against that subscription, OR manually grant at minimum `Reader` at subscription scope before retrying |
 | Verify fails with `AADSTS70021: No matching federated identity record found` | Issuer or Subject mismatch between ADO and the Entra federated credential | Re-copy both values from the ADO service connection's metadata page; trailing slash, case, and exact spacing all matter |
 | Verify passes but pipeline run fails with `AzurePowerShell` step "Could not get OIDC token" | Build Service identity lacks "Use" permission on the service connection | Service connections → `sc-sentinel-as-code` → Security → grant the relevant pipeline / project Use permission |
+| Auto-PR pipeline run fails at `git push` with `TF401027: You need the Git 'GenericContribute' permission` | Project-scoped Build Service identity missing `Contribute` on the repo | See Step 7 — grant Contribute + Create branch + Contribute to pull requests on the identity named in the error message (the GUID is the underlying account; search by friendly name `<Project> Build Service`) |
+| Auto-PR pipeline succeeds at `git push` but fails at `az repos pr create` with `TF401027` | Same identity missing `Contribute to pull requests` (`PullRequestContribute`) | Add the missing permission per Step 7 |
+| Auto-PR pipeline runs every time but never opens a PR | The script reports "no drift detected — working tree clean" and exits 0; this is the success path | Confirm by checking `reports/sentinel-drift-*.md` artefact published by the pipeline run; if the report says "no drift", everything is working |
 | Auto-PR pipeline fails at `git push` | Build Service identity missing `Contribute` / `Create branch` | Re-check Step 7 |
 
 ## Related docs
