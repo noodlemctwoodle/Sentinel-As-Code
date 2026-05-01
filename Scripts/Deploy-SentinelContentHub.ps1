@@ -162,7 +162,7 @@ param(
     [switch]$ForceContentDeployment
     ,
     [Parameter(Mandatory = $false)]
-    [switch]$ProtectCustomisedRules = $true
+    [bool]$ProtectCustomisedRules = $true
     ,
     [Parameter(Mandatory = $false)]
     [switch]$IsGov
@@ -293,7 +293,10 @@ function Get-ContentHubSolutions {
     $interval = 15
     while ($elapsed -lt $maxWait) {
         try {
-            $onboardResult = Invoke-SentinelApi -Uri $onboardingUrl -Method Get -Headers $script:AuthHeader -MaxRetries 1
+            # Probe the onboarding-state endpoint; the response body
+            # is irrelevant — success indicates onboarding has
+            # propagated and the next deploy step can run.
+            [void](Invoke-SentinelApi -Uri $onboardingUrl -Method Get -Headers $script:AuthHeader -MaxRetries 1)
             Write-PipelineMessage "Sentinel onboarding confirmed." -Level Success
             break
         }
@@ -1374,13 +1377,14 @@ function Deploy-Workbooks {
 
         $mainResources = $detailedTemplate.properties.mainTemplate.resources
 
-        # Find the workbook resource and metadata resource
+        # Find the workbook resource. Earlier iterations of this
+        # function also looked up the matching
+        # Microsoft.OperationalInsights/workspaces/providers/metadata
+        # resource, but the metadata GUID is sourced from
+        # `$existingMeta` below (the live workspace state), not from
+        # the template, so the template-side lookup was dead code.
         $workbookResource = $mainResources | Where-Object {
             ($_.PSObject.Properties.Name -contains "type") -and ($_.type -eq 'Microsoft.Insights/workbooks')
-        } | Select-Object -First 1
-
-        $metadataResource = $mainResources | Where-Object {
-            ($_.PSObject.Properties.Name -contains "type") -and ($_.type -eq 'Microsoft.OperationalInsights/workspaces/providers/metadata')
         } | Select-Object -First 1
 
         if (-not $workbookResource) {
