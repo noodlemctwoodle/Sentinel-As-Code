@@ -1919,9 +1919,9 @@ function Write-DeploymentSummary {
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# Entry point
 # ---------------------------------------------------------------------------
-function Main {
+function Invoke-Main {
     $scriptStartTime = Get-Date
 
     Write-PipelineMessage ("=" * 60) -Level Info
@@ -2109,4 +2109,4 @@ function Main {
     }
 }
 
-Main
+Invoke-Main
