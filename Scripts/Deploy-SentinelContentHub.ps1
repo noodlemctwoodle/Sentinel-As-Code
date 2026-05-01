@@ -1657,9 +1657,9 @@ function Get-SolutionUpdateReport {
 }
 
 # ---------------------------------------------------------------------------
-# Main Execution
+# Entry point
 # ---------------------------------------------------------------------------
-function Main {
+function Invoke-Main {
     [CmdletBinding()]
     param()
 
@@ -1893,4 +1893,4 @@ function Main {
 }
 
 # Execute
-Main
+Invoke-Main
