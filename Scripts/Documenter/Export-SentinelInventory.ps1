@@ -73,9 +73,21 @@ $InformationPreference = 'Continue'
 # ---------------------------------------------------------------------------
 # Module bootstrap
 # ---------------------------------------------------------------------------
-$manifestPath = Join-Path $PSScriptRoot 'Documenter.psd1'
-$manifest = Import-PowerShellDataFile -Path $manifestPath
-$apiVersions = $manifest.ApiVersions
+# API versions are hardcoded here rather than read from Documenter.psd1.
+# Reading the manifest at script start was failing silently on the ADO Linux
+# agent, with $apiVersions arriving empty inside Try-Capture's child scope —
+# every subsequent REST call then fired without an api-version and Azure
+# returned 400 'MissingApiVersionParameter'. Inlining the table removes the
+# external file as a moving part. Keep these values in sync with the
+# 'ApiVersions' block in Documenter.psd1 and the table in REFERENCES.md.
+$apiVersions = @{
+    Sentinel              = '2024-09-01'
+    SentinelPreview       = '2024-10-01-preview'
+    OperationalInsights   = '2025-02-01'
+    Tables                = '2023-09-01'
+    DataCollection        = '2023-03-11'
+}
+$documenterVersion = '0.1.0'
 
 . (Join-Path $PSScriptRoot 'Private/Invoke-SentinelRest.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AzureRetailPrice.ps1')
@@ -146,7 +158,7 @@ $runContext = [pscustomobject]@{
     WorkspaceResourceId = $workspaceResourceId
     StartedAtUtc      = (Get-Date).ToUniversalTime().ToString('o')
     ApiVersions       = $apiVersions
-    DocumenterVersion = $manifest.Version
+    DocumenterVersion = $documenterVersion
     AzPSVersion       = (Get-Module -ListAvailable Az.Accounts | Sort-Object Version -Descending | Select-Object -First 1).Version.ToString()
     IncludePreview    = [bool]$IncludePreview
     ScriptCommit      = (& git -C (Split-Path -Parent $PSScriptRoot) rev-parse HEAD 2>$null) -as [string]
@@ -408,10 +420,20 @@ Try-Capture 'subscription-locks' {
 }
 
 Try-Capture 'policy-assignments' {
+    # Get-AzPolicyAssignment shape changed across Az.Resources versions: older
+    # builds expose .Properties.DisplayName, newer ones expose .DisplayName at
+    # the top level. Probe both rather than tying to a single Az version.
     $assigns = Get-AzPolicyAssignment -Scope "/subscriptions/$SubscriptionId" -ErrorAction SilentlyContinue |
         Where-Object {
-            $name = $_.Properties.DisplayName
-            $name -match 'Sentinel|Log Analytics|Monitor|retention|workspace'
+            $name = $null
+            if ($_.PSObject.Properties.Name -contains 'Properties' -and $_.Properties) {
+                $name = $_.Properties.DisplayName
+            }
+            if (-not $name -and $_.PSObject.Properties.Name -contains 'DisplayName') {
+                $name = $_.DisplayName
+            }
+            if (-not $name) { $name = $_.Name }
+            ($name -as [string]) -match 'Sentinel|Log Analytics|Monitor|retention|workspace'
         }
     Save-Json -FileName 'policy-assignments.json' -Data $assigns
 }

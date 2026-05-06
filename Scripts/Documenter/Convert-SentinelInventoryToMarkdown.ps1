@@ -685,7 +685,19 @@ $policies   = @(Read-Raw 'policy-assignments.json')
 
 $rpRows = $rps | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderNamespace; State = $_.RegistrationState } }
 $lockRows = $locks | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Level = $_.Properties.level; Notes = $_.Properties.notes } }
-$polRows = $policies | ForEach-Object { [pscustomobject]@{ Name = $_.Properties.DisplayName; Scope = $_.Properties.Scope } }
+$polRows = $policies | ForEach-Object {
+    # Az.Resources policy-assignment shape varies between versions; surface
+    # whichever displayName/scope tier is present.
+    $name = $null; $scope = $null
+    if ($_.Properties) {
+        $name  = $_.Properties.DisplayName
+        $scope = $_.Properties.Scope
+    }
+    if (-not $name)  { $name  = $_.DisplayName }
+    if (-not $name)  { $name  = $_.Name }
+    if (-not $scope) { $scope = $_.Scope }
+    [pscustomobject]@{ Name = $name; Scope = $scope }
+}
 
 Write-Section '86-subscription-context.md' (@"
 $(Format-Banner -Title "Subscription and Tenant Context")
