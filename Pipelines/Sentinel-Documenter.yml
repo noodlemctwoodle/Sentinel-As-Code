@@ -254,7 +254,14 @@ stages:
               # Reset the rolling docs branch from the LATEST target tip so
               # the branch always descends from the current target. Mirrors
               # the pattern in Sentinel-Drift-Detect.yml.
+              #
+              # Fetch the docs branch too so --force-with-lease has a current
+              # remote-tracking ref to compare against. Without this fetch
+              # the lease check sees 'stale info' on every run after the
+              # first one and rejects the push. Allowed to fail on the very
+              # first run when the branch doesn't yet exist server-side.
               git fetch origin "$(targetBranch)"
+              git fetch origin "$(docsBranch)" || true
               git checkout -B "$(docsBranch)" "origin/$(targetBranch)"
 
               # Force-add despite .gitignore. The exclusion is a workstation
