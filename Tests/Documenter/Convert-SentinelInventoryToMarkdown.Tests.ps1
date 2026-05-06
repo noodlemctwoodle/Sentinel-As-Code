@@ -52,12 +52,19 @@ Describe 'Sentinel Documenter renderer' {
     Context 'produces every expected section file' {
 
         $expected = @(
-            'index.md','00-overview.md','10-data-connectors.md','20-analytics-rules.md',
-            '25-mitre-coverage.md','30-hunting-queries.md','35-parsers-functions.md',
+            'index.md','00-overview.md','01-executive-summary.md',
+            '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
+            '15-incidents.md',
+            '20-analytics-rules.md','21-analytics-by-volume.md','22-analytics-microsoft-rules.md',
+            '23-analytics-modifications.md','24-analytics-by-solution.md',
+            '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
+            '30-hunting-queries.md','35-parsers-functions.md',
+            '36-data-export.md','37-search-restore.md','38-summary-rules.md',
             '40-workbooks.md','50-watchlists.md','60-automation-rules-playbooks.md',
             '70-content-hub.md','80-workspace.md','81-table-plans-retention.md',
             '82-dedicated-cluster.md','83-data-collection.md','84-cost-estimate.md',
-            '85-rbac.md','86-subscription-context.md','90-gap-analysis.md','99-references.md'
+            '85-rbac.md','86-subscription-context.md','87-azure-monitor-agents.md',
+            '90-gap-analysis.md','96-references-microsoft.md','99-references.md'
         )
 
         It 'creates <_>' -ForEach $expected {

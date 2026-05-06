@@ -8,6 +8,7 @@
       "severity": "High",
       "enabled": true,
       "tactics": ["InitialAccess", "CredentialAccess"],
+      "techniques": ["T1078", "T1078.004", "T1110"],
       "alertRuleTemplateName": "tmpl-suspicious-signin"
     }
   },

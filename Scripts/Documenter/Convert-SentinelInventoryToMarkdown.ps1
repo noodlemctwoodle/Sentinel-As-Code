@@ -309,14 +309,94 @@ $mitreRows = foreach ($t in $tactics) {
     }
 }
 
+# Build the full hierarchy: tactic → base technique → subtechniques → rules.
+# Sentinel rules carry both 'tactics' (TA0xxx shortNames) and 'techniques'
+# (raw IDs like T1078 or T1078.001). We don't need a separate technique
+# catalogue — the IDs themselves are the canonical MITRE references and
+# every cell links back to attack.mitre.org for the human-readable name.
+$mitreHierarchy = @{}
+foreach ($r in $enabledRules) {
+    # Filter out $null entries — many rule kinds (Fusion, MicrosoftSecurityIncidentCreation
+    # etc.) carry no `techniques` array at all, which arrives as $null and would
+    # poison the dictionary key lookup.
+    $rTactics    = @($r.properties.tactics    | Where-Object { $_ })
+    $rTechniques = @($r.properties.techniques | Where-Object { $_ })
+    $ruleName    = $r.properties.displayName
+    foreach ($tac in $rTactics) {
+        if (-not $mitreHierarchy.ContainsKey($tac)) { $mitreHierarchy[$tac] = @{} }
+        foreach ($tech in $rTechniques) {
+            $isSub = ($tech -match '^T\d+\.\d+$')
+            $base  = if ($isSub) { ($tech -split '\.')[0] } else { $tech }
+            if (-not $base) { continue }
+            if (-not $mitreHierarchy[$tac].ContainsKey($base)) {
+                $mitreHierarchy[$tac][$base] = @{
+                    Subs  = New-Object System.Collections.Generic.SortedSet[string]
+                    Rules = New-Object System.Collections.Generic.SortedSet[string]
+                }
+            }
+            if ($isSub) { [void]$mitreHierarchy[$tac][$base].Subs.Add($tech) }
+            [void]$mitreHierarchy[$tac][$base].Rules.Add($ruleName)
+        }
+    }
+}
+
+# Build the headline tactic matrix from the same data.
+$mitreRowsRich = foreach ($t in $tactics) {
+    $key = $t.shortName
+    $tacticBucket = if ($mitreHierarchy.ContainsKey($key)) { $mitreHierarchy[$key] } else { @{} }
+    $techCount = $tacticBucket.Count
+    $subCount  = ($tacticBucket.Values | ForEach-Object { $_.Subs.Count } | Measure-Object -Sum).Sum
+    if (-not $subCount) { $subCount = 0 }
+    $ruleCount = $tacticCounts[$key]
+    $coverage = if ($ruleCount -eq 0) { '🔴 None' } elseif ($ruleCount -lt 3) { '🟠 Thin' } else { '🟢 Covered' }
+    [pscustomobject]@{
+        ID = $t.id
+        Tactic = $t.name
+        EnabledRules = $ruleCount
+        Techniques = $techCount
+        SubTechniques = $subCount
+        Coverage = $coverage
+    }
+}
+
+# Render hierarchical breakdown after the matrix.
+$detailSections = New-Object System.Text.StringBuilder
+foreach ($t in $tactics) {
+    $key = $t.shortName
+    [void]$detailSections.AppendLine("")
+    [void]$detailSections.AppendLine("### $($t.id) · $($t.name)")
+    [void]$detailSections.AppendLine("")
+    if (-not $mitreHierarchy.ContainsKey($key) -or $mitreHierarchy[$key].Count -eq 0) {
+        [void]$detailSections.AppendLine("_No enabled rules cover this tactic._  [View tactic on MITRE](https://attack.mitre.org/tactics/$($t.id)/)")
+        continue
+    }
+    $techRows = foreach ($techId in ($mitreHierarchy[$key].Keys | Sort-Object)) {
+        $bucket = $mitreHierarchy[$key][$techId]
+        $subs = if ($bucket.Subs.Count -gt 0) {
+            (($bucket.Subs | Sort-Object) | ForEach-Object { "[$_](https://attack.mitre.org/techniques/$($_.Replace('.','/')))" }) -join ', '
+        } else { '_(base only)_' }
+        [pscustomobject]@{
+            Technique     = "[$techId](https://attack.mitre.org/techniques/$techId/)"
+            SubTechniques = $subs
+            Rules         = $bucket.Rules.Count
+            SampleRules   = (($bucket.Rules | Sort-Object) | Select-Object -First 3) -join '; '
+        }
+    }
+    [void]$detailSections.AppendLine((Format-Table -Items $techRows -Columns 'Technique','SubTechniques','Rules','SampleRules'))
+}
+
 $mitreBody = @"
-$(Format-Banner -Title "MITRE ATT&CK Coverage Matrix")
+$(Format-Banner -Title "MITRE ATT&CK Coverage")
 
-Coverage is computed by counting **enabled** Sentinel detection rules whose ``tactics`` array references each ATT&CK tactic.
+Coverage is derived from the ``tactics`` and ``techniques`` arrays on every **enabled** Sentinel detection rule. Rules that carry sub-technique IDs (e.g. ``T1078.001``) contribute to both the parent technique and the sub-technique counts. Every ID in the breakdown below links to its canonical entry on attack.mitre.org.
 
-$(Format-Table -Items $mitreRows -Columns 'ID','Tactic','EnabledRules','Coverage')
+## Tactic matrix
 
-[MITRE coverage in Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/mitre-coverage)
+$(Format-Table -Items $mitreRowsRich -Columns 'ID','Tactic','EnabledRules','Techniques','SubTechniques','Coverage')
+
+## Technique and sub-technique breakdown
+$($detailSections.ToString())
+[MITRE coverage in Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/mitre-coverage) · [ATT&CK Enterprise (mitre.org)](https://attack.mitre.org/matrices/enterprise/)
 "@
 
 Write-Section '25-mitre-coverage.md' $mitreBody
@@ -763,6 +843,364 @@ $(if ($gapFindings.Count -gt 0) {
 "@)
 
 # ---------------------------------------------------------------------------
+# New sections aligned to the formal Sentinel Configuration TOC
+# (TOC numbering shown alongside each MD filename).
+# ---------------------------------------------------------------------------
+
+# Section 01 — Executive Summary  (TOC 1)
+# Synthesised from headline counts + cost + top gap findings + MITRE coverage.
+$gapBySeverity = @{ Critical = 0; Warning = 0; Info = 0 }
+foreach ($f in $gapFindings) {
+    if ($gapBySeverity.ContainsKey($f.Severity)) { $gapBySeverity[$f.Severity]++ }
+}
+$tacticsCovered = ($enabledRules | ForEach-Object { $_.properties.tactics } | Where-Object { $_ } | Sort-Object -Unique).Count
+$tacticsTotal = if ($tactics) { $tactics.Count } else { 14 }
+
+$execBody = @"
+$(Format-Banner -Title "Executive Summary")
+
+> A high-level snapshot of the Microsoft Sentinel deployment for ``$WorkspaceName``. This page is auto-generated from the live workspace; the architectural narrative (3.1) and SOC operational processes (3.3) are customer-supplied and live elsewhere in the formal report.
+
+## Key indicators
+
+| Indicator | Value |
+|---|---:|
+| Workspace SKU | ``$($workspace.properties.sku.name)`` |
+| Default retention | $($workspace.properties.retentionInDays) days |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
+| Data connectors | $($connectors.Count) |
+| Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
+| MITRE tactics with coverage | $tacticsCovered / $tacticsTotal |
+| Tables receiving data (90d) | $($populatedTables.Count) / $($workspaceTables.Count) |
+| Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
+
+## Top recommendations
+
+$(if ($top5Findings.Count -gt 0) {
+    ($top5Findings | ForEach-Object {
+        "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
+    }) -join [Environment]::NewLine
+} else { '_No findings — clean run._' })
+
+## Where to read more
+
+| Concern | See |
+|---|---|
+| Connectors and ingestion | [10-data-connectors.md](10-data-connectors.md), [83-data-collection.md](83-data-collection.md) |
+| Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [25-mitre-coverage.md](25-mitre-coverage.md) |
+| Workspace, tables, retention | [80-workspace.md](80-workspace.md), [81-table-plans-retention.md](81-table-plans-retention.md) |
+| Cost | [84-cost-estimate.md](84-cost-estimate.md) |
+| Operational health | [11-sentinel-health.md](11-sentinel-health.md), [12-soc-optimization.md](12-soc-optimization.md), [15-incidents.md](15-incidents.md) |
+| Identity and access | [85-rbac.md](85-rbac.md) |
+| Findings vs. best practice | [90-gap-analysis.md](90-gap-analysis.md) |
+"@
+Write-Section '01-executive-summary.md' $execBody
+
+# Section 11 — Sentinel health (TOC 4.8)
+$health = @(Read-Raw 'sentinel-health.json')
+$healthRows = $health | ForEach-Object {
+    [pscustomobject]@{
+        Resource = $_.SentinelResourceName
+        Kind     = $_.SentinelResourceKind
+        Type     = $_.SentinelResourceType
+        Events   = $_.Events
+        Statuses = ($_.Statuses -join ', ')
+        LastEvent= $_.LastEvent
+    }
+}
+Write-Section '11-sentinel-health.md' (@"
+$(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
+
+Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
+
+$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Statuses','LastEvent')
+
+[Sentinel health, audit, and monitoring (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/health-audit)
+"@)
+
+# Section 12 — SOC Optimization Insights (TOC 4.9)
+$socOpt = @(Read-Raw 'soc-optimization.json')
+$socOptRows = $socOpt | ForEach-Object {
+    [pscustomobject]@{
+        Title       = $_.properties.title
+        Category    = $_.properties.recommendationTypeTitle
+        Priority    = $_.properties.priority
+        State       = $_.properties.state
+        Description = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
+    }
+}
+Write-Section '12-soc-optimization.md' (@"
+$(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
+
+Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available.
+
+$(Format-Table -Items $socOptRows -Columns 'Title','Category','Priority','State','Description')
+
+[SOC optimization in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access)
+"@)
+
+# Section 15 — Incidents (TOC 4.10)
+$incSummary = @(Read-Raw 'incidents-summary.json') | Select-Object -First 1
+$incMttr    = @(Read-Raw 'incidents-mttr.json')    | Select-Object -First 1
+$incByRule  = @(Read-Raw 'incidents-by-rule.json')
+
+$mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
+    "**MTTA:** $([math]::Round([double]$incMttr.MTTAMinutes, 1)) min  ·  **MTTR:** $([math]::Round([double]$incMttr.MTTRMinutes, 1)) min  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)"
+} else { '_No closed incidents in the last 30 days; MTTA/MTTR not available._' }
+
+$incidentBody = @"
+$(Format-Banner -Title "Incidents  (TOC 4.10)")
+
+> Aggregate-only. The documenter never exports incident bodies, alert payloads or entity detail — only counts and derived SOC-efficiency metrics.
+
+$mttrLine
+
+## Top alerting rules (last 30d, top 25)
+
+$(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
+
+[Sentinel incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
+"@
+Write-Section '15-incidents.md' $incidentBody
+
+# Section 21 — Rules by alert volume (TOC 4.11.2)
+$ruleVolumes = @(Read-Raw 'analytics-rule-volumes.json')
+Write-Section '21-analytics-by-volume.md' (@"
+$(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
+
+The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
+
+$(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.Severity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
+"@)
+
+# Section 22 — Microsoft security rules (TOC 4.11.3)
+$msRules = @($rules | Where-Object {
+    $kind = $_.kind
+    $tn = $_.properties.alertRuleTemplateName
+    ($tn -and ($tn -match '^[a-f0-9-]{36}$')) -or ($kind -in @('Fusion','MicrosoftSecurityIncidentCreation','MLBehaviorAnalytics','ThreatIntelligence'))
+})
+Write-Section '22-analytics-microsoft-rules.md' (@"
+$(Format-Banner -Title "Microsoft Security Rules  (TOC 4.11.3)")
+
+Rules backed by a Microsoft template, or built-in Microsoft-managed kinds (Fusion, MicrosoftSecurityIncidentCreation, MLBehaviorAnalytics, ThreatIntelligence). These are not user-editable; tuning is via enable/disable and the per-rule incident-grouping config.
+
+$(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.properties.displayName; Severity = $_.properties.severity; Enabled = if ($_.properties.enabled) {'Yes'} else {'No'} } }) -Columns 'Kind','Name','Severity','Enabled')
+"@)
+
+# Section 23 — Modifications (TOC 4.11.4)
+$modifiedRows = $rules | ForEach-Object {
+    $lm = $null
+    if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'lastModifiedUtc')) { $lm = $_.properties.lastModifiedUtc }
+    [pscustomobject]@{
+        Name = $_.properties.displayName
+        Kind = $_.kind
+        LastModified = $lm
+        Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
+    }
+} | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending | Select-Object -First 50
+Write-Section '23-analytics-modifications.md' (@"
+$(Format-Banner -Title "Analytics Rules — Recent Modifications  (TOC 4.11.4)")
+
+The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Scripts/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
+
+$(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
+"@)
+
+# Section 24 — By Content Solution (TOC 4.11.5)
+$metadataAll = @(Read-Raw 'metadata.json')
+$ruleToSolution = @{}
+foreach ($m in $metadataAll) {
+    if ($m.properties.kind -eq 'AnalyticsRule' -and $m.properties.parentId) {
+        $ruleId = ($m.properties.parentId -split '/')[-1]
+        $ruleToSolution[$ruleId] = $m.properties.source.name
+    }
+}
+$bySolution = $rules | ForEach-Object {
+    $sol = if ($ruleToSolution.ContainsKey($_.name)) { $ruleToSolution[$_.name] } else { '(custom or unmapped)' }
+    [pscustomobject]@{
+        Solution = $sol
+        Rule     = $_.properties.displayName
+        Enabled  = if ($_.properties.enabled) {'Yes'} else {'No'}
+        Severity = $_.properties.severity
+    }
+} | Sort-Object Solution, Rule
+Write-Section '24-analytics-by-solution.md' (@"
+$(Format-Banner -Title "Analytics Rules — by Content Solution  (TOC 4.11.5)")
+
+Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association — typically repo-deployed custom rules.
+
+$(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
+"@)
+
+# Section 26 — UEBA (TOC 4.16)
+$uebaSetting = if ($null -ne (Read-Raw 'settings.json')) { (Read-Raw 'settings.json').Ueba } else { $null }
+$uebaSources = if ($uebaSetting -and $uebaSetting.properties) { @($uebaSetting.properties.dataSources) } else { @() }
+Write-Section '26-ueba.md' (@"
+$(Format-Banner -Title "User and Entity Behaviour Analytics  (TOC 4.16)")
+
+UEBA enriches incidents with anomaly scores and entity-level timelines. It is enabled at the workspace level via the ``Microsoft.SecurityInsights/settings/Ueba`` resource.
+
+| | |
+|---|---|
+| Enabled | $(if ($uebaSetting) { 'Yes' } else { 'No (settings resource not present)' }) |
+| Data sources | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none)_' }) |
+
+[Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
+"@)
+
+# Section 27 — Threat Intelligence (TOC 4.17)
+$tiCounts = @(Read-Raw 'threat-intel-counts.json')
+$tiRows = $tiCounts | ForEach-Object {
+    [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = $_.Count; LastIngested = $_.Last }
+}
+Write-Section '27-threat-intelligence.md' (@"
+$(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
+
+Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
+
+$(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
+
+[Microsoft Sentinel Threat Intelligence (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence)
+"@)
+
+# Section 36 — Data export (TOC 4.3.3)
+$dataExports = @(Read-Raw 'data-exports.json')
+$exportRows = $dataExports | ForEach-Object {
+    [pscustomobject]@{
+        Name        = $_.name
+        Destination = $_.properties.destination.resourceId
+        Tables      = ($_.properties.tableNames -join ', ')
+        Enabled     = $_.properties.enable
+    }
+}
+Write-Section '36-data-export.md' (@"
+$(Format-Banner -Title "Data Export  (TOC 4.3.3)")
+
+Continuous export of selected tables to Storage Accounts or Event Hubs. Empty list = no data export configured.
+
+$(Format-Table -Items $exportRows -Columns 'Name','Destination','Tables','Enabled')
+
+[Log Analytics data export (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export)
+"@)
+
+# Section 37 — Search and restore (TOC 4.3.4)
+# Search jobs and restore-logs aren't always pulled per-table; surface what
+# we have at workspace scope.
+$searchJobs = @(Read-Raw 'search-jobs.json')
+$restoreJobs = @(Read-Raw 'restore-logs.json')
+Write-Section '37-search-restore.md' (@"
+$(Format-Banner -Title "Search and Restore Tables  (TOC 4.3.4)")
+
+Search jobs and Long-Term-Restore operations rehydrate data from archive into queryable tables. The table below shows in-flight or recently completed jobs.
+
+## Search jobs
+
+$(Format-Table -Items $searchJobs -Columns 'name','properties')
+
+## Restore logs
+
+$(Format-Table -Items $restoreJobs -Columns 'name','properties')
+
+[Search jobs in Azure Monitor Logs](https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs) · [Restore logs](https://learn.microsoft.com/azure/azure-monitor/logs/restore)
+"@)
+
+# Section 38 — Summary rules (TOC 4.3.5)
+$summaryRules = @(Read-Raw 'summary-rules.json')
+$summaryRows = $summaryRules | ForEach-Object {
+    [pscustomobject]@{ Name = $_.properties.displayName; Source = $_.properties.source.name; Version = $_.properties.version }
+}
+Write-Section '38-summary-rules.md' (@"
+$(Format-Banner -Title "Summary Rules  (TOC 4.3.5)")
+
+Summary rules pre-aggregate high-volume tables on a schedule into a derived table. They cut query cost on noisy data.
+
+$(Format-Table -Items $summaryRows -Columns 'Name','Source','Version')
+
+[Summary rules (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/summary-rules)
+"@)
+
+# Section 87 — Azure Monitor Agents (TOC 4.5)
+$amaAgents = @(Read-Raw 'ama-agents.json')
+$agentRows = $amaAgents | ForEach-Object {
+    [pscustomobject]@{
+        Computer  = $_.Computer
+        OS        = $_.OS
+        Version   = $_.Version
+        Resource  = $_.Resource
+        LastSeen  = $_.LastHeartbeat
+    }
+}
+Write-Section '87-azure-monitor-agents.md' (@"
+$(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
+
+Agents heartbeating into the workspace over the last 7 days, derived from the ``Heartbeat`` table. Each row is a distinct ``SourceComputerId``.
+
+$(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','LastSeen')
+
+[Azure Monitor Agent overview (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/agents-overview)
+"@)
+
+# Section 96 — User-facing Microsoft references (TOC 6.x)
+Write-Section '96-references-microsoft.md' (@"
+$(Format-Banner -Title "Useful Microsoft References")
+
+Curated Microsoft Learn entry points for the topics covered in this report. Distinct from [99-references.md](99-references.md), which catalogues the API versions and modules the documenter itself depends on.
+
+## Microsoft Sentinel
+
+- [Microsoft Sentinel documentation](https://learn.microsoft.com/azure/sentinel/) — landing page
+- [Best practices](https://learn.microsoft.com/azure/sentinel/best-practices)
+- [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources) — training paths
+- [Move to Microsoft Defender XDR](https://learn.microsoft.com/azure/sentinel/move-to-defender) — 2027-03-31 portal retirement
+
+## Connectors
+
+- [Data connectors reference](https://learn.microsoft.com/azure/sentinel/data-connectors-reference)
+- [Connector prioritisation guide](https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors)
+- [Tables ↔ connectors map](https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference)
+- [Connector health monitoring](https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health)
+- [Codeless Connector Framework authoring](https://learn.microsoft.com/azure/sentinel/create-codeless-connector)
+
+## Troubleshooting
+
+- [Sentinel health, audit, and monitoring](https://learn.microsoft.com/azure/sentinel/health-audit)
+- [Workspace replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication)
+- [Logs ingestion troubleshooting](https://learn.microsoft.com/azure/azure-monitor/logs/data-ingestion-time)
+
+## Log Analytics and KQL
+
+- [Log Analytics overview](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview)
+- [KQL quick reference](https://learn.microsoft.com/azure/data-explorer/kql-quick-reference)
+- [KQL tutorial](https://learn.microsoft.com/azure/azure-monitor/logs/get-started-queries)
+- [Table plans (Analytics / Basic / Auxiliary / DataLake)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans)
+- [Retention and archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive)
+- [Data collection rules](https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview)
+- [Data export](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export)
+
+## Microsoft Sentinel pricing and cost
+
+- [Sentinel billing overview](https://learn.microsoft.com/azure/sentinel/billing)
+- [Reduce Sentinel costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs)
+- [Monitor Sentinel costs](https://learn.microsoft.com/azure/sentinel/billing-monitor-costs)
+- [Cost logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs)
+- [Daily cap](https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap)
+- [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
+
+## Logic Apps and playbooks
+
+- [Automate threat response with playbooks](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks)
+- [Logic Apps documentation](https://learn.microsoft.com/azure/logic-apps/)
+
+## Azure security context
+
+- [Sentinel roles and permissions](https://learn.microsoft.com/azure/sentinel/roles)
+- [Defender XDR](https://learn.microsoft.com/defender-xdr/)
+- [Azure Monitor Private Link Scope (AMPLS)](https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security)
+- [Customer-managed keys](https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys)
+"@)
+
+# ---------------------------------------------------------------------------
 # Section: 99 — references
 # ---------------------------------------------------------------------------
 $refSrc = Join-Path $PSScriptRoot 'REFERENCES.md'
@@ -779,27 +1217,44 @@ $indexBody = @"
 
 Generated $($run.StartedAtUtc) UTC by Sentinel Documenter v$($run.DocumenterVersion).
 
-| Section | Description |
-|---|---|
-| [00-overview.md](00-overview.md) | Headline counts, top findings, cost summary |
-| [10-data-connectors.md](10-data-connectors.md) | Classic + CCF connectors |
-| [20-analytics-rules.md](20-analytics-rules.md) | Every detection rule by kind |
-| [25-mitre-coverage.md](25-mitre-coverage.md) | MITRE ATT&CK coverage matrix |
-| [30-hunting-queries.md](30-hunting-queries.md) | Hunting queries |
-| [35-parsers-functions.md](35-parsers-functions.md) | Parsers and functions |
-| [40-workbooks.md](40-workbooks.md) | Saved workbooks + templates available |
-| [50-watchlists.md](50-watchlists.md) | Watchlists |
-| [60-automation-rules-playbooks.md](60-automation-rules-playbooks.md) | Automation rules + playbooks + MI grants |
-| [70-content-hub.md](70-content-hub.md) | Solutions installed + repositories |
-| [80-workspace.md](80-workspace.md) | SKU, retention, networking, feature flags |
-| [81-table-plans-retention.md](81-table-plans-retention.md) | Per-table plan, retention and activity |
-| [82-dedicated-cluster.md](82-dedicated-cluster.md) | Dedicated cluster, CMK, AZ |
-| [83-data-collection.md](83-data-collection.md) | DCRs and DCEs |
-| [84-cost-estimate.md](84-cost-estimate.md) | Estimated monthly cost |
-| [85-rbac.md](85-rbac.md) | Role assignments |
-| [86-subscription-context.md](86-subscription-context.md) | Subscription, tenant, RPs, locks, policy |
-| [90-gap-analysis.md](90-gap-analysis.md) | Findings against MS Learn best practices |
-| [99-references.md](99-references.md) | API versions, modules, Learn references |
+Sections are numbered to match the formal Sentinel Configuration TOC where applicable. Customer-narrative sections (architectural diagrams, SOC operational processes, the licensing inventory) are intentionally not auto-generated — supply those separately.
+
+| Section | TOC | Description |
+|---|---|---|
+| [00-overview.md](00-overview.md) | — | Headline counts, top findings, cost summary |
+| [01-executive-summary.md](01-executive-summary.md) | 1 | Auto-synthesised executive summary |
+| [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
+| [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
+| [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
+| [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
+| [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
+| [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
+| [22-analytics-microsoft-rules.md](22-analytics-microsoft-rules.md) | 4.11.3 | Microsoft-managed rules |
+| [23-analytics-modifications.md](23-analytics-modifications.md) | 4.11.4 | Recently modified rules |
+| [24-analytics-by-solution.md](24-analytics-by-solution.md) | 4.11.5 | Rules grouped by Content Hub solution |
+| [25-mitre-coverage.md](25-mitre-coverage.md) | 3.2 | Tactic + technique + sub-technique coverage |
+| [26-ueba.md](26-ueba.md) | 4.16 | UEBA configuration |
+| [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source |
+| [30-hunting-queries.md](30-hunting-queries.md) | 4.15 | Hunting queries |
+| [35-parsers-functions.md](35-parsers-functions.md) | — | Parsers and functions |
+| [36-data-export.md](36-data-export.md) | 4.3.3 | Data export configuration |
+| [37-search-restore.md](37-search-restore.md) | 4.3.4 | Search jobs / restore logs |
+| [38-summary-rules.md](38-summary-rules.md) | 4.3.5 | Summary rules |
+| [40-workbooks.md](40-workbooks.md) | 4.14 | Saved workbooks + templates |
+| [50-watchlists.md](50-watchlists.md) | 4.12 | Watchlists |
+| [60-automation-rules-playbooks.md](60-automation-rules-playbooks.md) | 4.13 | Automation rules + playbooks + MI grants |
+| [70-content-hub.md](70-content-hub.md) | 4.6 | Solutions installed + repositories |
+| [80-workspace.md](80-workspace.md) | 4.2 | SKU, retention, networking, feature flags |
+| [81-table-plans-retention.md](81-table-plans-retention.md) | 4.3.1-2 | Per-table plan, retention, activity |
+| [82-dedicated-cluster.md](82-dedicated-cluster.md) | 4.2.2 | Dedicated cluster, CMK, AZ |
+| [83-data-collection.md](83-data-collection.md) | — | DCRs and DCEs |
+| [84-cost-estimate.md](84-cost-estimate.md) | — | Estimated monthly cost |
+| [85-rbac.md](85-rbac.md) | 4.4 | Role assignments |
+| [86-subscription-context.md](86-subscription-context.md) | 4.1 | Subscription, tenant, RPs, locks, policy |
+| [87-azure-monitor-agents.md](87-azure-monitor-agents.md) | 4.5 | AMA agents heartbeating into the workspace |
+| [90-gap-analysis.md](90-gap-analysis.md) | — | Findings against MS Learn best practices |
+| [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
+| [99-references.md](99-references.md) | — | Documenter's own API versions and modules |
 "@
 Write-Section 'index.md' $indexBody
 

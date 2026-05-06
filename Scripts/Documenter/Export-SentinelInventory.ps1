@@ -562,6 +562,163 @@ Try-Capture 'retail-prices' {
 }
 
 # ---------------------------------------------------------------------------
+# Sentinel health, SOC Optimization, incidents, AMA agents
+# ---------------------------------------------------------------------------
+Try-Capture 'sentinel-health' {
+    # SentinelHealth surfaces connector / rule / playbook health events.
+    # Tolerate missing table on workspaces where Sentinel health diagnostics
+    # are not yet enabled.
+    $kql = @'
+SentinelHealth
+| where TimeGenerated > ago(7d)
+| summarize
+    Events    = count(),
+    LastEvent = max(TimeGenerated),
+    Statuses  = make_set(Status, 10)
+    by SentinelResourceName, SentinelResourceKind, SentinelResourceType
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'sentinel-health.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'sentinel-health.json' -Data @()
+    }
+}
+
+Try-Capture 'soc-optimization' {
+    # Sentinel SOC Optimization recommendations (preview surface). The endpoint
+    # only exists when the workspace is onboarded and the recommendations
+    # service has run at least once. 4xx is treated as 'no recommendations'.
+    try {
+        $opt = Invoke-SentinelRest -Path "$sentinelScope/recommendations" -ApiVersion $apiVersions.SentinelPreview
+        Save-Json -FileName 'soc-optimization.json' -Data $opt
+    } catch {
+        Save-Json -FileName 'soc-optimization.json' -Data @()
+    }
+}
+
+Try-Capture 'incidents-summary' {
+    # Aggregate-only — the documenter never exports incident bodies (PII).
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| summarize
+    Count   = count(),
+    ByStatus   = make_bag(bag_pack(Status,    1), 100),
+    BySeverity = make_bag(bag_pack(Severity,  1), 100)
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incidents-summary.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'incidents-summary.json' -Data @()
+    }
+}
+
+Try-Capture 'incidents-mttr' {
+    # Mean time to acknowledge / resolve, last 30 days. Surfaces SOC efficiency
+    # without exporting incident detail.
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| where Status == "Closed"
+| extend AckMins  = datetime_diff('minute', FirstModifiedTime, CreatedTime)
+| extend RsvMins  = datetime_diff('minute', ClosedTime,        CreatedTime)
+| summarize
+    ClosedCount = count(),
+    MTTAMinutes = avg(AckMins),
+    MTTRMinutes = avg(RsvMins)
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incidents-mttr.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'incidents-mttr.json' -Data @()
+    }
+}
+
+Try-Capture 'incidents-by-rule' {
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| mv-expand AlertIds
+| summarize Incidents = dcount(IncidentNumber) by Title
+| order by Incidents desc
+| take 25
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incidents-by-rule.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'incidents-by-rule.json' -Data @()
+    }
+}
+
+Try-Capture 'ama-agents' {
+    # Heartbeat is the canonical signal for Azure Monitor Agent presence.
+    $kql = @'
+Heartbeat
+| where TimeGenerated > ago(7d)
+| summarize
+    LastHeartbeat = max(TimeGenerated),
+    OS            = any(OSType),
+    Version       = any(Version),
+    Solutions     = any(Solutions),
+    Computer      = any(Computer),
+    Resource      = any(_ResourceId)
+    by SourceComputerId
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'ama-agents.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'ama-agents.json' -Data @()
+    }
+}
+
+Try-Capture 'data-exports' {
+    $exports = Invoke-SentinelRest -Path "$workspaceResourceId/dataExports" -ApiVersion $apiVersions.OperationalInsights
+    Save-Json -FileName 'data-exports.json' -Data $exports
+}
+
+Try-Capture 'threat-intel-counts' {
+    # KQL on the indicator tables — counts only, never indicator detail.
+    $kql = @'
+union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
+| where TimeGenerated > ago(30d)
+| summarize Count = count(), Last = max(TimeGenerated) by SourceSystem = coalesce(SourceSystem, Source)
+| order by Count desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'threat-intel-counts.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'threat-intel-counts.json' -Data @()
+    }
+}
+
+Try-Capture 'analytics-rule-volumes' {
+    # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
+    # breakout (TOC 4.11.2).
+    $kql = @'
+SecurityAlert
+| where TimeGenerated > ago(30d)
+| summarize Alerts = count() by AlertName, ProductName, Severity
+| order by Alerts desc
+| take 50
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'analytics-rule-volumes.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'analytics-rule-volumes.json' -Data @()
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Cost estimate
 # ---------------------------------------------------------------------------
 Try-Capture 'cost-estimate' {
