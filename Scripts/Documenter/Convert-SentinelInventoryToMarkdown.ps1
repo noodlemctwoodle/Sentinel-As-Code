@@ -170,6 +170,27 @@ $cost               = Read-Raw 'cost-estimate.json'
 
 $enabledRules = @($rules | Where-Object { $_.properties.enabled -eq $true })
 $populatedTables = @($tablesWithData | Where-Object { [double]($_.BillableLast90d) -gt 0 })
+
+# Names of tables that have ever received data in the last 90d. Used to
+# scope reports to the operationally relevant subset — the workspace's
+# table catalogue lists ~800 Microsoft-defined schemas regardless of
+# whether the customer has onboarded a source for them, so 'tables with
+# schema' is misleading on its own.
+$populatedTableNames = @{}
+foreach ($t in $populatedTables) {
+    if ($t.DataType) { $populatedTableNames[$t.DataType] = $true }
+}
+
+# 'Operational' tables = Microsoft tables that have data, plus all
+# CustomLog tables (always intended to receive data, surface even when
+# silent). Excludes ~750 Microsoft pre-defined schemas the workspace
+# never received data for — those are catalogue, not deployment.
+$operationalTables = @($workspaceTables | Where-Object {
+    $tt = $_.properties.schema.tableType
+    ($tt -eq 'CustomLog') -or ($populatedTableNames.ContainsKey($_.name))
+})
+$catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
+
 $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
 
 $overviewBody = @"
@@ -198,8 +219,9 @@ $(Format-Banner -Title "Microsoft Sentinel Workspace — Overview")
 | Watchlists | $($watchlists.Count) |
 | Workbooks | $($workbooksSaved.Count) |
 | Data Collection Rules | $($dcrs.Count) |
-| Tables with schema | $($workspaceTables.Count) |
-| Tables with data (90d) | $($populatedTables.Count) |
+| Tables operational (populated + custom logs) | $($operationalTables.Count) |
+| Tables receiving data (90d) | $($populatedTables.Count) |
+| Catalogue-only Microsoft schemas (never ingested) | $catalogueOnlyCount |
 
 ## Estimated monthly cost
 
@@ -560,7 +582,11 @@ Write-Section '80-workspace.md' $wsBody
 $tableSchemaByName = @{}
 foreach ($t in $workspaceTables) { $tableSchemaByName[$t.name] = $t }
 
-$tableRows = foreach ($t in $workspaceTables) {
+# Build rows for the OPERATIONAL set only (populated tables + custom logs).
+# The full workspace catalogue (~800 entries) is summarised separately so a
+# reader doesn't have to scroll through 750 unpopulated Microsoft schemas to
+# find the 50 tables that actually matter.
+$tableRows = foreach ($t in $operationalTables) {
     $name = $t.name
     $usage = $tablesWithData | Where-Object { $_.DataType -eq $name } | Select-Object -First 1
     [pscustomobject]@{
@@ -576,12 +602,19 @@ $tableRows = foreach ($t in $workspaceTables) {
     }
 }
 
-$active   = @($tableRows | Where-Object { $_.Last24h })
-$silent   = @($tableRows | Where-Object {
-    -not $_.Last24h -and ($tablesWithData | Where-Object { $_.DataType -eq $_.Name -and [double]$_.BillableLast90d -gt 0 })
+$active  = @($tableRows | Where-Object { $_.Last24h })
+$silent  = @($tableRows | Where-Object {
+    # Had data in 90d window (LastIngested set) but nothing in last 24h —
+    # likely connector breakage. Excludes orphan custom tables that never
+    # received data.
+    -not $_.Last24h -and $_.LastIngested
 })
-$orphans  = @($tableRows | Where-Object { -not $_.LastIngested -and $_.Type -in @('Microsoft','CustomLog') })
+# Orphan = custom log table with NO ingestion in the last 90 days. We
+# deliberately don't flag Microsoft pre-defined tables as orphans because
+# their schema exists by default in every workspace.
+$orphans = @($tableRows | Where-Object { -not $_.LastIngested -and $_.Type -eq 'CustomLog' })
 
+# Plan summary covers operational tables only.
 $gbByPlan = $tableRows | Group-Object Plan | ForEach-Object {
     [pscustomobject]@{
         Plan = $_.Name
@@ -590,14 +623,31 @@ $gbByPlan = $tableRows | Group-Object Plan | ForEach-Object {
     }
 }
 
+# Catalogue summary — Microsoft pre-defined tables that never received
+# data. Most workspaces carry hundreds of these; surface the count and a
+# short head sample rather than dumping every name.
+$catalogueOnly = @($workspaceTables | Where-Object {
+    ($_.properties.schema.tableType -ne 'CustomLog') -and
+    (-not $populatedTableNames.ContainsKey($_.name))
+})
+$catalogueSample = ($catalogueOnly | Select-Object -First 20 | ForEach-Object { $_.name }) -join ', '
+
 $tablePlansBody = @"
 $(Format-Banner -Title "Table Plans, Retention and Activity")
+
+The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it — typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
+
+| | |
+|---|---:|
+| Operational tables shown below | $($tableRows.Count) |
+| Catalogue-only Microsoft schemas (never ingested, hidden) | $($catalogueOnly.Count) |
+| Total tables in workspace | $($workspaceTables.Count) |
 
 ## Summary by plan
 
 $(Format-Table -Items $gbByPlan -Columns 'Plan','Tables','Gb90d')
 
-## All tables
+## Operational tables
 
 $(Format-Table -Items ($tableRows | Sort-Object -Property Gb90d -Descending) -Columns 'Name','Plan','Interactive','Total','Archive','Type','Gb90d','Last24h','LastIngested')
 
@@ -605,13 +655,17 @@ $(Format-Table -Items ($tableRows | Sort-Object -Property Gb90d -Descending) -Co
 
 Total: **$($active.Count)** table(s).
 
-## Silent (had data ever, none in last 7d)
+## Silent (had data in 90d, nothing in last 24h)
 
 Total: **$($silent.Count)** table(s) — likely connector breakage.
 
-## Orphan (schema deployed, no data in 90d)
+## Orphan custom tables (no data in 90d)
 
-Total: **$($orphans.Count)** table(s) — delete candidates or never-onboarded sources.
+Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
+
+## Catalogue-only Microsoft schemas
+
+$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem; first 20 names: ``$catalogueSample$(if ($catalogueOnly.Count -gt 20) { ', …' })``.
 
 [Table plans (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans) · [Retention & archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive) · [Manage table tiers in Sentinel](https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention)
 "@
@@ -872,7 +926,7 @@ $(Format-Banner -Title "Executive Summary")
 | Data connectors | $($connectors.Count) |
 | Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
 | MITRE tactics with coverage | $tacticsCovered / $tacticsTotal |
-| Tables receiving data (90d) | $($populatedTables.Count) / $($workspaceTables.Count) |
+| Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 
 ## Top recommendations

@@ -521,9 +521,13 @@ function Test-OrphanTables {
     $orphans = @($Inventory.WorkspaceTables | Where-Object {
         $name = Get-PropOrDefault $_ 'name' ''
         $type = Get-PropOrDefault $_ 'properties.schema.tableType' ''
-        # Filter to only tables likely to be expected to have data — exclude system-level
-        # 'RestoredLogs' / 'SearchResults' which are populated on demand.
-        $type -in @('Microsoft','CustomLog') -and -not $populated.ContainsKey($name)
+        # Custom (_CL) tables only. Microsoft pre-defined tables without data
+        # are part of every workspace's catalogue (~750 of them on a typical
+        # Sentinel workspace) and aren't orphans — they're 'sources we
+        # haven't onboarded'. Custom tables, on the other hand, were
+        # explicitly created to receive data; if none has arrived in 90d,
+        # the source is broken or the table should be deleted.
+        $type -eq 'CustomLog' -and -not $populated.ContainsKey($name)
     })
     if ($orphans.Count -gt 0) {
         return New-Finding -Evidence "$($orphans.Count) table(s) have a schema but no data in 90d." -Detail @{ Count = $orphans.Count }
