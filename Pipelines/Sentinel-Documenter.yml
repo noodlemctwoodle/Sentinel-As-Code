@@ -1,0 +1,209 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Sentinel Documenter (manual)
+# ---------------------------------------------------------------------------
+# Read-only inventory + gap-analysis snapshot of a Microsoft Sentinel workspace.
+# Runs the two-stage Documenter (collector → renderer) and publishes the
+# generated SecurityDocs/<workspace>/ tree as an ADO pipeline artefact named
+# 'sentinel-docs'. Reviewers download the artefact from the build's Summary
+# tab; nothing is committed to the repo.
+#
+# Manual trigger only for now. We'll wire a daily schedule once the pipeline
+# has been smoke-tested against the live workspace.
+#
+# What it produces (under the artefact root SecurityDocs/<workspace>/):
+#   - _raw/*.json     machine-readable snapshot (~30 files)
+#   - index.md        plus 19 Markdown sections covering connectors, rules,
+#                     MITRE coverage, workbooks, watchlists, automation,
+#                     workspace settings, table plans + retention,
+#                     dedicated cluster, DCRs, estimated monthly cost, RBAC,
+#                     subscription context, gap analysis, and references.
+#
+# Prerequisites:
+#   - Variable group 'sentinel-deployment' (shared with the deploy + drift
+#     pipelines) supplying:
+#       azureSubscriptionId
+#       sentinelResourceGroup
+#       sentinelWorkspaceName
+#       sentinelRegion
+#   - Azure Service Connection $(serviceConnection) with the read-only role
+#     set documented in Docs/Operations/Sentinel-Documenter.md:
+#       - Microsoft Sentinel Reader   (workspace scope)
+#       - Log Analytics Reader        (workspace scope)
+#       - Reader                      (resource group scope)
+#       - Monitoring Reader           (subscription scope)
+#       - Reader                      (subscription scope)
+#     The Azure Retail Prices API is anonymous — no extra grant.
+#
+# Manual run:
+#   Pipelines → Sentinel Documenter → Run pipeline. Optionally tick
+#   'Include preview API surface' to pull Content Hub product packages,
+#   summary rules, pricings, and the Sentinel Data Lake feature flag.
+#
+# Output review:
+#   Build summary → Related → Published artefacts → 'sentinel-docs' → Download.
+#   Open SecurityDocs/<workspace>/index.md.
+# ---------------------------------------------------------------------------
+
+trigger: none
+pr: none
+
+parameters:
+  - name: includePreview
+    displayName: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
+    type: boolean
+    default: false
+
+  - name: workspaceNameOverride
+    displayName: "Workspace name (leave blank to use the variable group default)"
+    type: string
+    default: ""
+
+  - name: resourceGroupOverride
+    displayName: "Resource group (leave blank to use the variable group default)"
+    type: string
+    default: ""
+
+variables:
+  - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
+  - name: serviceConnection
+    value: "sc-sentinel-as-code"
+  - name: SuppressAzurePowerShellBreakingChangeWarnings
+    value: "true"
+
+  # Pinned module versions — keep in sync with Scripts/Documenter/Documenter.psd1
+  # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
+  # with the documenter pipeline on what 'works'.
+  - name: pesterVersion
+    value: "5.7.1"
+  - name: yamlVersion
+    value: "0.4.12"
+
+  # Map preview switch to a flag string at compile time. Mirrors the pattern in
+  # Sentinel-Drift-Detect.yml.
+  - name: flagIncludePreview
+    ${{ if eq(parameters.includePreview, true) }}:
+      value: "-IncludePreview"
+    ${{ else }}:
+      value: ""
+
+  # Resolve override → variable group → fail. Allows ad-hoc runs against a
+  # different workspace without editing the variable group.
+  - name: targetWorkspace
+    ${{ if ne(parameters.workspaceNameOverride, '') }}:
+      value: ${{ parameters.workspaceNameOverride }}
+    ${{ else }}:
+      value: $(sentinelWorkspaceName)
+  - name: targetResourceGroup
+    ${{ if ne(parameters.resourceGroupOverride, '') }}:
+      value: ${{ parameters.resourceGroupOverride }}
+    ${{ else }}:
+      value: $(sentinelResourceGroup)
+
+stages:
+  - stage: Document
+    displayName: "Inventory and Render"
+    jobs:
+      - job: Run
+        displayName: "Collect → Render → Publish"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Install pinned PowerShell modules"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing pinned modules"
+
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
+
+          - task: AzurePowerShell@5
+            displayName: "Run collector — Export-SentinelInventory.ps1"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: LatestVersion
+              pwsh: true
+              errorActionPreference: "Stop"
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+
+                $params = @{
+                    SubscriptionId = "$(azureSubscriptionId)"
+                    ResourceGroup  = "$(targetResourceGroup)"
+                    WorkspaceName  = "$(targetWorkspace)"
+                }
+                if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
+
+                Write-Host "##[section]Sentinel Documenter — Collector"
+                Write-Host "============================================================"
+                Write-Host "  Subscription : $(azureSubscriptionId)"
+                Write-Host "  Resource Grp : $(targetResourceGroup)"
+                Write-Host "  Workspace    : $(targetWorkspace)"
+                Write-Host "  Preview API  : $(flagIncludePreview)"
+                Write-Host "============================================================"
+
+                & "$(Build.SourcesDirectory)/Scripts/Documenter/Export-SentinelInventory.ps1" @params
+
+          - task: PowerShell@2
+            displayName: "Run renderer — Convert-SentinelInventoryToMarkdown.ps1"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                Write-Host "##[section]Sentinel Documenter — Renderer"
+                & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
+                    -WorkspaceName "$(targetWorkspace)"
+
+          - task: PowerShell@2
+            displayName: "Stage SecurityDocs/ for artefact publish"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                $src = Join-Path "$(Build.SourcesDirectory)" 'SecurityDocs'
+                $dst = Join-Path "$(Build.ArtifactStagingDirectory)" 'sentinel-docs'
+
+                if (-not (Test-Path $src)) {
+                    Write-Error "SecurityDocs/ was not produced. The collector or renderer failed silently — check the previous task logs."
+                    exit 1
+                }
+
+                # Mirror the workspace tree into the artefact staging directory.
+                # Keep the workspace folder so multiple runs against different
+                # workspaces stay separated when downloaded together.
+                New-Item -ItemType Directory -Path $dst -Force | Out-Null
+                Copy-Item -Path "$src/*" -Destination $dst -Recurse -Force
+
+                $rawCount = (Get-ChildItem -Path $dst -Recurse -Filter '*.json' | Measure-Object).Count
+                $mdCount  = (Get-ChildItem -Path $dst -Recurse -Filter '*.md'   | Measure-Object).Count
+                Write-Host "##[section]Artefact staged"
+                Write-Host "  Raw JSON files : $rawCount"
+                Write-Host "  Markdown files : $mdCount"
+                Write-Host "  Path           : $dst"
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish 'sentinel-docs' artefact"
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/sentinel-docs"
+              artifact: "sentinel-docs"
+              publishLocation: "pipeline"
