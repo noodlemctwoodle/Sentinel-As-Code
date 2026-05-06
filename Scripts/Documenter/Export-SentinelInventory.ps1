@@ -106,13 +106,21 @@ if (-not (Test-Path $rawOut)) {
 }
 
 function Save-Json {
+    # $Data is intentionally optional + nullable. An ARM endpoint that returns no
+    # results legitimately surfaces as $null in PowerShell — the helper should
+    # write '[]' for that case rather than refusing the parameter, otherwise the
+    # collector emits dozens of misleading 'Cannot bind argument to parameter
+    # Data because it is null' warnings on a quiet workspace.
     param(
         [Parameter(Mandatory)] [string]$FileName,
-        [Parameter(Mandatory)] $Data
+        [Parameter(Mandatory = $false)] [AllowNull()] $Data
     )
     $target = Join-Path $rawOut $FileName
-    $json = $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings
-    $json | Set-Content -Path $target -Encoding UTF8
+    if ($null -eq $Data) {
+        '[]' | Set-Content -Path $target -Encoding UTF8
+    } else {
+        $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
+    }
     Write-Information "  ↳ wrote $FileName"
 }
 
@@ -180,10 +188,24 @@ Try-Capture 'workspace-tables' {
 }
 
 Try-Capture 'sentinel-pricing' {
+    # Microsoft.SecurityInsights/pricings is preview-only and the api-version
+    # surface is volatile. The endpoint also doesn't exist in every region —
+    # against a uksouth workspace ARM rejects the preview version. Probe the
+    # GA Sentinel api-version first, fall back to preview, and treat 4xx as a
+    # 'not present' signal so an empty file is still produced.
+    $pricing = $null
     if ($IncludePreview) {
-        $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
-        Save-Json -FileName 'sentinel-pricing.json' -Data $pricing
+        try {
+            $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.Sentinel
+        } catch {
+            try {
+                $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
+            } catch {
+                Write-Information "  ↳ pricings endpoint not available; emitting empty file."
+            }
+        }
     }
+    Save-Json -FileName 'sentinel-pricing.json' -Data $pricing
 }
 
 Try-Capture 'sentinel-onboarding-state' {
@@ -268,7 +290,20 @@ Try-Capture 'summary-rules' {
 }
 
 Try-Capture 'repositories' {
-    $repos = Invoke-SentinelRest -Path "$sentinelScope/sourceControls" -ApiVersion $apiVersions.Sentinel
+    # sourceControls is published on a different api-version cadence than the
+    # rest of Sentinel. The Sentinel GA pin '2024-09-01' returns
+    # UnsupportedApiVersion against ARM. Try the GA Sentinel pin first, then
+    # known-good fallbacks for sourceControls specifically. Treat all 4xx as
+    # 'feature not present' rather than a failure.
+    $repos = $null
+    foreach ($v in @($apiVersions.Sentinel, '2023-11-01', '2023-06-01-preview', '2022-12-01-preview')) {
+        try {
+            $repos = Invoke-SentinelRest -Path "$sentinelScope/sourceControls" -ApiVersion $v
+            break
+        } catch {
+            $repos = $null
+        }
+    }
     Save-Json -FileName 'repositories.json' -Data $repos
 }
 
@@ -294,8 +329,24 @@ Try-Capture 'kql-savedsearches' {
     Save-Json -FileName 'kql-savedsearches.json' -Data $all
 
     if ($all) {
-        $hunting = @($all | Where-Object { $_.properties.category -eq 'Hunting Queries' })
-        $parsers = @($all | Where-Object { $_.properties.category -eq 'Functions'        -or $_.properties.functionAlias })
+        # StrictMode-safe property access — savedSearch records do not all carry
+        # 'functionAlias' on their PSObject, so a bare $_.properties.functionAlias
+        # throws under StrictMode 'Latest'. Use HasMember-style probing.
+        $hunting = @($all | Where-Object {
+            $cat = $null
+            if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'category')) {
+                $cat = $_.properties.category
+            }
+            $cat -eq 'Hunting Queries'
+        })
+        $parsers = @($all | Where-Object {
+            $cat = $null; $alias = $null
+            if ($_.properties) {
+                if ($_.properties.PSObject.Properties.Name -contains 'category')      { $cat   = $_.properties.category }
+                if ($_.properties.PSObject.Properties.Name -contains 'functionAlias') { $alias = $_.properties.functionAlias }
+            }
+            ($cat -eq 'Functions') -or $alias
+        })
         Save-Json -FileName 'hunting-queries.json'  -Data $hunting
         Save-Json -FileName 'parsers-functions.json' -Data $parsers
     }
@@ -365,10 +416,22 @@ Try-Capture 'diagnostic-settings' {
 # Cluster, replication, AMPLS, linked services, solutions
 # ---------------------------------------------------------------------------
 Try-Capture 'dedicated-cluster' {
-    $clusterId = $script:WorkspaceObject.properties.features.clusterResourceId
+    # 'clusterResourceId' is only present on the workspace.features object when
+    # a Log Analytics dedicated cluster is linked. Probe for the property
+    # explicitly under StrictMode rather than dotting through it blindly.
+    $clusterId = $null
+    if ($script:WorkspaceObject -and
+        $script:WorkspaceObject.properties -and
+        $script:WorkspaceObject.properties.PSObject.Properties.Name -contains 'features' -and
+        $script:WorkspaceObject.properties.features -and
+        $script:WorkspaceObject.properties.features.PSObject.Properties.Name -contains 'clusterResourceId') {
+        $clusterId = $script:WorkspaceObject.properties.features.clusterResourceId
+    }
     if ($clusterId) {
         $cluster = Invoke-SentinelRest -Path $clusterId -ApiVersion '2022-10-01'
         Save-Json -FileName 'dedicated-cluster.json' -Data $cluster[0]
+    } else {
+        Save-Json -FileName 'dedicated-cluster.json' -Data $null
     }
 }
 
