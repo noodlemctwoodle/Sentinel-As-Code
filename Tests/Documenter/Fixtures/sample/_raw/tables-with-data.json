@@ -1,0 +1,6 @@
+[
+  { "DataType": "SecurityEvent", "Solution": "SecurityInsights", "BillableLast90d": 1500.0, "IngestedLast90d": 1500.0, "BillableLast30d": 500.0, "BillableLast7d": 120.0, "BillableLast24h": 18.0, "FirstSeen": "2026-02-06T00:00:00Z", "LastIngested": "2026-05-06T07:30:00Z", "DayCount": 90 },
+  { "DataType": "Syslog", "Solution": "Security", "BillableLast90d": 800.0, "IngestedLast90d": 800.0, "BillableLast30d": 280.0, "BillableLast7d": 70.0, "BillableLast24h": 10.0, "FirstSeen": "2026-02-10T00:00:00Z", "LastIngested": "2026-05-06T07:00:00Z", "DayCount": 86 },
+  { "DataType": "FirewallLogs_CL", "Solution": "LogManagement", "BillableLast90d": 6000.0, "IngestedLast90d": 6000.0, "BillableLast30d": 2000.0, "BillableLast7d": 500.0, "BillableLast24h": 70.0, "FirstSeen": "2026-02-06T00:00:00Z", "LastIngested": "2026-05-06T07:50:00Z", "DayCount": 90 },
+  { "DataType": "AuditLogs", "Solution": "SecurityInsights", "BillableLast90d": 50.0, "IngestedLast90d": 50.0, "BillableLast30d": 0.0, "BillableLast7d": 0.0, "BillableLast24h": 0.0, "FirstSeen": "2026-02-06T00:00:00Z", "LastIngested": "2026-04-25T07:50:00Z", "DayCount": 78 }
+]

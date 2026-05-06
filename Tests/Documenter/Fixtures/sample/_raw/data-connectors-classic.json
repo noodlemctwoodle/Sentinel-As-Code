@@ -1,0 +1,4 @@
+[
+  { "name": "AzureActiveDirectory", "kind": "AzureActiveDirectory", "properties": {} },
+  { "name": "Office365", "kind": "Office365", "properties": {} }
+]

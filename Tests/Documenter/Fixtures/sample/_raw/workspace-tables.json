@@ -1,0 +1,22 @@
+[
+  {
+    "name": "SecurityEvent",
+    "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "Microsoft" } }
+  },
+  {
+    "name": "Syslog",
+    "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "Microsoft" } }
+  },
+  {
+    "name": "FirewallLogs_CL",
+    "properties": { "plan": "Analytics", "retentionInDays": 730, "totalRetentionInDays": 730, "archiveRetentionInDays": 0, "schema": { "tableType": "CustomLog" } }
+  },
+  {
+    "name": "OrphanTable_CL",
+    "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "CustomLog" } }
+  },
+  {
+    "name": "AuditLogs",
+    "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "Microsoft" } }
+  }
+]

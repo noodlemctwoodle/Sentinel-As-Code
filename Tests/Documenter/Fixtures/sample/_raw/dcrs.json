@@ -1,0 +1,20 @@
+[
+  {
+    "name": "dcr-ama-windows",
+    "kind": "Windows",
+    "properties": {
+      "dataFlows": [
+        { "streams": ["Microsoft-SecurityEvent"], "outputStream": "Microsoft-SecurityEvent", "destinations": ["law-sentinel-test"] }
+      ]
+    }
+  },
+  {
+    "name": "dcr-firewall-cl",
+    "kind": "Direct",
+    "properties": {
+      "dataFlows": [
+        { "streams": ["Custom-FirewallLogs_CL"], "outputStream": "Custom-FirewallLogs_CL", "destinations": ["law-sentinel-test"] }
+      ]
+    }
+  }
+]

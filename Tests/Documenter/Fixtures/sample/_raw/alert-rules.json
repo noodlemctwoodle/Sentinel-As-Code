@@ -1,0 +1,37 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "name": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "kind": "Scheduled",
+    "properties": {
+      "displayName": "Suspicious sign-in from rare country",
+      "severity": "High",
+      "enabled": true,
+      "tactics": ["InitialAccess", "CredentialAccess"],
+      "alertRuleTemplateName": "tmpl-suspicious-signin"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "name": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "kind": "NRT",
+    "properties": {
+      "displayName": "Lateral movement detected",
+      "severity": "High",
+      "enabled": false,
+      "tactics": ["LateralMovement"],
+      "alertRuleTemplateName": null
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "name": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "kind": "Fusion",
+    "properties": {
+      "displayName": "Fusion (built-in)",
+      "severity": "High",
+      "enabled": true,
+      "tactics": []
+    }
+  }
+]

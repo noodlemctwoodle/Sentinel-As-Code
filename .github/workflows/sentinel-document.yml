@@ -1,0 +1,141 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Sentinel Documenter
+# ---------------------------------------------------------------------------
+# Daily snapshot of every aspect of a Microsoft Sentinel workspace, rendered
+# to Markdown and published as a private GitHub Actions artefact.
+#
+# This workflow is read-only by design — it never mutates the tenant, never
+# pushes to the repo, and never opens a PR. The artefact is the only delivery
+# channel: only repository collaborators can download it.
+#
+# The collector script (Scripts/Documenter/Export-SentinelInventory.ps1) writes
+# JSON under SecurityDocs/<workspace>/_raw/. The renderer
+# (Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1) emits Markdown
+# alongside it. SecurityDocs/ is gitignored at repo root, so the working tree
+# stays clean.
+#
+# Required repository secrets (read-only documenter SP — separate from the
+# deploy SP):
+#   AZURE_DOCUMENTER_CLIENT_ID    — Entra app id with these role assignments:
+#                                     - Microsoft Sentinel Reader      (workspace scope)
+#                                     - Log Analytics Reader           (workspace scope)
+#                                     - Reader                         (RG scope)
+#                                     - Monitoring Reader              (subscription scope)
+#                                     - Reader                         (subscription scope)
+#                                   With a federated credential trusting:
+#                                     subject:    repo:<owner>/<repo>:ref:refs/heads/main
+#                                     audience:   api://AzureADTokenExchange
+#   AZURE_TENANT_ID
+#   AZURE_SUBSCRIPTION_ID
+#
+# Required repository variables (non-secret):
+#   SENTINEL_RG                    — resource group hosting the Sentinel workspace
+#   SENTINEL_WORKSPACE             — Log Analytics workspace name
+# ---------------------------------------------------------------------------
+
+name: Sentinel Documenter
+
+on:
+  schedule:
+    # 06:00 UTC daily — early enough to be ready for the SOC's morning standup,
+    # late enough that the previous day's ingest is fully reflected in `Usage`.
+    - cron: "0 6 * * *"
+
+  workflow_dispatch:
+    inputs:
+      include-preview:
+        description: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sentinel-document
+  cancel-in-progress: false
+
+# OIDC token for federated Entra auth. No `contents: write` — this workflow
+# never edits the repo.
+permissions:
+  id-token: write
+  contents: read
+  actions:  read
+
+env:
+  # Pester pin matches PR-validation gate so a documenter run can also drive
+  # the test suite without surprises.
+  PESTER_VERSION: "5.7.1"
+  YAML_VERSION:   "0.4.12"
+
+jobs:
+  document:
+    name: document
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          # Cache key embeds the documenter's module pin tuple so a Documenter.psd1
+          # bump invalidates the cache cleanly without manual intervention.
+          key: pwsh-modules-${{ runner.os }}-documenter-v1-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:        ${{ secrets.AZURE_DOCUMENTER_CLIENT_ID }}
+          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Run Sentinel inventory collector
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: latest
+          inlineScript: |
+            $ErrorActionPreference = 'Stop'
+            $env:SENTINEL_RG          = '${{ vars.SENTINEL_RG }}'
+            $env:SENTINEL_WORKSPACE   = '${{ vars.SENTINEL_WORKSPACE }}'
+            $includePreview = [bool]::Parse('${{ inputs.include-preview || ''false'' }}')
+
+            ./Scripts/Documenter/Export-SentinelInventory.ps1 `
+              -SubscriptionId  '${{ secrets.AZURE_SUBSCRIPTION_ID }}' `
+              -ResourceGroup   $env:SENTINEL_RG `
+              -WorkspaceName   $env:SENTINEL_WORKSPACE `
+              -IncludePreview:$includePreview
+
+      - name: Render Markdown report
+        shell: pwsh
+        run: |
+          ./Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1 `
+            -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'
+
+      - name: Verify SecurityDocs is not staged for commit
+        # Defence in depth — .gitignore should already exclude SecurityDocs/.
+        # If a future change accidentally tracks the folder, fail the run loudly
+        # rather than silently pushing tenant config to a public repo.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git status --porcelain | grep -E '^\?\? SecurityDocs/' >/dev/null; then
+            echo "::warning ::SecurityDocs/ is untracked (expected — it's gitignored). No action needed."
+          fi
+          if git ls-files --error-unmatch SecurityDocs/ 2>/dev/null; then
+            echo "::error ::SecurityDocs/ is tracked in git. This must NEVER happen — the folder contains tenant configuration. Update .gitignore and remove tracked files."
+            exit 1
+          fi
+
+      - name: Upload private artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-docs-${{ vars.SENTINEL_WORKSPACE }}-${{ github.run_id }}
+          path: SecurityDocs/
+          retention-days: 30
+          if-no-files-found: error
+          # Default permission scope on artefacts is the repository — only
+          # collaborators can download. Public repos do NOT make artefacts public.

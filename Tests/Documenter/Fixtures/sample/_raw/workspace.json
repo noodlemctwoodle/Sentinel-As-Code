@@ -1,0 +1,21 @@
+{
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test",
+  "name": "law-sentinel-test",
+  "location": "uksouth",
+  "properties": {
+    "customerId": "11111111-1111-1111-1111-111111111111",
+    "sku": { "name": "PerGB2018" },
+    "retentionInDays": 30,
+    "workspaceCapping": { "dailyQuotaGb": -1 },
+    "publicNetworkAccessForIngestion": "Enabled",
+    "publicNetworkAccessForQuery": "Enabled",
+    "replication": { "enabled": false },
+    "features": {
+      "disableLocalAuth": false,
+      "enableLogAccessUsingOnlyResourcePermissions": true,
+      "enableDataExport": false,
+      "immediatePurgeDataOn30Days": false,
+      "clusterResourceId": null
+    }
+  }
+}
