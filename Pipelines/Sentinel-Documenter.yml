@@ -40,8 +40,23 @@
 #   summary rules, pricings, and the Sentinel Data Lake feature flag.
 #
 # Output review:
-#   Build summary → Related → Published artefacts → 'sentinel-docs' → Download.
-#   Open SecurityDocs/<workspace>/index.md.
+#   1. Build summary → Related → Published artefacts → 'sentinel-docs' → Download
+#      (always available, every run).
+#   2. (Optional, default ON) An ADO PR is opened/refreshed against
+#      $(targetBranch) showing the rendered docs in-line. The PR is intended
+#      for review only; merging it would commit tenant configuration to
+#      $(targetBranch) which the gitignore is meant to prevent. Treat the PR
+#      as a viewer, not a merge candidate.
+#
+# Why the PR is safe in ADO and would not be safe in GitHub:
+#   This repository's source-of-truth is a public GitHub repo, but pipeline
+#   testing happens in a private ADO mirror. The ADO checkout step sets the
+#   pipeline's 'origin' remote to the ADO repo, NOT to GitHub. A push from
+#   this pipeline therefore lands in the private ADO repo only, and the
+#   committed SecurityDocs/ tree never reaches the public GitHub copy. The
+#   .gitignore stays in place so a developer on a workstation cannot add
+#   SecurityDocs/ via a normal `git add` — the commit step here uses
+#   `git add -f` to force-add, which only the pipeline does.
 # ---------------------------------------------------------------------------
 
 trigger: none
@@ -52,6 +67,11 @@ parameters:
     displayName: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
     type: boolean
     default: false
+
+  - name: openPullRequest
+    displayName: "Open / refresh an ADO PR with the rendered docs (private ADO repo only)"
+    type: boolean
+    default: true
 
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
@@ -76,6 +96,15 @@ variables:
     ${{ else }}:
       value: ""
 
+  # Rolling docs branch + PR target — bot-managed, never hand-edited. The
+  # branch is per-workspace so multi-workspace runs don't collide on the same
+  # ref. Keep these as variables (not parameters) so the run-pipeline panel
+  # stays minimal.
+  - name: docsBranch
+    value: "auto/sentinel-docs/$(sentinelWorkspaceName)"
+  - name: targetBranch
+    value: "main"
+
 stages:
   - stage: Document
     displayName: "Inventory and Render"
@@ -86,7 +115,12 @@ stages:
           vmImage: "ubuntu-latest"
         timeoutInMinutes: 30
         steps:
+          # persistCredentials exposes System.AccessToken to the git CLI so the
+          # 'Push docs branch' step below can push back to the ADO repo using
+          # the Build Service identity. Required for the rolling docs branch +
+          # PR pattern (mirrors Sentinel-Drift-Detect.yml).
           - checkout: self
+            persistCredentials: true
 
           - task: PowerShell@2
             displayName: "Install pinned PowerShell modules"
@@ -184,3 +218,125 @@ stages:
               targetPath: "$(Build.ArtifactStagingDirectory)/sentinel-docs"
               artifact: "sentinel-docs"
               publishLocation: "pipeline"
+
+          # ───────────────────────────────────────────────────────────────
+          # Open / refresh a PR in ADO with the rendered docs.
+          #
+          # Force-adds SecurityDocs/ despite the .gitignore. This is safe in
+          # this pipeline because:
+          #   - 'origin' on the agent is the private ADO repo (not GitHub).
+          #     The ADO checkout step never adds GitHub as a remote, so a
+          #     `git push origin` here cannot reach the public mirror.
+          #   - The .gitignore stays in place so a developer doing a normal
+          #     `git add` on their workstation does not pick up
+          #     SecurityDocs/. Force-add (`-f`) is a deliberate, contained
+          #     pipeline-only operation.
+          #   - The branch name is namespaced under auto/sentinel-docs/<ws>
+          #     and force-pushed each run, so there is no growing history
+          #     of tenant snapshots.
+          #
+          # The PR target is $(targetBranch). It is intended for review,
+          # not merge — merging would commit SecurityDocs/ to the target
+          # branch permanently. Reviewers should view the diff and close.
+          # ───────────────────────────────────────────────────────────────
+          - bash: |
+              set -euo pipefail
+              cd "$(Build.SourcesDirectory)"
+
+              if [ ! -d SecurityDocs ]; then
+                echo "##[error]SecurityDocs/ missing — collector or renderer must run first."
+                exit 1
+              fi
+
+              git config user.email "noreply@sentinel-as-code.local"
+              git config user.name  "Sentinel Documenter"
+
+              # Reset the rolling docs branch from the LATEST target tip so
+              # the branch always descends from the current target. Mirrors
+              # the pattern in Sentinel-Drift-Detect.yml.
+              git fetch origin "$(targetBranch)"
+              git checkout -B "$(docsBranch)" "origin/$(targetBranch)"
+
+              # Force-add despite .gitignore. The exclusion is a workstation
+              # safety net; this pipeline-only push is the intended channel.
+              git add -f SecurityDocs
+
+              if git diff --cached --quiet; then
+                echo "##[section]No SecurityDocs changes to publish — nothing to PR."
+                exit 0
+              fi
+
+              git commit -m "docs(sentinel): snapshot for $(sentinelWorkspaceName) $(date -u +%Y-%m-%dT%H:%MZ)" \
+                         -m "Auto-generated by Pipelines/Sentinel-Documenter.yml. Review only — do not merge: merging would commit tenant configuration to $(targetBranch)."
+
+              git push --force-with-lease origin "$(docsBranch)"
+
+              echo "##[section]Opening / refreshing PR"
+              echo "$(System.AccessToken)" | az devops login --organization "$(System.CollectionUri)"
+
+              # Build a compact PR description. ADO truncates --description at
+              # ~4000 chars, so we lift only the headline + top findings from
+              # 00-overview.md and link reviewers to the artefact for the full
+              # report.
+              OVERVIEW_PATH="SecurityDocs/$(sentinelWorkspaceName)/00-overview.md"
+              PR_BODY_FILE="$(mktemp)"
+              {
+                echo "# Sentinel Documenter Snapshot — $(sentinelWorkspaceName)"
+                echo ""
+                echo "**Generated:** $(date -u +%Y-%m-%dT%H:%MZ)"
+                BUILD_URL="$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+                echo "**Pipeline run:** [$(Build.BuildNumber)](${BUILD_URL})"
+                echo "**Artefact (zip):** [sentinel-docs](${BUILD_URL}&view=artifacts&type=publishedArtifacts)"
+                echo ""
+                echo "> ⚠️ Review only. Do not merge — merging would commit tenant configuration to \`$(targetBranch)\`."
+                echo ""
+                if [ -f "$OVERVIEW_PATH" ]; then
+                  echo "## Headline"
+                  # Lift the Headline + Counts + Top findings sections from
+                  # 00-overview.md, stop at 'See the rest of this folder…'.
+                  awk '
+                    /^See the rest of this folder/ { exit }
+                    /^## Headline/      { p=1; next }
+                    p { print }
+                  ' "$OVERVIEW_PATH"
+                else
+                  echo "_Overview file not found; see the artefact for the full report._"
+                fi
+              } > "$PR_BODY_FILE"
+
+              EXISTING=$(az repos pr list \
+                  --repository "$(Build.Repository.Name)" \
+                  --status active \
+                  --source-branch "refs/heads/$(docsBranch)" \
+                  --target-branch "refs/heads/$(targetBranch)" \
+                  --organization "$(System.CollectionUri)" \
+                  --project "$(System.TeamProject)" \
+                  --query "[0].pullRequestId" \
+                  -o tsv 2>/dev/null || true)
+
+              if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+                echo "Existing PR #$EXISTING refreshed by branch push — updating description."
+                az repos pr update \
+                    --id "$EXISTING" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --output none
+              else
+                az repos pr create \
+                    --repository "$(Build.Repository.Name)" \
+                    --source-branch "$(docsBranch)" \
+                    --target-branch "$(targetBranch)" \
+                    --title "docs(sentinel): snapshot $(sentinelWorkspaceName) $(date -u +%Y-%m-%d)" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --project "$(System.TeamProject)" \
+                    --auto-complete false \
+                    --delete-source-branch false \
+                    --output table
+              fi
+
+              rm -f "$PR_BODY_FILE"
+            displayName: "Push docs branch and open / refresh PR (ADO only)"
+            condition: and(succeeded(), eq('${{ parameters.openPullRequest }}', 'true'))
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
