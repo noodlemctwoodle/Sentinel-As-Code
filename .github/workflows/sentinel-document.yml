@@ -2,17 +2,33 @@
 # GitHub Actions Workflow: Sentinel Documenter
 # ---------------------------------------------------------------------------
 # Daily snapshot of every aspect of a Microsoft Sentinel workspace, rendered
-# to Markdown and published as a private GitHub Actions artefact.
+# to Markdown. Output is delivered through TWO channels:
 #
-# This workflow is read-only by design — it never mutates the tenant, never
-# pushes to the repo, and never opens a PR. The artefact is the only delivery
-# channel: only repository collaborators can download it.
+#   1. A private GitHub Actions artefact named 'sentinel-docs-<ws>-<runId>'
+#      retained for 30 days. Always uploaded.
 #
-# The collector script (Scripts/Documenter/Export-SentinelInventory.ps1) writes
-# JSON under SecurityDocs/<workspace>/_raw/. The renderer
-# (Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1) emits Markdown
-# alongside it. SecurityDocs/ is gitignored at repo root, so the working tree
-# stays clean.
+#   2. A pull request against `main` from a rolling per-workspace branch
+#      'auto/sentinel-docs/<workspace>'. Force-pushed each run; mirrors the
+#      Sentinel-Drift-Detect pattern. Defaults ON; controllable via the
+#      `open-pull-request` workflow_dispatch input.
+#
+# ⚠️  CRITICAL — REPOSITORY PRIVACY
+# ---------------------------------------------------------------------------
+# The PR step force-adds SecurityDocs/ despite the .gitignore exclusion.
+# That folder contains tenant configuration (workspace IDs, table names,
+# rule details, RBAC principals, cost figures). It MUST NOT land in a
+# public repository.
+#
+# This workflow refuses to open a PR unless `github.event.repository.private`
+# is true. If the repo is public the PR step is skipped and the run is
+# failed with an explicit error message — even if the operator ticks the
+# `open-pull-request` input.
+#
+# If the source-of-truth lives in a public repo and pipeline testing lives
+# in a private mirror (the public-GH-source / private-ADO-mirror pattern
+# this repository uses), use the ADO documenter pipeline at
+# Pipelines/Sentinel-Documenter.yml — it pushes to the private ADO mirror
+# only and never touches the public GitHub copy.
 #
 # Required repository secrets (read-only documenter SP — separate from the
 # deploy SP):
@@ -47,21 +63,28 @@ on:
         description: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
         type: boolean
         default: false
+      open-pull-request:
+        description: "Open / refresh a PR with the rendered docs (PRIVATE REPOS ONLY — fails on public repos)"
+        type: boolean
+        default: true
 
 concurrency:
   group: sentinel-document
   cancel-in-progress: false
 
-# OIDC token for federated Entra auth. No `contents: write` — this workflow
-# never edits the repo.
+# id-token: write   — OIDC for Azure auth.
+# contents:  write  — required to push the rolling docs branch.
+# pull-requests: write — required to open / refresh the rolling PR.
+# Both write scopes are gated behind the private-repo guard step at the top
+# of the job — a public repo run will fail before any push or PR call is
+# attempted.
 permissions:
   id-token: write
-  contents: read
+  contents: write
+  pull-requests: write
   actions:  read
 
 env:
-  # Pester pin matches PR-validation gate so a documenter run can also drive
-  # the test suite without surprises.
   PESTER_VERSION: "5.7.1"
   YAML_VERSION:   "0.4.12"
 
@@ -77,12 +100,27 @@ jobs:
         with:
           fetch-depth: 1
 
+      # ─── Privacy guard ────────────────────────────────────────────────
+      # Defence in depth: if anyone enables open-pull-request on a public
+      # repo, fail loud rather than silently leak tenant config into a
+      # public commit. The PR step also has its own `if:` condition, but
+      # we fail the WHOLE run here so the operator sees the message and
+      # can re-run with PR disabled or migrate to a private repo.
+      - name: Verify repository is private when PR is requested
+        if: ${{ (github.event_name != 'workflow_dispatch') || (github.event.inputs.open-pull-request == 'true') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.repository.private }}" != "true" ]; then
+            echo "::error ::This workflow is configured to open a PR with rendered SecurityDocs/, which contains tenant configuration. The repository '${{ github.repository }}' is PUBLIC. Either re-run with 'open-pull-request' disabled, or move this pipeline to a private repository. See Docs/Operations/Sentinel-Documenter.md for the recommended topology."
+            exit 1
+          fi
+          echo "Repository is private — PR step may proceed."
+
       - name: Cache PowerShell modules
         uses: actions/cache@v4
         with:
           path: ~/.local/share/powershell/Modules
-          # Cache key embeds the documenter's module pin tuple so a Documenter.psd1
-          # bump invalidates the cache cleanly without manual intervention.
           key: pwsh-modules-${{ runner.os }}-documenter-v1-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
 
       - name: Azure login (OIDC)
@@ -115,16 +153,13 @@ jobs:
           ./Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1 `
             -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'
 
-      - name: Verify SecurityDocs is not staged for commit
-        # Defence in depth — .gitignore should already exclude SecurityDocs/.
-        # If a future change accidentally tracks the folder, fail the run loudly
-        # rather than silently pushing tenant config to a public repo.
+      - name: Confirm SecurityDocs/ is not git-tracked
+        # The folder MUST be gitignored. If a previous change accidentally
+        # tracked it, fail loud — letting it slip would defeat the privacy
+        # guard above.
         shell: bash
         run: |
           set -euo pipefail
-          if git status --porcelain | grep -E '^\?\? SecurityDocs/' >/dev/null; then
-            echo "::warning ::SecurityDocs/ is untracked (expected — it's gitignored). No action needed."
-          fi
           if git ls-files --error-unmatch SecurityDocs/ 2>/dev/null; then
             echo "::error ::SecurityDocs/ is tracked in git. This must NEVER happen — the folder contains tenant configuration. Update .gitignore and remove tracked files."
             exit 1
@@ -137,5 +172,56 @@ jobs:
           path: SecurityDocs/
           retention-days: 30
           if-no-files-found: error
-          # Default permission scope on artefacts is the repository — only
-          # collaborators can download. Public repos do NOT make artefacts public.
+
+      # ─── Open / refresh rolling PR ───────────────────────────────────
+      # Force-adds SecurityDocs/ despite the gitignore. peter-evans's
+      # action picks up staged changes and creates the rolling branch +
+      # PR. Branch is per-workspace so multi-workspace setups don't
+      # collide on the same ref. Force-pushed each run so there's no
+      # growing history of tenant snapshots.
+      #
+      # Skipped for public repos by the privacy-guard step above and the
+      # `if:` here. Skipped on dispatch when the operator unticks the
+      # input.
+      - name: Stage SecurityDocs/ for the PR
+        if: ${{ github.event.repository.private == true && ((github.event_name != 'workflow_dispatch') || (github.event.inputs.open-pull-request == 'true')) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d SecurityDocs ]; then
+            echo "::error ::SecurityDocs/ missing — collector or renderer must run first."
+            exit 1
+          fi
+          # Force-add despite .gitignore. The exclusion is a workstation
+          # safety net; this pipeline-only push is the intended channel.
+          git add -f SecurityDocs
+
+      - name: Open / refresh rolling PR
+        if: ${{ github.event.repository.private == true && ((github.event_name != 'workflow_dispatch') || (github.event.inputs.open-pull-request == 'true')) }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "auto/sentinel-docs/${{ vars.SENTINEL_WORKSPACE }}"
+          base: main
+          delete-branch: false
+          title: "docs(sentinel): snapshot ${{ vars.SENTINEL_WORKSPACE }}"
+          commit-message: |
+            docs(sentinel): snapshot for ${{ vars.SENTINEL_WORKSPACE }}
+
+            Auto-generated by .github/workflows/sentinel-document.yml.
+            Review only — do not merge: merging would commit tenant
+            configuration to main.
+          body: |
+            # Sentinel Documenter Snapshot — `${{ vars.SENTINEL_WORKSPACE }}`
+
+            > ⚠️ **Review only — do not merge.** Merging would commit tenant
+            > configuration to `main` permanently. Treat this PR as a viewer:
+            > read the diff, then close (or just leave it open as a rolling
+            > snapshot — it refreshes automatically).
+
+            **Workflow run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Artefact (zip):** [sentinel-docs-${{ vars.SENTINEL_WORKSPACE }}-${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) — full report including raw JSON.
+
+            See `SecurityDocs/${{ vars.SENTINEL_WORKSPACE }}/00-overview.md` in this branch for headline counts, top findings and the cost summary. The **Files Changed** tab on this PR shows every section diff.
+          add-paths: |
+            SecurityDocs/

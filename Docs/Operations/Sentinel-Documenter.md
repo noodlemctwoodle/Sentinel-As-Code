@@ -5,9 +5,67 @@ Sentinel workspace and produces a Markdown report of every artefact, every works
 setting, every DCR/DCE, an estimated monthly cost and a findings list scored against
 the documented Microsoft Learn best practices.
 
-The output is delivered as a **private GitHub Actions artefact**. The `SecurityDocs/`
-folder is gitignored at the repo root because it contains tenant configuration that
-must not leak from this public repository.
+> [!IMPORTANT]
+> **Repository must be private to run the PR-creation flow.**
+>
+> The Documenter generates a folder of detailed tenant configuration —
+> workspace IDs, table names, rule details, RBAC principals, cost figures,
+> network ACLs. This information **MUST NOT** land in a public repository.
+>
+> Both pipelines (ADO and GitHub Actions) include a privacy guard that
+> refuses to commit `SecurityDocs/` unless the host repository is private.
+> If you run the GitHub Actions workflow on a public repo with the PR step
+> enabled, the run **fails fast** with an explicit error message. The
+> ADO pipeline relies on the fact that ADO repos are private by default
+> within a project.
+>
+> If your source-of-truth lives in a public GitHub repo and you need the
+> Documenter, see [Topology options](#topology-options) below.
+
+---
+
+## Delivery channels
+
+Each pipeline run delivers the report through **two** channels, both gated
+by the privacy guard:
+
+| Channel | Always on | Where to find it |
+|---|---|---|
+| Pipeline / workflow artefact (`sentinel-docs.zip`) | ✓ | ADO: Build summary → Related → Published artefacts. GitHub: Actions run page → Artifacts. |
+| Pull request from a rolling per-workspace branch | Default ON, can be disabled per-run | ADO: Repos → Pull requests. GitHub: Pull requests. |
+
+The PR is intentionally **review-only**. Merging it would commit tenant
+configuration to the target branch permanently. The PR description carries
+a "Do not merge" banner and the PR is created without auto-complete.
+
+---
+
+## Topology options
+
+The Documenter is hard-wired to refuse public-repo commits. Pick the
+topology that matches your setup:
+
+### A. Single private repo (simplest)
+- All code, deployment config, and Documenter pipelines live in one
+  private repo (private GitHub *or* an ADO project).
+- Either pipeline (`.github/workflows/sentinel-document.yml` or
+  `Pipelines/Sentinel-Documenter.yml`) opens its PR directly in that repo.
+- Recommended for most users.
+
+### B. Public GitHub source + private ADO mirror (this repository)
+- Source-of-truth is a public GitHub repo (community contributions,
+  issues, discussion).
+- Pipeline testing is mirrored to a private Azure DevOps project.
+- The **ADO pipeline** opens PRs in the private ADO mirror; its push
+  reaches `origin` (= ADO repo on the agent) only and never touches the
+  public GitHub copy.
+- The **GitHub Actions workflow's PR step refuses to run on the public
+  repo** — it falls back to artefact-only delivery there, or fails fast
+  if the operator explicitly ticks `open-pull-request`.
+
+### C. Don't want a PR at all
+- Set `open-pull-request: false` (GH) or untick the equivalent
+  parameter (ADO) — the pipeline still publishes the artefact.
 
 ---
 
@@ -73,19 +131,37 @@ headline. The five most important pages day-to-day are:
 
 ## How to run it
 
-### In CI (the canonical mode)
+### In CI
 
-The `Sentinel Documenter` workflow runs daily at 06:00 UTC and on
-`workflow_dispatch`. It uses a **read-only service principal** (separate from the
-deploy SP) authenticated via OIDC. Output is uploaded to a private artefact named
-`sentinel-docs-<workspace>-<run-id>` retained for 30 days.
+Two pipelines, same scripts, same output, different host:
 
-The workflow file is `.github/workflows/sentinel-document.yml`. To trigger a
-documenter run by hand:
+#### Azure DevOps — `Pipelines/Sentinel-Documenter.yml`
+Manual trigger (`trigger: none`). Use this when pipeline testing lives in a
+private ADO project. Reuses the `sentinel-deployment` variable group and the
+`sc-sentinel-as-code` service connection that the deploy and drift-detect
+pipelines already depend on. Pushes to `origin` on the ADO agent — that is
+the **ADO repo only**, never GitHub.
 
-> Actions → Sentinel Documenter → **Run workflow** → optionally check
-> `include-preview` for preview-only data (Content Hub product packages,
-> summary rules, pricings).
+> Pipelines → **Sentinel Documenter** → Run pipeline → optionally tick
+> *Include preview API surface*. To skip the PR step and get only the
+> artefact, untick *Open / refresh an ADO PR with the rendered docs*.
+
+#### GitHub Actions — `.github/workflows/sentinel-document.yml`
+Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
+service principal. Privacy guard: the workflow **fails fast** if the host
+repo is public and `open-pull-request` is set, on the basis that
+`SecurityDocs/` would otherwise leak tenant config to the world.
+
+> Actions → **Sentinel Documenter** → Run workflow → optionally tick
+> `include-preview`. On a public repo, leave `open-pull-request` **off**
+> (artefact-only) or move the workflow to a private repo.
+
+#### Where to find the rendered docs
+
+| Channel | ADO | GitHub Actions |
+|---|---|---|
+| Artefact (zip) | Build summary → Related → Published artefacts → `sentinel-docs` | Workflow run page → Artifacts → `sentinel-docs-<ws>-<runId>` |
+| Pull request | Repos → Pull requests → "docs(sentinel): snapshot …" | Pull requests tab → "docs(sentinel): snapshot …" |
 
 ### Locally
 

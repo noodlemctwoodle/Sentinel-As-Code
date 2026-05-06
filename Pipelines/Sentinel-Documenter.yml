@@ -287,6 +287,7 @@ stages:
                 BUILD_URL="$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
                 echo "**Pipeline run:** [$(Build.BuildNumber)](${BUILD_URL})"
                 echo "**Artefact (zip):** [sentinel-docs](${BUILD_URL}&view=artifacts&type=publishedArtifacts)"
+                echo "**Full overview:** see [\`$OVERVIEW_PATH\`]($OVERVIEW_PATH) in this branch — the **Files Changed** tab on the PR shows every section diff."
                 echo ""
                 echo "> ⚠️ Review only. Do not merge — merging would commit tenant configuration to \`$(targetBranch)\`."
                 echo ""
@@ -303,6 +304,24 @@ stages:
                   echo "_Overview file not found; see the artefact for the full report._"
                 fi
               } > "$PR_BODY_FILE"
+
+              # ADO --description has a 4000-char hard cap; the lifted overview
+              # can blow past it on a busy workspace. Truncate at 3500 to leave
+              # room for the trailing 'truncated' notice. Reviewers get the
+              # full overview by clicking the link at the top of the body.
+              MAX_LEN=3500
+              BODY_LEN=$(wc -c < "$PR_BODY_FILE")
+              if [ "$BODY_LEN" -gt "$MAX_LEN" ]; then
+                TRUNC_FILE="$(mktemp)"
+                head -c "$MAX_LEN" "$PR_BODY_FILE" > "$TRUNC_FILE"
+                {
+                  echo ""
+                  echo ""
+                  echo "_(truncated to fit ADO's 4000-character description cap; full overview is at the link near the top of this PR, and the Files Changed tab shows every section.)_"
+                } >> "$TRUNC_FILE"
+                mv "$TRUNC_FILE" "$PR_BODY_FILE"
+              fi
+              echo "##[debug]PR body length: $(wc -c < "$PR_BODY_FILE") bytes"
 
               EXISTING=$(az repos pr list \
                   --repository "$(Build.Repository.Name)" \
