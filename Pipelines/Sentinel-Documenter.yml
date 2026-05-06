@@ -53,16 +53,6 @@ parameters:
     type: boolean
     default: false
 
-  - name: workspaceNameOverride
-    displayName: "Workspace name (leave blank to use the variable group default)"
-    type: string
-    default: ""
-
-  - name: resourceGroupOverride
-    displayName: "Resource group (leave blank to use the variable group default)"
-    type: string
-    default: ""
-
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
   - name: serviceConnection
@@ -85,19 +75,6 @@ variables:
       value: "-IncludePreview"
     ${{ else }}:
       value: ""
-
-  # Resolve override → variable group → fail. Allows ad-hoc runs against a
-  # different workspace without editing the variable group.
-  - name: targetWorkspace
-    ${{ if ne(parameters.workspaceNameOverride, '') }}:
-      value: ${{ parameters.workspaceNameOverride }}
-    ${{ else }}:
-      value: $(sentinelWorkspaceName)
-  - name: targetResourceGroup
-    ${{ if ne(parameters.resourceGroupOverride, '') }}:
-      value: ${{ parameters.resourceGroupOverride }}
-    ${{ else }}:
-      value: $(sentinelResourceGroup)
 
 stages:
   - stage: Document
@@ -145,16 +122,16 @@ stages:
 
                 $params = @{
                     SubscriptionId = "$(azureSubscriptionId)"
-                    ResourceGroup  = "$(targetResourceGroup)"
-                    WorkspaceName  = "$(targetWorkspace)"
+                    ResourceGroup  = "$(sentinelResourceGroup)"
+                    WorkspaceName  = "$(sentinelWorkspaceName)"
                 }
                 if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
 
                 Write-Host "##[section]Sentinel Documenter — Collector"
                 Write-Host "============================================================"
                 Write-Host "  Subscription : $(azureSubscriptionId)"
-                Write-Host "  Resource Grp : $(targetResourceGroup)"
-                Write-Host "  Workspace    : $(targetWorkspace)"
+                Write-Host "  Resource Grp : $(sentinelResourceGroup)"
+                Write-Host "  Workspace    : $(sentinelWorkspaceName)"
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "============================================================"
 
@@ -170,7 +147,7 @@ stages:
 
                 Write-Host "##[section]Sentinel Documenter — Renderer"
                 & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
-                    -WorkspaceName "$(targetWorkspace)"
+                    -WorkspaceName "$(sentinelWorkspaceName)"
 
           - task: PowerShell@2
             displayName: "Stage SecurityDocs/ for artefact publish"
