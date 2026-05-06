@@ -69,10 +69,16 @@ function Invoke-SentinelRest {
     $ErrorActionPreference = 'Stop'
 
     # Build initial URL — embed api-version if the caller hasn't already.
+    # NOTE: do NOT write the interpolation as "$url$separator`api-version=..."
+    # The backtick before 'a' is parsed as the bell-character escape (`a == \x07),
+    # so the URL emitted to Azure becomes  ".../?<BEL>pi-version=..."
+    # Azure rejects that with HTTP 400 'MissingApiVersionParameter'. Use the
+    # ${var} subexpression form so the variable boundary is explicit and no
+    # escape interpretation happens.
     $url = $Path
     if ($ApiVersion -and ($url -notmatch '[?&]api-version=')) {
         $separator = if ($url -match '\?') { '&' } else { '?' }
-        $url = "$url$separator`api-version=$ApiVersion"
+        $url = "${url}${separator}api-version=${ApiVersion}"
     }
 
     $accumulator = New-Object System.Collections.Generic.List[object]
