@@ -6,7 +6,7 @@
 
 This repository provides a complete end-to-end CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines or GitHub Actions. Starting from an empty subscription, the pipeline provisions all required infrastructure via Bicep, deploys Content Hub solutions (the source of truth for out-of-the-box content), deploys custom content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploys Defender XDR custom detection rules — all from a single repo.
 
-It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, an auto-derived dependency graph, and a set of six GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
+It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, daily portal-drift detection that absorbs edits back into the repo as PRs, an auto-derived dependency graph, a workbook round-trip exporter, and thirteen cross-platform GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
 
 > ### 💛 For organisations using this repository
 >
@@ -63,6 +63,8 @@ For details on what's inside each folder and how content is authored, see the
 - **Summary Rules**: Deploy JSON-based summary rules to aggregate verbose log data into cost-effective summary tables
 - **Defender XDR Custom Detections**: Deploy Advanced Hunting-based custom detection rules to Defender XDR via the Graph Security API
 - **Customisation Protection**: Detect and skip locally modified analytics rules to preserve manual tuning
+- **Drift Detection and Absorption**: Daily drift detector compares every deployed rule against its source-of-truth and absorbs all three buckets back into the repo as Custom YAML — Custom edits update matching files, ContentHub edits become new YAMLs under `AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/`, Orphans land at `AnalyticalRules/AbsorbedFromPortal/Orphans/`. The next deploy round-trips every absorbed rule through governance. See [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md)
+- **Workbook Round-Trip Export**: `Scripts/Export-SentinelWorkbooks.ps1` pulls every user-authored workbook from a workspace into `Workbooks/<DisplayName>/{workbook.json, metadata.json}`. Filters out Content Hub workbooks, replaces workspace ARM IDs with placeholders, restores PascalCase folder naming, and preserves author-curated metadata on re-export. Portal authoring becomes a first-class repo workflow
 - **Granular Content Control**: Toggle deployment of individual content types via pipeline parameters
 - **Dry Run Support**: Preview changes with `-WhatIf` before applying
 - **Azure Government Support**: Target both commercial and government cloud environments
@@ -70,7 +72,7 @@ For details on what's inside each folder and how content is authored, see the
 - **Nightly E2E Smoke Test**: Validates every deploy code path against a test workspace each night so production-deploy regressions are caught six days before the Monday cron runs
 - **Shared PowerShell Module**: `Modules/Sentinel.Common` exports the deployer helpers every script depends on (`Write-PipelineMessage`, `Invoke-SentinelApi`, `Connect-AzureEnvironment`) plus six KQL discovery functions used by the dependency-manifest builder. Single source of truth eliminates the bug-fix-in-one-copy class of regression
 - **Reusable GitHub Actions Composites**: `azure-login-oidc` and `setup-pwsh-modules` under `.github/actions/`. Replace inlined `Azure/login@v2` and `Install-Module` patterns at every call site; pin every PSGallery dependency by version
-- **GitHub Copilot Integration**: Six cross-platform Copilot agents (build / edit / tune / explain / understand / CI/CD), nine path-scoped instruction files, and six reusable prompts. Works on github.com Chat, github.com cloud agent, VS Code, Visual Studio, JetBrains, and Copilot CLI without configuration. See [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md)
+- **GitHub Copilot Integration**: Thirteen cross-platform Copilot agents in two tiers — five persona-broad (Build / Edit / Tune / Explain / Understand) plus eight engineering specialists (Pipelines, PowerShell, Bicep, KQL, Tests, Drift, Dependencies, Security) — nine path-scoped instruction files, and six reusable prompts. Works on github.com Chat, github.com cloud agent, VS Code, Visual Studio, JetBrains, and Copilot CLI without configuration. See [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md)
 
 ## Quick Start
 
@@ -146,7 +148,7 @@ on change          sentinel-dcr-inventory        DCR runbook deploy
 
 The repo ships with a complete GitHub Copilot customisation set so authors get repo-aware AI help out of the box. No VS Code settings or feature toggles required — open the workspace in any IDE with Copilot Chat enabled, or pick the agent from the dropdown on github.com.
 
-Twelve agents in two tiers:
+Thirteen agents in two tiers:
 
 **Persona-broad** — pick by what kind of help you want.
 
