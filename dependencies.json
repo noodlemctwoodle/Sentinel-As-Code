@@ -1109,7 +1109,7 @@
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellMaliciousOauthAppInjectionDetection.yaml": {
       "tables": [
-        "AuditLogs"
+        "MicrosoftGraphActivityLogs"
       ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellOauthAppInjectionBlastRadiusDetection.yaml": {
@@ -1127,7 +1127,7 @@
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellSecurityGroupCloningDetection.yaml": {
       "tables": [
-        "AuditLogs"
+        "MicrosoftGraphActivityLogs"
       ]
     },
     "HuntingQueries/MicrosoftGraphActivityLogs/PowershellUpdatableGroupsPermissionEnumerationDetection.yaml": {
