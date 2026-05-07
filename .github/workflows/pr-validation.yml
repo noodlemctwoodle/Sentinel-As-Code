@@ -72,6 +72,15 @@ jobs:
     name: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # checks: write is required by EnricoMi/publish-unit-test-result-action
+      # to post the per-test results to the GitHub check-run UI. Without
+      # this the action 403s on the create-check-run call even though the
+      # Pester suite itself ran cleanly, marking the validate job red on
+      # an otherwise-green test run.
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout PR branch
@@ -196,19 +205,33 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Skip on fork PRs (no OIDC token available)
+      - name: Skip on fork PRs or when OIDC secrets are not configured
         id: fork_check
         shell: bash
+        env:
+          AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-              echo "is_fork=true" >> "$GITHUB_OUTPUT"
+              echo "should_skip=true" >> "$GITHUB_OUTPUT"
               echo "##[warning]Fork PR detected — arm-validate cannot run (no OIDC token). Maintainers must validate ARM templates manually before approving."
-          else
-              echo "is_fork=false" >> "$GITHUB_OUTPUT"
+              exit 0
           fi
+          # Same-repo PRs have access to secrets, but the deploy SP may
+          # not be wired up yet on a fresh fork or first-run repo. If any
+          # of the OIDC secrets are empty, skip with a warning rather
+          # than failing the gate on missing configuration. Once the
+          # secrets are populated the next PR run will exercise the job.
+          if [ -z "${AZURE_CLIENT_ID:-}" ] || [ -z "${AZURE_TENANT_ID:-}" ] || [ -z "${AZURE_SUBSCRIPTION_ID:-}" ]; then
+              echo "should_skip=true" >> "$GITHUB_OUTPUT"
+              echo "##[warning]Azure OIDC secrets (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) are not configured on this repository — arm-validate skipped. Wire them up per Docs/Deployment/PR-Validation-Setup.md to enable ARM template validation on PRs."
+              exit 0
+          fi
+          echo "should_skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Azure login (OIDC)
-        if: steps.fork_check.outputs.is_fork != 'true'
+        if: steps.fork_check.outputs.should_skip != 'true'
         uses: ./.github/actions/azure-login-oidc
         with:
           client-id:       ${{ secrets.AZURE_CLIENT_ID }}
@@ -216,7 +239,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Validate every playbook ARM template
-        if: steps.fork_check.outputs.is_fork != 'true'
+        if: steps.fork_check.outputs.should_skip != 'true'
         shell: pwsh
         env:
           PR_VALIDATION_RG: ${{ vars.PR_VALIDATION_RESOURCE_GROUP }}
