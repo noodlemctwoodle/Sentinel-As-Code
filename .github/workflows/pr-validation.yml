@@ -1,29 +1,34 @@
 # ---------------------------------------------------------------------------
 # GitHub Actions Workflow: PR Validation Gate
 # ---------------------------------------------------------------------------
-# Runs on every pull request opened against main. Discovers and runs every
-# Pester test under Tests/ and exits non-zero if any test fails.
+# Runs five jobs on every pull request to main, every push to main, and
+# every workflow_dispatch:
 #
-# Self-contained: no dependency on other repo scripts. The Pester invocation
-# is inline so this workflow registers as a status check from the moment it
-# lands on main, regardless of what else is in the repo at the time.
+#   validate              Pester suites under Tests/ (offline) — calls
+#                         Scripts/Invoke-PRValidation.ps1 (same entry-
+#                         point ADO uses); publishes JUnit XML to the
+#                         PR check UI and uploads it as an artefact
+#   bicep-build           Bicep syntax + parameter type check (offline)
+#   arm-validate          ARM template What-If for every Playbooks/**.json (OIDC)
+#   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
+#   dependency-manifest   dependencies.json drift check vs auto-discovery (offline)
 #
-# Wiring this as a hard merge gate (one-off):
+# Each becomes its own status check the branch-protection ruleset can
+# require independently — useful while OIDC for arm-validate is being
+# wired up. Setup runbook: Docs/Deployment/PR-Validation-Setup.md
 #
-#   Repo Settings -> Rules -> Rulesets -> New branch ruleset
-#     Enforcement status:  Active
-#     Target branches:     Include default branch
-#     Rules:
-#       - Require a pull request before merging
-#       - Require status checks to pass:
-#           Required check: validate
-#       - Block force pushes
-#       - Restrict deletions
+# Wiring required checks (one-off, after each job has run at least once):
 #
-# Once the ruleset is active, the merge button stays disabled until the
-# 'validate' job reports success against the latest commit on the PR.
+#   Repo Settings -> Rules -> Rulesets -> Main Branch Protection -> Edit
+#     Require status checks to pass -> Add checks:
+#       - validate
+#       - bicep-build
+#       - arm-validate     (only after PR-Validation-Setup.md is followed)
+#       - kql-validate
+#       - dependency-manifest
 #
-# No Azure auth required - validation runs offline against repo content only.
+# Once active, the merge button stays disabled until every required gate
+# reports success against the PR's latest commit.
 # ---------------------------------------------------------------------------
 
 name: PR Validation
@@ -33,11 +38,22 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+  # CI baseline on push to main. Mirrors the ADO pipeline's `trigger:`
+  # block (Pipelines/Sentinel-PR-Validation.yml). Branch protection
+  # makes direct pushes rare in practice, but this catches the
+  # admin-override / force-push / squash-merge edge cases — if main
+  # ever goes red, the most recent run is the place to start the
+  # post-mortem.
+  push:
+    branches: [main]
+
   # Lets maintainers run the same validation manually against any branch.
   workflow_dispatch:
 
 # Cancel any in-flight run for the same PR when a new commit is pushed; saves
-# CI minutes and keeps the latest status check fresh.
+# CI minutes and keeps the latest status check fresh. The fallback to
+# github.ref keeps push-to-main runs grouped per ref rather than colliding
+# with PR runs.
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -56,6 +72,15 @@ jobs:
     name: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # checks: write is required by EnricoMi/publish-unit-test-result-action
+      # to post the per-test results to the GitHub check-run UI. Without
+      # this the action 403s on the create-check-run call even though the
+      # Pester suite itself ran cleanly, marking the validate job red on
+      # an otherwise-green test run.
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout PR branch
@@ -63,84 +88,431 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Cache key embeds the pinned versions so a version bump invalidates
-      # the cache cleanly without manual intervention.
-      - name: Cache PowerShell modules
-        uses: actions/cache@v4
+      - name: Set up PowerShell modules
+        uses: ./.github/actions/setup-pwsh-modules
         with:
-          path: ~/.local/share/powershell/Modules
-          key: pwsh-modules-${{ runner.os }}-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
+          pester-version: ${{ env.PESTER_VERSION }}
+          yaml-version:   ${{ env.YAML_VERSION }}
 
-      - name: Install Pester and powershell-yaml (pinned)
+      # Calls the cross-platform PR-validation entrypoint that the ADO
+      # pipeline also calls. Single source of truth for test discovery,
+      # NUnit-XML emission, and exit-code logic. Any change to test-
+      # running behaviour lands once in Scripts/Invoke-PRValidation.ps1
+      # and applies to both platforms.
+      - name: Run Pester via Invoke-PRValidation.ps1
         shell: pwsh
         run: |
-          $pesterVersion = '${{ env.PESTER_VERSION }}'
-          $yamlVersion   = '${{ env.YAML_VERSION }}'
+          ./Scripts/Invoke-PRValidation.ps1 `
+              -RepoPath        '${{ github.workspace }}' `
+              -TestResultsPath '${{ github.workspace }}/test-results/pester-results.xml' `
+              -InstallModules:$false
 
-          $havePester = Get-Module -ListAvailable -Name Pester |
-              Where-Object { $_.Version -eq [version]$pesterVersion }
-          if (-not $havePester) {
-              Install-Module -Name Pester `
-                  -RequiredVersion $pesterVersion `
-                  -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
-          }
+      # Surface per-test pass/fail in the PR check UI. Without this,
+      # a failure shows as "validate failed" with no granularity; the
+      # only way to see which test failed is to expand the run log.
+      # Runs always (incl. on test failure) so failed-test details
+      # are visible.
+      - name: Publish Pester results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/pester-results.xml
+          check_name: Pester results
+          comment_mode: off
 
-          $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
-              Where-Object { $_.Version -eq [version]$yamlVersion }
-          if (-not $haveYaml) {
-              Install-Module -Name powershell-yaml `
-                  -RequiredVersion $yamlVersion `
-                  -Force -Scope CurrentUser -AllowClobber
-          }
+      # Upload the JUnit XML as a downloadable artefact. Useful for
+      # local triage and matches the ADO pipeline's
+      # PublishPipelineArtifact step.
+      - name: Upload Pester results artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 30
+          if-no-files-found: ignore
 
-          Get-Module -ListAvailable Pester, powershell-yaml |
-              Where-Object { $_.Version -in @([version]$pesterVersion, [version]$yamlVersion) } |
-              Format-Table Name, Version
+  # ---------------------------------------------------------------------------
+  # C1: Bicep build
+  # ---------------------------------------------------------------------------
+  # Compiles every .bicep file under Bicep/ to ARM JSON. Catches syntax
+  # errors, undefined parameter references, type mismatches, and lint
+  # violations before they reach the deploy pipeline. No Azure auth needed
+  # — `az bicep build` is fully offline.
+  bicep-build:
+    name: bicep-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-      - name: Verify pinned modules are loaded
-        shell: pwsh
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure Bicep CLI is available
+        shell: bash
         run: |
-          $pesterVersion = '${{ env.PESTER_VERSION }}'
-          $yamlVersion   = '${{ env.YAML_VERSION }}'
+          # The runner has az pre-installed; ensure the Bicep extension is current.
+          az bicep install
+          az bicep version
 
-          # Import the exact pinned versions. If the cache is stale or the
-          # install step grabbed a newer version, this will fail fast with a
-          # clear error rather than letting a drifted module poison the run.
-          Import-Module Pester          -RequiredVersion $pesterVersion -ErrorAction Stop
-          Import-Module powershell-yaml -RequiredVersion $yamlVersion   -ErrorAction Stop
-          Write-Host "##[section]Pinned versions verified: Pester $pesterVersion, powershell-yaml $yamlVersion"
-
-      - name: Run Pester
-        shell: pwsh
+      - name: Build every .bicep file
+        shell: bash
         run: |
-          Import-Module Pester          -RequiredVersion '${{ env.PESTER_VERSION }}' -ErrorAction Stop
-          Import-Module powershell-yaml -RequiredVersion '${{ env.YAML_VERSION }}'   -ErrorAction Stop
+          set -euo pipefail
+          shopt -s globstar nullglob
 
-          if (-not (Test-Path 'Tests')) {
-              Write-Host '##[warning]No Tests/ folder found — nothing to validate.'
+          failed=0
+          for f in Bicep/**/*.bicep; do
+              echo "::group::az bicep build $f"
+              if ! az bicep build --file "$f" --stdout > /dev/null; then
+                  echo "::error file=$f::Bicep build failed for $f"
+                  failed=1
+              fi
+              echo "::endgroup::"
+          done
+
+          if [ "$failed" -eq 1 ]; then
+              echo "::error::One or more Bicep files failed to build. PR cannot merge until they compile cleanly."
+              exit 1
+          fi
+          echo "##[section]All Bicep files built cleanly."
+
+  # ---------------------------------------------------------------------------
+  # C2: ARM What-If for every playbook template
+  # ---------------------------------------------------------------------------
+  # Runs Test-AzResourceGroupDeployment -WhatIf against every Playbooks/**/*.json
+  # to catch malformed ARM templates, missing required parameters, and
+  # schema-version mismatches before they reach the deploy pipeline.
+  #
+  # Auth: federated OIDC against the existing deploy SP. One-off setup is
+  # documented in Docs/Deployment/PR-Validation-Setup.md.
+  #
+  # Fork PRs cannot get an OIDC token (the federated subject mismatches),
+  # so this job no-ops on fork events and is marked optional in the ruleset.
+  arm-validate:
+    name: arm-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      id-token: write     # required for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Skip on fork PRs or when OIDC secrets are not configured
+        id: fork_check
+        shell: bash
+        env:
+          AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              echo "should_skip=true" >> "$GITHUB_OUTPUT"
+              echo "##[warning]Fork PR detected — arm-validate cannot run (no OIDC token). Maintainers must validate ARM templates manually before approving."
               exit 0
-          }
+          fi
+          # Same-repo PRs have access to secrets, but the deploy SP may
+          # not be wired up yet on a fresh fork or first-run repo. If any
+          # of the OIDC secrets are empty, skip with a warning rather
+          # than failing the gate on missing configuration. Once the
+          # secrets are populated the next PR run will exercise the job.
+          if [ -z "${AZURE_CLIENT_ID:-}" ] || [ -z "${AZURE_TENANT_ID:-}" ] || [ -z "${AZURE_SUBSCRIPTION_ID:-}" ]; then
+              echo "should_skip=true" >> "$GITHUB_OUTPUT"
+              echo "##[warning]Azure OIDC secrets (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) are not configured on this repository — arm-validate skipped. Wire them up per Docs/Deployment/PR-Validation-Setup.md to enable ARM template validation on PRs."
+              exit 0
+          fi
+          echo "should_skip=false" >> "$GITHUB_OUTPUT"
 
-          $config = New-PesterConfiguration
-          $config.Run.Path        = 'Tests'
-          $config.Run.PassThru    = $true
-          $config.Run.Exit        = $false
-          $config.Output.Verbosity = 'Detailed'
+      - name: Azure login (OIDC)
+        if: steps.fork_check.outputs.should_skip != 'true'
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-          $result = Invoke-Pester -Configuration $config
-
-          Write-Host ''
-          Write-Host '##[section]Test summary'
-          Write-Host ("  Passed:  {0}" -f $result.PassedCount)
-          Write-Host ("  Failed:  {0}" -f $result.FailedCount)
-          Write-Host ("  Skipped: {0}" -f $result.SkippedCount)
-
-          if ($result.FailedCount -gt 0) {
-              Write-Host '##[error]One or more Pester tests failed. PR cannot merge until they pass.'
-              foreach ($t in $result.Failed) {
-                  Write-Host ('##[error]  {0}' -f $t.ExpandedPath)
-              }
+      - name: Validate every playbook ARM template
+        if: steps.fork_check.outputs.should_skip != 'true'
+        shell: pwsh
+        env:
+          PR_VALIDATION_RG: ${{ vars.PR_VALIDATION_RESOURCE_GROUP }}
+        run: |
+          if (-not $env:PR_VALIDATION_RG) {
+              Write-Host '##[error]Repository variable PR_VALIDATION_RESOURCE_GROUP is not set. See Docs/Deployment/PR-Validation-Setup.md.'
               exit 1
           }
 
-          Write-Host '##[section]All Pester tests passed.'
+          # Stub parameter values that satisfy every playbook's required
+          # parameters. The deploy SP performs ARM validation only — no
+          # resources are actually created. Real values get injected at
+          # deploy time by Sentinel-Deploy.yml.
+          $stubParams = @{
+              PlaybookName               = 'pr-validation-stub'
+              LogicAppName               = 'pr-validation-stub'
+              AutomationResourceGroup    = $env:PR_VALIDATION_RG
+              SentinelWorkpaceName       = 'law-sentinel-pr-test'
+              SentinelWorkspaceName      = 'law-sentinel-pr-test'
+              SentinelResourceGroupName  = $env:PR_VALIDATION_RG
+              SentinelConnectionName     = 'azuresentinel-pr-test'
+              Recipients                 = 'pr-validation@example.com'
+          }
+
+          $playbooks = Get-ChildItem -Path 'Playbooks' -Recurse -Filter '*.json' -File
+          if (-not $playbooks) {
+              Write-Host '##[warning]No playbook ARM templates found under Playbooks/.'
+              exit 0
+          }
+
+          $failed = @()
+          foreach ($pb in $playbooks) {
+              $rel = $pb.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+              Write-Host "::group::Test-AzResourceGroupDeployment $rel"
+              try {
+                  # Build a parameter object with only the params this template declares,
+                  # otherwise New-AzResourceGroupDeployment rejects extras.
+                  $arm = Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  $declaredParams = @{}
+                  if ($arm.PSObject.Properties.Name -contains 'parameters' -and $arm.parameters) {
+                      foreach ($paramName in $arm.parameters.PSObject.Properties.Name) {
+                          if ($stubParams.ContainsKey($paramName)) {
+                              $declaredParams[$paramName] = $stubParams[$paramName]
+                          }
+                      }
+                  }
+
+                  $result = Test-AzResourceGroupDeployment `
+                      -ResourceGroupName $env:PR_VALIDATION_RG `
+                      -TemplateFile $pb.FullName `
+                      -TemplateParameterObject $declaredParams `
+                      -ErrorAction Stop
+
+                  if ($result) {
+                      foreach ($err in $result) {
+                          Write-Host "::error file=$rel::$($err.Code): $($err.Message)"
+                      }
+                      $failed += $rel
+                  }
+              }
+              catch {
+                  Write-Host "::error file=$rel::$($_.Exception.Message)"
+                  $failed += $rel
+              }
+              Write-Host '::endgroup::'
+          }
+
+          Write-Host ''
+          Write-Host '##[section]ARM validation summary'
+          Write-Host ("  Templates checked:  {0}" -f $playbooks.Count)
+          Write-Host ("  Templates failed:   {0}" -f $failed.Count)
+
+          if ($failed.Count -gt 0) {
+              Write-Host '##[error]One or more playbook ARM templates failed validation:'
+              foreach ($f in $failed) { Write-Host "##[error]  $f" }
+              exit 1
+          }
+          Write-Host '##[section]All playbook ARM templates validated cleanly.'
+
+  # ---------------------------------------------------------------------------
+  # C3: KQL syntax validation
+  # ---------------------------------------------------------------------------
+  # Parses every KQL query embedded in repo content via the Microsoft Kusto
+  # language parser (Microsoft.Azure.Kusto.Language NuGet package). Catches
+  # syntax errors, missing operators, and parser-level diagnostics without
+  # needing a workspace.
+  #
+  # Cannot catch column-existence errors (no schema) but does catch the
+  # majority of typos: unmatched parentheses, unknown keywords, missing
+  # pipe operators, malformed string literals, etc.
+  #
+  # Offline — no Azure auth needed.
+  kql-validate:
+    name: kql-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Pin Kusto.Language so a NuGet release that tightens the parser
+      # cannot fail this gate without an explicit version bump.
+      KUSTO_LANGUAGE_VERSION: "12.2.4"
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Cache Kusto.Language NuGet build
+        id: kusto_cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/kusto-lang
+          key: kusto-language-${{ env.KUSTO_LANGUAGE_VERSION }}-${{ runner.os }}
+
+      - name: Build a NuGet probe project for Kusto.Language
+        if: steps.kusto_cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kusto-lang
+          cd /tmp/kusto-lang
+          dotnet new console -n KustoLangProbe --force
+          cd KustoLangProbe
+          dotnet add package Microsoft.Azure.Kusto.Language --version "${KUSTO_LANGUAGE_VERSION}"
+          dotnet build --configuration Release --nologo
+
+      - name: Validate KQL across all repo content
+        shell: pwsh
+        run: |
+          $kustoDll = Get-ChildItem -Path /tmp/kusto-lang/KustoLangProbe/bin -Recurse -Filter 'Kusto.Language.dll' |
+              Select-Object -First 1
+          if (-not $kustoDll) {
+              Write-Host '##[error]Kusto.Language.dll not found after NuGet build. Inspect the previous step.'
+              exit 1
+          }
+          Write-Host "Loading Kusto.Language from $($kustoDll.FullName)"
+          Add-Type -Path $kustoDll.FullName
+
+          # Discover queries across all relevant content types. Each entry is
+          # @{ Path; Query; QueryFieldDescription }.
+          $queries = @()
+
+          if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+              Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+          }
+          Import-Module powershell-yaml -ErrorAction Stop
+
+          # Analytical rules + hunting queries + parsers (YAML, query field)
+          foreach ($dir in @('AnalyticalRules', 'HuntingQueries', 'Parsers')) {
+              if (-not (Test-Path $dir)) { continue }
+              Get-ChildItem -Path $dir -Recurse -Filter '*.yaml' -File | ForEach-Object {
+                  try {
+                      $y = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
+                      if ($y -and $y.ContainsKey('query') -and $y.query) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$y.query; Field = 'query' }
+                      }
+                  }
+                  catch {
+                      # Schema test owns parse errors; skip silently here.
+                  }
+              }
+          }
+
+          # Summary rules (JSON, query field)
+          if (Test-Path 'SummaryRules') {
+              Get-ChildItem -Path 'SummaryRules' -Recurse -Filter '*.json' -File | ForEach-Object {
+                  try {
+                      $j = Get-Content $_.FullName -Raw | ConvertFrom-Json
+                      if ($j.PSObject.Properties.Name -contains 'query' -and $j.query) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$j.query; Field = 'query' }
+                      }
+                  }
+                  catch {}
+              }
+          }
+
+          # Defender custom detections (YAML, queryCondition.queryText)
+          if (Test-Path 'DefenderCustomDetections') {
+              Get-ChildItem -Path 'DefenderCustomDetections' -Recurse -Filter '*.yaml' -File | ForEach-Object {
+                  try {
+                      $y = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
+                      if ($y -and $y.ContainsKey('queryCondition') -and $y.queryCondition.ContainsKey('queryText')) {
+                          $rel = $_.FullName.Substring((Get-Location).Path.Length + 1) -replace '\\', '/'
+                          $queries += @{ Path = $rel; Query = [string]$y.queryCondition.queryText; Field = 'queryCondition.queryText' }
+                      }
+                  }
+                  catch {}
+              }
+          }
+
+          Write-Host "Discovered $($queries.Count) queries to validate."
+
+          # Parse each. KustoCode.Parse returns a parsed tree; .GetSyntaxDiagnostics()
+          # returns syntax-level errors (not semantic — we have no schema).
+          $failed = @()
+          foreach ($q in $queries) {
+              try {
+                  $parsed = [Kusto.Language.KustoCode]::Parse($q.Query)
+                  $diags = @($parsed.GetSyntaxDiagnostics())
+                  if ($diags.Count -gt 0) {
+                      $msg = ($diags | ForEach-Object { "L$($_.Start): $($_.Message)" }) -join '; '
+                      Write-Host "::error file=$($q.Path)::KQL syntax error in '$($q.Field)': $msg"
+                      $failed += $q.Path
+                  }
+              }
+              catch {
+                  Write-Host "::error file=$($q.Path)::KQL parser threw: $($_.Exception.Message)"
+                  $failed += $q.Path
+              }
+          }
+
+          Write-Host ''
+          Write-Host '##[section]KQL validation summary'
+          Write-Host ("  Queries checked: {0}" -f $queries.Count)
+          Write-Host ("  Queries failed:  {0}" -f $failed.Count)
+
+          if ($failed.Count -gt 0) {
+              Write-Host '##[error]One or more KQL queries have syntax errors:'
+              foreach ($f in $failed) { Write-Host "##[error]  $f" }
+              exit 1
+          }
+          Write-Host '##[section]All KQL queries parsed cleanly.'
+
+  # ---------------------------------------------------------------------------
+  # C4: Dependency manifest drift gate
+  # ---------------------------------------------------------------------------
+  # Runs Scripts/Build-DependencyManifest.ps1 -Mode Verify, which walks every
+  # AnalyticalRules/**.yaml + HuntingQueries/**.yaml, runs the discovery
+  # extractors from Modules/Sentinel.Common, and compares the discovered
+  # manifest against the on-disk dependencies.json. Any drift fails the gate.
+  #
+  # Why this matters: dependencies.json is the input to Deploy-CustomContent.ps1's
+  # internal-dependency ordering. A rule whose manifest entry is stale or
+  # missing will deploy with an incorrect dependency graph, which can cause
+  # the deploy to attempt to create a rule before its parser, watchlist, or
+  # external function exists in the workspace.
+  #
+  # Authors fix drift by running the script locally and committing the
+  # regenerated manifest:
+  #
+  #   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+  #   git add dependencies.json && git commit
+  #
+  # Or by waiting for the daily Update workflow (see
+  # sentinel-dependency-update.yml — Wave 4 Item 4D) to open an auto-PR.
+  #
+  # Offline — no Azure auth needed; the script reads YAML/JSON only.
+  dependency-manifest:
+    name: dependency-manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:    ${{ env.YAML_VERSION }}
+          install-pester:  'false'
+
+      - name: Verify dependency manifest matches discovery
+        shell: pwsh
+        run: |
+          ./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host '##[error]dependencies.json is out of sync with content.'
+              Write-Host '##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
+              exit 1
+          }

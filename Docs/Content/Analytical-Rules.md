@@ -288,6 +288,24 @@ you should author rules:
 | If KQL validation fails at deploy time (e.g. a freshly deployed watchlist column isn't queryable yet), the rule retries deployment with `enabled: false`. | [`Deploy-CustomContent.ps1:1259`](../../Scripts/Deploy-CustomContent.ps1) |
 | Smart-deploy mode (`-SmartDeployment`) only redeploys files changed since the last successful run. Bumping `version` is not required but the drift sync bumps it automatically when absorbing portal edits. | [`Deploy-CustomContent.ps1:292`](../../Scripts/Deploy-CustomContent.ps1) |
 
+## Authoring with GitHub Copilot
+
+When editing files under `AnalyticalRules/**`, Copilot automatically
+loads [`.github/instructions/analytical-rules.instructions.md`](../../.github/instructions/analytical-rules.instructions.md).
+For the KQL body, the cross-cutting
+[`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
+also loads.
+
+Copilot tooling for analytical rules:
+
+- Slash command `/new-analytical-rule` (VS Code) — bootstrap a fresh rule
+- Slash command `/review-rule` (VS Code) — schema + KQL + convention review
+- Agent `Sentinel-As-Code: Rule Author` — author end-to-end (cross-platform)
+- Agent `Sentinel-As-Code: Rule Tuner` — adjust threshold / severity / filters
+- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
 ## Related docs
 
 - [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) — daily detection of

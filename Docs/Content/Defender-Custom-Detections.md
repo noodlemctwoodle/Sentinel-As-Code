@@ -271,3 +271,23 @@ Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../../Scripts/Deploy-Defend
 - [Graph API: detectionRule resource](https://learn.microsoft.com/en-us/graph/api/resources/security-detectionrule)
 - [Graph API: Create detectionRule](https://learn.microsoft.com/en-us/graph/api/security-detectionrule-post)
 - [Advanced Hunting schema reference](https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-schema-tables)
+
+## Authoring with GitHub Copilot
+
+When editing files under `DefenderCustomDetections/**`, Copilot
+automatically loads [`.github/instructions/defender-detections.instructions.md`](../../.github/instructions/defender-detections.instructions.md).
+The path-scoped instructions call out the Defender-specific gotchas
+(`isEnabled` not `enabled`, lowercase severity, Advanced Hunting
+table set, response-action consent requirements). For the KQL
+body, [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
+also loads.
+
+Copilot tooling for Defender XDR detections:
+
+- Slash command `/new-defender-detection` (VS Code) — bootstrap a fresh detection
+- Agent `Sentinel-As-Code: Rule Author` — author end-to-end
+- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
+- Agent `Sentinel-As-Code: Security Reviewer` — required when adding response actions
+  (isolateDevice, forceUserPasswordReset, etc.)
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

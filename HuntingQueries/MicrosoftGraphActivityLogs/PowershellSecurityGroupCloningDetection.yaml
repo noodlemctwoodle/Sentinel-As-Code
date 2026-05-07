@@ -14,9 +14,14 @@ query: |
 
 
   // Detect creation of group
-  AuditLogs
-  | where AdditionalDetails[0].value contains "PowerShell"
-  | where (OperationName == "Add member to group" or OperationName == "Add group")
+  // TODO: the AuditLogs branch below was authored alongside the Graph
+  // detection but never wired into a single result set — the two tables
+  // have different schemas. Commented out to keep the query syntactically
+  // valid; integrate via 'union' or split into a sibling hunting query
+  // when the AuditLogs detection is needed independently.
+  // AuditLogs
+  // | where AdditionalDetails[0].value contains "PowerShell"
+  // | where (OperationName == "Add member to group" or OperationName == "Add group")
 
   // Detect Graph Activity related to security groups cloning
   MicrosoftGraphActivityLogs

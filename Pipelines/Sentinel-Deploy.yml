@@ -641,6 +641,26 @@ stages:
                 Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
                 Write-Host "powershell-yaml installed successfully."
 
+          # Pre-deploy guard: dependencies.json must match what discovery
+          # produces from current content. The PR-validation gate already
+          # checks this on every PR to main, but a scheduled deploy could
+          # still race a non-deploy commit (e.g. a doc-only change that
+          # adjusts a rule's query inline) that bypassed the gate. Failing
+          # fast here is cheap and prevents the deployer from running
+          # against a stale dependency graph.
+          - task: PowerShell@2
+            displayName: "Verify dependency manifest is current"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                & "$(Build.SourcesDirectory)/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
+                    Write-Host "##vso[task.logissue type=error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this pipeline."
+                    exit 1
+                }
+
           - task: AzurePowerShell@5
             displayName: "Deploy Custom Content"
             inputs:

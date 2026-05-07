@@ -32,6 +32,8 @@ How content reaches Sentinel — infrastructure, pipelines, scripts.
 | [Bicep](Deployment/Bicep.md) | Subscription-scoped templates, parameters, dual onboarding mechanism, diagnostic settings, optional playbook RG |
 | [Pipelines](Deployment/Pipelines.md) | Pipeline stages, variable group, parameters, service connection, usage examples |
 | [Scripts](Deployment/Scripts.md) | PowerShell scripts that drive the pipelines — parameters, examples, known limitations |
+| [PR Validation Setup](Deployment/PR-Validation-Setup.md) | One-off GitHub Actions OIDC federated-credential setup for the `arm-validate` PR job |
+| [ADO OIDC Setup](Deployment/ADO-OIDC-Setup.md) | One-off Azure DevOps workload-identity-federation setup for `sc-sentinel-as-code` |
 
 ## Operations
 
@@ -41,6 +43,7 @@ Continuous run-time concerns: detection drift, DCR inventory, scheduled jobs.
 | --- | --- |
 | [DCR Watchlist Sync](Operations/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
 | [Sentinel Drift Detection](Operations/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
+| [Dependency Manifest](Operations/Dependency-Manifest.md) | Auto-derived `dependencies.json` from KQL discovery; PR-validation drift gate; daily auto-PR refresh |
 
 ## Development
 
@@ -49,6 +52,7 @@ Testing, contributing, and extending the tooling.
 | Doc | What it covers |
 | --- | --- |
 | [Pester Tests](Development/Pester-Tests.md) | Running and extending the Pester suite, the AST-extraction pattern this repo uses |
+| [GitHub Copilot](Development/GitHub-Copilot.md) | Copilot customisations shipped with the repo: instructions, agents, prompts (cross-platform: github.com + every IDE) |
 
 ## Auto-generated artefacts
 

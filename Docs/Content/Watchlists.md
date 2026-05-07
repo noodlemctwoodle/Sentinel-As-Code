@@ -63,3 +63,20 @@ SigninLogs
 - The `itemsSearchKey` value is case-sensitive and must exactly match a CSV column header
 - Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](../Deployment/Scripts.md#deploy-customcontentps1)
 - For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](../Operations/DCR-Watchlist.md)
+
+## Authoring with GitHub Copilot
+
+When editing files under `Watchlists/**`, Copilot automatically
+loads [`.github/instructions/watchlists.instructions.md`](../../.github/instructions/watchlists.instructions.md).
+The path-scoped instructions enforce the alias-equals-folder rule
+that the cross-validation Pester test relies on.
+
+Copilot tooling for watchlists:
+
+- Agent `Sentinel-As-Code: Content Editor` — general edits with
+  the right post-edit Pester suite
+- Agent `Sentinel-As-Code: Dependencies Engineer` — when an alias
+  rename or new alias affects rules that reference it via
+  `_GetWatchlist('...')`
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

@@ -177,9 +177,20 @@ $ErrorActionPreference = "Stop"
 $InformationPreference = "Continue"
 
 # ---------------------------------------------------------------------------
+# Shared helpers from Sentinel.Common
+# ---------------------------------------------------------------------------
+# Sourcing this module brings in Write-PipelineMessage, Invoke-SentinelApi,
+# and Connect-AzureEnvironment. Pre-Wave-4 these were inline copies in this
+# file and three other deployer scripts; consolidating them into the module
+# is Wave 4 Item 1.
+Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-$script:SentinelApiVersion  = "2025-07-01-preview"
+# Bumped from "2025-07-01-preview" to GA. The other deployers were already
+# on GA; this brings the whole repo onto the same version pin.
+$script:SentinelApiVersion  = "2025-09-01"
 $script:WorkbookApiVersion  = "2022-04-01"
 $script:SavedSearchApiVersion = "2025-07-01"
 $script:SummaryRuleApiVersion = "2025-07-01"
@@ -507,253 +518,6 @@ function Test-WasDeployedSuccessfully {
     }
 
     return $false
-}
-
-# ---------------------------------------------------------------------------
-# Helper: Write ADO pipeline commands where applicable, otherwise standard output
-# ---------------------------------------------------------------------------
-function Write-PipelineMessage {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [string]$Message
-        ,
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("Info", "Warning", "Error", "Section", "Success", "Debug")]
-        [string]$Level = "Info"
-    )
-
-    $isAdo = $null -ne $env:BUILD_BUILDID
-
-    switch ($Level) {
-        "Info"    {
-            Write-Host $Message
-        }
-        "Warning" {
-            if ($isAdo) {
-                Write-Host "##[warning]$Message"
-            }
-            else {
-                Write-Warning $Message
-            }
-        }
-        "Error"   {
-            if ($isAdo) {
-                Write-Host "##[error]$Message"
-            }
-            else {
-                Write-Error $Message -ErrorAction Continue
-            }
-        }
-        "Section" {
-            if ($isAdo) {
-                Write-Host "##[section]$Message"
-            }
-            else {
-                Write-Host "`n$Message" -ForegroundColor Cyan
-            }
-        }
-        "Success" {
-            if ($isAdo) {
-                Write-Host $Message
-            }
-            else {
-                Write-Host $Message -ForegroundColor Green
-            }
-        }
-        "Debug"   {
-            Write-Verbose $Message
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Helper: Invoke REST API with retry logic for transient failures
-# ---------------------------------------------------------------------------
-function Invoke-SentinelApi {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Uri
-        ,
-        [Parameter(Mandatory = $true)]
-        [string]$Method
-        ,
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Headers
-        ,
-        [Parameter(Mandatory = $false)]
-        [string]$Body
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$MaxRetries = 3
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$RetryDelaySeconds = 5
-    )
-
-    $attempt = 0
-
-    while ($attempt -lt $MaxRetries) {
-        $attempt++
-
-        try {
-            $params = @{
-                Uri     = $Uri
-                Method  = $Method
-                Headers = $Headers
-            }
-
-            if ($Body) {
-                $params.Body = $Body
-            }
-
-            $response = Invoke-RestMethod @params -ContentType "application/json"
-            return $response
-        }
-        catch {
-            $statusCode = $null
-            if ($_.Exception.Response) {
-                $statusCode = [int]$_.Exception.Response.StatusCode
-            }
-
-            $retryableCodes = @(429, 500, 502, 503, 504)
-            if ($statusCode -and $retryableCodes -contains $statusCode -and $attempt -lt $MaxRetries) {
-                $delay = $RetryDelaySeconds * $attempt
-                Write-PipelineMessage "API call returned $statusCode. Retrying in ${delay}s (attempt $attempt of $MaxRetries)..." -Level Warning
-                Start-Sleep -Seconds $delay
-                continue
-            }
-
-            # PowerShell 7: error body is in ErrorDetails.Message
-            $errorDetail = $_.Exception.Message
-            if ($_.ErrorDetails.Message) {
-                $errorDetail = "HTTP $statusCode - $($_.ErrorDetails.Message)"
-            }
-            elseif ($_.Exception.Response) {
-                try {
-                    $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-                    $responseBody = $reader.ReadToEnd()
-                    $reader.Close()
-                    $errorDetail = "HTTP $statusCode - $responseBody"
-                }
-                catch {
-                    $errorDetail = "HTTP $statusCode - $($_.Exception.Message)"
-                }
-            }
-
-            throw "API call failed: $errorDetail"
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Authentication
-# ---------------------------------------------------------------------------
-function Connect-AzureEnvironment {
-    [CmdletBinding()]
-    param()
-
-    Write-PipelineMessage "Establishing Azure authentication..." -Level Section
-
-    # Suppress Az module version upgrade warnings
-    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
-
-    $context = Get-AzContext -WarningAction SilentlyContinue
-
-    if (-not $context) {
-        Write-PipelineMessage "No Azure context found. Attempting login..." -Level Info
-        if ($IsGov) {
-            Connect-AzAccount -Environment AzureUSGovernment -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
-        }
-        else {
-            Connect-AzAccount -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
-        }
-        $context = Get-AzContext -WarningAction SilentlyContinue
-    }
-
-    if (-not $context) {
-        throw "Failed to establish Azure context. Ensure you are authenticated."
-    }
-
-    if ($script:SubscriptionId) {
-        Set-AzContext -SubscriptionId $script:SubscriptionId -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
-        $context = Get-AzContext -WarningAction SilentlyContinue
-    }
-    else {
-        $script:SubscriptionId = $context.Subscription.Id
-    }
-
-    Write-PipelineMessage "Authenticated to subscription: $($context.Subscription.Id) ($($context.Subscription.Name))" -Level Success
-
-    $script:ServerUrl = if ($IsGov) {
-        "https://management.usgovcloudapi.net"
-    }
-    else {
-        "https://management.azure.com"
-    }
-
-    $script:BaseUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace"
-
-    $script:WorkspaceResourceId = "/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace"
-
-    $script:PlaybookRG = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
-
-    $resourceEndpoint = $script:ServerUrl
-    try {
-        $tokenResponse = Get-AzAccessToken -ResourceUrl $resourceEndpoint -ErrorAction Stop -WarningAction SilentlyContinue
-
-        if ($tokenResponse.Token -is [System.Security.SecureString]) {
-            $accessToken = $tokenResponse.Token | ConvertFrom-SecureString -AsPlainText
-        }
-        elseif ($tokenResponse.Token -is [string]) {
-            $accessToken = $tokenResponse.Token
-        }
-        else {
-            throw "Unexpected token type: $($tokenResponse.Token.GetType().FullName)"
-        }
-    }
-    catch {
-        Write-PipelineMessage "Get-AzAccessToken failed ($($_.Exception.Message)). Falling back to context profile token." -Level Warning
-        $instanceProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-        $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($instanceProfile)
-        $tokenObj = $profileClient.AcquireAccessToken($context.Subscription.TenantId)
-        $accessToken = $tokenObj.AccessToken
-    }
-
-    if (-not $accessToken) {
-        throw "Failed to acquire an access token. Check Service Principal permissions."
-    }
-
-    $script:AuthHeader = @{
-        'Content-Type'  = 'application/json'
-        'Authorization' = "Bearer $accessToken"
-    }
-
-    Write-PipelineMessage "Target workspace: $Workspace (Resource Group: $ResourceGroup, Region: $Region)" -Level Info
-    if ($script:PlaybookRG -ne $ResourceGroup) {
-        $playbookRgCheck = Get-AzResourceGroup -Name $script:PlaybookRG -ErrorAction SilentlyContinue
-        if (-not $playbookRgCheck) {
-            throw "Playbook resource group '$($script:PlaybookRG)' does not exist. Create it via Bicep (set the playbookRgName parameter in main.bicep) or manually in the Azure portal before running the pipeline."
-        }
-        Write-PipelineMessage "Playbooks will deploy to resource group: $($script:PlaybookRG)" -Level Info
-    }
-    if ($IsGov) {
-        Write-PipelineMessage "Azure Government cloud mode enabled." -Level Info
-    }
-
-    # Retrieve the workspace ID (GUID) for playbook parameter injection
-    try {
-        $wsUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/${Workspace}?api-version=2022-10-01"
-        $wsResponse = Invoke-SentinelApi -Uri $wsUri -Method Get -Headers $script:AuthHeader
-        $script:WorkspaceId = $wsResponse.properties.customerId
-        Write-PipelineMessage "Workspace ID: $($script:WorkspaceId)" -Level Info
-    }
-    catch {
-        Write-PipelineMessage "Could not retrieve workspace ID: $($_.Exception.Message)" -Level Warning
-        $script:WorkspaceId = $null
-    }
 }
 
 # ---------------------------------------------------------------------------
@@ -2155,9 +1919,9 @@ function Write-DeploymentSummary {
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# Entry point
 # ---------------------------------------------------------------------------
-function Main {
+function Invoke-Main {
     $scriptStartTime = Get-Date
 
     Write-PipelineMessage ("=" * 60) -Level Info
@@ -2188,7 +1952,25 @@ function Main {
     Write-PipelineMessage "" -Level Info
     Write-PipelineMessage "Step 2/12: Authentication" -Level Section
     Write-PipelineMessage ("─" * 60) -Level Info
-    Connect-AzureEnvironment
+
+    # Connect-AzureEnvironment lives in Modules/Sentinel.Common now and
+    # returns a state hashtable rather than mutating $script: scope. Assign
+    # the returned values to the script-scoped variables the rest of the
+    # deploy logic reads (BaseUri, AuthHeader, WorkspaceId, etc.).
+    $azCtx = Connect-AzureEnvironment `
+        -ResourceGroup        $ResourceGroup `
+        -Workspace            $Workspace `
+        -Region               $Region `
+        -SubscriptionId       $script:SubscriptionId `
+        -IsGov:$IsGov `
+        -PlaybookResourceGroup $PlaybookResourceGroup
+    $script:SubscriptionId      = $azCtx.SubscriptionId
+    $script:ServerUrl           = $azCtx.ServerUrl
+    $script:BaseUri             = $azCtx.BaseUri
+    $script:WorkspaceResourceId = $azCtx.WorkspaceResourceId
+    $script:WorkspaceId         = $azCtx.WorkspaceId
+    $script:PlaybookRG          = $azCtx.PlaybookRG
+    $script:AuthHeader          = $azCtx.AuthHeader
 
     # ── Step 3/12: Smart Deployment ───────────────────────────────────────
     Write-PipelineMessage "" -Level Info
@@ -2327,4 +2109,4 @@ function Main {
     }
 }
 
-Main
+Invoke-Main

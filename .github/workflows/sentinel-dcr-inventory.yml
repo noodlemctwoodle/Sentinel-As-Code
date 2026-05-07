@@ -1,0 +1,264 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Deploy DCR Watchlist Sync Automation
+# ---------------------------------------------------------------------------
+# GitHub Actions equivalent of Pipelines/Sentinel-DCR-Inventory.yml.
+#
+# Deploys the Azure Automation Account infrastructure that synchronises
+# Data Collection Rule associations into a Sentinel watchlist.
+#
+# Provisions:
+#   - Resource Group for the Automation Account
+#   - Automation Account with system-assigned managed identity
+#   - PowerShell runbook (Invoke-DCRWatchlistSync.ps1)
+#   - Recurring schedule (daily or weekly)
+#
+# Post-deployment (manual, one-time):
+#   The pipeline service principal does not have roleAssignments/write.
+#   After the first deployment, run manually:
+#     az role assignment create --assignee <principalId> --role "Monitoring Reader" --scope /subscriptions/<subId>
+#     az role assignment create --assignee <principalId> --role "Microsoft Sentinel Contributor" --scope /subscriptions/<subId>
+#
+# Required secrets:
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#
+# Required variables:
+#   SENTINEL_RESOURCE_GROUP, SENTINEL_WORKSPACE_NAME
+# ---------------------------------------------------------------------------
+
+name: Sentinel DCR Inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Automation/DCR-Watchlist/**'
+      - '.github/workflows/sentinel-dcr-inventory.yml'
+
+  workflow_dispatch:
+    inputs:
+      deployInfrastructure:
+        description: "Deploy Automation Account Infrastructure (Bicep)"
+        type: boolean
+        default: true
+      updateRunbook:
+        description: "Update Runbook Script Only (skip Bicep)"
+        type: boolean
+        default: false
+      automationResourceGroup:
+        description: "Automation Account Resource Group"
+        type: string
+        default: "rg-dcr-watchlist-sync"
+      automationAccountName:
+        description: "Automation Account Name"
+        type: string
+        default: "aa-dcr-watchlist-sync"
+      watchlistAlias:
+        description: "Watchlist Alias (no spaces)"
+        type: string
+        default: "CustomerResources"
+      watchlistDisplayName:
+        description: "Watchlist Display Name"
+        type: string
+        default: "Customer DCR Resources"
+      scheduleFrequencyHours:
+        description: "Schedule Frequency in hours (24 = daily, 168 = weekly)"
+        type: choice
+        options: ["24", "168"]
+        default: "24"
+      location:
+        description: "Azure Region"
+        type: string
+        default: "uksouth"
+      whatIf:
+        description: "Dry Run — preview changes without applying"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+# Push events resolve all inputs to defaults; manual runs use the
+# workflow_dispatch input values. This block normalises both into env vars
+# the jobs read uniformly.
+env:
+  DEPLOY_INFRA:               ${{ github.event_name == 'workflow_dispatch' && inputs.deployInfrastructure || 'true' }}
+  UPDATE_RUNBOOK:             ${{ github.event_name == 'workflow_dispatch' && inputs.updateRunbook || 'false' }}
+  AUTOMATION_RESOURCE_GROUP:  ${{ github.event_name == 'workflow_dispatch' && inputs.automationResourceGroup || 'rg-dcr-watchlist-sync' }}
+  AUTOMATION_ACCOUNT_NAME:    ${{ github.event_name == 'workflow_dispatch' && inputs.automationAccountName || 'aa-dcr-watchlist-sync' }}
+  WATCHLIST_ALIAS:            ${{ github.event_name == 'workflow_dispatch' && inputs.watchlistAlias || 'CustomerResources' }}
+  WATCHLIST_DISPLAY_NAME:     ${{ github.event_name == 'workflow_dispatch' && inputs.watchlistDisplayName || 'Customer DCR Resources' }}
+  SCHEDULE_FREQUENCY_HOURS:   ${{ github.event_name == 'workflow_dispatch' && inputs.scheduleFrequencyHours || '24' }}
+  LOCATION:                   ${{ github.event_name == 'workflow_dispatch' && inputs.location || 'uksouth' }}
+  WHAT_IF:                    ${{ github.event_name == 'workflow_dispatch' && inputs.whatIf || 'false' }}
+  BICEP_PATH:                 Automation/DCR-Watchlist
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Stage 1: Deploy Infrastructure (Bicep)
+  # ---------------------------------------------------------------------------
+  deploy-infrastructure:
+    name: Deploy Automation Account Infrastructure
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || inputs.deployInfrastructure == true }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy DCR Watchlist Infrastructure
+        uses: Azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+
+            echo "##[section]DCR Watchlist Sync — Infrastructure Deployment"
+            echo "============================================================"
+            echo "  Subscription:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            echo "  Automation RG:    ${AUTOMATION_RESOURCE_GROUP}"
+            echo "  Automation Acct:  ${AUTOMATION_ACCOUNT_NAME}"
+            echo "  Sentinel RG:      ${{ vars.SENTINEL_RESOURCE_GROUP }}"
+            echo "  Workspace:        ${{ vars.SENTINEL_WORKSPACE_NAME }}"
+            echo "  Watchlist Alias:  ${WATCHLIST_ALIAS}"
+            echo "  Schedule:         Every ${SCHEDULE_FREQUENCY_HOURS}h"
+            echo "  Region:           ${LOCATION}"
+            echo "  What-If:          ${WHAT_IF}"
+            echo "============================================================"
+
+            DEPLOY_FLAGS=""
+            if [ "${WHAT_IF}" = "true" ]; then
+                DEPLOY_FLAGS="--what-if"
+                echo "##[warning]DRY RUN — no changes will be applied."
+            fi
+
+            # Schedule start must be >= 5 minutes in the future.
+            # Compute tomorrow at 03:00 UTC to ensure it's always valid.
+            TOMORROW=$(date -u -d "+1 day" '+%Y-%m-%d')
+            SCHEDULE_START="${TOMORROW}T03:00:00+00:00"
+            echo "  Schedule Start:   $SCHEDULE_START"
+
+            az deployment sub create \
+                --name "dcr-watchlist-${{ github.run_id }}" \
+                --location "${LOCATION}" \
+                --template-file "${BICEP_PATH}/main.bicep" \
+                --parameters \
+                    location="${LOCATION}" \
+                    automationResourceGroup="${AUTOMATION_RESOURCE_GROUP}" \
+                    automationAccountName="${AUTOMATION_ACCOUNT_NAME}" \
+                    scheduleFrequencyHours=${SCHEDULE_FREQUENCY_HOURS} \
+                    scheduleStartTime="$SCHEDULE_START" \
+                $DEPLOY_FLAGS
+
+            if [ "${WHAT_IF}" != "true" ]; then
+                echo "##[section]Infrastructure deployed successfully."
+            fi
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Update Runbook Script
+  # ---------------------------------------------------------------------------
+  # Runs after deploy-infrastructure (whether that ran or was skipped) so the
+  # runbook can be updated independently when only its body has changed.
+  update-runbook:
+    name: Upload PowerShell Script to Runbook
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: |
+      always() &&
+      needs.deploy-infrastructure.result != 'failure' &&
+      (github.event_name == 'push' ||
+       inputs.deployInfrastructure == true ||
+       inputs.updateRunbook == true) &&
+      (github.event_name == 'push' || inputs.whatIf != true)
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Runbook Content
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $ErrorActionPreference = 'Stop'
+
+            Write-Host "##[section]Updating Runbook Script"
+            Write-Host "============================================================"
+            Write-Host "  Automation Account: $env:AUTOMATION_ACCOUNT_NAME"
+            Write-Host "  Resource Group:     $env:AUTOMATION_RESOURCE_GROUP"
+            Write-Host "  Runbook:            Invoke-DCRWatchlistSync"
+            Write-Host "============================================================"
+
+            $scriptPath = "$env:GITHUB_WORKSPACE/$env:BICEP_PATH/scripts/Invoke-DCRWatchlistSync.ps1"
+
+            if (-not (Test-Path $scriptPath)) {
+                Write-Error "Script not found: $scriptPath"
+                exit 1
+            }
+
+            # Import updated script content into the existing runbook
+            Import-AzAutomationRunbook `
+                -ResourceGroupName $env:AUTOMATION_RESOURCE_GROUP `
+                -AutomationAccountName $env:AUTOMATION_ACCOUNT_NAME `
+                -Name "Invoke-DCRWatchlistSync" `
+                -Path $scriptPath `
+                -Type PowerShell72 `
+                -Force
+
+            # Publish the updated runbook
+            Publish-AzAutomationRunbook `
+                -ResourceGroupName $env:AUTOMATION_RESOURCE_GROUP `
+                -AutomationAccountName $env:AUTOMATION_ACCOUNT_NAME `
+                -Name "Invoke-DCRWatchlistSync"
+
+            Write-Host "##[section]Runbook published. Linking schedule..."
+
+            # Link runbook to schedule with parameters (idempotent — skips if already linked)
+            $scheduleName = "dcr-watchlist-sync-schedule"
+            $existing = Get-AzAutomationScheduledRunbook `
+                -ResourceGroupName $env:AUTOMATION_RESOURCE_GROUP `
+                -AutomationAccountName $env:AUTOMATION_ACCOUNT_NAME `
+                -RunbookName "Invoke-DCRWatchlistSync" `
+                -ScheduleName $scheduleName `
+                -ErrorAction SilentlyContinue
+
+            if ($existing) {
+                Write-Host "  Job schedule already linked — skipping."
+            } else {
+                $params = @{
+                    SubscriptionId         = $env:AZURE_SUBSCRIPTION_ID
+                    WorkspaceResourceGroup = $env:SENTINEL_RESOURCE_GROUP
+                    WorkspaceName          = $env:SENTINEL_WORKSPACE_NAME
+                    WatchlistAlias         = $env:WATCHLIST_ALIAS
+                    WatchlistDisplayName   = $env:WATCHLIST_DISPLAY_NAME
+                    SearchKey              = "ResourceId"
+                }
+
+                Register-AzAutomationScheduledRunbook `
+                    -ResourceGroupName $env:AUTOMATION_RESOURCE_GROUP `
+                    -AutomationAccountName $env:AUTOMATION_ACCOUNT_NAME `
+                    -RunbookName "Invoke-DCRWatchlistSync" `
+                    -ScheduleName $scheduleName `
+                    -Parameters $params
+
+                Write-Host "  Job schedule linked successfully."
+            }
+
+            Write-Host "##[section]Runbook deployment complete."
+        env:
+          AZURE_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          SENTINEL_RESOURCE_GROUP:   ${{ vars.SENTINEL_RESOURCE_GROUP }}
+          SENTINEL_WORKSPACE_NAME:   ${{ vars.SENTINEL_WORKSPACE_NAME }}

@@ -170,3 +170,18 @@ The [Azure-Sentinel Hunting Queries folder](https://github.com/Azure/Azure-Senti
 2. Generate a new GUID for `id`.
 3. Map `relevantTechniques` to the `techniques` field in this schema.
 4. Validate the KQL in the Logs blade before committing.
+
+## Authoring with GitHub Copilot
+
+When editing files under `HuntingQueries/**`, Copilot automatically
+loads [`.github/instructions/hunting-queries.instructions.md`](../../.github/instructions/hunting-queries.instructions.md)
+plus the cross-cutting
+[`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md).
+
+Copilot tooling for hunting queries:
+
+- Slash command `/new-hunting-query` (VS Code) — bootstrap a fresh query
+- Agent `Sentinel-As-Code: Rule Author` — author end-to-end
+- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
