@@ -230,6 +230,24 @@ If you've found Sentinel-As-Code useful, subscribe to [sentinel.blog](https://se
 
 The best way to support this project is by subscribing to the blog, submitting issues, suggesting improvements, or contributing code!
 
+### For organisations using this repository
+
+Sentinel-As-Code is developed and maintained on my own time as an open source project. I spend countless hours building, testing, documenting, and supporting the work that makes its way into this repository — at no cost to the people and organisations who benefit from it.
+
+**If you are an organisation deploying this code into production**, or if it has saved your team meaningful engineering time, please consider making a donation. Your contribution directly funds the next wave of features, the test infrastructure, and the time it takes to keep the content current with Microsoft's release cadence.
+
+[![Donate](https://img.shields.io/badge/Donate-sentinel.blog%2Fdonate-orange?style=for-the-badge&logo=heart&logoColor=white)](https://sentinel.blog/donate)
+
+> The donation page is being set up — the link above is a placeholder and will resolve to the proper page shortly.
+
+## Disclaimer
+
+This project is provided **as-is**, with **no warranty** and **no support** of any kind, express or implied. Use at your own risk.
+
+The maintainers make no guarantee that the code is fit for any particular purpose, that it will work in your environment, or that any issue you encounter will be acknowledged or fixed. Bug reports and pull requests are welcome (see [Contributing](#contributing)), but there is **no SLA, no guaranteed response time, and no obligation to provide assistance**.
+
+You are solely responsible for reviewing, testing, and validating any content from this repository before deploying it to production Microsoft Sentinel or Defender XDR environments.
+
 ## License
 
 This project is licensed under the MIT License.
