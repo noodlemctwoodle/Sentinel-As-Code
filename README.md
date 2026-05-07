@@ -8,6 +8,16 @@ This repository provides a complete end-to-end CI/CD solution for deploying Micr
 
 It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, an auto-derived dependency graph, and a set of six GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
 
+> ### 💛 For organisations using this repository
+>
+> Sentinel-As-Code is built and maintained on my own time as an open source project. I spend countless hours developing, testing, documenting, and supporting the work that lands in this repository — at no cost to the people and organisations who benefit from it.
+>
+> **If you are an organisation deploying this code into production**, or if it has saved your team meaningful engineering time, please consider making a donation. Your contribution directly funds the next wave of features, the test infrastructure, and the time it takes to keep the content current with Microsoft's release cadence.
+>
+> [![Donate](https://img.shields.io/badge/Donate-sentinel.blog%2Fdonate-orange?style=for-the-badge&logo=heart&logoColor=white)](https://sentinel.blog/donate)
+>
+> *The donation page is being set up — the link above is a placeholder and will resolve to the proper page shortly.*
+
 ## Repository Structure
 
 ```
@@ -228,17 +238,7 @@ If you've found Sentinel-As-Code useful, subscribe to [sentinel.blog](https://se
 
 [![Subscribe to Sentinel Blog](https://img.shields.io/badge/Subscribe-sentinel.blog-blue?style=for-the-badge&logo=ghost&logoColor=white)](https://sentinel.blog/#/portal/signup)
 
-The best way to support this project is by subscribing to the blog, submitting issues, suggesting improvements, or contributing code!
-
-### For organisations using this repository
-
-Sentinel-As-Code is developed and maintained on my own time as an open source project. I spend countless hours building, testing, documenting, and supporting the work that makes its way into this repository — at no cost to the people and organisations who benefit from it.
-
-**If you are an organisation deploying this code into production**, or if it has saved your team meaningful engineering time, please consider making a donation. Your contribution directly funds the next wave of features, the test infrastructure, and the time it takes to keep the content current with Microsoft's release cadence.
-
-[![Donate](https://img.shields.io/badge/Donate-sentinel.blog%2Fdonate-orange?style=for-the-badge&logo=heart&logoColor=white)](https://sentinel.blog/donate)
-
-> The donation page is being set up — the link above is a placeholder and will resolve to the proper page shortly.
+The best way to support this project is by subscribing to the blog, submitting issues, suggesting improvements, or contributing code! If you're using this in an organisation, see the [donation callout under Overview](#overview).
 
 ## Disclaimer
 
