@@ -225,16 +225,19 @@ Try-Capture 'sentinel-pricing' {
     # against a uksouth workspace ARM rejects the preview version. Probe the
     # GA Sentinel api-version first, fall back to preview, and treat 4xx as a
     # 'not present' signal so an empty file is still produced.
+    #
+    # Always probe regardless of -IncludePreview: the GA version usually
+    # succeeds, and the inner try/catch handles the regional 4xx case. The
+    # earlier IncludePreview gate meant production runs without the switch
+    # produced no file at all.
     $pricing = $null
-    if ($IncludePreview) {
+    try {
+        $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.Sentinel
+    } catch {
         try {
-            $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.Sentinel
+            $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
         } catch {
-            try {
-                $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
-            } catch {
-                Write-Information "  ↳ pricings endpoint not available; emitting empty file."
-            }
+            Write-Information "  ↳ pricings endpoint not available; emitting empty file."
         }
     }
     Save-Json -FileName 'sentinel-pricing.json' -Data $pricing
@@ -315,9 +318,16 @@ Try-Capture 'content-packages' {
 }
 
 Try-Capture 'content-product-packages' {
-    if ($IncludePreview) {
+    # Content Hub catalogue. Was gated behind -IncludePreview which meant
+    # production runs without the switch produced no catalogue file at all —
+    # which then broke the "Update Available" column in section 70.
+    # contentProductPackages is GA via the preview api-version; treat
+    # missing-file outcomes as endpoint unavailability rather than gate-skip.
+    try {
         $catalog = Invoke-SentinelRest -Path "$sentinelScope/contentProductPackages" -ApiVersion $apiVersions.SentinelPreview
         Save-Json -FileName 'content-product-packages.json' -Data $catalog
+    } catch {
+        Save-Json -FileName 'content-product-packages.json' -Data @()
     }
 }
 
@@ -510,14 +520,15 @@ Try-Capture 'dedicated-cluster' {
 }
 
 Try-Capture 'sentinel-data-lake' {
-    if ($IncludePreview) {
-        try {
-            $lake = Invoke-SentinelRest -Path "$sentinelScope/dataLake" -ApiVersion $apiVersions.SentinelPreview
-            Save-Json -FileName 'sentinel-data-lake.json' -Data $lake
-        } catch {
-            # Endpoint may not be present on workspaces without lake enabled.
-            Save-Json -FileName 'sentinel-data-lake.json' -Data @()
-        }
+    # Preview-only endpoint. Always probe — the inner try/catch handles 404
+    # on workspaces where the lake isn't enabled. Gating on -IncludePreview
+    # meant the file was missing entirely on production runs which then
+    # confused the renderer.
+    try {
+        $lake = Invoke-SentinelRest -Path "$sentinelScope/dataLake" -ApiVersion $apiVersions.SentinelPreview
+        Save-Json -FileName 'sentinel-data-lake.json' -Data $lake
+    } catch {
+        Save-Json -FileName 'sentinel-data-lake.json' -Data @()
     }
 }
 
@@ -536,7 +547,15 @@ Try-Capture 'solutions-installed' {
 # Subscription / tenant context
 # ---------------------------------------------------------------------------
 Try-Capture 'subscription' {
-    $sub = Get-AzSubscription -SubscriptionId $SubscriptionId -ErrorAction Stop |
+    # Get-AzSubscription -SubscriptionId still tries to enumerate every other
+    # tenant the signed-in account can see in some Az.Accounts builds, which
+    # produces a stream of "Authentication failed against tenant <guid> ...
+    # rerun Connect-AzAccount with -TenantId <guid>" warnings even though
+    # we only asked for one specific subscription. Pass -TenantId explicitly
+    # (from the active context) and silence warnings for the call so the
+    # production transcript stays clean.
+    $activeTenantId = (Get-AzContext).Tenant.Id
+    $sub = Get-AzSubscription -SubscriptionId $SubscriptionId -TenantId $activeTenantId -WarningAction SilentlyContinue -ErrorAction Stop |
         Select-Object Id, Name, TenantId, State, HomeTenantId
     Save-Json -FileName 'subscription.json' -Data $sub
 }

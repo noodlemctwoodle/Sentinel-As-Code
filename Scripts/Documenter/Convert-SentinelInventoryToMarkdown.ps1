@@ -269,7 +269,7 @@ Write-Section '00-overview.md' $overviewBody
 # state into a single overall state column, and lists the data-type names in
 # their own column.
 function Get-ConnectorFriendlyTitle {
-    param([string]$Kind, [psobject]$Connector)
+    param([string]$Kind, [psobject]$Connector, [hashtable]$CcfTitleByName = @{})
     switch ($Kind) {
         'AzureActiveDirectory'                         { 'Microsoft Entra ID' }
         'MicrosoftCloudAppSecurity'                    { 'Microsoft Defender for Cloud Apps' }
@@ -281,12 +281,34 @@ function Get-ConnectorFriendlyTitle {
         'AzureSecurityCenter'                          { 'Microsoft Defender for Cloud' }
         'GenericUI'                                    { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
         'StaticUI'                                     { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
+        { $_ -in 'RestApiPoller','Push' }              {
+            # CCF-derived kinds. Each connector instance carries a
+            # connectorDefinitionName that points at the matching CCF
+            # definition entry, where the human-readable title lives.
+            $defName = $Connector.properties.connectorDefinitionName
+            if ($defName -and $CcfTitleByName.ContainsKey($defName)) {
+                "$($CcfTitleByName[$defName])  ($Kind)"
+            } elseif ($defName) {
+                "$defName  ($Kind)"
+            } else {
+                $Kind
+            }
+        }
         default                                        { $Kind }
     }
 }
 
 function Get-ConnectorAggregateState {
     param([psobject]$Connector)
+    # RestApiPoller / Push connectors don't carry a dataTypes map. Treat the
+    # presence of a dataType + dcrConfig as 'enabled' for that kind.
+    if ($Connector.kind -in @('RestApiPoller','Push')) {
+        $hasDataType = $Connector.properties.PSObject.Properties.Name -contains 'dataType' -and $Connector.properties.dataType
+        $hasDcr = $Connector.properties.PSObject.Properties.Name -contains 'dcrConfig' -and $Connector.properties.dcrConfig
+        if ($hasDataType -and $hasDcr) { return 'enabled' }
+        if ($hasDataType -or $hasDcr) { return 'partial' }
+        return 'unknown'
+    }
     $dataTypes = $Connector.properties.dataTypes
     if ($null -eq $dataTypes) { return 'unknown' }
     $names = @($dataTypes.PSObject.Properties.Name)
@@ -305,6 +327,13 @@ function Get-ConnectorAggregateState {
 
 function Get-ConnectorDataTypes {
     param([psobject]$Connector)
+    # RestApiPoller / Push schema: single string at properties.dataType.
+    if ($Connector.kind -in @('RestApiPoller','Push')) {
+        if ($Connector.properties.PSObject.Properties.Name -contains 'dataType' -and $Connector.properties.dataType) {
+            return [string]$Connector.properties.dataType
+        }
+        return ''
+    }
     $dataTypes = $Connector.properties.dataTypes
     if ($null -eq $dataTypes) { return '' }
     @($dataTypes.PSObject.Properties.Name) -join ', '
@@ -337,6 +366,15 @@ function Get-ConnectorTargetTable {
 
 $ccfDefs = Read-RawArray 'data-connector-definitions.json'
 
+# Index CCF definitions by name so RestApiPoller / Push connectors can look up
+# their human-readable title via the `connectorDefinitionName` field.
+$ccfTitleByName = @{}
+foreach ($d in $ccfDefs) {
+    if ($d.name -and $d.properties.connectorUiConfig.title) {
+        $ccfTitleByName[$d.name] = $d.properties.connectorUiConfig.title
+    }
+}
+
 # Pre-index tables-with-data by name so the connector rows can join on it
 # without rebuilding the lookup once per row.
 $tablesByNameForConnectors = @{}
@@ -345,6 +383,19 @@ foreach ($t in $tablesWithData) {
 }
 function Get-ConnectorData7d {
     param([psobject]$Connector)
+    # RestApiPoller / Push connectors write to a single table at
+    # properties.dataType. The table name itself is the join key — no
+    # data-type-to-table mapping is needed.
+    if ($Connector.kind -in @('RestApiPoller','Push')) {
+        $tbl = $Connector.properties.dataType
+        if (-not $tbl) { return '' }
+        if ($tablesByNameForConnectors.ContainsKey($tbl)) {
+            $row = $tablesByNameForConnectors[$tbl]
+            $bill7d = if ($null -ne $row.BillableLast7d) { [double]$row.BillableLast7d } else { 0 }
+            if ($bill7d -gt 0) { return 'Yes' }
+        }
+        return 'No'
+    }
     $dataTypes = $Connector.properties.dataTypes
     if ($null -eq $dataTypes) { return '' }
     $anyData = $false
@@ -362,7 +413,7 @@ function Get-ConnectorData7d {
 
 $connectorRows = $connectors | ForEach-Object {
     [pscustomobject]@{
-        Title     = Get-ConnectorFriendlyTitle -Kind $_.kind -Connector $_
+        Title     = Get-ConnectorFriendlyTitle -Kind $_.kind -Connector $_ -CcfTitleByName $ccfTitleByName
         Kind      = $_.kind
         DataTypes = Get-ConnectorDataTypes -Connector $_
         State     = Get-ConnectorAggregateState -Connector $_
