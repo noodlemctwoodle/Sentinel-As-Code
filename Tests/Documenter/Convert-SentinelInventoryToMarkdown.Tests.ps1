@@ -106,6 +106,20 @@ Describe 'Sentinel Documenter renderer' {
         It 'shows zero-coverage tactics with a red marker' {
             $script:mitre | Should -Match '🔴 None'
         }
+
+        It 'resolves T1078 to its catalogue name (Valid Accounts)' {
+            # The fixture's first scheduled rule references T1078; the renderer
+            # should look up the human-readable name from mitre-attack.json.
+            $script:mitre | Should -Match 'T1078 — Valid Accounts'
+        }
+
+        It 'resolves T1078.004 sub-technique to its catalogue name (Cloud Accounts)' {
+            $script:mitre | Should -Match 'T1078\.004 — Cloud Accounts'
+        }
+
+        It 'still links each cell back to attack.mitre.org' {
+            $script:mitre | Should -Match 'https://attack\.mitre\.org/techniques/T1078/'
+        }
     }
 
     Context '81-table-plans-retention.md surfaces tier and activity columns' {

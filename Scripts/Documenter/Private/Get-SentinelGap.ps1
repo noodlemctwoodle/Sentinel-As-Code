@@ -134,7 +134,8 @@ function New-InventoryFromRaw {
         ResourceProviders      = @(Read-Json 'resource-providers.json')
         RbacWorkspace          = @(Read-Json 'rbac-workspace.json')
         PlaybookMiAssignments  = @(Read-Json 'rbac-playbook-mi.json')
-        MitreTactics           = @((Read-Resource 'mitre-attack-v18.json').tactics)
+        MitreTactics           = @((Read-Resource 'mitre-attack.json').tactics)
+        MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
         SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'
         CommitmentTiers        = Read-Resource 'commitment-tiers.json'
     }

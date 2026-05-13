@@ -189,7 +189,7 @@ function Test-MitreTacticCoverage {
         $tactics = Get-PropOrDefault $rule 'properties.tactics' @()
         foreach ($t in @($tactics)) { $coveredTactics[$t] = $true }
     }
-    $uncovered = @($Inventory.MitreTactics | Where-Object { -not $coveredTactics.ContainsKey($_.shortName) })
+    $uncovered = @($Inventory.MitreTactics | Where-Object { -not $coveredTactics.ContainsKey($_.sentinelShortName) })
     if ($uncovered.Count -gt 0) {
         $names = ($uncovered | Select-Object -ExpandProperty name) -join ', '
         return New-Finding -Evidence "MITRE tactics with zero enabled rules: $names." -Detail @{ UncoveredTactics = $uncovered }

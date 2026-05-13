@@ -40,7 +40,7 @@
     Workspace name. Used to title sections and to default InputRoot/OutputRoot.
 
 .PARAMETER ResourcesRoot
-    Folder containing best-practices.json, mitre-attack-v18.json, etc. Defaults to
+    Folder containing best-practices.json, mitre-attack.json, etc. Defaults to
     Scripts/Documenter/Private/Resources.
 
 .NOTES
@@ -637,14 +637,49 @@ Write-Section '20-analytics-rules.md' $rulesBody
 # ---------------------------------------------------------------------------
 # Section: 25-mitre-coverage
 # ---------------------------------------------------------------------------
-$mitreFile = Join-Path $ResourcesRoot 'mitre-attack-v18.json'
+# Catalogue file (resource-bundled) carries:
+#   tactics[]    { id, name, shortname (kebab, STIX), sentinelShortName
+#                  (PascalCase, what Sentinel rules return in tactics[]) }
+#   techniques[] { id, name, tactics (kebab), tacticsSentinel (PascalCase),
+#                  isSubtechnique, parentId, url, platforms, dataSources }
+# The renderer joins each rule's `properties.techniques` against the
+# catalogue so cells show "T1078 — Valid Accounts" rather than a bare ID.
+$mitreFile = Join-Path $ResourcesRoot 'mitre-attack.json'
 $tactics = @()
+$mitreTechniques = @()
 if (Test-Path $mitreFile) {
-    $tactics = (Get-Content $mitreFile -Raw | ConvertFrom-Json).tactics
+    $mitreCatalogue = Get-Content $mitreFile -Raw | ConvertFrom-Json
+    $tactics = @($mitreCatalogue.tactics)
+    $mitreTechniques = @($mitreCatalogue.techniques)
+}
+
+# Build a technique-id -> name lookup so every render path resolves names
+# consistently. Sub-techniques also get their parent's name prefixed in a
+# separate fullName lookup so a row reading "T1078.004 — Cloud Accounts" can
+# fall back to "Valid Accounts: Cloud Accounts" when richer context helps.
+$techNameById = @{}
+$techFullNameById = @{}
+foreach ($t in $mitreTechniques) {
+    if (-not $t.id) { continue }
+    $techNameById[$t.id] = $t.name
+    if ($t.PSObject.Properties.Name -contains 'parentId' -and $t.parentId) {
+        $parent = $techNameById[$t.parentId]
+        if ($parent) { $techFullNameById[$t.id] = "${parent}: $($t.name)" }
+    }
+}
+function Format-MitreTechniqueCell {
+    param([string]$Id, [bool]$Sub = $false)
+    if (-not $Id) { return '' }
+    $name = $techNameById[$Id]
+    $urlId = if ($Sub) { $Id.Replace('.', '/') } else { $Id }
+    if ($name) {
+        return "[$Id — $name](https://attack.mitre.org/techniques/$urlId/)"
+    }
+    return "[$Id](https://attack.mitre.org/techniques/$urlId/)"
 }
 
 $tacticCounts = @{}
-foreach ($t in $tactics) { $tacticCounts[$t.shortName] = 0 }
+foreach ($t in $tactics) { $tacticCounts[$t.sentinelShortName] = 0 }
 foreach ($r in $enabledRules) {
     # Some rule kinds (e.g. MicrosoftSecurityIncidentCreation) omit the
     # tactics property entirely; @($null) iterates once with $t = $null
@@ -655,7 +690,7 @@ foreach ($r in $enabledRules) {
 }
 
 $mitreRows = foreach ($t in $tactics) {
-    $count = $tacticCounts[$t.shortName]
+    $count = $tacticCounts[$t.sentinelShortName]
     [pscustomobject]@{
         ID = $t.id
         Tactic = $t.name
@@ -665,10 +700,9 @@ $mitreRows = foreach ($t in $tactics) {
 }
 
 # Build the full hierarchy: tactic → base technique → subtechniques → rules.
-# Sentinel rules carry both 'tactics' (TA0xxx shortNames) and 'techniques'
-# (raw IDs like T1078 or T1078.001). We don't need a separate technique
-# catalogue — the IDs themselves are the canonical MITRE references and
-# every cell links back to attack.mitre.org for the human-readable name.
+# Sentinel rules carry both 'tactics' (PascalCase shortnames matching the
+# tactic.sentinelShortName field) and 'techniques' (raw IDs like T1078 or
+# T1078.001). The catalogue lookup above resolves IDs to names for display.
 $mitreHierarchy = @{}
 foreach ($r in $enabledRules) {
     # Filter out $null entries — many rule kinds (Fusion, MicrosoftSecurityIncidentCreation
@@ -697,7 +731,7 @@ foreach ($r in $enabledRules) {
 
 # Build the headline tactic matrix from the same data.
 $mitreRowsRich = foreach ($t in $tactics) {
-    $key = $t.shortName
+    $key = $t.sentinelShortName
     $tacticBucket = if ($mitreHierarchy.ContainsKey($key)) { $mitreHierarchy[$key] } else { @{} }
     $techCount = $tacticBucket.Count
     $subCount  = ($tacticBucket.Values | ForEach-Object { $_.Subs.Count } | Measure-Object -Sum).Sum
@@ -717,7 +751,7 @@ $mitreRowsRich = foreach ($t in $tactics) {
 # Render hierarchical breakdown after the matrix.
 $detailSections = New-Object System.Text.StringBuilder
 foreach ($t in $tactics) {
-    $key = $t.shortName
+    $key = $t.sentinelShortName
     [void]$detailSections.AppendLine("")
     [void]$detailSections.AppendLine("### $($t.id) · $($t.name)")
     [void]$detailSections.AppendLine("")
@@ -728,10 +762,10 @@ foreach ($t in $tactics) {
     $techRows = foreach ($techId in ($mitreHierarchy[$key].Keys | Sort-Object)) {
         $bucket = $mitreHierarchy[$key][$techId]
         $subs = if ($bucket.Subs.Count -gt 0) {
-            (($bucket.Subs | Sort-Object) | ForEach-Object { "[$_](https://attack.mitre.org/techniques/$($_.Replace('.','/')))" }) -join ', '
+            (($bucket.Subs | Sort-Object) | ForEach-Object { Format-MitreTechniqueCell -Id $_ -Sub $true }) -join ', '
         } else { '_(base only)_' }
         [pscustomobject]@{
-            Technique     = "[$techId](https://attack.mitre.org/techniques/$techId/)"
+            Technique     = Format-MitreTechniqueCell -Id $techId -Sub $false
             SubTechniques = $subs
             Rules         = $bucket.Rules.Count
             SampleRules   = (($bucket.Rules | Sort-Object) | Select-Object -First 3) -join '; '
