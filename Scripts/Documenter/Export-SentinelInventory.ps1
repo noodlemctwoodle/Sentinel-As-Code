@@ -741,18 +741,22 @@ SecurityIncident
 
 Try-Capture 'incidents-mttr' {
     # Mean time to acknowledge / resolve, last 30 days. Surfaces SOC efficiency
-    # without exporting incident detail.
+    # without exporting incident detail. FirstModifiedTime can be null when an
+    # incident was auto-closed without ever being modified — filter those out
+    # of the acknowledge-window average so the result isn't NaN; report the
+    # acknowledged subset count separately so the omission is visible.
     $kql = @'
 SecurityIncident
 | where TimeGenerated > ago(30d)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
 | where Status == "Closed"
-| extend AckMins  = datetime_diff('minute', FirstModifiedTime, CreatedTime)
-| extend RsvMins  = datetime_diff('minute', ClosedTime,        CreatedTime)
+| extend AckMins  = iff(isnotnull(FirstModifiedTime), datetime_diff('minute', FirstModifiedTime, CreatedTime), int(null))
+| extend RsvMins  = iff(isnotnull(ClosedTime),        datetime_diff('minute', ClosedTime,        CreatedTime), int(null))
 | summarize
-    ClosedCount = count(),
-    MTTAMinutes = avg(AckMins),
-    MTTRMinutes = avg(RsvMins)
+    ClosedCount       = count(),
+    AcknowledgedCount = countif(isnotnull(AckMins)),
+    MTTAMinutes       = avgif(AckMins, isnotnull(AckMins)),
+    MTTRMinutes       = avgif(RsvMins, isnotnull(RsvMins))
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop

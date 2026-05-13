@@ -168,6 +168,19 @@ function Format-Severity-Badge { param([string]$Severity)
     }
 }
 
+# Workspace feature-flag boolean → display string. The Sentinel API omits
+# these fields when they're at their default value (= False), so a missing
+# property must render as "False" not as an empty cell. Otherwise readers
+# can't tell "disabled by default" from "report didn't capture this field".
+function Format-FeatureFlag {
+    param([psobject]$Container, [string]$Property)
+    if ($null -eq $Container) { return 'False' }
+    if ($Container.PSObject.Properties.Name -notcontains $Property) { return 'False' }
+    $val = $Container.$Property
+    if ($null -eq $val) { return 'False' }
+    return [string]$val
+}
+
 # ---------------------------------------------------------------------------
 # Section: 00-overview
 # ---------------------------------------------------------------------------
@@ -933,7 +946,7 @@ $(Format-Banner -Title "Workspace Inventory")
 | SKU name | ``$($workspace.properties.sku.name)`` |
 | Capacity reservation level | $(if ($workspace.properties.sku.capacityReservationLevel) { "$($workspace.properties.sku.capacityReservationLevel) GB/day" } else { '_(n/a)_' }) |
 | Default retention | $($workspace.properties.retentionInDays) days |
-| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited (-1)' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1 -or $null -eq $workspace.properties.workspaceCapping.dailyQuotaGb) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
 
 ### Available service tiers
 
@@ -966,18 +979,18 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 |---|---|
 | Public ingestion | ``$($workspace.properties.publicNetworkAccessForIngestion)`` |
 | Public query | ``$($workspace.properties.publicNetworkAccessForQuery)`` |
-| Replication enabled | $($workspace.properties.replication.enabled) |
-| Replication location | ``$($workspace.properties.replication.location)`` |
+| Replication enabled | $(if ($null -eq $workspace.properties.replication -or $null -eq $workspace.properties.replication.enabled) { 'False (not configured)' } else { [string]$workspace.properties.replication.enabled }) |
+| Replication location | $(if ($workspace.properties.replication -and $workspace.properties.replication.location) { "``$($workspace.properties.replication.location)``" } else { '_(n/a)_' }) |
 
 ## Feature flags
 
 | Flag | Value |
 |---|---|
-| disableLocalAuth | $($features.disableLocalAuth) |
-| enableLogAccessUsingOnlyResourcePermissions | $($features.enableLogAccessUsingOnlyResourcePermissions) |
-| enableDataExport | $($features.enableDataExport) |
-| immediatePurgeDataOn30Days | $($features.immediatePurgeDataOn30Days) |
-| clusterResourceId | $(if ($features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
+| disableLocalAuth | $(Format-FeatureFlag $features 'disableLocalAuth') |
+| enableLogAccessUsingOnlyResourcePermissions | $(Format-FeatureFlag $features 'enableLogAccessUsingOnlyResourcePermissions') |
+| enableDataExport | $(Format-FeatureFlag $features 'enableDataExport') |
+| immediatePurgeDataOn30Days | $(Format-FeatureFlag $features 'immediatePurgeDataOn30Days') |
+| clusterResourceId | $(if ($features -and $features.PSObject.Properties.Name -contains 'clusterResourceId' -and $features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
 
 ## Resource locks
 
@@ -1569,8 +1582,30 @@ $incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
 $incByRule  = Read-RawArray 'incidents-by-rule.json'
 $incDaily   = Read-RawArray 'incidents-daily-metrics.json' | Select-Object -First 1
 
+function Format-MinutesScalar {
+    param($Value, $CountAcknowledged)
+    # KQL returns the literal string "NaN" when an aggregate had no rows to
+    # average over (e.g. avg(int(null)) across zero rows), and Save-Json
+    # writes that through verbatim. Treat any non-numeric input as
+    # unavailable so the report shows "n/a" instead of the noisy "NaN min".
+    if ($null -eq $Value) { return 'n/a' }
+    $s = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($s) -or $s -eq 'NaN' -or $s -eq 'null') { return 'n/a' }
+    $d = 0.0
+    if (-not [double]::TryParse($s, [ref]$d)) { return 'n/a' }
+    return ("$([math]::Round($d, 1)) min")
+}
 $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
-    "**MTTA:** $([math]::Round([double]$incMttr.MTTAMinutes, 1)) min  ·  **MTTR:** $([math]::Round([double]$incMttr.MTTRMinutes, 1)) min  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)"
+    $ackCount = $null
+    if ($incMttr.PSObject.Properties.Name -contains 'AcknowledgedCount') {
+        $ackCount = $incMttr.AcknowledgedCount
+    }
+    $mttaStr  = Format-MinutesScalar -Value $incMttr.MTTAMinutes -CountAcknowledged $ackCount
+    $mttrStr  = Format-MinutesScalar -Value $incMttr.MTTRMinutes -CountAcknowledged $incMttr.ClosedCount
+    $ackSuffix = if ($null -ne $ackCount) {
+        "  ·  **Acknowledged:** $ackCount of $($incMttr.ClosedCount)"
+    } else { '' }
+    "**MTTA:** $mttaStr  ·  **MTTR:** $mttrStr  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)$ackSuffix"
 } else { '_No closed incidents in the last 30 days; MTTA/MTTR not available._' }
 
 $dailyLine = if ($incDaily -and $null -ne $incDaily.AvgDailyUniqueIncidents) {
