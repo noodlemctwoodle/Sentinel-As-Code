@@ -497,6 +497,37 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '15-incidents.md surfaces per-provider join detail' {
+        BeforeAll {
+            $script:incDetMd = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw
+        }
+
+        It 'renders the Incident detail by provider section heading' {
+            $script:incDetMd | Should -Match '## Incident detail by provider'
+        }
+
+        It 'renders the MDATP join row' {
+            $script:incDetMd | Should -Match '\| MDATP \| Microsoft Defender for Endpoint \| rule-abc \| 521 \|'
+        }
+    }
+
+    Context '20-analytics-rules.md surfaces MS Incident Creation rule filters' {
+        BeforeAll {
+            $script:msIncMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+        }
+
+        It 'renders the MS Incident Creation rules section heading' {
+            $script:msIncMd | Should -Match '## MS Incident Creation rules'
+        }
+
+        It 'renders the Product / Severities / Excludes columns for the MDE rule' {
+            $script:msIncMd | Should -Match 'Create incidents from MDE alerts'
+            $script:msIncMd | Should -Match 'Microsoft Defender Advanced Threat Protection'
+            $script:msIncMd | Should -Match 'High, Medium'
+            $script:msIncMd | Should -Match 'Test alert; Benign sample'
+        }
+    }
+
     Context '15-incidents.md surfaces daily incident-flow metrics' {
         BeforeAll {
             $script:incMd = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw

@@ -36,5 +36,18 @@
       "enabled": true,
       "tactics": []
     }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "name": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "kind": "MicrosoftSecurityIncidentCreation",
+    "properties": {
+      "displayName": "Create incidents from MDE alerts",
+      "enabled": true,
+      "productFilter": "Microsoft Defender Advanced Threat Protection",
+      "severitiesFilter": ["High", "Medium"],
+      "displayNamesFilter": [],
+      "displayNamesExcludeFilter": ["Test alert", "Benign sample"]
+    }
   }
 ]

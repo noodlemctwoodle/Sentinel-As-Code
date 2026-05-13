@@ -768,6 +768,33 @@ Total30d
     }
 }
 
+Try-Capture 'incidents-detail-by-provider' {
+    # SecurityIncident <-> SecurityAlert join with the first-rule indirection
+    # producing per-provider, per-product, per-rule incident detail. Aggregate
+    # counts only — no incident bodies or alert payloads.
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(8d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| extend FirstRule = tostring(RelatedAnalyticRuleIds[0])
+| mv-expand AID = AlertIds
+| extend Alert = tostring(AID)
+| join kind=inner (
+    SecurityAlert
+    | where TimeGenerated > ago(8d)
+    | project SystemAlertId, ProviderName, ProductName
+) on $left.Alert == $right.SystemAlertId
+| summarize AlertCount = count() by ProviderName, ProductName, FirstRule
+| top 100 by AlertCount
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incidents-detail-by-provider.json' -Data ($r.Results)
+    } catch {
+        Save-Json -FileName 'incidents-detail-by-provider.json' -Data @()
+    }
+}
+
 Try-Capture 'incidents-daily-metrics' {
     # Daily incident-flow metrics over the last 7 days, complementary to
     # the MTTA/MTTR aggregate above.

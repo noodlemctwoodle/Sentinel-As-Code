@@ -497,6 +497,21 @@ $mouldyRows = $rules | Where-Object {
     }
 }
 
+# MS Incident Creation rules — these aren't user-editable detection rules
+# in the usual sense; they translate first-party security alerts into
+# Sentinel incidents based on per-product filter criteria. Surface those
+# filter fields explicitly since they don't fit the standard row schema.
+$msIncidentRows = $rules | Where-Object { $_.kind -eq 'MicrosoftSecurityIncidentCreation' } | ForEach-Object {
+    [pscustomobject]@{
+        Name              = $_.properties.displayName
+        Product           = $_.properties.productFilter
+        Severities        = (@($_.properties.severitiesFilter) -join ', ')
+        Includes          = (@($_.properties.displayNamesFilter) -join '; ')
+        Excludes          = (@($_.properties.displayNamesExcludeFilter) -join '; ')
+        Enabled           = if ($_.properties.enabled) { 'Yes' } else { 'No' }
+    }
+}
+
 # Template mismatch — rules whose templateVersion does not match the latest
 # template version. Look up the template by alertRuleTemplateName in the
 # captured alert-rule-templates.json.
@@ -544,6 +559,12 @@ Rules where the deployed ``templateVersion`` is older than the version available
 
 $(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','LatestVersion')
 
+## MS Incident Creation rules
+
+These translate first-party security alerts (Defender for Cloud Apps, Defender XDR, etc.) into Sentinel incidents based on per-product filter criteria. They aren't editable as KQL rules; the ``Product`` column is the source product, and ``Includes`` / ``Excludes`` are the alert-name filters.
+
+$(Format-Table -Items $msIncidentRows -Columns 'Name','Product','Severities','Includes','Excludes','Enabled')
+
 [Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@
 
@@ -561,7 +582,10 @@ if (Test-Path $mitreFile) {
 $tacticCounts = @{}
 foreach ($t in $tactics) { $tacticCounts[$t.shortName] = 0 }
 foreach ($r in $enabledRules) {
-    foreach ($t in @($r.properties.tactics)) {
+    # Some rule kinds (e.g. MicrosoftSecurityIncidentCreation) omit the
+    # tactics property entirely; @($null) iterates once with $t = $null
+    # which would throw on ContainsKey. Filter nulls.
+    foreach ($t in @($r.properties.tactics | Where-Object { $_ })) {
         if ($tacticCounts.ContainsKey($t)) { $tacticCounts[$t]++ }
     }
 }
@@ -1503,6 +1527,12 @@ $dailyLine
 ## Top alerting rules (last 30d, top 25)
 
 $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
+
+## Incident detail by provider / product / first rule (last 7d)
+
+Per-provider, per-product, per-first-rule alert counts joined to the incidents they belong to. The FirstRule ID resolves to its full name via the [20-analytics-rules.md](20-analytics-rules.md) table.
+
+$(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = $_.AlertCount } }) -Columns 'Provider','Product','FirstRule','AlertCount')
 
 [Sentinel incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
 "@
