@@ -222,5 +222,38 @@ Describe 'Sentinel gap-analysis engine' {
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'AzureDiagnostics'
         }
+
+        # ----- v2.1 deprecation-deadline rules ---------------------------
+
+        It 'fires SENT-047 because LegacyCLv1_CL has data but no DCR points to it' {
+            $f = $findings | Where-Object Id -eq 'SENT-047'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'LegacyCLv1_CL'
+            $f.Severity | Should -Be 'Critical'
+        }
+
+        It 'does NOT flag FirewallLogs_CL under SENT-047 (CLv2 — has a DCR)' {
+            $f = $findings | Where-Object Id -eq 'SENT-047'
+            $f.Evidence | Should -Not -Match 'FirewallLogs_CL'
+        }
+
+        It 'fires SENT-048 because the fixture shows 8 machines still on MMA' {
+            $f = $findings | Where-Object Id -eq 'SENT-048'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match '8 machine'
+            $f.Severity | Should -Be 'Critical'
+        }
+
+        It 'fires SENT-049 because ThreatIntelligenceIndicator carries billable data' {
+            $f = $findings | Where-Object Id -eq 'SENT-049'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'ThreatIntelligenceIndicator'
+            $f.Severity | Should -Be 'Critical'
+        }
+
+        It 'notes the new ThreatIntelIndicators table is absent when SENT-049 fires' {
+            $f = $findings | Where-Object Id -eq 'SENT-049'
+            $f.Evidence | Should -Match 'No data observed in the new'
+        }
     }
 }

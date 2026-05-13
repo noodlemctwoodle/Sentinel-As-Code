@@ -18,5 +18,13 @@
   {
     "name": "AuditLogs",
     "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "Microsoft" } }
+  },
+  {
+    "name": "LegacyCLv1_CL",
+    "properties": { "plan": "Analytics", "retentionInDays": 30, "totalRetentionInDays": 30, "archiveRetentionInDays": 0, "schema": { "tableType": "CustomLog" } }
+  },
+  {
+    "name": "ThreatIntelligenceIndicator",
+    "properties": { "plan": "Analytics", "retentionInDays": 90, "totalRetentionInDays": 90, "archiveRetentionInDays": 0, "schema": { "tableType": "Microsoft" } }
   }
 ]

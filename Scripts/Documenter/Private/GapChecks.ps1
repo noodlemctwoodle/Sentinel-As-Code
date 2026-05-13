@@ -877,3 +877,91 @@ function Test-AzureDiagnosticsResourceSpecific {
     return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last 30 days. Resource-specific tables are cheaper, faster to query, and have stable schemas — review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
 }
 
+# ------------------------------------------------------------
+# SENT-047 — CLv1 (HTTP Data Collector API) custom log tables still in use
+# ------------------------------------------------------------
+function Test-CustomLogsV1Migration {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.WorkspaceTables -or -not $Inventory.TablesWithData -or -not $Inventory.Dcrs) { return $null }
+
+    # Project the set of _CL tables that have any DCR feeding them. A DCR's
+    # dataFlows[].outputStream is shaped "Custom-<TableName>_CL" when it
+    # writes into a custom table; index by the bare table name.
+    $tablesWithDcr = @{}
+    foreach ($dcr in $Inventory.Dcrs) {
+        $flows = Get-PropOrDefault $dcr 'properties.dataFlows' @()
+        foreach ($f in @($flows)) {
+            $stream = Get-PropOrDefault $f 'outputStream' ''
+            if ($stream -match '^Custom-(.+)$') {
+                $tablesWithDcr[$matches[1]] = $true
+            }
+        }
+    }
+
+    # Project _CL tables that have data in the last 90 days.
+    $active = @{}
+    foreach ($t in $Inventory.TablesWithData) {
+        $name = Get-PropOrDefault $t 'DataType' ''
+        $gb90 = [double](Get-PropOrDefault $t 'BillableLast90d' 0)
+        if ($name -and $gb90 -gt 0) { $active[$name] = $true }
+    }
+
+    # Filter to genuine custom-log tables. tableType alone is unreliable —
+    # some workspaces report AzureDiagnostics and other Microsoft service
+    # tables as 'CustomLog' when custom diagnostic settings have been
+    # written to them. The `_CL` name suffix is enforced at table creation
+    # and is the authoritative custom-table marker.
+    $clv1 = @($Inventory.WorkspaceTables | Where-Object {
+        $name = Get-PropOrDefault $_ 'name' ''
+        $type = Get-PropOrDefault $_ 'properties.schema.tableType' ''
+        ($type -eq 'CustomLog') -and ($name -like '*_CL') -and $active.ContainsKey($name) -and (-not $tablesWithDcr.ContainsKey($name))
+    })
+    if ($clv1.Count -eq 0) { return $null }
+    $names = ($clv1 | Select-Object -First 8 | ForEach-Object { Get-PropOrDefault $_ 'name' '?' }) -join ', '
+    $suffix = if ($clv1.Count -gt 8) { " (+ $($clv1.Count - 8) more)" } else { '' }
+    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them — likely still using the HTTP Data Collector API (CLv1). Affected: $names$suffix. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
+}
+
+# ------------------------------------------------------------
+# SENT-048 — MMA / OMS / Log Analytics agent still heartbeating
+# ------------------------------------------------------------
+function Test-MmaAgentStillHeartbeating {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.AmaMmaMigration -or @($Inventory.AmaMmaMigration).Count -eq 0) { return $null }
+    $mmaTotal = 0
+    foreach ($row in $Inventory.AmaMmaMigration) {
+        $mma = [int](Get-PropOrDefault $row 'MMACount' 0)
+        if ($mma -gt 0) { $mmaTotal += $mma }
+    }
+    if ($mmaTotal -eq 0) { return $null }
+    return New-Finding -Evidence "$mmaTotal machine(s) still heartbeating via the legacy Log Analytics agent (MMA / OMS). MMA retired 2024-08-31; ingestion is degraded after 2025-02-01." -Detail @{ MmaCount = $mmaTotal }
+}
+
+# ------------------------------------------------------------
+# SENT-049 — Legacy ThreatIntelligenceIndicator table still in use
+# ------------------------------------------------------------
+function Test-LegacyThreatIntelligenceTable {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.TablesWithData) { return $null }
+    $legacy = @($Inventory.TablesWithData | Where-Object {
+        (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelligenceIndicator' -and
+        [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
+    } | Select-Object -First 1)
+    if ($legacy.Count -eq 0) { return $null }
+    $gb30 = [double](Get-PropOrDefault $legacy[0] 'BillableLast30d' 0)
+    # Detect whether the workspace has ALSO started receiving into the new
+    # ThreatIntelIndicators table — if yes the finding evidence calls out
+    # that the migration is half done; if no, fresh ingestion is broken.
+    $newPresent = @($Inventory.TablesWithData | Where-Object {
+        (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelIndicators' -and
+        [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
+    }).Count -gt 0
+    $statusNote = if ($newPresent) {
+        'New ThreatIntelIndicators table is also active — partial migration; ensure all detections, hunting queries and workbooks read from the new tables.'
+    } else {
+        'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables — TI ingestion may be broken since the 2025-07-31 cutoff.'
+    }
+    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last 30 days. $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
+}
+
+

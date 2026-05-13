@@ -379,6 +379,33 @@
       "check": "Test-AzureDiagnosticsResourceSpecific",
       "remediation": "Resource-specific tables are cheaper per-GB, faster to query, and have stable column schemas (AzureDiagnostics is a superset of every resource provider's schema). For each resource type, switch the diagnostic setting from 'Azure diagnostics' to 'Resource-specific' so new data lands in the dedicated table.",
       "learn": "https://learn.microsoft.com/azure/azure-monitor/platform/resource-logs"
+    },
+    {
+      "id": "SENT-047",
+      "title": "Custom log table still using the HTTP Data Collector API (CLv1) — retirement 2026-09-14",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-CustomLogsV1Migration",
+      "remediation": "Microsoft retires the HTTP Data Collector API on 14 September 2026; after that date, CLv1 endpoints stop accepting data and ingestion fails silently. For each affected _CL table either issue the table-level migrate API (POST .../tables/{name}/migrate?api-version=2021-12-01-preview) to convert the schema, then wire ingestion through a DCR pointing at the table; or recreate the source via a fresh DCR-based Logs Ingestion API path. Migrate every affected table before the cutoff to avoid data loss.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate"
+    },
+    {
+      "id": "SENT-048",
+      "title": "Legacy Log Analytics agent (MMA / OMS) still heartbeating — retired 2024-08-31",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-MmaAgentStillHeartbeating",
+      "remediation": "The Microsoft Monitoring Agent (MMA, also known as OMS Agent or Log Analytics agent) retired on 31 August 2024. Ingestion was kept running until 1 February 2025 but is degraded after that and unsupported. Migrate every machine to the Azure Monitor Agent (AMA) using the Azure Monitor agent migration tooling, switch the relevant data sources to DCR-based collection, and remove the MMA extension. Only SCOM-only agents are exempt.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration"
+    },
+    {
+      "id": "SENT-049",
+      "title": "Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table — stopped 2025-07-31",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-LegacyThreatIntelligenceTable",
+      "remediation": "Microsoft stopped ingesting threat intelligence into the legacy ThreatIntelligenceIndicator table on 31 July 2025. New indicators land in ThreatIntelIndicators and ThreatIntelObjects (STIX 2.1). Update every TI-aware analytics rule, hunting query, workbook, and automation to reference the new tables (use union for the transition window where historical data still matters), then switch ingestion sources off the legacy TI Platforms connector (itself deprecated June 2026) and onto the Threat Intelligence Upload API.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
     }
   ]
 }

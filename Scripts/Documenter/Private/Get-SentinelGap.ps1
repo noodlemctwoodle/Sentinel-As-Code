@@ -138,6 +138,7 @@ function New-InventoryFromRaw {
         AnalyticsRuleVolumes   = @(Read-Json 'analytics-rule-volumes.json')
         AutomationRules        = @(Read-Json 'automation-rules.json')
         WorkspaceLocks         = @(Read-Json 'workspace-locks.json')
+        AmaMmaMigration        = @(Read-Json 'ama-mma-migration.json')
         MitreTactics           = @((Read-Resource 'mitre-attack.json').tactics)
         MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
         SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'
