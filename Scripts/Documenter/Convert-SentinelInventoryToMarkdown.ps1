@@ -1386,8 +1386,23 @@ $gapBySeverity = @{ Critical = 0; Warning = 0; Info = 0 }
 foreach ($f in $gapFindings) {
     if ($gapBySeverity.ContainsKey($f.Severity)) { $gapBySeverity[$f.Severity]++ }
 }
-$tacticsCovered = ($enabledRules | ForEach-Object { $_.properties.tactics } | Where-Object { $_ } | Sort-Object -Unique).Count
-$tacticsTotal = if ($tactics) { $tactics.Count } else { 14 }
+# MITRE coverage rollup. Reuse $mitreRowsRich from section 25 — that view
+# already does the intersect-with-catalogue (rules' tactic shortnames must
+# match a catalogue.sentinelShortName) and categorises each tactic as
+# Covered / Thin / None against the 3-rule threshold. Counting from the
+# same source guarantees the headline and the section-25 matrix agree.
+$tacticsTotal         = if ($tactics) { $tactics.Count } else { 14 }
+$tacticsCoveredFull   = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟢 Covered' }).Count
+$tacticsThin          = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟠 Thin'    }).Count
+$tacticsNone          = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🔴 None'    }).Count
+$thinTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟠 Thin'    } | Select-Object -ExpandProperty Tactic)
+$noneTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🔴 None'    } | Select-Object -ExpandProperty Tactic)
+$mitreSuffix          = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Count -gt 0) {
+    $parts = @()
+    if ($noneTacticNames.Count -gt 0) { $parts += "uncovered: $($noneTacticNames -join ', ')" }
+    if ($thinTacticNames.Count -gt 0) { $parts += "thin: $($thinTacticNames -join ', ')" }
+    "  ·  $($parts -join '  ·  ')"
+} else { '' }
 
 $execBody = @"
 $(Format-Banner -Title "Live snapshot")
@@ -1404,7 +1419,7 @@ $(Format-Banner -Title "Live snapshot")
 | Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
 | Data connectors | $($connectors.Count) |
 | Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
-| MITRE tactics with coverage | $tacticsCovered / $tacticsTotal |
+| MITRE tactics — Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
 | Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 

@@ -94,6 +94,27 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '01-live-snapshot.md MITRE headline shape' {
+        BeforeAll {
+            $script:liveSnap = Get-Content (Join-Path $script:tempWsRoot '01-live-snapshot.md') -Raw
+        }
+
+        It 'uses the Covered / Thin / None headline shape' {
+            $script:liveSnap | Should -Match 'MITRE tactics .*Covered / Thin / None'
+        }
+
+        It 'does not use the old "with coverage" headline shape' {
+            $script:liveSnap | Should -Not -Match 'MITRE tactics with coverage'
+        }
+
+        It 'enumerates uncovered tactics in the headline when any exist' {
+            # The fixture's only enabled Scheduled rule cites InitialAccess +
+            # CredentialAccess; the other 12 catalogue tactics are uncovered,
+            # which the headline must enumerate after "uncovered:".
+            $script:liveSnap | Should -Match 'uncovered:.*Reconnaissance'
+        }
+    }
+
     Context '25-mitre-coverage.md renders the tactic matrix' {
         BeforeAll {
             $script:mitre = Get-Content (Join-Path $script:tempWsRoot '25-mitre-coverage.md') -Raw
