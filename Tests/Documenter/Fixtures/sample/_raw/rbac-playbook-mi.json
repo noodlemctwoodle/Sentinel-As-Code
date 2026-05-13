@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "Playbook": "IncidentEnrich-IP",
+    "PrincipalId": "11111111-1111-1111-1111-111111111111",
+    "WorkspaceRoles": [
+      "Microsoft Sentinel Responder",
+      "Microsoft Sentinel Reader"
+    ]
+  }
+]

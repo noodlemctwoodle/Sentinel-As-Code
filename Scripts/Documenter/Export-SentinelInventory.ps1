@@ -60,6 +60,12 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$OutputRoot = (Join-Path -Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) -ChildPath 'SecurityDocs'),
 
+    # Logic Apps resource group. Sentinel-As-Code allows playbooks to live in a
+    # separate resource group from the workspace (the `playbookResourceGroup`
+    # pipeline variable). Defaults to the Sentinel resource group when unset.
+    [Parameter(Mandatory = $false)]
+    [string]$PlaybookResourceGroup,
+
     [Parameter(Mandatory = $false)]
     [switch]$IncludePreview
 )
@@ -239,6 +245,50 @@ Try-Capture 'alert-rule-templates' {
 Try-Capture 'automation-rules' {
     $auto = Invoke-SentinelRest -Path "$sentinelScope/automationRules" -ApiVersion $apiVersions.Sentinel
     Save-Json -FileName 'automation-rules.json' -Data $auto
+}
+
+# Playbooks are Logic App workflows that live in a (possibly separate) resource
+# group from the workspace. The Sentinel API does not enumerate them; query the
+# Logic Apps provider directly. Renderer reads `name`, `properties.state`,
+# `properties.kind`, `identity.principalId` (when MI is configured) from this.
+Try-Capture 'playbooks' {
+    $playbookRg = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
+    $pb = Invoke-SentinelRest `
+        -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
+        -ApiVersion '2016-06-01'
+    Save-Json -FileName 'playbooks.json' -Data $pb
+}
+
+# Per-playbook managed-identity role assignments at the workspace scope. The
+# renderer joins this on the playbook name to surface "what can this Logic App
+# do against the workspace" alongside each row.
+Try-Capture 'rbac-playbook-mi' {
+    $rows = New-Object System.Collections.Generic.List[object]
+    $playbookRg = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
+    $pb = Invoke-SentinelRest `
+        -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
+        -ApiVersion '2016-06-01'
+    foreach ($wf in $pb) {
+        # Only enumerate identities. The 'None' type means no MI is attached.
+        $identityType = $null
+        if ($wf.PSObject.Properties.Name -contains 'identity' -and $wf.identity) {
+            $identityType = $wf.identity.type
+        }
+        if ($identityType -and $identityType -ne 'None' -and $wf.identity.principalId) {
+            try {
+                $assignments = Get-AzRoleAssignment -ObjectId $wf.identity.principalId -Scope $workspaceResourceId -ErrorAction Stop
+                $roleNames = @($assignments | ForEach-Object { $_.RoleDefinitionName } | Sort-Object -Unique)
+            } catch {
+                $roleNames = @()
+            }
+            $rows.Add([pscustomobject]@{
+                Playbook       = $wf.name
+                PrincipalId    = $wf.identity.principalId
+                WorkspaceRoles = $roleNames
+            })
+        }
+    }
+    Save-Json -FileName 'rbac-playbook-mi.json' -Data $rows.ToArray()
 }
 
 Try-Capture 'watchlists' {

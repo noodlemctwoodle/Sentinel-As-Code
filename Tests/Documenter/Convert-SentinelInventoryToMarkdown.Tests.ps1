@@ -225,6 +225,37 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '60-automation-rules-playbooks.md renders playbooks with state, kind, and MI roles' {
+        BeforeAll {
+            $script:playbookMd = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
+        }
+
+        It 'renders the IncidentEnrich-IP playbook name' {
+            $script:playbookMd | Should -Match 'IncidentEnrich-IP'
+        }
+
+        It 'renders the Enabled state for the first playbook' {
+            $script:playbookMd | Should -Match '\| IncidentEnrich-IP \| Enabled \|'
+        }
+
+        It 'renders the Disabled state for the second playbook' {
+            $script:playbookMd | Should -Match '\| NotifyOnHighSev \| Disabled \|'
+        }
+
+        It 'renders the Kind column with the workflow kind' {
+            $script:playbookMd | Should -Match 'Stateful'
+        }
+
+        It 'joins the MI workspace roles onto the IncidentEnrich-IP row' {
+            $script:playbookMd | Should -Match 'IncidentEnrich-IP \|[^|]+\|[^|]+\|[^|]*Microsoft Sentinel Responder.*Microsoft Sentinel Reader'
+        }
+
+        It 'leaves the WorkspaceRoles cell empty for a playbook without an MI' {
+            # NotifyOnHighSev has no identity in the fixture, so should have no role names.
+            $script:playbookMd | Should -Match 'NotifyOnHighSev \|[^|]+\|[^|]+\|\s*\|'
+        }
+    }
+
     Context '38-summary-rules.md reads the summaryLogs schema' {
         BeforeAll {
             $script:summaryMd = Get-Content (Join-Path $script:tempWsRoot '38-summary-rules.md') -Raw

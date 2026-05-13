@@ -565,11 +565,18 @@ $arRows = $autoRules | ForEach-Object {
 $playbooks = Read-RawArray 'playbooks.json'
 $miAssignments = Read-RawArray 'rbac-playbook-mi.json'
 $pbRows = $playbooks | ForEach-Object {
-    $mi = $miAssignments | Where-Object { $_.Playbook -eq $_.Name } | Select-Object -First 1
+    # Capture the outer playbook's name into a local variable. The naive
+    # `Where-Object { $_.Playbook -eq $_.Name }` form has a closure-scoping
+    # bug: `$_` inside the Where-Object refers to the miAssignment, so both
+    # sides of the equality reference the same object and the match is
+    # nonsense.
+    $pbName = $_.name
+    $mi = $miAssignments | Where-Object { $_.Playbook -eq $pbName } | Select-Object -First 1
     [pscustomobject]@{
-        Name = $_.Name
-        State = $_.State
-        WorkspaceRoles = if ($mi) { ($mi.WorkspaceRoles -join ', ') } else { '' }
+        Name           = $_.name
+        State          = $_.properties.state
+        Kind           = $_.properties.kind
+        WorkspaceRoles = if ($mi) { (@($mi.WorkspaceRoles) -join ', ') } else { '' }
     }
 }
 Write-Section '60-automation-rules-playbooks.md' (@"
@@ -581,7 +588,7 @@ $(Format-Table -Items $arRows -Columns 'Name','Order','Enabled')
 
 ## Playbooks (Logic Apps)
 
-$(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
+$(Format-Table -Items $pbRows -Columns 'Name','State','Kind','WorkspaceRoles')
 
 [Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks)
 "@)

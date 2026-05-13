@@ -1,1 +1,31 @@
-[]
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-playbooks/providers/Microsoft.Logic/workflows/IncidentEnrich-IP",
+    "name": "IncidentEnrich-IP",
+    "type": "Microsoft.Logic/workflows",
+    "location": "uksouth",
+    "tags": { "Source": "Sentinel-As-Code" },
+    "identity": {
+      "type": "SystemAssigned",
+      "principalId": "11111111-1111-1111-1111-111111111111",
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    },
+    "properties": {
+      "state": "Enabled",
+      "kind": "Stateful",
+      "description": "Enrich incident IPs with threat-intelligence reputation."
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-playbooks/providers/Microsoft.Logic/workflows/NotifyOnHighSev",
+    "name": "NotifyOnHighSev",
+    "type": "Microsoft.Logic/workflows",
+    "location": "uksouth",
+    "tags": { "Source": "Sentinel-As-Code" },
+    "properties": {
+      "state": "Disabled",
+      "kind": "Stateful",
+      "description": "Send Teams notification on high-severity incidents."
+    }
+  }
+]
