@@ -19,10 +19,15 @@ query: |
   // The Invoke-InjectOAuthApp module generates a notable volume of events within the MicrosoftGraphActivityLogs, which is visually represented in the below screenshot
 
   // Detect app registration
-  let ApplicationOperations = dynamic(["Add application", "Update application — Certificates and secrets management", "Update application"]);
-  AuditLogs
-  | where AdditionalDetails[0].value contains "PowerShell"
-  | where OperationName in (ApplicationOperations)
+  // TODO: the AuditLogs branch below was authored alongside the Graph
+  // detection but never wired into a single result set — the two tables
+  // have different schemas. Commented out to keep the query syntactically
+  // valid; integrate via 'union' or split into a sibling hunting query
+  // when the AuditLogs detection is needed independently.
+  // let ApplicationOperations = dynamic(["Add application", "Update application — Certificates and secrets management", "Update application"]);
+  // AuditLogs
+  // | where AdditionalDetails[0].value contains "PowerShell"
+  // | where OperationName in (ApplicationOperations)
 
   // Detect app registration in Graph Activity Logs
   MicrosoftGraphActivityLogs
