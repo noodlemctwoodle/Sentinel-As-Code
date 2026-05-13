@@ -1,0 +1,14 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/threatIntelligence/main/metrics/default",
+    "name": "default",
+    "kind": "metrics",
+    "properties": {
+      "metrics": [
+        { "threatType": "url",        "threatTypeCount": 482 },
+        { "threatType": "ipv4-addr",  "threatTypeCount": 1273 },
+        { "threatType": "domain-name", "threatTypeCount": 215 }
+      ]
+    }
+  }
+]

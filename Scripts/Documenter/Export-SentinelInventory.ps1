@@ -769,6 +769,15 @@ union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
     }
 }
 
+# Second TI capture source — the Sentinel TI metrics API. Independent of the
+# Az.OperationalInsights module + KQL path above, so the section can still
+# render when one source fails. The renderer prefers metrics when both
+# present (it carries an indicator-type breakdown the KQL summary doesn't).
+Try-Capture 'threat-intel-metrics' {
+    $metrics = Invoke-SentinelRest -Path "$sentinelScope/threatIntelligence/main/metrics" -ApiVersion $apiVersions.Sentinel
+    Save-Json -FileName 'threat-intel-metrics.json' -Data $metrics
+}
+
 Try-Capture 'analytics-rule-volumes' {
     # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
     # breakout (TOC 4.11.2).

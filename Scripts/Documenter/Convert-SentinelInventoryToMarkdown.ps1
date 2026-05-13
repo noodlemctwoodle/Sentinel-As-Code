@@ -1212,14 +1212,44 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 "@)
 
 # Section 27 — Threat Intelligence (TOC 4.17)
-$tiCounts = Read-RawArray 'threat-intel-counts.json'
-$tiRows = $tiCounts | ForEach-Object {
-    [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = $_.Count; LastIngested = $_.Last }
+# Two capture sources are tried in turn:
+# 1. `threat-intel-metrics.json` — the Sentinel TI metrics REST endpoint.
+#    Independent of the workspace KQL path so it survives KQL-side failures
+#    (missing Az.OperationalInsights module, permission gaps, table absence).
+# 2. `threat-intel-counts.json` — the KQL summary against ThreatIntelligenceIndicator.
+#    Used as a fallback when the metrics endpoint produced no data.
+$tiMetrics = Read-RawArray 'threat-intel-metrics.json'
+$tiCounts  = Read-RawArray 'threat-intel-counts.json'
+if ($tiMetrics.Count -gt 0) {
+    # The metrics endpoint returns objects with `properties.metrics` carrying a
+    # per-source breakdown. Project to the same shape the KQL form produced so
+    # the renderer table is consistent regardless of source.
+    $tiRows = foreach ($m in $tiMetrics) {
+        $bySource = $null
+        if ($m.PSObject.Properties.Name -contains 'properties' -and $m.properties) {
+            $bySource = $m.properties.metrics
+        }
+        if ($bySource) {
+            foreach ($s in $bySource) {
+                [pscustomobject]@{
+                    SourceSystem   = $s.threatType
+                    IndicatorCount = $s.threatTypeCount
+                    LastIngested   = ''
+                }
+            }
+        }
+    }
+    $tiSourceLabel = 'TI metrics API (`threatIntelligence/main/metrics`)'
+} else {
+    $tiRows = $tiCounts | ForEach-Object {
+        [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = $_.Count; LastIngested = $_.Last }
+    }
+    $tiSourceLabel = 'workspace KQL summary'
 }
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
-Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
+Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only. Data source: $tiSourceLabel.
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
 

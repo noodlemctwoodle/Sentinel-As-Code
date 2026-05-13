@@ -256,6 +256,28 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '27-threat-intelligence.md prefers the TI metrics API as source' {
+        BeforeAll {
+            $script:tiMd = Get-Content (Join-Path $script:tempWsRoot '27-threat-intelligence.md') -Raw
+        }
+
+        It 'labels the data source as the TI metrics API when present' {
+            $script:tiMd | Should -Match 'TI metrics API'
+        }
+
+        It 'renders the url indicator type from the metrics API' {
+            $script:tiMd | Should -Match '\| url \| 482 \|'
+        }
+
+        It 'renders the ipv4-addr indicator type from the metrics API' {
+            $script:tiMd | Should -Match '\| ipv4-addr \| 1273 \|'
+        }
+
+        It 'renders the domain-name indicator type from the metrics API' {
+            $script:tiMd | Should -Match '\| domain-name \| 215 \|'
+        }
+    }
+
     Context '38-summary-rules.md reads the summaryLogs schema' {
         BeforeAll {
             $script:summaryMd = Get-Content (Join-Path $script:tempWsRoot '38-summary-rules.md') -Raw
@@ -301,7 +323,8 @@ Describe 'Sentinel Documenter renderer — empty-state safety' {
             Copy-Item -Path $_.FullName -Destination (Join-Path $emptyWsRoot '_raw') -Force
         }
         # Deliberately remove the files that caused phantom rows on the production run.
-        @('threat-intel-counts.json','playbooks.json','rbac-playbook-mi.json') | ForEach-Object {
+        # TI removal needs both sources gone — the renderer falls back from metrics to counts.
+        @('threat-intel-counts.json','threat-intel-metrics.json','playbooks.json','rbac-playbook-mi.json') | ForEach-Object {
             $f = Join-Path $emptyWsRoot "_raw/$_"
             if (Test-Path $f) { Remove-Item -Force $f }
         }
