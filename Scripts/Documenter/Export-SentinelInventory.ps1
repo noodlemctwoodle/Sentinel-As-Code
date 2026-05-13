@@ -308,6 +308,20 @@ Try-Capture 'repositories' {
 }
 
 # Bundle the four settings resources into a single file with one property per setting.
+#
+# Per-setting null in the produced file does NOT mean the corresponding feature
+# is disabled. It means the workspace has no explicit settings resource at
+# /providers/Microsoft.SecurityInsights/settings/<name>. UEBA, Entity Analytics,
+# Eyes-On, and Anomalies can be toggled on via the portal without writing the
+# settings resource, in which case the GET returns 404 and Invoke-SentinelRest
+# converts that to an empty array (see Invoke-SentinelRest.ps1 line ~104).
+# $val[0] then correctly unwraps the single-element response when the resource
+# does exist, and resolves to null when it does not.
+#
+# To answer the operational question "is UEBA actually producing data?" the
+# more robust signal is row counts in BehaviorAnalytics / IdentityInfo /
+# UserPeerAnalytics. That data-presence inference is captured separately by
+# a future commit; the settings capture here is the configuration-side signal.
 Try-Capture 'sentinel-settings' {
     $settings = [ordered]@{}
     foreach ($n in @('Ueba','EntityAnalytics','EyesOn','Anomalies')) {

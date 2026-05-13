@@ -1176,8 +1176,21 @@ $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity
 "@)
 
 # Section 26 — UEBA (TOC 4.16)
-$uebaSetting = if ($null -ne (Read-Raw 'settings.json')) { (Read-Raw 'settings.json').Ueba } else { $null }
+# Note on the "Enabled" signal: the absence of a settings resource at
+# /providers/Microsoft.SecurityInsights/settings/Ueba does NOT mean UEBA is
+# disabled — it can be toggled on via the portal without writing the settings
+# resource. A future commit adds data-presence inference from BehaviorAnalytics,
+# IdentityInfo, and UserPeerAnalytics row counts to answer the operational
+# question "is UEBA producing data?". For now this section reports the
+# configuration-side state with an honest qualifier.
+$settingsRaw = Read-Raw 'settings.json'
+$uebaSetting = if ($null -ne $settingsRaw) { $settingsRaw.Ueba } else { $null }
 $uebaSources = if ($uebaSetting -and $uebaSetting.properties) { @($uebaSetting.properties.dataSources) } else { @() }
+$uebaEnabledLabel = if ($uebaSetting) {
+    'Yes (settings resource present)'
+} else {
+    'Settings resource not written — UEBA may still be enabled via the portal toggle; the configuration API has not been used to set explicit data sources on this workspace'
+}
 Write-Section '26-ueba.md' (@"
 $(Format-Banner -Title "User and Entity Behaviour Analytics  (TOC 4.16)")
 
@@ -1185,8 +1198,8 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 
 | | |
 |---|---|
-| Enabled | $(if ($uebaSetting) { 'Yes' } else { 'No (settings resource not present)' }) |
-| Data sources | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none)_' }) |
+| Configuration | $uebaEnabledLabel |
+| Data sources | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none configured via the settings resource)_' }) |
 
 [Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
 "@)
