@@ -246,6 +246,24 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '80-workspace.md surfaces usage telemetry' {
+        BeforeAll {
+            $script:wsUsageMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+        }
+
+        It 'renders the Usage telemetry heading' {
+            $script:wsUsageMd | Should -Match '## Usage telemetry'
+        }
+
+        It 'renders the 30-day total billable value' {
+            $script:wsUsageMd | Should -Match '\| 82\.4 \| 71\.8 \|'
+        }
+
+        It 'renders the 14-day billable peak value' {
+            $script:wsUsageMd | Should -Match '\| 4\.6 \| 4\.1 \|'
+        }
+    }
+
     Context '80-workspace.md surfaces provenance metadata' {
         BeforeAll {
             $script:wsMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw

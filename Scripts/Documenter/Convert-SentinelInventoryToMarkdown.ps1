@@ -801,6 +801,19 @@ $(Format-Banner -Title "Workspace Inventory")
 | Default retention | $($workspace.properties.retentionInDays) days |
 | Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited (-1)' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
 
+## Usage telemetry
+
+$( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
+   if ($usage) {
+@"
+| Window | Total GB | Billable GB |
+|---|---:|---:|
+| Last 30 days (sum) | $($usage.TotalGB) | $($usage.BillableTotalGB) |
+| Last 14 days (peak day) | $($usage.PeakDailyGB) | $($usage.BillablePeakDailyGB) |
+| Last 14 days (avg/day) | _(n/a)_ | $($usage.BillableAvgDailyGB) |
+"@
+   } else { '_No usage telemetry captured._' } )
+
 ## Networking + replication
 
 | Property | Value |
@@ -914,6 +927,15 @@ Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or ne
 ## Catalogue-only Microsoft schemas
 
 $($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem; first 20 names: ``$catalogueSample$(if ($catalogueOnly.Count -gt 20) { ', …' })``.
+
+## Tables with non-default retention
+
+Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last 90 days. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
+
+$( $nonDefaultRows = @($tableRows | Where-Object {
+        ($_.Interactive -ne $workspace.properties.retentionInDays -or $_.Total -ne $workspace.properties.retentionInDays) -and ($_.Gb90d -gt 0)
+    } | Sort-Object -Property Gb90d -Descending)
+   Format-Table -Items $nonDefaultRows -Columns 'Name','Plan','Interactive','Total','Archive','Gb90d' )
 
 [Table plans (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans) · [Retention & archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive) · [Manage table tiers in Sentinel](https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention)
 "@

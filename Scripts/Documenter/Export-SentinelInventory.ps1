@@ -708,6 +708,30 @@ SecurityIncident
     }
 }
 
+Try-Capture 'workspace-usage' {
+    # Compact set of usage scalars sourced from the Usage table. Total +
+    # billable 30d, plus 14d peak / billable-peak / billable-average. Returned
+    # as a single object so the renderer doesnt need five sequential reads.
+    $kql = @'
+let Total30d        = Usage | where TimeGenerated > ago(30d) | summarize TotalGB = round(sum(Quantity)/1024, 3);
+let Billable30d     = Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize BillableTotalGB = round(sum(Quantity)/1024, 3);
+let Peak14d         = Usage | where TimeGenerated > ago(14d) | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize PeakDailyGB = max(DailyGB);
+let BillablePeak14d = Usage | where TimeGenerated > ago(14d) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillablePeakDailyGB = max(DailyGB);
+let BillableAvg14d  = Usage | where TimeGenerated > ago(14d) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillableAvgDailyGB = round(avg(DailyGB), 3);
+Total30d
+| extend BillableTotalGB     = toscalar(Billable30d)
+| extend PeakDailyGB         = toscalar(Peak14d)
+| extend BillablePeakDailyGB = toscalar(BillablePeak14d)
+| extend BillableAvgDailyGB  = toscalar(BillableAvg14d)
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'workspace-usage.json' -Data ($r.Results)
+    } catch {
+        Save-Json -FileName 'workspace-usage.json' -Data @()
+    }
+}
+
 Try-Capture 'incidents-daily-metrics' {
     # Daily incident-flow metrics over the last 7 days, complementary to
     # the MTTA/MTTR aggregate above.
