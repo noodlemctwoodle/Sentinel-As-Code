@@ -246,6 +246,38 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '70-content-hub.md flags solutions with update available' {
+        BeforeAll {
+            $script:chMd = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
+        }
+
+        It 'shows azuread with UpdateAvailable = 3.1.0' {
+            $script:chMd | Should -Match 'Azure Active Directory \| 3\.0\.0 \| 3\.1\.0 \| 3\.1\.0 \|'
+        }
+
+        It 'leaves UpdateAvailable empty for office365 (already current)' {
+            $script:chMd | Should -Match 'Microsoft 365 \| 2\.5\.0 \| 2\.5\.0 \|\s*\|'
+        }
+    }
+
+    Context '80-workspace.md surfaces available service tiers' {
+        BeforeAll {
+            $script:tierMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+        }
+
+        It 'renders the available service tiers heading' {
+            $script:tierMd | Should -Match '### Available service tiers'
+        }
+
+        It 'renders the PerGB2018 enabled row' {
+            $script:tierMd | Should -Match '\| PerGB2018 \|[^|]*\| True \|'
+        }
+
+        It 'renders the CapacityReservation tier with reservation level' {
+            $script:tierMd | Should -Match '\| CapacityReservation \| 100 \| False \|'
+        }
+    }
+
     Context '11-sentinel-health.md surfaces operations summary + query logging' {
         BeforeAll {
             $script:healthMd = Get-Content (Join-Path $script:tempWsRoot '11-sentinel-health.md') -Raw

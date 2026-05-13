@@ -739,6 +739,11 @@ Try-Capture 'workspace-locks' {
     Save-Json -FileName 'workspace-locks.json' -Data $locks
 }
 
+Try-Capture 'available-service-tiers' {
+    $tiers = Invoke-SentinelRest -Path "$workspaceResourceId/availableServiceTiers" -ApiVersion '2020-08-01'
+    Save-Json -FileName 'available-service-tiers.json' -Data $tiers
+}
+
 Try-Capture 'workspace-usage' {
     # Compact set of usage scalars sourced from the Usage table. Total +
     # billable 30d, plus 14d peak / billable-peak / billable-average. Returned

@@ -744,9 +744,29 @@ $(Format-Table -Items $pbRows -Columns 'Name','State','Kind','WorkspaceRoles')
 "@)
 
 $contentPackages = Read-RawArray 'content-packages.json'
+$contentCatalogue = Read-RawArray 'content-product-packages.json'
 $repos           = Read-RawArray 'repositories.json'
+
+# Index catalogue versions by contentId so installed packages can join for
+# "update available" detection.
+$catalogueByContentId = @{}
+foreach ($p in $contentCatalogue) {
+    $cid = $p.properties.contentId
+    if ($cid) { $catalogueByContentId[$cid] = $p }
+}
+
 $cpRows = $contentPackages | ForEach-Object {
-    [pscustomobject]@{ Name = $_.properties.displayName; Version = $_.properties.version; Source = $_.properties.source.kind }
+    $installed = $_.properties.version
+    $cid = $_.properties.contentId
+    $latest = if ($cid -and $catalogueByContentId.ContainsKey($cid)) { $catalogueByContentId[$cid].properties.version } else { $null }
+    $updateAvailable = if ($latest -and $installed -and $latest -ne $installed) { $latest } else { '' }
+    [pscustomobject]@{
+        Name            = $_.properties.displayName
+        Installed       = $installed
+        Latest          = if ($latest) { $latest } else { '' }
+        UpdateAvailable = $updateAvailable
+        Source          = $_.properties.source.kind
+    }
 }
 $repoRows = $repos | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
@@ -756,7 +776,9 @@ $(Format-Banner -Title "Content Hub and Repositories")
 
 ## Solutions installed
 
-$(Format-Table -Items $cpRows -Columns 'Name','Version','Source')
+The ``UpdateAvailable`` column is populated only when the installed version is older than the latest available in the Content Hub catalogue.
+
+$(Format-Table -Items $cpRows -Columns 'Name','Installed','Latest','UpdateAvailable','Source')
 
 ## Repositories
 
@@ -800,6 +822,18 @@ $(Format-Banner -Title "Workspace Inventory")
 | Capacity reservation level | $(if ($workspace.properties.sku.capacityReservationLevel) { "$($workspace.properties.sku.capacityReservationLevel) GB/day" } else { '_(n/a)_' }) |
 | Default retention | $($workspace.properties.retentionInDays) days |
 | Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited (-1)' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+
+### Available service tiers
+
+$( $availableTiers = Read-RawArray 'available-service-tiers.json'
+   $tierRows = $availableTiers | ForEach-Object {
+       [pscustomobject]@{
+           SkuName            = $_.serviceTier
+           CapacityReservation = if ($_.PSObject.Properties.Name -contains 'capacityReservationLevel') { $_.capacityReservationLevel } else { '' }
+           Enabled            = $_.enabled
+       }
+   }
+   Format-Table -Items $tierRows -Columns 'SkuName','CapacityReservation','Enabled' )
 
 ## Usage telemetry
 

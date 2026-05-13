@@ -1,0 +1,5 @@
+[
+  { "serviceTier": "PerGB2018",        "enabled": true  },
+  { "serviceTier": "CapacityReservation", "capacityReservationLevel": 100, "enabled": false },
+  { "serviceTier": "Free",             "enabled": false }
+]
