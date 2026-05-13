@@ -833,7 +833,17 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 | immediatePurgeDataOn30Days | $($features.immediatePurgeDataOn30Days) |
 | clusterResourceId | $(if ($features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
 
-[Workspace design (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design) · [Manage access](https://learn.microsoft.com/azure/azure-monitor/logs/manage-access) · [Replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication)
+## Resource locks
+
+$( $wsLocks = Read-RawArray 'workspace-locks.json'
+   $lockRows = $wsLocks | ForEach-Object {
+       [pscustomobject]@{ Name = $_.name; Level = $_.properties.level; Notes = $_.properties.notes }
+   }
+   Format-Table -Items $lockRows -Columns 'Name','Level','Notes' )
+
+A non-empty list of locks here is a deletion-protection signal. ``CanNotDelete`` blocks resource deletion; ``ReadOnly`` blocks both modification and deletion.
+
+[Workspace design (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design) · [Manage access](https://learn.microsoft.com/azure/azure-monitor/logs/manage-access) · [Replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication) · [Resource locks](https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources)
 "@
 Write-Section '80-workspace.md' $wsBody
 
@@ -1233,12 +1243,32 @@ $healthRows = $health | ForEach-Object {
         LastEvent= $_.LastEvent
     }
 }
+$healthSummary = Read-RawArray 'sentinel-health-summary.json'
+$healthSummaryRows = $healthSummary | ForEach-Object {
+    [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; LogCount = $_.LogCount }
+}
+$laQueryLogs = Read-RawArray 'la-query-logs.json' | Select-Object -First 1
+$laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
+    "**LAQueryLogs activity (7d):** $($laQueryLogs.QueryCount) query records (query logging is active)."
+} elseif ($laQueryLogs) {
+    '_LAQueryLogs table is present but empty for the last 7 days; query logging may be off._'
+} else {
+    '_LAQueryLogs table is not populated; query logging diagnostics are not configured._'
+}
 Write-Section '11-sentinel-health.md' (@"
 $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 
 $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Statuses','LastEvent')
+
+## Operations summary (per OperationName + Status)
+
+$(Format-Table -Items $healthSummaryRows -Columns 'OperationName','Status','LogCount')
+
+## Query logging activity
+
+$laQueryLine
 
 [Sentinel health, audit, and monitoring (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/health-audit)
 "@)

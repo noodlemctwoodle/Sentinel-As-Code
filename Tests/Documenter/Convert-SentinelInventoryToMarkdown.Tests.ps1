@@ -246,6 +246,38 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '11-sentinel-health.md surfaces operations summary + query logging' {
+        BeforeAll {
+            $script:healthMd = Get-Content (Join-Path $script:tempWsRoot '11-sentinel-health.md') -Raw
+        }
+
+        It 'renders the operations summary heading' {
+            $script:healthMd | Should -Match '## Operations summary'
+        }
+
+        It 'renders the Scheduled analytics success row' {
+            $script:healthMd | Should -Match '\| Scheduled analytics \| Success \| 1432 \|'
+        }
+
+        It 'renders the LAQueryLogs activity count' {
+            $script:healthMd | Should -Match '18403 query records'
+        }
+    }
+
+    Context '80-workspace.md surfaces resource locks' {
+        BeforeAll {
+            $script:wsLocksMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+        }
+
+        It 'renders the Resource locks heading' {
+            $script:wsLocksMd | Should -Match '## Resource locks'
+        }
+
+        It 'renders the no-delete lock row' {
+            $script:wsLocksMd | Should -Match '\| no-delete \| CanNotDelete \|'
+        }
+    }
+
     Context '80-workspace.md surfaces usage telemetry' {
         BeforeAll {
             $script:wsUsageMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw

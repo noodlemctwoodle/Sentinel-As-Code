@@ -708,6 +708,37 @@ SecurityIncident
     }
 }
 
+Try-Capture 'sentinel-health-summary' {
+    $kql = @'
+SentinelHealth
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count() by OperationName, Status
+| order by LogCount desc
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'sentinel-health-summary.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'sentinel-health-summary.json' -Data @() }
+}
+
+Try-Capture 'la-query-logs' {
+    $kql = @'
+LAQueryLogs
+| where TimeGenerated > ago(7d)
+| summarize QueryCount = count()
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'la-query-logs.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'la-query-logs.json' -Data @() }
+}
+
+Try-Capture 'workspace-locks' {
+    # Resource locks scoped to the workspace.
+    $locks = Invoke-SentinelRest -Path "$workspaceResourceId/providers/Microsoft.Authorization/locks" -ApiVersion '2016-09-01'
+    Save-Json -FileName 'workspace-locks.json' -Data $locks
+}
+
 Try-Capture 'workspace-usage' {
     # Compact set of usage scalars sourced from the Usage table. Total +
     # billable 30d, plus 14d peak / billable-peak / billable-average. Returned
