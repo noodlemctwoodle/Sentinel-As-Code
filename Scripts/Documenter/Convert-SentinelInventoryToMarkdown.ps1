@@ -1261,16 +1261,30 @@ $(Format-Table -Items $restoreJobs -Columns 'name','properties')
 "@)
 
 # Section 38 — Summary rules (TOC 4.3.5)
+# Schema note: the capture comes from `.../workspaces/<ws>/summaryLogs` (under
+# the OperationalInsights provider, not Sentinel). Each item exposes
+# `properties.ruleType`, `properties.RuleDefinition.Query`,
+# `properties.RuleDefinition.BinSize`, `properties.RuleDefinition.BinDelay`,
+# `properties.RuleDefinition.TimeSelector`, and
+# `properties.RuleDefinition.DestinationTable`. The earlier renderer read
+# `properties.displayName` / `properties.source.name` / `properties.version`
+# — fields that belong to the contentTemplates schema, not summaryLogs.
 $summaryRules = Read-RawArray 'summary-rules.json'
 $summaryRows = $summaryRules | ForEach-Object {
-    [pscustomobject]@{ Name = $_.properties.displayName; Source = $_.properties.source.name; Version = $_.properties.version }
+    [pscustomobject]@{
+        Name             = $_.name
+        RuleType         = $_.properties.ruleType
+        DestinationTable = $_.properties.RuleDefinition.DestinationTable
+        BinSize          = $_.properties.RuleDefinition.BinSize
+        BinDelay         = $_.properties.RuleDefinition.BinDelay
+    }
 }
 Write-Section '38-summary-rules.md' (@"
 $(Format-Banner -Title "Summary Rules  (TOC 4.3.5)")
 
 Summary rules pre-aggregate high-volume tables on a schedule into a derived table. They cut query cost on noisy data.
 
-$(Format-Table -Items $summaryRows -Columns 'Name','Source','Version')
+$(Format-Table -Items $summaryRows -Columns 'Name','RuleType','DestinationTable','BinSize','BinDelay')
 
 [Summary rules (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/summary-rules)
 "@)

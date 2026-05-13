@@ -283,10 +283,15 @@ Try-Capture 'content-product-packages' {
 }
 
 Try-Capture 'summary-rules' {
-    if ($IncludePreview) {
-        $sr = Invoke-SentinelRest -Path "$sentinelScope/contentTemplates?`$filter=properties/contentKind eq 'SummaryRule'" -ApiVersion $apiVersions.SentinelPreview
-        Save-Json -FileName 'summary-rules.json' -Data $sr
-    }
+    # Summary rules are owned by the OperationalInsights provider, not Sentinel
+    # — the API path is `.../workspaces/<ws>/summaryLogs`, not the Content Hub
+    # `.../contentTemplates?$filter=contentKind eq 'SummaryRule'` (which would
+    # only return installable templates, not deployed rule instances). The
+    # earlier implementation queried the wrong endpoint AND gated the call on
+    # -IncludePreview, so production runs without that switch returned nothing
+    # regardless of how many summary rules the workspace actually has.
+    $sr = Invoke-SentinelRest -Path "$workspaceResourceId/summaryLogs" -ApiVersion '2023-01-01-preview'
+    Save-Json -FileName 'summary-rules.json' -Data $sr
 }
 
 Try-Capture 'repositories' {

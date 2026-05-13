@@ -225,6 +225,29 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '38-summary-rules.md reads the summaryLogs schema' {
+        BeforeAll {
+            $script:summaryMd = Get-Content (Join-Path $script:tempWsRoot '38-summary-rules.md') -Raw
+        }
+
+        It 'renders the rule name from the resource name (not contentTemplate displayName)' {
+            $script:summaryMd | Should -Match 'SigninLogsHourlyRollup'
+        }
+
+        It 'renders the DestinationTable column' {
+            $script:summaryMd | Should -Match 'SigninLogsHourly_CL'
+        }
+
+        It 'renders the RuleType column' {
+            $script:summaryMd | Should -Match '\| User \|'
+        }
+
+        It 'does not surface the obsolete Source column header' {
+            # Old renderer emitted `| Name | Source | Version |`.
+            $script:summaryMd | Should -Not -Match '\| Name \| Source \| Version \|'
+        }
+    }
+
     Context '99-references.md is a copy of REFERENCES.md' {
         It 'exists and contains the API versions table' {
             $p = Join-Path $script:tempWsRoot '99-references.md'
