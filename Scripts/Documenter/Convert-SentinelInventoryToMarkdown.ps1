@@ -337,12 +337,36 @@ function Get-ConnectorTargetTable {
 
 $ccfDefs = Read-RawArray 'data-connector-definitions.json'
 
+# Pre-index tables-with-data by name so the connector rows can join on it
+# without rebuilding the lookup once per row.
+$tablesByNameForConnectors = @{}
+foreach ($t in $tablesWithData) {
+    if ($t.DataType) { $tablesByNameForConnectors[$t.DataType] = $t }
+}
+function Get-ConnectorData7d {
+    param([psobject]$Connector)
+    $dataTypes = $Connector.properties.dataTypes
+    if ($null -eq $dataTypes) { return '' }
+    $anyData = $false
+    foreach ($dtName in @($dataTypes.PSObject.Properties.Name)) {
+        $table = Get-ConnectorTargetTable -Kind $Connector.kind -DataType $dtName
+        if (-not $table) { continue }
+        if ($tablesByNameForConnectors.ContainsKey($table)) {
+            $row = $tablesByNameForConnectors[$table]
+            $bill7d = if ($null -ne $row.BillableLast7d) { [double]$row.BillableLast7d } else { 0 }
+            if ($bill7d -gt 0) { $anyData = $true; break }
+        }
+    }
+    if ($anyData) { 'Yes' } else { 'No' }
+}
+
 $connectorRows = $connectors | ForEach-Object {
     [pscustomobject]@{
         Title     = Get-ConnectorFriendlyTitle -Kind $_.kind -Connector $_
         Kind      = $_.kind
         DataTypes = Get-ConnectorDataTypes -Connector $_
         State     = Get-ConnectorAggregateState -Connector $_
+        Data7d    = Get-ConnectorData7d -Connector $_
     }
 }
 
@@ -406,7 +430,7 @@ $(Format-Banner -Title "Data Connectors")
 
 ## Classic connectors
 
-$(Format-Table -Items $connectorRows -Columns 'Title','Kind','DataTypes','State')
+$(Format-Table -Items $connectorRows -Columns 'Title','Kind','DataTypes','State','Data7d')
 
 ## Codeless Connector Framework definitions
 

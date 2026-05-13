@@ -182,6 +182,11 @@ Describe 'Sentinel Documenter renderer' {
             $script:dcMd | Should -Match '\| Microsoft Defender XDR \|[^|]+\|[^|]+\| partial \|'
         }
 
+        It 'surfaces a Data7d column showing Yes when the connector tables received billable data' {
+            # Office365 maps to OfficeActivity (BillableLast7d=95.0 in fixture → Yes).
+            $script:dcMd | Should -Match '\| Microsoft 365 \(Office 365\) \|[^|]+\|[^|]+\|[^|]+\| Yes \|'
+        }
+
         It 'lists the connector data types in their own column' {
             $script:dcMd | Should -Match 'sharePoint, exchange, teams'
         }
