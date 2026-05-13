@@ -1334,10 +1334,15 @@ $(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
 $incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
 $incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
 $incByRule  = Read-RawArray 'incidents-by-rule.json'
+$incDaily   = Read-RawArray 'incidents-daily-metrics.json' | Select-Object -First 1
 
 $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
     "**MTTA:** $([math]::Round([double]$incMttr.MTTAMinutes, 1)) min  ·  **MTTR:** $([math]::Round([double]$incMttr.MTTRMinutes, 1)) min  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)"
 } else { '_No closed incidents in the last 30 days; MTTA/MTTR not available._' }
+
+$dailyLine = if ($incDaily -and $null -ne $incDaily.AvgDailyUniqueIncidents) {
+    "**Avg daily unique incidents:** $($incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $($incDaily.PeakDailyNewIncidents) (last 7d)"
+} else { '_No incident-flow metrics available._' }
 
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
@@ -1345,6 +1350,8 @@ $(Format-Banner -Title "Incidents  (TOC 4.10)")
 > Aggregate-only. The documenter never exports incident bodies, alert payloads or entity detail — only counts and derived SOC-efficiency metrics.
 
 $mttrLine
+
+$dailyLine
 
 ## Top alerting rules (last 30d, top 25)
 

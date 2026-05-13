@@ -376,6 +376,20 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '15-incidents.md surfaces daily incident-flow metrics' {
+        BeforeAll {
+            $script:incMd = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw
+        }
+
+        It 'renders Avg daily unique incidents' {
+            $script:incMd | Should -Match 'Avg daily unique incidents:\*\* 12\.4'
+        }
+
+        It 'renders Peak daily new incidents' {
+            $script:incMd | Should -Match 'Peak daily new incidents:\*\* 31'
+        }
+    }
+
     Context '20-analytics-rules.md surfaces mouldy + template-mismatch sub-tables' {
         BeforeAll {
             $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw

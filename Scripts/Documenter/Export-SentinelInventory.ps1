@@ -708,6 +708,26 @@ SecurityIncident
     }
 }
 
+Try-Capture 'incidents-daily-metrics' {
+    # Daily incident-flow metrics over the last 7 days, complementary to
+    # the MTTA/MTTR aggregate above.
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(8d)
+| where CreatedTime between(ago(8d) .. ago(1d))
+| summarize DailyUnique = dcount(IncidentNumber), DailyCount = count() by bin(CreatedTime, 1d)
+| summarize
+    AvgDailyUniqueIncidents = round(avg(DailyUnique), 1),
+    PeakDailyNewIncidents   = max(DailyCount)
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incidents-daily-metrics.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'incidents-daily-metrics.json' -Data @()
+    }
+}
+
 Try-Capture 'incidents-by-rule' {
     $kql = @'
 SecurityIncident
