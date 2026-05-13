@@ -558,6 +558,19 @@ function Test-OrphanTables {
 }
 
 # ------------------------------------------------------------
+# Helper — does a TablesWithData record claim non-zero billable ingest in
+# the last 30 days? Returns the GB value as a [double], or 0 when missing.
+# ------------------------------------------------------------
+function _GetBillable30d {
+    param([object]$Row)
+    $v = Get-PropOrDefault $Row 'BillableLast30d' 0
+    if ($null -eq $v) { return 0.0 }
+    $d = 0.0
+    if ([double]::TryParse([string]$v, [ref]$d)) { return $d }
+    return 0.0
+}
+
+# ------------------------------------------------------------
 # SENT-028 — Connector connected but target table has no recent data
 # ------------------------------------------------------------
 function Test-ConnectorTableMismatch {
@@ -592,3 +605,275 @@ function Test-ConnectorTableMismatch {
     }
     return $null
 }
+
+# ------------------------------------------------------------
+# SENT-029 — Incident MTTR above 24h
+# ------------------------------------------------------------
+function Test-IncidentMttrThreshold {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.IncidentsMttr -or @($Inventory.IncidentsMttr).Count -eq 0) { return $null }
+    $row = $Inventory.IncidentsMttr[0]
+    $closed = [int](Get-PropOrDefault $row 'ClosedCount' 0)
+    if ($closed -eq 0) { return $null }
+    $mttrRaw = Get-PropOrDefault $row 'MTTRMinutes' $null
+    $mttr = 0.0
+    if (-not [double]::TryParse([string]$mttrRaw, [ref]$mttr)) { return $null }
+    if ($mttr -le 1440.0) { return $null }
+    $hours = [math]::Round($mttr / 60.0, 1)
+    return New-Finding -Evidence "MTTR over the last 30 days is $hours hours across $closed closed incident(s); SOC target is <= 24h." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
+}
+
+# ------------------------------------------------------------
+# SENT-030 — Majority of incidents closed without ever being acknowledged
+# ------------------------------------------------------------
+function Test-IncidentClosedWithoutAcknowledgement {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.IncidentsMttr -or @($Inventory.IncidentsMttr).Count -eq 0) { return $null }
+    $row = $Inventory.IncidentsMttr[0]
+    $closed = [int](Get-PropOrDefault $row 'ClosedCount' 0)
+    # The AcknowledgedCount column was added by a recent fix; on older
+    # capture files it isn't present and the check has nothing to evaluate.
+    if ($row.PSObject.Properties.Name -notcontains 'AcknowledgedCount') { return $null }
+    $ack = [int](Get-PropOrDefault $row 'AcknowledgedCount' 0)
+    if ($closed -lt 10) { return $null }            # statistical floor — small samples lie
+    $unack = $closed - $ack
+    $ratio = $unack / [double]$closed
+    if ($ratio -le 0.5) { return $null }
+    return New-Finding -Evidence "$unack of $closed closed incidents ($([math]::Round($ratio*100,0))%) never reached an acknowledged state. Automation is auto-closing without analyst review, or analytics rules are flooding the queue." -Detail @{ Closed = $closed; Acknowledged = $ack; Unacknowledged = $unack }
+}
+
+# ------------------------------------------------------------
+# SENT-031 — Mouldy rules — enabled, untouched > 12 months
+# ------------------------------------------------------------
+function Test-MouldyAnalyticsRules {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.AlertRules) { return $null }
+    $cutoff = (Get-Date).ToUniversalTime().AddDays(-365)
+    # ConvertFrom-Json auto-deserialises ISO-8601 timestamps to [datetime];
+    # round-tripping via [string] then TryParse uses the current culture and
+    # can drop the round-trip on en-GB machines. Cast directly with a try
+    # block so both [string] and [datetime] inputs work identically.
+    $mouldy = @($Inventory.AlertRules | Where-Object {
+        $kind = Get-PropOrDefault $_ 'kind' ''
+        $enabled = Get-PropOrDefault $_ 'properties.enabled' $false
+        $lm = Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null
+        $parsed = [datetime]::MinValue
+        $tsValid = $false
+        if ($lm) { try { $parsed = [datetime]$lm; $tsValid = $true } catch {} }
+        ($kind -in @('Scheduled','NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
+    })
+    if ($mouldy.Count -eq 0) { return $null }
+    $names = ($mouldy | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    $suffix = if ($mouldy.Count -gt 5) { " (+ $($mouldy.Count - 5) more)" } else { '' }
+    return New-Finding -Evidence "$($mouldy.Count) enabled Scheduled/NRT rule(s) not modified in over 12 months: $names$suffix." -Detail @{ Count = $mouldy.Count }
+}
+
+# ------------------------------------------------------------
+# SENT-032 — Deployed rule's templateVersion lags the latest template
+# ------------------------------------------------------------
+function Test-AnalyticsRuleTemplateDrift {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.AlertRules -or -not $Inventory.AlertRuleTemplates) { return $null }
+    $latestByTemplate = @{}
+    foreach ($t in $Inventory.AlertRuleTemplates) {
+        $tname = Get-PropOrDefault $t 'name' ''
+        $v = Get-PropOrDefault $t 'properties.version' $null
+        if ($tname -and $v) { $latestByTemplate[$tname] = [string]$v }
+    }
+    if ($latestByTemplate.Count -eq 0) { return $null }
+    $drifted = @()
+    foreach ($r in $Inventory.AlertRules) {
+        $tplName = Get-PropOrDefault $r 'properties.alertRuleTemplateName' $null
+        if (-not $tplName) { continue }
+        if (-not $latestByTemplate.ContainsKey($tplName)) { continue }
+        $deployed = Get-PropOrDefault $r 'properties.templateVersion' $null
+        if (-not $deployed) { continue }
+        if ([string]$deployed -ne $latestByTemplate[$tplName]) {
+            $drifted += [pscustomobject]@{
+                Name     = Get-PropOrDefault $r 'properties.displayName' '?'
+                Deployed = [string]$deployed
+                Latest   = $latestByTemplate[$tplName]
+            }
+        }
+    }
+    if ($drifted.Count -eq 0) { return $null }
+    $sample = ($drifted | Select-Object -First 5 | ForEach-Object { "$($_.Name) ($($_.Deployed)→$($_.Latest))" }) -join '; '
+    $suffix = if ($drifted.Count -gt 5) { " (+ $($drifted.Count - 5) more)" } else { '' }
+    return New-Finding -Evidence "$($drifted.Count) deployed rule(s) lag the latest template version: $sample$suffix." -Detail @{ Count = $drifted.Count }
+}
+
+# ------------------------------------------------------------
+# SENT-033 — Single rule producing > 30% of alert volume
+# ------------------------------------------------------------
+function Test-DominantNoisyRule {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.AnalyticsRuleVolumes -or @($Inventory.AnalyticsRuleVolumes).Count -eq 0) { return $null }
+    $rows = @($Inventory.AnalyticsRuleVolumes)
+    $totalAlerts = ($rows | ForEach-Object { [double](Get-PropOrDefault $_ 'Alerts' 0) } | Measure-Object -Sum).Sum
+    if (-not $totalAlerts -or $totalAlerts -lt 100) { return $null }   # too quiet to draw conclusions
+    $top = $rows | Sort-Object -Property @{ Expression = { [double](Get-PropOrDefault $_ 'Alerts' 0) } } -Descending | Select-Object -First 1
+    $topAlerts = [double](Get-PropOrDefault $top 'Alerts' 0)
+    $ratio = $topAlerts / [double]$totalAlerts
+    if ($ratio -le 0.30) { return $null }
+    $name = Get-PropOrDefault $top 'AlertName' '?'
+    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in 30d ($([math]::Round($ratio*100,0))%) — tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
+}
+
+# ------------------------------------------------------------
+# SENT-034 — No automation rules defined
+# ------------------------------------------------------------
+function Test-AutomationRulesPresent {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $count = @($Inventory.AutomationRules).Count
+    if ($count -gt 0) { return $null }
+    return New-Finding -Evidence 'No automation rules defined — every incident requires manual triage.'
+}
+
+# ------------------------------------------------------------
+# SENT-035 — Enabled rule with zero alerts in 90d
+# ------------------------------------------------------------
+function Test-DeadAnalyticsRule {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.AlertRules -or -not $Inventory.AnalyticsRuleVolumes) { return $null }
+    # Volumes capture is over 30d. Project the noisy-rule set into a name lookup
+    # then surface enabled Scheduled/NRT rules whose displayName is absent
+    # from it — they produced no alerts in the window.
+    $noisy = @{}
+    foreach ($v in $Inventory.AnalyticsRuleVolumes) {
+        $n = Get-PropOrDefault $v 'AlertName' ''
+        if ($n) { $noisy[$n] = $true }
+    }
+    if ($noisy.Count -eq 0) { return $null }    # no volumes -> no signal
+    $dead = @($Inventory.AlertRules | Where-Object {
+        $kind = Get-PropOrDefault $_ 'kind' ''
+        $enabled = Get-PropOrDefault $_ 'properties.enabled' $false
+        $name = Get-PropOrDefault $_ 'properties.displayName' ''
+        ($kind -in @('Scheduled','NRT')) -and $enabled -and $name -and (-not $noisy.ContainsKey($name))
+    })
+    if ($dead.Count -eq 0) { return $null }
+    $sample = ($dead | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    $suffix = if ($dead.Count -gt 5) { " (+ $($dead.Count - 5) more)" } else { '' }
+    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in 30 days: $sample$suffix." -Detail @{ Count = $dead.Count }
+}
+
+# ------------------------------------------------------------
+# SENT-039 — Service principal with Owner/Contributor at workspace scope
+# ------------------------------------------------------------
+function Test-ServicePrincipalOverPrivileged {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.RbacWorkspace) { return $null }
+    $bad = @($Inventory.RbacWorkspace | Where-Object {
+        $role = Get-PropOrDefault $_ 'RoleDefinitionName' ''
+        $type = Get-PropOrDefault $_ 'ObjectType' ''
+        ($role -in @('Owner','Contributor')) -and ($type -eq 'ServicePrincipal')
+    })
+    if ($bad.Count -eq 0) { return $null }
+    $names = ($bad | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'DisplayName' '?' }) -join '; '
+    $suffix = if ($bad.Count -gt 5) { " (+ $($bad.Count - 5) more)" } else { '' }
+    return New-Finding -Evidence "$($bad.Count) service principal(s) hold Owner or Contributor at workspace scope: $names$suffix." -Detail @{ Count = $bad.Count }
+}
+
+# ------------------------------------------------------------
+# SENT-040 — Zero Microsoft Sentinel Responder assignments
+# ------------------------------------------------------------
+function Test-ResponderRoleAssigned {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not $Inventory.RbacWorkspace) { return $null }
+    $hasResponder = @($Inventory.RbacWorkspace | Where-Object {
+        (Get-PropOrDefault $_ 'RoleDefinitionName' '') -eq 'Microsoft Sentinel Responder'
+    }).Count -gt 0
+    if ($hasResponder) { return $null }
+    return New-Finding -Evidence 'No identity holds the Microsoft Sentinel Responder role at workspace scope. Analysts cannot act on incidents through least-privilege access.'
+}
+
+# ------------------------------------------------------------
+# SENT-042 — No deletion-protection lock on the workspace
+# ------------------------------------------------------------
+function Test-WorkspaceLockPresent {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $locks = @($Inventory.WorkspaceLocks)
+    $relevant = @($locks | Where-Object {
+        $level = Get-PropOrDefault $_ 'properties.level' ''
+        $level -in @('CanNotDelete','ReadOnly')
+    })
+    if ($relevant.Count -gt 0) { return $null }
+    return New-Finding -Evidence 'No CanNotDelete or ReadOnly lock on the workspace. Accidental or malicious deletion would lose all detection rules, watchlists, hunting queries, and historical incident data.'
+}
+
+# ------------------------------------------------------------
+# Data-routing helper — CEF / Syslog / Windows split-opportunity threshold
+# ------------------------------------------------------------
+# All four data-routing rules use the same pattern: "is table X carrying
+# enough volume to make the engineering effort to split worth it?". Five GB
+# over the 30-day window (~150 GB/30d) is the conservative default — below
+# that, the per-month saving from splitting probably can't pay for the DCR
+# authoring time.
+$script:DataRoutingSplitThresholdGb30d = 150.0
+
+# ------------------------------------------------------------
+# SENT-043 — CommonSecurityLog volume warrants a vendor _CL split
+# ------------------------------------------------------------
+function Test-CefSplitOpportunity {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $cef = @($Inventory.TablesWithData | Where-Object {
+        (Get-PropOrDefault $_ 'DataType' '') -eq 'CommonSecurityLog'
+    } | Select-Object -First 1)
+    if ($cef.Count -eq 0) { return $null }
+    $gb30 = _GetBillable30d $cef[0]
+    if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last 30 days at the Sentinel security-data rate — routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
+}
+
+# ------------------------------------------------------------
+# SENT-044 — Syslog volume warrants a facility-based DCR filter or _CL split
+# ------------------------------------------------------------
+function Test-SyslogSplitOpportunity {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $sys = @($Inventory.TablesWithData | Where-Object {
+        (Get-PropOrDefault $_ 'DataType' '') -eq 'Syslog'
+    } | Select-Object -First 1)
+    if ($sys.Count -eq 0) { return $null }
+    $gb30 = _GetBillable30d $sys[0]
+    if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last 30 days — narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
+}
+
+# ------------------------------------------------------------
+# SENT-045 — SecurityEvent / WindowsEvent XPath filter opportunity
+# ------------------------------------------------------------
+function Test-WindowsEventXPathFilterOpportunity {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # 5 GB / day across SecurityEvent + WindowsEvent is the trigger — the
+    # AMA DCRs that ship Microsoft's own SecurityEvent collection ('All
+    # Events') easily clear that on a domain controller, and the XPath
+    # change is a documented, low-risk DCR edit.
+    $tables = @('SecurityEvent','WindowsEvent','Event')
+    $totalGb30 = 0.0
+    foreach ($t in @($Inventory.TablesWithData)) {
+        if ($tables -contains (Get-PropOrDefault $t 'DataType' '')) {
+            $totalGb30 += _GetBillable30d $t
+        }
+    }
+    if ($totalGb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last 30 days — typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
+}
+
+# ------------------------------------------------------------
+# SENT-046 — AzureDiagnostics carries multiple resource providers
+# ------------------------------------------------------------
+function Test-AzureDiagnosticsResourceSpecific {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $ad = @($Inventory.TablesWithData | Where-Object {
+        (Get-PropOrDefault $_ 'DataType' '') -eq 'AzureDiagnostics'
+    } | Select-Object -First 1)
+    if ($ad.Count -eq 0) { return $null }
+    $gb30 = _GetBillable30d $ad[0]
+    if ($gb30 -lt 10.0) { return $null }    # smaller threshold — even 10 GB across many RPs is messy
+    # We don't know per-RP breakdown from tables-with-data alone (the
+    # AzureDiagnostics rendering is summarised in 14-coverage-breakdowns.md
+    # but isn't a separate _raw capture). Flag based on volume alone — the
+    # remediation is still correct: switch any RP that has a dedicated
+    # resource-specific table.
+    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last 30 days. Resource-specific tables are cheaper, faster to query, and have stable schemas — review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
+}
+

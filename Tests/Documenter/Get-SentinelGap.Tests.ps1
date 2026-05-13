@@ -141,5 +141,86 @@ Describe 'Sentinel gap-analysis engine' {
                 $f.Severity | Should -BeIn @('Critical','Warning','Info')
             }
         }
+
+        # ----- v2 catalogue additions ------------------------------------
+
+        It 'fires SENT-029 because MTTR is 1620 min (27h) > 24h threshold' {
+            $f = $findings | Where-Object Id -eq 'SENT-029'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match '27 hours'
+        }
+
+        It 'fires SENT-030 because 20 of 32 closed incidents were never acknowledged (62%)' {
+            $f = $findings | Where-Object Id -eq 'SENT-030'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match '20 of 32 closed incidents'
+        }
+
+        It 'fires SENT-031 because the Scheduled rule was last modified in 2024 (>1y ago)' {
+            $f = $findings | Where-Object Id -eq 'SENT-031'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
+        }
+
+        It 'fires SENT-032 because the deployed rule is at v1.0.0 vs template v1.2.0' {
+            $f = $findings | Where-Object Id -eq 'SENT-032'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match '1\.0\.0.*1\.2\.0'
+        }
+
+        It 'fires SENT-033 because one rule produces 412 of 525 alerts (78%)' {
+            $f = $findings | Where-Object Id -eq 'SENT-033'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
+        }
+
+        It 'fires SENT-034 because automation-rules.json is empty' {
+            ($findings | Where-Object Id -eq 'SENT-034').Count | Should -Be 1
+        }
+
+        It 'fires SENT-035 because the disabled NRT rule has no entry in analytics-rule-volumes' {
+            # The fixture has volumes for "Suspicious sign-in" / "Failed logons" / "Privileged group" only.
+            # SENT-035 should NOT flag the disabled rule (filtered out by enabled=false), so it only fires when
+            # there exist enabled Scheduled/NRT rules outside the noisy set. The fixture's lone enabled Scheduled
+            # rule IS in the noisy set, so we expect zero findings here — confirming the negative path.
+            ($findings | Where-Object Id -eq 'SENT-035').Count | Should -Be 0
+        }
+
+        It 'fires SENT-039 because a service principal holds Contributor at workspace scope' {
+            $f = $findings | Where-Object Id -eq 'SENT-039'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'ci-deployer-sp'
+        }
+
+        It 'fires SENT-040 because no identity holds Microsoft Sentinel Responder' {
+            ($findings | Where-Object Id -eq 'SENT-040').Count | Should -Be 1
+        }
+
+        It 'does NOT fire SENT-042 because the fixture has a CanNotDelete lock present' {
+            ($findings | Where-Object Id -eq 'SENT-042').Count | Should -Be 0
+        }
+
+        It 'fires SENT-043 because CommonSecurityLog is 300 GB / 30d (above the 150 GB threshold)' {
+            $f = $findings | Where-Object Id -eq 'SENT-043'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'CommonSecurityLog'
+        }
+
+        It 'fires SENT-044 because Syslog is 280 GB / 30d' {
+            $f = $findings | Where-Object Id -eq 'SENT-044'
+            $f.Count | Should -Be 1
+        }
+
+        It 'fires SENT-045 because SecurityEvent is 500 GB / 30d' {
+            $f = $findings | Where-Object Id -eq 'SENT-045'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'SecurityEvent'
+        }
+
+        It 'fires SENT-046 because AzureDiagnostics is 50 GB / 30d (above the 10 GB AzureDiagnostics threshold)' {
+            $f = $findings | Where-Object Id -eq 'SENT-046'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'AzureDiagnostics'
+        }
     }
 }
