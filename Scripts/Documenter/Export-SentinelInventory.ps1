@@ -126,20 +126,31 @@ function Save-Json {
         [Parameter(Mandatory = $false)] [AllowNull()] $Data
     )
     $target = Join-Path $rawOut $FileName
+    $singleObjectFiles = @(
+        'workspace.json','run-context.json','settings.json','cost-estimate.json',
+        'subscription.json','dedicated-cluster.json'
+    )
     if ($null -eq $Data) {
-        '[]' | Set-Content -Path $target -Encoding UTF8
-    } else {
-        # Force array shape on every save except for explicit single-object
-        # endpoints (workspace.json, run-context.json, settings.json,
-        # cost-estimate.json, subscription.json, dedicated-cluster.json).
-        $singleObjectFiles = @(
-            'workspace.json','run-context.json','settings.json','cost-estimate.json',
-            'subscription.json','dedicated-cluster.json'
-        )
         if ($singleObjectFiles -contains $FileName) {
-            $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
+            '{}' | Set-Content -Path $target -Encoding UTF8
         } else {
-            ConvertTo-Json -InputObject @($Data) -Depth 32 -EnumsAsStrings -AsArray | Set-Content -Path $target -Encoding UTF8
+            '[]' | Set-Content -Path $target -Encoding UTF8
+        }
+    }
+    elseif ($singleObjectFiles -contains $FileName) {
+        $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
+    }
+    else {
+        # Collection-shape file. Pipe through ConvertTo-Json so each item is
+        # treated as a separate input — pipe + -AsArray always emits a JSON
+        # array, including the single-element and empty cases. Using
+        # -InputObject would treat the whole array as one input, which then
+        # double-wraps under -AsArray.
+        $items = @($Data)
+        if ($items.Count -eq 0) {
+            '[]' | Set-Content -Path $target -Encoding UTF8
+        } else {
+            $items | ConvertTo-Json -Depth 32 -EnumsAsStrings -AsArray | Set-Content -Path $target -Encoding UTF8
         }
     }
     Write-Information "  ↳ wrote $FileName"
@@ -262,49 +273,12 @@ Try-Capture 'automation-rules' {
     Save-Json -FileName 'automation-rules.json' -Data $auto
 }
 
-# Playbooks are Logic App workflows that live in a (possibly separate) resource
-# group from the workspace. The Sentinel API does not enumerate them; query the
-# Logic Apps provider directly. Renderer reads `name`, `properties.state`,
-# `properties.kind`, `identity.principalId` (when MI is configured) from this.
-Try-Capture 'playbooks' {
-    $playbookRg = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
-    $pb = Invoke-SentinelRest `
-        -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
-        -ApiVersion '2016-06-01'
-    Save-Json -FileName 'playbooks.json' -Data $pb
-}
-
-# Per-playbook managed-identity role assignments at the workspace scope. The
-# renderer joins this on the playbook name to surface "what can this Logic App
-# do against the workspace" alongside each row.
-Try-Capture 'rbac-playbook-mi' {
-    $rows = New-Object System.Collections.Generic.List[object]
-    $playbookRg = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
-    $pb = Invoke-SentinelRest `
-        -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
-        -ApiVersion '2016-06-01'
-    foreach ($wf in $pb) {
-        # Only enumerate identities. The 'None' type means no MI is attached.
-        $identityType = $null
-        if ($wf.PSObject.Properties.Name -contains 'identity' -and $wf.identity) {
-            $identityType = $wf.identity.type
-        }
-        if ($identityType -and $identityType -ne 'None' -and $wf.identity.principalId) {
-            try {
-                $assignments = Get-AzRoleAssignment -ObjectId $wf.identity.principalId -Scope $workspaceResourceId -ErrorAction Stop
-                $roleNames = @($assignments | ForEach-Object { $_.RoleDefinitionName } | Sort-Object -Unique)
-            } catch {
-                $roleNames = @()
-            }
-            $rows.Add([pscustomobject]@{
-                Playbook       = $wf.name
-                PrincipalId    = $wf.identity.principalId
-                WorkspaceRoles = $roleNames
-            })
-        }
-    }
-    Save-Json -FileName 'rbac-playbook-mi.json' -Data $rows.ToArray()
-}
+# Playbooks (Logic Apps) capture is consolidated into the single block further
+# down in the script that uses Get-AzLogicApp. That block writes both
+# playbooks.json AND rbac-playbook-mi.json so the previous standalone REST
+# capture here would just have been overwritten. The single Get-AzLogicApp
+# block uses the conventional Az.LogicApp cmdlet, which is the canonical
+# way to enumerate workflows in PowerShell.
 
 Try-Capture 'watchlists' {
     $wls = Invoke-SentinelRest -Path "$sentinelScope/watchlists" -ApiVersion $apiVersions.Sentinel
@@ -455,24 +429,40 @@ Try-Capture 'workbook-templates' {
 # Playbooks (Logic Apps) + their MI grants
 # ---------------------------------------------------------------------------
 Try-Capture 'playbooks' {
-    $logicApps = Get-AzLogicApp -ResourceGroupName $ResourceGroup -ErrorAction SilentlyContinue
-    Save-Json -FileName 'playbooks.json' -Data $logicApps
+    # Use the configurable playbook RG when set (Sentinel-As-Code convention),
+    # otherwise default to the Sentinel resource group.
+    #
+    # Why REST and not Get-AzLogicApp: the cmdlet's list-style call returns
+    # PSWorkflow objects without the `Identity` property populated even when
+    # the workflow has a managed identity attached. Verified against the live
+    # workspace where the REST API saw `identity.principalId` for a playbook
+    # the cmdlet listed without any Identity at all.
+    $playbookRg = if ($PlaybookResourceGroup) { $PlaybookResourceGroup } else { $ResourceGroup }
+    $workflows = Invoke-SentinelRest `
+        -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
+        -ApiVersion '2016-06-01'
+    Save-Json -FileName 'playbooks.json' -Data $workflows
 
+    # Resolve the per-playbook MI workspace-scoped role assignments. The
+    # `identity` property is absent on a workflow with no managed identity;
+    # probe via PSObject before accessing.
     $miAssignments = @()
-    foreach ($la in @($logicApps)) {
-        $mi = $la.Identity
+    foreach ($wf in @($workflows)) {
+        $hasIdentity = $wf.PSObject.Properties.Name -contains 'Identity'
+        if (-not $hasIdentity) { continue }
+        $mi = $wf.Identity
         if ($null -eq $mi -or [string]::IsNullOrWhiteSpace($mi.PrincipalId)) { continue }
         try {
             $assignments = Get-AzRoleAssignment -ObjectId $mi.PrincipalId -ErrorAction SilentlyContinue
             $workspaceRoles = @($assignments | Where-Object { $_.Scope -eq $workspaceResourceId } | Select-Object -ExpandProperty RoleDefinitionName)
             $miAssignments += [pscustomobject]@{
-                Playbook         = $la.Name
+                Playbook         = $wf.Name
                 PrincipalId      = $mi.PrincipalId
                 AllAssignments   = $assignments
                 WorkspaceRoles   = $workspaceRoles
             }
         } catch {
-            Write-Warning "RBAC enumeration for playbook $($la.Name) failed: $($_.Exception.Message)"
+            Write-Warning "RBAC enumeration for playbook $($wf.Name) failed: $($_.Exception.Message)"
         }
     }
     Save-Json -FileName 'rbac-playbook-mi.json' -Data $miAssignments
