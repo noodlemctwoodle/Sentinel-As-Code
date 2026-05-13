@@ -9,7 +9,9 @@
       "enabled": true,
       "tactics": ["InitialAccess", "CredentialAccess"],
       "techniques": ["T1078", "T1078.004", "T1110"],
-      "alertRuleTemplateName": "tmpl-suspicious-signin"
+      "alertRuleTemplateName": "tmpl-suspicious-signin",
+      "templateVersion": "1.0.0",
+      "lastModifiedUtc": "2024-01-15T08:00:00Z"
     }
   },
   {

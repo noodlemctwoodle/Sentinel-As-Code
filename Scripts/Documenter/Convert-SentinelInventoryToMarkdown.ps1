@@ -450,16 +450,75 @@ $ruleRows = $rules | ForEach-Object {
     }
 }
 
+# Per-kind / per-state aggregate counts. Microsoft-managed kinds (Fusion etc)
+# are excluded from the Scheduled/NRT counts because they aren't user-editable.
+$schedEnabled  = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and $_.properties.enabled }).Count
+$schedDisabled = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and -not $_.properties.enabled }).Count
+$nrtEnabled    = @($rules | Where-Object { $_.kind -eq 'NRT' -and $_.properties.enabled }).Count
+$nrtDisabled   = @($rules | Where-Object { $_.kind -eq 'NRT' -and -not $_.properties.enabled }).Count
+
+# Mouldy rules — Scheduled / NRT rules enabled but last-modified > 1 year ago.
+$yearAgo = (Get-Date).ToUniversalTime().AddYears(-1)
+$mouldyRows = $rules | Where-Object {
+    $_.kind -in @('Scheduled','NRT') -and
+    $_.properties.enabled -and
+    $_.properties.lastModifiedUtc -and
+    ([datetime]$_.properties.lastModifiedUtc) -lt $yearAgo
+} | ForEach-Object {
+    [pscustomobject]@{
+        Name         = $_.properties.displayName
+        Kind         = $_.kind
+        Severity     = $_.properties.severity
+        LastModified = ([datetime]$_.properties.lastModifiedUtc).ToString('yyyy-MM-dd')
+    }
+}
+
+# Template mismatch — rules whose templateVersion does not match the latest
+# template version. Look up the template by alertRuleTemplateName in the
+# captured alert-rule-templates.json.
+$alertRuleTemplates = Read-RawArray 'alert-rule-templates.json'
+$templateByName = @{}
+foreach ($t in $alertRuleTemplates) {
+    if ($t.name) { $templateByName[$t.name] = $t }
+}
+$mismatchRows = $rules | Where-Object {
+    $_.properties.alertRuleTemplateName -and
+    $_.properties.templateVersion -and
+    $templateByName.ContainsKey($_.properties.alertRuleTemplateName) -and
+    $templateByName[$_.properties.alertRuleTemplateName].properties.version -and
+    $templateByName[$_.properties.alertRuleTemplateName].properties.version -ne $_.properties.templateVersion
+} | ForEach-Object {
+    $tplName = $_.properties.alertRuleTemplateName
+    [pscustomobject]@{
+        Name           = $_.properties.displayName
+        Kind           = $_.kind
+        CurrentVersion = $_.properties.templateVersion
+        LatestVersion  = $templateByName[$tplName].properties.version
+    }
+}
+
 $rulesBody = @"
 $(Format-Banner -Title "Analytics Rules")
 
-| Total | Enabled | Disabled |
-|---:|---:|---:|
-| $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) |
+| Total | Enabled | Disabled | Scheduled-Enabled | Scheduled-Disabled | NRT-Enabled | NRT-Disabled |
+|---:|---:|---:|---:|---:|---:|---:|
+| $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) | $schedEnabled | $schedDisabled | $nrtEnabled | $nrtDisabled |
 
 ## All rules
 
 $(Format-Table -Items $ruleRows -Columns 'Kind','Name','Severity','Enabled','Tactics')
+
+## Mouldy rules — enabled but last modified over a year ago
+
+Rules in this table are still firing but haven't been reviewed in over twelve months. Stale thresholds, deprecated KQL operators, and dropped data sources are all common causes. Each row is a candidate for explicit re-review or retirement.
+
+$(Format-Table -Items $mouldyRows -Columns 'Name','Kind','Severity','LastModified')
+
+## Template mismatch — rules behind their latest template version
+
+Rules where the deployed ``templateVersion`` is older than the version available in the Content Hub catalogue. Update via the rule's "Update from template" action in the portal, or re-deploy from the matching repo YAML.
+
+$(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','LatestVersion')
 
 [Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@

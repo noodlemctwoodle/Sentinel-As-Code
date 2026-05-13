@@ -376,6 +376,32 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '20-analytics-rules.md surfaces mouldy + template-mismatch sub-tables' {
+        BeforeAll {
+            $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+        }
+
+        It 'renders the per-kind aggregate count header' {
+            $script:rulesMd | Should -Match 'Scheduled-Enabled \| Scheduled-Disabled \| NRT-Enabled \| NRT-Disabled'
+        }
+
+        It 'renders the Mouldy rules section heading' {
+            $script:rulesMd | Should -Match '## Mouldy rules'
+        }
+
+        It 'lists the suspicious-sign-in rule as mouldy (lastModifiedUtc > 1y)' {
+            $script:rulesMd | Should -Match 'Suspicious sign-in from rare country'
+        }
+
+        It 'renders the Template mismatch section heading' {
+            $script:rulesMd | Should -Match '## Template mismatch'
+        }
+
+        It 'shows the suspicious-sign-in rule as version-mismatched (1.0.0 vs 1.2.0)' {
+            $script:rulesMd | Should -Match '\| Suspicious sign-in from rare country \| Scheduled \| 1\.0\.0 \| 1\.2\.0 \|'
+        }
+    }
+
     Context '14-coverage-breakdowns.md surfaces per-source coverage' {
         BeforeAll {
             $script:covMd = Get-Content (Join-Path $script:tempWsRoot '14-coverage-breakdowns.md') -Raw

@@ -2,7 +2,7 @@
   {
     "name": "tmpl-suspicious-signin",
     "kind": "Scheduled",
-    "properties": { "displayName": "Suspicious sign-in", "severity": "High" }
+    "properties": { "displayName": "Suspicious sign-in", "severity": "High", "version": "1.2.0" }
   },
   {
     "name": "tmpl-data-exfiltration",
