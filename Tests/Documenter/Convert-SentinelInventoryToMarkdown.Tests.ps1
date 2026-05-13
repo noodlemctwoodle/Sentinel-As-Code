@@ -400,17 +400,13 @@ Describe 'Sentinel Documenter renderer' {
             $script:playbookMd | Should -Match '\| NotifyOnHighSev \| Disabled \|'
         }
 
-        It 'renders the Kind column with the workflow kind' {
-            $script:playbookMd | Should -Match 'Stateful'
-        }
-
         It 'joins the MI workspace roles onto the IncidentEnrich-IP row' {
-            $script:playbookMd | Should -Match 'IncidentEnrich-IP \|[^|]+\|[^|]+\|[^|]*Microsoft Sentinel Responder.*Microsoft Sentinel Reader'
+            $script:playbookMd | Should -Match 'IncidentEnrich-IP \|[^|]+\|[^|]*Microsoft Sentinel Responder.*Microsoft Sentinel Reader'
         }
 
-        It 'leaves the WorkspaceRoles cell empty for a playbook without an MI' {
-            # NotifyOnHighSev has no identity in the fixture, so should have no role names.
-            $script:playbookMd | Should -Match 'NotifyOnHighSev \|[^|]+\|[^|]+\|\s*\|'
+        It 'renders the explicit no-MI label for a playbook without an identity' {
+            # NotifyOnHighSev has no identity in the fixture.
+            $script:playbookMd | Should -Match 'NotifyOnHighSev \|[^|]+\| _\(no managed identity\)_ \|'
         }
     }
 

@@ -117,6 +117,10 @@ function Save-Json {
     # write '[]' for that case rather than refusing the parameter, otherwise the
     # collector emits dozens of misleading 'Cannot bind argument to parameter
     # Data because it is null' warnings on a quiet workspace.
+    #
+    # -AsArray on every save protects against PowerShells unwrap-single-element
+    # quirk where a one-item array is serialized as a single object, which then
+    # breaks downstream array-shaped readers (Read-RawArray + ForEach-Object).
     param(
         [Parameter(Mandatory)] [string]$FileName,
         [Parameter(Mandatory = $false)] [AllowNull()] $Data
@@ -125,7 +129,18 @@ function Save-Json {
     if ($null -eq $Data) {
         '[]' | Set-Content -Path $target -Encoding UTF8
     } else {
-        $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
+        # Force array shape on every save except for explicit single-object
+        # endpoints (workspace.json, run-context.json, settings.json,
+        # cost-estimate.json, subscription.json, dedicated-cluster.json).
+        $singleObjectFiles = @(
+            'workspace.json','run-context.json','settings.json','cost-estimate.json',
+            'subscription.json','dedicated-cluster.json'
+        )
+        if ($singleObjectFiles -contains $FileName) {
+            $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
+        } else {
+            ConvertTo-Json -InputObject @($Data) -Depth 32 -EnumsAsStrings -AsArray | Set-Content -Path $target -Encoding UTF8
+        }
     }
     Write-Information "  ↳ wrote $FileName"
 }
