@@ -1253,6 +1253,8 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 
+> Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
+
 ## Coverage recommendations
 
 Drives Content Hub installs and rule activation. AffectedItem is the use-case name (e.g. ``BEC (Financial Fraud)``).
@@ -1385,6 +1387,8 @@ $(Format-Banner -Title "Incidents  (TOC 4.10)")
 $mttrLine
 
 $dailyLine
+
+> When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
 
 ## Top alerting rules (last 30d, top 25)
 
