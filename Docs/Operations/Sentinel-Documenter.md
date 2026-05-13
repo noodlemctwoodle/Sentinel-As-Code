@@ -306,6 +306,32 @@ Both suites are picked up automatically by the existing PR-validation workflow.
 
 ---
 
+## Multi-cloud and long-running collections
+
+The Documenter uses `Invoke-AzRestMethod` for every ARM call, which routes
+automatically to the audience of the active `Az` context. To target a
+sovereign cloud, connect once before running the collector:
+
+```powershell
+Connect-AzAccount -Environment AzureUsGovernment
+./Scripts/Documenter/Export-SentinelInventory.ps1 -ResourceGroup <rg> -WorkspaceName <ws>
+```
+
+No URL substitution or per-cloud branching is needed inside the helper.
+
+Token refresh is handled automatically by `Az.Accounts` 2.x+. Long-running
+collections (a workspace with hundreds of analytics rules and thousands of
+tables-with-data rows can take ten or more minutes end-to-end) do not need
+manual `Get-AzAccessToken` calls in the capture script. The
+`Invoke-AzRestMethod` cmdlet refreshes the bearer token when it is within
+~5 minutes of expiry.
+
+If you ever see persistent 401s on a long run, the cause is almost always
+a Conditional Access policy refusing the token after a tenant-side timeout,
+not the helper. Re-`Connect-AzAccount` and the next run completes.
+
+---
+
 ## Effective connectors (synthesised view)
 
 The Sentinel `dataConnectors` and `dataConnectorDefinitions` REST endpoints

@@ -45,7 +45,26 @@
 .NOTES
     Author:         noodlemctwoodle
     Component:      Sentinel Documenter
-    Last Updated:   2026-05-06
+    Last Updated:   2026-05-13
+
+    Multi-cloud:
+      Invoke-AzRestMethod automatically routes ARM calls to the audience of the
+      active Az context. To target a sovereign cloud, connect once before
+      running the collector:
+        Connect-AzAccount -Environment AzureUsGovernment
+      All subsequent Invoke-SentinelRest calls then resolve against the
+      AzureUsGovernment management endpoint without any URL substitution in
+      this helper.
+
+    Token refresh:
+      Az.Accounts 2.x+ auto-refreshes the bearer token on each Invoke-AzRestMethod
+      call when the current token is within ~5 minutes of expiry. Long-running
+      collections against very large workspaces therefore do not need an
+      explicit refresh in this helper. If a future enhancement needs to force
+      a refresh boundary (e.g. for ETag-style coordination), use
+      `Get-AzAccessToken -AsSecureString` and pass it via the appropriate Az
+      cmdlet — direct Invoke-RestMethod with a manually-cached header is
+      explicitly NOT the pattern this helper uses, by design.
 #>
 
 function Invoke-SentinelRest {
