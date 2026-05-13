@@ -1,4 +1,43 @@
 [
-  { "name": "AzureActiveDirectory", "kind": "AzureActiveDirectory", "properties": {} },
-  { "name": "Office365", "kind": "Office365", "properties": {} }
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/dataConnectors/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "name": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "kind": "Office365",
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "properties": {
+      "dataTypes": {
+        "sharePoint": { "state": "enabled" },
+        "exchange":   { "state": "enabled" },
+        "teams":      { "state": "enabled" }
+      },
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/dataConnectors/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "name": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "kind": "MicrosoftThreatProtection",
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "properties": {
+      "dataTypes": {
+        "incidents": { "state": "enabled" },
+        "alerts":    { "state": "disabled" }
+      },
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/dataConnectors/cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "name": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "kind": "AzureActiveDirectory",
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "properties": {
+      "dataTypes": {
+        "signInLogs":                   { "state": "enabled" },
+        "auditLogs":                    { "state": "enabled" },
+        "nonInteractiveUserSignInLogs": { "state": "disabled" }
+      },
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    }
+  }
 ]

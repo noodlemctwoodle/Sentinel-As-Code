@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/dataConnectorDefinitions/AzureDevOpsAuditLogs",
+    "name": "AzureDevOpsAuditLogs",
+    "kind": "Customizable",
+    "type": "Microsoft.SecurityInsights/dataConnectorDefinitions",
+    "properties": {
+      "connectorUiConfig": {
+        "id": "AzureDevOpsAuditLogs",
+        "title": "Azure DevOps Audit Logs (via Codeless Connector Platform)",
+        "publisher": "Microsoft",
+        "descriptionMarkdown": "Ingest Azure DevOps audit events into Microsoft Sentinel via the CCF."
+      }
+    }
+  }
+]

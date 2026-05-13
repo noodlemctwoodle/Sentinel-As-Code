@@ -155,6 +155,50 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '10-data-connectors.md renders friendly titles and real state' {
+        BeforeAll {
+            $script:dcMd = Get-Content (Join-Path $script:tempWsRoot '10-data-connectors.md') -Raw
+        }
+
+        It 'renders the Office365 connector with its friendly title' {
+            $script:dcMd | Should -Match 'Microsoft 365 \(Office 365\)'
+        }
+
+        It 'renders the MicrosoftThreatProtection connector as Microsoft Defender XDR' {
+            $script:dcMd | Should -Match 'Microsoft Defender XDR'
+        }
+
+        It 'renders the AzureActiveDirectory connector as Microsoft Entra ID' {
+            $script:dcMd | Should -Match 'Microsoft Entra ID'
+        }
+
+        It 'aggregates all-enabled data types into an "enabled" state' {
+            $script:dcMd | Should -Match '\| Microsoft 365 \(Office 365\) \|[^|]+\|[^|]+\| enabled \|'
+        }
+
+        It 'aggregates mixed states into a "partial" state' {
+            $script:dcMd | Should -Match '\| Microsoft Defender XDR \|[^|]+\|[^|]+\| partial \|'
+        }
+
+        It 'lists the connector data types in their own column' {
+            $script:dcMd | Should -Match 'sharePoint, exchange, teams'
+        }
+
+        It 'does not surface raw GUID resource names in the table' {
+            $script:dcMd | Should -Not -Match 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        }
+
+        It 'renders the CCF Publisher column rather than the non-existent connectorKind' {
+            $script:dcMd | Should -Match '\| Publisher \|'
+            $script:dcMd | Should -Match '\| AzureDevOpsAuditLogs \|.+\| Microsoft \|'
+        }
+
+        It 'does not surface the obsolete CCF Kind column header' {
+            # The previous renderer had `| Name | Kind | Title |` for CCF.
+            $script:dcMd | Should -Not -Match '\| Name \| Kind \| Title \|'
+        }
+    }
+
     Context '12-soc-optimization.md uses real API field paths' {
         BeforeAll {
             $script:socMd = Get-Content (Join-Path $script:tempWsRoot '12-soc-optimization.md') -Raw

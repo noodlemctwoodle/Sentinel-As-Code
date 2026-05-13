@@ -258,13 +258,71 @@ Write-Section '00-overview.md' $overviewBody
 # ---------------------------------------------------------------------------
 # Section: 10-data-connectors
 # ---------------------------------------------------------------------------
+# Classic connector resources are named by GUID and store per-data-type state
+# under properties.dataTypes.<typename>.state. The earlier rendering pulled
+# Name=$_.name (GUID) and State=$_.properties.connectorUiConfig.connectivityCriterias
+# — a CCF field that doesn't exist on the classic schema, so State was always
+# blank. The fix below maps Kind to a friendly Title, aggregates per-data-type
+# state into a single overall state column, and lists the data-type names in
+# their own column.
+function Get-ConnectorFriendlyTitle {
+    param([string]$Kind, [psobject]$Connector)
+    switch ($Kind) {
+        'AzureActiveDirectory'                         { 'Microsoft Entra ID' }
+        'MicrosoftCloudAppSecurity'                    { 'Microsoft Defender for Cloud Apps' }
+        'MicrosoftDefenderAdvancedThreatProtection'    { 'Microsoft Defender for Endpoint' }
+        'MicrosoftPurviewInformationProtection'        { 'Microsoft Purview Information Protection' }
+        'MicrosoftThreatIntelligence'                  { 'Microsoft Defender Threat Intelligence' }
+        'MicrosoftThreatProtection'                    { 'Microsoft Defender XDR' }
+        'Office365'                                    { 'Microsoft 365 (Office 365)' }
+        'AzureSecurityCenter'                          { 'Microsoft Defender for Cloud' }
+        'GenericUI'                                    { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
+        'StaticUI'                                     { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
+        default                                        { $Kind }
+    }
+}
+
+function Get-ConnectorAggregateState {
+    param([psobject]$Connector)
+    $dataTypes = $Connector.properties.dataTypes
+    if ($null -eq $dataTypes) { return 'unknown' }
+    $names = @($dataTypes.PSObject.Properties.Name)
+    if ($names.Count -eq 0) { return 'unknown' }
+    $states = foreach ($n in $names) {
+        $s = $dataTypes.$n.state
+        if ($s) { $s.ToLowerInvariant() } else { 'unknown' }
+    }
+    $enabled  = @($states | Where-Object { $_ -eq 'enabled' }).Count
+    $disabled = @($states | Where-Object { $_ -eq 'disabled' }).Count
+    if ($enabled -eq $states.Count) { 'enabled' }
+    elseif ($disabled -eq $states.Count) { 'disabled' }
+    elseif ($enabled -gt 0) { 'partial' }
+    else { 'unknown' }
+}
+
+function Get-ConnectorDataTypes {
+    param([psobject]$Connector)
+    $dataTypes = $Connector.properties.dataTypes
+    if ($null -eq $dataTypes) { return '' }
+    @($dataTypes.PSObject.Properties.Name) -join ', '
+}
+
 $ccfDefs = Read-RawArray 'data-connector-definitions.json'
 
 $connectorRows = $connectors | ForEach-Object {
     [pscustomobject]@{
-        Name  = $_.name
-        Kind  = $_.kind
-        State = ($_.properties.connectorUiConfig.connectivityCriterias) -as [string]
+        Title     = Get-ConnectorFriendlyTitle -Kind $_.kind -Connector $_
+        Kind      = $_.kind
+        DataTypes = Get-ConnectorDataTypes -Connector $_
+        State     = Get-ConnectorAggregateState -Connector $_
+    }
+}
+
+$ccfRows = $ccfDefs | ForEach-Object {
+    [pscustomobject]@{
+        Name      = $_.name
+        Title     = $_.properties.connectorUiConfig.title
+        Publisher = $_.properties.connectorUiConfig.publisher
     }
 }
 
@@ -273,11 +331,11 @@ $(Format-Banner -Title "Data Connectors")
 
 ## Classic connectors
 
-$(Format-Table -Items $connectorRows -Columns 'Name','Kind','State')
+$(Format-Table -Items $connectorRows -Columns 'Title','Kind','DataTypes','State')
 
 ## Codeless Connector Framework definitions
 
-$(Format-Table -Items ($ccfDefs | ForEach-Object { [pscustomobject]@{ Name = $_.name; Kind = $_.properties.connectorUiConfig.connectorKind; Title = $_.properties.connectorUiConfig.title } }) -Columns 'Name','Kind','Title')
+$(Format-Table -Items $ccfRows -Columns 'Name','Title','Publisher')
 
 ## Connector health (24h activity)
 
