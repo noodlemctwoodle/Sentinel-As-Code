@@ -419,26 +419,60 @@ Describe 'Sentinel Documenter renderer' {
             $script:tiMd | Should -Match 'TI metrics API'
         }
 
-        It 'renders the url indicator type from the metrics API' {
+        It 'renders the Microsoft Defender source from sourceMetrics' {
+            $script:tiMd | Should -Match '\| Microsoft Defender Threat Intelligence \| 1700 \|'
+        }
+
+        It 'renders the Open Source row from sourceMetrics' {
+            $script:tiMd | Should -Match '\| Open Source \| 270 \|'
+        }
+
+        It 'renders the url indicator type from threatTypeMetrics' {
             $script:tiMd | Should -Match '\| url \| 482 \|'
         }
 
-        It 'renders the ipv4-addr indicator type from the metrics API' {
+        It 'renders the ipv4-addr indicator type from threatTypeMetrics' {
             $script:tiMd | Should -Match '\| ipv4-addr \| 1273 \|'
         }
 
-        It 'renders the domain-name indicator type from the metrics API' {
+        It 'renders the domain-name indicator type from threatTypeMetrics' {
             $script:tiMd | Should -Match '\| domain-name \| 215 \|'
         }
 
-        It 'shows the total-indicators headline' {
-            # 482 + 1273 + 215 = 1970
+        It 'shows the total-indicators headline from sourceMetrics' {
+            # 1700 + 270 = 1970 (source totals; the threat-type breakdown also sums to 1970)
             $script:tiMd | Should -Match 'Total active indicators:\*\* 1970'
         }
 
-        It 'orders metrics rows by IndicatorCount descending (ipv4-addr 1273 first)' {
-            # ipv4-addr (1273) > url (482) > domain-name (215)
-            $script:tiMd | Should -Match 'ipv4-addr \| 1273[\s\S]+url \| 482[\s\S]+domain-name \| 215'
+        It 'orders metrics rows by IndicatorCount descending (Microsoft Defender first)' {
+            $script:tiMd | Should -Match 'Microsoft Defender Threat Intelligence \| 1700[\s\S]+Open Source \| 270'
+        }
+
+        It 'renders the threat-type breakdown subsection' {
+            $script:tiMd | Should -Match '## Indicator breakdown by threat type'
+        }
+    }
+
+    Context '26-ueba.md surfaces data-presence inference' {
+        BeforeAll {
+            $script:uebaMd = Get-Content (Join-Path $script:tempWsRoot '26-ueba.md') -Raw
+        }
+
+        It 'reports the Producing data row with the active count' {
+            # 1247 + 318 + 0 = 1565
+            $script:uebaMd | Should -Match 'Producing data \| Yes — 1565 rows'
+        }
+
+        It 'mentions the number of producing tables (BehaviorAnalytics + IdentityInfo = 2)' {
+            $script:uebaMd | Should -Match '2 UEBA table\(s\)'
+        }
+
+        It 'renders the per-table breakdown subsection' {
+            $script:uebaMd | Should -Match '## Data-presence inference \(last 12 days\)'
+        }
+
+        It 'lists BehaviorAnalytics with its row count' {
+            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 1247 \|'
         }
     }
 

@@ -380,13 +380,43 @@ Try-Capture 'sentinel-settings' {
     $settings = [ordered]@{}
     foreach ($n in @('Ueba','EntityAnalytics','EyesOn','Anomalies')) {
         try {
+            # Invoke-SentinelRest always returns an array (single-resource
+            # responses get wrapped in a one-element array, 404s yield @()).
+            # When the workspace has the settings resource present, $val has
+            # exactly one element; when the toggle lives only in the portal
+            # the endpoint 404s and $val is empty -> $null is stored. The
+            # renderer treats $null as "settings resource not written" and
+            # falls back to the data-presence capture below for the real
+            # "is UEBA producing data?" signal.
             $val = Invoke-SentinelRest -Path "$sentinelScope/settings/$n" -ApiVersion $apiVersions.Sentinel
-            $settings[$n] = $val[0]
+            $settings[$n] = if ($val -and @($val).Count -gt 0) { $val[0] } else { $null }
         } catch {
             $settings[$n] = $null
         }
     }
     Save-Json -FileName 'settings.json' -Data $settings
+}
+
+# UEBA data-presence inference.
+# The /settings/Ueba endpoint only reflects the configuration-side state and
+# returns 404 when UEBA is toggled on via the portal without an explicit
+# settings resource being written. The operational question users ask
+# ("is UEBA producing data?") is better answered by counting rows in the
+# tables UEBA writes to: BehaviorAnalytics, IdentityInfo, UserPeerAnalytics.
+# Capture the per-table row counts over the last 12 days so the renderer can
+# surface "data flowing -> Yes" even when the settings GET reported absence.
+Try-Capture 'ueba-data-presence' {
+    $kql = @'
+union withsource = TableName
+    (BehaviorAnalytics  | where TimeGenerated > ago(12d) | summarize Count = count()),
+    (IdentityInfo       | where TimeGenerated > ago(12d) | summarize Count = count()),
+    (UserPeerAnalytics  | where TimeGenerated > ago(12d) | summarize Count = count())
+| project TableName, Count
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'ueba-data-presence.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'ueba-data-presence.json' -Data @() }
 }
 
 # ---------------------------------------------------------------------------

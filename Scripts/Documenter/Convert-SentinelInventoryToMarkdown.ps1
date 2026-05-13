@@ -1672,31 +1672,51 @@ $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity
 "@)
 
 # Section 26 — UEBA (TOC 4.16)
-# Note on the "Enabled" signal: the absence of a settings resource at
-# /providers/Microsoft.SecurityInsights/settings/Ueba does NOT mean UEBA is
-# disabled — it can be toggled on via the portal without writing the settings
-# resource. A future commit adds data-presence inference from BehaviorAnalytics,
-# IdentityInfo, and UserPeerAnalytics row counts to answer the operational
-# question "is UEBA producing data?". For now this section reports the
-# configuration-side state with an honest qualifier.
+# Two signals are surfaced:
+# 1. Configuration: presence of the /settings/Ueba resource. Absence does NOT
+#    imply UEBA is disabled — the portal toggle writes nothing here.
+# 2. Data presence: row counts in BehaviorAnalytics, IdentityInfo,
+#    UserPeerAnalytics over 12d, from `_raw/ueba-data-presence.json`. Any
+#    non-zero count is the authoritative "UEBA is producing data" signal.
 $settingsRaw = Read-Raw 'settings.json'
 $uebaSetting = if ($null -ne $settingsRaw) { $settingsRaw.Ueba } else { $null }
 $uebaSources = if ($uebaSetting -and $uebaSetting.properties) { @($uebaSetting.properties.dataSources) } else { @() }
-$uebaEnabledLabel = if ($uebaSetting) {
+$uebaConfigLabel = if ($uebaSetting) {
     'Yes (settings resource present)'
 } else {
     'Settings resource not written — UEBA may still be enabled via the portal toggle; the configuration API has not been used to set explicit data sources on this workspace'
 }
+$uebaPresence = Read-RawArray 'ueba-data-presence.json'
+$uebaPresenceRows = $uebaPresence | ForEach-Object {
+    [pscustomobject]@{ Table = $_.TableName; Rows12d = $_.Count }
+}
+$uebaTotalRows = ($uebaPresenceRows | Measure-Object -Property Rows12d -Sum).Sum
+$uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
+    "Yes — $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last 12 days"
+} elseif ($uebaPresence.Count -eq 0) {
+    '_(data-presence capture not available — re-run the exporter to refresh)_'
+} else {
+    'No — none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last 12 days'
+}
+$uebaPresenceBlock = if ($uebaPresenceRows.Count -gt 0) {
+    @"
+
+## Data-presence inference (last 12 days)
+
+$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows12d')
+"@
+} else { '' }
 Write-Section '26-ueba.md' (@"
 $(Format-Banner -Title "User and Entity Behaviour Analytics  (TOC 4.16)")
 
-UEBA enriches incidents with anomaly scores and entity-level timelines. It is enabled at the workspace level via the ``Microsoft.SecurityInsights/settings/Ueba`` resource.
+UEBA enriches incidents with anomaly scores and entity-level timelines. It is enabled at the workspace level via the ``Microsoft.SecurityInsights/settings/Ueba`` resource. The configuration row reflects whether the settings resource has been written; the data-presence row reflects whether UEBA is actually producing rows.
 
 | | |
 |---|---|
-| Configuration | $uebaEnabledLabel |
-| Data sources | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none configured via the settings resource)_' }) |
-
+| Configuration | $uebaConfigLabel |
+| Data sources (configured) | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none configured via the settings resource)_' }) |
+| Producing data | $uebaActiveLabel |
+$uebaPresenceBlock
 [Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
 "@)
 
@@ -1707,31 +1727,43 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 #    (missing Az.OperationalInsights module, permission gaps, table absence).
 # 2. `threat-intel-counts.json` — the KQL summary against ThreatIntelligenceIndicator.
 #    Used as a fallback when the metrics endpoint produced no data.
+#
+# Metrics-API response shape (one record per workspace):
+#   properties.threatTypeMetrics[]   { metricName, metricValue }  — by threat type
+#   properties.patternTypeMetrics[]  { metricName, metricValue }  — by STIX pattern type
+#   properties.sourceMetrics[]       { metricName, metricValue }  — by ingestion source
+# An earlier version of the renderer read `properties.metrics[]` with
+# `threatType` / `threatTypeCount` fields — those field names appear nowhere
+# in the real API surface and resulted in zero rows being rendered.
 $tiMetrics = Read-RawArray 'threat-intel-metrics.json'
 $tiCounts  = Read-RawArray 'threat-intel-counts.json'
+$tiSourceRows = @()
+$tiTypeRows   = @()
 if ($tiMetrics.Count -gt 0) {
-    # The metrics endpoint returns objects with `properties.metrics` carrying a
-    # per-source breakdown. Project to the same shape the KQL form produced so
-    # the renderer table is consistent regardless of source.
-    $tiRows = foreach ($m in $tiMetrics) {
-        $bySource = $null
-        if ($m.PSObject.Properties.Name -contains 'properties' -and $m.properties) {
-            $bySource = $m.properties.metrics
-        }
-        if ($bySource) {
-            foreach ($s in $bySource) {
-                [pscustomobject]@{
-                    SourceSystem   = $s.threatType
-                    IndicatorCount = $s.threatTypeCount
+    foreach ($m in $tiMetrics) {
+        if ($m.PSObject.Properties.Name -notcontains 'properties' -or -not $m.properties) { continue }
+        if ($m.properties.PSObject.Properties.Name -contains 'sourceMetrics' -and $m.properties.sourceMetrics) {
+            foreach ($s in $m.properties.sourceMetrics) {
+                $tiSourceRows += [pscustomobject]@{
+                    SourceSystem   = $s.metricName
+                    IndicatorCount = $s.metricValue
                     LastIngested   = ''
                 }
             }
         }
+        if ($m.properties.PSObject.Properties.Name -contains 'threatTypeMetrics' -and $m.properties.threatTypeMetrics) {
+            foreach ($t in $m.properties.threatTypeMetrics) {
+                $tiTypeRows += [pscustomobject]@{
+                    ThreatType     = $t.metricName
+                    IndicatorCount = $t.metricValue
+                }
+            }
+        }
     }
-    # Sort metrics-derived rows by count desc so the loudest indicator types
-    # surface first; readers usually want to scan for the biggest type, not
-    # alphabetical.
-    $tiRows = @($tiRows) | Sort-Object -Property IndicatorCount -Descending
+    # Sort both tables by count desc so the loudest entry surfaces first.
+    $tiSourceRows = @($tiSourceRows) | Sort-Object -Property IndicatorCount -Descending
+    $tiTypeRows   = @($tiTypeRows)   | Sort-Object -Property IndicatorCount -Descending
+    $tiRows = $tiSourceRows
     $tiSourceLabel = 'TI metrics API (`threatIntelligence/main/metrics`)'
 } else {
     $tiRows = $tiCounts | ForEach-Object {
@@ -1745,6 +1777,17 @@ $tiHeadline = if ($tiTotal -and $tiTotal -gt 0) {
 } else {
     "_No threat intelligence indicators surfaced via either capture path._"
 }
+# Threat-type breakdown only renders when the metrics API path actually
+# returned a populated array — under the KQL fallback there is no
+# equivalent breakdown so the section is suppressed entirely.
+$tiTypeBlock = if ($tiTypeRows.Count -gt 0 -and ($tiTypeRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
+    @"
+
+## Indicator breakdown by threat type
+
+$(Format-Table -Items $tiTypeRows -Columns 'ThreatType','IndicatorCount')
+"@
+} else { '' }
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
@@ -1753,7 +1796,7 @@ Indicator counts and most-recent ingestion timestamp by source, last 30 days. In
 $tiHeadline
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
-
+$tiTypeBlock
 [Microsoft Sentinel Threat Intelligence (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence)
 "@)
 

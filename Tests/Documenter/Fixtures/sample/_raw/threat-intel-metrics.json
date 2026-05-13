@@ -4,10 +4,20 @@
     "name": "default",
     "kind": "metrics",
     "properties": {
-      "metrics": [
-        { "threatType": "url",        "threatTypeCount": 482 },
-        { "threatType": "ipv4-addr",  "threatTypeCount": 1273 },
-        { "threatType": "domain-name", "threatTypeCount": 215 }
+      "lastUpdatedTimeUtc": "2026-05-13T20:45:32.0627007Z",
+      "threatTypeMetrics": [
+        { "metricName": "url",         "metricValue": 482 },
+        { "metricName": "ipv4-addr",   "metricValue": 1273 },
+        { "metricName": "domain-name", "metricValue": 215 }
+      ],
+      "patternTypeMetrics": [
+        { "metricName": "url",         "metricValue": 482 },
+        { "metricName": "ipv4-addr",   "metricValue": 1273 },
+        { "metricName": "domain-name", "metricValue": 215 }
+      ],
+      "sourceMetrics": [
+        { "metricName": "Microsoft Defender Threat Intelligence", "metricValue": 1700 },
+        { "metricName": "Open Source",                            "metricValue": 270 }
       ]
     }
   }
