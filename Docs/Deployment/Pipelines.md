@@ -8,6 +8,19 @@ deployment, and operational tooling.
 | [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) | End-to-end deploy: Bicep infra + Content Hub + custom content + Defender XDR | Weekly, Mon 04:00 UTC |
 | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) | Detect rules edited in the portal, auto-PR Custom drift back into the repo | Daily, 06:00 UTC. See [Sentinel Drift Detection](../Operations/Sentinel-Drift-Detection.md) |
 | [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) | Deploy the DCR-watchlist sync runbook | On change to `Automation/DCR-Watchlist/**`. See [DCR Watchlist](../Operations/DCR-Watchlist.md) |
+| [`Pipelines/Sentinel-Dependency-Update.yml`](../../Pipelines/Sentinel-Dependency-Update.yml) | Run `Build-DependencyManifest -Mode Update` against main; auto-PR if `dependencies.json` drifts | Daily, 02:00 UTC. See [Dependency Manifest](../Operations/Dependency-Manifest.md) |
+| [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | PR-merge gate: runs every Pester suite plus the dependency-manifest drift gate | On every PR / push to main. See [Pester Tests](../Development/Pester-Tests.md) |
+
+> **GitHub Actions equivalents** of every pipeline live under
+> [`.github/workflows/`](../../.github/workflows/). They share the same
+> schedules and behaviour. Plus two GitHub-only workflows that have no
+> ADO equivalent:
+>
+> - [`pr-validation.yml`](../../.github/workflows/pr-validation.yml) —
+>   five-job merge gate (validate, bicep-build, arm-validate,
+>   kql-validate, dependency-manifest)
+> - [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml) —
+>   nightly E2E smoke test against the test workspace, daily 03:00 UTC
 
 ## Sentinel-Deploy.yml
 
@@ -178,6 +191,12 @@ No additional parameters — Stage 5 is controlled by the `deployDefenderDetecti
 
 The pipeline uses a service connection named `sc-sentinel-as-code` by default. To change this, update the `serviceConnection` variable in the YAML file.
 
+**Use workload identity federation, not a stored secret.** ADO has supported OIDC since 2024 and it's now the recommended default. The matching service principal in Entra ID gets a federated credential that trusts ADO's token issuer for the matching subject claim — no client secret stored anywhere, per-job tokens with ~1h TTL, parity with the GitHub Actions OIDC setup.
+
+> **Critical prerequisite**: ADO will not let you save the service connection if the SP cannot see the subscription. The SP must hold at least **Reader** on the subscription before clicking Save. `Scripts/Setup-ServicePrincipal.ps1` grants Contributor at subscription scope (which implies Reader), so the standard bootstrap satisfies this. If you skip the bootstrap and try to wire up ADO first, Save fails with a generic permission error.
+
+Full step-by-step: [ADO OIDC Setup](ADO-OIDC-Setup.md).
+
 > **Workspace Name**: Must be at least 4 characters (Azure requirement). The Bicep template validates this at deployment time.
 
 ### How It Works
@@ -253,3 +272,28 @@ Add to the `sentinel-deployment` variable group:
 Override at queue time:
 - `forceSolutionUpdate`: `true`
 - `forceContentDeployment`: `true`
+
+---
+
+## Authoring with GitHub Copilot
+
+When editing files under `.github/workflows/`, `.github/actions/`,
+or `Pipelines/`, Copilot automatically loads
+[`.github/instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md).
+The path-scoped instructions cover ADO-as-source-of-truth, the
+composite-action adoption rule, schedule alignment, and the
+ADO → GitHub Actions translation table.
+
+Copilot tooling for pipelines:
+
+- Agent `Sentinel-As-Code: Pipeline Engineer` — owns CI/CD
+  end-to-end. Authors / edits workflows, maintains parity between
+  ADO and GitHub, manages composite actions, diagnoses pipeline
+  failures, manages cron schedules.
+- Agent `Sentinel-As-Code: Bicep Engineer` — for the
+  `deploy-infrastructure` stage and the underlying Bicep
+  templates.
+- Agent `Sentinel-As-Code: Security Reviewer` — for permissions
+  blocks, OIDC federated-credential scoping, secret references.
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

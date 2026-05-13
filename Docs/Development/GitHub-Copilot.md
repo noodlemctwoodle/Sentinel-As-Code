@@ -1,0 +1,247 @@
+# GitHub Copilot Setup
+
+How GitHub Copilot is configured for this repo and how to use the
+custom instructions, agents, and prompts shipped with it.
+
+## What's wired up
+
+This repo ships a complete GitHub Copilot customisation set, aligned
+with the latest standards documented at
+[docs.github.com/copilot/customizing-copilot](https://docs.github.com/copilot/customizing-copilot)
+and [code.visualstudio.com/docs/copilot/customization](https://code.visualstudio.com/docs/copilot/customization/overview).
+
+| Layer | Purpose | Where |
+| --- | --- | --- |
+| Repo-wide instructions | Conventions every chat in this workspace follows | [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) |
+| Cross-tool agent guidance | Recognised by GitHub Copilot, Claude, Gemini, Cursor | [`AGENTS.md`](../../AGENTS.md) |
+| Path-scoped instructions | Per-folder authoring rules, loaded automatically by `applyTo` glob | [`.github/instructions/`](../../.github/instructions/) |
+| Custom agents | Persona configurations recognised across github.com + every IDE | [`.github/agents/`](../../.github/agents/) |
+| Reusable prompts | Slash-command templates for repeatable tasks (VS Code / VS / JetBrains) | [`.github/prompts/`](../../.github/prompts/) |
+
+## Platform support matrix
+
+Where each layer is recognised:
+
+| Layer | github.com Chat | github.com cloud agent | github.com code review | VS Code | Visual Studio | JetBrains | Copilot CLI |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `copilot-instructions.md` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `instructions/*.instructions.md` | code-review only | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `agents/*.agent.md` | ✅ | ✅ | n/a | ✅ | ✅ | ✅ | ✅ |
+| `prompts/*.prompt.md` | ❌ | ❌ | n/a | ✅ | ✅ | ✅ | ❌ |
+| `AGENTS.md` (root) | n/a | ✅ | n/a | ✅ | ✅ | ✅ | ✅ |
+
+**Why no `chatmodes/`?** The legacy VS Code-only `.chatmode.md`
+format has been superseded by `.agent.md` under
+[`.github/agents/`](../../.github/agents/), which works on
+github.com **and** in every IDE. We migrated the chat modes to
+agents in commit `<TBD>`. If you're working from an older clone,
+delete the legacy `.github/chatmodes/` folder; it's no longer used.
+
+## File inventory
+
+### Repo-wide
+
+- [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+  — repo conventions (en-GB, no em-dashes, commit-message format,
+  hard rules), repository layout, where-to-look table.
+- [`AGENTS.md`](../../AGENTS.md) — cross-tool agent guidance.
+  Recognised by GitHub Copilot Coding Agent, Claude, Gemini, Cursor
+  and others that look for `AGENTS.md` at the repo root.
+
+### Path-scoped instructions (`.github/instructions/`)
+
+Loaded automatically when you edit a file matching the `applyTo`
+glob in the frontmatter.
+
+| File | applies to | Covers |
+| --- | --- | --- |
+| `analytical-rules.instructions.md` | `AnalyticalRules/**/*.yaml` | Schema, field conventions, post-edit checklist |
+| `hunting-queries.instructions.md` | `HuntingQueries/**/*.yaml` | Hunting-vs-analytical decision, schema |
+| `defender-detections.instructions.md` | `DefenderCustomDetections/**/*.yaml` | Schema, table-set difference, response actions |
+| `watchlists.instructions.md` | `Watchlists/**` | Folder layout, alias-equality rule, cross-validation |
+| `playbooks.instructions.md` | `Playbooks/**/*.json` | ARM template structure, trigger-type folders, MSI tag |
+| `pester-tests.instructions.md` | `Tests/**/*.ps1` | AST-extraction pattern, mocking conventions |
+| `powershell-scripts.instructions.md` | `Scripts/**/*.ps1`, `Modules/**/*.psm1`, `Modules/**/*.psd1` | Style, Sentinel.Common usage, foot-gun list |
+| `kql-queries.instructions.md` | Any file with embedded KQL | KQL conventions, discovery-friendly patterns |
+| `workflows.instructions.md` | `.github/workflows/**`, `.github/actions/**`, `Pipelines/**/*.yml` | ADO-as-source-of-truth, composite actions, schedule alignment |
+
+### Custom agents (`.github/agents/`)
+
+Persona configurations recognised across github.com (Chat + cloud
+agent) and every supported IDE (VS Code, Visual Studio, JetBrains,
+Eclipse, Xcode), plus Copilot CLI.
+
+All thirteen agents prefix their display name with `Sentinel-As-Code:`
+so they group together in the agent picker (which mixes
+workspace-level, org-level, and marketplace agents). The short
+slug — `rule-author`, `powershell-engineer`, etc. — is what cross-
+references in this doc and the rest of the repo use; the prefixed
+form is what appears in the dropdown.
+
+The set is organised into two tiers:
+
+**Persona-broad agents** — pick by the kind of help you want
+(understand / build / edit / adjust / explain).
+
+| File | Display name | Purpose |
+| --- | --- | --- |
+| `repo-explorer.agent.md` | `Sentinel-As-Code: Repo Explorer` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
+| `rule-author.agent.md` | `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end. |
+| `content-editor.agent.md` | `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit tests. |
+| `rule-tuner.agent.md` | `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
+| `code-explainer.agent.md` | `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
+
+**Engineering specialists** — pick by area of expertise.
+
+| File | Display name | Purpose |
+| --- | --- | --- |
+| `pipeline-engineer.agent.md` | `Sentinel-As-Code: Pipeline Engineer` | **CI/CD.** Edits GitHub Actions + ADO pipelines, maintains parity, manages composite actions and schedules, diagnoses failures. |
+| `powershell-engineer.agent.md` | `Sentinel-As-Code: PowerShell Engineer` | **PowerShell / module engineering.** Owns `Modules/Sentinel.Common`, AST extraction patterns, the foot-gun list (`[void]` Boolean leak, single-element array indexing, strict-mode property access). |
+| `bicep-engineer.agent.md` | `Sentinel-As-Code: Bicep Engineer` | **Infrastructure-as-Code.** Bicep templates, parameter design, the dual Sentinel onboarding pattern, the test-workspace template. |
+| `kql-engineer.agent.md` | `Sentinel-As-Code: KQL Engineer` | **KQL optimisation.** Query performance, parser extraction, watchlist promotion, ASIM compatibility, discovery-friendliness. |
+| `test-engineer.agent.md` | `Sentinel-As-Code: Test Engineer` | **Pester engineering.** Adds coverage, refactors test files, designs mocking strategies, identifies coverage gaps. Goes beyond `/new-pester-test`. |
+| `security-reviewer.agent.md` | `Sentinel-As-Code: Security Reviewer` | **Security review.** Reviews playbooks, scripts, role assignments, federated credentials, and workflows through a security lens. Read-only; produces structured findings for hand-off. |
+| `drift-engineer.agent.md` | `Sentinel-As-Code: Drift Engineer` | **Rule drift.** Owns `Test-SentinelRuleDrift.ps1`, the daily auto-PR workflow, the Custom / ContentHub / Orphan absorption flow. |
+| `dependencies-engineer.agent.md` | `Sentinel-As-Code: Dependencies Engineer` | **Dependency discovery.** Owns the KQL extractors in `Sentinel.Common`, `Build-DependencyManifest`, the `dependency-manifest` PR-validation gate, and the daily auto-PR refresh. |
+
+#### How to invoke
+
+- **github.com Chat / cloud agent**: pick the agent from the
+  agents dropdown at https://github.com/copilot/agents (after the
+  agent's `.agent.md` is merged into `main`).
+- **VS Code Copilot Chat**: pick the agent from the chat-mode
+  dropdown.
+- **Copilot CLI**: `gh copilot agent <name> "<your prompt>"`.
+
+### Reusable prompts (`.github/prompts/`)
+
+VS Code / Visual Studio / JetBrains slash commands. Not available
+on github.com Chat.
+
+| Prompt | What it does |
+| --- | --- |
+| `/new-analytical-rule` | Bootstraps a fresh `AnalyticalRules/<Source>/<Name>.yaml` |
+| `/new-hunting-query` | Bootstraps a fresh `HuntingQueries/<Source>/<Name>.yaml` |
+| `/new-defender-detection` | Bootstraps a fresh `DefenderCustomDetections/<Category>/<Name>.yaml` |
+| `/new-pester-test` | Bootstraps a Pester 5 test using the AST-extraction pattern |
+| `/review-rule` | Reviews a rule against schema + KQL + convention rules |
+| `/regenerate-deps` | Runs `Build-DependencyManifest -Mode Generate` and explains the diff |
+
+The same content is captured (in less interactive form) by the
+matching agents — so if you're on github.com Chat, invoke the
+`rule-author` agent and it will follow the same workflow as
+`/new-analytical-rule`.
+
+## Updating the customisations
+
+### To add a new path-scoped instruction file
+
+1. Create `.github/instructions/<name>.instructions.md` with frontmatter:
+
+   ```markdown
+   ---
+   name: Display name
+   description: Short description shown on hover.
+   applyTo: "<glob1>,<glob2>"
+   ---
+   ```
+
+2. Body is plain Markdown. Copilot loads it on top of
+   `copilot-instructions.md` whenever the file you're editing
+   matches the `applyTo` glob.
+
+### To add a new custom agent
+
+1. Create `.github/agents/<name>.agent.md` with frontmatter:
+
+   ```markdown
+   ---
+   description: One-line description (required).
+   tools: ['search/codebase', 'edit/applyPatch', 'terminal/run']
+   ---
+   ```
+
+   Optional frontmatter keys:
+   - `name` — display name (defaults to filename)
+   - `model` — preferred model (e.g. `gpt-5`, `claude-sonnet-4`)
+   - `target` — restrict to one platform: `vscode` or
+     `github-copilot`. Omit for cross-platform.
+   - `mcp-servers`, `metadata`, `disable-model-invocation`,
+     `user-invocable` — see the
+     [GitHub custom-agent reference](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+     for the full schema.
+
+2. Body is plain Markdown — the persona's instructions. 30,000-
+   character limit.
+
+3. Set the `name:` frontmatter to `Sentinel-As-Code: <Role>` so the
+   agent groups with the rest of the repo's agents in the picker
+   (which mixes workspace, org, and marketplace entries).
+
+4. Commit and merge to `main`. The agent appears in the
+   github.com agent dropdown after the merge; in VS Code it
+   appears in the chat-mode dropdown after a chat reload.
+
+### To add a new prompt
+
+1. Create `.github/prompts/<name>.prompt.md` with frontmatter:
+
+   ```markdown
+   ---
+   description: One-line description.
+   argument-hint: <hint shown in the chat input>
+   agent: agent | ask | plan
+   tools: ['search/codebase', 'edit/applyPatch']
+   ---
+   ```
+
+2. Body is the prompt template. Variables: `${input:name}`,
+   `${selection}`, `${file}`. Tool refs: `#tool:<name>`.
+
+3. Invoke with `/<filename-without-extension>` in chat. Only
+   available in IDE clients (VS Code / VS / JetBrains).
+
+## Conventions followed
+
+The customisations align with the latest GitHub Copilot standards
+as of April 2026:
+
+- **File extensions**: `.instructions.md`, `.prompt.md`,
+  `.agent.md` (the cross-platform format that supersedes
+  `.chatmode.md`).
+- **Folder layout**: `.github/instructions/`,
+  `.github/agents/`, `.github/prompts/`.
+- **Frontmatter**: YAML at file start, terminated by `---`. Keys
+  use the schema documented at
+  [docs.github.com/en/copilot/reference/custom-agents-configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+  and
+  [code.visualstudio.com/docs/copilot/customization/custom-instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions).
+- **`applyTo` globs**: comma-separated, relative to repo root.
+- **Tool names**: namespaced format (`search/codebase`,
+  `edit/applyPatch`, `terminal/run`, `web/fetch`).
+
+## Validation
+
+There's no Pester suite for the Copilot files (they're plain
+Markdown). The lightest sanity check is YAML-frontmatter parse:
+
+```powershell
+foreach ($f in (Get-ChildItem .github/instructions, .github/agents, .github/prompts -Recurse -File)) {
+    $content = Get-Content $f.FullName -Raw
+    if ($content -notmatch '(?ms)^---\s*\n.*?\n---\s*\n') {
+        Write-Warning "$($f.Name): missing or malformed frontmatter"
+    }
+}
+```
+
+When adding a new file, run that check.
+
+## Cross-references
+
+- [`Docs/README.md`](../README.md) — top-level doc index
+- [`AGENTS.md`](../../AGENTS.md) — cross-tool agent guidance
+- [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) — repo-wide instructions
+- [GitHub Copilot custom instructions documentation](https://docs.github.com/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot)
+- [GitHub custom agents reference](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+- [VS Code Copilot customisation overview](https://code.visualstudio.com/docs/copilot/customization/overview)
+- [`github/awesome-copilot`](https://github.com/github/awesome-copilot) — community-maintained collection of Copilot customisations

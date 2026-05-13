@@ -5,13 +5,22 @@
 # pipelines), absorbs the changes back into the repo, and opens a PR for
 # review.
 #
-# Behaviour:
-#   - Custom drift   -> matching AnalyticalRules/**.yaml is updated to reflect
-#                       the deployed state (single-line scalars + query block).
-#                       Patch version is bumped.
-#   - ContentHub     -> reported in reports/sentinel-drift-latest.md only.
-#   - Orphan         -> reported in reports/sentinel-drift-latest.md only.
-#   - No drift       -> nothing committed. Working tree stays clean. No PR.
+# Behaviour (every drift bucket is absorbed into AnalyticalRules/):
+#   - Custom drift  -> matching AnalyticalRules/**.yaml is updated to reflect
+#                      the deployed state (single-line scalars + query block).
+#                      Patch version is bumped.
+#   - ContentHub    -> deployed rule is promoted to a Custom YAML at
+#                      AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/.
+#                      The YAML reuses the rule's resource GUID as its 'id:',
+#                      so the next deploy run takes over governance from the
+#                      Content Hub template.
+#   - Orphan        -> portal-only rule is exported to a Custom YAML at
+#                      AnalyticalRules/AbsorbedFromPortal/Orphans/.
+#   - No drift      -> nothing committed. Working tree stays clean. No PR.
+#
+# Once absorbed, every subsequent run treats the rule as Custom (because the
+# YAML now exists), so further portal edits flow through the standard
+# Custom-drift update path.
 #
 # When drift IS detected:
 #   1. Push the changes to the rolling branch 'auto/sentinel-drift-sync'.

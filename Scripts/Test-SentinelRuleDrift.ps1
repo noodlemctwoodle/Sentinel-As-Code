@@ -31,18 +31,23 @@
     content is not user-editable and they have no source-of-truth in the deploy model.
     They are reported in the 'managed' summary count for visibility.
 
-    When drift is detected the script:
+    When drift is detected the script absorbs the changes back into the repo:
 
     - **Custom drift** : surgically rewrites the matched YAML file under AnalyticalRules/
-                         to reflect the deployed state, then bumps its patch version. The
-                         pipeline that invokes this script is responsible for committing
-                         and PR'ing the resulting file changes.
-    - **ContentHub**   : reported in reports/sentinel-drift-latest.{md,json} only. No
-                         repo edits — Microsoft owns Content Hub templates, and the deploy
-                         pipeline already auto-protects modified OoB rules via
-                         Deploy-SentinelContentHub.ps1's -ProtectCustomisedRules switch.
-    - **Orphan**       : reported in reports/sentinel-drift-latest.{md,json} only.
-                         Adopting orphans into governance is a manual triage step.
+                         to reflect the deployed state, then bumps its patch version.
+    - **ContentHub**   : promotes the deployed rule to a Custom YAML at
+                         AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/{Slug}.yaml.
+                         The YAML reuses the rule's existing resource GUID as its 'id:', so
+                         on the next deploy run Deploy-CustomContent.ps1 takes over governance
+                         and the rule is no longer subject to Content Hub template overwrites.
+    - **Orphan**       : exports the portal-only rule to a Custom YAML at
+                         AnalyticalRules/AbsorbedFromPortal/Orphans/{Slug}.yaml so it becomes
+                         governed alongside the rest of the repo's Custom rules.
+
+    Once absorbed, all three buckets behave identically on subsequent runs: the rule is
+    governed by its YAML, and any further portal edits are written back to the same file
+    via the Custom-drift flow. The pipeline that invokes this script commits both the YAML
+    edits and the report, then opens a PR for human review.
 
     When NO drift is detected the script writes nothing — the working tree stays clean so
     the invoking pipeline does not open an empty PR.
@@ -76,8 +81,9 @@
     Scripts/ folder this script lives in.
 
 .PARAMETER ReportOnly
-    Skip YAML edits for Custom drift; still writes the report files. Useful when running
-    locally to inspect drift before letting the pipeline auto-sync.
+    Skip all YAML edits (Custom updates, ContentHub promotions, Orphan exports); still
+    writes the report files. Useful when running locally to inspect drift before letting
+    the pipeline auto-sync.
 
 .PARAMETER SkipContentHub
     Skip drift detection for rules linked to a Content Hub template. By default all
@@ -122,8 +128,8 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.1
-    Last Updated:   2026-04-28
+    Version:        1.1.0
+    Last Updated:   2026-04-29
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts, powershell-yaml
@@ -202,234 +208,13 @@ $script:ManagedRuleKinds = @(
 )
 
 # ---------------------------------------------------------------------------
-# Helper: Write ADO pipeline commands where applicable, otherwise standard output
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:191
-#   Scripts/Deploy-CustomContent.ps1:515
+# Shared helpers from Sentinel.Common
 # ---------------------------------------------------------------------------
-function Write-PipelineMessage {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [string]$Message
-        ,
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("Info", "Warning", "Error", "Section", "Success", "Debug")]
-        [string]$Level = "Info"
-    )
-
-    $isAdo = $null -ne $env:BUILD_BUILDID
-
-    switch ($Level) {
-        "Info"    {
-            Write-Host $Message
-        }
-        "Warning" {
-            if ($isAdo) {
-                Write-Host "##[warning]$Message"
-            }
-            else {
-                Write-Warning $Message
-            }
-        }
-        "Error"   {
-            if ($isAdo) {
-                Write-Host "##[error]$Message"
-            }
-            else {
-                Write-Error $Message -ErrorAction Continue
-            }
-        }
-        "Section" {
-            if ($isAdo) {
-                Write-Host "##[section]$Message"
-            }
-            else {
-                Write-Host "`n$Message" -ForegroundColor Cyan
-            }
-        }
-        "Success" {
-            if ($isAdo) {
-                Write-Host $Message
-            }
-            else {
-                Write-Host $Message -ForegroundColor Green
-            }
-        }
-        "Debug"   {
-            Write-Verbose $Message
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Helper: Invoke REST API with retry logic for transient failures
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:285
-#   Scripts/Deploy-CustomContent.ps1:574
-# ---------------------------------------------------------------------------
-function Invoke-SentinelApi {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Uri
-        ,
-        [Parameter(Mandatory = $true)]
-        [string]$Method
-        ,
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Headers
-        ,
-        [Parameter(Mandatory = $false)]
-        [string]$Body
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$MaxRetries = 3
-        ,
-        [Parameter(Mandatory = $false)]
-        [int]$RetryDelaySeconds = 5
-    )
-
-    $attempt = 0
-
-    while ($attempt -lt $MaxRetries) {
-        $attempt++
-
-        try {
-            $params = @{
-                Uri         = $Uri
-                Method      = $Method
-                Headers     = $Headers
-                ContentType = 'application/json'
-            }
-
-            if ($Body) {
-                $params.Body = $Body
-            }
-
-            $webResponse = Invoke-WebRequest @params -UseBasicParsing -ErrorAction Stop
-            return ($webResponse.Content | ConvertFrom-Json)
-        }
-        catch {
-            $statusCode = $null
-            $responseBody = $null
-
-            if ($_.Exception.Response) {
-                $statusCode = [int]$_.Exception.Response.StatusCode
-                try {
-                    $stream = $_.Exception.Response.GetResponseStream()
-                    $reader = [System.IO.StreamReader]::new($stream)
-                    $responseBody = $reader.ReadToEnd()
-                    $reader.Dispose()
-                }
-                catch { }
-            }
-
-            if (-not $responseBody -and $_.ErrorDetails.Message) {
-                $responseBody = $_.ErrorDetails.Message
-            }
-
-            $retryableCodes = @(429, 500, 502, 503, 504)
-            if ($statusCode -and $retryableCodes -contains $statusCode -and $attempt -lt $MaxRetries) {
-                $delay = $RetryDelaySeconds * $attempt
-                Write-PipelineMessage "API call returned $statusCode. Retrying in ${delay}s (attempt $attempt of $MaxRetries)..." -Level Warning
-                Start-Sleep -Seconds $delay
-                continue
-            }
-
-            $errorDetail = if ($responseBody) { "HTTP $statusCode - $responseBody" } else { $_.Exception.Message }
-            throw "API call failed: $errorDetail"
-        }
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Authentication
-# TODO: extract to Sentinel.Common.psm1 — duplicated in
-#   Scripts/Deploy-SentinelContentHub.ps1:412
-#   Scripts/Deploy-CustomContent.ps1:654
-# ---------------------------------------------------------------------------
-function Connect-AzureEnvironment {
-    [CmdletBinding()]
-    param()
-
-    Write-PipelineMessage "Establishing Azure authentication..." -Level Section
-
-    Update-AzConfig -DisplayBreakingChangeWarning $false -ErrorAction SilentlyContinue | Out-Null
-
-    $context = Get-AzContext
-
-    if (-not $context) {
-        Write-PipelineMessage "No Azure context found. Attempting login..." -Level Info
-        if ($IsGov) {
-            Connect-AzAccount -Environment AzureUSGovernment -ErrorAction Stop | Out-Null
-        }
-        else {
-            Connect-AzAccount -ErrorAction Stop | Out-Null
-        }
-        $context = Get-AzContext
-    }
-
-    if (-not $context) {
-        throw "Failed to establish Azure context. Ensure you are authenticated."
-    }
-
-    if ($script:SubscriptionId) {
-        Set-AzContext -SubscriptionId $script:SubscriptionId -ErrorAction Stop | Out-Null
-        $context = Get-AzContext
-    }
-    else {
-        $script:SubscriptionId = $context.Subscription.Id
-    }
-
-    Write-PipelineMessage "Authenticated to subscription: $($context.Subscription.Id) ($($context.Subscription.Name))" -Level Success
-
-    $script:ServerUrl = if ($IsGov) {
-        "https://management.usgovcloudapi.net"
-    }
-    else {
-        "https://management.azure.com"
-    }
-
-    $script:BaseUri = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$Workspace"
-
-    $resourceEndpoint = $script:ServerUrl
-    try {
-        $tokenResponse = Get-AzAccessToken -ResourceUrl $resourceEndpoint -ErrorAction Stop
-
-        if ($tokenResponse.Token -is [System.Security.SecureString]) {
-            $accessToken = $tokenResponse.Token | ConvertFrom-SecureString -AsPlainText
-        }
-        elseif ($tokenResponse.Token -is [string]) {
-            $accessToken = $tokenResponse.Token
-        }
-        else {
-            throw "Unexpected token type: $($tokenResponse.Token.GetType().FullName)"
-        }
-    }
-    catch {
-        Write-PipelineMessage "Get-AzAccessToken failed ($($_.Exception.Message)). Falling back to context profile token." -Level Warning
-        $instanceProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-        $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($instanceProfile)
-        $tokenObj = $profileClient.AcquireAccessToken($context.Subscription.TenantId)
-        $accessToken = $tokenObj.AccessToken
-    }
-
-    if (-not $accessToken) {
-        throw "Failed to acquire an access token. Check Service Principal permissions."
-    }
-
-    $script:AuthHeader = @{
-        'Content-Type'  = 'application/json'
-        'Authorization' = "Bearer $accessToken"
-    }
-
-    Write-PipelineMessage "Target workspace: $Workspace (Resource Group: $ResourceGroup, Region: $Region)" -Level Info
-    if ($IsGov) {
-        Write-PipelineMessage "Azure Government cloud mode enabled." -Level Info
-    }
-}
+# Sourcing this module brings in Write-PipelineMessage, Invoke-SentinelApi,
+# and Connect-AzureEnvironment. Pre-Wave-4 these were inline copies in this
+# file and three deployer scripts; consolidating them into the module
+# is Wave 4 Item 1.
+Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 
 # ---------------------------------------------------------------------------
 # Deployed rule discovery
@@ -828,6 +613,252 @@ function Update-RuleYamlFile {
 }
 
 # ---------------------------------------------------------------------------
+# Serialise a deployed rule object to a Custom-rule YAML string in the repo
+# style. Used by Save-AbsorbedRule when promoting a ContentHub rule or
+# absorbing an Orphan into AnalyticalRules/ for governance.
+#
+# The output mirrors the existing AnalyticalRules/**.yaml layout:
+#   id, name, description (block scalar), severity,
+#   queryFrequency/Period/Operator/Threshold (Scheduled only),
+#   enabled, tactics, relevantTechniques, query (block scalar),
+#   entityMappings, eventGroupingSettings, incidentConfiguration,
+#   version, kind, tags
+# ---------------------------------------------------------------------------
+function ConvertTo-YamlScalarString {
+    param([string]$Value)
+    if ([string]::IsNullOrEmpty($Value)) { return "''" }
+    if ($Value -match '[:#\[\]\{\}&*!|>''"%@`,]' -or $Value -match '^\s|\s$' -or $Value -match '^[-?]') {
+        return ("'" + ($Value -replace "'", "''") + "'")
+    }
+    return $Value
+}
+
+function ConvertTo-IndentedSubtreeYaml {
+    param(
+        [Parameter(Mandatory)] [object]$Object
+        ,
+        [int]$Indent = 0
+    )
+    # Use powershell-yaml for arbitrary subtrees (entityMappings, eventGroupingSettings,
+    # incidentConfiguration). Strip the trailing newline that ConvertTo-Yaml adds.
+    $rendered = ConvertTo-Yaml $Object
+    if (-not $rendered) { return '' }
+    $rendered = $rendered.TrimEnd("`r","`n")
+    if ($Indent -le 0) { return $rendered }
+    $prefix = ' ' * $Indent
+    $lines = $rendered -split "`r?`n"
+    $indented = foreach ($line in $lines) {
+        if ($line.Length -gt 0) { "$prefix$line" } else { '' }
+    }
+    return ($indented -join "`n")
+}
+
+function New-AbsorbedRuleYaml {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [object]$DeployedRule
+        ,
+        [Parameter(Mandatory)] [ValidateSet('ContentHub','Orphan')] [string]$Provenance
+        ,
+        [string]$SolutionName = $null
+    )
+
+    $props = $DeployedRule.properties
+    $kind  = if ($DeployedRule.PSObject.Properties.Name -contains 'kind') { [string]$DeployedRule.kind } else { 'Scheduled' }
+
+    $lines = [System.Collections.Generic.List[string]]::new()
+
+    # id (lowercase GUID, matches resource name)
+    $lines.Add("id: $(([string]$DeployedRule.name).ToLowerInvariant())")
+
+    # name (display name)
+    $displayName = if ($props.PSObject.Properties.Name -contains 'displayName') { [string]$props.displayName } else { [string]$DeployedRule.name }
+    $lines.Add("name: $(ConvertTo-YamlScalarString $displayName)")
+
+    # description (block scalar). Pull from props if present; otherwise generate a stub.
+    $description = if ($props.PSObject.Properties.Name -contains 'description') { [string]$props.description } else { '' }
+    if ([string]::IsNullOrWhiteSpace($description)) {
+        $description = "Absorbed from $Provenance via Sentinel-Drift-Detect on $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))."
+    }
+    $lines.Add("description: |")
+    foreach ($line in (($description.TrimEnd()) -split "`r?`n")) {
+        $lines.Add("  $line")
+    }
+
+    # severity
+    $severity = if ($props.PSObject.Properties.Name -contains 'severity') { Convert-Severity ([string]$props.severity) } else { 'Medium' }
+    $lines.Add("severity: $severity")
+
+    # Scheduling fields (Scheduled only)
+    if ($kind -eq 'Scheduled') {
+        if ($props.PSObject.Properties.Name -contains 'queryFrequency')   { $lines.Add("queryFrequency: $([string]$props.queryFrequency)") }
+        if ($props.PSObject.Properties.Name -contains 'queryPeriod')      { $lines.Add("queryPeriod: $([string]$props.queryPeriod)") }
+        if ($props.PSObject.Properties.Name -contains 'triggerOperator')  {
+            $shortOp = ConvertTo-ShortTriggerOperator ([string]$props.triggerOperator)
+            $lines.Add("triggerOperator: $shortOp")
+        }
+        if ($props.PSObject.Properties.Name -contains 'triggerThreshold') { $lines.Add("triggerThreshold: $([int]$props.triggerThreshold)") }
+    }
+
+    # enabled
+    $enabled = if ($props.PSObject.Properties.Name -contains 'enabled') { [bool]$props.enabled } else { $true }
+    $lines.Add("enabled: $($enabled.ToString().ToLowerInvariant())")
+
+    # tactics
+    if ($props.PSObject.Properties.Name -contains 'tactics' -and $props.tactics) {
+        $tacticArray = @($props.tactics)
+        if ($tacticArray.Count -gt 0) {
+            $lines.Add("tactics:")
+            foreach ($t in $tacticArray) { $lines.Add("- $t") }
+        }
+    }
+
+    # relevantTechniques (API field is 'techniques'; YAML uses 'relevantTechniques')
+    if ($props.PSObject.Properties.Name -contains 'techniques' -and $props.techniques) {
+        $techArray = @($props.techniques)
+        if ($techArray.Count -gt 0) {
+            $lines.Add("relevantTechniques:")
+            foreach ($t in $techArray) { $lines.Add("- $t") }
+        }
+    }
+
+    # query (block scalar)
+    if ($props.PSObject.Properties.Name -contains 'query') {
+        $lines.Add("query: |")
+        foreach ($line in ((([string]$props.query).TrimEnd()) -split "`r?`n")) {
+            $lines.Add("  $line")
+        }
+    }
+
+    # entityMappings (top-level array — items at indent 0)
+    if ($props.PSObject.Properties.Name -contains 'entityMappings' -and $props.entityMappings) {
+        $em = @($props.entityMappings)
+        if ($em.Count -gt 0) {
+            $lines.Add("entityMappings:")
+            $rendered = ConvertTo-IndentedSubtreeYaml -Object $em -Indent 0
+            foreach ($line in ($rendered -split "`r?`n")) {
+                if ($line.Length -gt 0) { $lines.Add($line) }
+            }
+        }
+    }
+
+    # eventGroupingSettings (object — children at indent 2)
+    if ($props.PSObject.Properties.Name -contains 'eventGroupingSettings' -and $props.eventGroupingSettings) {
+        $lines.Add("eventGroupingSettings:")
+        $rendered = ConvertTo-IndentedSubtreeYaml -Object $props.eventGroupingSettings -Indent 2
+        foreach ($line in ($rendered -split "`r?`n")) {
+            if ($line.Length -gt 0) { $lines.Add($line) }
+        }
+    }
+
+    # incidentConfiguration (object — children at indent 2)
+    if ($props.PSObject.Properties.Name -contains 'incidentConfiguration' -and $props.incidentConfiguration) {
+        $lines.Add("incidentConfiguration:")
+        $rendered = ConvertTo-IndentedSubtreeYaml -Object $props.incidentConfiguration -Indent 2
+        foreach ($line in ($rendered -split "`r?`n")) {
+            if ($line.Length -gt 0) { $lines.Add($line) }
+        }
+    }
+
+    # version (newly-absorbed rules start at 1.0.0; future drift bumps the patch via Update-RuleYamlFile)
+    $lines.Add("version: 1.0.0")
+
+    # kind
+    $lines.Add("kind: $kind")
+
+    # tags. The 'AbsorbedFromPortal-{Provenance}' tag is the audit trail —
+    # it tells every reviewer where the YAML came from at a glance, and a
+    # future cleanup script can use it to find rules that were absorbed
+    # automatically vs hand-authored.
+    $lines.Add("tags:")
+    $lines.Add("- Sentinel-As-Code")
+    $lines.Add("- Custom")
+    $lines.Add("- AbsorbedFromPortal-$Provenance")
+    if ($SolutionName) {
+        $lines.Add("- $(ConvertTo-YamlScalarString $SolutionName)")
+    }
+
+    return ($lines -join "`n") + "`n"
+}
+
+# ---------------------------------------------------------------------------
+# Write (or rewrite) an absorbed rule YAML to AnalyticalRules/AbsorbedFromPortal/.
+#
+# Path layout:
+#   ContentHub  ->  AnalyticalRules/AbsorbedFromPortal/ContentHub/{SolutionSlug}/{RuleSlug}.yaml
+#   Orphan      ->  AnalyticalRules/AbsorbedFromPortal/Orphans/{RuleSlug}.yaml
+#
+# RuleSlug is derived from the deployed displayName (or resource name as fallback),
+# trimmed to 80 chars, with non-word chars collapsed to single hyphens. SolutionSlug
+# follows the same rules. Existing files at the target path are overwritten when the
+# content differs and left alone when identical (so a clean run does not bump git).
+#
+# Returns @{ Path = '...'; Action = 'created' | 'updated' | 'unchanged' }.
+# ---------------------------------------------------------------------------
+function ConvertTo-FileSlug {
+    param(
+        [Parameter(Mandatory)] [string]$Value
+        ,
+        [int]$MaxLength = 80
+    )
+    $slug = ($Value -replace '[^A-Za-z0-9]+', '-').Trim('-')
+    if ([string]::IsNullOrEmpty($slug)) { $slug = 'rule' }
+    if ($slug.Length -gt $MaxLength) { $slug = $slug.Substring(0, $MaxLength).TrimEnd('-') }
+    return $slug
+}
+
+function Save-AbsorbedRule {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$RepoPath
+        ,
+        [Parameter(Mandatory)] [object]$DeployedRule
+        ,
+        [Parameter(Mandatory)] [ValidateSet('ContentHub','Orphan')] [string]$Provenance
+        ,
+        [string]$SolutionName = $null
+    )
+
+    $relativeBase = 'AnalyticalRules/AbsorbedFromPortal'
+    $relativeFolder = if ($Provenance -eq 'ContentHub') {
+        $solutionSlug = if ($SolutionName) { ConvertTo-FileSlug -Value $SolutionName -MaxLength 60 } else { 'Unattributed' }
+        Join-Path -Path "$relativeBase/ContentHub" -ChildPath $solutionSlug
+    }
+    else {
+        "$relativeBase/Orphans"
+    }
+
+    $displayName = if ($DeployedRule.properties.PSObject.Properties.Name -contains 'displayName') {
+        [string]$DeployedRule.properties.displayName
+    } else { [string]$DeployedRule.name }
+    if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = [string]$DeployedRule.name }
+
+    $ruleSlug = ConvertTo-FileSlug -Value $displayName -MaxLength 80
+    $fileName = "$ruleSlug.yaml"
+
+    $targetDir  = Join-Path -Path $RepoPath -ChildPath $relativeFolder
+    $targetPath = Join-Path -Path $targetDir -ChildPath $fileName
+
+    $newContent = New-AbsorbedRuleYaml -DeployedRule $DeployedRule -Provenance $Provenance -SolutionName $SolutionName
+
+    if (-not (Test-Path -Path $targetDir)) {
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+    }
+
+    if (Test-Path -Path $targetPath) {
+        $existing = Get-Content -Path $targetPath -Raw -ErrorAction Stop
+        if ($existing -eq $newContent) {
+            return @{ Path = $targetPath; Action = 'unchanged' }
+        }
+        Set-Content -Path $targetPath -Value $newContent -NoNewline -Encoding UTF8
+        return @{ Path = $targetPath; Action = 'updated' }
+    }
+
+    Set-Content -Path $targetPath -Value $newContent -NoNewline -Encoding UTF8
+    return @{ Path = $targetPath; Action = 'created' }
+}
+
+# ---------------------------------------------------------------------------
 # Compare a deployed rule against its expected source.
 # Mirrors the field set of Test-RuleIsCustomised in Deploy-SentinelContentHub.ps1:826
 # and adds 'displayName'. 'enabled' is NOT compared — Deploy-CustomContent.ps1
@@ -899,6 +930,25 @@ function Resolve-RuleSource {
         [Parameter(Mandatory)] [hashtable]$SolutionByPackageId
     )
 
+    # Precedence: a YAML file in the repo whose 'id:' matches the deployed rule's
+    # resource GUID is treated as the authoritative source-of-truth, even when the
+    # rule also carries an alertRuleTemplateName link. This is the absorption hand-off:
+    # once a ContentHub or Orphan rule has been written to AnalyticalRules/ as a Custom
+    # YAML, every subsequent run treats that YAML as the source and any further portal
+    # edits flow through the Custom-drift update path.
+    $ruleGuid = if ($Rule.PSObject.Properties.Name -contains 'name') { ([string]$Rule.name).ToLowerInvariant() } else { $null }
+    if ($ruleGuid -and $YamlsByGuid.ContainsKey($ruleGuid)) {
+        $entry = $YamlsByGuid[$ruleGuid]
+        $expected = ConvertTo-NormalisedYamlRule -YamlEntry $entry
+
+        return @{
+            Source    = 'Custom'
+            Expected  = $expected
+            SourceRef = $entry.FilePath
+            Solution  = $null
+        }
+    }
+
     $templateName = $null
     if ($Rule.PSObject.Properties.Name -contains 'properties' -and
         $Rule.properties.PSObject.Properties.Name -contains 'alertRuleTemplateName') {
@@ -919,19 +969,6 @@ function Resolve-RuleSource {
             Expected  = $expected
             SourceRef = $templateName
             Solution  = $solutionName
-        }
-    }
-
-    $ruleGuid = if ($Rule.PSObject.Properties.Name -contains 'name') { ([string]$Rule.name).ToLowerInvariant() } else { $null }
-    if ($ruleGuid -and $YamlsByGuid.ContainsKey($ruleGuid)) {
-        $entry = $YamlsByGuid[$ruleGuid]
-        $expected = ConvertTo-NormalisedYamlRule -YamlEntry $entry
-
-        return @{
-            Source    = 'Custom'
-            Expected  = $expected
-            SourceRef = $entry.FilePath
-            Solution  = $null
         }
     }
 
@@ -1212,7 +1249,20 @@ function Write-DriftReport {
 # Main
 # ---------------------------------------------------------------------------
 function Invoke-Main {
-    Connect-AzureEnvironment
+    # Connect-AzureEnvironment lives in Modules/Sentinel.Common now and
+    # returns a state hashtable rather than mutating $script: scope.
+    $azCtx = Connect-AzureEnvironment `
+        -ResourceGroup  $ResourceGroup `
+        -Workspace      $Workspace `
+        -Region         $Region `
+        -SubscriptionId $script:SubscriptionId `
+        -IsGov:$IsGov
+    $script:SubscriptionId      = $azCtx.SubscriptionId
+    $script:ServerUrl           = $azCtx.ServerUrl
+    $script:BaseUri             = $azCtx.BaseUri
+    $script:WorkspaceResourceId = $azCtx.WorkspaceResourceId
+    $script:WorkspaceId         = $azCtx.WorkspaceId
+    $script:AuthHeader          = $azCtx.AuthHeader
 
     $deployedRules = Get-ExistingAnalyticsRules
     $templates     = if (-not $SkipContentHub) { Get-ContentHubAnalyticsRuleTemplates } else { @() }
@@ -1362,24 +1412,76 @@ function Invoke-Main {
         }
     }
 
-    # Apply Custom drift back to the YAML files. Each rewrite annotates the
-    # report record so the markdown PR description tells reviewers what landed.
+    # Absorb every drift bucket back into AnalyticalRules/. Custom drift updates the
+    # existing matched YAML in place; ContentHub and Orphan drift each generate a new
+    # YAML at AnalyticalRules/AbsorbedFromPortal/{ContentHub|Orphans}/. Once written
+    # the rule's resource GUID matches a YAML id, so on every subsequent run the
+    # Resolve-RuleSource Custom branch wins and any further portal edits flow back
+    # through Update-RuleYamlFile against the same file.
+    #
+    # Build a lookup of deployed-rule objects by resource GUID so absorption can
+    # serialise the full deployed state without re-fetching from the API.
+    $deployedById = @{}
+    foreach ($r in $deployedRules) { $deployedById[([string]$r.name).ToLowerInvariant()] = $r }
+
     if (-not $ReportOnly -and -not $WhatIf) {
         foreach ($entry in $drifted) {
-            if ($entry.source -ne 'Custom') { continue }
-            try {
-                $changed = Update-RuleYamlFile -FilePath $entry.sourceRef -Modifications $entry.modifiedFields
-                $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue $changed -Force
-                if ($changed) {
-                    Write-PipelineMessage "  Synced YAML: $($entry.sourceRef)" -Level Success
+            switch ($entry.source) {
+                'Custom' {
+                    try {
+                        $changed = Update-RuleYamlFile -FilePath $entry.sourceRef -Modifications $entry.modifiedFields
+                        $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue $changed -Force
+                        if ($changed) {
+                            Write-PipelineMessage "  Synced YAML: $($entry.sourceRef)" -Level Success
+                        }
+                        else {
+                            Write-PipelineMessage "  No-op on YAML: $($entry.sourceRef) (regex did not match — manual edit required)" -Level Warning
+                        }
+                    }
+                    catch {
+                        Write-PipelineMessage "  Failed to update '$($entry.sourceRef)': $($_.Exception.Message)" -Level Error
+                        $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue $false -Force
+                    }
                 }
-                else {
-                    Write-PipelineMessage "  No-op on YAML: $($entry.sourceRef) (regex did not match — manual edit required)" -Level Warning
+                'ContentHub' {
+                    try {
+                        $deployed = $deployedById[([string]$entry.ruleName).ToLowerInvariant()]
+                        if ($null -eq $deployed) {
+                            Write-PipelineMessage "  Could not locate deployed rule for '$($entry.displayName)' — skipping absorption." -Level Warning
+                            continue
+                        }
+                        $result = Save-AbsorbedRule -RepoPath $RepoPath -DeployedRule $deployed -Provenance 'ContentHub' -SolutionName $entry.solution
+                        $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue ($result.Action -ne 'unchanged') -Force
+                        $entry | Add-Member -NotePropertyName 'absorbedPath' -NotePropertyValue $result.Path -Force
+                        $entry | Add-Member -NotePropertyName 'absorbedAction' -NotePropertyValue $result.Action -Force
+                        Write-PipelineMessage "  Promoted ContentHub drift to Custom YAML ($($result.Action)): $($result.Path)" -Level Success
+                    }
+                    catch {
+                        Write-PipelineMessage "  Failed to promote '$($entry.displayName)': $($_.Exception.Message)" -Level Error
+                        $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue $false -Force
+                    }
                 }
             }
-            catch {
-                Write-PipelineMessage "  Failed to update '$($entry.sourceRef)': $($_.Exception.Message)" -Level Error
-                $entry | Add-Member -NotePropertyName 'yamlUpdated' -NotePropertyValue $false -Force
+        }
+
+        # Orphans live in their own report bucket, not in $drifted. Absorb each one as
+        # a Custom YAML so the next run governs it via the Custom branch.
+        if (-not $SkipOrphans) {
+            foreach ($orphan in $orphans) {
+                try {
+                    $deployed = $deployedById[([string]$orphan.ruleName).ToLowerInvariant()]
+                    if ($null -eq $deployed) {
+                        Write-PipelineMessage "  Could not locate deployed rule for orphan '$($orphan.displayName)' — skipping absorption." -Level Warning
+                        continue
+                    }
+                    $result = Save-AbsorbedRule -RepoPath $RepoPath -DeployedRule $deployed -Provenance 'Orphan'
+                    $orphan | Add-Member -NotePropertyName 'absorbedPath' -NotePropertyValue $result.Path -Force
+                    $orphan | Add-Member -NotePropertyName 'absorbedAction' -NotePropertyValue $result.Action -Force
+                    Write-PipelineMessage "  Absorbed orphan into Custom YAML ($($result.Action)): $($result.Path)" -Level Success
+                }
+                catch {
+                    Write-PipelineMessage "  Failed to absorb orphan '$($orphan.displayName)': $($_.Exception.Message)" -Level Error
+                }
             }
         }
     }

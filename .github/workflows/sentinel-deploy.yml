@@ -92,6 +92,14 @@ on:
         description: "Content Hub: Skip Hunting Queries"
         type: boolean
         default: false
+      force_solution_update:
+        description: "Content Hub: Force Solution Update (even if current)"
+        type: boolean
+        default: false
+      force_content_deployment:
+        description: "Content Hub: Force Content Redeployment (even if current)"
+        type: boolean
+        default: false
 
       # ── Custom Content (Stage 4) ─────────────────────────────────────
       skip_custom_parsers:
@@ -102,6 +110,10 @@ on:
         description: "Custom: Skip Analytical Rules (YAML)"
         type: boolean
         default: false
+      skip_community_detections:
+        description: "Custom: Skip Community Detections (Dalonso)"
+        type: boolean
+        default: true
       skip_custom_watchlists:
         description: "Custom: Skip Watchlists (JSON+CSV)"
         type: boolean
@@ -147,7 +159,12 @@ permissions:
 env:
   RESOURCE_GROUP: ${{ vars.SENTINEL_RESOURCE_GROUP }}
   WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE_NAME }}
-  REGION: ${{ vars.SENTINEL_REGION }}
+  REGION:         ${{ vars.SENTINEL_REGION }}
+
+  # Pin powershell-yaml so a PSGallery release that tightens parser
+  # behaviour cannot break a scheduled deploy. Bumping is a one-line PR
+  # that re-runs the gate against the new version before merging.
+  YAML_VERSION:   "0.4.12"
 
 jobs:
   # ===========================================================================
@@ -161,12 +178,11 @@ jobs:
       resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
       - name: Check for Existing Resources
         id: check
@@ -211,12 +227,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
       - name: Register Resource Providers
         uses: Azure/cli@v2
@@ -328,12 +343,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
       - name: Deploy Content Hub Solutions
         uses: Azure/powershell@v2
@@ -352,12 +366,14 @@ jobs:
                 SeveritiesToInclude = $severityList
             }
 
-            if ("${{ inputs.disable_rules }}" -ne "false")            { $scriptParams['DisableRules']            = $true }
+            if ("${{ inputs.disable_rules }}" -ne "false")             { $scriptParams['DisableRules']             = $true }
             if ("${{ inputs.protect_customised_rules }}" -ne "false")  { $scriptParams['ProtectCustomisedRules']   = $true }
             if ("${{ inputs.skip_analytics_rules }}" -eq "true")       { $scriptParams['SkipAnalyticsRules']       = $true }
             if ("${{ inputs.skip_workbooks }}" -eq "true")             { $scriptParams['SkipWorkbooks']            = $true }
             if ("${{ inputs.skip_automation_rules }}" -eq "true")      { $scriptParams['SkipAutomationRules']      = $true }
             if ("${{ inputs.skip_hunting_queries }}" -eq "true")       { $scriptParams['SkipHuntingQueries']       = $true }
+            if ("${{ inputs.force_solution_update }}" -eq "true")      { $scriptParams['ForceSolutionUpdate']      = $true }
+            if ("${{ inputs.force_content_deployment }}" -eq "true")   { $scriptParams['ForceContentDeployment']   = $true }
             if ("${{ inputs.what_if }}" -eq "true")                    { $scriptParams['WhatIf']                   = $true }
 
             & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
@@ -389,18 +405,35 @@ jobs:
           restore-keys: |
             deployment-state-${{ env.WORKSPACE_NAME }}-
 
-      - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
-      - name: Install powershell-yaml Module
+      # Pre-deploy guard: dependencies.json must match what discovery
+      # produces from current content. The PR-validation gate already
+      # checks this on every PR to main, but a scheduled deploy from main
+      # could still race if a non-deploy commit (e.g. a doc-only change
+      # that bumps an analytical rule's query inline) bypassed the gate.
+      # Failing fast here is cheap and prevents the deployer from running
+      # against a stale dependency graph.
+      - name: Verify dependency manifest is current
         shell: pwsh
         run: |
-          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+          & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "##[error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
+              Write-Host "##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              exit 1
+          }
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content
         uses: Azure/powershell@v2
@@ -418,9 +451,10 @@ jobs:
             $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
             if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
-            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']         = $true }
-            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']      = $true }
-            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']     = $true }
+            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']               = $true }
+            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']            = $true }
+            if ("${{ inputs.skip_community_detections }}" -ne "false")   { $scriptParams['SkipCommunityDetections']  = $true }
+            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']            = $true }
             if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
             if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
             if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
@@ -456,17 +490,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: Azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
-      - name: Install powershell-yaml Module
-        shell: pwsh
-        run: |
-          Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
       - name: Deploy Defender Custom Detections
         uses: Azure/powershell@v2

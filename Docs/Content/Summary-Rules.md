@@ -168,3 +168,21 @@ The identity running the deployment (service principal, managed identity, or use
 4. To view an existing rule's definition, select the rule name and copy the query and properties into a new JSON file following the schema above.
 
 Rules created in the portal are not automatically synchronised back to this repository. Always commit rule definitions here and treat this repository as the source of truth.
+
+## Authoring with GitHub Copilot
+
+Summary rules don't have a dedicated path-scoped instruction file;
+the repo-wide
+[`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+plus the cross-cutting
+[`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
+(loaded automatically when editing `SummaryRules/**/*.json`) cover
+the conventions.
+
+Copilot tooling for summary rules:
+
+- Agent `Sentinel-As-Code: Content Editor` — general edits with
+  the right post-edit Pester suite (`Test-SummaryRuleJson.Tests.ps1`)
+- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

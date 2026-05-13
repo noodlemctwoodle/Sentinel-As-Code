@@ -1,7 +1,0 @@
-{
-  "watchlistAlias": "iCloudPrivateRelayIPRanges",
-  "displayName": "iCloud Private Relay IP Ranges",
-  "description": "Public IP ranges used by Apple iCloud Private Relay. Used to identify and filter relay traffic in detection rules.",
-  "provider": "Custom",
-  "itemsSearchKey": "IPRange"
-}

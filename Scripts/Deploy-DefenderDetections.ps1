@@ -90,63 +90,13 @@ if (-not $BasePath) {
 }
 
 # ---------------------------------------------------------------------------
-# Helper: Write ADO pipeline commands where applicable, otherwise standard output
+# Shared helpers from Sentinel.Common
 # ---------------------------------------------------------------------------
-function Write-PipelineMessage {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [string]$Message
-        ,
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("Info", "Warning", "Error", "Section", "Success", "Debug")]
-        [string]$Level = "Info"
-    )
-
-    $isAdo = $null -ne $env:BUILD_BUILDID
-
-    switch ($Level) {
-        "Info"    {
-            Write-Host $Message
-        }
-        "Warning" {
-            if ($isAdo) {
-                Write-Host "##[warning]$Message"
-            }
-            else {
-                Write-Warning $Message
-            }
-        }
-        "Error"   {
-            if ($isAdo) {
-                Write-Host "##[error]$Message"
-            }
-            else {
-                Write-Error $Message -ErrorAction Continue
-            }
-        }
-        "Section" {
-            if ($isAdo) {
-                Write-Host "##[section]$Message"
-            }
-            else {
-                Write-Host "`n$Message" -ForegroundColor Cyan
-            }
-        }
-        "Success" {
-            if ($isAdo) {
-                Write-Host $Message
-            }
-            else {
-                Write-Host $Message -ForegroundColor Green
-            }
-        }
-        "Debug"   {
-            Write-Verbose $Message
-        }
-    }
-}
+# Defender uses only Write-PipelineMessage from the shared module —
+# Graph API auth and HTTP wrappers are Defender-specific
+# (Invoke-GraphApi / Connect-GraphEnvironment below) since they target
+# the Microsoft Graph beta endpoint, not Sentinel's ARM-based endpoints.
+Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
 
 # ---------------------------------------------------------------------------
 # Helper: Invoke Graph API with retry logic
@@ -568,9 +518,9 @@ function Write-DeploymentSummary {
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# Entry point
 # ---------------------------------------------------------------------------
-function Main {
+function Invoke-Main {
     $scriptStartTime = Get-Date
 
     Write-PipelineMessage ("=" * 60) -Level Info
@@ -598,4 +548,4 @@ function Main {
     }
 }
 
-Main
+Invoke-Main

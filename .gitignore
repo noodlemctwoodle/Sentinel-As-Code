@@ -15,12 +15,13 @@ testResults.xml
 *.test.xml
 coverage.xml
 TestResults/
+test-results/
 
 # Smart-deployment state — per-environment, regenerated each pipeline run
 .deployment-state.json
 
 # Blog drafts (kept locally)
-Blog/
+Blog/*
 
 # Local-only scripts not yet ready for the repo
 Scripts/Test-DefenderSentinelParity.ps1

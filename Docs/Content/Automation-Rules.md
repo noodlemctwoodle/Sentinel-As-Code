@@ -337,3 +337,18 @@ The identity running the deployment pipeline requires the following role assignm
 | **Microsoft Sentinel Playbook Operator** | Logic App resource(s) | Required only for `RunPlaybook` actions |
 
 These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](../Deployment/Pipelines.md) for pipeline configuration details and [Scripts](../Deployment/Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
+
+## Authoring with GitHub Copilot
+
+Automation rules don't have a dedicated path-scoped instruction
+file (the schema is small and the rule body is mostly orchestration);
+the repo-wide
+[`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+covers the conventions.
+
+Copilot tooling for automation rules:
+
+- Agent `Sentinel-As-Code: Content Editor` — general edits with
+  the right post-edit Pester suite (`Test-AutomationRuleJson.Tests.ps1`)
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

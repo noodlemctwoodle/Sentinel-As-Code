@@ -198,6 +198,23 @@ implementation to fork.
                   └─────────────────────────────────────┘
 ```
 
+## Authoring with GitHub Copilot
+
+Community rules use the analytical-rule schema, so the path-scoped
+[`.github/instructions/analytical-rules.instructions.md`](../../.github/instructions/analytical-rules.instructions.md)
+loads automatically when editing files under
+`AnalyticalRules/Community/**`.
+
+Copilot tooling for community rules:
+
+- Slash command `/review-rule` (VS Code) — review imported community
+  content against the schema before enabling
+- Agent `Sentinel-As-Code: Content Editor` — general edits
+- Agent `Sentinel-As-Code: KQL Engineer` — optimise community-imported
+  query bodies
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+
 ## Related docs
 
 - [Analytical Rules](Analytical-Rules.md) — YAML schema applies identically

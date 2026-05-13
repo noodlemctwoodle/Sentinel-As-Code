@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# Composite Action: Azure OIDC Login
+# ---------------------------------------------------------------------------
+# Wraps Azure/login@v2 with the Sentinel-As-Code OIDC parameter set so call
+# sites are a single line instead of a six-line block. Replaces the
+# duplicated login step pattern across pr-validation.yml, sentinel-deploy.yml,
+# sentinel-drift-detect.yml, and sentinel-dcr-inventory.yml.
+#
+# Why a composite action (vs. a reusable workflow): composite actions can
+# run inside an existing job's step list, which is exactly what every login
+# call site here wants. A reusable workflow would force each call site to
+# become a separate job — too heavy for a one-line auth step.
+#
+# Usage:
+#
+#   - name: Azure login
+#     uses: ./.github/actions/azure-login-oidc
+#     with:
+#       client-id:        ${{ secrets.AZURE_CLIENT_ID }}
+#       tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
+#       subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+#
+#   # Optional: opt out of AzPSSession when only `az` CLI is used.
+#   # Default is true because most call sites need both.
+#       enable-azps-session: 'false'
+#
+# Caller must declare permissions on the parent job:
+#
+#   permissions:
+#     id-token: write
+#     contents: read
+# ---------------------------------------------------------------------------
+
+name: Azure OIDC Login
+description: Federated Azure login via OIDC, with both az CLI and Az PowerShell sessions enabled by default.
+
+inputs:
+  client-id:
+    description: Azure AD application (client) ID of the federated service principal. Pass via secrets.AZURE_CLIENT_ID.
+    required: true
+  tenant-id:
+    description: Azure AD tenant ID. Pass via secrets.AZURE_TENANT_ID.
+    required: true
+  subscription-id:
+    description: Default subscription to log into. Pass via secrets.AZURE_SUBSCRIPTION_ID.
+    required: true
+  enable-azps-session:
+    description: |
+      Enable Azure PowerShell session in addition to az CLI. Default 'true'
+      because most call sites use both. Pass 'false' for callers that only
+      need az CLI (e.g. bicep build / deployment) to slightly reduce
+      auth-step time.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Azure login (OIDC)
+      uses: Azure/login@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+        enable-AzPSSession: ${{ inputs.enable-azps-session }}

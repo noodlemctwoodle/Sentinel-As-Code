@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# Composite Action: Set up PowerShell modules (Pester + powershell-yaml)
+# ---------------------------------------------------------------------------
+# Encapsulates the three-step pattern duplicated across the validate job
+# in pr-validation.yml, the deploy-custom-content + deploy-defender-detections
+# jobs in sentinel-deploy.yml, and the dependency-manifest job:
+#
+#   1. Cache the PowerShell modules folder by version-pinned key
+#   2. Install Pester + powershell-yaml at exact pinned versions
+#      (skipping the install when the cache restored a matching version)
+#   3. Verify the imported modules match the pin (fail-fast on cache drift)
+#
+# Why composite (not reusable workflow): the install pattern is part of an
+# existing job's step list, not a separate logical job. Composite avoids
+# the per-job overhead (extra runner spin-up, cross-job artefact transfer)
+# that a reusable workflow would impose.
+#
+# Why pin versions: the PR-validation gate is a hard merge requirement.
+# A breaking change shipped from PSGallery must NOT be able to silently
+# fail the gate on an unrelated repo change. Bumping a pin is a one-line
+# PR that re-runs the gate against the new version before merging.
+#
+# Usage:
+#
+#   - name: Set up PowerShell modules
+#     uses: ./.github/actions/setup-pwsh-modules
+#     with:
+#       pester-version: ${{ env.PESTER_VERSION }}
+#       yaml-version:   ${{ env.YAML_VERSION }}
+#
+#   # Skip-Pester variant for jobs that only need powershell-yaml (the
+#   # dependency-manifest gate does not run any tests):
+#       install-pester: 'false'
+# ---------------------------------------------------------------------------
+
+name: Set up PowerShell modules
+description: Cache + pin-install Pester and powershell-yaml so every call site shares one source of truth for the install pattern.
+
+inputs:
+  pester-version:
+    description: Required Pester version. Mismatch fails the verify step. Default 5.7.1 matches the workflow-level env var convention.
+    required: false
+    default: '5.7.1'
+  yaml-version:
+    description: Required powershell-yaml version. Mismatch fails the verify step. Default 0.4.12 matches the workflow-level env var convention.
+    required: false
+    default: '0.4.12'
+  install-pester:
+    description: Set 'false' to skip the Pester install. Useful for jobs that only consume YAML (e.g. dependency-manifest gate).
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    # Cache key embeds the pinned versions so a version bump invalidates
+    # the cache cleanly without manual intervention. Cache scope is the
+    # default PowerShell user-modules folder (~/.local/share/powershell/Modules
+    # on linux runners).
+    - name: Cache PowerShell modules
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/powershell/Modules
+        key: pwsh-modules-${{ runner.os }}-pester${{ inputs.pester-version }}-yaml${{ inputs.yaml-version }}
+
+    - name: Install Pester and powershell-yaml (pinned)
+      shell: pwsh
+      run: |
+        $pesterVersion = '${{ inputs.pester-version }}'
+        $yamlVersion   = '${{ inputs.yaml-version }}'
+        $installPester = '${{ inputs.install-pester }}' -eq 'true'
+
+        if ($installPester) {
+            $havePester = Get-Module -ListAvailable -Name Pester |
+                Where-Object { $_.Version -eq [version]$pesterVersion }
+            if (-not $havePester) {
+                Install-Module -Name Pester `
+                    -RequiredVersion $pesterVersion `
+                    -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
+            }
+        }
+
+        $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+            Where-Object { $_.Version -eq [version]$yamlVersion }
+        if (-not $haveYaml) {
+            Install-Module -Name powershell-yaml `
+                -RequiredVersion $yamlVersion `
+                -Force -Scope CurrentUser -AllowClobber
+        }
+
+        $listed = if ($installPester) {
+            Get-Module -ListAvailable Pester, powershell-yaml
+        } else {
+            Get-Module -ListAvailable powershell-yaml
+        }
+        $listed |
+            Where-Object { $_.Version -in @([version]$pesterVersion, [version]$yamlVersion) } |
+            Format-Table Name, Version
+
+    - name: Verify pinned modules are loaded
+      shell: pwsh
+      run: |
+        $pesterVersion = '${{ inputs.pester-version }}'
+        $yamlVersion   = '${{ inputs.yaml-version }}'
+        $installPester = '${{ inputs.install-pester }}' -eq 'true'
+
+        # Import the exact pinned versions. If the cache is stale or the
+        # install step grabbed a newer version, this will fail fast with a
+        # clear error rather than letting a drifted module poison the run.
+        if ($installPester) {
+            Import-Module Pester -RequiredVersion $pesterVersion -ErrorAction Stop
+        }
+        Import-Module powershell-yaml -RequiredVersion $yamlVersion -ErrorAction Stop
+
+        $msg = if ($installPester) {
+            "Pinned versions verified: Pester $pesterVersion, powershell-yaml $yamlVersion"
+        } else {
+            "Pinned version verified: powershell-yaml $yamlVersion (Pester install skipped)"
+        }
+        Write-Host "##[section]$msg"

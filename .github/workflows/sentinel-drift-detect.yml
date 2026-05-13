@@ -1,0 +1,239 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Detect Sentinel Analytics Rule Drift
+# ---------------------------------------------------------------------------
+# GitHub Actions equivalent of Pipelines/Sentinel-Drift-Detect.yml.
+#
+# Detects rules edited directly in the Sentinel portal (bypassing the
+# deploy pipelines), absorbs the changes back into the repo, and opens
+# a PR for review.
+#
+# Behaviour (every drift bucket is absorbed into AnalyticalRules/):
+#   - Custom drift  -> matching AnalyticalRules/**.yaml is updated to
+#                      reflect the deployed state. Patch version bumped.
+#   - ContentHub    -> deployed rule promoted to a Custom YAML at
+#                      AnalyticalRules/AbsorbedFromPortal/ContentHub/
+#                      {Solution}/. The YAML reuses the rule's resource
+#                      GUID as 'id:' so the next deploy run takes over
+#                      governance from the Content Hub template.
+#   - Orphan        -> portal-only rule exported to a Custom YAML at
+#                      AnalyticalRules/AbsorbedFromPortal/Orphans/.
+#   - No drift      -> nothing committed. No PR.
+#
+# When drift IS detected:
+#   1. Push to the rolling branch 'auto/sentinel-drift-sync'.
+#   2. Open (or refresh) a PR from that branch into main.
+#
+# Runs daily at 06:00 UTC (independent from the deploy workflow's schedule).
+#
+# Required secrets:
+#   AZURE_CLIENT_ID        - Service Principal Application (client) ID
+#   AZURE_TENANT_ID        - Entra ID Tenant ID
+#   AZURE_SUBSCRIPTION_ID  - Azure Subscription ID
+#
+# Required variables (Settings -> Secrets and variables -> Variables):
+#   SENTINEL_RESOURCE_GROUP   - Resource Group name
+#   SENTINEL_WORKSPACE_NAME   - Log Analytics workspace name
+#   SENTINEL_REGION           - Azure region (e.g. uksouth)
+#
+# Authentication: OIDC against the same SP used by sentinel-deploy.yml.
+# Needs Microsoft Sentinel Reader on the workspace at minimum.
+# ---------------------------------------------------------------------------
+
+name: Sentinel Drift Detection
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # Daily 06:00 UTC
+
+  workflow_dispatch:
+    inputs:
+      failOnDrift:
+        description: "Fail the workflow when drift is detected"
+        type: boolean
+        default: false
+      reportOnly:
+        description: "Report Only — do not write YAML edits or open a PR"
+        type: boolean
+        default: false
+      skipContentHub:
+        description: "Skip Content Hub bucket"
+        type: boolean
+        default: false
+      skipCustom:
+        description: "Skip Custom (repo YAML) bucket"
+        type: boolean
+        default: false
+      skipOrphans:
+        description: "Skip Orphan (ungoverned) bucket"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write       # OIDC against Azure
+  contents: write       # git push to the rolling auto-sync branch
+  pull-requests: write  # gh pr create / update
+
+# Branch configuration. Bot-managed; never hand-edited.
+env:
+  SYNC_BRANCH:   "auto/sentinel-drift-sync"
+  TARGET_BRANCH: "main"
+
+  # Pin powershell-yaml so a PSGallery release that tightens parser
+  # behaviour cannot break a scheduled drift detection run. Bumping is
+  # a one-line PR that re-runs the gate against the new version.
+  YAML_VERSION:  "0.4.12"
+
+jobs:
+  detect-drift:
+    name: Detect Drift, Sync, and Open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          # Need write to push the auto-sync branch back. The default
+          # GITHUB_TOKEN has contents:write on this repo per the
+          # workflow-level permissions block.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0   # full history so 'git rebase' / 'git fetch origin main' works cleanly
+
+      - name: Azure login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
+
+      - name: Run Sentinel drift detection
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $scriptParams = @{
+                SubscriptionId = '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+                ResourceGroup  = '${{ vars.SENTINEL_RESOURCE_GROUP }}'
+                Workspace      = '${{ vars.SENTINEL_WORKSPACE_NAME }}'
+                Region         = '${{ vars.SENTINEL_REGION }}'
+                RepoPath       = '${{ github.workspace }}'
+            }
+
+            if ('${{ inputs.failOnDrift }}'    -eq 'true') { $scriptParams['FailOnDrift']    = $true }
+            if ('${{ inputs.reportOnly }}'     -eq 'true') { $scriptParams['ReportOnly']     = $true }
+            if ('${{ inputs.skipContentHub }}' -eq 'true') { $scriptParams['SkipContentHub'] = $true }
+            if ('${{ inputs.skipCustom }}'     -eq 'true') { $scriptParams['SkipCustom']     = $true }
+            if ('${{ inputs.skipOrphans }}'    -eq 'true') { $scriptParams['SkipOrphans']    = $true }
+
+            Write-Host "##[section]Launching Sentinel Rule Drift Detection"
+            Write-Host "Workspace: $(${scriptParams}.Workspace) (RG: $(${scriptParams}.ResourceGroup))"
+            $activeFlags = ($scriptParams.GetEnumerator() | Where-Object { $_.Value -eq $true } | ForEach-Object { $_.Key }) -join ', '
+            Write-Host "Switches:  $activeFlags"
+
+            & "${{ github.workspace }}/Scripts/Test-SentinelRuleDrift.ps1" @scriptParams
+
+      # Commit + push + PR. Skipped entirely when -ReportOnly was passed
+      # (nothing on disk to commit) or when no drift was detected (working
+      # tree clean).
+      - name: Commit, push, and open / refresh PR
+        if: ${{ inputs.reportOnly != true }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! git status --porcelain | grep -q .; then
+              echo "##[section]No drift detected — working tree clean. Skipping commit/PR."
+              exit 0
+          fi
+
+          echo "##[section]Drift detected — staging changes"
+          git config user.email "noreply@sentinel-as-code.local"
+          git config user.name  "Sentinel Drift Sync"
+          git status --short
+
+          # Reset the rolling sync branch from the LATEST target tip so the
+          # branch always descends from the current main. Same reasoning as
+          # the ADO pipeline: avoids 'Added in both' merge conflicts when a
+          # previous drift PR has been merged into main between the checkout
+          # step and this commit step. Stash, reset, pop.
+          git stash push --include-untracked --message "drift-changes" --quiet
+          git fetch origin "$TARGET_BRANCH"
+          git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
+          git stash pop --quiet || true
+
+          # Stage only paths the script may legitimately have touched.
+          git add AnalyticalRules reports
+
+          REPORT_PATH=$(ls -1t reports/sentinel-drift-*.md 2>/dev/null | head -1 || true)
+          git commit \
+              -m "chore(sentinel): sync drift from portal $(date -u +%Y-%m-%dT%H:%MZ)" \
+              -m "Auto-generated by .github/workflows/sentinel-drift-detect.yml. See ${REPORT_PATH:-reports/} for details."
+
+          # Force-push the rolling branch (it's a bot branch, never hand-edited).
+          git push --force-with-lease origin "$SYNC_BRANCH"
+
+          echo "##[section]Opening / refreshing PR"
+
+          # Build a concise PR description from the report rather than the
+          # full file body. GitHub's PR body limit is generous (65,536 chars)
+          # but a focused description is easier to read; the Files Changed
+          # tab carries the full report.
+          FULL_REPORT=$(ls -1 reports/sentinel-drift-*.md 2>/dev/null | tail -1 || true)
+          PR_BODY_FILE="$(mktemp)"
+          {
+              echo "# Sentinel Rule Drift Auto-Sync"
+              echo ""
+              if [ -n "$FULL_REPORT" ] && [ -f "$FULL_REPORT" ]; then
+                  echo "**Full report:** [\`$FULL_REPORT\`](../blob/$SYNC_BRANCH/$FULL_REPORT) — see the **Files Changed** tab for diff blocks and full KQL bodies."
+                  echo ""
+                  sed -n '/^## Summary/,/^## /p' "$FULL_REPORT" | sed '$d'
+                  echo ""
+                  DRIFTED_HEADINGS=$(grep -E '^### ' "$FULL_REPORT" | sed 's/^### //' || true)
+                  if [ -n "$DRIFTED_HEADINGS" ]; then
+                      echo "## Rules with drift"
+                      echo ""
+                      echo "$DRIFTED_HEADINGS" | sed 's/^/- /'
+                  fi
+              else
+                  echo "Drift detected. See commit history."
+              fi
+          } > "$PR_BODY_FILE"
+
+          # Find an existing open PR from this branch; if found, refresh
+          # description (the branch push has already updated commits).
+          EXISTING_PR=$(gh pr list \
+              --head "$SYNC_BRANCH" \
+              --base "$TARGET_BRANCH" \
+              --state open \
+              --json number \
+              --jq '.[0].number' || true)
+
+          if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "null" ]; then
+              echo "Existing PR #$EXISTING_PR refreshed by branch push — updating description."
+              gh pr edit "$EXISTING_PR" --body-file "$PR_BODY_FILE"
+          else
+              gh pr create \
+                  --head "$SYNC_BRANCH" \
+                  --base "$TARGET_BRANCH" \
+                  --title "chore(sentinel): sync drift from portal $(date -u +%Y-%m-%d)" \
+                  --body-file "$PR_BODY_FILE"
+          fi
+
+          rm -f "$PR_BODY_FILE"
+
+      - name: Upload drift report artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-drift-report-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore
