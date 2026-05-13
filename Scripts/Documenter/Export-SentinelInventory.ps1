@@ -813,6 +813,79 @@ Try-Capture 'threat-intel-metrics' {
     Save-Json -FileName 'threat-intel-metrics.json' -Data $metrics
 }
 
+# Data-source hygiene checks. Four independent KQL captures driving section 13.
+Try-Capture 'cef-devices' {
+    $kql = @'
+CommonSecurityLog
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count() by DeviceVendor, DeviceProduct
+| top 100 by LogCount
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'cef-devices.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'cef-devices.json' -Data @() }
+}
+
+Try-Capture 'cef-in-syslog' {
+    # CEF records that landed in the Syslog table — usually a Linux syslog
+    # forwarder misconfiguration that should be split into a dedicated
+    # CommonSecurityLog stream.
+    $kql = @'
+Syslog
+| where TimeGenerated > ago(7d)
+| where SyslogMessage startswith "0|"
+| summarize LogCount = count() by Computer
+| top 50 by LogCount
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'cef-in-syslog.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'cef-in-syslog.json' -Data @() }
+}
+
+Try-Capture 'security-event-duplicates' {
+    # Duplicate SecurityEvent records over a 1-hour window — typically an
+    # agent dual-collection misconfiguration (MMA + AMA reporting the same
+    # events into the workspace).
+    $kql = @'
+let SecurityEvents = SecurityEvent
+| where TimeGenerated > ago(1h)
+| where isnotempty(EventRecordId);
+let DuplicateEvents = SecurityEvents
+| summarize count() by Computer, EventID, EventRecordId
+| where count_ > 1;
+let SumPerComputer = DuplicateEvents | summarize LogCount = sum(count_) by Computer;
+DuplicateEvents
+| summarize DuplicateEventIds = make_set(EventID, 100) by Computer
+| top 30 by array_length(DuplicateEventIds)
+| lookup SumPerComputer on Computer
+| project Computer, LogCount, DuplicateEventIds
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'security-event-duplicates.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'security-event-duplicates.json' -Data @() }
+}
+
+Try-Capture 'top-event-ids' {
+    # Top 10 Windows event IDs by billable size — drives table-noise tuning.
+    $kql = @'
+find withsource = TableName1 in (Event, SecurityEvent)
+    where TimeGenerated > ago(7d) project _BilledSize, _IsBillable, Computer, _ResourceId, EventID, Activity, RenderedDescription
+| where _IsBillable == true
+| summarize ["BilledSizeGB"] = round(sum(_BilledSize)/1000/1000/1000, 3) by TableName = TableName1, EventID, Activity, RenderedDescription
+| extend EventDescription = iif(isempty(Activity), RenderedDescription, Activity)
+| project-away RenderedDescription, Activity
+| project-reorder TableName, EventID, EventDescription, BilledSizeGB
+| top 10 by BilledSizeGB desc
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'top-event-ids.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'top-event-ids.json' -Data @() }
+}
+
 Try-Capture 'analytics-rule-volumes' {
     # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
     # breakout (TOC 4.11.2).

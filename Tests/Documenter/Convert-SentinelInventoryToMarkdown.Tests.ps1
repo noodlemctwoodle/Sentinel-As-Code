@@ -54,6 +54,7 @@ Describe 'Sentinel Documenter renderer' {
         $expected = @(
             'index.md','00-overview.md','01-executive-summary.md',
             '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
+            '13-data-source-hygiene.md',
             '15-incidents.md',
             '20-analytics-rules.md','21-analytics-by-volume.md','22-analytics-microsoft-rules.md',
             '23-analytics-modifications.md','24-analytics-by-solution.md',
@@ -343,6 +344,34 @@ Describe 'Sentinel Documenter renderer' {
         It 'does not surface the obsolete Source column header' {
             # Old renderer emitted `| Name | Source | Version |`.
             $script:summaryMd | Should -Not -Match '\| Name \| Source \| Version \|'
+        }
+    }
+
+    Context '13-data-source-hygiene.md surfaces the four hygiene checks' {
+        BeforeAll {
+            $script:hygieneMd = Get-Content (Join-Path $script:tempWsRoot '13-data-source-hygiene.md') -Raw
+        }
+
+        It 'renders the CEF devices table with a Palo Alto entry' {
+            $script:hygieneMd | Should -Match 'Palo Alto Networks'
+        }
+
+        It 'renders the CEF in Syslog misroute table' {
+            $script:hygieneMd | Should -Match '## CEF records misrouted into Syslog'
+            $script:hygieneMd | Should -Match 'syslog-forwarder-01'
+        }
+
+        It 'renders the SecurityEvent duplicates table with a per-computer count' {
+            $script:hygieneMd | Should -Match 'dc01\.contoso\.local'
+        }
+
+        It 'renders the Top 10 noisy event IDs table with EventID 4624' {
+            $script:hygieneMd | Should -Match '\| 4624 \|'
+        }
+
+        It 'is linked from the index.md sections table' {
+            $indexMd = Get-Content (Join-Path $script:tempWsRoot 'index.md') -Raw
+            $indexMd | Should -Match '13-data-source-hygiene\.md'
         }
     }
 

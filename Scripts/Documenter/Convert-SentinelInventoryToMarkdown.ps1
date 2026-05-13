@@ -1180,6 +1180,57 @@ $(Format-Table -Items $socOptRows -Columns 'Title','Category','AffectedItem','St
 [SOC optimization in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access)
 "@)
 
+# Section 13 — Data source hygiene
+$cefDevices = Read-RawArray 'cef-devices.json'
+$cefInSyslog = Read-RawArray 'cef-in-syslog.json'
+$secEvtDupes = Read-RawArray 'security-event-duplicates.json'
+$topEventIds = Read-RawArray 'top-event-ids.json'
+
+$cefDevRows = $cefDevices | ForEach-Object {
+    [pscustomobject]@{ DeviceVendor = $_.DeviceVendor; DeviceProduct = $_.DeviceProduct; LogCount = $_.LogCount }
+}
+$cefSyslogRows = $cefInSyslog | ForEach-Object {
+    [pscustomobject]@{ Computer = $_.Computer; LogCount = $_.LogCount }
+}
+$secEvtDupeRows = $secEvtDupes | ForEach-Object {
+    [pscustomobject]@{ Computer = $_.Computer; LogCount = $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
+}
+$topEventIdRows = $topEventIds | ForEach-Object {
+    [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; BilledSizeGB = $_.BilledSizeGB }
+}
+
+Write-Section '13-data-source-hygiene.md' (@"
+$(Format-Banner -Title "Data Source Hygiene")
+
+Operational data-quality findings that drive ingestion-tuning actions: misrouted records, agent dual-collection, and noisy event types. Each table is independent and may show ``_None._`` when the workspace has nothing to report against that check.
+
+## CEF devices (last 7d)
+
+Per-vendor / per-product CEF record counts. A vendor + product combination with very low counts is usually either a misconfigured collector or a forwarder that needs filtering at source.
+
+$(Format-Table -Items $cefDevRows -Columns 'DeviceVendor','DeviceProduct','LogCount')
+
+## CEF records misrouted into Syslog (last 7d)
+
+A non-empty table here means a Linux syslog forwarder is shipping CEF-formatted records to the wrong workspace table. Split the source into a dedicated CommonSecurityLog stream.
+
+$(Format-Table -Items $cefSyslogRows -Columns 'Computer','LogCount')
+
+## SecurityEvent duplicates (last 1h)
+
+Computers reporting duplicate SecurityEvent records within a one-hour window. Almost always an MMA + AMA dual-collection misconfiguration; consolidate the collection path.
+
+$(Format-Table -Items $secEvtDupeRows -Columns 'Computer','LogCount','DuplicateEventIds')
+
+## Top 10 noisy event IDs (last 7d)
+
+Highest-volume Windows event IDs across the Event + SecurityEvent tables, by billed size. Each row is a candidate for filtering at the DCR transform stage.
+
+$(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescription','BilledSizeGB')
+
+[Filter Windows Security events via DCR (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/connect-windows-security-events)
+"@)
+
 # Section 15 — Incidents (TOC 4.10)
 $incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
 $incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
@@ -1542,6 +1593,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
 | [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
+| [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
 | [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
 | [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
 | [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
