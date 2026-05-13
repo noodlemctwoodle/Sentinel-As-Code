@@ -127,6 +127,7 @@ function New-InventoryFromRaw {
         AlertRuleTemplates     = @(Read-Json 'alert-rule-templates.json')
         DataConnectors         = @(Read-Json 'data-connectors-classic.json')
         Settings               = Read-Json  'settings.json'
+        UebaDataPresence       = @(Read-Json 'ueba-data-presence.json')
         ContentPackages        = @(Read-Json 'content-packages.json')
         ContentProductPackages = @(Read-Json 'content-product-packages.json')
         DedicatedCluster       = Read-Json 'dedicated-cluster.json'

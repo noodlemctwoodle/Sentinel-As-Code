@@ -144,12 +144,34 @@ function Test-RecommendedConnectorsDeployed {
 function Test-UebaEnabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $ueba = Get-PropOrDefault $Inventory.Settings 'Ueba'
+
+    # Data-presence inference: when UEBA is producing rows in any of its
+    # tables, treat the workspace as "effectively on" regardless of whether
+    # the settings resource was written. The portal toggle leaves the
+    # configuration resource absent, so a settings-only check produces a
+    # false positive on the common case. The producing-data signal is
+    # captured separately by the exporter as ueba-data-presence.json.
+    $presence = @()
+    if ($Inventory.PSObject.Properties.Name -contains 'UebaDataPresence') {
+        $presence = @($Inventory.UebaDataPresence)
+    }
+    $producingCount = 0
+    foreach ($row in $presence) {
+        if (-not $row) { continue }
+        $c = Get-PropOrDefault $row 'Count'
+        if ($null -ne $c) {
+            $n = 0
+            if ([int]::TryParse([string]$c, [ref]$n)) { $producingCount += $n }
+        }
+    }
+    if ($producingCount -gt 0) { return $null }
+
     if ($null -eq $ueba) {
-        return New-Finding -Evidence 'No Ueba setting resource found on the workspace.'
+        return New-Finding -Evidence 'No Ueba setting resource found on the workspace and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last 12 days.'
     }
     $enabled = Get-PropOrDefault $ueba 'properties.dataSources'
     if (-not $enabled -or $enabled.Count -eq 0) {
-        return New-Finding -Evidence 'UEBA is configured but no data sources are enabled.' -Detail $ueba
+        return New-Finding -Evidence 'UEBA is configured but no data sources are enabled, and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last 12 days.' -Detail $ueba
     }
     return $null
 }
