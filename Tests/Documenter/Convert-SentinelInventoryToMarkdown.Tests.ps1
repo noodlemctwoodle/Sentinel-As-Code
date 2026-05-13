@@ -52,7 +52,7 @@ Describe 'Sentinel Documenter renderer' {
     Context 'produces every expected section file' {
 
         $expected = @(
-            'index.md','00-overview.md','01-executive-summary.md',
+            'index.md','00-overview.md','01-live-snapshot.md',
             '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
             '13-data-source-hygiene.md',
             '14-coverage-breakdowns.md',

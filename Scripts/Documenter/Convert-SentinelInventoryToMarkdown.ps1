@@ -1374,7 +1374,13 @@ $(if ($gapFindings.Count -gt 0) {
 # (TOC numbering shown alongside each MD filename).
 # ---------------------------------------------------------------------------
 
-# Section 01 — Executive Summary  (TOC 1)
+# Section 01 — Live snapshot  (TOC 1)
+# Living-documentation framing: this page is regenerated from the live
+# workspace on every CI/CD pipeline trigger and every pull request, so the
+# numbers reflect the workspace at the render timestamp — not a periodic
+# audit deliverable. Title and description avoid "report" / "summary"
+# language to reinforce that this is documentation-as-code, not a
+# point-in-time deck.
 # Synthesised from headline counts + cost + top gap findings + MITRE coverage.
 $gapBySeverity = @{ Critical = 0; Warning = 0; Info = 0 }
 foreach ($f in $gapFindings) {
@@ -1384,11 +1390,11 @@ $tacticsCovered = ($enabledRules | ForEach-Object { $_.properties.tactics } | Wh
 $tacticsTotal = if ($tactics) { $tactics.Count } else { 14 }
 
 $execBody = @"
-$(Format-Banner -Title "Executive Summary")
+$(Format-Banner -Title "Live snapshot")
 
-> A high-level snapshot of the Microsoft Sentinel deployment for ``$WorkspaceName``. This page is auto-generated from the live workspace; the architectural narrative (3.1) and SOC operational processes (3.3) are customer-supplied and live elsewhere in the formal report.
+> Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above — not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
 
-## Key indicators
+## Workspace at a glance
 
 | Indicator | Value |
 |---|---:|
@@ -1422,7 +1428,7 @@ $(if ($top5Findings.Count -gt 0) {
 | Identity and access | [85-rbac.md](85-rbac.md) |
 | Findings vs. best practice | [90-gap-analysis.md](90-gap-analysis.md) |
 "@
-Write-Section '01-executive-summary.md' $execBody
+Write-Section '01-live-snapshot.md' $execBody
 
 # Section 11 — Sentinel health (TOC 4.8)
 $health = Read-RawArray 'sentinel-health.json'
@@ -2060,7 +2066,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | Section | TOC | Description |
 |---|---|---|
 | [00-overview.md](00-overview.md) | — | Headline counts, top findings, cost summary |
-| [01-executive-summary.md](01-executive-summary.md) | 1 | Auto-synthesised executive summary |
+| [01-live-snapshot.md](01-live-snapshot.md) | 1 | Workspace-at-a-glance — regenerates every pipeline run |
 | [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
 | [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
