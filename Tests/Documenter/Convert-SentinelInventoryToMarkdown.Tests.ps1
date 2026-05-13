@@ -347,6 +347,16 @@ Describe 'Sentinel Documenter renderer' {
         It 'renders the domain-name indicator type from the metrics API' {
             $script:tiMd | Should -Match '\| domain-name \| 215 \|'
         }
+
+        It 'shows the total-indicators headline' {
+            # 482 + 1273 + 215 = 1970
+            $script:tiMd | Should -Match 'Total active indicators:\*\* 1970'
+        }
+
+        It 'orders metrics rows by IndicatorCount descending (ipv4-addr 1273 first)' {
+            # ipv4-addr (1273) > url (482) > domain-name (215)
+            $script:tiMd | Should -Match 'ipv4-addr \| 1273[\s\S]+url \| 482[\s\S]+domain-name \| 215'
+        }
     }
 
     Context '38-summary-rules.md reads the summaryLogs schema' {

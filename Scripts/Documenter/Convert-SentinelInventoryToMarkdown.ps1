@@ -1520,17 +1520,29 @@ if ($tiMetrics.Count -gt 0) {
             }
         }
     }
+    # Sort metrics-derived rows by count desc so the loudest indicator types
+    # surface first; readers usually want to scan for the biggest type, not
+    # alphabetical.
+    $tiRows = @($tiRows) | Sort-Object -Property IndicatorCount -Descending
     $tiSourceLabel = 'TI metrics API (`threatIntelligence/main/metrics`)'
 } else {
     $tiRows = $tiCounts | ForEach-Object {
         [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = $_.Count; LastIngested = $_.Last }
-    }
+    } | Sort-Object -Property IndicatorCount -Descending
     $tiSourceLabel = 'workspace KQL summary'
+}
+$tiTotal = ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum
+$tiHeadline = if ($tiTotal -and $tiTotal -gt 0) {
+    "**Total active indicators:** $tiTotal  ·  **Distinct breakdown rows:** $(@($tiRows).Count)  ·  **Data source:** $tiSourceLabel"
+} else {
+    "_No threat intelligence indicators surfaced via either capture path._"
 }
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
-Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only. Data source: $tiSourceLabel.
+Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
+
+$tiHeadline
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
 
