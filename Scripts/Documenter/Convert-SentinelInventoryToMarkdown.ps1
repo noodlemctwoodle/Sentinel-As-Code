@@ -97,6 +97,19 @@ function Read-Raw([string]$Name) {
     return ($raw | ConvertFrom-Json -Depth 32)
 }
 
+function Read-RawArray([string]$Name) {
+    # Array-shaped reader. Use this when the caller intends to iterate the
+    # result via ForEach-Object. Returns an empty array when the underlying
+    # file is missing or empty, rather than the one-element-null-array a
+    # naive array-wrap of Read-Raw produces. The phantom all-null row that
+    # iterating a one-element-null-array yields (and PowerShells own quirk
+    # that returns 0 for the Count property of a null reference) is the bug
+    # this helper prevents.
+    $value = Read-Raw $Name
+    if ($null -eq $value) { return ,@() }
+    return @($value)
+}
+
 function Write-Section([string]$FileName, [string]$Body) {
     $target = Join-Path $OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
@@ -157,15 +170,15 @@ function Format-Severity-Badge { param([string]$Severity)
 # ---------------------------------------------------------------------------
 $workspace          = Read-Raw 'workspace.json'
 $run                = Read-Raw 'run-context.json'
-$rules              = @(Read-Raw 'alert-rules.json')
-$connectors         = @(Read-Raw 'data-connectors-classic.json')
-$workbooksSaved     = @(Read-Raw 'workbooks-saved.json')
-$dcrs               = @(Read-Raw 'dcrs.json')
-$tablesWithData     = @(Read-Raw 'tables-with-data.json')
-$workspaceTables    = @(Read-Raw 'workspace-tables.json')
-$watchlists         = @(Read-Raw 'watchlists.json')
-$autoRules          = @(Read-Raw 'automation-rules.json')
-$gapFindings        = @(Read-Raw 'gap-analysis.json')
+$rules              = Read-RawArray 'alert-rules.json'
+$connectors         = Read-RawArray 'data-connectors-classic.json'
+$workbooksSaved     = Read-RawArray 'workbooks-saved.json'
+$dcrs               = Read-RawArray 'dcrs.json'
+$tablesWithData     = Read-RawArray 'tables-with-data.json'
+$workspaceTables    = Read-RawArray 'workspace-tables.json'
+$watchlists         = Read-RawArray 'watchlists.json'
+$autoRules          = Read-RawArray 'automation-rules.json'
+$gapFindings        = Read-RawArray 'gap-analysis.json'
 $cost               = Read-Raw 'cost-estimate.json'
 
 $enabledRules = @($rules | Where-Object { $_.properties.enabled -eq $true })
@@ -245,7 +258,7 @@ Write-Section '00-overview.md' $overviewBody
 # ---------------------------------------------------------------------------
 # Section: 10-data-connectors
 # ---------------------------------------------------------------------------
-$ccfDefs = @(Read-Raw 'data-connector-definitions.json')
+$ccfDefs = Read-RawArray 'data-connector-definitions.json'
 
 $connectorRows = $connectors | ForEach-Object {
     [pscustomobject]@{
@@ -426,8 +439,8 @@ Write-Section '25-mitre-coverage.md' $mitreBody
 # ---------------------------------------------------------------------------
 # Section: 30 / 35 — hunting & parsers
 # ---------------------------------------------------------------------------
-$hunting = @(Read-Raw 'hunting-queries.json')
-$parsers = @(Read-Raw 'parsers-functions.json')
+$hunting = Read-RawArray 'hunting-queries.json'
+$parsers = Read-RawArray 'parsers-functions.json'
 
 $huntingRows = $hunting | ForEach-Object {
     [pscustomobject]@{
@@ -457,7 +470,7 @@ $(Format-Table -Items $parserRows -Columns 'Name','Alias','Category')
 # ---------------------------------------------------------------------------
 # Section: 40 / 50 / 60 / 70
 # ---------------------------------------------------------------------------
-$workbookTemplates = @(Read-Raw 'workbook-templates.json')
+$workbookTemplates = Read-RawArray 'workbook-templates.json'
 $wbRows = $workbooksSaved | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Category = $_.properties.category }
 }
@@ -491,8 +504,8 @@ $(Format-Table -Items $wlRows -Columns 'Name','Source','ItemsSearchKey')
 $arRows = $autoRules | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Order = $_.properties.order; Enabled = if ($_.properties.triggeringLogic.isEnabled) { 'Yes' } else { 'No' } }
 }
-$playbooks = @(Read-Raw 'playbooks.json')
-$miAssignments = @(Read-Raw 'rbac-playbook-mi.json')
+$playbooks = Read-RawArray 'playbooks.json'
+$miAssignments = Read-RawArray 'rbac-playbook-mi.json'
 $pbRows = $playbooks | ForEach-Object {
     $mi = $miAssignments | Where-Object { $_.Playbook -eq $_.Name } | Select-Object -First 1
     [pscustomobject]@{
@@ -515,8 +528,8 @@ $(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
 [Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks)
 "@)
 
-$contentPackages = @(Read-Raw 'content-packages.json')
-$repos           = @(Read-Raw 'repositories.json')
+$contentPackages = Read-RawArray 'content-packages.json'
+$repos           = Read-RawArray 'repositories.json'
 $cpRows = $contentPackages | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Version = $_.properties.version; Source = $_.properties.source.kind }
 }
@@ -706,7 +719,7 @@ For workspaces sustaining > 500 GB/day, [a dedicated cluster](https://learn.micr
 # ---------------------------------------------------------------------------
 # Section: 83 — data collection
 # ---------------------------------------------------------------------------
-$dces = @(Read-Raw 'dces.json')
+$dces = Read-RawArray 'dces.json'
 $dcrRows = $dcrs | ForEach-Object {
     $streams = ($_.properties.dataFlows | ForEach-Object { $_.streams } | Sort-Object -Unique) -join ', '
     [pscustomobject]@{
@@ -785,8 +798,8 @@ Write-Section '84-cost-estimate.md' $costBody
 # ---------------------------------------------------------------------------
 # Section: 85 — RBAC
 # ---------------------------------------------------------------------------
-$rbacWs = @(Read-Raw 'rbac-workspace.json')
-$rbacRg = @(Read-Raw 'rbac-resourcegroup.json')
+$rbacWs = Read-RawArray 'rbac-workspace.json'
+$rbacRg = Read-RawArray 'rbac-resourcegroup.json'
 
 $wsRows = $rbacWs | ForEach-Object {
     [pscustomobject]@{ Principal = $_.DisplayName; Type = $_.ObjectType; Role = $_.RoleDefinitionName }
@@ -813,9 +826,9 @@ $(Format-Table -Items $rgRows -Columns 'Principal','Type','Role')
 # Section: 86 — subscription context
 # ---------------------------------------------------------------------------
 $sub        = Read-Raw 'subscription.json'
-$rps        = @(Read-Raw 'resource-providers.json')
-$locks      = @(Read-Raw 'subscription-locks.json')
-$policies   = @(Read-Raw 'policy-assignments.json')
+$rps        = Read-RawArray 'resource-providers.json'
+$locks      = Read-RawArray 'subscription-locks.json'
+$policies   = Read-RawArray 'policy-assignments.json'
 
 $rpRows = $rps | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderNamespace; State = $_.RegistrationState } }
 $lockRows = $locks | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Level = $_.Properties.level; Notes = $_.Properties.notes } }
@@ -952,7 +965,7 @@ $(if ($top5Findings.Count -gt 0) {
 Write-Section '01-executive-summary.md' $execBody
 
 # Section 11 — Sentinel health (TOC 4.8)
-$health = @(Read-Raw 'sentinel-health.json')
+$health = Read-RawArray 'sentinel-health.json'
 $healthRows = $health | ForEach-Object {
     [pscustomobject]@{
         Resource = $_.SentinelResourceName
@@ -974,7 +987,7 @@ $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','St
 "@)
 
 # Section 12 — SOC Optimization Insights (TOC 4.9)
-$socOpt = @(Read-Raw 'soc-optimization.json')
+$socOpt = Read-RawArray 'soc-optimization.json'
 $socOptRows = $socOpt | ForEach-Object {
     [pscustomobject]@{
         Title       = $_.properties.title
@@ -995,9 +1008,9 @@ $(Format-Table -Items $socOptRows -Columns 'Title','Category','Priority','State'
 "@)
 
 # Section 15 — Incidents (TOC 4.10)
-$incSummary = @(Read-Raw 'incidents-summary.json') | Select-Object -First 1
-$incMttr    = @(Read-Raw 'incidents-mttr.json')    | Select-Object -First 1
-$incByRule  = @(Read-Raw 'incidents-by-rule.json')
+$incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
+$incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
+$incByRule  = Read-RawArray 'incidents-by-rule.json'
 
 $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
     "**MTTA:** $([math]::Round([double]$incMttr.MTTAMinutes, 1)) min  ·  **MTTR:** $([math]::Round([double]$incMttr.MTTRMinutes, 1)) min  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)"
@@ -1019,7 +1032,7 @@ $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $
 Write-Section '15-incidents.md' $incidentBody
 
 # Section 21 — Rules by alert volume (TOC 4.11.2)
-$ruleVolumes = @(Read-Raw 'analytics-rule-volumes.json')
+$ruleVolumes = Read-RawArray 'analytics-rule-volumes.json'
 Write-Section '21-analytics-by-volume.md' (@"
 $(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
 
@@ -1062,7 +1075,7 @@ $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabl
 "@)
 
 # Section 24 — By Content Solution (TOC 4.11.5)
-$metadataAll = @(Read-Raw 'metadata.json')
+$metadataAll = Read-RawArray 'metadata.json'
 $ruleToSolution = @{}
 foreach ($m in $metadataAll) {
     if ($m.properties.kind -eq 'AnalyticsRule' -and $m.properties.parentId) {
@@ -1104,7 +1117,7 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 "@)
 
 # Section 27 — Threat Intelligence (TOC 4.17)
-$tiCounts = @(Read-Raw 'threat-intel-counts.json')
+$tiCounts = Read-RawArray 'threat-intel-counts.json'
 $tiRows = $tiCounts | ForEach-Object {
     [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = $_.Count; LastIngested = $_.Last }
 }
@@ -1119,7 +1132,7 @@ $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastInge
 "@)
 
 # Section 36 — Data export (TOC 4.3.3)
-$dataExports = @(Read-Raw 'data-exports.json')
+$dataExports = Read-RawArray 'data-exports.json'
 $exportRows = $dataExports | ForEach-Object {
     [pscustomobject]@{
         Name        = $_.name
@@ -1141,8 +1154,8 @@ $(Format-Table -Items $exportRows -Columns 'Name','Destination','Tables','Enable
 # Section 37 — Search and restore (TOC 4.3.4)
 # Search jobs and restore-logs aren't always pulled per-table; surface what
 # we have at workspace scope.
-$searchJobs = @(Read-Raw 'search-jobs.json')
-$restoreJobs = @(Read-Raw 'restore-logs.json')
+$searchJobs = Read-RawArray 'search-jobs.json'
+$restoreJobs = Read-RawArray 'restore-logs.json'
 Write-Section '37-search-restore.md' (@"
 $(Format-Banner -Title "Search and Restore Tables  (TOC 4.3.4)")
 
@@ -1160,7 +1173,7 @@ $(Format-Table -Items $restoreJobs -Columns 'name','properties')
 "@)
 
 # Section 38 — Summary rules (TOC 4.3.5)
-$summaryRules = @(Read-Raw 'summary-rules.json')
+$summaryRules = Read-RawArray 'summary-rules.json'
 $summaryRows = $summaryRules | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Source = $_.properties.source.name; Version = $_.properties.version }
 }
@@ -1175,7 +1188,7 @@ $(Format-Table -Items $summaryRows -Columns 'Name','Source','Version')
 "@)
 
 # Section 87 — Azure Monitor Agents (TOC 4.5)
-$amaAgents = @(Read-Raw 'ama-agents.json')
+$amaAgents = Read-RawArray 'ama-agents.json'
 $agentRows = $amaAgents | ForEach-Object {
     [pscustomobject]@{
         Computer  = $_.Computer

@@ -162,3 +162,68 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 }
+
+Describe 'Sentinel Documenter renderer — empty-state safety' {
+    # When a _raw/*.json file is missing, the renderer must NOT emit phantom
+    # table rows with all-null cells (the @($null) + ForEach-Object bug).
+    # Verified by removing specific raw files and re-running the renderer.
+
+    BeforeAll {
+        $script:emptyOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "documenter-empty-test-$(New-Guid)"
+        New-Item -ItemType Directory -Path $script:emptyOutDir -Force | Out-Null
+        $emptyWsRoot = Join-Path $script:emptyOutDir 'law-sentinel-empty'
+        New-Item -ItemType Directory -Path (Join-Path $emptyWsRoot '_raw') -Force | Out-Null
+        Get-ChildItem -Path $script:fixtureRaw -File | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination (Join-Path $emptyWsRoot '_raw') -Force
+        }
+        # Deliberately remove the files that caused phantom rows on the production run.
+        @('threat-intel-counts.json','playbooks.json','rbac-playbook-mi.json') | ForEach-Object {
+            $f = Join-Path $emptyWsRoot "_raw/$_"
+            if (Test-Path $f) { Remove-Item -Force $f }
+        }
+        $script:emptyWsRoot = $emptyWsRoot
+
+        & $script:renderer `
+            -WorkspaceName 'law-sentinel-empty' `
+            -InputRoot     $emptyWsRoot `
+            -OutputRoot    $emptyWsRoot `
+            -ResourcesRoot $script:resources `
+            -InformationAction SilentlyContinue
+    }
+
+    AfterAll {
+        if ($script:emptyOutDir -and (Test-Path $script:emptyOutDir)) {
+            Remove-Item -Recurse -Force -Path $script:emptyOutDir -ErrorAction SilentlyContinue
+        }
+    }
+
+    Context '27-threat-intelligence.md handles missing threat-intel-counts.json' {
+        BeforeAll {
+            $script:tiMd = Get-Content (Join-Path $script:emptyWsRoot '27-threat-intelligence.md') -Raw
+        }
+
+        It 'does not contain a phantom IndicatorCount=0 row' {
+            # The bug was rendering `|  | 0 |  |` from $null.Count.
+            $script:tiMd | Should -Not -Match '\|\s*\|\s*0\s*\|\s*\|'
+        }
+
+        It 'emits an empty-state message instead of a data row' {
+            $script:tiMd | Should -Match '_None\._'
+        }
+    }
+
+    Context '60-automation-rules-playbooks.md handles missing playbooks.json' {
+        BeforeAll {
+            $script:playbookMd = Get-Content (Join-Path $script:emptyWsRoot '60-automation-rules-playbooks.md') -Raw
+        }
+
+        It 'does not contain a phantom blank-cells playbook row' {
+            # The bug was rendering `|  |  |  |` after the Playbooks header.
+            $script:playbookMd | Should -Not -Match '## Playbooks \(Logic Apps\)[\s\S]*?\|\s*\|\s*\|\s*\|\s*\|'
+        }
+
+        It 'emits an empty-state message under the Playbooks heading' {
+            $script:playbookMd | Should -Match '## Playbooks \(Logic Apps\)[\s\S]*?_None\._'
+        }
+    }
+}
