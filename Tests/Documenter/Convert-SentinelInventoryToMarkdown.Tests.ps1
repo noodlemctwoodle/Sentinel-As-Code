@@ -55,6 +55,7 @@ Describe 'Sentinel Documenter renderer' {
             'index.md','00-overview.md','01-executive-summary.md',
             '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
             '13-data-source-hygiene.md',
+            '14-coverage-breakdowns.md',
             '15-incidents.md',
             '20-analytics-rules.md','21-analytics-by-volume.md','22-analytics-microsoft-rules.md',
             '23-analytics-modifications.md','24-analytics-by-solution.md',
@@ -372,6 +373,26 @@ Describe 'Sentinel Documenter renderer' {
         It 'is linked from the index.md sections table' {
             $indexMd = Get-Content (Join-Path $script:tempWsRoot 'index.md') -Raw
             $indexMd | Should -Match '13-data-source-hygiene\.md'
+        }
+    }
+
+    Context '14-coverage-breakdowns.md surfaces per-source coverage' {
+        BeforeAll {
+            $script:covMd = Get-Content (Join-Path $script:tempWsRoot '14-coverage-breakdowns.md') -Raw
+        }
+
+        It 'renders AzureActivity subscription rows' {
+            $script:covMd | Should -Match '## AzureActivity'
+            $script:covMd | Should -Match '\| 12450 \|'
+        }
+
+        It 'renders AzureDiagnostics provider rows' {
+            $script:covMd | Should -Match 'MICROSOFT\.KEYVAULT'
+        }
+
+        It 'renders XDR table presence rows' {
+            $script:covMd | Should -Match '## XDR table presence'
+            $script:covMd | Should -Match '\| DeviceEvents \| 28401 \|'
         }
     }
 

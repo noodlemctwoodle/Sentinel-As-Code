@@ -868,6 +868,57 @@ DuplicateEvents
     } catch { Save-Json -FileName 'security-event-duplicates.json' -Data @() }
 }
 
+Try-Capture 'azure-activity-coverage' {
+    # Per-subscription AzureActivity volume — surfaces subscriptions NOT
+    # shipping Activity Logs to this workspace.
+    $kql = @'
+AzureActivity
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count() by SubscriptionId
+| top 200 by LogCount
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'azure-activity-coverage.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'azure-activity-coverage.json' -Data @() }
+}
+
+Try-Capture 'azure-diagnostics-providers' {
+    $kql = @'
+AzureDiagnostics
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count() by ResourceProvider
+| top 200 by LogCount
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'azure-diagnostics-providers.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'azure-diagnostics-providers.json' -Data @() }
+}
+
+Try-Capture 'xdr-table-presence' {
+    # XDR table-presence summary over the known XDR table list. Quick answer
+    # to "is Defender XDR connected and producing data?".
+    $kql = @'
+let tablesOfInterest = dynamic([
+    "AlertEvidence","CloudAppEvents","McasShadowItReporting",
+    "DeviceEvents","DeviceFileEvents","DeviceImageLoadEvents","DeviceInfo","DeviceLogonEvents",
+    "DeviceNetworkEvents","DeviceNetworkInfo","DeviceProcessEvents","DeviceRegistryEvents",
+    "DeviceFileCertificateInfo","EmailAttachmentInfo","EmailEvents","EmailPostDeliveryEvents",
+    "EmailUrlInfo","UrlClickEvents","IdentityLogonEvents","IdentityQueryEvents","IdentityDirectoryEvents"
+]);
+union withsource = tt *
+| where TimeGenerated > ago(7d)
+| summarize RecordCount = count() by Type
+| where Type in (tablesOfInterest)
+| order by Type asc
+'@
+    try {
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'xdr-table-presence.json' -Data ($r.Results)
+    } catch { Save-Json -FileName 'xdr-table-presence.json' -Data @() }
+}
+
 Try-Capture 'top-event-ids' {
     # Top 10 Windows event IDs by billable size — drives table-noise tuning.
     $kql = @'

@@ -1231,6 +1231,46 @@ $(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescr
 [Filter Windows Security events via DCR (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/connect-windows-security-events)
 "@)
 
+# Section 14 — Coverage breakdowns
+$azAct  = Read-RawArray 'azure-activity-coverage.json'
+$azDiag = Read-RawArray 'azure-diagnostics-providers.json'
+$xdrPres = Read-RawArray 'xdr-table-presence.json'
+
+$azActRows = $azAct | ForEach-Object {
+    [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; LogCount = $_.LogCount }
+}
+$azDiagRows = $azDiag | ForEach-Object {
+    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; LogCount = $_.LogCount }
+}
+$xdrRows = $xdrPres | ForEach-Object {
+    [pscustomobject]@{ Table = $_.Type; RecordCount = $_.RecordCount }
+}
+Write-Section '14-coverage-breakdowns.md' (@"
+$(Format-Banner -Title "Coverage Breakdowns")
+
+Per-source coverage gaps revealed by direct table queries. A subscription, resource provider, or XDR table missing from these tables is a coverage gap to triage.
+
+## AzureActivity — per-subscription (last 7d)
+
+Each row is a subscription shipping Activity Logs into the workspace. Subscriptions absent from this table are either not connected or have no activity in the period.
+
+$(Format-Table -Items $azActRows -Columns 'SubscriptionId','LogCount')
+
+## AzureDiagnostics — per resource provider (last 7d)
+
+Resource providers emitting diagnostic settings into the workspace. Maps directly to which Azure services have diagnostic settings wired up to this workspace.
+
+$(Format-Table -Items $azDiagRows -Columns 'ResourceProvider','LogCount')
+
+## XDR table presence (last 7d)
+
+Subset of well-known Defender XDR tables that have received data in the last 7 days. Empty rows would suggest XDR is connected but a particular surface (email, identity, device) is not producing data.
+
+$(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
+
+[Microsoft Sentinel data connector reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/data-connectors-reference)
+"@)
+
 # Section 15 — Incidents (TOC 4.10)
 $incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
 $incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
@@ -1594,6 +1634,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
 | [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
+| [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | — | AzureActivity / AzureDiagnostics / XDR coverage by source |
 | [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
 | [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
 | [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
