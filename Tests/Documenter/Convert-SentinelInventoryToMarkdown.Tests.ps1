@@ -217,6 +217,31 @@ Describe 'Sentinel Documenter renderer' {
             # SecurityAlert row should have empty LastIngested + BillableLast24hGB.
             $script:dcMd | Should -Match '\| Microsoft Defender XDR \| alerts \| SecurityAlert \|\s*\|\s*\|'
         }
+
+        It 'surfaces an Effective connectors synthesised view section' {
+            $script:dcMd | Should -Match '## Effective connectors \(synthesised view\)'
+            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| Last24hGB \| LastIngested \|'
+        }
+
+        It 'attributes Office365 sharePoint to a Classic source in the synthesis' {
+            # Classic precedence: classic owns the table over any later DCR/diagnostic that might cover it.
+            $script:dcMd | Should -Match '\| Classic \| Office365/sharePoint \| OfficeActivity \|'
+        }
+
+        It 'attributes FirewallLogs_CL DCR-driven ingestion to a DCR source' {
+            # The fixture has a DCR for Custom-FirewallLogs_CL (FirewallLogs_CL is not
+            # claimed by any classic connector mapping).
+            $script:dcMd | Should -Match '\| DCR \| dcr-firewall-cl \| FirewallLogs_CL \|'
+        }
+
+        It 'attributes the enabled diagnostic-settings Audit log category to a Diagnostic source' {
+            $script:dcMd | Should -Match '\| Diagnostic \| sentinel-self-diag \| Audit \|'
+        }
+
+        It 'does not list disabled diagnostic-settings categories' {
+            # SummaryLogs is in the fixture but enabled=false — must not appear.
+            $script:dcMd | Should -Not -Match '\| Diagnostic \|[^|]+\| SummaryLogs \|'
+        }
     }
 
     Context '12-soc-optimization.md uses real API field paths' {

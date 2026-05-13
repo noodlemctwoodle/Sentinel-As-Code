@@ -306,6 +306,41 @@ Both suites are picked up automatically by the existing PR-validation workflow.
 
 ---
 
+## Effective connectors (synthesised view)
+
+The Sentinel `dataConnectors` and `dataConnectorDefinitions` REST endpoints
+only enumerate the connectors that register against the Sentinel resource
+provider. A modern workspace ingests most of its data through DCRs and
+diagnostic-settings pipelines that never appear in those two endpoints, so
+rendering section 10 purely from those two captures makes well-instrumented
+workspaces look almost empty.
+
+[`Scripts/Documenter/Private/Get-EffectiveConnectors.ps1`](../../Scripts/Documenter/Private/Get-EffectiveConnectors.ps1)
+synthesises a unified ingestion view by walking the five captures in this
+order, with each later step skipping any table already claimed by an earlier
+one (precedence avoids double-counting):
+
+| # | Source              | Reads from                              | What it claims                          |
+|---|---------------------|-----------------------------------------|-----------------------------------------|
+| 1 | Classic             | `_raw/data-connectors-classic.json`     | The Log Analytics table each connector data-type targets, derived via `Get-ConnectorTargetTable`. |
+| 2 | CCF                 | `_raw/data-connector-definitions.json`  | Listed by name. Doesn't claim a table because CCF table mapping is connector-specific. |
+| 3 | DCR                 | `_raw/dcrs.json`                        | Each data-flow's `outputStream` resolves to a table (`Microsoft-` / `Custom-` prefix stripped). |
+| 4 | Diagnostic settings | `_raw/diagnostic-settings.json`         | Each enabled log category resolves to a table by name. |
+| 5 | Active-table        | `_raw/tables-with-data.json`            | Any remaining table with `BillableLast24h > 0` that no earlier source claimed. |
+
+The Active-table row is deliberately a visibility signal: if a workspace
+receives data into a table no captured ingestion mechanism explains, an
+operator wants to know. It usually means data arrived via a path the
+documenter doesn't yet enumerate (e.g. ingestion through a Logic App
+running outside the captured playbook resource group, or a legacy MMA
+agent still attached to the workspace).
+
+The `Last24hGB` and `LastIngested` columns come from the
+`tables-with-data` join. Empty values mean the table either receives no
+billable data or wasn't seen in the 90-day usage window.
+
+---
+
 ## What this tool is not
 
 - **Not a real-time monitor.** Use SentinelHealth / LAQueryLogs and Azure Monitor

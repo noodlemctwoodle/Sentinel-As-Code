@@ -86,6 +86,9 @@ if (-not (Test-Path $OutputRoot)) {
     New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 }
 
+# Dot-source private helpers.
+. (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -386,6 +389,18 @@ $healthRows = foreach ($c in $connectors) {
     }
 }
 
+# Build the synthesised effective-connectors view. Covers DCR-driven and
+# diagnostic-settings-driven ingestion which the Sentinel data-connectors
+# endpoint doesn't enumerate. See Get-EffectiveConnectors for the precedence
+# rules.
+$diagSettings = Read-RawArray 'diagnostic-settings.json'
+$effective = Get-EffectiveConnectors `
+    -ClassicConnectors  $connectors `
+    -CcfDefinitions     $ccfDefs `
+    -Dcrs               $dcrs `
+    -DiagnosticSettings $diagSettings `
+    -TablesWithData     $tablesWithData
+
 $connectorBody = @"
 $(Format-Banner -Title "Data Connectors")
 
@@ -397,9 +412,23 @@ $(Format-Table -Items $connectorRows -Columns 'Title','Kind','DataTypes','State'
 
 $(Format-Table -Items $ccfRows -Columns 'Name','Title','Publisher')
 
+## Effective connectors (synthesised view)
+
+Modern Sentinel workspaces ingest most of their data through DCRs and diagnostic settings that don't register against the Sentinel ``dataConnectors`` endpoint. This table fuses every ingestion source the captured inventory can attribute, with precedence rules to avoid double-counting:
+
+1. **Classic** — a classic data-connector explicitly covers the target table.
+2. **CCF** — a Codeless Connector Framework definition. Listed by name; table claim depends on connector implementation.
+3. **DCR** — derived from each data flow's ``outputStream`` (Microsoft-/Custom- prefixes stripped). Skipped when the table is already classic-claimed.
+4. **Diagnostic** — derived from enabled diagnostic-setting log categories. Skipped when already claimed.
+5. **Active-table** — a remaining table receiving billable data (>0 GB in the last 24h) that no captured ingestion mechanism explains. Surfaces as a visibility signal.
+
+See ``Docs/Operations/Sentinel-Documenter.md`` for the design note.
+
+$(Format-Table -Items $effective -Columns 'Source','Identifier','Table','Last24hGB','LastIngested')
+
 ## Connector health (24h activity)
 
-Last ingested and 24-hour billable volume per connector data-type, joined against the workspace ``Usage`` summary. Rows with a blank Table column have no known data-type-to-table mapping in the renderer; cross-reference [83-data-collection.md](83-data-collection.md) for DCRs and [81-table-plans-retention.md](81-table-plans-retention.md) for the full per-table view.
+Last ingested and 24-hour billable volume per **classic** data-connector's data type, joined against the workspace ``Usage`` summary. Rows with a blank Table column have no known data-type-to-table mapping in the renderer; cross-reference [83-data-collection.md](83-data-collection.md) for DCRs and [81-table-plans-retention.md](81-table-plans-retention.md) for the full per-table view.
 
 $(Format-Table -Items $healthRows -Columns 'Connector','DataType','Table','LastIngested','BillableLast24hGB')
 
