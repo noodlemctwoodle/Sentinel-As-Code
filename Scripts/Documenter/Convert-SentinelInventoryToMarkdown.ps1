@@ -1428,6 +1428,18 @@ $agentRows = $amaAgents | ForEach-Object {
         LastSeen  = $_.LastHeartbeat
     }
 }
+
+# AMA vs MMA migration status by machine type.
+$migration = Read-RawArray 'ama-mma-migration.json'
+$migrationRows = $migration | ForEach-Object {
+    [pscustomobject]@{
+        MachineType     = $_.MachineType
+        MachineCount    = $_.MachineCount
+        MMACount        = $_.MMACount
+        AMACount        = $_.AMACount
+        MigrationStatus = $_.MigrationStatus
+    }
+}
 Write-Section '87-azure-monitor-agents.md' (@"
 $(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
 
@@ -1435,6 +1447,13 @@ Agents heartbeating into the workspace over the last 7 days, derived from the ``
 
 $(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','LastSeen')
 
+## AMA vs MMA migration status
+
+Per-machine-type breakdown of agent migration progress. ``Direct Agent`` counts the legacy MMA; ``Azure Monitor Agent`` counts the modern AMA. Migration state is **Completed** when only AMA records exist for a category, **In Progress** when both exist, and **Not Started** otherwise.
+
+$(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMACount','AMACount','MigrationStatus')
+
+[Migrate from Log Analytics agent to Azure Monitor agent (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration)
 [Azure Monitor Agent overview (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/agents-overview)
 "@)
 

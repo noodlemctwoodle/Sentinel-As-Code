@@ -748,6 +748,41 @@ Heartbeat
     }
 }
 
+# AMA vs MMA migration status broken down by machine type. Categorises every
+# machine that heartbeated in the last 7 days into Azure VM / VMSS / Arc-enabled
+# / Hybrid-without-Arc / Containers / Other, and reports per-category counts
+# plus the migration state (Not Started / In Progress / Completed) based on
+# the presence of Direct Agent (MMA) vs Azure Monitor Agent records.
+Try-Capture 'ama-mma-migration' {
+    $kql = @'
+Heartbeat
+| where TimeGenerated > ago(7d)
+| summarize arg_max(TimeGenerated, *) by Category, Computer
+| extend MachineType = case(
+    ComputerEnvironment == "Non-Azure" and isempty(_ResourceId), "Hybrid without Arc",
+    ResourceProvider == "Microsoft.ContainerService", "Containers",
+    ComputerEnvironment == "Non-Azure" and ResourceProvider == "Microsoft.HybridCompute", "Arc-enabled",
+    ComputerEnvironment == "Azure" and ResourceType == "virtualMachines", "Azure VM",
+    ComputerEnvironment == "Azure" and ResourceType == "virtualMachineScaleSets", "VMSS",
+    "Other")
+| summarize
+    MachineCount = count(),
+    MMACount     = countif(Category == "Direct Agent"),
+    AMACount     = countif(Category == "Azure Monitor Agent")
+    by MachineType
+| extend MigrationStatus = case(
+    MMACount != 0 and AMACount != 0, "In Progress",
+    AMACount != 0 and MMACount == 0, "Completed",
+    "Not Started")
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'ama-mma-migration.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'ama-mma-migration.json' -Data @()
+    }
+}
+
 Try-Capture 'data-exports' {
     $exports = Invoke-SentinelRest -Path "$workspaceResourceId/dataExports" -ApiVersion $apiVersions.OperationalInsights
     Save-Json -FileName 'data-exports.json' -Data $exports

@@ -346,6 +346,28 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '87-azure-monitor-agents.md renders the AMA vs MMA migration table' {
+        BeforeAll {
+            $script:amaMd = Get-Content (Join-Path $script:tempWsRoot '87-azure-monitor-agents.md') -Raw
+        }
+
+        It 'renders the migration status section heading' {
+            $script:amaMd | Should -Match '## AMA vs MMA migration status'
+        }
+
+        It 'renders an In Progress row for Azure VM (both MMA and AMA present)' {
+            $script:amaMd | Should -Match '\| Azure VM \| 45 \| 5 \| 42 \| In Progress \|'
+        }
+
+        It 'renders a Completed row for Arc-enabled (only AMA present)' {
+            $script:amaMd | Should -Match '\| Arc-enabled \| 12 \| 0 \| 12 \| Completed \|'
+        }
+
+        It 'renders a Not Started row for Hybrid without Arc (only MMA present)' {
+            $script:amaMd | Should -Match '\| Hybrid without Arc \| 3 \| 3 \| 0 \| Not Started \|'
+        }
+    }
+
     Context '99-references.md is a copy of REFERENCES.md' {
         It 'exists and contains the API versions table' {
             $p = Join-Path $script:tempWsRoot '99-references.md'
