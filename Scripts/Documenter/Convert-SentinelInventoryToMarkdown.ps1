@@ -307,6 +307,31 @@ function Get-ConnectorDataTypes {
     @($dataTypes.PSObject.Properties.Name) -join ', '
 }
 
+function Get-ConnectorTargetTable {
+    # Map (Kind, dataType) -> Log Analytics table the connector writes to.
+    # Returns $null when no known mapping exists; the renderer then leaves the
+    # activity columns blank for that data type rather than guessing wrong.
+    param([string]$Kind, [string]$DataType)
+    $dt = if ($DataType) { $DataType.ToLowerInvariant() } else { '' }
+    switch ("$Kind/$dt") {
+        'Office365/sharepoint'                                   { 'OfficeActivity' }
+        'Office365/exchange'                                     { 'OfficeActivity' }
+        'Office365/teams'                                        { 'OfficeActivity' }
+        'AzureActiveDirectory/signinlogs'                        { 'SigninLogs' }
+        'AzureActiveDirectory/auditlogs'                         { 'AuditLogs' }
+        'AzureActiveDirectory/noninteractiveusersigninlogs'      { 'AADNonInteractiveUserSignInLogs' }
+        'MicrosoftCloudAppSecurity/alerts'                       { 'SecurityAlert' }
+        'MicrosoftCloudAppSecurity/discoverylogs'                { 'McasShadowItReporting' }
+        'MicrosoftDefenderAdvancedThreatProtection/alerts'       { 'SecurityAlert' }
+        'MicrosoftThreatProtection/alerts'                       { 'SecurityAlert' }
+        'MicrosoftThreatProtection/incidents'                    { 'SecurityIncident' }
+        'MicrosoftThreatIntelligence/microsoftemergingthreatfeed' { 'ThreatIntelligenceIndicator' }
+        'MicrosoftPurviewInformationProtection/logs'             { 'InformationProtectionLogs_CL' }
+        'AzureSecurityCenter/alerts'                             { 'SecurityAlert' }
+        default                                                  { $null }
+    }
+}
+
 $ccfDefs = Read-RawArray 'data-connector-definitions.json'
 
 $connectorRows = $connectors | ForEach-Object {
@@ -326,6 +351,41 @@ $ccfRows = $ccfDefs | ForEach-Object {
     }
 }
 
+# Build a per-connector / per-data-type activity table by joining each
+# connector's data types to the corresponding workspace table via
+# Get-ConnectorTargetTable, then looking up the table's last-ingested
+# timestamp and 24h billable volume from tables-with-data.json. Rows where
+# we can't map a data type to a known table are still listed (operators
+# can recognise the mapping gap) with blank activity columns.
+$tablesByName = @{}
+foreach ($t in $tablesWithData) {
+    if ($t.DataType) { $tablesByName[$t.DataType] = $t }
+}
+
+$healthRows = foreach ($c in $connectors) {
+    $kind = $c.kind
+    $title = Get-ConnectorFriendlyTitle -Kind $kind -Connector $c
+    $dataTypes = $c.properties.dataTypes
+    if ($null -eq $dataTypes) { continue }
+    foreach ($dtName in @($dataTypes.PSObject.Properties.Name)) {
+        $table = Get-ConnectorTargetTable -Kind $kind -DataType $dtName
+        $lastIngested = ''
+        $last24h = ''
+        if ($table -and $tablesByName.ContainsKey($table)) {
+            $row = $tablesByName[$table]
+            if ($row.LastIngested) { $lastIngested = [string]$row.LastIngested }
+            if ($null -ne $row.BillableLast24h) { $last24h = [string]$row.BillableLast24h }
+        }
+        [pscustomobject]@{
+            Connector    = $title
+            DataType     = $dtName
+            Table        = if ($table) { $table } else { '_(no mapping)_' }
+            LastIngested = $lastIngested
+            BillableLast24hGB = $last24h
+        }
+    }
+}
+
 $connectorBody = @"
 $(Format-Banner -Title "Data Connectors")
 
@@ -339,7 +399,9 @@ $(Format-Table -Items $ccfRows -Columns 'Name','Title','Publisher')
 
 ## Connector health (24h activity)
 
-Cross-reference: [83-data-collection.md](83-data-collection.md) shows the DCRs each connector relies on; [81-table-plans-retention.md](81-table-plans-retention.md) shows whether their target tables have recent data.
+Last ingested and 24-hour billable volume per connector data-type, joined against the workspace ``Usage`` summary. Rows with a blank Table column have no known data-type-to-table mapping in the renderer; cross-reference [83-data-collection.md](83-data-collection.md) for DCRs and [81-table-plans-retention.md](81-table-plans-retention.md) for the full per-table view.
+
+$(Format-Table -Items $healthRows -Columns 'Connector','DataType','Table','LastIngested','BillableLast24hGB')
 
 [Connector reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/data-connectors-reference) · [Connector health monitoring](https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health)
 "@

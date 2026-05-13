@@ -197,6 +197,26 @@ Describe 'Sentinel Documenter renderer' {
             # The previous renderer had `| Name | Kind | Title |` for CCF.
             $script:dcMd | Should -Not -Match '\| Name \| Kind \| Title \|'
         }
+
+        It 'renders the connector health table with last-ingested timestamps' {
+            $script:dcMd | Should -Match '## Connector health \(24h activity\)'
+            $script:dcMd | Should -Match 'BillableLast24hGB'
+        }
+
+        It 'joins Office365 data types to OfficeActivity table with 24h volume' {
+            $script:dcMd | Should -Match '\| Microsoft 365 \(Office 365\) \| sharePoint \| OfficeActivity \|[^|]+\| 14\.5 \|'
+        }
+
+        It 'joins AzureActiveDirectory signInLogs to SigninLogs table' {
+            $script:dcMd | Should -Match '\| Microsoft Entra ID \| signInLogs \| SigninLogs \|[^|]+\| 3\.6 \|'
+        }
+
+        It 'leaves activity columns blank when no table mapping is known' {
+            # MicrosoftThreatProtection/incidents -> SecurityIncident (present in fixture).
+            # MicrosoftThreatProtection/alerts -> SecurityAlert (NOT in fixture). So the
+            # SecurityAlert row should have empty LastIngested + BillableLast24hGB.
+            $script:dcMd | Should -Match '\| Microsoft Defender XDR \| alerts \| SecurityAlert \|\s*\|\s*\|'
+        }
     }
 
     Context '12-soc-optimization.md uses real API field paths' {
