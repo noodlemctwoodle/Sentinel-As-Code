@@ -1,0 +1,370 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Nightly E2E Deploy Validation
+# ---------------------------------------------------------------------------
+# Smoke-tests the deploy pipeline against the test workspace deployed by
+# Bicep/test/main.bicep. Runs every night at 03:00 UTC.
+#
+# Why this exists:
+#   The PR-validation gate (validate / bicep-build / arm-validate /
+#   kql-validate / dependency-manifest) catches schema and pure-function
+#   regressions but deliberately does NOT exercise the actual deploy
+#   code paths. That leaves a class of bugs invisible until the weekly
+#   Monday production deploy runs:
+#
+#     - A deploy-time API contract change (Microsoft alters a Sentinel
+#       endpoint shape between merge and Monday's deploy)
+#     - A regression in deploy-script branching that only fires on a
+#       real deploy (e.g. Initialize-SmartDeployment's git-diff logic
+#       against a real workspace state file)
+#     - Permission drift on the deploy SP (a previously-required role
+#       got removed by an Azure Policy update)
+#     - Cumulative effects of multiple Wave 4 changes that pass each
+#       individual unit test but interact badly at deploy time
+#
+#   A nightly run against the existing test workspace catches all of
+#   the above six days before the production deploy would notice.
+#
+# What runs:
+#   1. check-infrastructure        Read-only resource-group probe
+#                                  (same shape as production)
+#   2. deploy-infrastructure       Full Bicep deploy against test RG.
+#                                  Idempotent — safe to repeat nightly.
+#   3. deploy-content-hub          Limited to a single small solution
+#                                  (Azure Activity) to keep wall-clock
+#                                  short.
+#   4. deploy-custom-content       -WhatIf on. Decision tree runs but no
+#                                  resources mutate.
+#   5. deploy-defender-detections  -WhatIf on.
+#
+# Failure handling:
+#   On any stage failure, an issue is opened via `gh issue create` with
+#   the failing stage name and a link to the workflow run. Re-running
+#   the workflow before the issue is closed updates the existing issue
+#   rather than spamming new ones.
+#
+# Concurrency:
+#   cancel-in-progress: false so multiple consecutive failures each
+#   keep their own context — useful for diagnosing intermittent vs
+#   persistent failures.
+#
+# Cost:
+#   The test workspace already exists (provisioned for Phase C2). Daily
+#   ARM deployments are idempotent and free; one Content Hub solution
+#   per night is a few API calls; the WhatIf stages are pure validation.
+#   Total: well under £1/month.
+# ---------------------------------------------------------------------------
+
+name: Sentinel Nightly E2E Deploy Validation
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # Daily 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  id-token: write       # OIDC against Azure
+  contents: read
+  issues: write         # gh issue create on failure
+
+concurrency:
+  group: sentinel-deploy-nightly
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: ${{ vars.PR_VALIDATION_RESOURCE_GROUP }}
+  WORKSPACE_NAME: "law-sentinel-pr-test"
+  REGION:         ${{ vars.SENTINEL_REGION }}
+
+  # Single small Content Hub solution. Keeps wall-clock under 10 minutes.
+  TEST_SOLUTION:  "Azure Activity"
+
+  YAML_VERSION:   "0.4.12"
+
+jobs:
+  # ===========================================================================
+  # Stage 1: Read-only check
+  # ===========================================================================
+  check-infrastructure:
+    name: "Check Test Infrastructure"
+    runs-on: ubuntu-latest
+    outputs:
+      resources_exist: ${{ steps.check.outputs.resources_exist }}
+    steps:
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check for Existing Resources
+        id: check
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            $resourcesExist = "false"
+            $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
+            if ($rg) {
+                $law = Get-AzOperationalInsightsWorkspace `
+                    -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
+                    -Name "${{ env.WORKSPACE_NAME }}" `
+                    -ErrorAction SilentlyContinue
+                if ($law) {
+                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists — skipping Bicep."
+                    $resourcesExist = "true"
+                } else {
+                    Write-Host "Workspace not found — Bicep deployment required."
+                }
+            } else {
+                Write-Host "Resource Group not found — full Bicep deployment required."
+            }
+            echo "resources_exist=$resourcesExist" >> $env:GITHUB_OUTPUT
+
+  # ===========================================================================
+  # Stage 2: Bicep deploy (idempotent against test workspace)
+  # ===========================================================================
+  deploy-infrastructure:
+    name: "Deploy Test Workspace (Bicep)"
+    runs-on: ubuntu-latest
+    needs: check-infrastructure
+    if: |
+      always() &&
+      needs.check-infrastructure.result == 'success' &&
+      needs.check-infrastructure.outputs.resources_exist == 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy test workspace Bicep
+        uses: Azure/cli@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group "${{ env.RESOURCE_GROUP }}" \
+              --template-file Bicep/test/main.bicep \
+              --parameters location="${{ env.REGION }}"
+
+  # ===========================================================================
+  # Stage 3: Content Hub deploy (single solution)
+  # ===========================================================================
+  deploy-content-hub:
+    name: "Deploy Content Hub (test solution)"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure]
+    if: |
+      always() &&
+      (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy single Content Hub solution
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" `
+                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
+                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
+                -Workspace      "${{ env.WORKSPACE_NAME }}" `
+                -Region         "${{ env.REGION }}" `
+                -Solutions      "${{ env.TEST_SOLUTION }}"
+
+  # ===========================================================================
+  # Stage 4: Custom content (-WhatIf)
+  # ===========================================================================
+  deploy-custom-content:
+    name: "Deploy Custom Content (-WhatIf)"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub]
+    if: |
+      always() &&
+      (needs.deploy-content-hub.result == 'success' || needs.deploy-content-hub.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # Smart deployment uses parent commit
+
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
+
+      - name: Verify dependency manifest is current
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "##[error]dependencies.json is out of sync. Refusing to run E2E with a stale manifest."
+              exit 1
+          }
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Custom Content (-WhatIf)
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            & "${{ github.workspace }}/Scripts/Deploy-CustomContent.ps1" `
+                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
+                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
+                -Workspace      "${{ env.WORKSPACE_NAME }}" `
+                -Region         "${{ env.REGION }}" `
+                -BasePath       "${{ github.workspace }}" `
+                -WhatIf
+
+  # ===========================================================================
+  # Stage 5: Defender detections (-WhatIf)
+  # ===========================================================================
+  deploy-defender-detections:
+    name: "Deploy Defender Detections (-WhatIf)"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub, deploy-custom-content]
+    if: |
+      always() &&
+      (needs.deploy-custom-content.result == 'success' || needs.deploy-custom-content.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Defender Detections (-WhatIf)
+        uses: Azure/powershell@v2
+        with:
+          azPSVersion: "latest"
+          inlineScript: |
+            & "${{ github.workspace }}/Scripts/Deploy-DefenderDetections.ps1" `
+                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
+                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
+                -Workspace      "${{ env.WORKSPACE_NAME }}" `
+                -Region         "${{ env.REGION }}" `
+                -BasePath       "${{ github.workspace }}" `
+                -WhatIf
+
+  # ===========================================================================
+  # Stage 6: Failure reporting
+  # ===========================================================================
+  # Runs only if any prior stage failed. Opens a GitHub issue (or refreshes
+  # an existing one) so a green-light workflow doesn't quietly fail every
+  # night unnoticed.
+  report-failure:
+    name: "Report nightly failure"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub, deploy-custom-content, deploy-defender-detections]
+    if: |
+      always() &&
+      (needs.check-infrastructure.result == 'failure' ||
+       needs.deploy-infrastructure.result == 'failure' ||
+       needs.deploy-content-hub.result == 'failure' ||
+       needs.deploy-custom-content.result == 'failure' ||
+       needs.deploy-defender-detections.result == 'failure')
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Open / refresh failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Identify which stage failed (the first failing one in the chain).
+          FAILED_STAGE=""
+          if   [ "${{ needs.check-infrastructure.result }}"        = "failure" ]; then FAILED_STAGE="check-infrastructure"
+          elif [ "${{ needs.deploy-infrastructure.result }}"       = "failure" ]; then FAILED_STAGE="deploy-infrastructure"
+          elif [ "${{ needs.deploy-content-hub.result }}"          = "failure" ]; then FAILED_STAGE="deploy-content-hub"
+          elif [ "${{ needs.deploy-custom-content.result }}"       = "failure" ]; then FAILED_STAGE="deploy-custom-content"
+          elif [ "${{ needs.deploy-defender-detections.result }}"  = "failure" ]; then FAILED_STAGE="deploy-defender-detections"
+          fi
+
+          ISSUE_TITLE="Nightly E2E deploy validation failed: $FAILED_STAGE"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          ISSUE_BODY_FILE="$(mktemp)"
+          {
+              echo "The nightly E2E deploy validation workflow failed at stage \`$FAILED_STAGE\`."
+              echo ""
+              echo "**Run:** $RUN_URL"
+              echo "**Workspace:** \`${{ env.WORKSPACE_NAME }}\` (RG: \`${{ env.RESOURCE_GROUP }}\`)"
+              echo ""
+              echo "## What this catches"
+              echo ""
+              echo "Nightly validation runs the deploy code paths the merge gate"
+              echo "deliberately does not exercise. Common causes when this fails:"
+              echo ""
+              echo "- Microsoft Sentinel API contract drift"
+              echo "- Deploy-script regression that only fires on a real deploy"
+              echo "- Permission drift on the deploy SP"
+              echo "- Cumulative effects of multiple PRs interacting badly"
+              echo ""
+              echo "## Triage steps"
+              echo ""
+              echo "1. Open the run linked above; the failed step's log is the entry point"
+              echo "2. If the failure is environmental (Azure transient, runner network),"
+              echo "   close this issue and re-run the workflow"
+              echo "3. If the failure is a code regression, identify the merging PR"
+              echo "   between the last green run and this one"
+              echo "4. The Monday production deploy is still 1-6 days away —"
+              echo "   prioritise accordingly"
+          } > "$ISSUE_BODY_FILE"
+
+          # Search for an existing open issue with the same title (one issue
+          # per failing stage) and refresh its body rather than spamming
+          # duplicates.
+          EXISTING=$(gh issue list \
+              --state open \
+              --search "in:title \"$ISSUE_TITLE\"" \
+              --json number \
+              --jq '.[0].number' || true)
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+              echo "Refreshing existing issue #$EXISTING"
+              gh issue edit "$EXISTING" --body-file "$ISSUE_BODY_FILE"
+              gh issue comment "$EXISTING" --body "Re-failed: $RUN_URL"
+          else
+              gh issue create \
+                  --title "$ISSUE_TITLE" \
+                  --body-file "$ISSUE_BODY_FILE" \
+                  --label "ci,nightly-failure"
+          fi
+
+          rm -f "$ISSUE_BODY_FILE"

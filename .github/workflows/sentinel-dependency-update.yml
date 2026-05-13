@@ -1,0 +1,191 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Daily Dependency Manifest Auto-PR
+# ---------------------------------------------------------------------------
+# GitHub Actions equivalent of Pipelines/Sentinel-Dependency-Update.yml.
+#
+# Runs Scripts/Build-DependencyManifest.ps1 -Mode Update against the
+# current main branch. If the regenerated dependencies.json diverges from
+# the on-disk version, pushes the regenerated file to a rolling auto-sync
+# branch and opens (or refreshes) a PR for review.
+#
+# Why daily not on-merge:
+#   The PR-validation gate (job: dependency-manifest) already prevents a
+#   PR from merging if it forgets to regenerate the manifest. This
+#   workflow exists for the rarer case where the gate's path filter
+#   misses an inline change — e.g. a fork PR merge through the GitHub UI
+#   that bypassed the path filter, or a doc-only commit that adjusted a
+#   rule's query body inline. A daily run keeps the file fresh against
+#   that long tail of edge cases.
+#
+# Behaviour:
+#   - No drift     -> no commit, no PR. Workflow exits 0 quietly.
+#   - Drift found  -> push the regenerated manifest to the auto-sync
+#                     branch and open / refresh a PR titled
+#                     "chore(deps): refresh dependency manifest".
+#
+# Runs daily at 02:00 UTC. Scheduled to complete before drift-detect
+# (06:00) and before the weekly Monday deploy (04:00) so a fresh manifest
+# is in place when those workflows run.
+#
+# No Azure auth required — discovery is fully offline (YAML parse only).
+# ---------------------------------------------------------------------------
+
+name: Sentinel Dependency Manifest Auto-PR
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # Daily 02:00 UTC
+
+  workflow_dispatch:
+    inputs:
+      reportOnly:
+        description: "Report Only — show drift but do not commit / open a PR"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write       # git push to the rolling auto-sync branch
+  pull-requests: write  # gh pr create / update
+
+# Bot-managed branch; never hand-edited. Same naming convention as
+# sentinel-drift-detect.yml's auto/sentinel-drift-sync.
+env:
+  SYNC_BRANCH:   "auto/dependency-manifest-sync"
+  TARGET_BRANCH: "main"
+  YAML_VERSION:  "0.4.12"
+
+jobs:
+  refresh-manifest:
+    name: Refresh dependencies.json and Open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          # GITHUB_TOKEN has contents:write on this repo per the
+          # workflow-level permissions block; that's enough to push the
+          # auto-sync branch.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0   # full history so 'git rebase' works cleanly
+
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
+
+      - name: Run dependency-manifest update
+        shell: pwsh
+        run: |
+          # -Mode Update writes the regenerated manifest to disk on drift
+          # and exits 0; the calling pipeline handles commit + push + PR.
+          # On no drift it leaves the file untouched and exits 0.
+          ./Scripts/Build-DependencyManifest.ps1 -Mode Update
+
+      # Commit + push + PR. Skipped when -reportOnly was passed (we only
+      # want to see the diff in the run log) or when the working tree is
+      # clean (no drift).
+      - name: Commit, push, and open / refresh PR
+        if: ${{ inputs.reportOnly != true }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The Update mode only ever rewrites dependencies.json. If the
+          # working tree is clean, no drift was detected.
+          if ! git status --porcelain dependencies.json | grep -q .; then
+              echo "##[section]Manifest already current — no PR needed."
+              exit 0
+          fi
+
+          echo "##[section]Manifest drift detected — staging dependencies.json"
+          git config user.email "noreply@sentinel-as-code.local"
+          git config user.name  "Sentinel Dependency Sync"
+          git status --short
+
+          # Reset the rolling sync branch from the latest TARGET tip so
+          # the branch always descends from the current main. Same
+          # pattern as sentinel-drift-detect.yml: stash, reset, pop.
+          git stash push --include-untracked --message "manifest-update" --quiet
+          git fetch origin "$TARGET_BRANCH"
+          git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
+          git stash pop --quiet || true
+
+          # Stage only the manifest. The script never touches anything
+          # else; staging strictly avoids accidentally including a stray
+          # local file.
+          git add dependencies.json
+
+          # Compute a one-line summary for the commit message: count of
+          # entries that changed. Useful in the commit log without
+          # bloating it.
+          ENTRY_COUNT=$(pwsh -NoProfile -Command \
+              "((Get-Content dependencies.json -Raw | ConvertFrom-Json).dependencies.PSObject.Properties | Measure-Object).Count")
+
+          git commit \
+              -m "chore(deps): refresh dependency manifest $(date -u +%Y-%m-%dT%H:%MZ)" \
+              -m "Auto-generated by .github/workflows/sentinel-dependency-update.yml. Discovery walked content and produced a manifest with $ENTRY_COUNT entries that differs from the on-disk version. Re-run Scripts/Build-DependencyManifest.ps1 -Mode Generate locally to reproduce."
+
+          # Force-push the rolling branch (it's a bot branch, never hand-edited).
+          git push --force-with-lease origin "$SYNC_BRANCH"
+
+          echo "##[section]Opening / refreshing PR"
+
+          PR_BODY_FILE="$(mktemp)"
+          {
+              echo "# Dependency Manifest Auto-Refresh"
+              echo ""
+              echo "Automated regeneration of \`dependencies.json\` from the current content tree."
+              echo ""
+              echo "**Discovered entries:** $ENTRY_COUNT"
+              echo ""
+              echo "## What this means"
+              echo ""
+              echo "Discovery walked every \`AnalyticalRules/**.yaml\` and \`HuntingQueries/**.yaml\`,"
+              echo "scanned each file's embedded KQL via \`Modules/Sentinel.Common\`, and produced a"
+              echo "dependency manifest. The result differs from the on-disk \`dependencies.json\`."
+              echo ""
+              echo "Common reasons drift accumulates between runs:"
+              echo ""
+              echo "- A new rule was merged that the PR did not regenerate the manifest for"
+              echo "- An existing rule's query was edited inline in a non-rule PR"
+              echo "  (e.g. a doc-only change that bumped a query body)"
+              echo "- An ASim or in-repo function reference was added or removed"
+              echo ""
+              echo "## Reviewer checklist"
+              echo ""
+              echo "- [ ] The \`Files Changed\` diff makes sense given recent merges"
+              echo "- [ ] No legitimate rule has lost its dependency entry"
+              echo "- [ ] No previously-classified function got demoted to a table"
+              echo "  (or vice versa) without an explaining content change"
+              echo ""
+              echo "If the diff looks correct, **squash and merge**. The PR-validation"
+              echo "\`dependency-manifest\` gate will revalidate against the merged commit."
+              echo ""
+              echo "---"
+              echo "Generated by [\`sentinel-dependency-update.yml\`](../blob/main/.github/workflows/sentinel-dependency-update.yml)."
+          } > "$PR_BODY_FILE"
+
+          EXISTING_PR=$(gh pr list \
+              --head "$SYNC_BRANCH" \
+              --base "$TARGET_BRANCH" \
+              --state open \
+              --json number \
+              --jq '.[0].number' || true)
+
+          if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "null" ]; then
+              echo "Existing PR #$EXISTING_PR refreshed by branch push — updating description."
+              gh pr edit "$EXISTING_PR" --body-file "$PR_BODY_FILE"
+          else
+              gh pr create \
+                  --head "$SYNC_BRANCH" \
+                  --base "$TARGET_BRANCH" \
+                  --title "chore(deps): refresh dependency manifest $(date -u +%Y-%m-%d)" \
+                  --body-file "$PR_BODY_FILE"
+          fi
+
+          rm -f "$PR_BODY_FILE"
