@@ -246,28 +246,28 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
-    Context '12-soc-optimization.md uses real API field paths' {
+    Context '12-soc-optimization.md splits Coverage + Data Value into sub-tables' {
         BeforeAll {
             $script:socMd = Get-Content (Join-Path $script:tempWsRoot '12-soc-optimization.md') -Raw
         }
 
-        It 'renders the humanised Category column for Precision_Coverage' {
-            $script:socMd | Should -Match '\| Coverage \|'
+        It 'renders the Coverage recommendations heading' {
+            $script:socMd | Should -Match '## Coverage recommendations'
         }
 
-        It 'renders the humanised Category column for Precision_DataValue' {
-            $script:socMd | Should -Match '\| Data Value \|'
+        It 'renders the Data Value recommendations heading' {
+            $script:socMd | Should -Match '## Data Value recommendations'
         }
 
-        It 'renders the AffectedItem column with the use-case name for Coverage rows' {
+        It 'lists BEC (Financial Fraud) under Coverage' {
             $script:socMd | Should -Match 'BEC \(Financial Fraud\)'
         }
 
-        It 'renders the AffectedItem column with the table name for DataValue rows' {
+        It 'lists SigninLogs under Data Value' {
             $script:socMd | Should -Match 'SigninLogs'
         }
 
-        It 'no longer emits an empty Priority column header' {
+        It 'does not emit a Priority column header' {
             $script:socMd | Should -Not -Match '\| Priority \|'
         }
     }

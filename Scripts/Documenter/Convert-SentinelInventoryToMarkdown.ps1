@@ -1202,29 +1202,28 @@ $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','St
 "@)
 
 # Section 12 — SOC Optimization Insights (TOC 4.9)
-# Note on schema: the recommendation object exposes properties.recommendationTypeId
-# (e.g. "Precision_Coverage", "Precision_DataValue") and does not carry either a
-# "recommendationTypeTitle" or a "priority" field. The original implementation
-# read those non-existent fields, leaving Category and Priority empty across every
-# row. The fix derives a humanised Category from recommendationTypeId and an
-# AffectedItem from additionalProperties on a per-kind basis.
+# Schema note: recommendation objects expose properties.recommendationTypeId
+# (e.g. "Precision_Coverage", "Precision_DataValue"). AffectedItem comes from
+# properties.additionalProperties on a per-kind basis (TableName for DataValue,
+# UseCaseName for Coverage). Split into two sub-tables grouped by kind so the
+# user-action drivers cluster — Coverage rows drive content-hub installs,
+# DataValue rows drive ingestion-tuning.
 $socOpt = Read-RawArray 'soc-optimization.json'
-$socOptRows = $socOpt | ForEach-Object {
-    $kind = $_.properties.recommendationTypeId
-    $category = switch ($kind) {
-        'Precision_Coverage'  { 'Coverage' }
-        'Precision_DataValue' { 'Data Value' }
-        default                { $kind }
-    }
-    $affectedItem = switch ($kind) {
-        'Precision_DataValue' { $_.properties.additionalProperties.TableName }
-        'Precision_Coverage'  { $_.properties.additionalProperties.UseCaseName }
-        default                { '' }
-    }
+function _SocOptRow {
+    param($Item, [string]$AffectedField)
     [pscustomobject]@{
+        Title        = $Item.properties.title
+        AffectedItem = $Item.properties.additionalProperties.$AffectedField
+        State        = $Item.properties.state
+        Description  = ($Item.properties.description -replace '\s+', ' ' | Select-Object -First 200)
+    }
+}
+$socCovRows = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_Coverage'  } | ForEach-Object { _SocOptRow $_ 'UseCaseName' }
+$socDvRows  = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_DataValue' } | ForEach-Object { _SocOptRow $_ 'TableName'   }
+$socOther   = $socOpt | Where-Object { $_.properties.recommendationTypeId -notin @('Precision_Coverage','Precision_DataValue') } | ForEach-Object {
+    [pscustomobject]@{
+        Kind         = $_.properties.recommendationTypeId
         Title        = $_.properties.title
-        Category     = $category
-        AffectedItem = $affectedItem
         State        = $_.properties.state
         Description  = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
     }
@@ -1232,9 +1231,23 @@ $socOptRows = $socOpt | ForEach-Object {
 Write-Section '12-soc-optimization.md' (@"
 $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 
-Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available.
+Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 
-$(Format-Table -Items $socOptRows -Columns 'Title','Category','AffectedItem','State','Description')
+## Coverage recommendations
+
+Drives Content Hub installs and rule activation. AffectedItem is the use-case name (e.g. ``BEC (Financial Fraud)``).
+
+$(Format-Table -Items $socCovRows -Columns 'Title','AffectedItem','State','Description')
+
+## Data Value recommendations
+
+Drives ingestion tuning. AffectedItem is the workspace table name. A high count here is a sign that data is arriving but no detection coverage is matching it.
+
+$(Format-Table -Items $socDvRows -Columns 'Title','AffectedItem','State','Description')
+
+## Other recommendations
+
+$(Format-Table -Items $socOther -Columns 'Kind','Title','State','Description')
 
 [SOC optimization in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access)
 "@)
