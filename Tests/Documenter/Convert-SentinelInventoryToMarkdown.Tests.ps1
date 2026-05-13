@@ -155,6 +155,32 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '12-soc-optimization.md uses real API field paths' {
+        BeforeAll {
+            $script:socMd = Get-Content (Join-Path $script:tempWsRoot '12-soc-optimization.md') -Raw
+        }
+
+        It 'renders the humanised Category column for Precision_Coverage' {
+            $script:socMd | Should -Match '\| Coverage \|'
+        }
+
+        It 'renders the humanised Category column for Precision_DataValue' {
+            $script:socMd | Should -Match '\| Data Value \|'
+        }
+
+        It 'renders the AffectedItem column with the use-case name for Coverage rows' {
+            $script:socMd | Should -Match 'BEC \(Financial Fraud\)'
+        }
+
+        It 'renders the AffectedItem column with the table name for DataValue rows' {
+            $script:socMd | Should -Match 'SigninLogs'
+        }
+
+        It 'no longer emits an empty Priority column header' {
+            $script:socMd | Should -Not -Match '\| Priority \|'
+        }
+    }
+
     Context '99-references.md is a copy of REFERENCES.md' {
         It 'exists and contains the API versions table' {
             $p = Join-Path $script:tempWsRoot '99-references.md'

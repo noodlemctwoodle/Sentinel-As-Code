@@ -987,14 +987,31 @@ $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','St
 "@)
 
 # Section 12 — SOC Optimization Insights (TOC 4.9)
+# Note on schema: the recommendation object exposes properties.recommendationTypeId
+# (e.g. "Precision_Coverage", "Precision_DataValue") and does not carry either a
+# "recommendationTypeTitle" or a "priority" field. The original implementation
+# read those non-existent fields, leaving Category and Priority empty across every
+# row. The fix derives a humanised Category from recommendationTypeId and an
+# AffectedItem from additionalProperties on a per-kind basis.
 $socOpt = Read-RawArray 'soc-optimization.json'
 $socOptRows = $socOpt | ForEach-Object {
+    $kind = $_.properties.recommendationTypeId
+    $category = switch ($kind) {
+        'Precision_Coverage'  { 'Coverage' }
+        'Precision_DataValue' { 'Data Value' }
+        default                { $kind }
+    }
+    $affectedItem = switch ($kind) {
+        'Precision_DataValue' { $_.properties.additionalProperties.TableName }
+        'Precision_Coverage'  { $_.properties.additionalProperties.UseCaseName }
+        default                { '' }
+    }
     [pscustomobject]@{
-        Title       = $_.properties.title
-        Category    = $_.properties.recommendationTypeTitle
-        Priority    = $_.properties.priority
-        State       = $_.properties.state
-        Description = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
+        Title        = $_.properties.title
+        Category     = $category
+        AffectedItem = $affectedItem
+        State        = $_.properties.state
+        Description  = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
     }
 }
 Write-Section '12-soc-optimization.md' (@"
@@ -1002,7 +1019,7 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available.
 
-$(Format-Table -Items $socOptRows -Columns 'Title','Category','Priority','State','Description')
+$(Format-Table -Items $socOptRows -Columns 'Title','Category','AffectedItem','State','Description')
 
 [SOC optimization in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access)
 "@)

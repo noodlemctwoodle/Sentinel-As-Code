@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/Recommendations/11111111-1111-1111-1111-111111111111",
+    "name": "11111111-1111-1111-1111-111111111111",
+    "type": "Microsoft.SecurityInsights/Recommendations",
+    "properties": {
+      "recommendationTypeId": "Precision_Coverage",
+      "state": "Active",
+      "title": "Coverage improvement against BEC (Financial Fraud)",
+      "description": "Your coverage against BEC (Financial Fraud) can be improved.",
+      "creationTimeUtc": "2026-05-01T12:28:16Z",
+      "lastEvaluatedTimeUtc": "2026-05-09T04:32:25Z",
+      "lastModifiedTimeUtc": "2026-05-01T12:28:16Z",
+      "additionalProperties": {
+        "UseCaseId": "07ccb77ce10b9e4ffbffe13388172778",
+        "UseCaseName": "BEC (Financial Fraud)",
+        "ScenarioType": "Threat"
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/Recommendations/22222222-2222-2222-2222-222222222222",
+    "name": "22222222-2222-2222-2222-222222222222",
+    "type": "Microsoft.SecurityInsights/Recommendations",
+    "properties": {
+      "recommendationTypeId": "Precision_DataValue",
+      "state": "Active",
+      "title": "Configure data ingestion in your SigninLogs table",
+      "description": "The ConditionalAccessPolicies column in your SigninLogs table is very large.",
+      "creationTimeUtc": "2026-05-01T12:28:16Z",
+      "lastEvaluatedTimeUtc": "2026-05-09T04:32:25Z",
+      "lastModifiedTimeUtc": "2026-05-01T12:28:16Z",
+      "additionalProperties": {
+        "TableName": "SigninLogs"
+      }
+    }
+  }
+]
