@@ -246,6 +246,30 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '80-workspace.md surfaces provenance metadata' {
+        BeforeAll {
+            $script:wsMd = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+        }
+
+        It 'renders the Provenance section heading' {
+            $script:wsMd | Should -Match '## Provenance'
+        }
+
+        It 'renders the workspace age in days' {
+            $script:wsMd | Should -Match '\| Age \|'
+            $script:wsMd | Should -Match '\d+ days'
+        }
+
+        It 'renders the workspace created date (PowerShell deserialises the JSON datetime to local format)' {
+            $script:wsMd | Should -Match '2024'
+            $script:wsMd | Should -Match '\| Created \|'
+        }
+
+        It 'renders the default DCR resource id' {
+            $script:wsMd | Should -Match 'dcr-default'
+        }
+    }
+
     Context '12-soc-optimization.md splits Coverage + Data Value into sub-tables' {
         BeforeAll {
             $script:socMd = Get-Content (Join-Path $script:tempWsRoot '12-soc-optimization.md') -Raw

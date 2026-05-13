@@ -769,8 +769,28 @@ $(Format-Table -Items $repoRows -Columns 'Name','Type','Url')
 # Section: 80 — workspace
 # ---------------------------------------------------------------------------
 $features = $workspace.properties.features
+$wsCreated = $workspace.properties.createdDate
+$wsAgeDays = if ($wsCreated) {
+    [int]([math]::Floor(((Get-Date).ToUniversalTime() - [datetime]$wsCreated).TotalDays))
+} else { $null }
+$wsAgeWarning = if ($null -ne $wsAgeDays -and $wsAgeDays -lt 28) {
+    " — _Workspace is less than 28 days old; some metrics derived from 7-day and 30-day KQL windows may be incomplete._"
+} else { '' }
+$wsDefaultDcr = $null
+if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollectionRuleResourceId') {
+    $wsDefaultDcr = $workspace.properties.defaultDataCollectionRuleResourceId
+}
 $wsBody = @"
 $(Format-Banner -Title "Workspace Inventory")
+
+## Provenance
+
+| Property | Value |
+|---|---|
+| Resource ID | ``$($workspace.id)`` |
+| Created | $wsCreated |
+| Age | $(if ($null -ne $wsAgeDays) { "$wsAgeDays days$wsAgeWarning" } else { '_(unknown)_' }) |
+| Default DCR | $(if ($wsDefaultDcr) { "``$wsDefaultDcr``" } else { '_(none set on the workspace)_' }) |
 
 ## SKU and pricing
 
@@ -781,7 +801,7 @@ $(Format-Banner -Title "Workspace Inventory")
 | Default retention | $($workspace.properties.retentionInDays) days |
 | Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited (-1)' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
 
-## Networking
+## Networking + replication
 
 | Property | Value |
 |---|---|
@@ -798,7 +818,7 @@ $(Format-Banner -Title "Workspace Inventory")
 | enableLogAccessUsingOnlyResourcePermissions | $($features.enableLogAccessUsingOnlyResourcePermissions) |
 | enableDataExport | $($features.enableDataExport) |
 | immediatePurgeDataOn30Days | $($features.immediatePurgeDataOn30Days) |
-| clusterResourceId | $(if ($features.clusterResourceId) { "Linked → see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
+| clusterResourceId | $(if ($features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
 
 [Workspace design (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design) · [Manage access](https://learn.microsoft.com/azure/azure-monitor/logs/manage-access) · [Replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication)
 "@

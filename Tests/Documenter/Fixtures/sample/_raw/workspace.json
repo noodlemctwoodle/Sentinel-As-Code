@@ -4,6 +4,8 @@
   "location": "uksouth",
   "properties": {
     "customerId": "11111111-1111-1111-1111-111111111111",
+    "createdDate": "2024-02-15T10:00:00Z",
+    "defaultDataCollectionRuleResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Insights/dataCollectionRules/dcr-default",
     "sku": { "name": "PerGB2018" },
     "retentionInDays": 30,
     "workspaceCapping": { "dailyQuotaGb": -1 },
