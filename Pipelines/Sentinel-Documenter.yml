@@ -183,6 +183,39 @@ stages:
                 & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
                     -WorkspaceName "$(sentinelWorkspaceName)"
 
+          # Pre-render Mermaid fenced blocks to SVG. ADO Repos preview +
+          # publish-code-as-wiki both treat ```mermaid``` as plain code and
+          # do not invoke the Mermaid runtime. Pre-rendering swaps each
+          # fenced block for an <img> reference so the charts render in
+          # every Markdown host (Repos, code-wiki, project wiki, GitHub).
+          - task: NodeTool@0
+            displayName: "Install Node 20 (for mmdc)"
+            inputs:
+              versionSpec: "20.x"
+
+          - task: PowerShell@2
+            displayName: "Install @mermaid-js/mermaid-cli"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing mermaid-cli (mmdc)"
+                npm install -g '@mermaid-js/mermaid-cli@10'
+                mmdc --version
+
+          - task: PowerShell@2
+            displayName: "Pre-render Mermaid → SVG"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                Write-Host "##[section]Sentinel Documenter — Mermaid pre-render"
+                & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-MermaidToSvg.ps1" `
+                    -Root "$(Build.SourcesDirectory)/SecurityDocs"
+
           - task: PowerShell@2
             displayName: "Stage SecurityDocs/ for artefact publish"
             inputs:
