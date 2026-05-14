@@ -416,12 +416,20 @@ Try-Capture 'sentinel-settings' {
 # Capture the per-table row counts over the last 12 days so the renderer can
 # surface "data flowing -> Yes" even when the settings GET reported absence.
 Try-Capture 'ueba-data-presence' {
+    # Stamp the table name onto every row BEFORE union — `union withsource`
+    # only labels rows present at the moment of the union, and the inner
+    # `summarize count()` collapsed each arm to a single row, so withsource
+    # fell back to synthetic positional names (union_arg0/1/2) instead of
+    # the real table name. The fix: extend Table at the source, summarize
+    # by Table after the union. `isfuzzy=true` also handles a workspace
+    # that hasn't enabled UEBA yet (UserPeerAnalytics may be missing) —
+    # KQL skips the missing arm rather than throwing.
     $kql = @'
-union withsource = TableName
-    (BehaviorAnalytics  | where TimeGenerated > ago(12d) | summarize Count = count()),
-    (IdentityInfo       | where TimeGenerated > ago(12d) | summarize Count = count()),
-    (UserPeerAnalytics  | where TimeGenerated > ago(12d) | summarize Count = count())
-| project TableName, Count
+union isfuzzy=true
+    (BehaviorAnalytics  | where TimeGenerated > ago(12d) | extend TableName = "BehaviorAnalytics"),
+    (IdentityInfo       | where TimeGenerated > ago(12d) | extend TableName = "IdentityInfo"),
+    (UserPeerAnalytics  | where TimeGenerated > ago(12d) | extend TableName = "UserPeerAnalytics")
+| summarize Count = count() by TableName
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
