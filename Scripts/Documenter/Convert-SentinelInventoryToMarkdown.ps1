@@ -1934,28 +1934,42 @@ $(Format-Table -Items $restoreJobs -Columns 'name','properties')
 # Section 38 — Summary rules (TOC 4.3.5)
 # Schema note: the capture comes from `.../workspaces/<ws>/summaryLogs` (under
 # the OperationalInsights provider, not Sentinel). Each item exposes
-# `properties.ruleType`, `properties.RuleDefinition.Query`,
-# `properties.RuleDefinition.BinSize`, `properties.RuleDefinition.BinDelay`,
-# `properties.RuleDefinition.TimeSelector`, and
-# `properties.RuleDefinition.DestinationTable`. The earlier renderer read
-# `properties.displayName` / `properties.source.name` / `properties.version`
-# — fields that belong to the contentTemplates schema, not summaryLogs.
+# `properties.ruleType`, `properties.ruleDefinition.query`,
+# `properties.ruleDefinition.binSize`, `properties.ruleDefinition.timeSelector`,
+# `properties.ruleDefinition.destinationTable`, `properties.isActive`,
+# `properties.statusCode`. The previous renderer included a `BinDelay` column
+# that doesn't exist in the API response (always-empty). `isActive` and
+# `statusCode` ARE present and signal whether the rule is actually running —
+# the first rule on stl-sec-siem-law has isActive=false + status=DataPlaneError,
+# evidence of a broken rule that the old shape never surfaced. Field names
+# round-trip through ConvertFrom-Json as camelCase; PowerShell's PSObject
+# property access is case-insensitive so the old PascalCase access "worked"
+# accidentally for the fields that happened to exist.
 $summaryRules = Read-RawArray 'summary-rules.json'
 $summaryRows = $summaryRules | ForEach-Object {
+    $props = $_.properties
+    $isActive = if ($props.PSObject.Properties.Name -contains 'isActive') { $props.isActive } else { $null }
+    $status   = if ($props.PSObject.Properties.Name -contains 'statusCode') { [string]$props.statusCode } else { '' }
     [pscustomobject]@{
         Name             = $_.name
-        RuleType         = $_.properties.ruleType
-        DestinationTable = $_.properties.RuleDefinition.DestinationTable
-        BinSize          = $_.properties.RuleDefinition.BinSize
-        BinDelay         = $_.properties.RuleDefinition.BinDelay
+        RuleType         = $props.ruleType
+        DestinationTable = $props.ruleDefinition.destinationTable
+        BinSize          = $props.ruleDefinition.binSize
+        TimeSelector     = $props.ruleDefinition.timeSelector
+        Active           = if ($null -eq $isActive) { '?' } elseif ($isActive) { 'Yes' } else { 'No' }
+        Status           = if ($status) { $status } else { 'Ok' }
     }
 }
+$brokenSummary = @($summaryRows | Where-Object { $_.Active -eq 'No' -or $_.Status -ne 'Ok' })
+$summaryWarning = if ($brokenSummary.Count -gt 0) {
+    "`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column — `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
+} else { '' }
 Write-Section '38-summary-rules.md' (@"
 $(Format-Banner -Title "Summary Rules  (TOC 4.3.5)")
 
 Summary rules pre-aggregate high-volume tables on a schedule into a derived table. They cut query cost on noisy data.
-
-$(Format-Table -Items $summaryRows -Columns 'Name','RuleType','DestinationTable','BinSize','BinDelay')
+$summaryWarning
+$(Format-Table -Items $summaryRows -Columns 'Name','RuleType','DestinationTable','BinSize','TimeSelector','Active','Status')
 
 [Summary rules (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/summary-rules)
 "@)
