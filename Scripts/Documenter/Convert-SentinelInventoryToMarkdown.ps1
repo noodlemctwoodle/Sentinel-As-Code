@@ -1495,10 +1495,14 @@ $srcLines = foreach ($s in ($sourceList | Select-Object -First 10)) {
     $srcIdx++
     $shortId = "S$srcIdx"
     $sourceEdges += "    $shortId --> WS"
-    "    $shortId[$s]"
+    # Wrap label in double quotes — Mermaid flowchart treats `(` as a node-
+    # shape directive, so unquoted labels containing parens (e.g.
+    # "Microsoft 365 (Office 365)" or "Tailscale (CCF) (RestApiPoller)")
+    # parse-error with "Expecting SQE/PE/STADIUMEND etc."
+    "    $shortId[`"$s`"]"
 }
 if ($sourceList.Count -gt 10) {
-    $srcLines += "    S99[Other sources ($($sourceList.Count - 10))]"
+    $srcLines += "    S99[`"Other sources ($($sourceList.Count - 10))`"]"
     $sourceEdges += "    S99 --> WS"
 }
 $dcBody = @"
@@ -1602,7 +1606,82 @@ $(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
 
 Tree view of where the chargeable footprint lands. Pair with the top-tables bar above — same data, different shape, easier scan for "is one source dominating?".
 
-## Cost flow — source to billing tier
+## Cost flow — source → table → billing tier (Sankey)
+
+``````mermaid
+---
+config:
+  sankey:
+    showValues: true
+    nodeAlignment: justify
+    nodePadding: 28
+    height: 720
+    width: 1200
+    useMaxWidth: true
+    linkColor: gradient
+---
+sankey-beta
+
+$(
+# Source-name mapping. Aggregates the top-cost tables into named source
+# buckets (Microsoft Defender TI, Microsoft Entra ID, Microsoft Defender
+# XDR etc.) so the Sankey has ≤8 lanes on the left rather than ~10
+# separate per-table sources crammed into the same vertical space.
+# Returns the source category for a given table name. Generic fallback
+# for unrecognised tables is "Other".
+function _CostSourceFor {
+    param([string]$Table)
+    switch -Regex ($Table) {
+        '^ThreatIntel'                                             { return 'Microsoft Defender TI' }
+        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs)$' { return 'Microsoft Entra ID' }
+        '^(Device|Email|Url|Alert|Cloud|Identity).*'               { return 'Microsoft Defender XDR' }
+        '^ASim'                                                    { return 'ASIM normaliser' }
+        '^Office'                                                  { return 'Office 365' }
+        '^(CommonSecurityLog|Syslog)$'                             { return 'CEF / Syslog' }
+        '^(SecurityEvent|WindowsEvent|Event)$'                     { return 'Windows events' }
+        '^(AzureActivity|AzureDiagnostics|AzureMetrics)$'          { return 'Azure platform' }
+        '^Intune'                                                  { return 'Intune' }
+        '^Unifi'                                                   { return 'UniFi' }
+        '^Tailscale'                                               { return 'Tailscale' }
+        '_CL$'                                                     { return 'Custom (CCF / DCR)' }
+        default                                                    { return 'Other' }
+    }
+}
+
+# Build Sankey rows. Aggregate per-source-per-table volumes so multiple
+# device-events tables roll up to a single Source→Table flow per category.
+$flowRows = New-Object System.Collections.Generic.List[string]
+$bySourceTable = @{}
+$byTableTier = @{}
+foreach ($t in $cost.Top10TablesByCost) {
+    $gb = [double]$t.Gb30d
+    if ($gb -le 0) { continue }
+    $src = _CostSourceFor $t.Table
+    $tier = if ($t.Plan -eq 'Analytics') { 'Sentinel-rate billing' } else { 'LA-rate billing' }
+    $stKey = "$src||$($t.Table)"
+    $ttKey = "$($t.Table)||$tier"
+    if (-not $bySourceTable.ContainsKey($stKey)) { $bySourceTable[$stKey] = 0.0 }
+    if (-not $byTableTier.ContainsKey($ttKey))   { $byTableTier[$ttKey]   = 0.0 }
+    $bySourceTable[$stKey] += $gb
+    $byTableTier[$ttKey]   += $gb
+}
+foreach ($k in $bySourceTable.Keys) {
+    $parts = $k -split '\|\|'
+    $flowRows.Add("$($parts[0]),$($parts[1]),$([math]::Round($bySourceTable[$k], 3))")
+}
+foreach ($k in $byTableTier.Keys) {
+    $parts = $k -split '\|\|'
+    $flowRows.Add("$($parts[0]),$($parts[1]),$([math]::Round($byTableTier[$k], 3))")
+}
+$flowRows -join [Environment]::NewLine
+)
+``````
+
+Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.
+
+## Cost flow — table → billing tier (compact view)
+
+For workspaces with too many sources for the Sankey to read cleanly, the same routing as a flat flowchart:
 
 ``````mermaid
 flowchart LR
@@ -1612,7 +1691,7 @@ $(($cost.Top10TablesByCost | Select-Object -First 6 | ForEach-Object {
     $gb = $_.Gb30d
     $plan = $_.Plan
     $billing = if ($plan -eq 'Analytics') { 'SENT' } else { 'LA' }
-    "    $tblId[$tbl<br/>$gb GB] --> $billing"
+    "    $tblId[`"$tbl<br/>$gb GB`"] --> $billing"
 }) -join [Environment]::NewLine)
     SENT[Sentinel-rate billing]
     LA[LA-rate billing]
@@ -1621,8 +1700,6 @@ $(($cost.Top10TablesByCost | Select-Object -First 6 | ForEach-Object {
     class SENT sentinel
     class LA la
 ``````
-
-Each top-cost table flows to the billing tier its plan determines (Analytics → Sentinel-rate, Basic / Auxiliary → LA-rate). Findings [SENT-043] / [SENT-044] / [SENT-046] highlight tables that could route to the cheaper tier.
 
 ## Commitment-tier what-if
 
