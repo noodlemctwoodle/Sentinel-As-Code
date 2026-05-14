@@ -2236,7 +2236,7 @@ $healthByStatus = @{}
 foreach ($r in $healthSummary) {
     $s = if ($r.Status) { [string]$r.Status } else { 'Unknown' }
     if (-not $healthByStatus.ContainsKey($s)) { $healthByStatus[$s] = 0 }
-    $healthByStatus[$s] += [int]$r.LogCount
+    $healthByStatus[$s] += [long]$r.LogCount
 }
 $healthPieRows = $healthByStatus.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
@@ -2376,7 +2376,7 @@ $cefByVendor = @{}
 foreach ($r in $cefDevices) {
     $v = if ($r.DeviceVendor) { [string]$r.DeviceVendor } else { 'Unknown' }
     if (-not $cefByVendor.ContainsKey($v)) { $cefByVendor[$v] = 0 }
-    $cefByVendor[$v] += [int]$r.LogCount
+    $cefByVendor[$v] += [long]$r.LogCount
 }
 $cefPieRows = $cefByVendor.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 6 | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
@@ -2450,9 +2450,9 @@ $xdrChartBlock = if ($xdrPres.Count -gt 0) {
         $s = if ($n.Length -gt 12) { $n.Substring(0,12) } else { $n }
         "`"$s`""
     }) -join ', '
-    $xdrBars = ($xdrRows | Select-Object -First 12 | ForEach-Object { [int]$_.RecordCount }) -join ', '
-    $xdrYmax = 1
-    foreach ($r in $xdrRows | Select-Object -First 12) { if ([int]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [int]$r.RecordCount } }
+    $xdrBars = ($xdrRows | Select-Object -First 12 | ForEach-Object { [long]$_.RecordCount }) -join ', '
+    $xdrYmax = [long]1
+    foreach ($r in $xdrRows | Select-Object -First 12) { if ([long]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [long]$r.RecordCount } }
     @"
 
 ## XDR table activity (last 7d)
@@ -2637,9 +2637,9 @@ $volChartBlock = if ($ruleVolumes.Count -gt 0) {
         if ($label.Length -gt 12) { $label = $label.Substring(0,12) }
         "`"$label`""
     }) -join ', '
-    $volBars = ($top10 | ForEach-Object { [int]$_.Alerts }) -join ', '
-    $volMax = 1
-    foreach ($r in $top10) { if ([int]$r.Alerts -gt $volMax) { $volMax = [int]$r.Alerts } }
+    $volBars = ($top10 | ForEach-Object { [long]$_.Alerts }) -join ', '
+    $volMax = [long]1
+    foreach ($r in $top10) { if ([long]$r.Alerts -gt $volMax) { $volMax = [long]$r.Alerts } }
     @"
 
 ## Top 10 noisy rules — alert volume
@@ -2841,7 +2841,7 @@ $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
 # Pie of rows per UEBA table when there's something to chart.
 $uebaPiePresenceBlock = if ($uebaPresenceRows.Count -gt 0 -and $uebaTotalRows -gt 0) {
     $uebaPieRows = $uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 } | ForEach-Object {
-        "    `"$($_.Table)`" : $([int]$_.Rows12d)"
+        "    `"$($_.Table)`" : $([long]$_.Rows12d)"
     }
     @"
 
@@ -2950,7 +2950,7 @@ $(Format-Table -Items $tiTypeRows -Columns 'ThreatType','IndicatorCount')
 $tiPieBlock = if ($tiRows -and ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
     $top6Sources = @($tiRows) | Select-Object -First 6
     $tiPieRows = $top6Sources | ForEach-Object {
-        "    `"$($_.SourceSystem)`" : $([int]$_.IndicatorCount)"
+        "    `"$($_.SourceSystem)`" : $([long]$_.IndicatorCount)"
     }
     @"
 
