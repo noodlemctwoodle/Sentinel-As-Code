@@ -3661,6 +3661,141 @@ $(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMAC
 [Azure Monitor Agent overview (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/agents-overview)
 "@)
 
+# ---------------------------------------------------------------------------
+# Section 88 — Microsoft Sentinel Data Lake
+# ---------------------------------------------------------------------------
+# Lake-tier tables surfaced from $workspaceTables (those on plan='DataLake').
+# Migration candidates surfaced from $cost.AllTablesByCost — high-volume
+# tables on the Analytics plan are typical Lake-migration targets for
+# cost optimisation. The enrollment signals were computed in section 83's
+# block ($hasDataLake / $unifiedBilling / $sentinelDataLake / $plansInUse)
+# so this block consumes them rather than recomputing.
+
+$dlTables = @($workspaceTables | Where-Object { $_.properties.plan -eq 'DataLake' })
+$dlTableRows = $dlTables | ForEach-Object {
+    [pscustomobject]@{
+        Table            = $_.name
+        RetentionDays    = $_.properties.retentionInDays
+        TotalRetention   = $_.properties.totalRetentionInDays
+    }
+}
+
+# Lake-side ingest + cost split from $cost.ByPlan. Defensive lookups because
+# older cost captures may not include DataLake.
+$lakeGb = 0.0
+$lakeCost = 0.0
+$analyticsGb = 0.0
+$analyticsCost = 0.0
+if ($cost -and $cost.ByPlan) {
+    if ($cost.ByPlan.PSObject.Properties.Name -contains 'DataLake') {
+        $lakeGb   = [double]$cost.ByPlan.DataLake.Gb30d
+        $lakeCost = [double]$cost.ByPlan.DataLake.MonthlyCost
+    }
+    if ($cost.ByPlan.PSObject.Properties.Name -contains 'Analytics') {
+        $analyticsGb   = [double]$cost.ByPlan.Analytics.Gb30d
+        $analyticsCost = [double]$cost.ByPlan.Analytics.MonthlyCost
+    }
+}
+
+# Migration candidates: Analytics-plan tables with ≥0.5 GB/30d are typical
+# Lake-tier candidates, particularly verbose Defender XDR advanced hunting
+# tables (Device*, Email*) and verbose security logs that don't drive
+# real-time detection. Cap to the top 10 to keep the table readable.
+$dlCandidateRows = @()
+if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
+    $dlCandidateRows = @($cost.AllTablesByCost |
+        Where-Object { $_.Plan -eq 'Analytics' -and [double]$_.Gb30d -ge 0.5 } |
+        Select-Object -First 10 |
+        ForEach-Object {
+            [pscustomobject]@{
+                Table         = $_.Table
+                Gb30d         = $_.Gb30d
+                MonthlyCost   = $_.MonthlyCost
+                Recommendation = 'Consider DataLake plan if rule queries are infrequent'
+            }
+        })
+}
+
+# Headline narrative — one of four states based on the captured signals.
+$lakeHeadline = if ($hasDataLake -and $dlTables.Count -gt 0) {
+    "**Sentinel Data Lake is enrolled and active.** $($dlTables.Count) table(s) route to the Lake at the DataLake-rate ingestion meter (~$([math]::Round($lakeGb, 2)) GB / 30d, est. `$$([math]::Round($lakeCost, 2)) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
+} elseif ($hasDataLake -and $dlTables.Count -eq 0) {
+    "**Sentinel Data Lake is enrolled on this workspace** (``features.unifiedSentinelBillingOnly = true``), but no tables currently route to the Lake. All ingest is on the Analytics plan billed at the full Sentinel-rate meter. See *Migration candidates* below for verbose tables that could move to the Lake to reduce monthly cost — the Lake-rate per-GB ingestion meter is typically a fraction of the Sentinel-rate."
+} elseif (-not $hasDataLake -and $analyticsGb -gt 30) {
+    "**Sentinel Data Lake is not enrolled.** This workspace ingests $([math]::Round($analyticsGb, 1)) GB / 30d on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
+} else {
+    "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB/month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
+}
+
+# Enrollment-signal table — explicit on which signal contributed to the
+# documenter's "is Lake enrolled?" decision. Reviewers can use this to
+# confirm against the portal.
+$lakeSignals = @(
+    [pscustomobject]@{
+        Signal      = 'workspace.properties.features.unifiedSentinelBillingOnly'
+        Value       = if ($unifiedBilling) { 'true' } else { 'false / absent' }
+        Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing — Lake-enabled' } else { 'Legacy per-GB billing — Lake not provisioned at workspace level' }
+    },
+    [pscustomobject]@{
+        Signal      = 'Microsoft.SecurityInsights/dataLake (preview endpoint)'
+        Value       = if (@($sentinelDataLake).Count -gt 0) { "$(@($sentinelDataLake).Count) record(s)" } else { 'empty / 400' }
+        Interpretation = if (@($sentinelDataLake).Count -gt 0) { 'Endpoint registered and returns config' } else { 'Endpoint not registered for this workspace/region — inconclusive' }
+    },
+    [pscustomobject]@{
+        Signal      = "Tables on plan='DataLake'"
+        Value       = "$($dlTables.Count) table(s)"
+        Interpretation = if ($dlTables.Count -gt 0) { 'Data actively routed to Lake-tier' } else { 'No tables route to Lake-tier today' }
+    }
+)
+
+$lakeBody = @"
+$(Format-Banner -Title "Microsoft Sentinel Data Lake")
+
+$lakeHeadline
+
+## Enrollment signals
+
+The documenter ORs the three signals below — any one set to a positive value indicates Lake enrollment. Multiple signals agreeing increases confidence; a workspace enrolled in production should ideally show all three.
+
+$(Format-Table -Items $lakeSignals -Columns 'Signal','Value','Interpretation')
+
+## Lake-tier tables
+
+Tables currently configured with ``plan = DataLake``. Lake-tier tables bill against the DataLake-rate per-GB meter and support extended affordable retention beyond the Analytics-plan interactive period.
+
+$(if ($dlTableRows.Count -gt 0) { Format-Table -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetention' } else { '_No tables currently route to the DataLake plan on this workspace._' })
+
+## Cost split (last 30d)
+
+| Plan | Ingest (GB) | Estimated monthly cost |
+|---|---:|---:|
+| Analytics | $([math]::Round($analyticsGb, 2)) | `$$([math]::Round($analyticsCost, 2)) |
+| DataLake  | $([math]::Round($lakeGb, 2)) | `$$([math]::Round($lakeCost, 2)) |
+
+## Migration candidates
+
+Top Analytics-plan tables (≥0.5 GB/30d) that are typical Lake-tier candidates — high ingest volume, low real-time-query frequency. Defender XDR advanced hunting surfaces (Device*, Email*, Url*) and raw EDR/firewall telemetry are the usual wins. Confirm a table's analytics-rule references first before migrating — a rule whose query joins against the candidate table will start failing if the table is moved without re-pointing the query.
+
+$(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Columns 'Table','Gb30d','MonthlyCost','Recommendation' } else { '_No Analytics-plan tables above the 0.5 GB / 30d threshold — Lake migration is not currently cost-justified on this workspace._' })
+
+## When to enroll
+
+- **Sustained ingest > 500 GB/month** of verbose / low-query telemetry (Defender XDR raw events, firewall syslog, EDR process telemetry).
+- **Long-tail investigations needed at affordable retention** — Lake supports months-to-years retention at storage rates, vs Analytics' high per-GB interactive retention rate.
+- **Already onboarded to the Defender unified SecOps portal** — Lake is the implicit storage tier for unified-portal workflows.
+
+## When to stay on the legacy model
+
+- **Ingest < ~100 GB/month** — Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
+- **Every table queries in near-real-time** — the Lake's higher query latency makes it a poor fit for detection-rule-heavy workloads.
+- **Compliance / contract requires PerGB2018 billing** — some enterprise agreements lock to legacy meters.
+
+[Microsoft Sentinel Data Lake overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/sentinel-data-lake/sentinel-data-lake-overview)
+[Onboarding the unified Defender / Sentinel SecOps portal (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/microsoft-sentinel-defender-portal)
+[Configure data plans — Analytics vs Basic vs Auxiliary vs DataLake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/basic-logs-use-cases)
+"@
+Write-Section '88-sentinel-data-lake.md' $lakeBody
+
 # Section 96 — User-facing Microsoft references (TOC 6.x)
 Write-Section '96-references-microsoft.md' (@"
 $(Format-Banner -Title "Useful Microsoft References")
@@ -3774,6 +3909,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [85-rbac.md](85-rbac.md) | 4.4 | Role assignments |
 | [86-subscription-context.md](86-subscription-context.md) | 4.1 | Subscription, tenant, RPs, locks, policy |
 | [87-azure-monitor-agents.md](87-azure-monitor-agents.md) | 4.5 | AMA agents heartbeating into the workspace |
+| [88-sentinel-data-lake.md](88-sentinel-data-lake.md) | — | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
 | [90-gap-analysis.md](90-gap-analysis.md) | — | Findings against MS Learn best practices |
 | [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
 | [99-references.md](99-references.md) | — | Documenter's own API versions and modules |
