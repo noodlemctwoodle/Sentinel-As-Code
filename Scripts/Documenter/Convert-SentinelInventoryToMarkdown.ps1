@@ -283,8 +283,31 @@ $catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
 
 $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
 
+# Severity + category counters hoisted up here (was computed twice further
+# down at the gap-analysis and live-snapshot section blocks). Single
+# computation drives the Mermaid pie/bar charts in 00, 01 and 90.
+$gapBySeverity = @{ Critical = 0; Warning = 0; Info = 0 }
+$gapByCategory = @{}
+foreach ($f in $gapFindings) {
+    if ($gapBySeverity.ContainsKey($f.Severity)) { $gapBySeverity[$f.Severity]++ }
+    $cat = if ($f.Category) { [string]$f.Category } else { 'Other' }
+    if (-not $gapByCategory.ContainsKey($cat)) { $gapByCategory[$cat] = @{ Warning = 0; Info = 0; Critical = 0 } }
+    if ($gapByCategory[$cat].ContainsKey($f.Severity)) { $gapByCategory[$cat][$f.Severity]++ }
+}
+
 $overviewBody = @"
 $(Format-Banner -Title "Microsoft Sentinel Workspace — Overview")
+
+## Findings at a glance
+
+``````mermaid
+pie showData title Open findings by severity
+    "Critical" : $($gapBySeverity.Critical)
+    "Warning"  : $($gapBySeverity.Warning)
+    "Info"     : $($gapBySeverity.Info)
+``````
+
+$($gapFindings.Count) open findings against the best-practice catalogue. Drill into [90-gap-analysis.md](90-gap-analysis.md) for the per-category breakdown.
 
 ## Headline
 
@@ -550,8 +573,29 @@ $effective = Get-EffectiveConnectors `
     -DiagnosticSettings $diagSettings `
     -TablesWithData     $tablesWithData
 
+# Connector-kind distribution for the headline pie. Excludes CCF defs
+# (counted separately) since they're not deployed instances per se.
+$kindCounts = @{}
+foreach ($c in $connectors) {
+    $k = if ($c.kind) { [string]$c.kind } else { 'unknown' }
+    if (-not $kindCounts.ContainsKey($k)) { $kindCounts[$k] = 0 }
+    $kindCounts[$k]++
+}
+$kindPieRows = $kindCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+
 $connectorBody = @"
 $(Format-Banner -Title "Data Connectors")
+
+## Connector mix
+
+``````mermaid
+pie showData title Connectors by kind
+$($kindPieRows -join [Environment]::NewLine)
+``````
+
+$($connectors.Count) connector(s) deployed across $($kindCounts.Count) distinct kinds.
 
 ## Classic connectors
 
@@ -835,10 +879,48 @@ foreach ($t in $tactics) {
     [void]$detailSections.AppendLine((Format-Table -Items $techRows -Columns 'Technique','SubTechniques','Rules','SampleRules'))
 }
 
+# Build the bar-chart inputs from $mitreRowsRich (already sorted by tactic).
+# Short labels per tactic so x-axis fits 14 entries; full names live in the
+# matrix table below.
+$labelMap = @{
+    'Reconnaissance' = 'Recon'; 'ResourceDevelopment' = 'ResDev'; 'InitialAccess' = 'Initial'
+    'Execution' = 'Exec'; 'Persistence' = 'Persist'; 'PrivilegeEscalation' = 'PrivEsc'
+    'DefenseEvasion' = 'DefEva'; 'CredentialAccess' = 'CredAcc'; 'Discovery' = 'Discov'
+    'LateralMovement' = 'LatMov'; 'Collection' = 'Collect'; 'CommandAndControl' = 'C2'
+    'Exfiltration' = 'Exfil'; 'Impact' = 'Impact'
+}
+$mitreAxis = ($tactics | ForEach-Object {
+    $key = $_.sentinelShortName
+    $lbl = if ($labelMap.ContainsKey($key)) { $labelMap[$key] } else { $key.Substring(0, [math]::Min(7, $key.Length)) }
+    "`"$lbl`""
+}) -join ', '
+$mitreBars = ($mitreRowsRich | ForEach-Object { $_.EnabledRules }) -join ', '
+$mitreMax = 1
+foreach ($r in $mitreRowsRich) { if ($r.EnabledRules -gt $mitreMax) { $mitreMax = $r.EnabledRules } }
+$mitreYmax = [int]([math]::Ceiling(($mitreMax + 1) / 10.0)) * 10
+
 $mitreBody = @"
 $(Format-Banner -Title "MITRE ATT&CK Coverage")
 
 Coverage is derived from the ``tactics`` and ``techniques`` arrays on every **enabled** Sentinel detection rule. Rules that carry sub-technique IDs (e.g. ``T1078.001``) contribute to both the parent technique and the sub-technique counts. Every ID in the breakdown below links to its canonical entry on attack.mitre.org.
+
+## Coverage shape — rules per tactic
+
+``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 480
+---
+xychart-beta
+    title "Enabled rules per MITRE tactic"
+    x-axis [$mitreAxis]
+    y-axis "Enabled rules" 0 --> $mitreYmax
+    bar [$mitreBars]
+``````
+
+**$tacticsCoveredFull 🟢 Covered · $tacticsThin 🟠 Thin · $tacticsNone 🔴 None** of $tacticsTotal tactics. Thin or uncovered tactics surface above any chart bar shorter than the threshold.
 
 ## Tactic matrix
 
@@ -991,8 +1073,28 @@ $cpRows = $contentPackages | ForEach-Object {
 $repoRows = $repos | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
 }
+# Content-source distribution for the headline pie.
+$sourceCounts = @{}
+foreach ($p in $cpRows) {
+    $s = if ($p.Source) { [string]$p.Source } else { 'Custom / unknown' }
+    if (-not $sourceCounts.ContainsKey($s)) { $sourceCounts[$s] = 0 }
+    $sourceCounts[$s]++
+}
+$sourcePieRows = $sourceCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+
 Write-Section '70-content-hub.md' (@"
 $(Format-Banner -Title "Content Hub and Repositories")
+
+## Source mix
+
+``````mermaid
+pie showData title Installed Content Hub packages by source
+$($sourcePieRows -join [Environment]::NewLine)
+``````
+
+$($cpRows.Count) package(s) installed across $($sourceCounts.Count) source kind(s).
 
 ## Solutions installed
 
@@ -1290,6 +1392,19 @@ $(Format-Table -Items $planRows -Columns 'Plan','Gb30d','MonthlyCost')
 
 ## Top tables by cost
 
+``````mermaid
+xychart-beta
+    title "Top tables by 30d billable GB"
+    x-axis [$(($cost.Top10TablesByCost | ForEach-Object {
+        $t = if ($_.Table.Length -gt 10) { $_.Table.Substring(0,10) } else { $_.Table }
+        "`"$t`""
+    }) -join ', ')]
+    y-axis "GB" 0 --> $([math]::Ceiling(([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Maximum).Maximum + 0.5)))
+    bar [$(($cost.Top10TablesByCost | ForEach-Object { $_.Gb30d }) -join ', ')]
+``````
+
+Long-tail concentration: the loudest table is always the right first cost-optimisation target. Full table names in the table below (short labels above are truncated for chart-axis fit).
+
 $(Format-Table -Items $cost.Top10TablesByCost -Columns 'Table','Plan','Gb30d','MonthlyCost')
 
 ## Commitment-tier what-if
@@ -1407,10 +1522,37 @@ $gapRows = $gapFindings | ForEach-Object {
         Learn = "[$($_.Learn)]($($_.Learn))"
     }
 }
+# Findings landscape — grouped bar by category × severity. Sort categories
+# by Warning-then-Info count desc so the worst buckets land on the left.
+$catOrder = $gapByCategory.Keys | Sort-Object {
+    -(1000 * ($gapByCategory[$_].Critical) + 10 * ($gapByCategory[$_].Warning) + ($gapByCategory[$_].Info))
+}
+$catAxis = ($catOrder | ForEach-Object { "`"$_`"" }) -join ', '
+$catWarn = ($catOrder | ForEach-Object { $gapByCategory[$_].Warning }) -join ', '
+$catInfo = ($catOrder | ForEach-Object { $gapByCategory[$_].Info }) -join ', '
+$catMax = 1
+foreach ($c in $catOrder) {
+    $t = $gapByCategory[$c].Warning + $gapByCategory[$c].Info + $gapByCategory[$c].Critical
+    if ($t -gt $catMax) { $catMax = $t }
+}
+
 Write-Section '90-gap-analysis.md' (@"
 $(Format-Banner -Title "Gap Analysis")
 
 The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](../../Scripts/Documenter/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/GapChecks.ps1](../../Scripts/Documenter/Private/GapChecks.ps1) — adding a new rule is a two-line change.
+
+## Findings landscape
+
+``````mermaid
+xychart-beta
+    title "Findings by category — split by severity"
+    x-axis [$catAxis]
+    y-axis "Findings" 0 --> $($catMax + 1)
+    bar "Warning" [$catWarn]
+    bar "Info"    [$catInfo]
+``````
+
+**$($gapFindings.Count) findings.** Categories sorted worst-first (Critical → Warning → Info weighting). Each bar is a category; AdjacentWarning + Info bars per category make the severity mix visible at a glance.
 
 ## Findings
 
@@ -1444,10 +1586,21 @@ $(if ($gapFindings.Count -gt 0) {
 # language to reinforce that this is documentation-as-code, not a
 # point-in-time deck.
 # Synthesised from headline counts + cost + top gap findings + MITRE coverage.
-$gapBySeverity = @{ Critical = 0; Warning = 0; Info = 0 }
-foreach ($f in $gapFindings) {
-    if ($gapBySeverity.ContainsKey($f.Severity)) { $gapBySeverity[$f.Severity]++ }
+# $gapBySeverity / $gapByCategory are computed up at the top of the file
+# (around line 285) so 00-overview can also use them. Don't recompute here.
+
+# Today + days-until calculations drive the deprecation gantt bar widths.
+$today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+function _DaysUntilFromToday {
+    param([string]$IsoDate)
+    $target = [datetime]::Parse($IsoDate, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)
+    $delta = $target.ToUniversalTime() - (Get-Date).ToUniversalTime()
+    [int][math]::Ceiling($delta.TotalDays)
 }
+$clv1Days = _DaysUntilFromToday '2026-09-14'
+$tipDays  = _DaysUntilFromToday '2027-06-30'
+$xdrDays  = _DaysUntilFromToday '2027-03-31'
+
 # MITRE coverage rollup. Reuse $mitreRowsRich from section 25 — that view
 # already does the intersect-with-catalogue (rules' tactic shortnames must
 # match a catalogue.sentinelShortName) and categorises each tactic as
@@ -1470,6 +1623,35 @@ $execBody = @"
 $(Format-Banner -Title "Live snapshot")
 
 > Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above — not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
+
+## Findings by severity
+
+``````mermaid
+pie showData title Findings by severity (current run)
+    "Critical" : $($gapBySeverity.Critical)
+    "Warning"  : $($gapBySeverity.Warning)
+    "Info"     : $($gapBySeverity.Info)
+``````
+
+## Platform deprecation runway
+
+``````mermaid
+gantt
+    title Microsoft Sentinel platform deprecation runway
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+
+    section Past deadlines
+    MMA / OMS agent retired                :done,  mma,  2024-08-31, 1d
+    MMA ingestion degraded                 :done,  mmaI, 2025-02-01, 1d
+    Legacy TI ingestion stopped            :done,  ti,   2025-07-31, 1d
+
+    section Upcoming
+    Today                                  :milestone, today, $today, 0d
+    HTTP Data Collector API retires        :crit,  clv1, $today, ${clv1Days}d
+    Legacy TIP connector deprecates        :active, tip,  $today, ${tipDays}d
+    Sentinel Azure portal retires (→ XDR)  :crit,  xdr,  $today, ${xdrDays}d
+``````
 
 ## Workspace at a glance
 
