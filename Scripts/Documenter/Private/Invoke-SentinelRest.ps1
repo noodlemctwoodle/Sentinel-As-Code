@@ -110,12 +110,24 @@ function Invoke-SentinelRest {
             $attempt++
 
             try {
-                if ($url -match '^https?://') {
-                    # Absolute URL — used by the public Retail Prices API which is anonymous.
+                # Determine the auth+transport for this URL.
+                #   - Absolute URL with the ARM audience (e.g. an ARM
+                #     paginator's nextLink starting `https://management.azure.com/`)
+                #     needs the active Az bearer token, so strip the host
+                #     and route through Invoke-AzRestMethod.
+                #   - Any other absolute URL is treated as anonymous (the
+                #     public Retail Prices API is the only known caller).
+                #   - Otherwise the path is ARM-relative — Invoke-AzRestMethod.
+                $isAbsolute       = $url -match '^https?://'
+                $isArmAbsolute    = $isAbsolute -and ($url -match '^https?://management\.azure\.[a-z.]+/')
+                $effectivePath    = if ($isArmAbsolute) {
+                    $url -replace '^https?://management\.azure\.[a-z.]+', ''
+                } else { $url }
+
+                if ($isAbsolute -and -not $isArmAbsolute) {
                     $response = Invoke-RestMethod -Uri $url -Method Get -ErrorAction Stop
                 } else {
-                    # ARM endpoint — Invoke-AzRestMethod uses the active context's audience.
-                    $raw = Invoke-AzRestMethod -Path $url -Method GET -ErrorAction Stop
+                    $raw = Invoke-AzRestMethod -Path $effectivePath -Method GET -ErrorAction Stop
                     if ($raw.StatusCode -eq 404) {
                         if ($ThrowOn404) {
                             throw "404 Not Found: $url"
