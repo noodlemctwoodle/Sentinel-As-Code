@@ -1896,7 +1896,7 @@ $(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
 
 Tree view of where the chargeable footprint lands. Pair with the top-tables bar above — same data, different shape, easier scan for "is one source dominating?".
 
-## Cost flow — source → table → billing tier (Sankey)
+## Cost flow — source → table → billing tier
 
 ``````mermaid
 ---
@@ -1913,17 +1913,17 @@ config:
 sankey-beta
 
 $(
-# Source-name mapping. Aggregates the top-cost tables into named source
-# buckets (Microsoft Defender TI, Microsoft Entra ID, Microsoft Defender
-# XDR etc.) so the Sankey has ≤8 lanes on the left rather than ~10
-# separate per-table sources crammed into the same vertical space.
-# Returns the source category for a given table name. Generic fallback
-# for unrecognised tables is "Other".
+# Source-name mapping. Aggregates tables into named source buckets
+# (Microsoft Defender XDR, Microsoft Entra ID, etc.) so the Sankey
+# left-column has a bounded number of lanes (~12-15) rather than one
+# per table on a busy workspace. Tables that don't match any pattern
+# fall through to "Other" — kept deliberately as a single bucket so
+# the tail of small custom logs doesn't drown out the dominant flows.
 function _CostSourceFor {
     param([string]$Table)
     switch -Regex ($Table) {
         '^ThreatIntel'                                             { return 'Microsoft Defender TI' }
-        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs)$' { return 'Microsoft Entra ID' }
+        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
         '^(Device|Email|Url|Alert|Cloud|Identity).*'               { return 'Microsoft Defender XDR' }
         '^ASim'                                                    { return 'ASIM normaliser' }
         '^Office'                                                  { return 'Office 365' }
@@ -1933,19 +1933,33 @@ function _CostSourceFor {
         '^Intune'                                                  { return 'Intune' }
         '^Unifi'                                                   { return 'UniFi' }
         '^Tailscale'                                               { return 'Tailscale' }
+        '^App(Traces|Metrics|Requests|Dependencies|Exceptions|PageViews|PerformanceCounters|Events|SystemEvents|ServiceHTTPLogs|ServiceConsoleLogs|ServicePlatformLogs|ServiceFileAuditLogs|ServiceIPSecAuditLogs|ServiceAntivirusScanAuditLogs)$' { return 'Application Insights' }
+        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf)$'           { return 'Workspace operations' }
+        '^Dataverse'                                               { return 'Power Platform' }
         '_CL$'                                                     { return 'Custom (CCF / DCR)' }
         default                                                    { return 'Other' }
     }
 }
 
-# Build Sankey rows. Aggregate per-source-per-table volumes so multiple
-# device-events tables roll up to a single Source→Table flow per category.
+# Build Sankey rows from ALL tables with cost, not just the top 10 —
+# the Top10TablesByCost view is what the bar chart and mindmap above
+# show; the Sankey is meant to be the comprehensive flow view, so
+# iterate the full per-table list. Skip rows below 0.01 GB to avoid
+# vanishing-thin flows on a busy workspace.
+$allTables = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
+    @($cost.AllTablesByCost)
+} else {
+    # Backward compatibility — older exporter captures only carry the
+    # top-10 view. Fall back to that so the chart still renders.
+    @($cost.Top10TablesByCost)
+}
+
 $flowRows = New-Object System.Collections.Generic.List[string]
 $bySourceTable = @{}
 $byTableTier = @{}
-foreach ($t in $cost.Top10TablesByCost) {
+foreach ($t in $allTables) {
     $gb = [double]$t.Gb30d
-    if ($gb -le 0) { continue }
+    if ($gb -lt 0.01) { continue }
     $src = _CostSourceFor $t.Table
     $tier = if ($t.Plan -eq 'Analytics') { 'Sentinel-rate billing' } else { 'LA-rate billing' }
     $stKey = "$src||$($t.Table)"
@@ -1967,7 +1981,7 @@ $flowRows -join [Environment]::NewLine
 )
 ``````
 
-Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.
+Three columns: source on the left, workspace table in the middle, billing tier on the right. Every table with at least 0.01 GB of 30-day billable ingest appears here — this is the full cost picture, not a Top-N. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.
 
 ## Cost flow — table → billing tier (compact view)
 

@@ -213,7 +213,8 @@ function Get-SentinelCostEstimate {
     $monthlyTotal = ($perTable | Measure-Object -Property MonthlyCost -Sum).Sum
     if (-not $monthlyTotal) { $monthlyTotal = 0.0 }
 
-    $top10 = $perTable | Sort-Object -Property MonthlyCost -Descending | Select-Object -First 10
+    $perTableSorted = @($perTable | Sort-Object -Property MonthlyCost -Descending)
+    $top10 = $perTableSorted | Select-Object -First 10
 
     # Commitment-tier what-if — only meaningful for PerGB2018 workspaces.
     $commitmentWhatIf = @()
@@ -248,6 +249,7 @@ function Get-SentinelCostEstimate {
         AsOfUtc                   = $asOfUtc
         ByPlan                    = $byPlan
         Top10TablesByCost         = @($top10)
+        AllTablesByCost           = @($perTableSorted)
         CommitmentTierWhatIf      = @($commitmentWhatIf)
         DedicatedClusterCandidate = $clusterCandidate
         Caveats                   = $caveats
