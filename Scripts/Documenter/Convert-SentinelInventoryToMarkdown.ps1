@@ -3009,26 +3009,36 @@ stateDiagram-v2
 ## Analyst journey — typical high-severity incident
 
 ``````mermaid
+---
+config:
+  journey:
+    diagramMarginX: 60
+    diagramMarginY: 30
+    leftMargin: 160
+    width: 220
+    height: 80
+    taskFontSize: 12
+---
 journey
     title Analyst journey — typical high-severity incident
     section Alert created
-        Alert fires from Sentinel rule: 5: Sentinel
-        Incident created with severity + tactics: 5: Sentinel
+        Alert fires: 5: Sentinel
+        Incident created: 5: Sentinel
     section Triage
-        Notification reaches SOC channel: 4: Teams
-        Analyst opens incident in Defender portal: 4: Analyst
-        Read entity timelines + linked alerts: 3: Analyst
-        Pivot to KQL hunt for additional context: 2: Analyst
+        Notify SOC channel: 4: Teams
+        Open incident: 4: Analyst
+        Read entity timelines: 3: Analyst
+        KQL hunt for context: 2: Analyst
     section Investigation
-        Identify scope of compromise: 2: Analyst
-        Run playbook for user-risk enrichment: 4: Playbook
-        Decide remediation approach: 3: Analyst, Lead
+        Identify scope: 2: Analyst
+        Run enrichment playbook: 4: Playbook
+        Decide remediation: 3: Analyst, Lead
     section Resolution
         Apply remediation: 3: Analyst
-        Document timeline + close incident: 4: Analyst
+        Document + close: 4: Analyst
 ``````
 
-Dips at "Pivot to KQL hunt" and "Identify scope of compromise" mark the SOC pain points. Workspaces firing [SENT-034] (no automation) see steeper dips because every step is manual.
+Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Workspaces firing [SENT-034] (no automation) see steeper dips because every step is manual.
 
 ## Top alerting rules (last 30d, top 25)
 
