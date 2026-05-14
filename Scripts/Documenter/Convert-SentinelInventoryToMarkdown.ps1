@@ -1802,15 +1802,58 @@ For workspaces sustaining > 500 GB/day, [a dedicated cluster](https://learn.micr
 # Section: 83 — data collection
 # ---------------------------------------------------------------------------
 $dces = Read-RawArray 'dces.json'
-$dcrRows = $dcrs | ForEach-Object {
+
+# Split DCRs into in-scope (at least one LA destination targets this
+# workspace) and out-of-scope (targeting other workspaces in the same
+# subscription). The exporter captures DCRs at subscription scope, so
+# without this filter a workspace's report lists every DCR the
+# executing identity can see — even ones that have nothing to do with
+# this workspace, which is confusing.
+function _DcrTargetsWorkspace {
+    param($Dcr, [string]$WorkspaceId)
+    if (-not $WorkspaceId) { return $true }
+    if (-not $Dcr.properties.PSObject.Properties.Name -contains 'destinations' -or -not $Dcr.properties.destinations) { return $false }
+    if (-not $Dcr.properties.destinations.PSObject.Properties.Name -contains 'logAnalytics') { return $false }
+    foreach ($d in @($Dcr.properties.destinations.logAnalytics)) {
+        if ([string]::Equals([string]$d.workspaceResourceId, $WorkspaceId, [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
+    }
+    return $false
+}
+
+$dcrsInScope    = @()
+$dcrsOutOfScope = @()
+foreach ($d in $dcrs) {
+    if (_DcrTargetsWorkspace -Dcr $d -WorkspaceId $workspaceResourceId) { $dcrsInScope += $d } else { $dcrsOutOfScope += $d }
+}
+
+$dcrRows = $dcrsInScope | ForEach-Object {
     $streams = ($_.properties.dataFlows | ForEach-Object { $_.streams } | Sort-Object -Unique) -join ', '
     [pscustomobject]@{
-        Name = $_.name
-        Kind = $_.kind
-        Streams = $streams
+        Name         = $_.name
+        Kind         = $_.kind
+        Streams      = $streams
         HasTransform = if (($_.properties.dataFlows.transformKql) -ne $null) { '✓' } else { '' }
     }
 }
+$dcrOutOfScopeRows = $dcrsOutOfScope | ForEach-Object {
+    # For each out-of-scope DCR, surface which workspace(s) it actually
+    # targets so the reader can see why it's been excluded.
+    $targets = @()
+    if ($_.properties.PSObject.Properties.Name -contains 'destinations' -and $_.properties.destinations) {
+        if ($_.properties.destinations.PSObject.Properties.Name -contains 'logAnalytics') {
+            foreach ($la in @($_.properties.destinations.logAnalytics)) {
+                $wsName = ($la.workspaceResourceId -split '/')[-1]
+                if ($wsName) { $targets += $wsName }
+            }
+        }
+    }
+    [pscustomobject]@{
+        Name      = $_.name
+        Kind      = $_.kind
+        TargetsWs = if ($targets.Count -gt 0) { ($targets | Sort-Object -Unique) -join ', ' } else { '_(no LA destination)_' }
+    }
+}
+
 $dceRows = $dces | ForEach-Object {
     [pscustomobject]@{ Name = $_.name; Location = $_.location }
 }
@@ -1980,7 +2023,18 @@ $dstClassLine
 
 ## DCRs
 
+Only DCRs whose ``destinations.logAnalytics`` includes this workspace appear here. DCRs that live in this subscription but route to other workspaces are excluded from the primary table (see *Other DCRs in subscription* below).
+
 $(Format-Table -Items $dcrRows -Columns 'Name','Kind','Streams','HasTransform')
+
+$(if ($dcrOutOfScopeRows.Count -gt 0) { @"
+
+## Other DCRs in subscription (targeting different workspaces)
+
+These DCRs were captured at subscription scope but their LA destinations point at workspaces other than ``$WorkspaceName``. Useful for cleanup audits (orphaned DCRs from decommissioned workspaces, mis-routed DCRs after a workspace migration, etc.) — not relevant to this workspace's ingestion.
+
+$(Format-Table -Items $dcrOutOfScopeRows -Columns 'Name','Kind','TargetsWs')
+"@ })
 
 ## DCEs
 
