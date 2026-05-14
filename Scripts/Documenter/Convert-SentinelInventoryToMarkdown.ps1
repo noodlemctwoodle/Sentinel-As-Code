@@ -1012,8 +1012,41 @@ $huntingRows = $hunting | ForEach-Object {
         Tags = ($_.properties.tags | ForEach-Object { "$($_.name)=$($_.value)" }) -join ', '
     }
 }
+# Aggregate hunting queries by tactic (parsed from the tactics= tag value).
+$huntByTactic = @{}
+foreach ($h in $hunting) {
+    $tactics = @($h.properties.tags | Where-Object { $_.name -eq 'tactics' } | ForEach-Object { $_.value })
+    if (-not $tactics) { $tactics = @('Untagged') }
+    foreach ($t in $tactics) {
+        # tactics tag can be a comma-separated list
+        foreach ($tac in ($t -split ',')) {
+            $key = $tac.Trim()
+            if (-not $key) { continue }
+            if (-not $huntByTactic.ContainsKey($key)) { $huntByTactic[$key] = 0 }
+            $huntByTactic[$key]++
+        }
+    }
+}
+$huntPieRows = $huntByTactic.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$huntChartBlock = if ($hunting.Count -gt 0 -and $huntPieRows.Count -gt 0) {
+    @"
+
+## Hunting queries by tactic
+
+``````mermaid
+pie showData title Hunting queries by MITRE tactic
+$($huntPieRows -join [Environment]::NewLine)
+``````
+
+$($hunting.Count) hunting query(ies). Tactic distribution reveals where the SOC's free-form investigation library is strongest and where the gaps live.
+"@
+} else { '' }
+
 Write-Section '30-hunting-queries.md' (@"
 $(Format-Banner -Title "Hunting Queries")
+$huntChartBlock
 
 $(Format-Table -Items $huntingRows -Columns 'Name','Tags')
 "@)
@@ -1025,8 +1058,34 @@ $parserRows = $parsers | ForEach-Object {
         Category = $_.properties.category
     }
 }
+
+# Pie of parsers/functions by category.
+$parserByCat = @{}
+foreach ($p in $parserRows) {
+    $c = if ($p.Category) { [string]$p.Category } else { 'Uncategorised' }
+    if (-not $parserByCat.ContainsKey($c)) { $parserByCat[$c] = 0 }
+    $parserByCat[$c]++
+}
+$parserPieRows = $parserByCat.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$parserChartBlock = if ($parserRows.Count -gt 0 -and $parserPieRows.Count -gt 0) {
+    @"
+
+## Parsers by category
+
+``````mermaid
+pie showData title Parsers and functions by category
+$($parserPieRows -join [Environment]::NewLine)
+``````
+
+$($parserRows.Count) parser(s) / function(s). Each entry is a `let`-style KQL definition reusable across rules and hunting queries.
+"@
+} else { '' }
+
 Write-Section '35-parsers-functions.md' (@"
 $(Format-Banner -Title "Parsers and Functions")
+$parserChartBlock
 
 $(Format-Table -Items $parserRows -Columns 'Name','Alias','Category')
 "@)
@@ -1038,8 +1097,19 @@ $workbookTemplates = Read-RawArray 'workbook-templates.json'
 $wbRows = $workbooksSaved | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Category = $_.properties.category }
 }
+$wbUnsaved = [math]::Max(0, $workbookTemplates.Count - $workbooksSaved.Count)
 Write-Section '40-workbooks.md' (@"
 $(Format-Banner -Title "Workbooks")
+
+## Adoption
+
+``````mermaid
+pie showData title Workbook coverage
+    "Saved (deployed)" : $($workbooksSaved.Count)
+    "Available templates not deployed" : $wbUnsaved
+``````
+
+$($workbooksSaved.Count) of $($workbookTemplates.Count) available templates deployed in this workspace. The "templates not deployed" gap is where new visibility opportunities live.
 
 ## Saved workbooks
 
@@ -1057,8 +1127,33 @@ $wlRows = $watchlists | ForEach-Object {
         ItemsSearchKey = $_.properties.itemsSearchKey
     }
 }
+# Watchlists by source for the headline pie.
+$wlBySource = @{}
+foreach ($w in $wlRows) {
+    $s = if ($w.Source) { [string]$w.Source } else { 'Unknown' }
+    if (-not $wlBySource.ContainsKey($s)) { $wlBySource[$s] = 0 }
+    $wlBySource[$s]++
+}
+$wlPieRows = $wlBySource.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$wlChartBlock = if ($wlRows.Count -gt 0) {
+    @"
+
+## Watchlists by source
+
+``````mermaid
+pie showData title Watchlists by source
+$($wlPieRows -join [Environment]::NewLine)
+``````
+
+$($wlRows.Count) watchlist(s) total. A "Local file" source indicates a watchlist seeded from CSV via the portal; "Remote storage" sources poll an external file.
+"@
+} else { '' }
+
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
+$wlChartBlock
 
 $(Format-Table -Items $wlRows -Columns 'Name','Source','ItemsSearchKey')
 
@@ -1384,8 +1479,27 @@ $catalogueOnly = @($workspaceTables | Where-Object {
 })
 $catalogueSample = ($catalogueOnly | Select-Object -First 20 | ForEach-Object { $_.name }) -join ', '
 
+# Plan pie inputs.
+$planPieAnalytics  = ($gbByPlan | Where-Object { $_.Plan -eq 'Analytics' }  | Measure-Object -Property Tables -Sum).Sum
+$planPieBasic      = ($gbByPlan | Where-Object { $_.Plan -eq 'Basic' }      | Measure-Object -Property Tables -Sum).Sum
+$planPieAuxiliary  = ($gbByPlan | Where-Object { $_.Plan -eq 'Auxiliary' }  | Measure-Object -Property Tables -Sum).Sum
+if (-not $planPieAnalytics) { $planPieAnalytics = 0 }
+if (-not $planPieBasic)     { $planPieBasic = 0 }
+if (-not $planPieAuxiliary) { $planPieAuxiliary = 0 }
+
 $tablePlansBody = @"
 $(Format-Banner -Title "Table Plans, Retention and Activity")
+
+## Plan adoption
+
+``````mermaid
+pie showData title Operational tables by plan
+    "Analytics" : $planPieAnalytics
+    "Basic" : $planPieBasic
+    "Auxiliary" : $planPieAuxiliary
+``````
+
+[SENT-016] flags high-volume Analytics tables that could move to Basic / Auxiliary for cost savings; this chart shows the current tier distribution at a glance.
 
 The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it — typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
 
@@ -1843,6 +1957,30 @@ $polRows = $policies | ForEach-Object {
     [pscustomobject]@{ Name = $name; Scope = $scope }
 }
 
+# Resource-provider registration-state pie for the headline.
+$rpStateCounts = @{}
+foreach ($r in $rpRows) {
+    $s = if ($r.State) { [string]$r.State } else { 'Unknown' }
+    if (-not $rpStateCounts.ContainsKey($s)) { $rpStateCounts[$s] = 0 }
+    $rpStateCounts[$s]++
+}
+$rpPieRows = $rpStateCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$rpChartBlock = if ($rpRows.Count -gt 0) {
+    @"
+
+## Resource-provider registration state
+
+``````mermaid
+pie showData title Required resource providers — registration state
+$($rpPieRows -join [Environment]::NewLine)
+``````
+
+[SENT-022] fires whenever any required provider is not in the `Registered` state. The pie surfaces that ratio at a glance.
+"@
+} else { '' }
+
 Write-Section '86-subscription-context.md' (@"
 $(Format-Banner -Title "Subscription and Tenant Context")
 
@@ -1854,6 +1992,7 @@ $(Format-Banner -Title "Subscription and Tenant Context")
 | ID   | ``$($sub.Id)`` |
 | Tenant ID | ``$($sub.TenantId)`` |
 | State | $($sub.State) |
+$rpChartBlock
 
 ## Resource providers
 
@@ -2074,10 +2213,35 @@ $laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
 } else {
     '_LAQueryLogs table is not populated; query logging diagnostics are not configured._'
 }
+# Chart inputs: bucket health events by Status across all operations.
+$healthByStatus = @{}
+foreach ($r in $healthSummary) {
+    $s = if ($r.Status) { [string]$r.Status } else { 'Unknown' }
+    if (-not $healthByStatus.ContainsKey($s)) { $healthByStatus[$s] = 0 }
+    $healthByStatus[$s] += [int]$r.LogCount
+}
+$healthPieRows = $healthByStatus.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$healthChartBlock = if ($healthSummary.Count -gt 0) {
+    @"
+
+## Health-event status mix
+
+``````mermaid
+pie showData title SentinelHealth events by status (last 7d)
+$($healthPieRows -join [Environment]::NewLine)
+``````
+
+Mostly-Success workspaces are operating cleanly. A non-trivial Failure / PartialSuccess slice means a Sentinel resource (rule, connector) has misfired recently.
+"@
+} else { '' }
+
 Write-Section '11-sentinel-health.md' (@"
 $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
+$healthChartBlock
 
 $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Statuses','LastEvent')
 
@@ -2119,10 +2283,35 @@ $socOther   = $socOpt | Where-Object { $_.properties.recommendationTypeId -notin
         Description  = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
     }
 }
+# Chart input: bucket recommendations by category for the headline pie.
+$socCategoryCounts = [ordered]@{
+    'Coverage' = $socCovRows.Count
+    'Data Value' = $socDvRows.Count
+    'Other' = $socOther.Count
+}
+$socPieRows = $socCategoryCounts.GetEnumerator() | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$socTotal = $socCategoryCounts.Values | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+$socChartBlock = if ($socTotal -gt 0) {
+    @"
+
+## Recommendation mix
+
+``````mermaid
+pie showData title SOC Optimization recommendations by category
+$($socPieRows -join [Environment]::NewLine)
+``````
+
+$socTotal recommendations grouped by what action they drive. Coverage = onboard content; Data Value = tune ingestion; Other = MITRE tagging, UEBA, customers-like-me.
+"@
+} else { '' }
+
 Write-Section '12-soc-optimization.md' (@"
 $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
+$socChartBlock
 
 > Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
 
@@ -2164,10 +2353,35 @@ $topEventIdRows = $topEventIds | ForEach-Object {
     [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; BilledSizeGB = $_.BilledSizeGB }
 }
 
+# Aggregate CEF logs by DeviceVendor for the headline pie.
+$cefByVendor = @{}
+foreach ($r in $cefDevices) {
+    $v = if ($r.DeviceVendor) { [string]$r.DeviceVendor } else { 'Unknown' }
+    if (-not $cefByVendor.ContainsKey($v)) { $cefByVendor[$v] = 0 }
+    $cefByVendor[$v] += [int]$r.LogCount
+}
+$cefPieRows = $cefByVendor.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 6 | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$cefChartBlock = if ($cefDevices.Count -gt 0) {
+    @"
+
+## CEF vendor mix
+
+``````mermaid
+pie showData title CommonSecurityLog by DeviceVendor (last 7d)
+$($cefPieRows -join [Environment]::NewLine)
+``````
+
+A single vendor dominating means CEF ingestion is mostly that source — likely a candidate for SENT-043 (`_CL` split) if volume is high.
+"@
+} else { '' }
+
 Write-Section '13-data-source-hygiene.md' (@"
 $(Format-Banner -Title "Data Source Hygiene")
 
 Operational data-quality findings that drive ingestion-tuning actions: misrouted records, agent dual-collection, and noisy event types. Each table is independent and may show ``_None._`` when the workspace has nothing to report against that check.
+$cefChartBlock
 
 ## CEF devices (last 7d)
 
@@ -2210,10 +2424,38 @@ $azDiagRows = $azDiag | ForEach-Object {
 $xdrRows = $xdrPres | ForEach-Object {
     [pscustomobject]@{ Table = $_.Type; RecordCount = $_.RecordCount }
 }
+# XDR-table-presence inputs for the bar chart. Short-label-axis with full
+# names in the table below.
+$xdrChartBlock = if ($xdrPres.Count -gt 0) {
+    $xdrAxis = ($xdrRows | Select-Object -First 12 | ForEach-Object {
+        $n = $_.Table
+        $s = if ($n.Length -gt 12) { $n.Substring(0,12) } else { $n }
+        "`"$s`""
+    }) -join ', '
+    $xdrBars = ($xdrRows | Select-Object -First 12 | ForEach-Object { [int]$_.RecordCount }) -join ', '
+    $xdrYmax = 1
+    foreach ($r in $xdrRows | Select-Object -First 12) { if ([int]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [int]$r.RecordCount } }
+    @"
+
+## XDR table activity (last 7d)
+
+``````mermaid
+xychart-beta
+    title "Defender XDR tables — records ingested last 7d"
+    x-axis [$xdrAxis]
+    y-axis "Records" 0 --> $($xdrYmax + ([math]::Ceiling($xdrYmax * 0.1)))
+    bar [$xdrBars]
+``````
+
+A short bar means that XDR surface (email / device / identity / cloud-app) isn't producing data. Bar at 0 = the workspace's XDR connector is silent for that table — investigate or accept (some XDR products gate certain tables behind licensing).
+"@
+} else { '' }
+
 Write-Section '14-coverage-breakdowns.md' (@"
 $(Format-Banner -Title "Coverage Breakdowns")
 
 Per-source coverage gaps revealed by direct table queries. A subscription, resource provider, or XDR table missing from these tables is a coverage gap to triage.
+$xdrChartBlock
 
 ## AzureActivity — per-subscription (last 7d)
 
@@ -2360,10 +2602,41 @@ Write-Section '15-incidents.md' $incidentBody
 
 # Section 21 — Rules by alert volume (TOC 4.11.2)
 $ruleVolumes = Read-RawArray 'analytics-rule-volumes.json'
+$volChartBlock = if ($ruleVolumes.Count -gt 0) {
+    $top10 = $ruleVolumes | Select-Object -First 10
+    $volAxis = ($top10 | ForEach-Object {
+        $n = $_.AlertName
+        # Use first significant word, max 12 chars, no parens
+        $clean = ($n -replace '\(.*?\)', '' -replace '\[.*?\]', '').Trim()
+        $words = $clean -split '\s+'
+        $label = if ($words.Count -gt 0) { $words[0] } else { 'rule' }
+        if ($label.Length -gt 12) { $label = $label.Substring(0,12) }
+        "`"$label`""
+    }) -join ', '
+    $volBars = ($top10 | ForEach-Object { [int]$_.Alerts }) -join ', '
+    $volMax = 1
+    foreach ($r in $top10) { if ([int]$r.Alerts -gt $volMax) { $volMax = [int]$r.Alerts } }
+    @"
+
+## Top 10 noisy rules — alert volume
+
+``````mermaid
+xychart-beta
+    title "Top 10 alerting rules — alert count (last 30d)"
+    x-axis [$volAxis]
+    y-axis "Alerts" 0 --> $($volMax + ([math]::Ceiling($volMax * 0.1) + 1))
+    bar [$volBars]
+``````
+
+Short labels chart-axis-only — full rule names in the table below. A single tall bar usually means a tuning candidate (over-broad threshold, missing suppression).
+"@
+} else { '' }
+
 Write-Section '21-analytics-by-volume.md' (@"
 $(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
 
 The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
+$volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 "@)
@@ -2374,10 +2647,35 @@ $msRules = @($rules | Where-Object {
     $tn = $_.properties.alertRuleTemplateName
     ($tn -and ($tn -match '^[a-f0-9-]{36}$')) -or ($kind -in @('Fusion','MicrosoftSecurityIncidentCreation','MLBehaviorAnalytics','ThreatIntelligence'))
 })
+# Microsoft rules by severity for the headline pie.
+$msSevCounts = @{ 'High' = 0; 'Medium' = 0; 'Low' = 0; 'Informational' = 0 }
+foreach ($r in $msRules) {
+    $sev = if ($r.properties.severity) { [string]$r.properties.severity } else { 'Unknown' }
+    if (-not $msSevCounts.ContainsKey($sev)) { $msSevCounts[$sev] = 0 }
+    $msSevCounts[$sev]++
+}
+$msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | Sort-Object Value -Descending | ForEach-Object {
+    "    `"$($_.Key)`" : $($_.Value)"
+}
+$msChartBlock = if ($msRules.Count -gt 0) {
+    @"
+
+## Microsoft rules by severity
+
+``````mermaid
+pie showData title Microsoft-managed rules by severity
+$($msPieRows -join [Environment]::NewLine)
+``````
+
+$($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm — these rules are pre-tuned by Microsoft.
+"@
+} else { '' }
+
 Write-Section '22-analytics-microsoft-rules.md' (@"
 $(Format-Banner -Title "Microsoft Security Rules  (TOC 4.11.3)")
 
 Rules backed by a Microsoft template, or built-in Microsoft-managed kinds (Fusion, MicrosoftSecurityIncidentCreation, MLBehaviorAnalytics, ThreatIntelligence). These are not user-editable; tuning is via enable/disable and the per-rule incident-grouping config.
+$msChartBlock
 
 $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.properties.displayName; Severity = $_.properties.severity; Enabled = if ($_.properties.enabled) {'Yes'} else {'No'} } }) -Columns 'Kind','Name','Severity','Enabled')
 "@)
@@ -2395,8 +2693,42 @@ $modifiedRows = $rules | ForEach-Object {
         Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
     }
 } | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending | Select-Object -First 50
+# Modifications-per-month bar over the last 12 months.
+$monthBuckets = [ordered]@{}
+$now = (Get-Date).ToUniversalTime()
+for ($i = 11; $i -ge 0; $i--) {
+    $m = $now.AddMonths(-$i)
+    $key = $m.ToString('yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)
+    $monthBuckets[$key] = 0
+}
+foreach ($r in $rules) {
+    $lm = if ($r.properties -and ($r.properties.PSObject.Properties.Name -contains 'lastModifiedUtc')) { $r.properties.lastModifiedUtc } else { $null }
+    if (-not $lm) { continue }
+    $parsed = [datetime]::MinValue
+    if ($lm -is [datetime]) { $parsed = $lm }
+    elseif (-not [datetime]::TryParse([string]$lm, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { continue }
+    $key = $parsed.ToUniversalTime().ToString('yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)
+    if ($monthBuckets.Contains($key)) { $monthBuckets[$key]++ }
+}
+$modAxis = ($monthBuckets.Keys | ForEach-Object { "`"$($_.Substring(5,2))`"" }) -join ', '
+$modBars = ($monthBuckets.Values) -join ', '
+$modMax = 1
+foreach ($v in $monthBuckets.Values) { if ($v -gt $modMax) { $modMax = $v } }
+
 Write-Section '23-analytics-modifications.md' (@"
 $(Format-Banner -Title "Analytics Rules — Recent Modifications  (TOC 4.11.4)")
+
+## Modifications per month (last 12 months)
+
+``````mermaid
+xychart-beta
+    title "Rule modifications per month — last 12 months"
+    x-axis [$modAxis]
+    y-axis "Modifications" 0 --> $($modMax + 1)
+    bar [$modBars]
+``````
+
+Each bar is one calendar month (MM). Tempo reveals release cadence — sustained months at zero suggest abandoned content; periodic spikes usually align with vendor content-pack updates.
 
 The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Scripts/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
@@ -2421,8 +2753,34 @@ $bySolution = $rules | ForEach-Object {
         Severity = $_.properties.severity
     }
 } | Sort-Object Solution, Rule
+# Top solutions by rule count (top 8 + Other) for the headline pie.
+$solCounts = @{}
+foreach ($r in $bySolution) {
+    $s = if ($r.Solution) { [string]$r.Solution } else { 'Unknown' }
+    if (-not $solCounts.ContainsKey($s)) { $solCounts[$s] = 0 }
+    $solCounts[$s]++
+}
+$topSols = $solCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8
+$otherSolCount = 0
+$counted = 0
+foreach ($e in $solCounts.GetEnumerator()) { $counted += $e.Value }
+$top8Sum = ($topSols | ForEach-Object { $_.Value } | Measure-Object -Sum).Sum
+$otherSolCount = $counted - $top8Sum
+
+$solPieRows = $topSols | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }
+if ($otherSolCount -gt 0) { $solPieRows += "    `"Other`" : $otherSolCount" }
+
 Write-Section '24-analytics-by-solution.md' (@"
 $(Format-Banner -Title "Analytics Rules — by Content Solution  (TOC 4.11.5)")
+
+## Top contributing solutions
+
+``````mermaid
+pie showData title Analytics rules by Content Hub solution (top 8)
+$($solPieRows -join [Environment]::NewLine)
+``````
+
+$($solCounts.Count) distinct solution(s) contributing $counted total rule(s). A heavy long-tail "(custom or unmapped)" slice usually means repo-deployed content not registered against any Content Hub solution.
 
 Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association — typically repo-deployed custom rules.
 
@@ -2456,6 +2814,24 @@ $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
 } else {
     'No — none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last 12 days'
 }
+# Pie of rows per UEBA table when there's something to chart.
+$uebaPiePresenceBlock = if ($uebaPresenceRows.Count -gt 0 -and $uebaTotalRows -gt 0) {
+    $uebaPieRows = $uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 } | ForEach-Object {
+        "    `"$($_.Table)`" : $([int]$_.Rows12d)"
+    }
+    @"
+
+## UEBA table activity (last 12d)
+
+``````mermaid
+pie showData title UEBA rows by table (last 12 days)
+$($uebaPieRows -join [Environment]::NewLine)
+``````
+
+A workspace producing data in BehaviorAnalytics + IdentityInfo + UserPeerAnalytics has the full UEBA pipeline active. A single-table dominance suggests one anchor source feeding the rest.
+"@
+} else { '' }
+
 $uebaPresenceBlock = if ($uebaPresenceRows.Count -gt 0) {
     @"
 
@@ -2474,7 +2850,7 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 | Configuration | $uebaConfigLabel |
 | Data sources (configured) | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none configured via the settings resource)_' }) |
 | Producing data | $uebaActiveLabel |
-$uebaPresenceBlock
+$uebaPiePresenceBlock$uebaPresenceBlock
 [Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
 "@)
 
@@ -2546,12 +2922,30 @@ $tiTypeBlock = if ($tiTypeRows.Count -gt 0 -and ($tiTypeRows | Measure-Object -P
 $(Format-Table -Items $tiTypeRows -Columns 'ThreatType','IndicatorCount')
 "@
 } else { '' }
+# Pie of TI sources (top 6 + Other).
+$tiPieBlock = if ($tiRows -and ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
+    $top6Sources = @($tiRows) | Select-Object -First 6
+    $tiPieRows = $top6Sources | ForEach-Object {
+        "    `"$($_.SourceSystem)`" : $([int]$_.IndicatorCount)"
+    }
+    @"
+
+## Indicator distribution by source
+
+``````mermaid
+pie showData title TI indicators by source
+$($tiPieRows -join [Environment]::NewLine)
+``````
+"@
+} else { '' }
+
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
 Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
 
 $tiHeadline
+$tiPieBlock
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
 $tiTypeBlock
@@ -2632,11 +3026,28 @@ $brokenSummary = @($summaryRows | Where-Object { $_.Active -eq 'No' -or $_.Statu
 $summaryWarning = if ($brokenSummary.Count -gt 0) {
     "`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column — `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
 } else { '' }
+# Active vs Errored pie (only when there's something to chart).
+$summaryActiveCount = @($summaryRows | Where-Object { $_.Active -eq 'Yes' -and $_.Status -eq 'Ok' }).Count
+$summaryBrokenCount = @($summaryRows | Where-Object { $_.Active -ne 'Yes' -or $_.Status -ne 'Ok' }).Count
+$summaryChartBlock = if ($summaryRows.Count -gt 0) {
+    @"
+
+## Health
+
+``````mermaid
+pie showData title Summary rules — health
+    "Active & Ok" : $summaryActiveCount
+    "Inactive or errored" : $summaryBrokenCount
+``````
+"@
+} else { '' }
+
 Write-Section '38-summary-rules.md' (@"
 $(Format-Banner -Title "Summary Rules  (TOC 4.3.5)")
 
 Summary rules pre-aggregate high-volume tables on a schedule into a derived table. They cut query cost on noisy data.
-$summaryWarning
+$summaryWarning$summaryChartBlock
+
 $(Format-Table -Items $summaryRows -Columns 'Name','RuleType','DestinationTable','BinSize','TimeSelector','Active','Status')
 
 [Summary rules (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/summary-rules)
@@ -2665,10 +3076,42 @@ $migrationRows = $migration | ForEach-Object {
         MigrationStatus = $_.MigrationStatus
     }
 }
+# Chart inputs. When the total agent count is < 3 the renderer skips the
+# chart entirely — 1-vs-0 splits are visually meaningless. Otherwise emit
+# a grouped bar with AMA and MMA per machine type.
+$totalAgents = 0
+foreach ($r in $migrationRows) { $totalAgents += [int]$r.MachineCount }
+$agentChartBlock = if ($totalAgents -ge 3 -and $migrationRows.Count -gt 0) {
+    $mtAxis = ($migrationRows | ForEach-Object { "`"$($_.MachineType)`"" }) -join ', '
+    $amaArr = ($migrationRows | ForEach-Object { [int]$_.AMACount }) -join ', '
+    $mmaArr = ($migrationRows | ForEach-Object { [int]$_.MMACount }) -join ', '
+    $yMax = 1
+    foreach ($r in $migrationRows) {
+        $t = [int]$r.AMACount + [int]$r.MMACount
+        if ($t -gt $yMax) { $yMax = $t }
+    }
+    @"
+
+``````mermaid
+xychart-beta
+    title "Agent fleet — AMA vs MMA per machine type"
+    x-axis [$mtAxis]
+    y-axis "Machines" 0 --> $($yMax + 1)
+    bar [$amaArr]
+    bar [$mmaArr]
+``````
+
+Two bars per machine type — AMA first, MMA second. A workspace mid-migration shows MMA bars sitting alongside AMA; a fully-migrated workspace has zero MMA bars across the board.
+"@
+} else {
+    "`n> **Agent migration:** $totalAgents agent(s) heartbeating; chart suppressed because the count is too small for a meaningful visual. The migration-status table below carries the per-machine detail."
+}
+
 Write-Section '87-azure-monitor-agents.md' (@"
 $(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
 
 Agents heartbeating into the workspace over the last 7 days, derived from the ``Heartbeat`` table. Each row is a distinct ``SourceComputerId``.
+$agentChartBlock
 
 $(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','LastSeen')
 
