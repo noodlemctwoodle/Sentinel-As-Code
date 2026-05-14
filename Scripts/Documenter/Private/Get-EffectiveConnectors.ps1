@@ -81,8 +81,14 @@ function Get-EffectiveConnectors {
         $lastIngested = ''
         if ($table -and $tablesByName.ContainsKey($table)) {
             $r = $tablesByName[$table]
-            if ($null -ne $r.BillableLast24h) { $last24h = [string]$r.BillableLast24h }
-            if ($r.LastIngested) { $lastIngested = [string]$r.LastIngested }
+            # Format helpers live in the renderer; degrade gracefully when
+            # invoked from a test context that doesn't dot-source them.
+            if ($null -ne $r.BillableLast24h) {
+                $last24h = if (Get-Command Format-Gb -ErrorAction SilentlyContinue) { Format-Gb $r.BillableLast24h } else { [string]$r.BillableLast24h }
+            }
+            if ($r.LastIngested) {
+                $lastIngested = if (Get-Command Format-DateUtc -ErrorAction SilentlyContinue) { Format-DateUtc $r.LastIngested } else { [string]$r.LastIngested }
+            }
         }
         $rows.Add([pscustomobject]@{
             Source       = $source

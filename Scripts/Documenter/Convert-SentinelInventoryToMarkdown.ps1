@@ -120,10 +120,44 @@ function Write-Section([string]$FileName, [string]$Body) {
     Write-Information "  ↳ rendered $FileName"
 }
 
+function Format-DateUtc {
+    # Renders any datetime-ish input (string ISO, [datetime]) as
+    # `yyyy-MM-dd HH:mm` — locale-invariant, seconds dropped to reduce
+    # column width. Empty / null / unparseable inputs return ''.
+    param($Value)
+    if ($null -eq $Value) { return '' }
+    if ($Value -is [datetime]) {
+        return $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    $s = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+    $parsed = [datetime]::MinValue
+    if ([datetime]::TryParse($s, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+        return $parsed.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    return $s
+}
+
+function Format-Gb {
+    # Renders any numeric-ish input as a GB value to 3 decimal places.
+    # Values below 0.001 GB render as `<0.001` so a meaningful "non-zero
+    # but tiny" signal isn't lost to rounding. Empty / null / non-numeric
+    # inputs return ''.
+    param($Value)
+    if ($null -eq $Value) { return '' }
+    $s = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+    $d = 0.0
+    if (-not [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $s }
+    if ($d -eq 0) { return '0' }
+    if ($d -gt 0 -and $d -lt 0.001) { return '<0.001' }
+    return $d.ToString('0.###', [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Format-Banner {
     param([string]$Title)
     $run = Read-Raw 'run-context.json'
-    $started = if ($run) { $run.StartedAtUtc } else { '' }
+    $started = if ($run) { Format-DateUtc $run.StartedAtUtc } else { '' }
     @"
 # $Title
 
@@ -255,7 +289,7 @@ $(Format-Banner -Title "Microsoft Sentinel Workspace — Overview")
 ## Estimated monthly cost
 
 $(if ($cost) {
-"**$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, computed from the last 30 days of `Usage` against the Azure Retail Prices API on $($cost.AsOfUtc). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
+"**$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, computed from the last 30 days of `Usage` against the Azure Retail Prices API on $(Format-DateUtc $cost.AsOfUtc). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
 } else { '_Cost estimate not available._' })
 
 ## Top findings
@@ -464,8 +498,8 @@ $healthRows = foreach ($c in $connectors) {
         $last24h = ''
         if ($table -and $tablesByName.ContainsKey($table)) {
             $row = $tablesByName[$table]
-            if ($row.LastIngested) { $lastIngested = [string]$row.LastIngested }
-            if ($null -ne $row.BillableLast24h) { $last24h = [string]$row.BillableLast24h }
+            if ($row.LastIngested) { $lastIngested = Format-DateUtc $row.LastIngested }
+            if ($null -ne $row.BillableLast24h) { $last24h = Format-Gb $row.BillableLast24h }
         }
         [pscustomobject]@{
             Connector    = $title
@@ -969,7 +1003,7 @@ $(Format-Banner -Title "Workspace Inventory")
 | Property | Value |
 |---|---|
 | Resource ID | ``$($workspace.id)`` |
-| Created | $wsCreated |
+| Created | $(Format-DateUtc $wsCreated) |
 | Age | $(if ($null -ne $wsAgeDays) { "$wsAgeDays days$wsAgeWarning" } else { '_(unknown)_' }) |
 | Default DCR | $(if ($wsDefaultDcr) { "``$wsDefaultDcr``" } else { '_(none set on the workspace)_' }) |
 
@@ -1062,7 +1096,7 @@ $tableRows = foreach ($t in $operationalTables) {
         Type = $t.properties.schema.tableType
         Gb90d = if ($usage) { [math]::Round([double]$usage.BillableLast90d, 2) } else { 0 }
         Last24h = if ($usage -and [double]$usage.BillableLast24h -gt 0) { '✓' } else { '' }
-        LastIngested = if ($usage) { $usage.LastIngested } else { '' }
+        LastIngested = if ($usage) { Format-DateUtc $usage.LastIngested } else { '' }
     }
 }
 
@@ -1221,7 +1255,7 @@ $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
 @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
-> **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, based on the last 30 days of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$($cost.AsOfUtc)``.
+> **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, based on the last 30 days of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
 
 ## By plan
 
@@ -1454,7 +1488,7 @@ $healthRows = $health | ForEach-Object {
         Type     = $_.SentinelResourceType
         Events   = $_.Events
         Statuses = ($_.Statuses -join ', ')
-        LastEvent= $_.LastEvent
+        LastEvent= Format-DateUtc $_.LastEvent
     }
 }
 $healthSummary = Read-RawArray 'sentinel-health-summary.json'
@@ -1717,13 +1751,15 @@ $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.
 "@)
 
 # Section 23 — Modifications (TOC 4.11.4)
+# Sort uses ISO-formatted strings — ISO 8601 sorts lexically in the same
+# order as chronologically, so Format-DateUtc output preserves ordering.
 $modifiedRows = $rules | ForEach-Object {
     $lm = $null
     if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'lastModifiedUtc')) { $lm = $_.properties.lastModifiedUtc }
     [pscustomobject]@{
         Name = $_.properties.displayName
         Kind = $_.kind
-        LastModified = $lm
+        LastModified = Format-DateUtc $lm
         Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
     }
 } | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending | Select-Object -First 50
@@ -1982,7 +2018,7 @@ $agentRows = $amaAgents | ForEach-Object {
         OS        = $_.OS
         Version   = $_.Version
         Resource  = $_.Resource
-        LastSeen  = $_.LastHeartbeat
+        LastSeen  = Format-DateUtc $_.LastHeartbeat
     }
 }
 
@@ -2088,7 +2124,7 @@ if (Test-Path $refSrc) {
 $indexBody = @"
 # $WorkspaceName — Sentinel Documentation Index
 
-Generated $($run.StartedAtUtc) UTC by Sentinel Documenter v$($run.DocumenterVersion).
+Generated $(Format-DateUtc $run.StartedAtUtc) UTC by Sentinel Documenter v$($run.DocumenterVersion).
 
 Sections are numbered to match the formal Sentinel Configuration TOC where applicable. Customer-narrative sections (architectural diagrams, SOC operational processes, the licensing inventory) are intentionally not auto-generated — supply those separately.
 
