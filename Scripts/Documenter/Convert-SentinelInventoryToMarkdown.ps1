@@ -128,21 +128,32 @@ function Write-Section([string]$FileName, [string]$Body) {
     # preserved — the lookarounds skip anything already followed by `](`.
     $relTarget = if ($FileName -eq '90-gap-analysis.md') { '' } else { '90-gap-analysis.md' }
 
-    # Pass 1: bracketed-but-unlinked IDs.
-    $body = [regex]::Replace($body, '\[(SENT-\d{3,})\](?!\()', {
-        param($m)
-        $id = $m.Groups[1].Value
-        "[$id]($relTarget#$($id.ToLower()))"
-    })
-
-    # Pass 2: bare IDs not preceded by `[`, `(`, `#`, or `-` and not
-    # followed by `]` or `)`. The leading `-` exclusion guards against
-    # future composite IDs like `SENT-AUTH-001`.
-    $body = [regex]::Replace($body, '(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])', {
-        param($m)
-        $id = $m.Groups[1].Value
-        "[$id]($relTarget#$($id.ToLower()))"
-    })
+    # Walk the body line-by-line, tracking fenced-code state. Auto-link only
+    # outside fences — references inside ```mermaid / ```kusto / etc must
+    # render literally (Mermaid `click` directives in 85-rbac use SENT-NNN
+    # in their tooltips and break if rewritten).
+    $sb = New-Object System.Text.StringBuilder
+    $inFence = $false
+    foreach ($line in ($body -split "(`r?`n)")) {
+        if ($line -match '^\s*```') { $inFence = -not $inFence; [void]$sb.Append($line); continue }
+        if ($inFence) { [void]$sb.Append($line); continue }
+        # Pass 1: bracketed-but-unlinked IDs.
+        $line = [regex]::Replace($line, '\[(SENT-\d{3,})\](?!\()', {
+            param($m)
+            $id = $m.Groups[1].Value
+            "[$id]($relTarget#$($id.ToLower()))"
+        })
+        # Pass 2: bare IDs not preceded by `[`, `(`, `#`, or `-` and not
+        # followed by `]` or `)`. The leading `-` exclusion guards against
+        # future composite IDs like `SENT-AUTH-001`.
+        $line = [regex]::Replace($line, '(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])', {
+            param($m)
+            $id = $m.Groups[1].Value
+            "[$id]($relTarget#$($id.ToLower()))"
+        })
+        [void]$sb.Append($line)
+    }
+    $body = $sb.ToString()
     Set-Content -Path $target -Value $body -Encoding UTF8
     Write-Information "  ↳ rendered $FileName"
 }
@@ -1880,6 +1891,7 @@ foreach ($r in $rbacWs) {
 
 $principalNodes = @()
 $principalEdges = @()
+$principalClicks = @()
 $prinIdx = 0
 foreach ($role in $rolesSeen) {
     foreach ($t in @('User', 'Group', 'ServicePrincipal')) {
@@ -1888,8 +1900,13 @@ foreach ($role in $rolesSeen) {
         $prinIdx++
         $prinId = "P$prinIdx"
         $principalNodes += "        $prinId[$n $t$(if ($n -gt 1) { 's' })]"
-        $edge = if ($role -in @('Owner', 'Contributor')) { "$prinId -.->|⚠| $($roleIdMap[$role])" } else { "$prinId --> $($roleIdMap[$role])" }
-        $principalEdges += "    $edge"
+        if ($role -in @('Owner', 'Contributor')) {
+            $sentId = if ($t -eq 'ServicePrincipal') { 'sent-039' } else { 'sent-009' }
+            $principalEdges += "    $prinId -.->|broad| $($roleIdMap[$role])"
+            $principalClicks += "    click $prinId href ""90-gap-analysis.md#$sentId"" ""$($sentId.ToUpper()) — broad role recommendation"""
+        } else {
+            $principalEdges += "    $prinId --> $($roleIdMap[$role])"
+        }
     }
 }
 
@@ -1920,6 +1937,7 @@ $(($rolesSeen | ForEach-Object {
     if ($_ -in @('Owner', 'Contributor')) { "    class $($roleIdMap[$_]) broadRole" }
     elseif ($_ -like 'Microsoft Sentinel*') { "    class $($roleIdMap[$_]) sentinelRole" }
 }) -join [Environment]::NewLine)
+$($principalClicks -join [Environment]::NewLine)
 ``````
 
 ## At workspace scope
@@ -2440,6 +2458,12 @@ $xdrChartBlock = if ($xdrPres.Count -gt 0) {
 ## XDR table activity (last 7d)
 
 ``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 480
+---
 xychart-beta
     title "Defender XDR tables — records ingested last 7d"
     x-axis [$xdrAxis]
