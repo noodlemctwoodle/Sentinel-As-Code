@@ -1502,6 +1502,56 @@ if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollect
 # "yyyy-MM-dd HH:mm" — the timeline expects just date so we split on space.
 $wsCreatedShort = if ($wsCreated) { (Format-DateUtc $wsCreated).Split(' ')[0] } else { 'unknown' }
 $todayShort = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+
+# Build the workspace + platform history timeline as a sorted list.
+# Mermaid `timeline` renders entries in source order — without an
+# explicit chronological sort the entries appeared in the order they
+# were declared in the heredoc, not by date. Each entry is a hashtable
+# with Date (yyyy-MM-dd) and Lines (one or more colon-suffixed strings).
+# Platform deprecation events pre-dating the workspace's creation are
+# filtered out — they're irrelevant historical context for a new
+# workspace (e.g. a 2026-created workspace doesn't need an MMA-retired
+# bullet from 2024).
+$timelineEvents = @()
+$timelineEvents += [pscustomobject]@{
+    Date  = $wsCreatedShort
+    Lines = @(
+        "Workspace created ($($workspace.properties.sku.name), $($workspace.properties.retentionInDays)d retention)",
+        "First captured connector inventory"
+    )
+}
+$timelineEvents += [pscustomobject]@{ Date = '2024-08-31'; Lines = @('Microsoft MMA / OMS retired') }
+$timelineEvents += [pscustomobject]@{ Date = '2025-02-01'; Lines = @('MMA ingestion degraded') }
+$timelineEvents += [pscustomobject]@{ Date = '2025-07-31'; Lines = @('Legacy ThreatIntelligenceIndicator ingestion stopped') }
+# Tables-in-use: operational subset (tables that have received billable
+# data in 90 days, plus CustomLog tables). The 800+ Microsoft-defined
+# schemas the workspace never ingested are catalogue, not deployment —
+# surfaced as a separate number to avoid misreading "836 tables in
+# catalogue" as "836 tables in use".
+$timelineEvents += [pscustomobject]@{
+    Date  = $todayShort
+    Lines = @(
+        "This documentation generated ($wsAgeDays-day-old workspace)",
+        "$($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($operationalTables.Count) tables receiving data ($($workspaceTables.Count) in catalogue)"
+    )
+}
+$timelineEvents += [pscustomobject]@{ Date = '2026-09-14'; Lines = @('HTTP Data Collector API retires — verify no _CL tables affected') }
+$timelineEvents += [pscustomobject]@{ Date = '2027-03-31'; Lines = @('Sentinel Azure portal retires (forced Defender XDR move)') }
+
+if ($wsCreatedShort -ne 'unknown') {
+    $timelineEvents = @($timelineEvents | Where-Object { $_.Date -ge $wsCreatedShort })
+}
+$timelineEvents = @($timelineEvents | Sort-Object Date)
+
+$timelineBody = ($timelineEvents | ForEach-Object {
+    $lines = @($_.Lines)
+    $first = "    $($_.Date) : $($lines[0])"
+    if ($lines.Count -gt 1) {
+        $rest = @($lines[1..($lines.Count - 1)] | ForEach-Object { "                    : $_" })
+        ($first + [Environment]::NewLine + ($rest -join [Environment]::NewLine))
+    } else { $first }
+}) -join [Environment]::NewLine
+
 $wsBody = @"
 $(Format-Banner -Title "Workspace Inventory")
 
@@ -1510,15 +1560,7 @@ $(Format-Banner -Title "Workspace Inventory")
 ``````mermaid
 timeline
     title Workspace history — $WorkspaceName
-    $wsCreatedShort : Workspace created ($($workspace.properties.sku.name), $($workspace.properties.retentionInDays)d retention)
-                    : First captured connector inventory
-    2024-08-31 : Microsoft MMA / OMS retired
-    2025-02-01 : MMA ingestion degraded
-    2025-07-31 : Legacy ThreatIntelligenceIndicator ingestion stopped
-    $todayShort : This documentation generated ($wsAgeDays-day-old workspace)
-                : $($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($workspaceTables.Count) tables in catalogue
-    2026-09-14 : HTTP Data Collector API retires — verify no _CL tables affected
-    2027-03-31 : Sentinel Azure portal retires (forced Defender XDR move)
+$timelineBody
 ``````
 
 Mixes platform-side deprecations with workspace-specific events (created date, current ingest profile, upcoming deadlines).
