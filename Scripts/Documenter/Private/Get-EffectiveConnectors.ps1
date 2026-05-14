@@ -62,8 +62,44 @@ function Get-EffectiveConnectors {
         [Parameter(Mandatory = $false)] [object[]]$CcfDefinitions    = @(),
         [Parameter(Mandatory = $false)] [object[]]$Dcrs              = @(),
         [Parameter(Mandatory = $false)] [object[]]$DiagnosticSettings = @(),
-        [Parameter(Mandatory = $false)] [object[]]$TablesWithData    = @()
+        [Parameter(Mandatory = $false)] [object[]]$TablesWithData    = @(),
+        # When provided, DCR data flows are filtered to those whose
+        # `destinations` reference an LA destination on this workspace.
+        # Without this filter the helper surfaces every DCR in the
+        # subscription's data-collection scope — including DCRs that
+        # send to OTHER workspaces — and they show up as orphan rows
+        # against the current workspace.
+        [Parameter(Mandatory = $false)] [string]$WorkspaceResourceId
     )
+
+    # Source-family inference for the Active-table fallback. The captured
+    # inventory doesn't always explain how a table is receiving data
+    # (Defender XDR advanced hunting tables stream via the unified portal
+    # rather than the classic Sentinel data-connector endpoint, for
+    # example). Rather than labelling those rows "ingestion unmapped"
+    # we surface the inferred product family so the reader at least
+    # knows where the data is coming from.
+    function _ActiveTableFamily {
+        param([string]$Table)
+        switch -Regex ($Table) {
+            '^ThreatIntel'                                                                                  { return 'Microsoft Defender TI' }
+            '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
+            '^(Device|Email|Url|Alert|Cloud|Identity).*'                                                    { return 'Microsoft Defender XDR' }
+            '^ASim'                                                                                         { return 'ASIM normaliser' }
+            '^Office'                                                                                       { return 'Office 365' }
+            '^(CommonSecurityLog|Syslog)$'                                                                  { return 'CEF / Syslog' }
+            '^(SecurityEvent|WindowsEvent|Event)$'                                                          { return 'Windows events' }
+            '^AzureActivity$'                                                                               { return 'Azure Activity' }
+            '^(AzureDiagnostics|AzureMetrics)$'                                                             { return 'Azure resource diagnostics' }
+            '^Intune'                                                                                       { return 'Intune' }
+            '^App'                                                                                          { return 'Application Insights' }
+            '^Dataverse'                                                                                    { return 'Power Platform' }
+            '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$'                                  { return 'Workspace operations' }
+            '^(UserPeerAnalytics|BehaviorAnalytics)$'                                                       { return 'UEBA (Sentinel internal)' }
+            '_CL$'                                                                                          { return 'Custom log (CCF / DCR not captured)' }
+            default                                                                                         { return 'Unmapped' }
+        }
+    }
 
     # Table lookup for the activity-join columns.
     $tablesByName = @{}
@@ -125,10 +161,50 @@ function Get-EffectiveConnectors {
     }
 
     # 3. DCR-driven → derive table from each data flow's outputStream.
+    # When a WorkspaceResourceId is supplied, filter DCRs and their data
+    # flows to only those that target the current workspace. DCRs are
+    # captured at subscription scope by the exporter so DCRs that send
+    # to other workspaces in the same subscription would otherwise be
+    # surfaced as if they were ingesting into this workspace.
     foreach ($dcr in $Dcrs) {
         $dataFlows = $dcr.properties.dataFlows
         if ($null -eq $dataFlows) { continue }
+
+        # Build the in-scope destination set for this DCR. When no
+        # WorkspaceResourceId is given, every LA destination is in
+        # scope (backward-compatible default). Comparison is
+        # case-insensitive on the LA workspace resource ID, as Azure
+        # normalises segment case inconsistently across APIs.
+        $inScopeDestNames = $null
+        if ($WorkspaceResourceId) {
+            $inScopeDestNames = New-Object System.Collections.Generic.HashSet[string]
+            $laDests = $null
+            if ($dcr.properties.PSObject.Properties.Name -contains 'destinations' -and $dcr.properties.destinations) {
+                if ($dcr.properties.destinations.PSObject.Properties.Name -contains 'logAnalytics') {
+                    $laDests = $dcr.properties.destinations.logAnalytics
+                }
+            }
+            if ($laDests) {
+                foreach ($d in $laDests) {
+                    if ([string]::Equals([string]$d.workspaceResourceId, $WorkspaceResourceId, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        [void]$inScopeDestNames.Add([string]$d.name)
+                    }
+                }
+            }
+            # DCR has no destination targeting the current workspace — skip entirely.
+            if ($inScopeDestNames.Count -eq 0) { continue }
+        }
+
         foreach ($flow in $dataFlows) {
+            # Skip flows whose destinations don't target this workspace.
+            if ($null -ne $inScopeDestNames) {
+                $flowDests = @($flow.destinations)
+                $hit = $false
+                foreach ($fd in $flowDests) {
+                    if ($inScopeDestNames.Contains([string]$fd)) { $hit = $true; break }
+                }
+                if (-not $hit) { continue }
+            }
             $output = $flow.outputStream
             if (-not $output) { continue }
             $table = $output -replace '^Microsoft-','' -replace '^Custom-',''
@@ -150,13 +226,23 @@ function Get-EffectiveConnectors {
         }
     }
 
-    # 5. Active tables with no attributable ingestion source.
+    # 5. Active tables with no attributable ingestion source. The
+    # Identifier surfaces the inferred product family (Microsoft
+    # Defender XDR / Microsoft Entra ID / etc.) so reviewers see what
+    # the data is rather than a generic "ingestion unmapped" label.
+    # Common sources: Defender XDR advanced hunting tables that stream
+    # via the unified portal, Entra ID sign-in/audit tables routed
+    # through the AzureActiveDirectory data-connector even when the
+    # connector itself didn't enumerate the dataType, and Sentinel-
+    # internal tables (BehaviorAnalytics, UserPeerAnalytics) populated
+    # by the UEBA engine.
     foreach ($t in $TablesWithData) {
         if (-not $t.DataType) { continue }
         if ($claimedTables.Contains($t.DataType)) { continue }
         $vol = if ($null -ne $t.BillableLast24h) { [double]$t.BillableLast24h } else { 0 }
         if ($vol -le 0) { continue }
-        _AddRow -source 'Active-table' -identifier '(ingestion unmapped)' -table $t.DataType
+        $family = _ActiveTableFamily -Table $t.DataType
+        _AddRow -source 'Active-table' -identifier $family -table $t.DataType
     }
 
     return $rows.ToArray()

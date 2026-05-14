@@ -272,8 +272,19 @@ Describe 'Sentinel Documenter renderer' {
 
         It 'attributes FirewallLogs_CL DCR-driven ingestion to a DCR source' {
             # The fixture has a DCR for Custom-FirewallLogs_CL (FirewallLogs_CL is not
-            # claimed by any classic connector mapping).
+            # claimed by any classic connector mapping). The DCR's logAnalytics
+            # destination targets the test workspace so it survives the
+            # workspace-scope filter.
             $script:dcMd | Should -Match '\| DCR \| dcr-firewall-cl \| FirewallLogs_CL \|'
+        }
+
+        It 'filters out DCRs whose destinations target a different workspace' {
+            # dcr-other-workspace in the fixture sends Custom-OtherWorkspaceOnly_CL
+            # to a different workspace ID — must not appear in this workspace's
+            # effective-connectors view, even though the DCR itself lives in the
+            # subscription scope captured by the exporter.
+            $script:dcMd | Should -Not -Match 'OtherWorkspaceOnly_CL'
+            $script:dcMd | Should -Not -Match 'dcr-other-workspace'
         }
 
         It 'attributes the enabled diagnostic-settings Audit log category to a Diagnostic source' {

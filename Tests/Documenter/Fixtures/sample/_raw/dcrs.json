@@ -3,6 +3,11 @@
     "name": "dcr-ama-windows",
     "kind": "Windows",
     "properties": {
+      "destinations": {
+        "logAnalytics": [
+          { "name": "law-sentinel-test", "workspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test" }
+        ]
+      },
       "dataFlows": [
         { "streams": ["Microsoft-SecurityEvent"], "outputStream": "Microsoft-SecurityEvent", "destinations": ["law-sentinel-test"] }
       ]
@@ -12,8 +17,27 @@
     "name": "dcr-firewall-cl",
     "kind": "Direct",
     "properties": {
+      "destinations": {
+        "logAnalytics": [
+          { "name": "law-sentinel-test", "workspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test" }
+        ]
+      },
       "dataFlows": [
         { "streams": ["Custom-FirewallLogs_CL"], "outputStream": "Custom-FirewallLogs_CL", "destinations": ["law-sentinel-test"] }
+      ]
+    }
+  },
+  {
+    "name": "dcr-other-workspace",
+    "kind": "Direct",
+    "properties": {
+      "destinations": {
+        "logAnalytics": [
+          { "name": "other-workspace", "workspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-other/providers/Microsoft.OperationalInsights/workspaces/law-other" }
+        ]
+      },
+      "dataFlows": [
+        { "streams": ["Custom-OtherWorkspaceOnly_CL"], "outputStream": "Custom-OtherWorkspaceOnly_CL", "destinations": ["other-workspace"] }
       ]
     }
   }

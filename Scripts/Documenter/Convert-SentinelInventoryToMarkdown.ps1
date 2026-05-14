@@ -604,12 +604,14 @@ $healthRows = foreach ($c in $connectors) {
 # endpoint doesn't enumerate. See Get-EffectiveConnectors for the precedence
 # rules.
 $diagSettings = Read-RawArray 'diagnostic-settings.json'
+$workspaceResourceId = if ($workspace.id) { [string]$workspace.id } else { '' }
 $effective = Get-EffectiveConnectors `
-    -ClassicConnectors  $connectors `
-    -CcfDefinitions     $ccfDefs `
-    -Dcrs               $dcrs `
-    -DiagnosticSettings $diagSettings `
-    -TablesWithData     $tablesWithData
+    -ClassicConnectors   $connectors `
+    -CcfDefinitions      $ccfDefs `
+    -Dcrs                $dcrs `
+    -DiagnosticSettings  $diagSettings `
+    -TablesWithData      $tablesWithData `
+    -WorkspaceResourceId $workspaceResourceId
 
 # Connector-kind distribution for the headline pie. Excludes CCF defs
 # (counted separately) since they're not deployed instances per se.
