@@ -5,6 +5,10 @@ Sentinel workspace and produces a Markdown report of every artefact, every works
 setting, every DCR/DCE, an estimated monthly cost and a findings list scored against
 the documented Microsoft Learn best practices.
 
+> Operating guide (this page) — for users running the tool and consuming its output.
+> For renderer internals (chart system, helpers, Mermaid-safety rules, how to add
+> charts), see [Documenter-Renderer-Design.md](Documenter-Renderer-Design.md).
+
 > [!IMPORTANT]
 > **Repository must be private to run the PR-creation flow.**
 >
