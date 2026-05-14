@@ -1699,7 +1699,7 @@ $(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
 
 The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
 
-$(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.Severity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
+$(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 "@)
 
 # Section 22 — Microsoft security rules (TOC 4.11.3)

@@ -1104,11 +1104,14 @@ find withsource = TableName1 in (Event, SecurityEvent)
 
 Try-Capture 'analytics-rule-volumes' {
     # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
-    # breakout (TOC 4.11.2).
+    # breakout (TOC 4.11.2). Note: SecurityAlert's severity column is named
+    # `AlertSeverity`, not `Severity` — an earlier version of this KQL used
+    # `Severity` which the workspace rejected with BadRequest, returning an
+    # empty array and leaving section 21 unpopulated.
     $kql = @'
 SecurityAlert
 | where TimeGenerated > ago(30d)
-| summarize Alerts = count() by AlertName, ProductName, Severity
+| summarize Alerts = count() by AlertName, ProductName, AlertSeverity
 | order by Alerts desc
 | take 50
 '@
