@@ -1870,10 +1870,16 @@ $(Format-Table -Items $planRows -Columns 'Plan','Gb30d','MonthlyCost')
 ## Top tables by cost
 
 ``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 480
+---
 xychart-beta
     title "Top tables by 30d billable GB"
     x-axis [$(($cost.Top10TablesByCost | ForEach-Object {
-        $t = if ($_.Table.Length -gt 10) { $_.Table.Substring(0,10) } else { $_.Table }
+        $t = if ($_.Table.Length -gt 14) { $_.Table.Substring(0,14) } else { $_.Table }
         "`"$t`""
     }) -join ', ')]
     y-axis "GB" 0 --> $([math]::Ceiling(([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Maximum).Maximum + 0.5)))
@@ -2918,6 +2924,12 @@ $volChartBlock = if ($ruleVolumes.Count -gt 0) {
 ## Top 10 noisy rules — alert volume
 
 ``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 480
+---
 xychart-beta
     title "Top 10 alerting rules — alert count (last 30d)"
     x-axis [$volAxis]
