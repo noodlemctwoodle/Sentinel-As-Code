@@ -1985,25 +1985,43 @@ Three columns: source on the left, workspace table in the middle, billing tier o
 
 ## Cost flow — table → billing tier (compact view)
 
-For workspaces with too many sources for the Sankey to read cleanly, the same routing as a flat flowchart:
+Top-10 cost-bearing tables routed to their billing tier. Sentinel-rate covers tables on the Analytics plan; LA-rate covers Basic / Auxiliary. Billing-tier nodes only render when at least one table routes to them — a workspace with no LA-rate tables won't display an LA-rate node.
 
+$(
+$compactSource = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
+    @($cost.AllTablesByCost) | Select-Object -First 10
+} else {
+    @($cost.Top10TablesByCost)
+}
+$compactEdges = @()
+$compactNeedsSent = $false
+$compactNeedsLa   = $false
+foreach ($t in $compactSource) {
+    $tbl = $t.Table
+    $tblId = ($tbl -replace '[^a-zA-Z0-9]', '')
+    $gb = $t.Gb30d
+    $plan = $t.Plan
+    $billing = if ($plan -eq 'Analytics') { 'SENT' } else { 'LA' }
+    if ($billing -eq 'SENT') { $compactNeedsSent = $true } else { $compactNeedsLa = $true }
+    $compactEdges += "    $tblId[`"$tbl<br/>$gb GB`"] --> $billing"
+}
+$compactNodes = @()
+if ($compactNeedsSent) { $compactNodes += '    SENT[Sentinel-rate billing]' }
+if ($compactNeedsLa)   { $compactNodes += '    LA[LA-rate billing]' }
+$compactClasses = @()
+if ($compactNeedsSent) { $compactClasses += '    class SENT sentinel' }
+if ($compactNeedsLa)   { $compactClasses += '    class LA la' }
+@"
 ``````mermaid
 flowchart LR
-$(($cost.Top10TablesByCost | Select-Object -First 6 | ForEach-Object {
-    $tbl = $_.Table
-    $tblId = ($tbl -replace '[^a-zA-Z0-9]', '')
-    $gb = $_.Gb30d
-    $plan = $_.Plan
-    $billing = if ($plan -eq 'Analytics') { 'SENT' } else { 'LA' }
-    "    $tblId[`"$tbl<br/>$gb GB`"] --> $billing"
-}) -join [Environment]::NewLine)
-    SENT[Sentinel-rate billing]
-    LA[LA-rate billing]
+$($compactEdges -join [Environment]::NewLine)
+$($compactNodes -join [Environment]::NewLine)
     classDef sentinel fill:#5b1a1a,stroke:#a33,color:#fdd
     classDef la fill:#1a3b1a,stroke:#3a3,color:#dfd
-    class SENT sentinel
-    class LA la
+$($compactClasses -join [Environment]::NewLine)
 ``````
+"@
+)
 
 ## Commitment-tier what-if
 
@@ -2035,11 +2053,24 @@ Write-Section '84-cost-estimate.md' $costBody
 $rbacWs = Read-RawArray 'rbac-workspace.json'
 $rbacRg = Read-RawArray 'rbac-resourcegroup.json'
 
+# Principal fallback chain — DisplayName is empty for some assignments
+# (deleted SPs, certain group types, MIs without a friendly name). Fall
+# back to SignInName, then to the GUID ObjectId so the column always
+# has content. An ObjectId-only row is a signal the principal may have
+# been deleted but the role assignment lingers — itself a useful audit
+# finding.
+function _RbacPrincipal {
+    param($Row)
+    if ($Row.DisplayName) { return [string]$Row.DisplayName }
+    if ($Row.SignInName)  { return [string]$Row.SignInName }
+    if ($Row.ObjectId)    { return "_(no display name)_ ``$($Row.ObjectId)``" }
+    return '_(unknown)_'
+}
 $wsRows = $rbacWs | ForEach-Object {
-    [pscustomobject]@{ Principal = $_.DisplayName; Type = $_.ObjectType; Role = $_.RoleDefinitionName }
+    [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
 }
 $rgRows = $rbacRg | ForEach-Object {
-    [pscustomobject]@{ Principal = $_.DisplayName; Type = $_.ObjectType; Role = $_.RoleDefinitionName }
+    [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
 }
 
 # Build the RBAC flowchart. Group principals by role to keep the flow readable.
@@ -2211,12 +2242,63 @@ $(Format-Table -Items $polRows -Columns 'Name','Scope')
 # ---------------------------------------------------------------------------
 $gapRows = $gapFindings | ForEach-Object {
     [pscustomobject]@{
-        ID = $_.Id
+        ID       = "[$($_.Id)](#$(($_.Id).ToLower()))"
         Severity = Format-Severity-Badge $_.Severity
         Category = $_.Category
-        Title = $_.Title
-        Evidence = $_.Evidence
-        Learn = "[$($_.Learn)]($($_.Learn))"
+        Title    = $_.Title
+    }
+}
+
+# Evidence + Learn link formatters for the detailed remediation cards
+# below. Evidence text from gap rules can be very long with semicolon-
+# separated lists (e.g. 657 disabled rule names). Cramming that into a
+# narrow table cell is unreadable. The detail-card form splits long
+# semicolon lists into bullet items and renders short evidence inline.
+function _FormatGapEvidence {
+    param([string]$Evidence)
+    if (-not $Evidence) { return '_(none)_' }
+    # Threshold: only expand to bullets when the evidence is both long
+    # AND list-shaped (4+ semicolons). Short evidence ("X 75% threshold
+    # exceeded") stays inline.
+    $semis = ([regex]::Matches($Evidence, ';')).Count
+    if ($Evidence.Length -lt 200 -or $semis -lt 3) { return $Evidence }
+
+    # Split on the colon-then-list pattern so the lead-in prose stays
+    # before the bulleted list. Example:
+    #   "Recommended connectors not deployed: A, B, C"
+    #   -> "Recommended connectors not deployed:\n- A\n- B\n- C"
+    $leadEnd = $Evidence.IndexOf(':')
+    if ($leadEnd -gt 0 -and $leadEnd -lt 200) {
+        $lead  = $Evidence.Substring(0, $leadEnd + 1).Trim()
+        $tail  = $Evidence.Substring($leadEnd + 1).Trim()
+        $items = $tail -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+        return @"
+$lead
+
+$(($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine)
+"@
+    }
+    # No leading colon — bullet the whole list.
+    $items = $Evidence -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    return ($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
+}
+
+function _FormatGapLearnLink {
+    param([string]$Url)
+    if (-not $Url) { return '_(no reference)_' }
+    # Use a friendly title rather than a bare URL. Extract the last URL
+    # path segment, replace hyphens with spaces, and title-case the
+    # result. Falls back to "Microsoft Learn" if the path is empty.
+    try {
+        $u = [uri]$Url
+        $last = ($u.AbsolutePath.TrimEnd('/') -split '/')[-1]
+        if (-not $last) { $last = 'Microsoft Learn' }
+        $words = ($last -replace '-', ' ')
+        $titled = (Get-Culture).TextInfo.ToTitleCase($words.ToLower())
+        if (-not $titled) { $titled = 'Microsoft Learn' }
+        return "[$titled (Microsoft Learn)]($Url)"
+    } catch {
+        return "[Microsoft Learn]($Url)"
     }
 }
 # Findings landscape — grouped bar by category × severity. Sort categories
@@ -2249,23 +2331,35 @@ xychart-beta
     bar "Info"    [$catInfo]
 ``````
 
-**$($gapFindings.Count) findings.** Categories sorted worst-first (Critical → Warning → Info weighting). Each bar is a category; AdjacentWarning + Info bars per category make the severity mix visible at a glance.
+**$($gapFindings.Count) findings.** Categories sorted worst-first (Critical → Warning → Info weighting). Each bar is a category; adjacent Warning + Info bars per category make the severity mix visible at a glance.
 
-## Findings
+## Findings summary
 
-$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title','Evidence','Learn' } else { '_No findings — clean run._' })
+Each ID links to the detail card below. Severity badge is colour-coded; full evidence, remediation and reference links live in the per-finding cards. Sort by severity first, then by category.
 
-## Remediation detail
+$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title' } else { '_No findings — clean run._' })
+
+## Findings detail
 
 $(if ($gapFindings.Count -gt 0) {
     ($gapFindings | ForEach-Object { @"
 <a id="$($_.Id.ToLower())"></a>
+
 ### $($_.Id) — $($_.Title)
-- **Severity:** $($_.Severity)
-- **Category:** $($_.Category)
-- **Evidence:** $($_.Evidence)
-- **Remediation:** $($_.Remediation)
-- **Learn:** $($_.Learn)
+
+**Severity:** $(Format-Severity-Badge $_.Severity)  ·  **Category:** $($_.Category)
+
+**Evidence**
+
+$(_FormatGapEvidence $_.Evidence)
+
+**Remediation**
+
+$($_.Remediation)
+
+**Reference:** $(_FormatGapLearnLink $_.Learn)
+
+---
 "@ }) -join [Environment]::NewLine
 } else { '' })
 "@)
