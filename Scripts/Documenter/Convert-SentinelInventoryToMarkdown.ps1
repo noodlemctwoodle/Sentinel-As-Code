@@ -726,6 +726,44 @@ foreach ($r in $rules) {
 $schedNote = if ($ruleKindCounts.ContainsKey('Scheduled')) { "$($ruleKindCounts['Scheduled']) deployed" } else { 'not deployed' }
 $msicNote  = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) { "$($ruleKindCounts['MicrosoftSecurityIncidentCreation']) deployed" } else { 'not deployed' }
 
+# Fusion vs Defender XDR Correlation Engine state. When a workspace is
+# onboarded to the Microsoft Defender unified portal (USOP), Microsoft
+# automatically disables the Fusion analytic rule and the Defender XDR
+# Correlation Engine takes over alert-to-incident correlation. The
+# canonical, capture-derivable signal is the combination of:
+#   - whether a Fusion rule exists and is enabled, AND
+#   - whether the Microsoft Defender XDR connector
+#     (kind = MicrosoftThreatProtection) is enabled.
+# The four (fusion × defender) cells map to four reader-facing narratives
+# below.
+$fusionRules    = @($rules | Where-Object { $_.kind -eq 'Fusion' })
+$fusionPresent  = $fusionRules.Count -gt 0
+$fusionEnabled  = @($fusionRules | Where-Object { $_.properties.enabled }).Count -gt 0
+
+$m365DefenderConnected = $false
+foreach ($c in $connectors) {
+    if ($c.kind -ne 'MicrosoftThreatProtection') { continue }
+    $dts = $c.properties.dataTypes
+    if ($dts) {
+        foreach ($p in $dts.PSObject.Properties) {
+            if ($p.Value.state -eq 'Enabled') { $m365DefenderConnected = $true; break }
+        }
+    }
+    if ($m365DefenderConnected) { break }
+}
+
+$correlationState = if ($fusionEnabled -and $m365DefenderConnected) {
+    '**Fusion enabled, Defender XDR connector enabled.** If this workspace is onboarded to the Microsoft Defender unified portal (USOP), Microsoft auto-disables Fusion regardless of the displayed state above and the Defender XDR Correlation Engine performs alert-to-incident correlation. Confirm by checking the workspace''s onboarding state in the Defender portal — if onboarded, treat the displayed Fusion state as informational only.'
+} elseif ((-not $fusionEnabled) -and $m365DefenderConnected) {
+    '**Fusion disabled, Defender XDR connector enabled.** This workspace is using the **Defender XDR Correlation Engine** for alert-to-incident correlation. Microsoft auto-disables the Fusion rule on workspaces onboarded to the Defender unified portal — Defender XDR''s correlation replaces it.'
+} elseif ($fusionEnabled -and (-not $m365DefenderConnected)) {
+    '**Fusion enabled, no Defender XDR connector.** Fusion is performing multi-source ML-based incident correlation across Sentinel data sources. Onboarding the workspace to the Defender unified portal would auto-disable Fusion and hand correlation to Defender XDR.'
+} elseif ($fusionPresent -and -not $fusionEnabled -and -not $m365DefenderConnected) {
+    '**Fusion present but disabled, no Defender XDR connector.** No ML-based incident correlation is active on this workspace.'
+} else {
+    '**No Fusion rule deployed, no Defender XDR connector.** No ML-based incident correlation. Either enable the Fusion rule for multi-source correlation, or onboard to the Defender unified portal to inherit the Defender XDR Correlation Engine.'
+}
+
 $rulesBody = @"
 $(Format-Banner -Title "Analytics Rules")
 
@@ -783,6 +821,13 @@ classDiagram
     note for Scheduled "$schedNote on this workspace"
     note for MicrosoftSecurityIncidentCreation "$msicNote (legacy pre-Defender XDR pattern)"
 ``````
+
+## Incident correlation engine
+
+$correlationState
+
+[Microsoft Sentinel Fusion technology (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/fusion)
+[Microsoft Defender XDR correlation in the unified SecOps portal (Microsoft Learn)](https://learn.microsoft.com/defender-xdr/microsoft-365-defender)
 
 ## Per-kind / per-state aggregate
 

@@ -156,6 +156,7 @@ function Save-Json {
     Write-Information "  ↳ wrote $FileName"
 }
 
+$script:CaptureErrors = New-Object System.Collections.Generic.List[pscustomobject]
 function Try-Capture {
     param(
         [Parameter(Mandatory)] [string]$Label,
@@ -165,7 +166,16 @@ function Try-Capture {
         Write-Information "[$Label]"
         & $Action
     } catch {
-        Write-Warning "$Label failed: $($_.Exception.Message)"
+        $msg = $_.Exception.Message
+        # Surface the failure prominently. Try-Capture used to log only a
+        # Write-Warning which is easy to miss in long ADO logs and silently
+        # leaves the corresponding _raw/<file>.json absent or stale. We now
+        # also accumulate the failure into a summary written at the end.
+        Write-Warning "[$Label] FAILED: $msg"
+        $script:CaptureErrors.Add([pscustomobject]@{
+            Label   = $Label
+            Message = $msg
+        })
     }
 }
 
@@ -1150,5 +1160,80 @@ Try-Capture 'gap-analysis' {
 # ---------------------------------------------------------------------------
 $runContext = $runContext | Add-Member -MemberType NoteProperty -Name CompletedAtUtc -Value (Get-Date).ToUniversalTime().ToString('o') -PassThru
 Save-Json -FileName 'run-context.json' -Data $runContext
+
+# Diagnostic pass — sanity-check captures that typically contain data on
+# any active workspace. Empty results here are NOT necessarily a bug
+# (some files legitimately empty on quiet workspaces), but they almost
+# always indicate either an RBAC gap, an unsupported region, or an
+# undocumented schema change — and they're the single most common
+# source of "the renderer says zero of X but I have a hundred"
+# regressions. Surface them prominently in the run log so the operator
+# notices before opening a bug.
+$expectNonEmpty = @(
+    'alert-rules.json',
+    'data-connectors-classic.json',
+    'workspace.json',
+    'workspace-tables.json'
+)
+$expectIfActive = @(
+    'automation-rules.json',
+    'watchlists.json',
+    'playbooks.json',
+    'hunting-queries.json',
+    'workbooks-saved.json',
+    'cost-estimate.json'
+)
+
+Write-Host ""
+Write-Host "##[section]Capture summary"
+Write-Host "============================================================"
+
+$captureRows = New-Object System.Collections.Generic.List[pscustomobject]
+foreach ($f in ($expectNonEmpty + $expectIfActive)) {
+    $p = Join-Path $rawOut $f
+    if (-not (Test-Path $p)) {
+        $captureRows.Add([pscustomobject]@{ File = $f; Items = '(missing)'; Status = 'ERROR'; Reason = 'File not written' })
+        continue
+    }
+    $raw = Get-Content -Path $p -Raw
+    $count = 0
+    $isSingleObj = ($raw.TrimStart().StartsWith('{'))
+    try {
+        $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
+        if ($isSingleObj) {
+            # Single-object file (cost-estimate, workspace, settings, ...) — empty if `{}`.
+            $count = if ($raw.Trim() -eq '{}' -or $null -eq $parsed -or @($parsed.PSObject.Properties).Count -eq 0) { 0 } else { 1 }
+        } else {
+            $count = if ($null -eq $parsed) { 0 } else { @($parsed).Count }
+        }
+    } catch {
+        $captureRows.Add([pscustomobject]@{ File = $f; Items = '(parse error)'; Status = 'ERROR'; Reason = $_.Exception.Message })
+        continue
+    }
+    $status = if ($count -gt 0) {
+        'OK'
+    } elseif ($expectNonEmpty -contains $f) {
+        'EMPTY (unexpected)'
+    } else {
+        'EMPTY (verify)'
+    }
+    $captureRows.Add([pscustomobject]@{ File = $f; Items = $count; Status = $status; Reason = '' })
+}
+$captureRows | Format-Table -AutoSize | Out-String | Write-Host
+
+if ($script:CaptureErrors.Count -gt 0) {
+    Write-Host ""
+    Write-Host "##[warning]$($script:CaptureErrors.Count) capture step(s) raised an error and were skipped:"
+    foreach ($e in $script:CaptureErrors) {
+        Write-Host "  - [$($e.Label)]  $($e.Message)"
+    }
+}
+
+$suspectEmpty = $captureRows | Where-Object { $_.Status -like 'EMPTY*' -or $_.Status -eq 'ERROR' }
+if ($suspectEmpty) {
+    Write-Host ""
+    Write-Host "##[warning]The capture(s) above are usually populated on an active workspace."
+    Write-Host "If you expected non-zero counts: check RBAC (Microsoft Sentinel Reader at workspace scope is required for automation rules, watchlists, hunting queries, and incidents), and confirm the workspace has been used since deployment."
+}
 
 Write-Information "✓ Sentinel inventory exported to $rawOut"

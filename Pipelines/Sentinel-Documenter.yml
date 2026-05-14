@@ -73,6 +73,15 @@ parameters:
     type: boolean
     default: true
 
+  # Optional override — Sentinel-As-Code's convention is that Logic App
+  # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
+  # from the workspace's RG. When unset, the exporter enumerates playbooks
+  # from the workspace RG (current default behaviour).
+  - name: playbookResourceGroup
+    displayName: "Playbook resource group (leave blank to use the workspace RG)"
+    type: string
+    default: ""
+
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
   - name: serviceConnection
@@ -161,11 +170,15 @@ stages:
                 }
                 if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
 
+                $playbookRg = "${{ parameters.playbookResourceGroup }}"
+                if ($playbookRg) { $params['PlaybookResourceGroup'] = $playbookRg }
+
                 Write-Host "##[section]Sentinel Documenter — Collector"
                 Write-Host "============================================================"
                 Write-Host "  Subscription : $(azureSubscriptionId)"
                 Write-Host "  Resource Grp : $(sentinelResourceGroup)"
                 Write-Host "  Workspace    : $(sentinelWorkspaceName)"
+                Write-Host "  Playbook RG  : $(if ($playbookRg) { $playbookRg } else { '(workspace RG)' })"
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "============================================================"
 
