@@ -294,6 +294,33 @@ $catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
 
 $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
 
+# Rule ↔ watchlist cross-reference. Scans every rule's KQL query for
+# `_GetWatchlist("alias")` calls (the canonical helper). The output is
+# two hashtables consumed by sections 20 and 50:
+#   $rulesByWatchlistAlias   alias  -> @(rule display names)
+#   $watchlistsByRuleId      ruleId -> @(aliases)
+# Both quote styles and a forgiving whitespace pattern are accepted —
+# matches `_GetWatchlist("X")`, `_GetWatchlist('X')`, and `_GetWatchlist
+# (  "X"  )` with case-insensitive function-name match.
+$rulesByWatchlistAlias = @{}
+$watchlistsByRuleId    = @{}
+$rxWatchlistRef = [regex]::new("_GetWatchlist\s*\(\s*['""]([^'""]+)['""]\s*\)", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+foreach ($r in $rules) {
+    $q = $r.properties.query
+    if (-not $q) { continue }
+    $matches = $rxWatchlistRef.Matches([string]$q)
+    if ($matches.Count -eq 0) { continue }
+    $ruleName = $r.properties.displayName
+    $ruleId   = $r.name
+    $aliases  = New-Object System.Collections.Generic.HashSet[string]
+    foreach ($m in $matches) { [void]$aliases.Add($m.Groups[1].Value) }
+    $watchlistsByRuleId[$ruleId] = @($aliases)
+    foreach ($a in $aliases) {
+        if (-not $rulesByWatchlistAlias.ContainsKey($a)) { $rulesByWatchlistAlias[$a] = New-Object System.Collections.Generic.List[string] }
+        [void]$rulesByWatchlistAlias[$a].Add($ruleName)
+    }
+}
+
 # Severity + category counters hoisted up here (was computed twice further
 # down at the gap-analysis and live-snapshot section blocks). Single
 # computation drives the Mermaid pie/bar charts in 00, 01 and 90.
@@ -1199,14 +1226,52 @@ $wlRows = $watchlists | ForEach-Object {
     $items = if ($alias -and $wlItemCount.ContainsKey($alias)) { $wlItemCount[$alias] } else { '?' }
     $desc  = if ($_.properties.description) { [string]$_.properties.description } else { '' }
     if ($desc.Length -gt 90) { $desc = $desc.Substring(0, 87) + '...' }
+    $usedBy = if ($alias -and $rulesByWatchlistAlias.ContainsKey($alias)) { $rulesByWatchlistAlias[$alias].Count } else { 0 }
     [pscustomobject]@{
         Name           = $_.properties.displayName
         Provider       = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
         Items          = $items
+        UsedByRules    = $usedBy
         ItemsSearchKey = $_.properties.itemsSearchKey
         Source         = $_.properties.source
         Updated        = Format-DateUtc $_.properties.updated
         Description    = $desc
+    }
+}
+
+# Detailed rule-by-watchlist mapping rendered as a separate subsection.
+# Orphan watchlists (zero rule references) are surfaced explicitly —
+# they may still be used by hunting queries, workbooks, or analyst
+# KQL, but the absence of any analytics-rule reference is a useful
+# signal that the watchlist might be stale.
+$wlUsageRows = New-Object System.Collections.Generic.List[object]
+foreach ($wl in $watchlists) {
+    $alias = $wl.properties.watchlistAlias
+    if (-not $alias) { continue }
+    $ruleNames = if ($rulesByWatchlistAlias.ContainsKey($alias)) { @($rulesByWatchlistAlias[$alias]) } else { @() }
+    $wlUsageRows.Add([pscustomobject]@{
+        Alias     = $alias
+        RuleCount = $ruleNames.Count
+        Rules     = if ($ruleNames.Count -gt 0) { ($ruleNames | Sort-Object -Unique) -join '; ' } else { '_(no analytics rule references)_' }
+    })
+}
+
+# Watchlist aliases referenced by rules but NOT present in the captured
+# watchlist set. These are 'broken' references — the rule queries will
+# fail at runtime. Surfaced as a separate subsection only when present.
+$wlAliasSet = @{}
+foreach ($wl in $watchlists) {
+    $a = $wl.properties.watchlistAlias
+    if ($a) { $wlAliasSet[$a] = $true }
+}
+$brokenWatchlistRefs = New-Object System.Collections.Generic.List[object]
+foreach ($alias in $rulesByWatchlistAlias.Keys) {
+    if (-not $wlAliasSet.ContainsKey($alias)) {
+        $brokenWatchlistRefs.Add([pscustomobject]@{
+            MissingAlias = $alias
+            RuleCount    = $rulesByWatchlistAlias[$alias].Count
+            Rules        = ($rulesByWatchlistAlias[$alias] | Sort-Object -Unique) -join '; '
+        })
     }
 }
 
@@ -1242,16 +1307,33 @@ $($wlPieRows -join [Environment]::NewLine)
 "@
 } else { '' }
 
+$brokenRefsBlock = if ($brokenWatchlistRefs.Count -gt 0) { @"
+
+## Broken watchlist references
+
+Analytics rule(s) reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime — investigate whether the watchlist was deleted or the alias is mistyped.
+
+$(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','Rules')
+"@ } else { '' }
+
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
 **$($wlRows.Count) watchlist(s) · $totalItems item(s) captured** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run.
 
-$(Format-Table -Items $wlRows -Columns 'Name','Provider','Items','ItemsSearchKey','Source','Updated','Description')
+$(Format-Table -Items $wlRows -Columns 'Name','Provider','Items','UsedByRules','ItemsSearchKey','Source','Updated','Description')
+
+## Used by analytics rules
+
+Cross-reference of every captured watchlist against every Scheduled / NRT analytics rule's KQL ``query`` field. Each row lists the rules that call ``_GetWatchlist("<alias>")`` against this watchlist. A "_(no analytics rule references)_" row doesn't necessarily mean the watchlist is orphaned — hunting queries, workbooks, and ad-hoc KQL aren't scanned — but no rule reference is a useful signal that the watchlist may be stale.
+
+$(Format-Table -Items $wlUsageRows -Columns 'Alias','RuleCount','Rules')
+$brokenRefsBlock
 
 > Watchlist item contents are exported under ``_raw/watchlist-items/`` (gitignored). Item bodies are not embedded in the rendered report.
 
 [Microsoft Sentinel watchlists overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists)
+[``_GetWatchlist`` function reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists-queries)
 "@)
 
 $arRows = $autoRules | ForEach-Object {
