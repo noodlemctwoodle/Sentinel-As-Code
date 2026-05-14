@@ -1812,35 +1812,139 @@ $dcrRows = $dcrs | ForEach-Object {
 $dceRows = $dces | ForEach-Object {
     [pscustomobject]@{ Name = $_.name; Location = $_.location }
 }
-# Topology flowchart — group connectors by friendly source name.
-# Limited to 12 unique sources before the layout gets unreadable; above
-# that, the flowchart degrades gracefully into "Other sources" bucket.
-$sourceNodes = New-Object System.Collections.Generic.HashSet[string]
-foreach ($c in $connectors) {
-    $title = Get-ConnectorFriendlyTitle -Kind $c.kind -Connector $c -CcfTitleByName $ccfTitleByName
-    [void]$sourceNodes.Add($title)
+# Topology flowchart — sourced from the synthesised $effective view
+# rather than $connectors alone, so DCR-driven and diagnostic-settings-
+# driven ingestion (the bulk of any modern workspace) appears too.
+# Tables are grouped into source buckets via the same name-matching
+# logic as the cost Sankey for consistency. Top 15 buckets render
+# individually; anything beyond rolls up into "Other sources (N)".
+function _TopologyBucketFor {
+    param([string]$Table, [string]$Source, [string]$Identifier)
+    if ($Source -eq 'CCF' -and $Identifier) { return $Identifier }
+    if ($Source -eq 'Classic') {
+        # Identifier is "kind/dataType"; the friendly title comes from
+        # the Get-ConnectorFriendlyTitle helper above. Strip to kind.
+        $kind = ($Identifier -split '/')[0]
+        return (Get-ConnectorFriendlyTitle -Kind $kind -Connector $null -CcfTitleByName $ccfTitleByName)
+    }
+    if (-not $Table) { return 'Other sources' }
+    switch -Regex ($Table) {
+        '^ThreatIntel'                                                                                  { return 'Microsoft Defender TI' }
+        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
+        '^(Device|Email|Url|Alert|Cloud|Identity).*'                                                    { return 'Microsoft Defender XDR' }
+        '^ASim'                                                                                         { return 'ASIM normaliser' }
+        '^Office'                                                                                       { return 'Office 365' }
+        '^(CommonSecurityLog|Syslog)$'                                                                  { return 'CEF / Syslog' }
+        '^(SecurityEvent|WindowsEvent|Event)$'                                                          { return 'Windows events' }
+        '^(AzureActivity)$'                                                                             { return 'Azure Activity' }
+        '^(AzureDiagnostics|AzureMetrics)$'                                                             { return 'Azure resource diagnostics' }
+        '^Intune'                                                                                       { return 'Intune' }
+        '^App'                                                                                          { return 'Application Insights' }
+        '^Dataverse'                                                                                    { return 'Power Platform' }
+        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$'                                  { return 'Workspace operations' }
+        '_CL$'                                                                                          { return 'Custom logs (CCF / DCR)' }
+        default                                                                                         { return 'Other sources' }
+    }
 }
-$sourceList = @($sourceNodes)
+
+$sourceBuckets = @{}
+foreach ($e in $effective) {
+    $bucket = _TopologyBucketFor -Table $e.Table -Source $e.Source -Identifier $e.Identifier
+    if (-not $sourceBuckets.ContainsKey($bucket)) { $sourceBuckets[$bucket] = 0 }
+    $sourceBuckets[$bucket]++
+}
+# Order: highest item-count first, with the "Other sources" catch-all
+# always last regardless of count.
+$sortedBuckets = $sourceBuckets.GetEnumerator() |
+    Sort-Object @{ Expression = { if ($_.Key -eq 'Other sources') { 1 } else { 0 } } }, @{ Expression = { -$_.Value } } |
+    ForEach-Object { @{ Name = $_.Key; Count = $_.Value } }
+$displayBuckets = @($sortedBuckets | Select-Object -First 15)
+$overflowBuckets = @($sortedBuckets | Select-Object -Skip 15)
+$overflowTotal = 0
+foreach ($b in $overflowBuckets) { $overflowTotal += $b.Count }
+
 $sourceEdges = @()
 $srcIdx = 0
-$srcLines = foreach ($s in ($sourceList | Select-Object -First 10)) {
+$srcLines = foreach ($b in $displayBuckets) {
     $srcIdx++
     $shortId = "S$srcIdx"
     $sourceEdges += "    $shortId --> WS"
-    # Wrap label in double quotes — Mermaid flowchart treats `(` as a node-
-    # shape directive, so unquoted labels containing parens (e.g.
-    # "Microsoft 365 (Office 365)" or "Tailscale (CCF) (RestApiPoller)")
-    # parse-error with "Expecting SQE/PE/STADIUMEND etc."
-    "    $shortId[`"$s`"]"
+    $label = if ($b.Count -gt 1) { "$($b.Name) · $($b.Count)" } else { $b.Name }
+    # Wrap label in double quotes — Mermaid flowchart treats `(` as a
+    # node-shape directive, so unquoted labels containing parens parse-
+    # error with "Expecting SQE/PE/STADIUMEND etc.".
+    "    $shortId[`"$label`"]"
 }
-if ($sourceList.Count -gt 10) {
-    $srcLines += "    S99[`"Other sources ($($sourceList.Count - 10))`"]"
+if ($overflowBuckets.Count -gt 0) {
+    $srcLines += "    S99[`"Other sources · $overflowTotal`"]"
     $sourceEdges += "    S99 --> WS"
+}
+
+# Workspace-side node selection. Each cell renders only when the
+# underlying capture supports it — a workspace with no Sentinel Data
+# Lake should NOT show the Data Lake node, and a workspace with no
+# Basic/Auxiliary tables should NOT show those plan nodes either.
+$sentinelDataLake = Read-RawArray 'sentinel-data-lake.json'
+$dataLakePresent = @($sentinelDataLake).Count -gt 0
+
+$plansInUse = @{}
+$archiveTables = 0
+foreach ($t in $workspaceTables) {
+    $p = $t.properties.plan
+    if ($p) { $plansInUse[[string]$p] = $true }
+    $r  = [int]($t.properties.retentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
+    $tr = [int]($t.properties.totalRetentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
+    if ($tr -gt $r -and $tr -gt 0) { $archiveTables++ }
+}
+$hasBasic     = $plansInUse.ContainsKey('Basic')
+$hasAuxiliary = $plansInUse.ContainsKey('Auxiliary')
+$hasDataLake  = $plansInUse.ContainsKey('DataLake') -or $dataLakePresent
+$hasArchive   = $archiveTables -gt 0
+
+$wspNodes = @('        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $($enabledRules.Count)]", '        INC[Incidents]')
+$wspEdges = @('    WS --> RUL', '    RUL --> INC')
+if ($hasBasic)     { $wspNodes += '        BAS[Basic plan tables]';     $wspEdges += '    WS --> BAS' }
+if ($hasAuxiliary) { $wspNodes += '        AUX[Auxiliary plan tables]'; $wspEdges += '    WS --> AUX' }
+if ($hasDataLake)  { $wspNodes += '        DL[(Sentinel Data Lake)]';   $wspEdges += '    WS --> DL' }
+if ($hasArchive)   { $wspNodes += "        ARC[(Long-term archive · $archiveTables tables)]"; $wspEdges += '    WS --> ARC' }
+
+# Downstream — render only the destinations the capture supports.
+$dataExports = Read-RawArray 'data-exports.json'
+$dataExportCount = @($dataExports).Count
+$hasPlaybooks = @($playbooks).Count -gt 0
+
+$dstNodes = @()
+$dstEdges = @()
+if ($m365DefenderConnected) {
+    $dstNodes += '        XDR[Defender XDR portal]'
+    $dstEdges += '    INC --> XDR'
+}
+if ($hasPlaybooks) {
+    $dstNodes += "        PB[Playbooks · $(@($playbooks).Count)]"
+    $dstEdges += '    INC --> PB'
+}
+if ($dataExportCount -gt 0) {
+    $dstNodes += "        EXP[Data export · $dataExportCount destination(s)]"
+    $dstEdges += '    WS --> EXP'
+}
+# Always-on destination — workbooks consume workspace data regardless
+# of incidents. Surface it so the topology shows the reporting flow.
+if (@($workbooksSaved).Count -gt 0) {
+    $dstNodes += "        WB[Workbooks · $(@($workbooksSaved).Count)]"
+    $dstEdges += '    WS --> WB'
+}
+$hasDownstream = $dstNodes.Count -gt 0
+$dstClassLine = ''
+if ($hasDownstream) {
+    $dstIds = $dstNodes | ForEach-Object { ($_ -split '\[')[0].Trim() }
+    $dstClassLine = "    class $($dstIds -join ',') dst"
 }
 $dcBody = @"
 $(Format-Banner -Title "Data Collection Rules and Endpoints")
 
 ## Workspace topology
+
+Every captured ingestion source appears on the left, grouped into product-family buckets (the count after the bucket name is the number of distinct sources contributing). Workspace-side and downstream nodes only render when the underlying state supports them — a workspace with no Data Lake won't show a Data Lake node; the Defender XDR portal only appears when the M365 Defender connector is enabled.
 
 ``````mermaid
 flowchart LR
@@ -1851,30 +1955,25 @@ $($srcLines -join [Environment]::NewLine)
 
     subgraph WSP["Sentinel workspace"]
         direction TB
-        WS[(Log Analytics workspace)]
-        RUL[Analytics rules · $($enabledRules.Count)]
-        INC[Incidents]
-        DL[(Sentinel Data Lake)]
+$($wspNodes -join [Environment]::NewLine)
     end
+$(if ($hasDownstream) { @"
 
     subgraph DST["Downstream"]
         direction TB
-        XDR[Defender XDR portal]
-        TMS[MS Teams SOC channel]
+$($dstNodes -join [Environment]::NewLine)
     end
+"@ })
 
 $($sourceEdges -join [Environment]::NewLine)
-    WS --> RUL
-    RUL --> INC
-    WS --> DL
-    INC --> XDR
-    INC --> TMS
+$($wspEdges -join [Environment]::NewLine)
+$(if ($hasDownstream) { $dstEdges -join [Environment]::NewLine })
 
     classDef src fill:#1a3b5b,stroke:#37a,color:#dfd
     classDef wsp fill:#5b3a1a,stroke:#a73,color:#fed
     classDef dst fill:#1a3b1a,stroke:#3a3,color:#dfd
-    class WS,DL,RUL,INC wsp
-    class XDR,TMS dst
+    class $((@('WS','RUL','INC') + @(if ($hasBasic){'BAS'}) + @(if ($hasAuxiliary){'AUX'}) + @(if ($hasDataLake){'DL'}) + @(if ($hasArchive){'ARC'})) -join ',') wsp
+$dstClassLine
 ``````
 
 ## DCRs
