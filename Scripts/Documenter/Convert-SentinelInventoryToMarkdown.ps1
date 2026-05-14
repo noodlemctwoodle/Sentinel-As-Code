@@ -1930,20 +1930,19 @@ if ($overflowBuckets.Count -gt 0) {
 # Lake should NOT show the Data Lake node, and a workspace with no
 # Basic/Auxiliary tables should NOT show those plan nodes either.
 #
-# Data Lake detection — three converging signals because no single
-# endpoint is reliable across all Sentinel API versions / regions:
-#   (a) workspace.properties.features.unifiedSentinelBillingOnly — set
-#       to true when the workspace is onboarded to the unified
-#       Sentinel / Defender billing model that includes Sentinel Data
-#       Lake. This is the most reliable indicator on production
-#       workspaces today.
-#   (b) sentinel-data-lake.json — captures the (preview) /dataLake
-#       endpoint. Returns 400 / empty on workspaces in regions where
-#       the provider hasn't yet registered the subresource, so this
-#       alone produces false-negatives. Use as a secondary signal.
+# Data Lake detection signals (primary first):
+#   (a) sentinel-data-lake.json — captures the
+#       Microsoft.SentinelPlatformServices/sentinelPlatformServices
+#       resource (the tenant-wide Sentinel Data Lake provisioning),
+#       resolved via Resource Graph. Non-empty array == Lake exists
+#       in the tenant. Authoritative.
+#   (b) workspace.properties.features.unifiedSentinelBillingOnly —
+#       workspace-level flag set when the workspace is onboarded to
+#       the unified Sentinel/Defender billing model. Necessary but
+#       not strictly sufficient for Lake (Lake also needs the
+#       platform-services resource), so kept as a secondary check.
 #   (c) Any workspace table on the 'DataLake' plan — confirms data is
-#       actually flowing into the lake, irrespective of the workspace
-#       feature flag.
+#       actively routed to the Lake-only tier.
 $sentinelDataLake = Read-RawArray 'sentinel-data-lake.json'
 $unifiedBilling = $false
 if ($workspace.properties.PSObject.Properties.Name -contains 'features' -and $workspace.properties.features) {
@@ -3727,26 +3726,54 @@ $lakeHeadline = if ($hasDataLake -and $dlTables.Count -gt 0) {
     "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB/month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
 }
 
-# Enrollment-signal table — explicit on which signal contributed to the
-# documenter's "is Lake enrolled?" decision. Reviewers can use this to
-# confirm against the portal.
+# Enrollment-signal table — primary signal is the
+# Microsoft.SentinelPlatformServices resource; the workspace billing
+# flag and table-plan signals are supporting checks.
+$lakeResource = @($sentinelDataLake) | Select-Object -First 1
 $lakeSignals = @(
+    [pscustomobject]@{
+        Signal      = 'Microsoft.SentinelPlatformServices/sentinelPlatformServices'
+        Value       = if ($lakeResource) { "$($lakeResource.name) ($($lakeResource.location))" } else { '(not found)' }
+        Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$($lakeResource.location)', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions — tenant is not onboarded to Lake' }
+    },
     [pscustomobject]@{
         Signal      = 'workspace.properties.features.unifiedSentinelBillingOnly'
         Value       = if ($unifiedBilling) { 'true' } else { 'false / absent' }
-        Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing — Lake-enabled' } else { 'Legacy per-GB billing — Lake not provisioned at workspace level' }
-    },
-    [pscustomobject]@{
-        Signal      = 'Microsoft.SecurityInsights/dataLake (preview endpoint)'
-        Value       = if (@($sentinelDataLake).Count -gt 0) { "$(@($sentinelDataLake).Count) record(s)" } else { 'empty / 400' }
-        Interpretation = if (@($sentinelDataLake).Count -gt 0) { 'Endpoint registered and returns config' } else { 'Endpoint not registered for this workspace/region — inconclusive' }
+        Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing — eligible for Lake' } else { 'Workspace on legacy per-GB billing — not on the unified model' }
     },
     [pscustomobject]@{
         Signal      = "Tables on plan='DataLake'"
         Value       = "$($dlTables.Count) table(s)"
-        Interpretation = if ($dlTables.Count -gt 0) { 'Data actively routed to Lake-tier' } else { 'No tables route to Lake-tier today' }
+        Interpretation = if ($dlTables.Count -gt 0) { 'Data actively routed to Lake-only tier' } else { 'No tables route to Lake-only tier (mirrored data still flows when Lake is enrolled)' }
     }
 )
+
+# Lake resource detail block, only rendered when the platform-services
+# resource exists. Surfaces the audit trail (createdBy/At) so reviewers
+# can answer "when was this onboarded and by whom" from the doc.
+$lakeResourceBlock = if ($lakeResource) {
+    $createdAt = if ($lakeResource.systemData.createdAt) { Format-DateUtc $lakeResource.systemData.createdAt } else { '_(unknown)_' }
+    $modifiedAt = if ($lakeResource.systemData.lastModifiedAt) { Format-DateUtc $lakeResource.systemData.lastModifiedAt } else { '_(unknown)_' }
+    @"
+
+## Lake resource detail
+
+| Property | Value |
+|---|---|
+| Resource ID | ``$($lakeResource.id)`` |
+| Resource name | ``$($lakeResource.name)`` |
+| Region | ``$($lakeResource.location)`` |
+| Subscription | ``$($lakeResource.subscriptionId)`` |
+| Resource group | ``$($lakeResource.resourceGroup)`` |
+| Provisioning state | ``$($lakeResource.properties.provisioningState)`` |
+| System-assigned MI principal | ``$($lakeResource.identity.principalId)`` |
+| Onboarded by | ``$($lakeResource.systemData.createdBy)`` |
+| Onboarded at | $createdAt |
+| Last modified | $modifiedAt |
+
+The Sentinel Data Lake is a tenant-wide capability but it's provisioned as a single resource pinned to one subscription / resource group / region. Workspaces in **other regions** still mirror to the Lake — see [Onboard to Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-onboarding) for the cross-region behaviour.
+"@
+} else { '' }
 
 $lakeBody = @"
 $(Format-Banner -Title "Microsoft Sentinel Data Lake")
@@ -3755,9 +3782,10 @@ $lakeHeadline
 
 ## Enrollment signals
 
-The documenter ORs the three signals below — any one set to a positive value indicates Lake enrollment. Multiple signals agreeing increases confidence; a workspace enrolled in production should ideally show all three.
+The documenter's primary signal is the **Microsoft.SentinelPlatformServices/sentinelPlatformServices** resource — captured via Resource Graph across every visible subscription. Presence of this resource means the tenant is onboarded to Sentinel Data Lake; absence means the tenant is not. The other two rows are supporting checks: the workspace-level billing flag and the table-plan routing state.
 
 $(Format-Table -Items $lakeSignals -Columns 'Signal','Value','Interpretation')
+$lakeResourceBlock
 
 ## Lake-tier tables
 
