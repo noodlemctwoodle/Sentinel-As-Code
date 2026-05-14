@@ -596,17 +596,20 @@ Describe 'Resolve-RuleSource' {
     }
 
     Context 'Branch precedence' {
-        It 'prefers ContentHub over Custom when both could match' {
+        It 'prefers Custom over ContentHub when both could match' {
             $guid = (New-Guid).Guid
             $yamlEntry = @{
-                FilePath = '/repo/x.yaml'; IsCommunity = $false
+                FilePath = '/repo/AnalyticalRules/AbsorbedFromPortal/ContentHub/x.yaml'
+                IsCommunity = $false
                 Yaml = @{ id = $guid; name = 'r'; severity = 'Low'; query = 'T'; kind = 'NRT' }
             }
             $yamlMap = @{ $guid.ToLowerInvariant() = $yamlEntry }
 
             # Rule has both a template link AND its GUID is in the YAML map.
-            # Resolution must prefer ContentHub (template link is stronger evidence
-            # of provenance than a GUID coincidence).
+            # Resolution prefers Custom: the YAML's existence under
+            # AbsorbedFromPortal/ is the absorption hand-off — once a rule has
+            # been promoted, the YAML is the source of truth and the template
+            # link is no longer authoritative.
             $rule = New-DeployedRuleObject -Guid $guid -TemplateName $templateContentId
             $resolved = Resolve-RuleSource `
                 -Rule $rule `
@@ -614,7 +617,210 @@ Describe 'Resolve-RuleSource' {
                 -YamlsByGuid $yamlMap `
                 -SolutionByPackageId $solutionByPackageId
 
-            $resolved.Source | Should -Be 'ContentHub'
+            $resolved.Source    | Should -Be 'Custom'
+            $resolved.SourceRef | Should -Be '/repo/AnalyticalRules/AbsorbedFromPortal/ContentHub/x.yaml'
         }
+    }
+}
+
+# ============================================================================
+# Absorption: Save-AbsorbedRule + New-AbsorbedRuleYaml + ConvertTo-FileSlug.
+# These functions own the ContentHub/Orphan absorption hand-off — they generate
+# the Custom YAML that turns a portal-only rule into a governed one.
+# ============================================================================
+
+Describe 'ConvertTo-FileSlug' {
+    It 'collapses runs of non-word characters to a single hyphen' {
+        ConvertTo-FileSlug -Value 'Foo  bar / baz!' | Should -Be 'Foo-bar-baz'
+    }
+
+    It 'trims leading and trailing hyphens' {
+        ConvertTo-FileSlug -Value '  Foo bar  ' | Should -Be 'Foo-bar'
+    }
+
+    It 'truncates to MaxLength and re-trims hyphens' {
+        $long = ('a' * 50) + ' ' + ('b' * 50)
+        $slug = ConvertTo-FileSlug -Value $long -MaxLength 60
+        $slug.Length | Should -BeLessOrEqual 60
+        $slug | Should -Not -Match '^-|-$'
+    }
+
+    It 'returns "rule" when the value collapses to nothing' {
+        ConvertTo-FileSlug -Value '!!!' | Should -Be 'rule'
+    }
+}
+
+Describe 'New-AbsorbedRuleYaml' {
+    BeforeAll {
+        function New-DeployedFullRule {
+            param(
+                [string]$Kind = 'Scheduled',
+                [string]$DisplayName = 'Sample rule',
+                [string]$Description = "First line`nSecond line",
+                [string]$Severity = 'Medium',
+                [string]$Query = "T | where x == 1`n| project a, b"
+            )
+            $props = [pscustomobject]@{
+                displayName      = $DisplayName
+                description      = $Description
+                severity         = $Severity
+                query            = $Query
+                enabled          = $true
+                queryFrequency   = 'PT5M'
+                queryPeriod      = 'PT5M'
+                triggerOperator  = 'GreaterThan'
+                triggerThreshold = 0
+                tactics          = @('InitialAccess', 'Execution')
+                techniques       = @('T1078', 'T1078.004')
+                entityMappings   = @(
+                    [pscustomobject]@{
+                        entityType    = 'Account'
+                        fieldMappings = @(
+                            [pscustomobject]@{ identifier = 'AadUserId'; columnName = 'Caller' }
+                        )
+                    }
+                )
+                eventGroupingSettings  = [pscustomobject]@{ aggregationKind = 'AlertPerResult' }
+                incidentConfiguration  = [pscustomobject]@{
+                    createIncident         = $true
+                    groupingConfiguration  = [pscustomobject]@{
+                        enabled              = $false
+                        reopenClosedIncident = $false
+                        lookbackDuration     = 'PT5H'
+                        matchingMethod       = 'AllEntities'
+                    }
+                }
+            }
+            [pscustomobject]@{
+                name       = '11111111-2222-3333-4444-555555555555'
+                kind       = $Kind
+                properties = $props
+            }
+        }
+    }
+
+    It 'emits a top-level id matching the resource name (lowercased)' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?m)^id: 11111111-2222-3333-4444-555555555555$'
+    }
+
+    It 'rewrites triggerOperator to the YAML short form' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?m)^triggerOperator: gt$'
+    }
+
+    It 'omits scheduling fields for NRT rules' {
+        $rule = New-DeployedFullRule -Kind 'NRT'
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Not -Match '(?m)^queryFrequency:'
+        $yaml | Should -Not -Match '(?m)^triggerOperator:'
+    }
+
+    It 'renders multi-line query as a YAML block scalar with 2-space indent' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?ms)^query: \|\r?\n  T \| where x == 1\r?\n  \| project a, b'
+    }
+
+    It 'maps API techniques onto YAML relevantTechniques' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?ms)^relevantTechniques:\r?\n- T1078\r?\n- T1078\.004'
+    }
+
+    It 'tags the YAML with the absorption provenance' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'ContentHub' -SolutionName 'Microsoft Defender XDR'
+        $yaml | Should -Match '(?m)^- AbsorbedFromPortal-ContentHub$'
+        $yaml | Should -Match "(?m)^- Microsoft Defender XDR$|(?m)^- 'Microsoft Defender XDR'$"
+    }
+
+    It 'starts the absorbed rule at version 1.0.0' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?m)^version: 1\.0\.0$'
+    }
+
+    It 'parses cleanly through ConvertFrom-Yaml' {
+        $rule = New-DeployedFullRule
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        # Round-trip through powershell-yaml to confirm there are no malformed
+        # block scalars or stray indents that would break Deploy-CustomContent.
+        # Note: the scriptblock for `Should -Not -Throw` runs in its own scope,
+        # so we capture and assert separately rather than assigning inside it.
+        { ConvertFrom-Yaml $yaml | Out-Null } | Should -Not -Throw
+        $parsed = ConvertFrom-Yaml $yaml
+        $parsed.id              | Should -Be '11111111-2222-3333-4444-555555555555'
+        $parsed.name            | Should -Be 'Sample rule'
+        $parsed.severity        | Should -Be 'Medium'
+        $parsed.triggerOperator | Should -Be 'gt'
+        $parsed.kind            | Should -Be 'Scheduled'
+    }
+}
+
+Describe 'Save-AbsorbedRule' {
+    BeforeAll {
+        function New-DeployedScheduledForSave {
+            param([string]$DisplayName = 'Suspicious sign-in burst')
+            [pscustomobject]@{
+                name       = (New-Guid).Guid
+                kind       = 'Scheduled'
+                properties = [pscustomobject]@{
+                    displayName      = $DisplayName
+                    description      = 'Test'
+                    severity         = 'High'
+                    query            = 'T | take 1'
+                    enabled          = $true
+                    queryFrequency   = 'PT5M'
+                    queryPeriod      = 'PT5M'
+                    triggerOperator  = 'GreaterThan'
+                    triggerThreshold = 0
+                }
+            }
+        }
+    }
+
+    It 'creates a new YAML under ContentHub/{Solution}/ on first run' {
+        $rule = New-DeployedScheduledForSave
+        $result = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'ContentHub' -SolutionName 'Microsoft Defender XDR'
+        $result.Action | Should -Be 'created'
+        $result.Path | Should -Match 'AnalyticalRules[\\/]+AbsorbedFromPortal[\\/]+ContentHub[\\/]+Microsoft-Defender-XDR[\\/]+Suspicious-sign-in-burst\.yaml$'
+        Test-Path $result.Path | Should -BeTrue
+    }
+
+    It 'creates the Orphan path under AbsorbedFromPortal/Orphans/' {
+        $rule = New-DeployedScheduledForSave -DisplayName 'Adhoc portal rule'
+        $result = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'Orphan'
+        $result.Action | Should -Be 'created'
+        $result.Path | Should -Match 'AnalyticalRules[\\/]+AbsorbedFromPortal[\\/]+Orphans[\\/]+Adhoc-portal-rule\.yaml$'
+    }
+
+    It 'returns "unchanged" when re-saving identical content' {
+        $rule = New-DeployedScheduledForSave -DisplayName 'Stable rule'
+        $first  = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'Orphan'
+        $second = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'Orphan'
+        $first.Action  | Should -Be 'created'
+        $second.Action | Should -Be 'unchanged'
+    }
+
+    It 'returns "updated" when content has drifted between saves' {
+        $rule = New-DeployedScheduledForSave -DisplayName 'Mutating rule'
+        $first = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'Orphan'
+        $first.Action | Should -Be 'created'
+
+        $rule.properties.severity = 'Low'
+        $second = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'Orphan'
+        $second.Action | Should -Be 'updated'
+
+        $written = Get-Content -Path $second.Path -Raw
+        $written | Should -Match '(?m)^severity: Low$'
+    }
+
+    It 'falls back to "Unattributed" when no SolutionName is supplied for a ContentHub absorption' {
+        $rule = New-DeployedScheduledForSave -DisplayName 'No solution attribution'
+        $result = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'ContentHub'
+        $result.Path | Should -Match 'AbsorbedFromPortal[\\/]+ContentHub[\\/]+Unattributed[\\/]+'
     }
 }

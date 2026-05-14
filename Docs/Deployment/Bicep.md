@@ -167,3 +167,26 @@ The pipeline GETs the current setting (to capture the ETag) and PUTs the new sta
 - [Scripts](Scripts.md#setup-serviceprincipalps1) — service principal RBAC bootstrap
 - [Playbooks](../Content/Playbooks.md) — how the optional playbook RG is consumed
 - [DCR Watchlist](../Operations/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (lives under `Automation/DCR-Watchlist/`, not this folder)
+
+## Authoring with GitHub Copilot
+
+Bicep templates don't have a dedicated path-scoped instruction
+file (the convention bar is set by the templates themselves and
+Microsoft's documentation); the repo-wide
+[`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+covers commit-message + en-GB conventions.
+
+Copilot tooling for Bicep:
+
+- Agent `Sentinel-As-Code: Bicep Engineer` — owns Bicep IaC
+  end-to-end. Adds resources, designs parameters, maintains the
+  dual Sentinel onboarding pattern, manages the test-workspace
+  template at `Bicep/test/main.bicep`. Knows the local validation
+  tools (`az bicep build`, `az deployment sub validate`).
+- Agent `Sentinel-As-Code: Pipeline Engineer` — for the
+  `deploy-infrastructure` workflow stage that consumes the
+  template and any new parameters surfaced through the pipeline.
+- Agent `Sentinel-As-Code: Security Reviewer` — for RBAC, Key
+  Vault, network rules, and any high-privilege resource additions.
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

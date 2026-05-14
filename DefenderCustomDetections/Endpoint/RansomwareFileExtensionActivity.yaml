@@ -2,13 +2,11 @@ displayName: Ransomware file extension activity detected
 isEnabled: true
 queryCondition:
   queryText: |
-    let ransomwareExtensions = dynamic([".encrypted", ".locked", ".crypto", ".crypt",
-        ".locky", ".wcry", ".wncry", ".wncryt", ".cerber", ".cerber3",
-        ".zepto", ".thor", ".aaa", ".xyz", ".zzz", ".micro", ".vvv"]);
+
     DeviceFileEvents
     | where Timestamp > ago(1h)
     | where ActionType in ("FileCreated", "FileRenamed")
-    | where FileName has_any (ransomwareExtensions)
+    | extend FileExtension = extract(@"\.([^.]+)$", 1, FileName)
     | where FolderPath !startswith "C:\\Windows\\Temp"
     | summarize (Timestamp, ReportId) = arg_max(Timestamp, ReportId),
         FileCount = count(), FileList = make_set(FileName, 10)

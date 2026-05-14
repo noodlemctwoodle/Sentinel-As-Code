@@ -139,3 +139,21 @@ committing:
 - WhatIf mode validates the template without deploying
 - The `Template/` folder is always excluded from deployment
 - Post-deploy: managed-identity role assignments are handled by [`Scripts/Set-PlaybookPermissions.ps1`](../../Scripts/Set-PlaybookPermissions.ps1) — see [Scripts.md](../Deployment/Scripts.md#set-playbookpermissionsps1)
+
+## Authoring with GitHub Copilot
+
+When editing files under `Playbooks/**`, Copilot automatically
+loads [`.github/instructions/playbooks.instructions.md`](../../.github/instructions/playbooks.instructions.md).
+The path-scoped instructions cover the trigger-type folder layout,
+the auto-injected ARM parameter set, the `Source: Sentinel-As-Code`
+tag requirement that `Set-PlaybookPermissions.ps1` keys off, and
+the rule against embedding secrets directly.
+
+Copilot tooling for playbooks:
+
+- Agent `Sentinel-As-Code: Content Editor` — general edits
+- Agent `Sentinel-As-Code: Security Reviewer` — strongly recommended
+  for any playbook touching Key Vault, Graph, Defender, or
+  high-privilege endpoints
+
+See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
