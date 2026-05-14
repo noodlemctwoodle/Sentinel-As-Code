@@ -705,8 +705,75 @@ $mismatchRows = $rules | Where-Object {
     }
 }
 
+# Rule-kind distribution for the headline.
+$ruleKindCounts = @{}
+foreach ($r in $rules) {
+    $k = if ($r.kind) { [string]$r.kind } else { 'unknown' }
+    if (-not $ruleKindCounts.ContainsKey($k)) { $ruleKindCounts[$k] = 0 }
+    $ruleKindCounts[$k]++
+}
+$schedNote = if ($ruleKindCounts.ContainsKey('Scheduled')) { "$($ruleKindCounts['Scheduled']) deployed" } else { 'not deployed' }
+$msicNote  = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) { "$($ruleKindCounts['MicrosoftSecurityIncidentCreation']) deployed" } else { 'not deployed' }
+
 $rulesBody = @"
 $(Format-Banner -Title "Analytics Rules")
+
+## Rule taxonomy
+
+Sentinel's ``alertRules`` API surfaces five kinds of detection logic under a single base. The class diagram documents the polymorphism — useful when later sections refer to "MS Incident Creation rules" because those rules have a completely different shape from Scheduled:
+
+``````mermaid
+classDiagram
+    class AlertRule {
+        +string id
+        +string kind
+        +string displayName
+        +string severity
+        +bool enabled
+        +datetime lastModifiedUtc
+        +string[] tactics
+        +string[] techniques
+    }
+
+    class Scheduled {
+        +string queryFrequency
+        +string queryPeriod
+        +int triggerThreshold
+        +string query
+    }
+
+    class NRT {
+        +string query
+        +bool eventGrouping
+    }
+
+    class Fusion {
+        +string alertRuleTemplateName
+        +string[] sourceSettings
+    }
+
+    class MicrosoftSecurityIncidentCreation {
+        +string productFilter
+        +string[] severitiesFilter
+        +string[] displayNamesFilter
+        +string[] displayNamesExcludeFilter
+    }
+
+    class ThreatIntelligence {
+        +string templateVersion
+    }
+
+    AlertRule <|-- Scheduled
+    AlertRule <|-- NRT
+    AlertRule <|-- Fusion
+    AlertRule <|-- MicrosoftSecurityIncidentCreation
+    AlertRule <|-- ThreatIntelligence
+
+    note for Scheduled "$schedNote on this workspace"
+    note for MicrosoftSecurityIncidentCreation "$msicNote (legacy pre-Defender XDR pattern)"
+``````
+
+## Per-kind / per-state aggregate
 
 | Total | Enabled | Disabled | Scheduled-Enabled | Scheduled-Disabled | NRT-Enabled | NRT-Disabled |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -1031,8 +1098,43 @@ $pbRows = $playbooks | ForEach-Object {
         WorkspaceRoles = $roles
     }
 }
+$autoCount = $arRows.Count
+$pbCount   = $pbRows.Count
 Write-Section '60-automation-rules-playbooks.md' (@"
 $(Format-Banner -Title "Automation Rules and Playbooks")
+
+**$autoCount automation rule(s) · $pbCount playbook(s)** on this workspace.
+
+## Alert-to-response chain — target shape
+
+The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this — gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SENT-034], missing step 9's MI role = [SENT-011], missing step 11's analyst ack = [SENT-030].
+
+``````mermaid
+sequenceDiagram
+    autonumber
+    participant DS as Data source
+    participant DCR as DCR / Logs Ingest
+    participant Tbl as Workspace table
+    participant Rule as Analytics rule
+    participant Inc as Incident
+    participant Auto as Automation rule
+    participant PB as Playbook
+    participant Teams as MS Teams
+    participant SOC as SOC analyst
+
+    DS->>DCR: Event
+    DCR->>Tbl: Ingest (after transform)
+    Note over Tbl: ~5 min ingestion latency
+    Rule->>Tbl: KQL query on schedule
+    Rule-->>Inc: Create incident
+    Inc->>Auto: Trigger: incident created
+    Auto->>Inc: Assign owner, tag tactic, set Active
+    Auto->>PB: Run playbook
+    PB->>Inc: Add enrichment comment
+    PB->>Teams: Post to SOC channel
+    Teams-->>SOC: Notification
+    SOC->>Inc: Acknowledge + investigate
+``````
 
 ## Automation rules
 
@@ -1124,8 +1226,31 @@ $wsDefaultDcr = $null
 if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollectionRuleResourceId') {
     $wsDefaultDcr = $workspace.properties.defaultDataCollectionRuleResourceId
 }
+# Timeline-line dates. wsCreatedShort = yyyy-MM-dd for the workspace
+# creation event in the timeline diagram. Format-DateUtc returns
+# "yyyy-MM-dd HH:mm" — the timeline expects just date so we split on space.
+$wsCreatedShort = if ($wsCreated) { (Format-DateUtc $wsCreated).Split(' ')[0] } else { 'unknown' }
+$todayShort = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
 $wsBody = @"
 $(Format-Banner -Title "Workspace Inventory")
+
+## Workspace + platform history
+
+``````mermaid
+timeline
+    title Workspace history — $WorkspaceName
+    $wsCreatedShort : Workspace created ($($workspace.properties.sku.name), $($workspace.properties.retentionInDays)d retention)
+                    : First captured connector inventory
+    2024-08-31 : Microsoft MMA / OMS retired
+    2025-02-01 : MMA ingestion degraded
+    2025-07-31 : Legacy ThreatIntelligenceIndicator ingestion stopped
+    $todayShort : This documentation generated ($wsAgeDays-day-old workspace)
+                : $($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($workspaceTables.Count) tables in catalogue
+    2026-09-14 : HTTP Data Collector API retires — verify no _CL tables affected
+    2027-03-31 : Sentinel Azure portal retires (forced Defender XDR move)
+``````
+
+Mixes platform-side deprecations with workspace-specific events (created date, current ingest profile, upcoming deadlines).
 
 ## Provenance
 
@@ -1355,8 +1480,66 @@ $dcrRows = $dcrs | ForEach-Object {
 $dceRows = $dces | ForEach-Object {
     [pscustomobject]@{ Name = $_.name; Location = $_.location }
 }
+# Topology flowchart — group connectors by friendly source name.
+# Limited to 12 unique sources before the layout gets unreadable; above
+# that, the flowchart degrades gracefully into "Other sources" bucket.
+$sourceNodes = New-Object System.Collections.Generic.HashSet[string]
+foreach ($c in $connectors) {
+    $title = Get-ConnectorFriendlyTitle -Kind $c.kind -Connector $c -CcfTitleByName $ccfTitleByName
+    [void]$sourceNodes.Add($title)
+}
+$sourceList = @($sourceNodes)
+$sourceEdges = @()
+$srcIdx = 0
+$srcLines = foreach ($s in ($sourceList | Select-Object -First 10)) {
+    $srcIdx++
+    $shortId = "S$srcIdx"
+    $sourceEdges += "    $shortId --> WS"
+    "    $shortId[$s]"
+}
+if ($sourceList.Count -gt 10) {
+    $srcLines += "    S99[Other sources ($($sourceList.Count - 10))]"
+    $sourceEdges += "    S99 --> WS"
+}
 $dcBody = @"
 $(Format-Banner -Title "Data Collection Rules and Endpoints")
+
+## Workspace topology
+
+``````mermaid
+flowchart LR
+    subgraph SRC["Connected sources"]
+        direction TB
+$($srcLines -join [Environment]::NewLine)
+    end
+
+    subgraph WSP["Sentinel workspace"]
+        direction TB
+        WS[(Log Analytics workspace)]
+        RUL[Analytics rules · $($enabledRules.Count)]
+        INC[Incidents]
+        DL[(Sentinel Data Lake)]
+    end
+
+    subgraph DST["Downstream"]
+        direction TB
+        XDR[Defender XDR portal]
+        TMS[MS Teams SOC channel]
+    end
+
+$($sourceEdges -join [Environment]::NewLine)
+    WS --> RUL
+    RUL --> INC
+    WS --> DL
+    INC --> XDR
+    INC --> TMS
+
+    classDef src fill:#1a3b5b,stroke:#37a,color:#dfd
+    classDef wsp fill:#5b3a1a,stroke:#a73,color:#fed
+    classDef dst fill:#1a3b1a,stroke:#3a3,color:#dfd
+    class WS,DL,RUL,INC wsp
+    class XDR,TMS dst
+``````
 
 ## DCRs
 
@@ -1407,6 +1590,40 @@ Long-tail concentration: the loudest table is always the right first cost-optimi
 
 $(Format-Table -Items $cost.Top10TablesByCost -Columns 'Table','Plan','Gb30d','MonthlyCost')
 
+## Cost concentration — mindmap
+
+``````mermaid
+mindmap
+    root((30-day billable<br/>$([math]::Round([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Sum).Sum, 2)) GB))
+$(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
+    "        $($_.Table) · $($_.Gb30d) GB"
+}) -join [Environment]::NewLine)
+``````
+
+Tree view of where the chargeable footprint lands. Pair with the top-tables bar above — same data, different shape, easier scan for "is one source dominating?".
+
+## Cost flow — source to billing tier
+
+``````mermaid
+flowchart LR
+$(($cost.Top10TablesByCost | Select-Object -First 6 | ForEach-Object {
+    $tbl = $_.Table
+    $tblId = ($tbl -replace '[^a-zA-Z0-9]', '')
+    $gb = $_.Gb30d
+    $plan = $_.Plan
+    $billing = if ($plan -eq 'Analytics') { 'SENT' } else { 'LA' }
+    "    $tblId[$tbl<br/>$gb GB] --> $billing"
+}) -join [Environment]::NewLine)
+    SENT[Sentinel-rate billing]
+    LA[LA-rate billing]
+    classDef sentinel fill:#5b1a1a,stroke:#a33,color:#fdd
+    classDef la fill:#1a3b1a,stroke:#3a3,color:#dfd
+    class SENT sentinel
+    class LA la
+``````
+
+Each top-cost table flows to the billing tier its plan determines (Analytics → Sentinel-rate, Basic / Auxiliary → LA-rate). Findings [SENT-043] / [SENT-044] / [SENT-046] highlight tables that could route to the cheaper tier.
+
 ## Commitment-tier what-if
 
 $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
@@ -1444,8 +1661,75 @@ $rgRows = $rbacRg | ForEach-Object {
     [pscustomobject]@{ Principal = $_.DisplayName; Type = $_.ObjectType; Role = $_.RoleDefinitionName }
 }
 
+# Build the RBAC flowchart. Group principals by role to keep the flow readable.
+# Mark broad-role paths (Owner / Contributor) as warnings via dotted edges.
+$rolesSeen = New-Object System.Collections.Generic.HashSet[string]
+foreach ($r in $rbacWs) {
+    $role = $r.RoleDefinitionName
+    if ($role) { [void]$rolesSeen.Add($role) }
+}
+$roleNodeLines = @()
+$roleIdMap = @{}
+$roleIdx = 0
+foreach ($role in $rolesSeen) {
+    $roleIdx++
+    $rId = "R$roleIdx"
+    $roleIdMap[$role] = $rId
+    $roleNodeLines += "        $rId[$role]"
+}
+
+# Per-role principal counts so the diagram doesn't list every individual SP.
+$principalsByRole = @{}
+foreach ($r in $rbacWs) {
+    $role = $r.RoleDefinitionName
+    $type = $r.ObjectType
+    if (-not $principalsByRole.ContainsKey($role)) { $principalsByRole[$role] = @{ User = 0; Group = 0; ServicePrincipal = 0 } }
+    if ($principalsByRole[$role].ContainsKey($type)) { $principalsByRole[$role][$type]++ }
+}
+
+$principalNodes = @()
+$principalEdges = @()
+$prinIdx = 0
+foreach ($role in $rolesSeen) {
+    foreach ($t in @('User', 'Group', 'ServicePrincipal')) {
+        $n = $principalsByRole[$role][$t]
+        if ($n -eq 0) { continue }
+        $prinIdx++
+        $prinId = "P$prinIdx"
+        $principalNodes += "        $prinId[$n $t$(if ($n -gt 1) { 's' })]"
+        $edge = if ($role -in @('Owner', 'Contributor')) { "$prinId -.->|⚠| $($roleIdMap[$role])" } else { "$prinId --> $($roleIdMap[$role])" }
+        $principalEdges += "    $edge"
+    }
+}
+
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "RBAC")
+
+$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor) — see [SENT-009] and [SENT-039] in the gap analysis.
+
+## Who-grants-what-to-whom
+
+``````mermaid
+flowchart LR
+    subgraph PRIN["Principals"]
+        direction TB
+$($principalNodes -join [Environment]::NewLine)
+    end
+
+    subgraph ROLES["Roles at workspace scope"]
+        direction TB
+$($roleNodeLines -join [Environment]::NewLine)
+    end
+
+$($principalEdges -join [Environment]::NewLine)
+
+    classDef sentinelRole fill:#1a3b1a,stroke:#3a3,color:#dfd
+    classDef broadRole fill:#5b1a1a,stroke:#a33,color:#fdd
+$(($rolesSeen | ForEach-Object {
+    if ($_ -in @('Owner', 'Contributor')) { "    class $($roleIdMap[$_]) broadRole" }
+    elseif ($_ -like 'Microsoft Sentinel*') { "    class $($roleIdMap[$_]) sentinelRole" }
+}) -join [Environment]::NewLine)
+``````
 
 ## At workspace scope
 
@@ -1911,6 +2195,17 @@ $dailyLine = if ($incDaily -and $null -ne $incDaily.AvgDailyUniqueIncidents) {
     "**Avg daily unique incidents:** $($incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $($incDaily.PeakDailyNewIncidents) (last 7d)"
 } else { '_No incident-flow metrics available._' }
 
+# Closed-without-ack count for the state diagram note. The fixture's
+# AcknowledgedCount field was added by the MTTA-NaN fix; older captures
+# may not have it.
+$closedCount = if ($incMttr) { [int]($incMttr.ClosedCount) } else { 0 }
+$ackCountForState = 0
+if ($incMttr -and ($incMttr.PSObject.Properties.Name -contains 'AcknowledgedCount')) {
+    $ackCountForState = [int]$incMttr.AcknowledgedCount
+}
+$unackCount = $closedCount - $ackCountForState
+$totalIncidents = if ($incSummary -and $incSummary.Count) { [int]$incSummary.Count } else { $closedCount }
+
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
 
@@ -1921,6 +2216,56 @@ $mttrLine
 $dailyLine
 
 > When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
+
+## Incident lifecycle
+
+``````mermaid
+stateDiagram-v2
+    [*] --> New : Alert fires
+    New --> Active : Analyst opens
+    New --> Closed : Auto-suppress<br/>(SENT-030 fires here)
+    Active --> InProgress : Investigation begins
+    InProgress --> Active : Re-assigned
+    InProgress --> Closed : Resolved
+    Closed --> [*]
+
+    state Closed {
+        [*] --> TruePositive
+        [*] --> FalsePositive
+        [*] --> BenignPositive
+        [*] --> Undetermined
+    }
+
+    note right of New
+        $totalIncidents incidents in 30d
+        $closedCount reached Closed
+        $unackCount closed without acknowledgement
+    end note
+``````
+
+## Analyst journey — typical high-severity incident
+
+``````mermaid
+journey
+    title Analyst journey — typical high-severity incident
+    section Alert created
+        Alert fires from Sentinel rule: 5: Sentinel
+        Incident created with severity + tactics: 5: Sentinel
+    section Triage
+        Notification reaches SOC channel: 4: Teams
+        Analyst opens incident in Defender portal: 4: Analyst
+        Read entity timelines + linked alerts: 3: Analyst
+        Pivot to KQL hunt for additional context: 2: Analyst
+    section Investigation
+        Identify scope of compromise: 2: Analyst
+        Run playbook for user-risk enrichment: 4: Playbook
+        Decide remediation approach: 3: Analyst, Lead
+    section Resolution
+        Apply remediation: 3: Analyst
+        Document timeline + close incident: 4: Analyst
+``````
+
+Dips at "Pivot to KQL hunt" and "Identify scope of compromise" mark the SOC pain points. Workspaces firing [SENT-034] (no automation) see steeper dips because every step is manual.
 
 ## Top alerting rules (last 30d, top 25)
 
