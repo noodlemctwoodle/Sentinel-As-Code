@@ -116,6 +116,33 @@ function Read-RawArray([string]$Name) {
 function Write-Section([string]$FileName, [string]$Body) {
     $target = Join-Path $OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
+    # Auto-link finding mentions. Two passes:
+    #   1. `[SENT-NNN]` text-in-brackets NOT followed by `(` → wrap with URL.
+    #      This catches the bullet-list format already used in 00-overview
+    #      and 01-live-snapshot's "Top recommendations" blocks where the
+    #      square brackets are literal (Markdown treats `[X]` without a
+    #      following `(...)` as plain text).
+    #   2. Bare `SENT-NNN` not already inside a Markdown link → wrap.
+    # On 90-gap-analysis.md itself the target collapses to just the anchor
+    # so internal links work (`[SENT-001](#sent-001)`). Existing links are
+    # preserved — the lookarounds skip anything already followed by `](`.
+    $relTarget = if ($FileName -eq '90-gap-analysis.md') { '' } else { '90-gap-analysis.md' }
+
+    # Pass 1: bracketed-but-unlinked IDs.
+    $body = [regex]::Replace($body, '\[(SENT-\d{3,})\](?!\()', {
+        param($m)
+        $id = $m.Groups[1].Value
+        "[$id]($relTarget#$($id.ToLower()))"
+    })
+
+    # Pass 2: bare IDs not preceded by `[`, `(`, `#`, or `-` and not
+    # followed by `]` or `)`. The leading `-` exclusion guards against
+    # future composite IDs like `SENT-AUTH-001`.
+    $body = [regex]::Replace($body, '(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])', {
+        param($m)
+        $id = $m.Groups[1].Value
+        "[$id]($relTarget#$($id.ToLower()))"
+    })
     Set-Content -Path $target -Value $body -Encoding UTF8
     Write-Information "  ↳ rendered $FileName"
 }
@@ -1393,7 +1420,8 @@ $(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severi
 
 $(if ($gapFindings.Count -gt 0) {
     ($gapFindings | ForEach-Object { @"
-### [$($_.Id)] $($_.Title)
+<a id="$($_.Id.ToLower())"></a>
+### $($_.Id) — $($_.Title)
 - **Severity:** $($_.Severity)
 - **Category:** $($_.Category)
 - **Evidence:** $($_.Evidence)
