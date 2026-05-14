@@ -1929,8 +1929,28 @@ if ($overflowBuckets.Count -gt 0) {
 # underlying capture supports it — a workspace with no Sentinel Data
 # Lake should NOT show the Data Lake node, and a workspace with no
 # Basic/Auxiliary tables should NOT show those plan nodes either.
+#
+# Data Lake detection — three converging signals because no single
+# endpoint is reliable across all Sentinel API versions / regions:
+#   (a) workspace.properties.features.unifiedSentinelBillingOnly — set
+#       to true when the workspace is onboarded to the unified
+#       Sentinel / Defender billing model that includes Sentinel Data
+#       Lake. This is the most reliable indicator on production
+#       workspaces today.
+#   (b) sentinel-data-lake.json — captures the (preview) /dataLake
+#       endpoint. Returns 400 / empty on workspaces in regions where
+#       the provider hasn't yet registered the subresource, so this
+#       alone produces false-negatives. Use as a secondary signal.
+#   (c) Any workspace table on the 'DataLake' plan — confirms data is
+#       actually flowing into the lake, irrespective of the workspace
+#       feature flag.
 $sentinelDataLake = Read-RawArray 'sentinel-data-lake.json'
-$dataLakePresent = @($sentinelDataLake).Count -gt 0
+$unifiedBilling = $false
+if ($workspace.properties.PSObject.Properties.Name -contains 'features' -and $workspace.properties.features) {
+    if ($workspace.properties.features.PSObject.Properties.Name -contains 'unifiedSentinelBillingOnly') {
+        $unifiedBilling = [bool]$workspace.properties.features.unifiedSentinelBillingOnly
+    }
+}
 
 $plansInUse = @{}
 $archiveTables = 0
@@ -1943,7 +1963,7 @@ foreach ($t in $workspaceTables) {
 }
 $hasBasic     = $plansInUse.ContainsKey('Basic')
 $hasAuxiliary = $plansInUse.ContainsKey('Auxiliary')
-$hasDataLake  = $plansInUse.ContainsKey('DataLake') -or $dataLakePresent
+$hasDataLake  = $plansInUse.ContainsKey('DataLake') -or @($sentinelDataLake).Count -gt 0 -or $unifiedBilling
 $hasArchive   = $archiveTables -gt 0
 
 $wspNodes = @('        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $($enabledRules.Count)]", '        INC[Incidents]')
