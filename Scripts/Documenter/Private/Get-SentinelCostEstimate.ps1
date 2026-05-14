@@ -113,42 +113,73 @@ function Get-SentinelCostEstimate {
     $benefitSet = @{}
     if ($benefitJson) { foreach ($t in $benefitJson.tables) { $benefitSet[$t] = $true } }
 
-    # Pricing table lookup. The Retail Prices payload is wide; we extract a small set of
-    # representative meters. If a meter is missing we fall back to a sentinel value of 0
-    # so the calculator degrades gracefully rather than throwing.
-    $unitPrices = @{
-        AnalyticsIngestionPerGb = 0.0
-        BasicIngestionPerGb     = 0.0
-        AuxiliaryIngestionPerGb = 0.0
-        DataLakeIngestionPerGb  = 0.0
-        RetentionPerGbMonth     = 0.0
-        ArchivePerGbMonth       = 0.0
+    # Pricing table lookup driven by Resources/cost-meters.json. Each
+    # category in that file declares either:
+    #   - meterNames    — exact-match meter strings (case-sensitive), OR
+    #   - meterContains — list of substrings that must ALL be present in
+    #                     the meter name (used for the Data Lake meter
+    #                     whose exact wording has varied).
+    # Microsoft renames Retail Prices meters periodically; supporting the
+    # documenter on a new tenant should be a JSON edit, not a code change.
+    #
+    # When the API returns more than one row for the same meter (a
+    # 0-priced commitment-tier 'included' row plus a non-zero PAYG row),
+    # we take the MAX unit price across rows — that yields the PAYG rate,
+    # which is the right baseline for an uncommitted workspace. The
+    # CommitmentTierWhatIf surface below projects savings from this
+    # baseline.
+    $metersCatalog = Read-Json (Join-Path $ResourcesRoot 'cost-meters.json')
+    if (-not $metersCatalog) {
+        throw "cost-meters.json missing or unreadable under $ResourcesRoot"
     }
+
+    $unitPrices = @{}
+    foreach ($cat in $metersCatalog.categories) { $unitPrices[$cat.id] = 0.0 }
+    $skipMeters = @{}
+    if ($metersCatalog.skipMeters) { foreach ($s in $metersCatalog.skipMeters) { $skipMeters[$s] = $true } }
+
     $currency = 'unknown'
-    $asOfUtc = $null
-    $region = $null
+    $asOfUtc  = $null
+    $region   = $null
 
     if ($pricesBlob) {
-        $region   = $pricesBlob.Region
-        $asOfUtc  = $pricesBlob.FetchedAtUtc
+        $region  = $pricesBlob.Region
+        $asOfUtc = $pricesBlob.FetchedAtUtc
         foreach ($p in @($pricesBlob.Prices)) {
-            $meter = ($p.meterName)         -as [string]
-            $product = ($p.productName)     -as [string]
-            $price = ($p.unitPrice)         -as [double]
-            $currency = ($p.currencyCode)   -as [string]
+            $meter = ($p.meterName)    -as [string]
+            $price = ($p.unitPrice)    -as [double]
+            $cc    = ($p.currencyCode) -as [string]
+            if ($cc) { $currency = $cc }
+            if (-not $meter -or $skipMeters.ContainsKey($meter)) { continue }
 
-            switch -regex ($meter) {
-                '^Pay-As-You-Go Data Ingestion$'        { $unitPrices.AnalyticsIngestionPerGb = $price; break }
-                '^Basic Logs Data Ingestion$'           { $unitPrices.BasicIngestionPerGb     = $price; break }
-                '^Auxiliary Logs Data Ingestion$'       { $unitPrices.AuxiliaryIngestionPerGb = $price; break }
-                'Data Lake.*Ingestion'                  { $unitPrices.DataLakeIngestionPerGb  = $price; break }
-                '^Data Retention$'                      { $unitPrices.RetentionPerGbMonth     = $price; break }
-                '^Long Term Retention$'                 { $unitPrices.ArchivePerGbMonth       = $price; break }
+            foreach ($cat in $metersCatalog.categories) {
+                $hit = $false
+                if ($cat.PSObject.Properties.Name -contains 'meterNames' -and $cat.meterNames) {
+                    if ($cat.meterNames -contains $meter) { $hit = $true }
+                }
+                if (-not $hit -and $cat.PSObject.Properties.Name -contains 'meterContains' -and $cat.meterContains) {
+                    $allMatch = $true
+                    foreach ($needle in $cat.meterContains) {
+                        if ($meter -notlike "*$needle*") { $allMatch = $false; break }
+                    }
+                    if ($allMatch) { $hit = $true }
+                }
+                if ($hit -and $price -gt $unitPrices[$cat.id]) {
+                    $unitPrices[$cat.id] = $price
+                }
             }
         }
     } else {
         $caveats += 'Retail Prices snapshot unavailable — monthly cost is reported as zero.'
     }
+
+    # Analytics plan = LA ingestion + Sentinel premium (both per-GB and
+    # additive on a Sentinel-enabled workspace).
+    $unitPrices.AnalyticsIngestionPerGb = $unitPrices.AnalyticsLaIngestion + $unitPrices.SentinelPremium
+    # Legacy aliases kept for any callers reading the older property names.
+    $unitPrices.BasicIngestionPerGb     = $unitPrices.BasicIngestion
+    $unitPrices.AuxiliaryIngestionPerGb = $unitPrices.AuxiliaryIngestion
+    $unitPrices.DataLakeIngestionPerGb  = $unitPrices.DataLakeIngestion
 
     # Per-table cost (30d billable -> monthly = *30/30, i.e. unchanged)
     $perTable = @()

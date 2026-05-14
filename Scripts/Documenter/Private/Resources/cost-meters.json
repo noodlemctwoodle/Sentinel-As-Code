@@ -1,0 +1,63 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-05-14",
+  "description": "Maps Azure Retail Prices meter names to Sentinel/Log Analytics cost categories. Microsoft has renamed several meters over time; both the legacy and current names are listed so a workspace on either pricing surface receives a non-zero unit price. When the API returns more than one row for the same meter name (e.g. a 0-priced commitment-tier 'included' row alongside a non-zero PAYG row), the cost calculator takes the MAX unit price across the rows — that yields the PAYG rate, which is the right baseline for a non-committed workspace.",
+  "skipMeters": [
+    "Free Data Analyzed"
+  ],
+  "categories": [
+    {
+      "id": "AnalyticsLaIngestion",
+      "description": "Log Analytics per-GB ingestion. For a Sentinel-enabled workspace this is paid in addition to SentinelPremium.",
+      "meterNames": [
+        "Analytics Logs Data Ingestion",
+        "Pay-As-You-Go Data Ingestion"
+      ]
+    },
+    {
+      "id": "SentinelPremium",
+      "description": "Microsoft Sentinel per-GB premium charge layered on top of LA ingestion.",
+      "meterNames": [
+        "Standard Data Analyzed",
+        "Analytics Logs Data Analyzed"
+      ]
+    },
+    {
+      "id": "BasicIngestion",
+      "description": "Basic Logs plan per-GB ingestion. Query-time billing for Basic plan is not modelled.",
+      "meterNames": [
+        "Basic Logs Data Ingestion"
+      ]
+    },
+    {
+      "id": "AuxiliaryIngestion",
+      "description": "Auxiliary Logs plan per-GB ingestion. Query-time billing for Auxiliary plan is not modelled.",
+      "meterNames": [
+        "Auxiliary Logs Data Ingestion"
+      ]
+    },
+    {
+      "id": "DataLakeIngestion",
+      "description": "Sentinel Data Lake per-GB ingestion.",
+      "meterContains": [
+        "Data Lake",
+        "Ingestion"
+      ]
+    },
+    {
+      "id": "RetentionPerGbMonth",
+      "description": "Per-GB-month interactive retention beyond the default free interactive period.",
+      "meterNames": [
+        "Data Retention",
+        "Analytics Logs Data Retention"
+      ]
+    },
+    {
+      "id": "ArchivePerGbMonth",
+      "description": "Per-GB-month long-term retention (archive).",
+      "meterNames": [
+        "Long Term Retention"
+      ]
+    }
+  ]
+}
