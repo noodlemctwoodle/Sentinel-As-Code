@@ -1176,44 +1176,82 @@ $(Format-Table -Items $wbRows -Columns 'Name','Category')
 Total available: $($workbookTemplates.Count)
 "@)
 
-$wlRows = $watchlists | ForEach-Object {
-    [pscustomobject]@{
-        Name = $_.properties.displayName
-        Source = $_.properties.source
-        ItemsSearchKey = $_.properties.itemsSearchKey
+# Item counts come from the sidecar `_raw/watchlist-items/<alias>.json`
+# files (one per watchlist, captured by the exporter). The sidecar is
+# the source of truth for item counts — the watchlist properties don't
+# include a count.
+$wlItemsDir = Join-Path $InputRoot '_raw/watchlist-items'
+$wlItemCount = @{}
+if (Test-Path $wlItemsDir) {
+    foreach ($f in Get-ChildItem -Path $wlItemsDir -Filter '*.json' -File -ErrorAction SilentlyContinue) {
+        $alias = $f.BaseName
+        try {
+            $items = Get-Content -Path $f.FullName -Raw | ConvertFrom-Json -ErrorAction Stop
+            $wlItemCount[$alias] = if ($null -eq $items) { 0 } else { @($items).Count }
+        } catch {
+            $wlItemCount[$alias] = '?'
+        }
     }
 }
-# Watchlists by source for the headline pie.
-$wlBySource = @{}
-foreach ($w in $wlRows) {
-    $s = if ($w.Source) { [string]$w.Source } else { 'Unknown' }
-    if (-not $wlBySource.ContainsKey($s)) { $wlBySource[$s] = 0 }
-    $wlBySource[$s]++
+
+$wlRows = $watchlists | ForEach-Object {
+    $alias = $_.properties.watchlistAlias
+    $items = if ($alias -and $wlItemCount.ContainsKey($alias)) { $wlItemCount[$alias] } else { '?' }
+    $desc  = if ($_.properties.description) { [string]$_.properties.description } else { '' }
+    if ($desc.Length -gt 90) { $desc = $desc.Substring(0, 87) + '...' }
+    [pscustomobject]@{
+        Name           = $_.properties.displayName
+        Provider       = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
+        Items          = $items
+        ItemsSearchKey = $_.properties.itemsSearchKey
+        Source         = $_.properties.source
+        Updated        = Format-DateUtc $_.properties.updated
+        Description    = $desc
+    }
 }
-$wlPieRows = $wlBySource.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+
+# Watchlists by provider for the headline pie (was "by source", but the
+# source field is just the seed filename so all rows have a different
+# value — useless as a pie distribution). Provider groups by who
+# manages the watchlist (Microsoft vs first-party customer content).
+$wlByProvider = @{}
+foreach ($w in $wlRows) {
+    $p = if ($w.Provider) { [string]$w.Provider } else { 'Unknown' }
+    if (-not $wlByProvider.ContainsKey($p)) { $wlByProvider[$p] = 0 }
+    $wlByProvider[$p]++
+}
+$wlPieRows = $wlByProvider.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
-$wlChartBlock = if ($wlRows.Count -gt 0) {
+
+# Total item count for the headline sentence.
+$totalItems = 0
+foreach ($v in $wlItemCount.Values) { if ($v -is [int]) { $totalItems += $v } }
+
+# Pie only when 2+ provider buckets — single-slice pies are uninformative.
+$wlChartBlock = if ($wlRows.Count -gt 0 -and $wlByProvider.Count -ge 2) {
     @"
 
-## Watchlists by source
+## Watchlists by provider
 
 ``````mermaid
-pie showData title Watchlists by source
+pie showData title Watchlists by provider
 $($wlPieRows -join [Environment]::NewLine)
 ``````
 
-$($wlRows.Count) watchlist(s) total. A "Local file" source indicates a watchlist seeded from CSV via the portal; "Remote storage" sources poll an external file.
 "@
 } else { '' }
 
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
+**$($wlRows.Count) watchlist(s) · $totalItems item(s) captured** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run.
 
-$(Format-Table -Items $wlRows -Columns 'Name','Source','ItemsSearchKey')
+$(Format-Table -Items $wlRows -Columns 'Name','Provider','Items','ItemsSearchKey','Source','Updated','Description')
 
 > Watchlist item contents are exported under ``_raw/watchlist-items/`` (gitignored). Item bodies are not embedded in the rendered report.
+
+[Microsoft Sentinel watchlists overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists)
 "@)
 
 $arRows = $autoRules | ForEach-Object {
