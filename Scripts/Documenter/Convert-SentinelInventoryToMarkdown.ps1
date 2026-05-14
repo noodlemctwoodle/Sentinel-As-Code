@@ -3679,6 +3679,111 @@ $dlTableRows = $dlTables | ForEach-Object {
     }
 }
 
+# Tier-distribution stats. When Lake is enrolled every Analytics-plan
+# table is auto-mirrored to the Lake at the same retention. A table
+# that has totalRetentionInDays > retentionInDays is also storing
+# additional time in the Lake beyond the Analytics period. Tables on
+# plan = 'DataLake' route exclusively to the Lake (no Analytics tier).
+# Catalogue-only tables (zero ingest in the workspace) are excluded
+# from the tier-distribution chart because they don't contribute to
+# the Lake state.
+$tierStats = @{ AnalyticsOnly = 0; MirroredOnly = 0; MirroredExtended = 0; LakeOnly = 0 }
+$retentionRows = New-Object System.Collections.Generic.List[object]
+foreach ($t in $operationalTables) {
+    $plan = [string]$t.properties.plan
+    $r  = [int]($t.properties.retentionInDays   | ForEach-Object { if ($_) { $_ } else { 0 } })
+    $tr = [int]($t.properties.totalRetentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
+    $lakeOnlyDays = if ($tr -gt $r) { $tr - $r } else { 0 }
+
+    $tierCategory = if ($plan -eq 'DataLake') {
+        'LakeOnly'
+    } elseif ($hasDataLake -and $lakeOnlyDays -gt 0) {
+        'MirroredExtended'
+    } elseif ($hasDataLake) {
+        'MirroredOnly'
+    } else {
+        'AnalyticsOnly'
+    }
+    $tierStats[$tierCategory]++
+
+    if ($lakeOnlyDays -gt 0 -or $plan -eq 'DataLake') {
+        $retentionRows.Add([pscustomobject]@{
+            Table          = $t.name
+            Plan           = $plan
+            AnalyticsDays  = $r
+            LakeOnlyDays   = $lakeOnlyDays
+            TotalDays      = $tr
+        })
+    }
+}
+
+# Asset-data system tables that Sentinel Data Lake auto-ingests on
+# tenant onboarding. Detecting these by name confirms the Lake's
+# Microsoft Entra / Microsoft 365 / Azure Resource Graph asset
+# pipelines are actually populating the workspace.
+$assetTableNames = @(
+    @{ Pattern = '^IdentityInfo$';                 Family = 'Microsoft Entra (identity)' },
+    @{ Pattern = '^EntityGraph';                   Family = 'Microsoft Sentinel graph (entities)' },
+    @{ Pattern = '^Asset';                         Family = 'Azure Resource Graph (assets)' },
+    @{ Pattern = '^Office(SharePoint|Exchange|Teams)';  Family = 'Microsoft 365 (activity)' },
+    @{ Pattern = '^Behavior(Analytics)?$';         Family = 'Microsoft Sentinel UEBA (asset enrichment)' }
+)
+$assetDataRows = New-Object System.Collections.Generic.List[object]
+foreach ($t in $workspaceTables) {
+    foreach ($m in $assetTableNames) {
+        if ($t.name -match $m.Pattern) {
+            $hasData = $populatedTableNames.ContainsKey($t.name)
+            $assetDataRows.Add([pscustomobject]@{
+                Table       = $t.name
+                Family      = $m.Family
+                IngestState = if ($hasData) { 'Receiving data' } else { 'Defined, no data' }
+                Retention   = $t.properties.retentionInDays
+            })
+            break
+        }
+    }
+}
+
+# Lake billing meters reference. Static per Microsoft Sentinel
+# pricing docs — surfaces all five Lake-specific cost surfaces so
+# reviewers know what to expect on the bill when Lake is in use.
+$lakeBillingMeters = @(
+    [pscustomobject]@{ Meter = 'Data lake ingestion';      ChargedPer = 'GB';            AppliesTo = 'Data ingested into tables with retention set to Lake-only. Mirrored-to-Lake ingest is not charged.' }
+    [pscustomobject]@{ Meter = 'Data processing';          ChargedPer = 'GB';            AppliesTo = 'Transformations (redaction, splitting, filtering, normalization) on Lake-only ingest. Not charged for mirrored ingest.' }
+    [pscustomobject]@{ Meter = 'Data lake storage';        ChargedPer = 'GB · month';    AppliesTo = 'Data remaining in Lake AFTER the analytics-tier retention period ends. Compression 6:1 applied before billing.' }
+    [pscustomobject]@{ Meter = 'Data lake query';          ChargedPer = 'GB scanned';    AppliesTo = 'KQL queries and KQL jobs over Lake-tier data. Charged per uncompressed GB scanned.' }
+    [pscustomobject]@{ Meter = 'Advanced data insights';   ChargedPer = 'compute hour';  AppliesTo = 'Jupyter notebook sessions, scheduled notebook jobs, custom graph build/query. Per vCore-hour (pools of 12, 32, or 80 vCores).' }
+)
+
+# Lake-derived capabilities — features that unlock automatically when
+# the tenant onboards to Lake. Helps the reader connect "Lake is
+# enrolled" to the operational surfaces they'd see in Defender portal.
+$lakeCapabilities = @(
+    [pscustomobject]@{ Capability = 'KQL exploration over Lake';          Surface = 'Defender portal · Investigate · KQL editor';   Billing = 'Data lake query (GB scanned)' }
+    [pscustomobject]@{ Capability = 'KQL jobs (promote Lake → Analytics)'; Surface = 'Defender portal · Microsoft Sentinel · Jobs'; Billing = 'Data lake query (job execution)' }
+    [pscustomobject]@{ Capability = 'Jupyter notebooks';                   Surface = 'Defender portal · Microsoft Sentinel · Notebooks · VS Code extension'; Billing = 'Advanced data insights (compute hour)' }
+    [pscustomobject]@{ Capability = 'Microsoft Sentinel graph (embedded)'; Surface = 'Defender portal hunting graph · Blast radius'; Billing = 'No additional charge for embedded graphs' }
+    [pscustomobject]@{ Capability = 'Custom graphs';                       Surface = 'Notebooks · Graph Query APIs · MCP graph tools'; Billing = 'Advanced data insights (compute hour, graph build/query)' }
+    [pscustomobject]@{ Capability = 'MCP server (data exploration)';       Surface = 'Sentinel MCP server (AI agents)';              Billing = 'No charge for the server; tools invoke Lake-query meter' }
+    [pscustomobject]@{ Capability = 'MCP entity analyzer';                 Surface = 'Sentinel MCP server';                           Billing = 'Security Compute Units (SCU) + Lake-query meter' }
+    [pscustomobject]@{ Capability = 'Auto-ingested asset data';            Surface = 'System tables (Entra, M365, Azure Resource Graph)'; Billing = 'Ingestion + storage charged like any Lake table' }
+    [pscustomobject]@{ Capability = '12-year affordable retention';         Surface = 'Manage data tiers in Defender portal';          Billing = 'Lake storage (per GB-month, 6:1 compression)' }
+)
+
+# Top-by-Lake-only-retention chart inputs (top 10 tables paying for
+# extended Lake retention beyond Analytics). xychart-beta-friendly
+# axis labels truncated to 14 chars.
+$topRetention = @($retentionRows | Sort-Object LakeOnlyDays -Descending | Select-Object -First 10)
+$retAxis  = ($topRetention | ForEach-Object {
+    $n = $_.Table
+    $s = if ($n.Length -gt 14) { $n.Substring(0,14) } else { $n }
+    "`"$s`""
+}) -join ', '
+$retLakeBars = ($topRetention | ForEach-Object { $_.LakeOnlyDays }) -join ', '
+$retAnaBars  = ($topRetention | ForEach-Object { $_.AnalyticsDays }) -join ', '
+$retYmax = 1
+foreach ($r in $topRetention) { $sum = $r.AnalyticsDays + $r.LakeOnlyDays; if ($sum -gt $retYmax) { $retYmax = $sum } }
+
 # Lake-side ingest + cost split from $cost.ByPlan. Defensive lookups because
 # older cost captures may not include DataLake.
 $lakeGb = 0.0
@@ -3775,6 +3880,110 @@ The Sentinel Data Lake is a tenant-wide capability but it's provisioned as a sin
 "@
 } else { '' }
 
+# Tier-distribution pie chart inputs.
+$tierPieRows = @()
+if ($tierStats.AnalyticsOnly    -gt 0) { $tierPieRows += "    `"Analytics only`" : $($tierStats.AnalyticsOnly)" }
+if ($tierStats.MirroredOnly     -gt 0) { $tierPieRows += "    `"Analytics + Lake mirror`" : $($tierStats.MirroredOnly)" }
+if ($tierStats.MirroredExtended -gt 0) { $tierPieRows += "    `"Analytics + Lake extended`" : $($tierStats.MirroredExtended)" }
+if ($tierStats.LakeOnly         -gt 0) { $tierPieRows += "    `"Lake only`" : $($tierStats.LakeOnly)" }
+
+$tierChartBlock = if ($tierPieRows.Count -ge 2) { @"
+
+## Tier distribution
+
+Pie of every operational table (a table that has received data in the last 90 days, plus all CustomLog tables) by tier configuration. *Analytics + Lake mirror* is the default state on a Lake-enrolled tenant — every Analytics-plan table is auto-mirrored to the Lake at the same retention at no extra cost. *Analytics + Lake extended* means the table also stores beyond the Analytics retention in the Lake (Lake-storage meter applies). *Lake only* means the table bypasses the Analytics tier entirely (Lake-ingestion meter applies; no real-time analytics or detection rules).
+
+``````mermaid
+pie showData title Operational tables by tier configuration
+$($tierPieRows -join [Environment]::NewLine)
+``````
+"@ } else { '' }
+
+# Retention split bar chart — only render when at least one table has
+# extended retention (otherwise the chart would be empty).
+$retentionChartBlock = if ($topRetention.Count -gt 0) { @"
+
+## Retention split — top tables by extended Lake retention
+
+Top 10 tables paying for retention beyond the Analytics-tier interactive period. Each bar is the table's *Lake-only* retention days — the portion of total retention that bills against the Lake-storage meter (per GB · month, with 6:1 compression). Tables with the same Analytics retention as total retention don't appear here because they sit entirely within the Analytics retention window and incur no Lake-storage charge.
+
+``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 480
+---
+xychart-beta
+    title "Lake-only retention days (beyond Analytics period)"
+    x-axis [$retAxis]
+    y-axis "Days" 0 --> $($retYmax + 30)
+    bar [$retLakeBars]
+``````
+
+$(Format-Table -Items $topRetention -Columns 'Table','Plan','AnalyticsDays','LakeOnlyDays','TotalDays')
+"@ } else { '' }
+
+# Lake architecture flowchart — static visual showing the three tiers
+# and the ingestion / mirror / promote / query paths. Always rendered
+# when Lake is enrolled because it's instructional rather than
+# data-driven.
+$lakeArchitectureBlock = if ($hasDataLake) { @"
+
+## Lake architecture
+
+How data flows once the tenant is onboarded to the Lake. Source → Analytics tier → automatic mirror to Lake → optional KQL job to promote summarised data back to Analytics for detection. Notebooks and graph operate against the Lake tier directly. Lake-only tables skip the Analytics tier entirely.
+
+``````mermaid
+flowchart LR
+    SRC[Data sources] --> ANA[(Analytics tier<br/>real-time KQL, rules)]
+    SRC --> LO[(Lake-only tables<br/>verbose / low-query)]
+    ANA -. auto-mirror .-> LAKE
+    LO --> LAKE[(Sentinel Data Lake<br/>12-year affordable retention<br/>Parquet, 6:1 compression)]
+    LAKE --> JOB[KQL jobs<br/>promote → Analytics]
+    JOB --> ANA
+    LAKE --> KQL[KQL exploration<br/>Defender portal]
+    LAKE --> NB[Jupyter notebooks<br/>VS Code]
+    LAKE --> GR[Sentinel graph<br/>blast radius, hunting]
+    LAKE --> MCP[MCP tools<br/>entity analyzer, triage]
+
+    classDef ana fill:#5b3a1a,stroke:#a73,color:#fed
+    classDef lake fill:#1a3b5b,stroke:#37a,color:#dfd
+    classDef tool fill:#1a3b1a,stroke:#3a3,color:#dfd
+    class ANA,LO ana
+    class LAKE lake
+    class JOB,KQL,NB,GR,MCP tool
+``````
+"@ } else { '' }
+
+# Lake-tier tables block — only when there are explicit Lake-only
+# tables on the workspace.
+$lakeTablesBlock = if ($dlTableRows.Count -gt 0) { @"
+
+## Lake-only tables
+
+Tables explicitly configured to bypass the Analytics tier and route exclusively to the Lake. These tables bill against the **Data lake ingestion** + **Data processing** meters at a lower per-GB rate than Analytics, but **analytics rules cannot query them in real time**. Use the *Manage table* page in the Defender portal to switch a table's tier.
+
+$(Format-Table -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetention')
+"@ } else { @"
+
+## Lake-only tables
+
+_No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention — see the tier distribution above. *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
+"@ }
+
+# Asset-data block — present when at least one asset-family table is
+# detected. Helps confirm the Lake's auto-onboarded system tables
+# (Entra, M365, Azure Resource Graph) are flowing.
+$assetDataBlock = if ($assetDataRows.Count -gt 0) { @"
+
+## Auto-ingested asset data
+
+Sentinel Data Lake automatically creates and ingests asset-data tables on tenant onboarding (Microsoft Entra identity records, Microsoft 365 activity, Azure Resource Graph asset snapshots, plus UEBA enrichment). These tables appear in the Lake exploration UI as *System tables*. Receiving-data status confirms each pipeline is active.
+
+$(Format-Table -Items $assetDataRows -Columns 'Table','Family','IngestState','Retention')
+"@ } else { '' }
+
 $lakeBody = @"
 $(Format-Banner -Title "Microsoft Sentinel Data Lake")
 
@@ -3786,19 +3995,36 @@ The documenter's primary signal is the **Microsoft.SentinelPlatformServices/sent
 
 $(Format-Table -Items $lakeSignals -Columns 'Signal','Value','Interpretation')
 $lakeResourceBlock
+$lakeArchitectureBlock
+$tierChartBlock
+$retentionChartBlock
+$lakeTablesBlock
+$assetDataBlock
 
-## Lake-tier tables
-
-Tables currently configured with ``plan = DataLake``. Lake-tier tables bill against the DataLake-rate per-GB meter and support extended affordable retention beyond the Analytics-plan interactive period.
-
-$(if ($dlTableRows.Count -gt 0) { Format-Table -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetention' } else { '_No tables currently route to the DataLake plan on this workspace._' })
-
-## Cost split (last 30d)
+## Cost split — Analytics vs Lake (last 30d)
 
 | Plan | Ingest (GB) | Estimated monthly cost |
 |---|---:|---:|
 | Analytics | $([math]::Round($analyticsGb, 2)) | `$$([math]::Round($analyticsCost, 2)) |
 | DataLake  | $([math]::Round($lakeGb, 2)) | `$$([math]::Round($lakeCost, 2)) |
+
+## Lake billing meters
+
+When Lake is enrolled, five new meters can appear on the bill. The table below documents what each one charges for so a billing surprise can be traced to its source.
+
+$(Format-Table -Items $lakeBillingMeters -Columns 'Meter','ChargedPer','AppliesTo')
+
+> Notes
+>
+> - **Mirrored data is free** — mirroring an Analytics-plan table to the Lake at the same retention incurs no Lake-storage charge. Extended Lake-only retention beyond the Analytics period is where Lake-storage starts billing.
+> - **Compression is 6:1** — Lake-storage bills the compressed footprint. 600 GB of raw logs is billed as 100 GB of compressed Lake storage.
+> - **Long-term retention, search-jobs, and auxiliary-logs meters fold into the Lake meters** once the workspace is onboarded — see the onboarding doc for the exact mapping.
+
+## Lake-derived capabilities
+
+Features that unlock when the tenant is onboarded to the Lake. Each surface points at where it lives in the portal plus which Lake meter it bills against.
+
+$(Format-Table -Items $lakeCapabilities -Columns 'Capability','Surface','Billing')
 
 ## Migration candidates
 
@@ -3809,18 +4035,25 @@ $(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Colu
 ## When to enroll
 
 - **Sustained ingest > 500 GB/month** of verbose / low-query telemetry (Defender XDR raw events, firewall syslog, EDR process telemetry).
-- **Long-tail investigations needed at affordable retention** — Lake supports months-to-years retention at storage rates, vs Analytics' high per-GB interactive retention rate.
-- **Already onboarded to the Defender unified SecOps portal** — Lake is the implicit storage tier for unified-portal workflows.
+- **Long-tail investigations need affordable retention** — Lake supports up to 12 years at storage rates with 6:1 compression, vs Analytics' high per-GB interactive retention rate.
+- **Already onboarded to the Defender unified SecOps portal** — Lake is the implicit storage tier for unified-portal workflows (graph, MCP, notebooks).
+- **Compliance retention requirements** — regulatory retention obligations (SOX, GDPR audit, PCI-DSS) often demand multi-year retention that's prohibitively expensive on Analytics-tier storage.
 
 ## When to stay on the legacy model
 
 - **Ingest < ~100 GB/month** — Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
 - **Every table queries in near-real-time** — the Lake's higher query latency makes it a poor fit for detection-rule-heavy workloads.
-- **Compliance / contract requires PerGB2018 billing** — some enterprise agreements lock to legacy meters.
+- **CMK encryption is required** — Sentinel Data Lake does **not** support Customer-Managed Keys; workspaces using CMK cannot use Lake experiences.
+- **Compliance / contract requires PerGB2018 billing** — some enterprise agreements lock to legacy meters that don't include the Lake meter set.
 
-[Microsoft Sentinel Data Lake overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/sentinel-data-lake/sentinel-data-lake-overview)
-[Onboarding the unified Defender / Sentinel SecOps portal (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/microsoft-sentinel-defender-portal)
-[Configure data plans — Analytics vs Basic vs Auxiliary vs DataLake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/basic-logs-use-cases)
+[Microsoft Sentinel Data Lake overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview)
+[Onboard to Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-onboarding)
+[Data lake tier billing (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/billing#data-lake-tier)
+[Manage data tiers and retention (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/manage-data-overview)
+[KQL and the Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/kql-overview)
+[KQL jobs (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/kql-jobs)
+[Jupyter notebooks in the Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/notebooks-overview)
+[Sentinel graph (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-graph-overview)
 "@
 Write-Section '88-sentinel-data-lake.md' $lakeBody
 
