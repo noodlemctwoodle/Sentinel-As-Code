@@ -84,9 +84,9 @@
 
 .EXAMPLE
     .\Export-SdlMigrationWorkbook.ps1 `
-        -SubscriptionId    "5305ccd2-977a-4630-843b-bad582e756a3" `
-        -ResourceGroupName "stl-sec-siem-rg" `
-        -WorkspaceName     "stl-sec-siem-law"
+        -SubscriptionId    "<sub>" `
+        -ResourceGroupName "<rg>" `
+        -WorkspaceName     "<ws>"
 
     Export with all defaults: 30-day window, PAYG pricing, USD.
 
@@ -369,11 +369,6 @@ Write-Step "Workspace functions: $($workspaceFunctions.Count)"
 
 Write-Host ""
 Write-Host "Step 4/6 — Per-table classification (Migration Report)" -ForegroundColor Yellow
-
-$timespan       = "P${TimeRangeDays}D"
-$queryTimespan  = "P${QueryLookbackDays}D"
-$alertTimespan  = "P${AlertActivityDays}D"
-$xdrTimespan    = "P${XdrLookbackDays}D"
 
 $effectiveRate = if ($EffectiveAnalyticsRate -gt 0) { $EffectiveAnalyticsRate } else { Get-PricingRate -Model $PricingModel }
 
