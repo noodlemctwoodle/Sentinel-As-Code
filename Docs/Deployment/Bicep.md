@@ -27,6 +27,7 @@ Subscription-scoped orchestrator. Creates the main resource group, an optional s
 | `retentionInDays` | int | `90` | 30-730 | Interactive retention period |
 | `totalRetentionInDays` | int | `0` | 0-2555 | Total retention including archive tier. `0` = use platform default (matches `retentionInDays`) |
 | `playbookRgName` | string | `''` | — | Optional separate Resource Group for playbooks/Logic Apps. Empty or equal to `rgName` means playbooks land in the main RG |
+| `deploySentinel` | bool | `true` | — | Whether to deploy the `sentinel.bicep` module. Set `false` by the deployment pipeline when Sentinel onboarding already exists on the target workspace; the `Microsoft.SecurityInsights/onboardingStates` resource is not idempotent and re-deploying it returns `Conflict`. Setting `false` lets `main.bicep` provision only the missing pieces (most commonly the optional playbook RG) without touching an existing Sentinel deployment |
 | `tags` | object | `{}` | — | Resource tags applied to all resources |
 
 ### Resources created
@@ -35,13 +36,15 @@ Subscription-scoped orchestrator. Creates the main resource group, an optional s
 | --- | --- | --- |
 | `Microsoft.Resources/resourceGroups` (main) | `2024-07-01` | Always created |
 | `Microsoft.Resources/resourceGroups` (playbook) | `2024-07-01` | Conditional — only when `playbookRgName` is non-empty AND differs from `rgName` |
+| `sentinel.bicep` module | n/a | Conditional — invoked only when `deploySentinel = true`. Skipped on targeted partial deploys (e.g. provisioning a missing playbook RG while leaving an already-onboarded Sentinel workspace untouched) |
 
 ### Outputs
 
-| Output | Type | Source |
+| Output | Type | Source / behaviour |
 | --- | --- | --- |
-| `sentinelResourceId` | string | Bubbled up from the Sentinel module — the OMS solution resource ID |
-| `logAnalyticsWorkspace` | object | Bubbled up from the Sentinel module — `{ name, id, location, retentionInDays }` |
+| `sentinelDeployed` | bool | Echoes the `deploySentinel` parameter. Consumers should branch on this before reading `sentinelResourceId` / `logAnalyticsWorkspace` — those values are only meaningful when `sentinelDeployed = true` |
+| `sentinelResourceId` | string | Bubbled up from the Sentinel module — the OMS solution resource ID. Collapses to `''` when `deploySentinel = false` (module skipped); use `sentinelDeployed` to distinguish "module skipped" from "module ran and produced an empty string" |
+| `logAnalyticsWorkspace` | object | Bubbled up from the Sentinel module — `{ name, id, location, retentionInDays }`. Collapses to `{}` when `deploySentinel = false` (same caveat as above) |
 
 ## sentinel.bicep
 
