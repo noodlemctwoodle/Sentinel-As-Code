@@ -4,7 +4,7 @@
     single multi-sheet Excel file (.xlsx).
 
 .DESCRIPTION
-    The Sentinel Data Lake Migration workbook (sdl-migration.json) runs many
+    The Sentinel Data Lake Migration workbook (workbook.json) runs many
     independent KQL and ARM queries that the portal cannot bundle into a single
     Excel export — each grid only exports its own sheet. This script mirrors
     every query against the same workspace and writes one .xlsx with one named
