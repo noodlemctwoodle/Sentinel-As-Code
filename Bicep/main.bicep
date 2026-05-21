@@ -95,5 +95,5 @@ module sentinel 'sentinel.bicep' = if (deploySentinel) {
 // nullability). Consumers should branch on sentinelDeployed rather
 // than testing the resourceId for emptiness.
 output sentinelDeployed bool = deploySentinel
-output sentinelResourceId string = sentinel.?outputs.sentinelResourceId ?? ''
-output logAnalyticsWorkspace object = sentinel.?outputs.logAnalyticsWorkspace ?? {}
+output sentinelResourceId string = sentinel.?outputs.?sentinelResourceId ?? ''
+output logAnalyticsWorkspace object = sentinel.?outputs.?logAnalyticsWorkspace ?? {}
