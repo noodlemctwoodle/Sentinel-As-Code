@@ -40,20 +40,20 @@
 
 .EXAMPLE
     ./Setup-ServicePrincipal.ps1 `
-        -SubscriptionId "<sub>" `
+        -SubscriptionId "00000000-0000-0000-0000-000000000000" `
         -ServicePrincipalAppId "your-app-id-here"
 
 .EXAMPLE
     # Skip Entra ID role (UEBA/Entity Analytics will need manual enablement)
     ./Setup-ServicePrincipal.ps1 `
-        -SubscriptionId "<sub>" `
+        -SubscriptionId "00000000-0000-0000-0000-000000000000" `
         -ServicePrincipalAppId "your-app-id-here" `
         -SkipEntraRole
 
 .EXAMPLE
     # Skip Graph permission (Defender XDR stage will fail — grant separately)
     ./Setup-ServicePrincipal.ps1 `
-        -SubscriptionId "<sub>" `
+        -SubscriptionId "00000000-0000-0000-0000-000000000000" `
         -ServicePrincipalAppId "your-app-id-here" `
         -SkipGraphPermission
 
