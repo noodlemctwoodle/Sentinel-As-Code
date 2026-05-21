@@ -35,6 +35,9 @@ param totalRetentionInDays int = 0
 @description('Optional separate Resource Group for playbooks/Logic Apps. If empty, playbooks deploy to the main RG.')
 param playbookRgName string = ''
 
+@description('Whether to (re)deploy the Sentinel module. Set false by the workflow when Sentinel onboarding already exists on the target workspace — the Microsoft.SecurityInsights/onboardingStates resource is not idempotent and re-deploying it returns Conflict. False allows main.bicep to provision only the missing pieces (most commonly the optional playbook RG) without touching an existing Sentinel deployment.')
+param deploySentinel bool = true
+
 @description('Resource tags applied to all resources.')
 param tags object = {}
 
@@ -62,7 +65,7 @@ resource playbookRg 'Microsoft.Resources/resourceGroups@2024-07-01' = if (!empty
 // Sentinel Module
 // -----------------------------------------------------------------------
 
-module sentinel 'sentinel.bicep' = {
+module sentinel 'sentinel.bicep' = if (deploySentinel) {
   scope: rg
   name: 'sentinelDeployment'
   params: {
@@ -78,5 +81,13 @@ module sentinel 'sentinel.bicep' = {
 // Outputs
 // -----------------------------------------------------------------------
 
-output sentinelResourceId string = sentinel.outputs.sentinelResourceId
-output logAnalyticsWorkspace object = sentinel.outputs.logAnalyticsWorkspace
+// Outputs collapse to empty values when the sentinel module was
+// skipped (deploySentinel = false). Downstream pipeline stages read
+// workspace identifiers from GitHub repo variables rather than from
+// these outputs, so the empty-fallback path is non-breaking. The `.?`
+// safe-access + `??` default-coalesce pattern is used instead of a
+// ternary so Bicep can statically prove the access path is safe (a
+// plain ternary trips BCP318 because the analyzer can't tie the
+// guard expression to the module's nullability).
+output sentinelResourceId string = sentinel.?outputs.sentinelResourceId ?? ''
+output logAnalyticsWorkspace object = sentinel.?outputs.logAnalyticsWorkspace ?? {}

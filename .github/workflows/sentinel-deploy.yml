@@ -150,7 +150,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.deploy_infrastructure != false }}
     outputs:
-      resources_exist: ${{ steps.check.outputs.resources_exist }}
+      bicep_needed:    ${{ steps.check.outputs.bicep_needed }}
+      deploy_sentinel: ${{ steps.check.outputs.deploy_sentinel }}
     steps:
       # Required even though this job reads no repo files: the
       # Azure-login composite below lives under .github/actions/ in
@@ -172,52 +173,84 @@ jobs:
         with:
           azPSVersion: "latest"
           inlineScript: |
+            # Per-component probe. The output drives two decisions in
+            # Stage 2:
+            #
+            #   bicep_needed    — gate on whether to run Bicep at all
+            #                     (true if ANY component is missing).
+            #   deploy_sentinel — whether the Sentinel module should
+            #                     run inside Bicep (false if Sentinel
+            #                     is already onboarded). False allows
+            #                     main.bicep to provision only the
+            #                     missing optional playbook RG without
+            #                     re-creating the non-idempotent
+            #                     SecurityInsights/onboardingStates
+            #                     resource, which returns Conflict on
+            #                     re-deploy.
             Write-Host "Checking for existing Sentinel infrastructure..."
-            $resourcesExist = "true"
 
-            # Sentinel RG + workspace must both exist for the main
-            # infrastructure to be considered current.
+            $sentinelReady    = $true
+            $playbookRgReady  = $true
+
+            # ── Sentinel RG + workspace + onboarding state ──────────
             $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
             if (-not $rg) {
-                Write-Host "Resource Group '${{ env.RESOURCE_GROUP }}' not found — Bicep deployment required."
-                $resourcesExist = "false"
+                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' missing."
+                $sentinelReady = $false
             } else {
+                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' exists."
+
                 $law = Get-AzOperationalInsightsWorkspace `
                     -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
                     -Name "${{ env.WORKSPACE_NAME }}" `
                     -ErrorAction SilentlyContinue
                 if (-not $law) {
-                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' not found — Bicep deployment required."
-                    $resourcesExist = "false"
+                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' missing."
+                    $sentinelReady = $false
                 } else {
-                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists."
+                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' exists."
+
+                    # Sentinel onboarding state is the non-idempotent
+                    # resource that causes Conflict on re-deploy.
+                    # Treat its existence as the canonical "Sentinel
+                    # is onboarded" signal.
+                    $subId = (Get-AzContext).Subscription.Id
+                    $onboardingId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}/providers/Microsoft.SecurityInsights/onboardingStates/default"
+                    $onboarding = Get-AzResource -ResourceId $onboardingId -ApiVersion "2024-09-01" -ErrorAction SilentlyContinue
+                    if (-not $onboarding) {
+                        Write-Host "  Sentinel onboarding state missing."
+                        $sentinelReady = $false
+                    } else {
+                        Write-Host "  Sentinel onboarding state present."
+                    }
                 }
             }
 
-            # If an optional separate playbook RG is configured via the
-            # PLAYBOOK_RESOURCE_GROUP repo variable, it must also exist —
-            # otherwise Stage 2 Bicep needs to create it via the
-            # conditional playbookRgName resource block in main.bicep.
-            # Trim defensively to survive accidental whitespace in the
-            # GitHub repo variable (a real user-facing footgun: a
-            # trailing space yields 'rg-name ' which Azure treats as a
-            # distinct, non-existent name).
+            # ── Optional playbook RG ────────────────────────────────
+            # Trim defensively to survive accidental whitespace in
+            # the GitHub repo variable.
             $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
             if ($playbookRG -and $playbookRG -ne "${{ env.RESOURCE_GROUP }}") {
                 $pbRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
                 if (-not $pbRg) {
-                    Write-Host "Playbook RG '$playbookRG' not found — Bicep deployment required."
-                    $resourcesExist = "false"
+                    Write-Host "  Playbook RG '$playbookRG' missing."
+                    $playbookRgReady = $false
                 } else {
-                    Write-Host "Playbook RG '$playbookRG' exists."
+                    Write-Host "  Playbook RG '$playbookRG' exists."
                 }
             }
 
-            if ($resourcesExist -eq "true") {
-                Write-Host "All required infrastructure present — skipping Bicep."
-            }
+            # ── Decision matrix ─────────────────────────────────────
+            $bicepNeeded    = (-not $sentinelReady) -or (-not $playbookRgReady)
+            $deploySentinel = -not $sentinelReady
 
-            echo "resources_exist=$resourcesExist" >> $env:GITHUB_OUTPUT
+            Write-Host ""
+            Write-Host "Stage 2 decision:"
+            Write-Host ("  bicep_needed    = " + $bicepNeeded.ToString().ToLower())
+            Write-Host ("  deploy_sentinel = " + $deploySentinel.ToString().ToLower())
+
+            "bicep_needed=$($bicepNeeded.ToString().ToLower())"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "deploy_sentinel=$($deploySentinel.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   # ===========================================================================
   # Stage 2: Deploy Infrastructure (Bicep)
@@ -229,7 +262,7 @@ jobs:
     if: |
       always() &&
       needs.check-infrastructure.result == 'success' &&
-      needs.check-infrastructure.outputs.resources_exist == 'false'
+      needs.check-infrastructure.outputs.bicep_needed == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -285,7 +318,8 @@ jobs:
                 dailyQuota=${{ inputs.daily_quota || 0 }} \
                 retentionInDays=${{ inputs.retention_in_days || 90 }} \
                 totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }} \
-                playbookRgName="$PLAYBOOK_RG"
+                playbookRgName="$PLAYBOOK_RG" \
+                deploySentinel=${{ needs.check-infrastructure.outputs.deploy_sentinel }}
 
       - name: Wait for Workspace Indexing
         shell: pwsh
