@@ -12,22 +12,22 @@
 .DESCRIPTION
     The Sentinel Data Lake Migration workbook (workbook.json) runs many
     independent KQL and ARM queries that the portal cannot bundle into a single
-    Excel export — each grid only exports its own sheet. This script mirrors
+    Excel export - each grid only exports its own sheet. This script mirrors
     every query against the same workspace and writes one .xlsx with one named
     sheet per dataset:
 
-      • Migration Report     — per-table classification, costs, savings, status
-      • Exclusions           — tables that cannot move to Lake (UEBA/Sentinel/etc.)
-      • Deprecation Warnings — Microsoft-announced table retirements (e.g. TI)
-      • Classic V1 Tables    — _CL tables on legacy MMA ingestion path
-      • Top 10 Savings       — highest-impact migration candidates
-      • Query-Weighted       — LAQueryLogs-based per-table cost model
-      • Rules Inventory      — every enabled Sentinel analytic rule
-      • Indirection Rules    — rules using ASIM/_GetWatchlist/externaldata/custom fns
-      • Workspace Functions  — saved KQL functions in the workspace
-      • Function -> Rules    — which rules call which workspace functions
-      • XDR Per-Table        — Defender XDR Advanced Hunting cost model (optional)
-      • Pricing Assumptions  — every pricing input used by the export
+      • Migration Report     - per-table classification, costs, savings, status
+      • Exclusions           - tables that cannot move to Lake (UEBA/Sentinel/etc.)
+      • Deprecation Warnings - Microsoft-announced table retirements (e.g. TI)
+      • Classic V1 Tables    - _CL tables on legacy MMA ingestion path
+      • Top 10 Savings       - highest-impact migration candidates
+      • Query-Weighted       - LAQueryLogs-based per-table cost model
+      • Rules Inventory      - every enabled Sentinel analytic rule
+      • Indirection Rules    - rules using ASIM/_GetWatchlist/externaldata/custom fns
+      • Workspace Functions  - saved KQL functions in the workspace
+      • Function -> Rules    - which rules call which workspace functions
+      • XDR Per-Table        - Defender XDR Advanced Hunting cost model (optional)
+      • Pricing Assumptions  - every pricing input used by the export
 
     Read-only: never calls PATCH/PUT, never mutates the workspace. Pricing logic
     mirrors the workbook exactly.
@@ -153,7 +153,7 @@ param (
     # AnalyticsCost_$Currency / LakeCost_$Currency. KQL identifiers
     # allow only letters / digits / underscores, so an unconstrained
     # value (e.g. 'US Dollars') would generate invalid KQL. ISO 4217
-    # currency codes are exactly three uppercase letters — restrict
+    # currency codes are exactly three uppercase letters - restrict
     # to that shape to prevent KQL-injection-style breakage.
     [ValidatePattern('^[A-Z]{3}$')]
     [string]$Currency = 'USD',
@@ -202,7 +202,7 @@ if (-not $azContext) {
 if ($azContext.Subscription.Id -ne $SubscriptionId) {
     Write-Host "  Switching context to subscription $SubscriptionId..." -ForegroundColor DarkGray
     # Re-capture the context returned by Set-AzContext rather than
-    # leaving $azContext pointing at the pre-switch state — otherwise
+    # leaving $azContext pointing at the pre-switch state - otherwise
     # the banner below would print the previous context's account /
     # subscription identifiers.
     $azContext = Set-AzContext -SubscriptionId $SubscriptionId
@@ -249,7 +249,7 @@ function Invoke-Arm {
             if ($response.StatusCode -ge 400) {
                 if ($response.StatusCode -in @(429, 503, 504) -and $attempt -lt $Retries) {
                     $wait = [Math]::Pow(2, $attempt)
-                    Write-Warning "  ARM HTTP $($response.StatusCode) — retrying in ${wait}s ($attempt/$Retries)"
+                    Write-Warning "  ARM HTTP $($response.StatusCode) - retrying in ${wait}s ($attempt/$Retries)"
                     Start-Sleep -Seconds $wait
                     continue
                 }
@@ -260,7 +260,7 @@ function Invoke-Arm {
         catch {
             if ($attempt -lt $Retries) {
                 $wait = [Math]::Pow(2, $attempt)
-                Write-Warning "  ARM exception (attempt $attempt/$Retries): $($_.Exception.Message) — retrying in ${wait}s"
+                Write-Warning "  ARM exception (attempt $attempt/$Retries): $($_.Exception.Message) - retrying in ${wait}s"
                 Start-Sleep -Seconds $wait
                 continue
             }
@@ -268,6 +268,25 @@ function Invoke-Arm {
         }
         finally { Start-Sleep -Milliseconds $ThrottleMs }
     }
+}
+
+# Follows nextLink pagination on ARM list responses. Without this,
+# any list endpoint that exceeds Azure's page size (typically 100
+# items) silently truncates and downstream classification misses
+# whatever fell off the end. Matches the existing pagination idiom
+# in Automation/DCR-Watchlist/scripts/Invoke-DCRWatchlistSync.ps1.
+function Get-ArmList {
+    param([string]$Path)
+    $items = @()
+    $next  = $Path
+    while ($next) {
+        $page = Invoke-Arm -Path $next
+        if ($page -and $page.PSObject.Properties['value']) {
+            $items += $page.value
+        }
+        $next = if ($page -and $page.PSObject.Properties['nextLink']) { $page.nextLink } else { $null }
+    }
+    return $items
 }
 
 function Invoke-Kql {
@@ -309,12 +328,11 @@ function Write-Step { param ([string]$Message) Write-Host "  $Message" -Foregrou
 
 #endregion
 
-#region Step 1 — Tables ARM API → per-table sub-type and plan ──────────────────
+#region Step 1 - Tables ARM API → per-table sub-type and plan ──────────────────
 
 Write-Host ""
-Write-Host "Step 1/6 — Tables ARM API" -ForegroundColor Yellow
-$tablesResponse = Invoke-Arm -Path "$(Get-BaseUri)/tables?api-version=$script:TablesApiVersion"
-$allTables = $tablesResponse.value
+Write-Host "Step 1/6 - Tables ARM API" -ForegroundColor Yellow
+$allTables = Get-ArmList -Path "$(Get-BaseUri)/tables?api-version=$script:TablesApiVersion"
 
 $classicV1     = @($allTables | Where-Object {
     $_.properties.schema.tableSubType -eq 'Classic' -and $_.name -like '*_CL'
@@ -341,13 +359,12 @@ $auxiliaryPlanList = ConvertTo-KqlList -Items $auxiliaryPlan
 
 #endregion
 
-#region Step 2 — Alert Rules ARM API → rules dataset ───────────────────────────
+#region Step 2 - Alert Rules ARM API → rules dataset ───────────────────────────
 
 Write-Host ""
-Write-Host "Step 2/6 — Alert Rules ARM API" -ForegroundColor Yellow
+Write-Host "Step 2/6 - Alert Rules ARM API" -ForegroundColor Yellow
 $rulesPath = "$(Get-BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$script:AlertRulesApiVersion"
-$rulesResponse = Invoke-Arm -Path $rulesPath
-$allRules = $rulesResponse.value
+$allRules = Get-ArmList -Path $rulesPath
 
 $rulesInventory = $allRules | ForEach-Object {
     $p = $_.properties
@@ -370,14 +387,14 @@ Write-Step "Rules: $($rulesInventory.Count) total | enabled: $($enabledRules.Cou
 
 #endregion
 
-#region Step 3 — Saved Searches (Workspace Functions) ──────────────────────────
+#region Step 3 - Saved Searches (Workspace Functions) ──────────────────────────
 
 Write-Host ""
-Write-Host "Step 3/6 — Workspace KQL Functions" -ForegroundColor Yellow
+Write-Host "Step 3/6 - Workspace KQL Functions" -ForegroundColor Yellow
 $functionsPath = "$(Get-BaseUri)/savedSearches?api-version=$script:SavedSearchesApiVersion"
-$functionsResponse = Invoke-Arm -Path $functionsPath
+$allSavedSearches = Get-ArmList -Path $functionsPath
 $workspaceFunctions = @()
-foreach ($s in $functionsResponse.value) {
+foreach ($s in $allSavedSearches) {
     $p = $s.properties
     $hasFn = (Get-Member -InputObject $p -Name 'functionAlias' -ErrorAction SilentlyContinue) -and $p.functionAlias
     if (-not $hasFn) { continue }
@@ -394,10 +411,10 @@ Write-Step "Workspace functions: $($workspaceFunctions.Count)"
 
 #endregion
 
-#region Step 4 — Mirror the workbook's classification KQL ─────────────────────
+#region Step 4 - Mirror the workbook's classification KQL ─────────────────────
 
 Write-Host ""
-Write-Host "Step 4/6 — Per-table classification (Migration Report)" -ForegroundColor Yellow
+Write-Host "Step 4/6 - Per-table classification (Migration Report)" -ForegroundColor Yellow
 
 $effectiveRate = if ($EffectiveAnalyticsRate -gt 0) { $EffectiveAnalyticsRate } else { Get-PricingRate -Model $PricingModel }
 
@@ -496,10 +513,10 @@ Write-Step "Migration Report: $(@($migrationReport).Count) rows"
 
 #endregion
 
-#region Step 5 — Derived datasets (per-table rule references, indirection) ────
+#region Step 5 - Derived datasets (per-table rule references, indirection) ────
 
 Write-Host ""
-Write-Host "Step 5/6 — Per-table rule references + indirection" -ForegroundColor Yellow
+Write-Host "Step 5/6 - Per-table rule references + indirection" -ForegroundColor Yellow
 
 $tableUniverse = $migrationReport | ForEach-Object { $_.Table }
 $enabledKqlRules = $enabledRules | Where-Object { $_.QueryText }
@@ -626,10 +643,10 @@ foreach ($fn in $workspaceFunctions) {
 
 #endregion
 
-#region Step 6 — Secondary datasets (Exclusions, Deprecation, Query-Weighted, XDR, etc.) ─
+#region Step 6 - Secondary datasets (Exclusions, Deprecation, Query-Weighted, XDR, etc.) ─
 
 Write-Host ""
-Write-Host "Step 6/6 — Secondary datasets" -ForegroundColor Yellow
+Write-Host "Step 6/6 - Secondary datasets" -ForegroundColor Yellow
 
 # Exclusions
 $exclusionsKql = @"
@@ -661,7 +678,7 @@ Usage
 $exclusionsRows = Invoke-Kql -Query $exclusionsKql
 Write-Step "Exclusions: $(@($exclusionsRows).Count) rows"
 
-# Deprecation Warnings — Microsoft-announced retirements + Classic V1 callout
+# Deprecation Warnings - Microsoft-announced retirements + Classic V1 callout
 $deprecationKql = @"
 let deprecatedTables = datatable(LegacyTable:string, Replacement:string, Urgency:string, Reference:string)
 [
