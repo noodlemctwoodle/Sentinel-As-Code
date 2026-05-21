@@ -90,6 +90,13 @@ jobs:
     outputs:
       resources_exist: ${{ steps.check.outputs.resources_exist }}
     steps:
+      # Required even though this job reads no repo files: the
+      # Azure-login composite below lives under .github/actions/ in
+      # this repo, and local composite actions can only be resolved
+      # once the runner has the repo on disk.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
         with:
