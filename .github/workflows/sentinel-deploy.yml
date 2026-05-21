@@ -102,42 +102,17 @@ on:
         default: false
 
       # ── Custom Content (Stage 4) ─────────────────────────────────────
-      skip_custom_parsers:
-        description: "Custom: Skip KQL Parsers/Functions"
-        type: boolean
-        default: false
-      skip_custom_detections:
-        description: "Custom: Skip Analytical Rules (YAML)"
-        type: boolean
-        default: false
-      skip_community_detections:
-        description: "Custom: Skip Community Detections (Dalonso)"
-        type: boolean
-        default: true
-      skip_custom_watchlists:
-        description: "Custom: Skip Watchlists (JSON+CSV)"
-        type: boolean
-        default: false
-      skip_custom_playbooks:
-        description: "Custom: Skip Playbooks (ARM)"
-        type: boolean
-        default: false
-      skip_custom_workbooks:
-        description: "Custom: Skip Workbooks (Gallery JSON)"
-        type: boolean
-        default: false
-      skip_custom_hunting_queries:
-        description: "Custom: Skip Hunting Queries (YAML)"
-        type: boolean
-        default: false
-      skip_custom_automation_rules:
-        description: "Custom: Skip Automation Rules (JSON)"
-        type: boolean
-        default: false
-      skip_custom_summary_rules:
-        description: "Custom: Skip Summary Rules (JSON)"
-        type: boolean
-        default: false
+      # GitHub caps workflow_dispatch at 25 inputs. The ADO equivalent in
+      # Pipelines/Sentinel-Deploy.yml exposes nine separate skipCustom*
+      # boolean parameters here; we collapse them into one comma-separated
+      # string so the GH workflow stays under the cap while preserving
+      # identical downstream behaviour (Deploy-CustomContent.ps1 still
+      # receives the individual -Skip* script parameters via the parsing
+      # block in the deploy-custom-content job below).
+      skip_custom_content_types:
+        description: "Custom: Skip Content Types (comma-separated subset of: parsers, detections, community-detections, watchlists, playbooks, workbooks, hunting-queries, automation-rules, summary-rules)"
+        type: string
+        default: "community-detections"
 
       # ── General ──────────────────────────────────────────────────────
       smart_deployment:
@@ -451,15 +426,27 @@ jobs:
             $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
             if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
-            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']               = $true }
-            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']            = $true }
-            if ("${{ inputs.skip_community_detections }}" -ne "false")   { $scriptParams['SkipCommunityDetections']  = $true }
-            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']            = $true }
-            if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
-            if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
-            if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
-            if ("${{ inputs.skip_custom_automation_rules }}" -eq "true") { $scriptParams['SkipAutomationRules']= $true }
-            if ("${{ inputs.skip_custom_summary_rules }}" -eq "true")   { $scriptParams['SkipSummaryRules']   = $true }
+            # Parse the consolidated skip_custom_content_types string
+            # into individual -Skip* script parameters. The cron trigger
+            # has no inputs.*, so the `|| 'community-detections'` fallback
+            # matches the workflow_dispatch default for parity. ADO's
+            # equivalent block (Pipelines/Sentinel-Deploy.yml) sets the
+            # same -Skip* parameters from its nine individual boolean
+            # parameters — net effect on Deploy-CustomContent.ps1 is
+            # identical across both platforms.
+            $skipList = "${{ inputs.skip_custom_content_types || 'community-detections' }}" -split ',' |
+                ForEach-Object { $_.Trim().ToLower() } |
+                Where-Object { $_ }
+
+            if ($skipList -contains 'parsers')              { $scriptParams['SkipParsers']              = $true }
+            if ($skipList -contains 'detections')           { $scriptParams['SkipDetections']           = $true }
+            if ($skipList -contains 'community-detections') { $scriptParams['SkipCommunityDetections'] = $true }
+            if ($skipList -contains 'watchlists')           { $scriptParams['SkipWatchlists']           = $true }
+            if ($skipList -contains 'playbooks')            { $scriptParams['SkipPlaybooks']            = $true }
+            if ($skipList -contains 'workbooks')            { $scriptParams['SkipWorkbooks']            = $true }
+            if ($skipList -contains 'hunting-queries')      { $scriptParams['SkipHuntingQueries']       = $true }
+            if ($skipList -contains 'automation-rules')     { $scriptParams['SkipAutomationRules']      = $true }
+            if ($skipList -contains 'summary-rules')        { $scriptParams['SkipSummaryRules']         = $true }
             if ("${{ inputs.smart_deployment }}" -ne "false")            { $scriptParams['SmartDeployment']    = $true }
             if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
 
