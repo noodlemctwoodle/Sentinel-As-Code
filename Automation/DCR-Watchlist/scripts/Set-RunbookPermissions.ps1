@@ -37,11 +37,11 @@
 
 .EXAMPLE
     # Apply permissions
-    .\Set-RunbookPermissions.ps1 -SubscriptionId '5305ccd2-977a-4630-843b-bad582e756a3'
+    .\Set-RunbookPermissions.ps1 -SubscriptionId '<sub>'
 
 .EXAMPLE
     # Remove permissions
-    .\Set-RunbookPermissions.ps1 -SubscriptionId '5305ccd2-977a-4630-843b-bad582e756a3' -Remove
+    .\Set-RunbookPermissions.ps1 -SubscriptionId '<sub>' -Remove
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
