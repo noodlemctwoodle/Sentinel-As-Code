@@ -176,6 +176,13 @@ param (
     [ValidateRange(1, 50)]
     [double]$CompressionRatio = 10,
 
+    # Inter-call throttle in milliseconds. 0 disables the sleep.
+    # Capped at 60_000 (one minute) because anything beyond that
+    # turns the export into a multi-hour run on a busy workspace
+    # and almost certainly indicates a typo. ValidateRange ensures
+    # Start-Sleep -Milliseconds never receives a negative value at
+    # runtime, which throws and aborts the export before any work.
+    [ValidateRange(0, 60000)]
     [int]$ThrottleMs = 200
 )
 
@@ -239,7 +246,21 @@ function Get-BaseUri { "/subscriptions/$SubscriptionId/resourceGroups/$ResourceG
 
 function Invoke-Arm {
     param ([string]$Path, [string]$Method = 'GET', [object]$Payload, [int]$Retries = 3)
-    $params = @{ Path = $Path; Method = $Method }
+
+    # Dispatch on whether the caller passed a relative ARM path
+    # (e.g. /subscriptions/.../tables?api-version=...) or an
+    # absolute URI (e.g. https://management.azure.com/...). ARM
+    # nextLink values are always absolute URIs; Get-BaseUri-derived
+    # paths are always relative. Invoke-AzRestMethod -Path accepts
+    # both in current Az versions but the documentation only
+    # commits to PartialUri (relative); using -Uri for absolute
+    # input is the explicit, version-stable choice.
+    $params = @{ Method = $Method }
+    if ($Path -match '^https?://') {
+        $params['Uri'] = $Path
+    } else {
+        $params['Path'] = $Path
+    }
     if ($Payload) { $params['Payload'] = ($Payload | ConvertTo-Json -Depth 20) }
     $attempt = 0
     while ($true) {
@@ -369,16 +390,16 @@ $allRules = Get-ArmList -Path $rulesPath
 $rulesInventory = $allRules | ForEach-Object {
     $p = $_.properties
     [pscustomobject]@{
-        RuleName    = (Get-Member -InputObject $p -Name 'displayName' -ErrorAction SilentlyContinue) ? $p.displayName : $_.name
+        RuleName    = ($p.PSObject.Properties['displayName']) ? $p.displayName : $_.name
         Kind        = $_.kind
-        Enabled     = (Get-Member -InputObject $p -Name 'enabled' -ErrorAction SilentlyContinue) ? $p.enabled : $null
-        Severity    = (Get-Member -InputObject $p -Name 'severity' -ErrorAction SilentlyContinue) ? $p.severity : $null
-        Tactics     = (Get-Member -InputObject $p -Name 'tactics' -ErrorAction SilentlyContinue) ? ($p.tactics -join '; ') : ''
-        Techniques  = (Get-Member -InputObject $p -Name 'techniques' -ErrorAction SilentlyContinue) ? ($p.techniques -join '; ') : ''
-        QueryFrequency = (Get-Member -InputObject $p -Name 'queryFrequency' -ErrorAction SilentlyContinue) ? $p.queryFrequency : ''
-        QueryPeriod    = (Get-Member -InputObject $p -Name 'queryPeriod' -ErrorAction SilentlyContinue) ? $p.queryPeriod : ''
-        LastModified   = (Get-Member -InputObject $p -Name 'lastModifiedUtc' -ErrorAction SilentlyContinue) ? $p.lastModifiedUtc : ''
-        QueryText      = (Get-Member -InputObject $p -Name 'query' -ErrorAction SilentlyContinue) ? $p.query : ''
+        Enabled     = ($p.PSObject.Properties['enabled']) ? $p.enabled : $null
+        Severity    = ($p.PSObject.Properties['severity']) ? $p.severity : $null
+        Tactics     = ($p.PSObject.Properties['tactics']) ? ($p.tactics -join '; ') : ''
+        Techniques  = ($p.PSObject.Properties['techniques']) ? ($p.techniques -join '; ') : ''
+        QueryFrequency = ($p.PSObject.Properties['queryFrequency']) ? $p.queryFrequency : ''
+        QueryPeriod    = ($p.PSObject.Properties['queryPeriod']) ? $p.queryPeriod : ''
+        LastModified   = ($p.PSObject.Properties['lastModifiedUtc']) ? $p.lastModifiedUtc : ''
+        QueryText      = ($p.PSObject.Properties['query']) ? $p.query : ''
     }
 }
 
@@ -396,15 +417,15 @@ $allSavedSearches = Get-ArmList -Path $functionsPath
 $workspaceFunctions = @()
 foreach ($s in $allSavedSearches) {
     $p = $s.properties
-    $hasFn = (Get-Member -InputObject $p -Name 'functionAlias' -ErrorAction SilentlyContinue) -and $p.functionAlias
+    $hasFn = ($p.PSObject.Properties['functionAlias']) -and $p.functionAlias
     if (-not $hasFn) { continue }
     $workspaceFunctions += [pscustomobject]@{
         FunctionAlias   = $p.functionAlias
-        DisplayName     = (Get-Member -InputObject $p -Name 'displayName' -ErrorAction SilentlyContinue) ? $p.displayName : ''
-        Category        = (Get-Member -InputObject $p -Name 'category' -ErrorAction SilentlyContinue) ? $p.category : ''
-        FunctionParameters = (Get-Member -InputObject $p -Name 'functionParameters' -ErrorAction SilentlyContinue) ? $p.functionParameters : ''
-        Version         = (Get-Member -InputObject $p -Name 'version' -ErrorAction SilentlyContinue) ? $p.version : ''
-        QueryBody       = (Get-Member -InputObject $p -Name 'query' -ErrorAction SilentlyContinue) ? $p.query : ''
+        DisplayName     = ($p.PSObject.Properties['displayName']) ? $p.displayName : ''
+        Category        = ($p.PSObject.Properties['category']) ? $p.category : ''
+        FunctionParameters = ($p.PSObject.Properties['functionParameters']) ? $p.functionParameters : ''
+        Version         = ($p.PSObject.Properties['version']) ? $p.version : ''
+        QueryBody       = ($p.PSObject.Properties['query']) ? $p.query : ''
     }
 }
 Write-Step "Workspace functions: $($workspaceFunctions.Count)"
