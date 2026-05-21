@@ -188,7 +188,11 @@ if (-not $azContext) {
 }
 if ($azContext.Subscription.Id -ne $SubscriptionId) {
     Write-Host "  Switching context to subscription $SubscriptionId..." -ForegroundColor DarkGray
-    Set-AzContext -SubscriptionId $SubscriptionId | Out-Null
+    # Re-capture the context returned by Set-AzContext rather than
+    # leaving $azContext pointing at the pre-switch state — otherwise
+    # the banner below would print the previous context's account /
+    # subscription identifiers.
+    $azContext = Set-AzContext -SubscriptionId $SubscriptionId
 }
 
 Write-Host "Sentinel Data Lake Migration Export" -ForegroundColor Cyan
@@ -205,6 +209,18 @@ $script:AlertRulesApiVersion   = '2025-09-01'
 $script:SavedSearchesApiVersion = '2020-08-01'
 $script:WorkspaceApiVersion    = '2023-09-01'
 $script:WorkspaceCustomerId    = $null
+
+# Invariant-culture formatter for numerics interpolated into KQL.
+# Default PowerShell string interpolation uses the current thread culture,
+# so a double like 1.5 renders as "1,5" on de-DE / fr-FR / it-IT machines.
+# KQL toreal() expects US-format ("1.5"), so a culture-localised value
+# parses incorrectly (or fails the query). Every numeric that lands in
+# a KQL here-string in this script goes through Format-KqlNumber instead
+# of being interpolated directly.
+function Format-KqlNumber {
+    param([double]$Value)
+    $Value.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+}
 
 function Get-BaseUri { "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName" }
 
@@ -373,14 +389,14 @@ Write-Host "Step 4/6 — Per-table classification (Migration Report)" -Foregroun
 $effectiveRate = if ($EffectiveAnalyticsRate -gt 0) { $EffectiveAnalyticsRate } else { Get-PricingRate -Model $PricingModel }
 
 $pricingLet = @"
-let userRate = toreal('$EffectiveAnalyticsRate');
-let modelRate = toreal('$(Get-PricingRate -Model $PricingModel)');
+let userRate = toreal('$(Format-KqlNumber $EffectiveAnalyticsRate)');
+let modelRate = toreal('$(Format-KqlNumber (Get-PricingRate -Model $PricingModel))');
 let priceAnalytics = iif(userRate > 0, userRate, modelRate);
-let priceLakeIngest = toreal('$LakeIngestPricePerGB');
-let priceLakeProc = toreal('$LakeProcessingPricePerGB');
-let priceLakeStore = toreal('$LakeStoragePricePerGBMonth');
-let lakeRetentionDays = toreal('$TargetLakeRetentionDays');
-let compressionRatio = toreal('$CompressionRatio');
+let priceLakeIngest = toreal('$(Format-KqlNumber $LakeIngestPricePerGB)');
+let priceLakeProc = toreal('$(Format-KqlNumber $LakeProcessingPricePerGB)');
+let priceLakeStore = toreal('$(Format-KqlNumber $LakeStoragePricePerGBMonth)');
+let lakeRetentionDays = toreal('$(Format-KqlNumber $TargetLakeRetentionDays)');
+let compressionRatio = toreal('$(Format-KqlNumber $CompressionRatio)');
 "@
 
 $classificationLets = @"
@@ -711,14 +727,13 @@ Write-Step "Top 10 savings candidates: $(@($top10Rows).Count) rows"
 $queryWeightedRows = @()
 try {
     $queryWeightedKql = @"
-let ingestionHours = toreal($($TimeRangeDays * 24));
 let queryDays = $QueryLookbackDays;
-let userRate = toreal('$EffectiveAnalyticsRate');
-let modelRate = toreal('$(Get-PricingRate -Model $PricingModel)');
+let userRate = toreal('$(Format-KqlNumber $EffectiveAnalyticsRate)');
+let modelRate = toreal('$(Format-KqlNumber (Get-PricingRate -Model $PricingModel))');
 let priceAnalytics = iif(userRate > 0, userRate, modelRate);
-let priceLakeQuery = toreal('$LakeQueryPricePerGB');
-let priceLakeIngest = toreal('$LakeIngestPricePerGB');
-let priceLakeProc = toreal('$LakeProcessingPricePerGB');
+let priceLakeQuery = toreal('$(Format-KqlNumber $LakeQueryPricePerGB)');
+let priceLakeIngest = toreal('$(Format-KqlNumber $LakeIngestPricePerGB)');
+let priceLakeProc = toreal('$(Format-KqlNumber $LakeProcessingPricePerGB)');
 let perTableIngest = Usage
     | where TimeGenerated > ago($($TimeRangeDays)d)
     | where IsBillable == true
@@ -759,8 +774,8 @@ if ($XdrLookbackDays -gt 0) {
     try {
         $xdrKql = @"
 let lookbackDays = $XdrLookbackDays;
-let userRate = toreal('$EffectiveAnalyticsRate');
-let modelRate = toreal('$(Get-PricingRate -Model $PricingModel)');
+let userRate = toreal('$(Format-KqlNumber $EffectiveAnalyticsRate)');
+let modelRate = toreal('$(Format-KqlNumber (Get-PricingRate -Model $PricingModel))');
 let priceAnalytics = iif(userRate > 0, userRate, modelRate);
 let xdrTables = dynamic(['DeviceEvents','DeviceFileEvents','DeviceImageLoadEvents','DeviceLogonEvents','DeviceNetworkEvents','DeviceNetworkInfo','DeviceProcessEvents','DeviceRegistryEvents','DeviceTvmSecureConfigurationAssessment','DeviceTvmSecureConfigurationAssessmentKB','DeviceTvmSoftwareInventory','DeviceTvmSoftwareVulnerabilities','DeviceTvmSoftwareVulnerabilitiesKB','AlertEvidence','AlertInfo','EmailAttachmentInfo','EmailEvents','EmailPostDeliveryEvents','EmailUrlInfo','UrlClickEvents','IdentityLogonEvents']);
 Usage
