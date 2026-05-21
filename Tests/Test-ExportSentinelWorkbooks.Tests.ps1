@@ -165,7 +165,7 @@ Describe 'Remove-WorkspaceSuffix' {
 Describe 'Remove-WorkspaceArmId' {
 
     BeforeAll {
-        $script:wsId = '/subscriptions/5305ccd2-977a-4630-843b-bad582e756a3/resourcegroups/stl-eus-siem-rg/providers/microsoft.operationalinsights/workspaces/stl-eus-siem-law'
+        $script:wsId = '/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourcegroups/stl-eus-siem-rg/providers/microsoft.operationalinsights/workspaces/stl-eus-siem-law'
         $script:placeholder = '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace'
     }
 
@@ -193,7 +193,7 @@ Describe 'Remove-WorkspaceArmId' {
         # while the serialized workbook data uses all-lowercase
         # (microsoft.operationalinsights). The case-insensitive
         # match covers both.
-        $mixedCaseId = '/subscriptions/5305ccd2-977a-4630-843b-bad582e756a3/resourceGroups/stl-eus-siem-rg/providers/Microsoft.OperationalInsights/workspaces/stl-eus-siem-law'
+        $mixedCaseId = '/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/stl-eus-siem-rg/providers/Microsoft.OperationalInsights/workspaces/stl-eus-siem-law'
         $allLowerJson = '"fallbackResourceIds": ["' + $wsId.ToLowerInvariant() + '"]'
 
         $out = Remove-WorkspaceArmId -Json $allLowerJson -WorkspaceResourceId $mixedCaseId
