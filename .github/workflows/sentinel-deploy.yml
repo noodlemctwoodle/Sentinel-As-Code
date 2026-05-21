@@ -173,22 +173,48 @@ jobs:
           azPSVersion: "latest"
           inlineScript: |
             Write-Host "Checking for existing Sentinel infrastructure..."
-            $resourcesExist = "false"
+            $resourcesExist = "true"
 
+            # Sentinel RG + workspace must both exist for the main
+            # infrastructure to be considered current.
             $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
-            if ($rg) {
+            if (-not $rg) {
+                Write-Host "Resource Group '${{ env.RESOURCE_GROUP }}' not found — Bicep deployment required."
+                $resourcesExist = "false"
+            } else {
                 $law = Get-AzOperationalInsightsWorkspace `
                     -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
                     -Name "${{ env.WORKSPACE_NAME }}" `
                     -ErrorAction SilentlyContinue
-                if ($law) {
-                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists — skipping Bicep."
-                    $resourcesExist = "true"
+                if (-not $law) {
+                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' not found — Bicep deployment required."
+                    $resourcesExist = "false"
                 } else {
-                    Write-Host "Workspace not found — Bicep deployment required."
+                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists."
                 }
-            } else {
-                Write-Host "Resource Group not found — full Bicep deployment required."
+            }
+
+            # If an optional separate playbook RG is configured via the
+            # PLAYBOOK_RESOURCE_GROUP repo variable, it must also exist —
+            # otherwise Stage 2 Bicep needs to create it via the
+            # conditional playbookRgName resource block in main.bicep.
+            # Trim defensively to survive accidental whitespace in the
+            # GitHub repo variable (a real user-facing footgun: a
+            # trailing space yields 'rg-name ' which Azure treats as a
+            # distinct, non-existent name).
+            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
+            if ($playbookRG -and $playbookRG -ne "${{ env.RESOURCE_GROUP }}") {
+                $pbRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
+                if (-not $pbRg) {
+                    Write-Host "Playbook RG '$playbookRG' not found — Bicep deployment required."
+                    $resourcesExist = "false"
+                } else {
+                    Write-Host "Playbook RG '$playbookRG' exists."
+                }
+            }
+
+            if ($resourcesExist -eq "true") {
+                Write-Host "All required infrastructure present — skipping Bicep."
             }
 
             echo "resources_exist=$resourcesExist" >> $env:GITHUB_OUTPUT
@@ -226,6 +252,29 @@ jobs:
         uses: Azure/cli@v2
         with:
           inlineScript: |
+            # Strip ALL whitespace (space, tab, CR, LF, FF, VT) from
+            # the optional PLAYBOOK_RESOURCE_GROUP repo variable. Azure
+            # RG names cannot contain any whitespace, so destructive
+            # stripping is safe and matches the intent.
+            #
+            # `tr -d '[:space:]'` replaces the earlier `xargs` approach
+            # because the Azure CLI runner image
+            # (mcr.microsoft.com/azure-cli) is Alpine-based and ships
+            # BusyBox xargs, which — unlike GNU xargs — does NOT treat
+            # CR ('\r') as whitespace. A GH repo variable accidentally
+            # carrying CRLF line endings then leaked a trailing '\r'
+            # into the ARM call:
+            #   InvalidResourceGroup: 'rg-name\r' has these invalid
+            #   characters: '\r'.
+            # `tr -d '[:space:]'` is POSIX-portable and strips every
+            # whitespace class on every shell environment we target.
+            #
+            # Empty input stays empty, which Bicep/main.bicep:55 treats
+            # as "no separate playbook RG required" (the conditional
+            # playbookRg resource only fires when playbookRgName is
+            # non-empty and != rgName).
+            PLAYBOOK_RG=$(printf '%s' "${{ vars.PLAYBOOK_RESOURCE_GROUP }}" | tr -d '[:space:]')
+
             az deployment sub create \
               --location "${{ env.REGION }}" \
               --template-file Bicep/main.bicep \
@@ -235,7 +284,8 @@ jobs:
                 lawName="${{ env.WORKSPACE_NAME }}" \
                 dailyQuota=${{ inputs.daily_quota || 0 }} \
                 retentionInDays=${{ inputs.retention_in_days || 90 }} \
-                totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }}
+                totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }} \
+                playbookRgName="$PLAYBOOK_RG"
 
       - name: Wait for Workspace Indexing
         shell: pwsh
@@ -430,7 +480,10 @@ jobs:
                 BasePath       = "${{ github.workspace }}"
             }
 
-            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
+            # Trim accidental whitespace in the repo variable; Azure
+            # treats 'rg-name ' as a distinct (non-existent) RG and
+            # Deploy-CustomContent.ps1 will error out before any work.
+            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
             if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
             # Parse the consolidated skip_custom_content_types string
