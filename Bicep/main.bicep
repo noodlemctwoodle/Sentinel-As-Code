@@ -35,7 +35,7 @@ param totalRetentionInDays int = 0
 @description('Optional separate Resource Group for playbooks/Logic Apps. If empty, playbooks deploy to the main RG.')
 param playbookRgName string = ''
 
-@description('Whether to (re)deploy the Sentinel module. Set false by the workflow when Sentinel onboarding already exists on the target workspace — the Microsoft.SecurityInsights/onboardingStates resource is not idempotent and re-deploying it returns Conflict. False allows main.bicep to provision only the missing pieces (most commonly the optional playbook RG) without touching an existing Sentinel deployment.')
+@description('Whether to (re)deploy the Sentinel module. Set false by the deployment pipeline (GitHub Actions or Azure DevOps) when Sentinel onboarding already exists on the target workspace; the Microsoft.SecurityInsights/onboardingStates resource is not idempotent and re-deploying it returns Conflict. False allows main.bicep to provision only the missing pieces (most commonly the optional playbook RG) without touching an existing Sentinel deployment.')
 param deploySentinel bool = true
 
 @description('Resource tags applied to all resources.')
@@ -81,13 +81,19 @@ module sentinel 'sentinel.bicep' = if (deploySentinel) {
 // Outputs
 // -----------------------------------------------------------------------
 
-// Outputs collapse to empty values when the sentinel module was
-// skipped (deploySentinel = false). Downstream pipeline stages read
-// workspace identifiers from GitHub repo variables rather than from
-// these outputs, so the empty-fallback path is non-breaking. The `.?`
-// safe-access + `??` default-coalesce pattern is used instead of a
-// ternary so Bicep can statically prove the access path is safe (a
-// plain ternary trips BCP318 because the analyzer can't tie the
-// guard expression to the module's nullability).
+// When the sentinel module is skipped (deploySentinel = false), the
+// downstream resourceId / workspace outputs are not meaningful. To
+// give consumers a clean way to distinguish "module skipped" from
+// "module ran but produced an empty value", a sentinelDeployed
+// boolean is emitted alongside.
+//
+// The resourceId / workspace outputs use the `.?` safe-access plus
+// `??` default-coalesce pattern instead of a ternary so Bicep can
+// statically prove the access path is safe (a plain
+// `deploySentinel ? sentinel.outputs.X : ''` ternary trips BCP318 -
+// the analyzer can't tie the guard expression to the module's
+// nullability). Consumers should branch on sentinelDeployed rather
+// than testing the resourceId for emptiness.
+output sentinelDeployed bool = deploySentinel
 output sentinelResourceId string = sentinel.?outputs.sentinelResourceId ?? ''
 output logAnalyticsWorkspace object = sentinel.?outputs.logAnalyticsWorkspace ?? {}
