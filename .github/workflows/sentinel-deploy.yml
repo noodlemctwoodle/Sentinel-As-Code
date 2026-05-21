@@ -252,14 +252,28 @@ jobs:
         uses: Azure/cli@v2
         with:
           inlineScript: |
-            # Trim any leading/trailing whitespace from the optional
-            # PLAYBOOK_RESOURCE_GROUP repo variable. `xargs` with no
-            # arguments echoes its input with surrounding whitespace
-            # collapsed; an empty input stays empty, which the Bicep
-            # template treats as "no separate playbook RG required"
-            # (Bicep/main.bicep:55 only fires the playbookRg resource
-            # when playbookRgName is non-empty and != rgName).
-            PLAYBOOK_RG=$(echo "${{ vars.PLAYBOOK_RESOURCE_GROUP }}" | xargs)
+            # Strip ALL whitespace (space, tab, CR, LF, FF, VT) from
+            # the optional PLAYBOOK_RESOURCE_GROUP repo variable. Azure
+            # RG names cannot contain any whitespace, so destructive
+            # stripping is safe and matches the intent.
+            #
+            # `tr -d '[:space:]'` replaces the earlier `xargs` approach
+            # because the Azure CLI runner image
+            # (mcr.microsoft.com/azure-cli) is Alpine-based and ships
+            # BusyBox xargs, which — unlike GNU xargs — does NOT treat
+            # CR ('\r') as whitespace. A GH repo variable accidentally
+            # carrying CRLF line endings then leaked a trailing '\r'
+            # into the ARM call:
+            #   InvalidResourceGroup: 'rg-name\r' has these invalid
+            #   characters: '\r'.
+            # `tr -d '[:space:]'` is POSIX-portable and strips every
+            # whitespace class on every shell environment we target.
+            #
+            # Empty input stays empty, which Bicep/main.bicep:55 treats
+            # as "no separate playbook RG required" (the conditional
+            # playbookRg resource only fires when playbookRgName is
+            # non-empty and != rgName).
+            PLAYBOOK_RG=$(printf '%s' "${{ vars.PLAYBOOK_RESOURCE_GROUP }}" | tr -d '[:space:]')
 
             az deployment sub create \
               --location "${{ env.REGION }}" \
