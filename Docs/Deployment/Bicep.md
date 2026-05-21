@@ -144,7 +144,7 @@ az deployment sub create \
 
 Stage 1 first checks whether the resource group + workspace already exist, and skips Stage 2 entirely when they do — see [Pipelines](Pipelines.md) for the conditional logic.
 
-`deploySentinel` defaults to `true` and is omitted by the ADO pipeline today (it relies on the default). The GitHub Actions workflow's Stage 1 runs a finer per-component probe and passes `deploySentinel=false` when Sentinel is already onboarded but other infrastructure (most commonly the optional playbook RG) is missing — this lets Bicep provision only the gap without re-attempting the non-idempotent `Microsoft.SecurityInsights/onboardingStates` resource. ADO porting is tracked under [`instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md) Hard rule 1 ("one-direction-first bug fixes").
+`deploySentinel` defaults to `true` and is omitted by the ADO pipeline today (it relies on the default). The GitHub Actions workflow's Stage 1 runs a finer per-component probe and passes `deploySentinel=false` when Sentinel is already onboarded but other infrastructure (most commonly the optional playbook RG) is missing — this lets Bicep provision only the gap without re-attempting the non-idempotent `Microsoft.SecurityInsights/onboardingStates` resource. ADO porting is allowed per [`instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md) Hard rule 1 ("one-direction-first bug fixes").
 
 ## Settings configured outside Bicep
 
