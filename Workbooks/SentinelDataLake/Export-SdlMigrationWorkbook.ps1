@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
+#
+# Created by noodlemctwoodle on 18/05/2026.
+#
+
 <#
 .SYNOPSIS
     Exports every dataset behind the Sentinel Data Lake Migration workbook to a
@@ -143,6 +149,13 @@ param (
     [ValidateRange(0, 100)]
     [double]$EffectiveAnalyticsRate = 0,
 
+    # $Currency is interpolated into KQL projected column names like
+    # AnalyticsCost_$Currency / LakeCost_$Currency. KQL identifiers
+    # allow only letters / digits / underscores, so an unconstrained
+    # value (e.g. 'US Dollars') would generate invalid KQL. ISO 4217
+    # currency codes are exactly three uppercase letters — restrict
+    # to that shape to prevent KQL-injection-style breakage.
+    [ValidatePattern('^[A-Z]{3}$')]
     [string]$Currency = 'USD',
 
     [ValidateRange(0, 10)]
