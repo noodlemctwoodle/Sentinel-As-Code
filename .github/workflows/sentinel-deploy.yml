@@ -63,7 +63,7 @@ on:
       solutions:
         description: "Content Hub: Solutions (comma-separated)"
         type: string
-        default: "Microsoft Defender XDR,Azure Activity,Microsoft Entra ID,Microsoft Defender for Cloud,Microsoft 365,Microsoft Defender for Endpoint,Windows Security Events,Threat Intelligence (New),UEBA Essentials"
+        default: "Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report"
       severities_to_include:
         description: "Content Hub: Analytics Rule Severities"
         type: string
@@ -354,7 +354,7 @@ jobs:
         with:
           azPSVersion: "latest"
           inlineScript: |
-            $solutionList = "${{ inputs.solutions || 'Microsoft Defender XDR,Azure Activity' }}" -split ',' | ForEach-Object { $_.Trim() }
+            $solutionList = "${{ inputs.solutions || 'Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report' }}" -split ',' | ForEach-Object { $_.Trim() }
             $severityList = "${{ inputs.severities_to_include || 'High,Medium,Low,Informational' }}" -split ',' | ForEach-Object { $_.Trim() }
 
             $scriptParams = @{
