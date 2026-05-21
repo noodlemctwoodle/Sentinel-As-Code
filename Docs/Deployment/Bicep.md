@@ -42,8 +42,8 @@ Subscription-scoped orchestrator. Creates the main resource group, an optional s
 
 | Output | Type | Source / behaviour |
 | --- | --- | --- |
-| `sentinelDeployed` | bool | Echoes the `deploySentinel` parameter. Consumers should branch on this before reading `sentinelResourceId` / `logAnalyticsWorkspace` — those values are only meaningful when `sentinelDeployed = true` |
-| `sentinelResourceId` | string | Bubbled up from the Sentinel module — the OMS solution resource ID. Collapses to `''` when `deploySentinel = false` (module skipped); use `sentinelDeployed` to distinguish "module skipped" from "module ran and produced an empty string" |
+| `sentinelModuleEnabled` | bool | Echoes the `deploySentinel` input parameter — reports whether the Sentinel module was *enabled* on this run, not whether Sentinel was successfully *deployed*. Consumers should branch on this before reading `sentinelResourceId` / `logAnalyticsWorkspace`; for an end-to-end "Sentinel is deployed" signal, combine this flag with a non-empty `sentinelResourceId` |
+| `sentinelResourceId` | string | Bubbled up from the Sentinel module — the OMS solution resource ID. Collapses to `''` when `deploySentinel = false` (module skipped); use `sentinelModuleEnabled` to distinguish "module skipped" from "module ran and produced an empty string" |
 | `logAnalyticsWorkspace` | object | Bubbled up from the Sentinel module — `{ name, id, location, retentionInDays }`. Collapses to `{}` when `deploySentinel = false` (same caveat as above) |
 
 ## sentinel.bicep
@@ -142,7 +142,10 @@ az deployment sub create \
         deploySentinel=true
 ```
 
-Stage 1 first checks whether the resource group + workspace already exist, and skips Stage 2 entirely when they do — see [Pipelines](Pipelines.md) for the conditional logic.
+Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](Pipelines.md) for the conditional logic. The two pipelines differ in probe granularity:
+
+- **ADO** checks the resource group and workspace only.
+- **GitHub Actions** additionally probes both Sentinel onboarding resources (`Microsoft.OperationsManagement/solutions` *and* `Microsoft.SecurityInsights/onboardingStates/default`) and the optional separate playbook RG. When Sentinel is fully onboarded but the playbook RG is missing, GH passes `deploySentinel=false` to Bicep so the Sentinel module is skipped and only the playbook RG is provisioned.
 
 `deploySentinel` defaults to `true` and is omitted by the ADO pipeline today (it relies on the default). The GitHub Actions workflow's Stage 1 runs a finer per-component probe and passes `deploySentinel=false` when Sentinel is already onboarded but other infrastructure (most commonly the optional playbook RG) is missing — this lets Bicep provision only the gap without re-attempting the non-idempotent `Microsoft.SecurityInsights/onboardingStates` resource. ADO porting is allowed per [`instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md) Hard rule 1 ("one-direction-first bug fixes").
 

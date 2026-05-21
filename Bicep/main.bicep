@@ -84,16 +84,21 @@ module sentinel 'sentinel.bicep' = if (deploySentinel) {
 // When the sentinel module is skipped (deploySentinel = false), the
 // downstream resourceId / workspace outputs are not meaningful. To
 // give consumers a clean way to distinguish "module skipped" from
-// "module ran but produced an empty value", a sentinelDeployed
-// boolean is emitted alongside.
+// "module ran but produced an empty value", a sentinelModuleEnabled
+// boolean is emitted alongside. The name reflects what the value
+// actually represents: it echoes the deploySentinel input parameter
+// (was the module enabled this run?), NOT a post-deploy success
+// signal (was Sentinel actually deployed?). Consumers wanting a
+// success signal should test sentinelResourceId for non-emptiness
+// in combination with this flag.
 //
 // The resourceId / workspace outputs use the `.?` safe-access plus
 // `??` default-coalesce pattern instead of a ternary so Bicep can
 // statically prove the access path is safe (a plain
 // `deploySentinel ? sentinel.outputs.X : ''` ternary trips BCP318 -
 // the analyzer can't tie the guard expression to the module's
-// nullability). Consumers should branch on sentinelDeployed rather
-// than testing the resourceId for emptiness.
-output sentinelDeployed bool = deploySentinel
+// nullability). Consumers should branch on sentinelModuleEnabled
+// rather than testing the resourceId for emptiness.
+output sentinelModuleEnabled bool = deploySentinel
 output sentinelResourceId string = sentinel.?outputs.?sentinelResourceId ?? ''
 output logAnalyticsWorkspace object = sentinel.?outputs.?logAnalyticsWorkspace ?? {}

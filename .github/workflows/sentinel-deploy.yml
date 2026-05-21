@@ -230,32 +230,55 @@ jobs:
                     $onboardingId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}/providers/Microsoft.SecurityInsights/onboardingStates/default"
                     $onboarding = Get-AzResource -ResourceId $onboardingId -ApiVersion "2024-09-01" -ErrorAction SilentlyContinue
 
+                    # Three-case truth table over the two onboarding
+                    # resources. The asymmetric handling of the two
+                    # "exactly one missing" cases reflects which
+                    # resource is non-idempotent:
+                    #
+                    #   - The OMS solution is idempotent on re-deploy
+                    #     (the Bicep template comment calls this out
+                    #     explicitly). Deploying it when it already
+                    #     exists is a no-op.
+                    #   - The onboardingStates resource is NOT
+                    #     idempotent. Deploying it when it already
+                    #     exists returns Conflict.
+                    #
+                    # Therefore: an "OMS missing, state survives"
+                    # state cannot be auto-repaired by re-running
+                    # Bicep (state would Conflict). An "OMS survives,
+                    # state missing" state CAN be auto-repaired
+                    # (state gets created fresh; OMS re-deploy is a
+                    # no-op).
                     if ($omsSolution -and $onboarding) {
                         Write-Host "  Sentinel fully onboarded (OMS solution + onboarding state)."
                     } elseif (-not $omsSolution -and -not $onboarding) {
                         Write-Host "  Sentinel not onboarded (neither OMS solution nor onboarding state)."
                         $sentinelReady = $false
+                    } elseif ($omsSolution -and -not $onboarding) {
+                        # Auto-repairable: state is the non-idempotent
+                        # resource, and it's the one that's missing.
+                        # Re-running the sentinel module will create
+                        # it without Conflict; the surviving OMS
+                        # solution re-deploys idempotently.
+                        Write-Host "  Partial onboarding detected: OMS solution present, onboarding state missing."
+                        Write-Host "  Auto-repairing by re-running the Sentinel module (state is the non-idempotent resource and is the one missing)."
+                        $sentinelReady = $false
                     } else {
-                        # Inconsistent state: one onboarding resource
-                        # exists, the other doesn't. Running Bicep with
-                        # deploySentinel=true would Conflict on the
-                        # surviving onboardingStates resource (or
-                        # silently no-op on the surviving solution).
-                        # Running with deploySentinel=false would leave
-                        # the gap unrepaired. The deploy cannot
-                        # reconcile this state automatically; an
+                        # Unrecoverable: the surviving onboardingStates
+                        # resource is non-idempotent. Deploying with
+                        # deploySentinel=true would Conflict on it.
+                        # Deploying with deploySentinel=false would
+                        # leave the OMS solution unrepaired. An
                         # operator must intervene before proceeding.
-                        $present = if ($omsSolution) { 'OMS Sentinel solution (Microsoft.OperationsManagement/solutions)' } else { 'Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)' }
-                        $missing = if (-not $omsSolution) { 'OMS Sentinel solution (Microsoft.OperationsManagement/solutions)' } else { 'Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)' }
-                        Write-Host "##[error]Inconsistent Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
-                        Write-Host "##[error]  - Present: $present"
-                        Write-Host "##[error]  - Missing: $missing"
-                        Write-Host "##[error]This workspace was partially onboarded (or had one of the two onboarding resources deleted out of band). The deploy pipeline cannot reconcile this state automatically."
+                        Write-Host "##[error]Unrecoverable partial Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
+                        Write-Host "##[error]  - Present: Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)"
+                        Write-Host "##[error]  - Missing: OMS Sentinel solution (Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }}))"
+                        Write-Host "##[error]The non-idempotent onboardingStates resource survived but the OMS solution was deleted out of band. The deploy pipeline cannot reconcile this state automatically: re-running with deploySentinel=true would return Conflict on the surviving onboardingStates resource, and deploySentinel=false would leave the OMS solution unrepaired."
                         Write-Host "##[error]Resolution options:"
-                        Write-Host "##[error]  1. Delete the surviving onboarding resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
-                        Write-Host "##[error]  2. Manually create the missing resource via portal or an ad-hoc Bicep deploy targeting only the missing resource."
+                        Write-Host "##[error]  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
+                        Write-Host "##[error]  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
                         Write-Host "##[error]Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
-                        throw "Inconsistent Sentinel onboarding state — aborting deploy."
+                        throw "Unrecoverable partial Sentinel onboarding state - aborting deploy."
                     }
                 }
             }
