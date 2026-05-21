@@ -210,18 +210,52 @@ jobs:
                 } else {
                     Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' exists."
 
-                    # Sentinel onboarding state is the non-idempotent
-                    # resource that causes Conflict on re-deploy.
-                    # Treat its existence as the canonical "Sentinel
-                    # is onboarded" signal.
+                    # Sentinel uses a dual onboarding pattern (see
+                    # Docs/Deployment/Bicep.md "Why two onboarding
+                    # mechanisms?"): the legacy
+                    # Microsoft.OperationsManagement/solutions
+                    # SecurityInsights(<workspace>) resource AND the
+                    # modern Microsoft.SecurityInsights/onboardingStates
+                    # /default resource. Bicep/sentinel.bicep deploys
+                    # both. Both must exist for the workspace to be
+                    # considered fully onboarded. Probe both
+                    # independently so a partially-deleted onboarding
+                    # state (one survives, the other is gone) is
+                    # surfaced explicitly rather than silently skipped.
                     $subId = (Get-AzContext).Subscription.Id
+
+                    $omsSolutionId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }})"
+                    $omsSolution = Get-AzResource -ResourceId $omsSolutionId -ApiVersion "2015-11-01-preview" -ErrorAction SilentlyContinue
+
                     $onboardingId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}/providers/Microsoft.SecurityInsights/onboardingStates/default"
                     $onboarding = Get-AzResource -ResourceId $onboardingId -ApiVersion "2024-09-01" -ErrorAction SilentlyContinue
-                    if (-not $onboarding) {
-                        Write-Host "  Sentinel onboarding state missing."
+
+                    if ($omsSolution -and $onboarding) {
+                        Write-Host "  Sentinel fully onboarded (OMS solution + onboarding state)."
+                    } elseif (-not $omsSolution -and -not $onboarding) {
+                        Write-Host "  Sentinel not onboarded (neither OMS solution nor onboarding state)."
                         $sentinelReady = $false
                     } else {
-                        Write-Host "  Sentinel onboarding state present."
+                        # Inconsistent state: one onboarding resource
+                        # exists, the other doesn't. Running Bicep with
+                        # deploySentinel=true would Conflict on the
+                        # surviving onboardingStates resource (or
+                        # silently no-op on the surviving solution).
+                        # Running with deploySentinel=false would leave
+                        # the gap unrepaired. The deploy cannot
+                        # reconcile this state automatically; an
+                        # operator must intervene before proceeding.
+                        $present = if ($omsSolution) { 'OMS Sentinel solution (Microsoft.OperationsManagement/solutions)' } else { 'Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)' }
+                        $missing = if (-not $omsSolution) { 'OMS Sentinel solution (Microsoft.OperationsManagement/solutions)' } else { 'Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)' }
+                        Write-Host "##[error]Inconsistent Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
+                        Write-Host "##[error]  - Present: $present"
+                        Write-Host "##[error]  - Missing: $missing"
+                        Write-Host "##[error]This workspace was partially onboarded (or had one of the two onboarding resources deleted out of band). The deploy pipeline cannot reconcile this state automatically."
+                        Write-Host "##[error]Resolution options:"
+                        Write-Host "##[error]  1. Delete the surviving onboarding resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
+                        Write-Host "##[error]  2. Manually create the missing resource via portal or an ad-hoc Bicep deploy targeting only the missing resource."
+                        Write-Host "##[error]Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
+                        throw "Inconsistent Sentinel onboarding state — aborting deploy."
                     }
                 }
             }
