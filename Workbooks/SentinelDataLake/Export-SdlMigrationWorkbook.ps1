@@ -920,7 +920,17 @@ if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
     throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
 }
 $outputDir = Split-Path -LiteralPath $OutputPath -Parent
-if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -LiteralPath $outputDir -Force | Out-Null }
+# New-Item has no -LiteralPath parameter (only -Path/-Name), so we
+# cannot use the same -LiteralPath idiom we use on the surrounding
+# Test-Path/Split-Path/Remove-Item calls. Drop to the underlying
+# .NET API which takes a literal path string by definition: no
+# wildcard interpretation, no PSDrive resolution quirks, identical
+# behaviour on Windows, macOS, and Linux. The call is idempotent
+# (creates the directory if missing, no-op if it already exists),
+# so the surrounding Test-Path check is technically redundant but
+# kept for readability and to mirror the file-existence check on
+# the next line.
+if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { [void][System.IO.Directory]::CreateDirectory($outputDir) }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
 
 Write-Host ""
