@@ -43,7 +43,9 @@
 
 .PARAMETER OutputPath
     Path for the output .xlsx. Defaults to
-    SdlMigrationExport_<workspace>_<yyyyMMdd-HHmm>.xlsx in the current directory.
+    SdlMigrationExport_<workspace>_<yyyyMMdd-HHmm>.xlsx alongside the script
+    ($PSScriptRoot), so the file lands in a predictable location regardless
+    of the caller's current working directory.
 
 .PARAMETER TimeRangeDays
     Ingestion analysis window. Default: 30. Matches the workbook's TimeRange.
@@ -104,10 +106,12 @@
         -PricingModel             CT200 `
         -Currency                 GBP `
         -EffectiveAnalyticsRate   2.18 `
-        -OutputPath               "C:\Reports\sentinel-lake-prod.xlsx"
+        -OutputPath               "./sentinel-lake-prod.xlsx"
 
     Export with a CT200 commitment tier model, GBP cost labels, and a
-    custom output path.
+    custom output path. Uses a POSIX relative path so the example
+    copy-pastes cleanly on Windows, macOS, and Linux; substitute any
+    absolute or relative path your environment prefers.
 
 .NOTES
     Authentication : Uses the current Az context (Connect-AzAccount).
@@ -891,10 +895,32 @@ $pricingAssumptions = [pscustomobject]@{
 
 if (-not $OutputPath) {
     $stamp = $script:Now.ToString('yyyyMMdd-HHmm')
-    $OutputPath = Join-Path (Get-Location) "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
+    # Anchor the default output beside the script itself ($PSScriptRoot)
+    # rather than Get-Location. Get-Location depends on the caller's
+    # current working directory, which makes "where did the export go?"
+    # confusing when the script is launched from a parent folder or via
+    # an absolute path. $PSScriptRoot is always the script's own folder.
+    $OutputPath = Join-Path $PSScriptRoot "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
 }
-$outputDir = Split-Path -Parent $OutputPath
-if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -Path $outputDir -Force | Out-Null }
+# Defensive guard for explicit -OutputPath callers. The default-path
+# branch above is already safe because $PSScriptRoot resolves to a
+# POSIX path on non-Windows, but a user who copied a Windows-style
+# example like -OutputPath "C:\Reports\foo.xlsx" (or "C:/Reports/...")
+# and ran the script on macOS/Linux would otherwise hit Split-Path /
+# Test-Path / New-Item further down with the unhelpful message:
+#
+#     Cannot find drive. A drive with the name 'C' does not exist.
+#
+# Catch it upfront with a clearer, platform-aware error. The regex
+# matches both backslash (C:\) and forward-slash (C:/) drive-rooted
+# forms because PowerShell on Windows accepts both, so either could
+# plausibly appear in a copied example. The guard only fires on
+# non-Windows; Windows drive paths are perfectly valid on Windows.
+if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
+    throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
+}
+$outputDir = Split-Path -LiteralPath $OutputPath -Parent
+if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -LiteralPath $outputDir -Force | Out-Null }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
 
 Write-Host ""
