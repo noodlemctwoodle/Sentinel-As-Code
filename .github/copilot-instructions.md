@@ -21,8 +21,11 @@ automation rules, summary rules, and Defender XDR custom detections.
 Two equivalent CI/CD platforms are supported:
 
 - **GitHub Actions** — under `.github/workflows/`
-- **Azure DevOps Pipelines** — under `Pipelines/` (the source of truth
-  the GitHub workflows mirror)
+- **Azure DevOps Pipelines** — under `Pipelines/`. ADO is the default
+  source of truth that GitHub workflows mirror, with documented
+  platform-forced and one-direction-first divergences allowed. See
+  [`instructions/workflows.instructions.md`](instructions/workflows.instructions.md)
+  Hard rule 1 for the full carve-out policy.
 
 Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 

@@ -7,8 +7,10 @@ applyTo: ".github/workflows/**/*.yml,.github/actions/**/*.yml,Pipelines/**/*.yml
 # CI/CD workflows and pipelines
 
 GitHub Actions workflows live under `.github/workflows/`; Azure DevOps
-pipelines live under `Pipelines/`. The ADO version is the source of
-truth — GitHub workflows mirror ADO behaviour. Reference doc:
+pipelines live under `Pipelines/`. The ADO version is the default
+source of truth — GitHub workflows mirror ADO behaviour except in
+the narrow documented cases covered under Hard rule 1 below.
+Reference doc:
 [`Docs/Deployment/Pipelines.md`](../../Docs/Deployment/Pipelines.md).
 
 ## File inventory
@@ -37,9 +39,35 @@ instead of inlining `Azure/login@v2` or `Install-Module` patterns:
 
 ## Hard rules
 
-1. **ADO is the source of truth.** When the two diverge, change ADO
-   first, then port to GitHub. The reverse direction creates merge
-   conflicts that are hard to spot in review.
+1. **ADO is the default source of truth.** When the two diverge,
+   change ADO first, then port to GitHub. The reverse direction
+   creates merge conflicts that are hard to spot in review.
+
+   **Documented divergence is allowed** in the narrow cases below.
+   Where it exists, justify it inline (workflow comment, commit
+   message, or PR description) and reference the forcing constraint
+   so future readers don't mistake the divergence for drift:
+
+   - **Platform-forced divergence.** A constraint that exists on
+     one platform but not the other forces a different shape. The
+     canonical example is GitHub's 25-input `workflow_dispatch`
+     cap (ADO has no equivalent limit), which is why
+     `sentinel-deploy.yml` exposes a single
+     `skip_custom_content_types` comma-separated string where
+     `Pipelines/Sentinel-Deploy.yml` exposes nine separate boolean
+     parameters. BusyBox vs GNU shell utilities in container
+     images, GitHub-only `gh issue create` patterns in nightly
+     workflows, and similar one-sided platform behaviours qualify.
+
+   - **One-direction-first bug fixes.** When a bug affects both
+     platforms but the fix lands on one first (typically because
+     the maintainer hit the bug there first), this is acceptable
+     short-term but the divergence is not the end state. Track the
+     pending port as a follow-up issue or a TODO in the PR
+     description so it doesn't become permanent by neglect.
+
+   Drift caught in code review without a documented reason should
+   be reverted, not retroactively justified.
 2. **Pin versions for every PSGallery / NuGet / GitHub Action you
    add.** Workflow-level env vars (`PESTER_VERSION`, `YAML_VERSION`,
    `KUSTO_LANGUAGE_VERSION`) are the convention. A breaking change
