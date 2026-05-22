@@ -919,17 +919,24 @@ if (-not $OutputPath) {
 if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
     throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
 }
-$outputDir = Split-Path -LiteralPath $OutputPath -Parent
-# New-Item has no -LiteralPath parameter (only -Path/-Name), so we
-# cannot use the same -LiteralPath idiom we use on the surrounding
-# Test-Path/Split-Path/Remove-Item calls. Drop to the underlying
-# .NET API which takes a literal path string by definition: no
-# wildcard interpretation, no PSDrive resolution quirks, identical
-# behaviour on Windows, macOS, and Linux. The call is idempotent
-# (creates the directory if missing, no-op if it already exists),
-# so the surrounding Test-Path check is technically redundant but
-# kept for readability and to mirror the file-existence check on
-# the next line.
+# Path-manipulation primitives here drop to .NET because the
+# obvious PowerShell idioms have parameter-set traps:
+#   - Split-Path -LiteralPath ... -Parent is invalid because
+#     -LiteralPath and -Parent live in different parameter sets
+#     (LiteralPathSet vs ParentSet) and PowerShell cannot resolve
+#     the call. [System.IO.Path]::GetDirectoryName() is the literal-
+#     string equivalent.
+#   - New-Item has no -LiteralPath parameter at all (only -Path /
+#     -Name), so it would either need [WildcardPattern]::Escape on
+#     the input or a drop to .NET. [System.IO.Directory]::
+#     CreateDirectory() is idempotent (no-op if the directory
+#     already exists), takes a literal path by definition, and
+#     behaves identically on Windows, macOS, and Linux.
+# The surrounding Test-Path / Remove-Item calls keep -LiteralPath
+# because those cmdlets do support it; this block is therefore
+# consistent on "literal path, no wildcard interpretation" without
+# pretending every cmdlet supports the same parameter name.
+$outputDir = [System.IO.Path]::GetDirectoryName($OutputPath)
 if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { [void][System.IO.Directory]::CreateDirectory($outputDir) }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
 
