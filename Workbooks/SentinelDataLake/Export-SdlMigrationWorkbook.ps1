@@ -106,10 +106,12 @@
         -PricingModel             CT200 `
         -Currency                 GBP `
         -EffectiveAnalyticsRate   2.18 `
-        -OutputPath               "C:\Reports\sentinel-lake-prod.xlsx"
+        -OutputPath               "./sentinel-lake-prod.xlsx"
 
     Export with a CT200 commitment tier model, GBP cost labels, and a
-    custom output path.
+    custom output path. Uses a POSIX relative path so the example
+    copy-pastes cleanly on Windows, macOS, and Linux; substitute any
+    absolute or relative path your environment prefers.
 
 .NOTES
     Authentication : Uses the current Az context (Connect-AzAccount).
@@ -900,7 +902,21 @@ if (-not $OutputPath) {
     # an absolute path. $PSScriptRoot is always the script's own folder.
     $OutputPath = Join-Path $PSScriptRoot "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
 }
-if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:\\') {
+# Defensive guard for explicit -OutputPath callers. The default-path
+# branch above is already safe because $PSScriptRoot resolves to a
+# POSIX path on non-Windows, but a user who copied a Windows-style
+# example like -OutputPath "C:\Reports\foo.xlsx" (or "C:/Reports/...")
+# and ran the script on macOS/Linux would otherwise hit Split-Path /
+# Test-Path / New-Item further down with the unhelpful message:
+#
+#     Cannot find drive. A drive with the name 'C' does not exist.
+#
+# Catch it upfront with a clearer, platform-aware error. The regex
+# matches both backslash (C:\) and forward-slash (C:/) drive-rooted
+# forms because PowerShell on Windows accepts both, so either could
+# plausibly appear in a copied example. The guard only fires on
+# non-Windows; Windows drive paths are perfectly valid on Windows.
+if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
     throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on this platform. Use a POSIX path instead."
 }
 $outputDir = Split-Path -Parent $OutputPath
