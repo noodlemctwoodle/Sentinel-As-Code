@@ -900,6 +900,9 @@ if (-not $OutputPath) {
     # an absolute path. $PSScriptRoot is always the script's own folder.
     $OutputPath = Join-Path $PSScriptRoot "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
 }
+if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:\\') {
+    throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on this platform. Use a POSIX path instead."
+}
 $outputDir = Split-Path -Parent $OutputPath
 if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -Path $outputDir -Force | Out-Null }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
