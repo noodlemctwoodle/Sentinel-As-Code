@@ -43,7 +43,9 @@
 
 .PARAMETER OutputPath
     Path for the output .xlsx. Defaults to
-    SdlMigrationExport_<workspace>_<yyyyMMdd-HHmm>.xlsx in the current directory.
+    SdlMigrationExport_<workspace>_<yyyyMMdd-HHmm>.xlsx alongside the script
+    ($PSScriptRoot), so the file lands in a predictable location regardless
+    of the caller's current working directory.
 
 .PARAMETER TimeRangeDays
     Ingestion analysis window. Default: 30. Matches the workbook's TimeRange.
@@ -891,7 +893,12 @@ $pricingAssumptions = [pscustomobject]@{
 
 if (-not $OutputPath) {
     $stamp = $script:Now.ToString('yyyyMMdd-HHmm')
-    $OutputPath = Join-Path (Get-Location) "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
+    # Anchor the default output beside the script itself ($PSScriptRoot)
+    # rather than Get-Location. Get-Location depends on the caller's
+    # current working directory, which makes "where did the export go?"
+    # confusing when the script is launched from a parent folder or via
+    # an absolute path. $PSScriptRoot is always the script's own folder.
+    $OutputPath = Join-Path $PSScriptRoot "SdlMigrationExport_${WorkspaceName}_${stamp}.xlsx"
 }
 $outputDir = Split-Path -Parent $OutputPath
 if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -Path $outputDir -Force | Out-Null }
