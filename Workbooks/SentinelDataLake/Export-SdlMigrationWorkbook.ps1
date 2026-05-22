@@ -919,8 +919,25 @@ if (-not $OutputPath) {
 if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
     throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
 }
-$outputDir = Split-Path -LiteralPath $OutputPath -Parent
-if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -LiteralPath $outputDir -Force | Out-Null }
+# Path-manipulation primitives here drop to .NET because the
+# obvious PowerShell idioms have parameter-set traps:
+#   - Split-Path -LiteralPath ... -Parent is invalid because
+#     -LiteralPath and -Parent live in different parameter sets
+#     (LiteralPathSet vs ParentSet) and PowerShell cannot resolve
+#     the call. [System.IO.Path]::GetDirectoryName() is the literal-
+#     string equivalent.
+#   - New-Item has no -LiteralPath parameter at all (only -Path /
+#     -Name), so it would either need [WildcardPattern]::Escape on
+#     the input or a drop to .NET. [System.IO.Directory]::
+#     CreateDirectory() is idempotent (no-op if the directory
+#     already exists), takes a literal path by definition, and
+#     behaves identically on Windows, macOS, and Linux.
+# The surrounding Test-Path / Remove-Item calls keep -LiteralPath
+# because those cmdlets do support it; this block is therefore
+# consistent on "literal path, no wildcard interpretation" without
+# pretending every cmdlet supports the same parameter name.
+$outputDir = [System.IO.Path]::GetDirectoryName($OutputPath)
+if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { [void][System.IO.Directory]::CreateDirectory($outputDir) }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
 
 Write-Host ""
