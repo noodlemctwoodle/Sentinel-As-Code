@@ -138,9 +138,10 @@ az deployment sub create \
         dailyQuota=${{ parameters.dailyQuota }} \
         retentionInDays=${{ parameters.retentionInDays }} \
         totalRetentionInDays=${{ parameters.totalRetentionInDays }} \
-        playbookRgName=$(playbookResourceGroup) \
-        deploySentinel=true
+        playbookRgName=$(playbookResourceGroup)
 ```
+
+`deploySentinel` is intentionally omitted from this ADO invocation — see the paragraph below for the asymmetric handling between platforms.
 
 Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](Pipelines.md) for the conditional logic. The two pipelines differ in probe granularity:
 

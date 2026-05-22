@@ -270,14 +270,14 @@ jobs:
                         # Deploying with deploySentinel=false would
                         # leave the OMS solution unrepaired. An
                         # operator must intervene before proceeding.
-                        Write-Host "##[error]Unrecoverable partial Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
-                        Write-Host "##[error]  - Present: Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)"
-                        Write-Host "##[error]  - Missing: OMS Sentinel solution (Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }}))"
-                        Write-Host "##[error]The non-idempotent onboardingStates resource survived but the OMS solution was deleted out of band. The deploy pipeline cannot reconcile this state automatically: re-running with deploySentinel=true would return Conflict on the surviving onboardingStates resource, and deploySentinel=false would leave the OMS solution unrepaired."
-                        Write-Host "##[error]Resolution options:"
-                        Write-Host "##[error]  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
-                        Write-Host "##[error]  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
-                        Write-Host "##[error]Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
+                        Write-Host "::error::Unrecoverable partial Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
+                        Write-Host "::error::  - Present: Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)"
+                        Write-Host "::error::  - Missing: OMS Sentinel solution (Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }}))"
+                        Write-Host "::error::The non-idempotent onboardingStates resource survived but the OMS solution was deleted out of band. The deploy pipeline cannot reconcile this state automatically: re-running with deploySentinel=true would return Conflict on the surviving onboardingStates resource, and deploySentinel=false would leave the OMS solution unrepaired."
+                        Write-Host "::error::Resolution options:"
+                        Write-Host "::error::  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
+                        Write-Host "::error::  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
+                        Write-Host "::error::Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
                         throw "Unrecoverable partial Sentinel onboarding state - aborting deploy."
                     }
                 }
@@ -546,8 +546,8 @@ jobs:
         run: |
           & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "##[error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-              Write-Host "##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              Write-Host "::error::dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
+              Write-Host "::error::Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
               exit 1
           }
 
