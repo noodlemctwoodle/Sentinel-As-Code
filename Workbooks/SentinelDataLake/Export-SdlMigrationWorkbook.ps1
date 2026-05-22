@@ -917,7 +917,7 @@ if (-not $OutputPath) {
 # plausibly appear in a copied example. The guard only fires on
 # non-Windows; Windows drive paths are perfectly valid on Windows.
 if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
-    throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on this platform. Use a POSIX path instead."
+    throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
 }
 $outputDir = Split-Path -LiteralPath $OutputPath -Parent
 if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -LiteralPath $outputDir -Force | Out-Null }
