@@ -919,7 +919,7 @@ if (-not $OutputPath) {
 if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
     throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on this platform. Use a POSIX path instead."
 }
-$outputDir = Split-Path -Parent $OutputPath
+$outputDir = Split-Path -LiteralPath $OutputPath -Parent
 if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) { New-Item -ItemType Directory -LiteralPath $outputDir -Force | Out-Null }
 if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Force }
 
