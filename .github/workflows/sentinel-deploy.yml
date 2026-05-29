@@ -63,7 +63,7 @@ on:
       solutions:
         description: "Content Hub: Solutions (comma-separated)"
         type: string
-        default: "Microsoft Defender XDR,Azure Activity,Microsoft Entra ID,Microsoft Defender for Cloud,Microsoft 365,Microsoft Defender for Endpoint,Windows Security Events,Threat Intelligence (New),UEBA Essentials"
+        default: "Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report"
       severities_to_include:
         description: "Content Hub: Analytics Rule Severities"
         type: string
@@ -102,42 +102,17 @@ on:
         default: false
 
       # ── Custom Content (Stage 4) ─────────────────────────────────────
-      skip_custom_parsers:
-        description: "Custom: Skip KQL Parsers/Functions"
-        type: boolean
-        default: false
-      skip_custom_detections:
-        description: "Custom: Skip Analytical Rules (YAML)"
-        type: boolean
-        default: false
-      skip_community_detections:
-        description: "Custom: Skip Community Detections (Dalonso)"
-        type: boolean
-        default: true
-      skip_custom_watchlists:
-        description: "Custom: Skip Watchlists (JSON+CSV)"
-        type: boolean
-        default: false
-      skip_custom_playbooks:
-        description: "Custom: Skip Playbooks (ARM)"
-        type: boolean
-        default: false
-      skip_custom_workbooks:
-        description: "Custom: Skip Workbooks (Gallery JSON)"
-        type: boolean
-        default: false
-      skip_custom_hunting_queries:
-        description: "Custom: Skip Hunting Queries (YAML)"
-        type: boolean
-        default: false
-      skip_custom_automation_rules:
-        description: "Custom: Skip Automation Rules (JSON)"
-        type: boolean
-        default: false
-      skip_custom_summary_rules:
-        description: "Custom: Skip Summary Rules (JSON)"
-        type: boolean
-        default: false
+      # GitHub caps workflow_dispatch at 25 inputs. The ADO equivalent in
+      # Pipelines/Sentinel-Deploy.yml exposes nine separate skipCustom*
+      # boolean parameters here; we collapse them into one comma-separated
+      # string so the GH workflow stays under the cap while preserving
+      # identical downstream behaviour (Deploy-CustomContent.ps1 still
+      # receives the individual -Skip* script parameters via the parsing
+      # block in the deploy-custom-content job below).
+      skip_custom_content_types:
+        description: "Custom: Skip Content Types (comma-separated subset of: parsers, detections, community-detections, watchlists, playbooks, workbooks, hunting-queries, automation-rules, summary-rules)"
+        type: string
+        default: "community-detections"
 
       # ── General ──────────────────────────────────────────────────────
       smart_deployment:
@@ -175,8 +150,16 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.deploy_infrastructure != false }}
     outputs:
-      resources_exist: ${{ steps.check.outputs.resources_exist }}
+      bicep_needed:    ${{ steps.check.outputs.bicep_needed }}
+      deploy_sentinel: ${{ steps.check.outputs.deploy_sentinel }}
     steps:
+      # Required even though this job reads no repo files: the
+      # Azure-login composite below lives under .github/actions/ in
+      # this repo, and local composite actions can only be resolved
+      # once the runner has the repo on disk.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
         with:
@@ -190,26 +173,141 @@ jobs:
         with:
           azPSVersion: "latest"
           inlineScript: |
+            # Per-component probe. The output drives two decisions in
+            # Stage 2:
+            #
+            #   bicep_needed    — gate on whether to run Bicep at all
+            #                     (true if ANY component is missing).
+            #   deploy_sentinel — whether the Sentinel module should
+            #                     run inside Bicep (false if Sentinel
+            #                     is already onboarded). False allows
+            #                     main.bicep to provision only the
+            #                     missing optional playbook RG without
+            #                     re-creating the non-idempotent
+            #                     SecurityInsights/onboardingStates
+            #                     resource, which returns Conflict on
+            #                     re-deploy.
             Write-Host "Checking for existing Sentinel infrastructure..."
-            $resourcesExist = "false"
 
+            $sentinelReady    = $true
+            $playbookRgReady  = $true
+
+            # ── Sentinel RG + workspace + onboarding state ──────────
             $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
-            if ($rg) {
+            if (-not $rg) {
+                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' missing."
+                $sentinelReady = $false
+            } else {
+                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' exists."
+
                 $law = Get-AzOperationalInsightsWorkspace `
                     -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
                     -Name "${{ env.WORKSPACE_NAME }}" `
                     -ErrorAction SilentlyContinue
-                if ($law) {
-                    Write-Host "Workspace '${{ env.WORKSPACE_NAME }}' exists — skipping Bicep."
-                    $resourcesExist = "true"
+                if (-not $law) {
+                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' missing."
+                    $sentinelReady = $false
                 } else {
-                    Write-Host "Workspace not found — Bicep deployment required."
+                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' exists."
+
+                    # Sentinel uses a dual onboarding pattern (see
+                    # Docs/Deployment/Bicep.md "Why two onboarding
+                    # mechanisms?"): the legacy
+                    # Microsoft.OperationsManagement/solutions
+                    # SecurityInsights(<workspace>) resource AND the
+                    # modern Microsoft.SecurityInsights/onboardingStates
+                    # /default resource. Bicep/sentinel.bicep deploys
+                    # both. Both must exist for the workspace to be
+                    # considered fully onboarded. Probe both
+                    # independently so a partially-deleted onboarding
+                    # state (one survives, the other is gone) is
+                    # surfaced explicitly rather than silently skipped.
+                    $subId = (Get-AzContext).Subscription.Id
+
+                    $omsSolutionId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }})"
+                    $omsSolution = Get-AzResource -ResourceId $omsSolutionId -ApiVersion "2015-11-01-preview" -ErrorAction SilentlyContinue
+
+                    $onboardingId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}/providers/Microsoft.SecurityInsights/onboardingStates/default"
+                    $onboarding = Get-AzResource -ResourceId $onboardingId -ApiVersion "2024-09-01" -ErrorAction SilentlyContinue
+
+                    # Three-case truth table over the two onboarding
+                    # resources. The asymmetric handling of the two
+                    # "exactly one missing" cases reflects which
+                    # resource is non-idempotent:
+                    #
+                    #   - The OMS solution is idempotent on re-deploy
+                    #     (the Bicep template comment calls this out
+                    #     explicitly). Deploying it when it already
+                    #     exists is a no-op.
+                    #   - The onboardingStates resource is NOT
+                    #     idempotent. Deploying it when it already
+                    #     exists returns Conflict.
+                    #
+                    # Therefore: an "OMS missing, state survives"
+                    # state cannot be auto-repaired by re-running
+                    # Bicep (state would Conflict). An "OMS survives,
+                    # state missing" state CAN be auto-repaired
+                    # (state gets created fresh; OMS re-deploy is a
+                    # no-op).
+                    if ($omsSolution -and $onboarding) {
+                        Write-Host "  Sentinel fully onboarded (OMS solution + onboarding state)."
+                    } elseif (-not $omsSolution -and -not $onboarding) {
+                        Write-Host "  Sentinel not onboarded (neither OMS solution nor onboarding state)."
+                        $sentinelReady = $false
+                    } elseif ($omsSolution -and -not $onboarding) {
+                        # Auto-repairable: state is the non-idempotent
+                        # resource, and it's the one that's missing.
+                        # Re-running the sentinel module will create
+                        # it without Conflict; the surviving OMS
+                        # solution re-deploys idempotently.
+                        Write-Host "  Partial onboarding detected: OMS solution present, onboarding state missing."
+                        Write-Host "  Auto-repairing by re-running the Sentinel module (state is the non-idempotent resource and is the one missing)."
+                        $sentinelReady = $false
+                    } else {
+                        # Unrecoverable: the surviving onboardingStates
+                        # resource is non-idempotent. Deploying with
+                        # deploySentinel=true would Conflict on it.
+                        # Deploying with deploySentinel=false would
+                        # leave the OMS solution unrepaired. An
+                        # operator must intervene before proceeding.
+                        Write-Host "::error::Unrecoverable partial Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
+                        Write-Host "::error::  - Present: Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)"
+                        Write-Host "::error::  - Missing: OMS Sentinel solution (Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }}))"
+                        Write-Host "::error::The non-idempotent onboardingStates resource survived but the OMS solution was deleted out of band. The deploy pipeline cannot reconcile this state automatically: re-running with deploySentinel=true would return Conflict on the surviving onboardingStates resource, and deploySentinel=false would leave the OMS solution unrepaired."
+                        Write-Host "::error::Resolution options:"
+                        Write-Host "::error::  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
+                        Write-Host "::error::  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
+                        Write-Host "::error::Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
+                        throw "Unrecoverable partial Sentinel onboarding state - aborting deploy."
+                    }
                 }
-            } else {
-                Write-Host "Resource Group not found — full Bicep deployment required."
             }
 
-            echo "resources_exist=$resourcesExist" >> $env:GITHUB_OUTPUT
+            # ── Optional playbook RG ────────────────────────────────
+            # Trim defensively to survive accidental whitespace in
+            # the GitHub repo variable.
+            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
+            if ($playbookRG -and $playbookRG -ne "${{ env.RESOURCE_GROUP }}") {
+                $pbRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
+                if (-not $pbRg) {
+                    Write-Host "  Playbook RG '$playbookRG' missing."
+                    $playbookRgReady = $false
+                } else {
+                    Write-Host "  Playbook RG '$playbookRG' exists."
+                }
+            }
+
+            # ── Decision matrix ─────────────────────────────────────
+            $bicepNeeded    = (-not $sentinelReady) -or (-not $playbookRgReady)
+            $deploySentinel = -not $sentinelReady
+
+            Write-Host ""
+            Write-Host "Stage 2 decision:"
+            Write-Host ("  bicep_needed    = " + $bicepNeeded.ToString().ToLower())
+            Write-Host ("  deploy_sentinel = " + $deploySentinel.ToString().ToLower())
+
+            "bicep_needed=$($bicepNeeded.ToString().ToLower())"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "deploy_sentinel=$($deploySentinel.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   # ===========================================================================
   # Stage 2: Deploy Infrastructure (Bicep)
@@ -221,7 +319,7 @@ jobs:
     if: |
       always() &&
       needs.check-infrastructure.result == 'success' &&
-      needs.check-infrastructure.outputs.resources_exist == 'false'
+      needs.check-infrastructure.outputs.bicep_needed == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -244,6 +342,29 @@ jobs:
         uses: Azure/cli@v2
         with:
           inlineScript: |
+            # Strip ALL whitespace (space, tab, CR, LF, FF, VT) from
+            # the optional PLAYBOOK_RESOURCE_GROUP repo variable. Azure
+            # RG names cannot contain any whitespace, so destructive
+            # stripping is safe and matches the intent.
+            #
+            # `tr -d '[:space:]'` replaces the earlier `xargs` approach
+            # because the Azure CLI runner image
+            # (mcr.microsoft.com/azure-cli) is Alpine-based and ships
+            # BusyBox xargs, which — unlike GNU xargs — does NOT treat
+            # CR ('\r') as whitespace. A GH repo variable accidentally
+            # carrying CRLF line endings then leaked a trailing '\r'
+            # into the ARM call:
+            #   InvalidResourceGroup: 'rg-name\r' has these invalid
+            #   characters: '\r'.
+            # `tr -d '[:space:]'` is POSIX-portable and strips every
+            # whitespace class on every shell environment we target.
+            #
+            # Empty input stays empty, which Bicep/main.bicep:55 treats
+            # as "no separate playbook RG required" (the conditional
+            # playbookRg resource only fires when playbookRgName is
+            # non-empty and != rgName).
+            PLAYBOOK_RG=$(printf '%s' "${{ vars.PLAYBOOK_RESOURCE_GROUP }}" | tr -d '[:space:]')
+
             az deployment sub create \
               --location "${{ env.REGION }}" \
               --template-file Bicep/main.bicep \
@@ -253,7 +374,9 @@ jobs:
                 lawName="${{ env.WORKSPACE_NAME }}" \
                 dailyQuota=${{ inputs.daily_quota || 0 }} \
                 retentionInDays=${{ inputs.retention_in_days || 90 }} \
-                totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }}
+                totalRetentionInDays=${{ inputs.total_retention_in_days || 0 }} \
+                playbookRgName="$PLAYBOOK_RG" \
+                deploySentinel=${{ needs.check-infrastructure.outputs.deploy_sentinel }}
 
       - name: Wait for Workspace Indexing
         shell: pwsh
@@ -354,7 +477,7 @@ jobs:
         with:
           azPSVersion: "latest"
           inlineScript: |
-            $solutionList = "${{ inputs.solutions || 'Microsoft Defender XDR,Azure Activity' }}" -split ',' | ForEach-Object { $_.Trim() }
+            $solutionList = "${{ inputs.solutions || 'Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report' }}" -split ',' | ForEach-Object { $_.Trim() }
             $severityList = "${{ inputs.severities_to_include || 'High,Medium,Low,Informational' }}" -split ',' | ForEach-Object { $_.Trim() }
 
             $scriptParams = @{
@@ -423,8 +546,8 @@ jobs:
         run: |
           & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "##[error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-              Write-Host "##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              Write-Host "::error::dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
+              Write-Host "::error::Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
               exit 1
           }
 
@@ -448,18 +571,33 @@ jobs:
                 BasePath       = "${{ github.workspace }}"
             }
 
-            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}"
+            # Trim accidental whitespace in the repo variable; Azure
+            # treats 'rg-name ' as a distinct (non-existent) RG and
+            # Deploy-CustomContent.ps1 will error out before any work.
+            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
             if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
 
-            if ("${{ inputs.skip_custom_parsers }}" -eq "true")          { $scriptParams['SkipParsers']               = $true }
-            if ("${{ inputs.skip_custom_detections }}" -eq "true")       { $scriptParams['SkipDetections']            = $true }
-            if ("${{ inputs.skip_community_detections }}" -ne "false")   { $scriptParams['SkipCommunityDetections']  = $true }
-            if ("${{ inputs.skip_custom_watchlists }}" -eq "true")       { $scriptParams['SkipWatchlists']            = $true }
-            if ("${{ inputs.skip_custom_playbooks }}" -eq "true")        { $scriptParams['SkipPlaybooks']      = $true }
-            if ("${{ inputs.skip_custom_workbooks }}" -eq "true")        { $scriptParams['SkipWorkbooks']      = $true }
-            if ("${{ inputs.skip_custom_hunting_queries }}" -eq "true")  { $scriptParams['SkipHuntingQueries'] = $true }
-            if ("${{ inputs.skip_custom_automation_rules }}" -eq "true") { $scriptParams['SkipAutomationRules']= $true }
-            if ("${{ inputs.skip_custom_summary_rules }}" -eq "true")   { $scriptParams['SkipSummaryRules']   = $true }
+            # Parse the consolidated skip_custom_content_types string
+            # into individual -Skip* script parameters. The cron trigger
+            # has no inputs.*, so the `|| 'community-detections'` fallback
+            # matches the workflow_dispatch default for parity. ADO's
+            # equivalent block (Pipelines/Sentinel-Deploy.yml) sets the
+            # same -Skip* parameters from its nine individual boolean
+            # parameters — net effect on Deploy-CustomContent.ps1 is
+            # identical across both platforms.
+            $skipList = "${{ inputs.skip_custom_content_types || 'community-detections' }}" -split ',' |
+                ForEach-Object { $_.Trim().ToLower() } |
+                Where-Object { $_ }
+
+            if ($skipList -contains 'parsers')              { $scriptParams['SkipParsers']              = $true }
+            if ($skipList -contains 'detections')           { $scriptParams['SkipDetections']           = $true }
+            if ($skipList -contains 'community-detections') { $scriptParams['SkipCommunityDetections'] = $true }
+            if ($skipList -contains 'watchlists')           { $scriptParams['SkipWatchlists']           = $true }
+            if ($skipList -contains 'playbooks')            { $scriptParams['SkipPlaybooks']            = $true }
+            if ($skipList -contains 'workbooks')            { $scriptParams['SkipWorkbooks']            = $true }
+            if ($skipList -contains 'hunting-queries')      { $scriptParams['SkipHuntingQueries']       = $true }
+            if ($skipList -contains 'automation-rules')     { $scriptParams['SkipAutomationRules']      = $true }
+            if ($skipList -contains 'summary-rules')        { $scriptParams['SkipSummaryRules']         = $true }
             if ("${{ inputs.smart_deployment }}" -ne "false")            { $scriptParams['SmartDeployment']    = $true }
             if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
 

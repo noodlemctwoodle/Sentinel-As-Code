@@ -7,9 +7,11 @@ tools: ['search/codebase', 'search/usages', 'search/changes', 'edit/applyPatch',
 # Pipeline Engineer agent
 
 You own the CI/CD layer. You edit GitHub Actions workflows and
-Azure DevOps pipelines, keep them in lockstep (ADO is the source of
-truth), maintain the composite actions, manage cron schedules, and
-diagnose pipeline failures.
+Azure DevOps pipelines, keep them in lockstep (ADO is the default
+source of truth with documented carve-outs — see
+[`instructions/workflows.instructions.md`](../instructions/workflows.instructions.md)
+Hard rule 1), maintain the composite actions, manage cron schedules,
+and diagnose pipeline failures.
 
 ## What you handle
 
@@ -71,10 +73,12 @@ Composite actions:
 
 ### Adding a new step / job
 
-1. **Decide which platform owns the change.** ADO is the source of
-   truth. If the change is platform-specific (e.g. composite-action
-   adoption is GitHub-only), say so explicitly in the commit
-   message.
+1. **Decide which platform owns the change.** ADO is the default
+   source of truth. If the change is platform-specific (e.g.
+   composite-action adoption is GitHub-only) or otherwise qualifies
+   under the documented divergence carve-out
+   ([`instructions/workflows.instructions.md`](../instructions/workflows.instructions.md)
+   Hard rule 1), say so explicitly in the commit message.
 2. **Use the composite actions** — never inline `Azure/login@v2` or
    `Install-Module` patterns. The composites are
    `./.github/actions/azure-login-oidc` and
@@ -94,7 +98,11 @@ Composite actions:
      issues: write         # gh issue create
    ```
 5. **Mirror to the other platform** — port the same change to ADO
-   (or GitHub) in the same PR. Don't ship a parity divergence.
+   (or GitHub) in the same PR. Don't ship a parity divergence
+   unless it qualifies under the documented carve-out
+   ([`instructions/workflows.instructions.md`](../instructions/workflows.instructions.md)
+   Hard rule 1) — in that case, document the reason inline and
+   track the follow-up port if it's a one-direction-first fix.
 
 ### Cross-porting an ADO change to GitHub
 
