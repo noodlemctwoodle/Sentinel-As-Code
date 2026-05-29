@@ -178,6 +178,125 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '84-cost-estimate.md Sankey collapses the long tail on busy workspaces' {
+        BeforeAll {
+            # Build a new temp workspace whose cost-estimate.json carries
+            # ~80 unique tables — a real-world busy SIEM workspace shape.
+            # Top 10 are heavyweight, the remaining 70 are sub-10 GB and
+            # spread across multiple sources so the bucketing rule has
+            # something to do.
+            $busyOut = Join-Path ([System.IO.Path]::GetTempPath()) "documenter-busy-$(New-Guid)"
+            $busyWs  = Join-Path $busyOut 'law-sentinel-busy'
+            New-Item -ItemType Directory -Path (Join-Path $busyWs '_raw') -Force | Out-Null
+            Get-ChildItem -Path $script:fixtureRaw -File | ForEach-Object {
+                Copy-Item -Path $_.FullName -Destination (Join-Path $busyWs '_raw') -Force
+            }
+
+            $costPath = Join-Path $busyWs '_raw/cost-estimate.json'
+            $cost = Get-Content $costPath -Raw | ConvertFrom-Json
+
+            $busyTables = @(
+                @{ Table='CommonSecurityLog'; Plan='Analytics'; Gb30d=2400.0; MonthlyCost=4800.0 },
+                @{ Table='Syslog';             Plan='Analytics'; Gb30d=1800.0; MonthlyCost=3600.0 },
+                @{ Table='SecurityEvent';      Plan='Analytics'; Gb30d=900.0;  MonthlyCost=1800.0 },
+                @{ Table='DeviceEvents';       Plan='Analytics'; Gb30d=750.0;  MonthlyCost=1500.0 },
+                @{ Table='EmailEvents';        Plan='Analytics'; Gb30d=600.0;  MonthlyCost=1200.0 },
+                @{ Table='SigninLogs';         Plan='Analytics'; Gb30d=420.0;  MonthlyCost=840.0 },
+                @{ Table='AuditLogs';          Plan='Analytics'; Gb30d=200.0;  MonthlyCost=400.0 },
+                @{ Table='AzureActivity';      Plan='Analytics'; Gb30d=140.0;  MonthlyCost=280.0 },
+                @{ Table='AzureDiagnostics';   Plan='Analytics'; Gb30d=130.0;  MonthlyCost=260.0 },
+                @{ Table='OfficeActivity';     Plan='Analytics'; Gb30d=110.0;  MonthlyCost=220.0 }
+            )
+            for ($i = 1; $i -le 70; $i++) {
+                $prefix = switch ($i % 5) {
+                    0 { 'Misc1_CL_' }
+                    1 { 'Misc2_CL_' }
+                    2 { 'Custom_CL_' }
+                    3 { 'DeviceSmall_' }
+                    4 { 'IntuneTiny_' }
+                }
+                # Deterministic small GB values — no Get-Random in tests
+                # so the assertion remains stable run-to-run.
+                $busyTables += @{
+                    Table       = ($prefix + $i)
+                    Plan        = 'Analytics'
+                    Gb30d       = [math]::Round(0.5 + ($i % 8) * 0.5, 2)
+                    MonthlyCost = 1.0
+                }
+            }
+            $cost | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue $busyTables -Force
+            $cost | ConvertTo-Json -Depth 32 | Set-Content -Path $costPath
+
+            & $script:renderer `
+                -WorkspaceName 'law-sentinel-busy' `
+                -InputRoot     $busyWs `
+                -OutputRoot    $busyWs `
+                -ResourcesRoot $script:resources `
+                -InformationAction SilentlyContinue
+
+            $script:busyOut    = $busyOut
+            $script:busyCostMd = Get-Content (Join-Path $busyWs '84-cost-estimate.md') -Raw
+        }
+
+        AfterAll {
+            if ($script:busyOut -and (Test-Path $script:busyOut)) {
+                Remove-Item -Recurse -Force -Path $script:busyOut -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'emits at least one per-source long-tail bucket node' {
+            $script:busyCostMd | Should -Match '\w[\w ]* tail \(\d+\)'
+        }
+
+        It 'collapses the Other source tail' {
+            # 14 each of Misc1_CL_*, Misc2_CL_*, IntuneTiny_* land in 'Other'
+            # because their suffix-int names don't match `_CL$`; Intune_*
+            # routes to its own source; Custom_CL_* routes to 'Custom (CCF / DCR)'.
+            # All 14 Misc1/Misc2 are well below the top-90% threshold so they
+            # must bucket together.
+            $script:busyCostMd | Should -Match 'Other tail \(\d+\)'
+        }
+
+        It 'keeps the dominant tables individually visible in the Sankey block' {
+            # Strip the markdown to just the Sankey block before asserting —
+            # the section narrative and methodology reference table names too.
+            $sankeyStart = $script:busyCostMd.IndexOf('source → table → billing tier')
+            $sankeyEnd   = $script:busyCostMd.IndexOf('Three columns', $sankeyStart)
+            $sankey      = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
+            $sankey | Should -Match 'CommonSecurityLog'
+            $sankey | Should -Match 'Syslog'
+            $sankey | Should -Match 'SecurityEvent'
+        }
+
+        It 'leaves small tail-of-one sources individual rather than bucketing one entry' {
+            # OfficeActivity is the only Office 365 table and falls under the
+            # 90% threshold — the promotion pass should keep it individual,
+            # NOT emit a "Office 365 tail (1)" bucket.
+            $script:busyCostMd | Should -Not -Match 'Office 365 tail \(1\)'
+            # Verify by checking that OfficeActivity appears as a direct
+            # Sankey edge from its source.
+            $script:busyCostMd | Should -Match 'Office 365,OfficeActivity,110'
+        }
+
+        It 'annotates the section narrative with the tail-collapse disclosure' {
+            $script:busyCostMd | Should -Match 'collapsed into per-source'
+            $script:busyCostMd | Should -Match '\d+ small table\(s\) bucketed'
+        }
+
+        It 'sets the Sankey chart height with a sensible floor for busy workspaces' {
+            # 80 tables → ~12-14 middle nodes after bucketing → 24*N+200
+            # is below the 720 floor, so height stays at 720. Scope the
+            # match to the Sankey block since other charts have their own
+            # height config earlier in the file.
+            $sankeyStart = $script:busyCostMd.IndexOf('sankey:')
+            $sankeyEnd   = $script:busyCostMd.IndexOf('sankey-beta', $sankeyStart)
+            $sankeyConfig = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
+            $sankeyConfig | Should -Match 'height: \d+'
+            $h = ([regex]'height: (\d+)').Match($sankeyConfig).Groups[1].Value -as [int]
+            $h | Should -BeGreaterOrEqual 720
+        }
+    }
+
     Context '90-gap-analysis.md renders the findings table' {
         BeforeAll {
             $script:gapMd = Get-Content (Join-Path $script:tempWsRoot '90-gap-analysis.md') -Raw

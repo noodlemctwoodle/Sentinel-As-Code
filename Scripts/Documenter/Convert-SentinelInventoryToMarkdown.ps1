@@ -1205,34 +1205,14 @@ $(Format-Table -Items $wbRows -Columns 'Name','Category')
 Total available: $($workbookTemplates.Count)
 "@)
 
-# Item counts come from the sidecar `_raw/watchlist-items/<alias>.json`
-# files (one per watchlist, captured by the exporter). The sidecar is
-# the source of truth for item counts — the watchlist properties don't
-# include a count.
-$wlItemsDir = Join-Path $InputRoot '_raw/watchlist-items'
-$wlItemCount = @{}
-if (Test-Path $wlItemsDir) {
-    foreach ($f in Get-ChildItem -Path $wlItemsDir -Filter '*.json' -File -ErrorAction SilentlyContinue) {
-        $alias = $f.BaseName
-        try {
-            $items = Get-Content -Path $f.FullName -Raw | ConvertFrom-Json -ErrorAction Stop
-            $wlItemCount[$alias] = if ($null -eq $items) { 0 } else { @($items).Count }
-        } catch {
-            $wlItemCount[$alias] = '?'
-        }
-    }
-}
-
 $wlRows = $watchlists | ForEach-Object {
     $alias = $_.properties.watchlistAlias
-    $items = if ($alias -and $wlItemCount.ContainsKey($alias)) { $wlItemCount[$alias] } else { '?' }
     $desc  = if ($_.properties.description) { [string]$_.properties.description } else { '' }
     if ($desc.Length -gt 90) { $desc = $desc.Substring(0, 87) + '...' }
     $usedBy = if ($alias -and $rulesByWatchlistAlias.ContainsKey($alias)) { $rulesByWatchlistAlias[$alias].Count } else { 0 }
     [pscustomobject]@{
         Name           = $_.properties.displayName
         Provider       = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
-        Items          = $items
         UsedByRules    = $usedBy
         ItemsSearchKey = $_.properties.itemsSearchKey
         Source         = $_.properties.source
@@ -1291,10 +1271,6 @@ $wlPieRows = $wlByProvider.GetEnumerator() | Sort-Object Value -Descending | For
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
-# Total item count for the headline sentence.
-$totalItems = 0
-foreach ($v in $wlItemCount.Values) { if ($v -is [int]) { $totalItems += $v } }
-
 # Pie only when 2+ provider buckets — single-slice pies are uninformative.
 $wlChartBlock = if ($wlRows.Count -gt 0 -and $wlByProvider.Count -ge 2) {
     @"
@@ -1321,9 +1297,9 @@ $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
-**$($wlRows.Count) watchlist(s) · $totalItems item(s) captured** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run.
+**$($wlRows.Count) watchlist(s)** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run. Item bodies are not captured by the documenter; the source-of-truth for watchlist contents is the IaC repository (``Watchlists/*.csv``).
 
-$(Format-Table -Items $wlRows -Columns 'Name','Provider','Items','UsedByRules','ItemsSearchKey','Source','Updated','Description')
+$(Format-Table -Items $wlRows -Columns 'Name','Provider','UsedByRules','ItemsSearchKey','Source','Updated','Description')
 
 ## Used by analytics rules
 
@@ -1331,8 +1307,6 @@ Cross-reference of every captured watchlist against every Scheduled / NRT analyt
 
 $(Format-Table -Items $wlUsageRows -Columns 'Alias','RuleCount','Rules')
 $brokenRefsBlock
-
-> Watchlist item contents are exported under ``_raw/watchlist-items/`` (gitignored). Item bodies are not embedded in the rendered report.
 
 [Microsoft Sentinel watchlists overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists)
 [``_GetWatchlist`` function reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists-queries)
@@ -2074,6 +2048,142 @@ _Cost estimate not available. Confirm Export-SentinelInventory.ps1 ran with reta
 $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
     [pscustomobject]@{ Plan = $_.Name; Gb30d = [math]::Round($_.Value.Gb30d, 2); MonthlyCost = $_.Value.MonthlyCost }
 }
+
+# ---------------------------------------------------------------------
+# Sankey prep — computed outside the heredoc so $sankeyFlowText and
+# $sankeyHeight can be interpolated, and the long-tail collapse logic
+# is testable in isolation.
+# ---------------------------------------------------------------------
+function _CostSourceFor {
+    param([string]$Table)
+    switch -Regex ($Table) {
+        '^ThreatIntel'                                             { return 'Microsoft Defender TI' }
+        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
+        '^(Device|Email|Url|Alert|Cloud|Identity).*'               { return 'Microsoft Defender XDR' }
+        '^ASim'                                                    { return 'ASIM normaliser' }
+        '^Office'                                                  { return 'Office 365' }
+        '^(CommonSecurityLog|Syslog)$'                             { return 'CEF / Syslog' }
+        '^(SecurityEvent|WindowsEvent|Event)$'                     { return 'Windows events' }
+        '^(AzureActivity|AzureDiagnostics|AzureMetrics)$'          { return 'Azure platform' }
+        '^Intune'                                                  { return 'Intune' }
+        '^Unifi'                                                   { return 'UniFi' }
+        '^Tailscale'                                               { return 'Tailscale' }
+        '^App(Traces|Metrics|Requests|Dependencies|Exceptions|PageViews|PerformanceCounters|Events|SystemEvents|ServiceHTTPLogs|ServiceConsoleLogs|ServicePlatformLogs|ServiceFileAuditLogs|ServiceIPSecAuditLogs|ServiceAntivirusScanAuditLogs)$' { return 'Application Insights' }
+        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf)$'           { return 'Workspace operations' }
+        '^Dataverse'                                               { return 'Power Platform' }
+        '_CL$'                                                     { return 'Custom (CCF / DCR)' }
+        default                                                    { return 'Other' }
+    }
+}
+
+# Use the full per-table cost list when the exporter wrote it; fall back
+# to Top-10 for older captures so the chart still renders.
+$allTables = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
+    @($cost.AllTablesByCost)
+} else {
+    @($cost.Top10TablesByCost)
+}
+
+$flowFiltered = New-Object System.Collections.Generic.List[object]
+foreach ($t in $allTables) {
+    $gb = [double]$t.Gb30d
+    if ($gb -lt 0.01) { continue }
+    $tier = if ($t.Plan -eq 'Analytics') { 'Sentinel-rate billing' } else { 'LA-rate billing' }
+    $flowFiltered.Add([pscustomobject]@{
+        Table  = $t.Table
+        Gb     = $gb
+        Source = (_CostSourceFor $t.Table)
+        Tier   = $tier
+    })
+}
+
+# Decide which tables keep their own middle-column node. On a busy
+# workspace with ~80+ tables the Sankey middle column becomes an
+# unreadable wall — fix by collapsing the cost-insignificant tail into
+# per-source bucket nodes. Rule: tables in the top 90% of billable GB
+# stay individual; the remainder collapse to "<source> tail (N)".
+# Workspaces with ≤25 tables skip the collapse entirely.
+$totalGb = ($flowFiltered | Measure-Object -Property Gb -Sum).Sum
+$sorted = $flowFiltered | Sort-Object -Property Gb -Descending
+$keepIndividual = @{}
+if ($sorted.Count -le 25 -or $totalGb -le 0) {
+    foreach ($r in $sorted) { $keepIndividual[$r.Table] = $true }
+} else {
+    $cum = 0.0
+    $threshold = $totalGb * 0.90
+    foreach ($r in $sorted) {
+        $keepIndividual[$r.Table] = $true
+        $cum += $r.Gb
+        if ($cum -ge $threshold) { break }
+    }
+}
+
+# Promote single-occupant tail sources — a bucket of one is uglier than
+# just showing the table.
+$tailCount = @{}
+foreach ($r in $flowFiltered) {
+    if (-not $keepIndividual.ContainsKey($r.Table)) {
+        if (-not $tailCount.ContainsKey($r.Source)) { $tailCount[$r.Source] = 0 }
+        $tailCount[$r.Source]++
+    }
+}
+foreach ($r in $flowFiltered) {
+    if (-not $keepIndividual.ContainsKey($r.Table) -and $tailCount[$r.Source] -lt 2) {
+        $keepIndividual[$r.Table] = $true
+    }
+}
+# Recompute counts after promotions so the bucket labels show the
+# accurate post-promotion count.
+$tailCount = @{}
+foreach ($r in $flowFiltered) {
+    if (-not $keepIndividual.ContainsKey($r.Table)) {
+        if (-not $tailCount.ContainsKey($r.Source)) { $tailCount[$r.Source] = 0 }
+        $tailCount[$r.Source]++
+    }
+}
+
+$bySourceTable = @{}
+$byTableTier   = @{}
+foreach ($r in $flowFiltered) {
+    $tableNode = if ($keepIndividual.ContainsKey($r.Table)) {
+        $r.Table
+    } else {
+        "$($r.Source) tail ($($tailCount[$r.Source]))"
+    }
+    $stKey = "$($r.Source)||$tableNode"
+    $ttKey = "$tableNode||$($r.Tier)"
+    if (-not $bySourceTable.ContainsKey($stKey)) { $bySourceTable[$stKey] = 0.0 }
+    if (-not $byTableTier.ContainsKey($ttKey))   { $byTableTier[$ttKey]   = 0.0 }
+    $bySourceTable[$stKey] += $r.Gb
+    $byTableTier[$ttKey]   += $r.Gb
+}
+
+$flowRowsList = New-Object System.Collections.Generic.List[string]
+foreach ($k in $bySourceTable.Keys) {
+    $parts = $k -split '\|\|'
+    $flowRowsList.Add("$($parts[0]),$($parts[1]),$([math]::Round($bySourceTable[$k], 3))")
+}
+foreach ($k in $byTableTier.Keys) {
+    $parts = $k -split '\|\|'
+    $flowRowsList.Add("$($parts[0]),$($parts[1]),$([math]::Round($byTableTier[$k], 3))")
+}
+$sankeyFlowText = $flowRowsList -join [Environment]::NewLine
+
+# Dynamic height — Mermaid sankey-beta crams labels when nodes exceed
+# the configured height. Scale with the middle-column count (the wide
+# axis) and the source-column count, whichever's larger.
+$middleNodeCount = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[1] }) | Sort-Object -Unique).Count
+$sourceCount     = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[0] }) | Sort-Object -Unique).Count
+$tallestColumn   = [Math]::Max($middleNodeCount, $sourceCount)
+$sankeyHeight    = [Math]::Max(720, 24 * $tallestColumn + 200)
+
+# Disclosure line used in the section narrative — accurate whether the
+# long-tail collapse fired or not.
+$sankeyTailNote = if ($flowFiltered.Count -gt $middleNodeCount) {
+    $tailTables = $flowFiltered.Count - ($keepIndividual.Keys.Count)
+    " The bottom 10% of billable GB has been collapsed into per-source ``tail (N)`` buckets to keep the middle column readable ($tailTables small table(s) bucketed)."
+} else { '' }
+
 @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
@@ -2112,7 +2222,21 @@ $(Format-Table -Items $cost.Top10TablesByCost -Columns 'Table','Plan','Gb30d','M
 mindmap
     root((30-day billable<br/>$([math]::Round([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Sum).Sum, 2)) GB))
 $(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
-    "        $($_.Table) · $($_.Gb30d) GB"
+    # Two-line label — Mermaid mindmap nodes have a tight horizontal
+    # fit-to-text bound that clips long single-line labels. Stacking
+    # the table name above the GB value keeps both fully visible.
+    # Round-to-significance: ≥100 GB no decimals, ≥10 GB one decimal,
+    # below that two — strips the noisy ".42" tails that contributed
+    # to the overflow without losing information for small tables.
+    $gb = [double]$_.Gb30d
+    $gbLabel = if ($gb -ge 100) {
+        [math]::Round($gb, 0).ToString()
+    } elseif ($gb -ge 10) {
+        [math]::Round($gb, 1).ToString()
+    } else {
+        [math]::Round($gb, 2).ToString()
+    }
+    "        $($_.Table)<br/>$gbLabel GB"
 }) -join [Environment]::NewLine)
 ``````
 
@@ -2127,83 +2251,17 @@ config:
     showValues: true
     nodeAlignment: justify
     nodePadding: 28
-    height: 720
+    height: $sankeyHeight
     width: 1200
     useMaxWidth: true
     linkColor: gradient
 ---
 sankey-beta
 
-$(
-# Source-name mapping. Aggregates tables into named source buckets
-# (Microsoft Defender XDR, Microsoft Entra ID, etc.) so the Sankey
-# left-column has a bounded number of lanes (~12-15) rather than one
-# per table on a busy workspace. Tables that don't match any pattern
-# fall through to "Other" — kept deliberately as a single bucket so
-# the tail of small custom logs doesn't drown out the dominant flows.
-function _CostSourceFor {
-    param([string]$Table)
-    switch -Regex ($Table) {
-        '^ThreatIntel'                                             { return 'Microsoft Defender TI' }
-        '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
-        '^(Device|Email|Url|Alert|Cloud|Identity).*'               { return 'Microsoft Defender XDR' }
-        '^ASim'                                                    { return 'ASIM normaliser' }
-        '^Office'                                                  { return 'Office 365' }
-        '^(CommonSecurityLog|Syslog)$'                             { return 'CEF / Syslog' }
-        '^(SecurityEvent|WindowsEvent|Event)$'                     { return 'Windows events' }
-        '^(AzureActivity|AzureDiagnostics|AzureMetrics)$'          { return 'Azure platform' }
-        '^Intune'                                                  { return 'Intune' }
-        '^Unifi'                                                   { return 'UniFi' }
-        '^Tailscale'                                               { return 'Tailscale' }
-        '^App(Traces|Metrics|Requests|Dependencies|Exceptions|PageViews|PerformanceCounters|Events|SystemEvents|ServiceHTTPLogs|ServiceConsoleLogs|ServicePlatformLogs|ServiceFileAuditLogs|ServiceIPSecAuditLogs|ServiceAntivirusScanAuditLogs)$' { return 'Application Insights' }
-        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf)$'           { return 'Workspace operations' }
-        '^Dataverse'                                               { return 'Power Platform' }
-        '_CL$'                                                     { return 'Custom (CCF / DCR)' }
-        default                                                    { return 'Other' }
-    }
-}
-
-# Build Sankey rows from ALL tables with cost, not just the top 10 —
-# the Top10TablesByCost view is what the bar chart and mindmap above
-# show; the Sankey is meant to be the comprehensive flow view, so
-# iterate the full per-table list. Skip rows below 0.01 GB to avoid
-# vanishing-thin flows on a busy workspace.
-$allTables = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
-    @($cost.AllTablesByCost)
-} else {
-    # Backward compatibility — older exporter captures only carry the
-    # top-10 view. Fall back to that so the chart still renders.
-    @($cost.Top10TablesByCost)
-}
-
-$flowRows = New-Object System.Collections.Generic.List[string]
-$bySourceTable = @{}
-$byTableTier = @{}
-foreach ($t in $allTables) {
-    $gb = [double]$t.Gb30d
-    if ($gb -lt 0.01) { continue }
-    $src = _CostSourceFor $t.Table
-    $tier = if ($t.Plan -eq 'Analytics') { 'Sentinel-rate billing' } else { 'LA-rate billing' }
-    $stKey = "$src||$($t.Table)"
-    $ttKey = "$($t.Table)||$tier"
-    if (-not $bySourceTable.ContainsKey($stKey)) { $bySourceTable[$stKey] = 0.0 }
-    if (-not $byTableTier.ContainsKey($ttKey))   { $byTableTier[$ttKey]   = 0.0 }
-    $bySourceTable[$stKey] += $gb
-    $byTableTier[$ttKey]   += $gb
-}
-foreach ($k in $bySourceTable.Keys) {
-    $parts = $k -split '\|\|'
-    $flowRows.Add("$($parts[0]),$($parts[1]),$([math]::Round($bySourceTable[$k], 3))")
-}
-foreach ($k in $byTableTier.Keys) {
-    $parts = $k -split '\|\|'
-    $flowRows.Add("$($parts[0]),$($parts[1]),$([math]::Round($byTableTier[$k], 3))")
-}
-$flowRows -join [Environment]::NewLine
-)
+$sankeyFlowText
 ``````
 
-Three columns: source on the left, workspace table in the middle, billing tier on the right. Every table with at least 0.01 GB of 30-day billable ingest appears here — this is the full cost picture, not a Top-N. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.
+Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.$sankeyTailNote
 
 ## Cost flow — table → billing tier (compact view)
 

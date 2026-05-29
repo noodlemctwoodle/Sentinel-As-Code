@@ -294,22 +294,14 @@ Try-Capture 'automation-rules' {
 # way to enumerate workflows in PowerShell.
 
 Try-Capture 'watchlists' {
+    # Enumerate watchlist definitions only. Item contents are intentionally not
+    # captured — on workspaces with large lookup lists (GeoIP ranges, asset
+    # inventories) the per-watchlist /watchlistItems pagination dominates the
+    # collector runtime, and the rendered report never embeds item bodies.
+    # Watchlist contents in a customer environment are expected to be sourced
+    # from the IaC repository (Watchlists/*.csv), not from the live API.
     $wls = Invoke-SentinelRest -Path "$sentinelScope/watchlists" -ApiVersion $apiVersions.Sentinel
     Save-Json -FileName 'watchlists.json' -Data $wls
-
-    if ($wls) {
-        $itemsRoot = Join-Path $rawOut 'watchlist-items'
-        if (-not (Test-Path $itemsRoot)) { New-Item -ItemType Directory -Path $itemsRoot -Force | Out-Null }
-        foreach ($wl in $wls) {
-            $alias = $wl.name
-            try {
-                $items = Invoke-SentinelRest -Path "$($wl.id)/watchlistItems" -ApiVersion $apiVersions.Sentinel
-                $items | ConvertTo-Json -Depth 32 | Set-Content -Path (Join-Path $itemsRoot "$alias.json") -Encoding UTF8
-            } catch {
-                Write-Warning "watchlist-items[$alias] failed: $($_.Exception.Message)"
-            }
-        }
-    }
 }
 
 Try-Capture 'bookmarks' {
@@ -501,26 +493,48 @@ Try-Capture 'playbooks' {
         -ApiVersion '2016-06-01'
     Save-Json -FileName 'playbooks.json' -Data $workflows
 
-    # Resolve the per-playbook MI workspace-scoped role assignments. The
-    # `identity` property is absent on a workflow with no managed identity;
-    # probe via PSObject before accessing.
+    # Resolve the per-playbook MI workspace-scoped role assignments.
+    #
+    # The REST shape of `identity` depends on the assignment type:
+    #   SystemAssigned                  : identity.principalId at top level
+    #   UserAssigned                    : identity.userAssignedIdentities.<resourceId>.principalId (no top-level principalId)
+    #   SystemAssignedAndUserAssigned   : both
+    # Strict mode forbids reading a property that isn't present, so every read
+    # is guarded with PSObject.Properties.Name -contains '<name>'. A workflow
+    # with no managed identity has the `identity` member absent entirely.
     $miAssignments = @()
     foreach ($wf in @($workflows)) {
-        $hasIdentity = $wf.PSObject.Properties.Name -contains 'Identity'
-        if (-not $hasIdentity) { continue }
-        $mi = $wf.Identity
-        if ($null -eq $mi -or [string]::IsNullOrWhiteSpace($mi.PrincipalId)) { continue }
-        try {
-            $assignments = Get-AzRoleAssignment -ObjectId $mi.PrincipalId -ErrorAction SilentlyContinue
-            $workspaceRoles = @($assignments | Where-Object { $_.Scope -eq $workspaceResourceId } | Select-Object -ExpandProperty RoleDefinitionName)
-            $miAssignments += [pscustomobject]@{
-                Playbook         = $wf.Name
-                PrincipalId      = $mi.PrincipalId
-                AllAssignments   = $assignments
-                WorkspaceRoles   = $workspaceRoles
+        if (-not ($wf.PSObject.Properties.Name -contains 'identity')) { continue }
+        $mi = $wf.identity
+        if ($null -eq $mi) { continue }
+
+        $principalIds = New-Object System.Collections.Generic.List[string]
+        if ($mi.PSObject.Properties.Name -contains 'principalId' -and -not [string]::IsNullOrWhiteSpace($mi.principalId)) {
+            $principalIds.Add([string]$mi.principalId)
+        }
+        if ($mi.PSObject.Properties.Name -contains 'userAssignedIdentities' -and $null -ne $mi.userAssignedIdentities) {
+            foreach ($uaProp in $mi.userAssignedIdentities.PSObject.Properties) {
+                $ua = $uaProp.Value
+                if ($null -ne $ua -and $ua.PSObject.Properties.Name -contains 'principalId' -and -not [string]::IsNullOrWhiteSpace($ua.principalId)) {
+                    $principalIds.Add([string]$ua.principalId)
+                }
             }
-        } catch {
-            Write-Warning "RBAC enumeration for playbook $($wf.Name) failed: $($_.Exception.Message)"
+        }
+        if ($principalIds.Count -eq 0) { continue }
+
+        foreach ($principalId in ($principalIds | Sort-Object -Unique)) {
+            try {
+                $assignments = Get-AzRoleAssignment -ObjectId $principalId -ErrorAction SilentlyContinue
+                $workspaceRoles = @($assignments | Where-Object { $_.Scope -eq $workspaceResourceId } | Select-Object -ExpandProperty RoleDefinitionName)
+                $miAssignments += [pscustomobject]@{
+                    Playbook         = $wf.name
+                    PrincipalId      = $principalId
+                    AllAssignments   = $assignments
+                    WorkspaceRoles   = $workspaceRoles
+                }
+            } catch {
+                Write-Warning "RBAC enumeration for playbook $($wf.name) failed: $($_.Exception.Message)"
+            }
         }
     }
     Save-Json -FileName 'rbac-playbook-mi.json' -Data $miAssignments
