@@ -110,34 +110,34 @@ Describe 'Remove-WorkspaceSuffix' {
 
     It 'strips a trailing " - <workspace>" suffix' {
         Remove-WorkspaceSuffix `
-            -DisplayName  'Data Collection Rule Toolkit - stl-eus-siem-law' `
-            -WorkspaceName 'stl-eus-siem-law' |
+            -DisplayName  'Data Collection Rule Toolkit - example-siem-law' `
+            -WorkspaceName 'example-siem-law' |
             Should -Be 'Data Collection Rule Toolkit'
     }
 
     It 'leaves the displayName unchanged when no suffix is present' {
         Remove-WorkspaceSuffix `
             -DisplayName  'Microsoft Sentinel Cost (GBP) v2' `
-            -WorkspaceName 'stl-eus-siem-law' |
+            -WorkspaceName 'example-siem-law' |
             Should -Be 'Microsoft Sentinel Cost (GBP) v2'
     }
 
     It 'is anchored to the end (does not strip a workspace name appearing mid-string)' {
         Remove-WorkspaceSuffix `
-            -DisplayName  'A - stl-eus-siem-law - in middle' `
-            -WorkspaceName 'stl-eus-siem-law' |
-            Should -Be 'A - stl-eus-siem-law - in middle'
+            -DisplayName  'A - example-siem-law - in middle' `
+            -WorkspaceName 'example-siem-law' |
+            Should -Be 'A - example-siem-law - in middle'
     }
 
     It 'requires the space-hyphen-space pattern (does not strip flush-prefixed)' {
-        # 'Foo-stl-eus-siem-law' lacks the leading ' - ' so should
+        # 'Foo-example-siem-law' lacks the leading ' - ' so should
         # NOT match — that pattern is more likely the workspace
         # name baked into the workbook's actual name, not an
         # auto-attached suffix.
         Remove-WorkspaceSuffix `
-            -DisplayName  'Foo-stl-eus-siem-law' `
-            -WorkspaceName 'stl-eus-siem-law' |
-            Should -Be 'Foo-stl-eus-siem-law'
+            -DisplayName  'Foo-example-siem-law' `
+            -WorkspaceName 'example-siem-law' |
+            Should -Be 'Foo-example-siem-law'
     }
 
     It 'escapes regex metacharacters in the workspace name' {
@@ -156,16 +156,16 @@ Describe 'Remove-WorkspaceSuffix' {
         # match only — to avoid false positives if a workbook
         # legitimately ends with a similarly-cased phrase.
         Remove-WorkspaceSuffix `
-            -DisplayName  'Foo - STL-EUS-SIEM-LAW' `
-            -WorkspaceName 'stl-eus-siem-law' |
-            Should -Be 'Foo - STL-EUS-SIEM-LAW'
+            -DisplayName  'Foo - EXAMPLE-SIEM-LAW' `
+            -WorkspaceName 'example-siem-law' |
+            Should -Be 'Foo - EXAMPLE-SIEM-LAW'
     }
 }
 
 Describe 'Remove-WorkspaceArmId' {
 
     BeforeAll {
-        $script:wsId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/stl-eus-siem-rg/providers/microsoft.operationalinsights/workspaces/stl-eus-siem-law'
+        $script:wsId = '/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/example-siem-rg/providers/microsoft.operationalinsights/workspaces/example-siem-law'
         $script:placeholder = '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/your-resource-group/providers/microsoft.operationalinsights/workspaces/your-workspace'
     }
 
@@ -193,7 +193,7 @@ Describe 'Remove-WorkspaceArmId' {
         # while the serialized workbook data uses all-lowercase
         # (microsoft.operationalinsights). The case-insensitive
         # match covers both.
-        $mixedCaseId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/stl-eus-siem-rg/providers/Microsoft.OperationalInsights/workspaces/stl-eus-siem-law'
+        $mixedCaseId = '/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/example-siem-rg/providers/Microsoft.OperationalInsights/workspaces/example-siem-law'
         $allLowerJson = '"fallbackResourceIds": ["' + $wsId.ToLowerInvariant() + '"]'
 
         $out = Remove-WorkspaceArmId -Json $allLowerJson -WorkspaceResourceId $mixedCaseId

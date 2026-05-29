@@ -44,7 +44,7 @@
             },
             "queryType": 1,
             "resourceType": "microsoft.resourcegraph/resources",
-            "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/stl-sec-siem-rg/providers/Microsoft.OperationalInsights/workspaces/stl-sec-siem-law"
+            "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/your-resource-group/providers/Microsoft.OperationalInsights/workspaces/your-workspace"
           },
           {
             "id": "timerange",
