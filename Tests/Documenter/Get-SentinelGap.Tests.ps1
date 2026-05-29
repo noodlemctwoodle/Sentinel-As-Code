@@ -178,7 +178,7 @@ Describe 'Sentinel gap-analysis engine' {
             ($findings | Where-Object Id -eq 'SENT-034').Count | Should -Be 1
         }
 
-        It 'fires SENT-035 because the disabled NRT rule has no entry in analytics-rule-volumes' {
+        It 'does NOT fire SENT-035 because the only enabled Scheduled/NRT rule is in the noisy set' {
             # The fixture has volumes for "Suspicious sign-in" / "Failed logons" / "Privileged group" only.
             # SENT-035 should NOT flag the disabled rule (filtered out by enabled=false), so it only fires when
             # there exist enabled Scheduled/NRT rules outside the noisy set. The fixture's lone enabled Scheduled
