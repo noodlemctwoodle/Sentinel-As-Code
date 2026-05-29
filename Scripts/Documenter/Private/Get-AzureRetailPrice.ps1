@@ -64,7 +64,13 @@ function Get-AzureRetailPrice {
     foreach ($service in $ServiceNames) {
         # Filter syntax — single-quoted values, AND-joined.
         $filter = "serviceName eq '$service' and armRegionName eq '$Region' and priceType eq 'Consumption'"
-        $encoded = [System.Web.HttpUtility]::UrlEncode($filter)
+        # [uri]::EscapeDataString is built into the BCL — no `Add-Type
+        # -AssemblyName System.Web` required, so this works on every
+        # PowerShell 7 host including the minimal pwsh container images
+        # used by the documenter pipeline. Semantically equivalent for
+        # the alphanumerics, single quotes, equals, and spaces that
+        # appear in the OData $filter string.
+        $encoded = [uri]::EscapeDataString($filter)
         $url = "https://prices.azure.com/api/retail/prices?`$filter=$encoded"
 
         Write-Verbose "Get-AzureRetailPrice: fetching $service in $Region"

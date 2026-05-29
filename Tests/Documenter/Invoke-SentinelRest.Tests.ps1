@@ -55,7 +55,7 @@ Describe 'Invoke-SentinelRest URL construction' {
         # check for the `a → bell-character (0x07) bug that bit us in
         # production. Tab, LF, CR, and the bell character must NOT appear.
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($script:capturedUrl)
-        $bytes | Where-Object { $_ -lt 32 -and $_ -ne 32 } | Should -BeNullOrEmpty
+        $bytes | Where-Object { $_ -lt 32 } | Should -BeNullOrEmpty
     }
 
     It 'omits api-version entirely when caller passes nothing' {

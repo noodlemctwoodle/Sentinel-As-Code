@@ -118,10 +118,20 @@ function Invoke-SentinelRest {
                 #   - Any other absolute URL is treated as anonymous (the
                 #     public Retail Prices API is the only known caller).
                 #   - Otherwise the path is ARM-relative — Invoke-AzRestMethod.
+                # Recognised ARM hosts across every published Azure cloud:
+                #   management.azure.com          — public
+                #   management.usgovcloudapi.net  — US Gov
+                #   management.chinacloudapi.cn   — Mooncake
+                #   management.microsoftazure.de  — Germany (legacy, retained for completeness)
+                # Restricting the regex to the public host stripped the bearer
+                # token from paginator nextLinks on sovereign clouds, breaking
+                # every 2nd-page ARM call with a 401.
+                $armHostPattern   = '^https?://management\.(azure|usgovcloudapi|chinacloudapi|microsoftazure)\.[a-z.]+/'
+                $armHostPrefixPat = '^https?://management\.(azure|usgovcloudapi|chinacloudapi|microsoftazure)\.[a-z.]+'
                 $isAbsolute       = $url -match '^https?://'
-                $isArmAbsolute    = $isAbsolute -and ($url -match '^https?://management\.azure\.[a-z.]+/')
+                $isArmAbsolute    = $isAbsolute -and ($url -match $armHostPattern)
                 $effectivePath    = if ($isArmAbsolute) {
-                    $url -replace '^https?://management\.azure\.[a-z.]+', ''
+                    $url -replace $armHostPrefixPat, ''
                 } else { $url }
 
                 if ($isAbsolute -and -not $isArmAbsolute) {
