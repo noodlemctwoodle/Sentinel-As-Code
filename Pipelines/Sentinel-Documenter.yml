@@ -222,7 +222,10 @@ stages:
                 script: |
                   $ErrorActionPreference = 'Stop'
                   Write-Host "##[section]Installing mermaid-cli (mmdc)"
-                  npm install -g '@mermaid-js/mermaid-cli@10'
+                  # v11+ sizes the SVG viewBox to the full content bounds
+                  # (incl. titles/labels that overflow the chart area). v10
+                  # clipped overflow at the left edge, cutting wide titles.
+                  npm install -g '@mermaid-js/mermaid-cli@11'
                   mmdc --version
 
             - task: PowerShell@2
