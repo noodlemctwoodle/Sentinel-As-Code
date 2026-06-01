@@ -2,51 +2,70 @@
 <#
 .SYNOPSIS
     Pre-renders Mermaid fenced blocks in the Documenter's markdown output to
-    standalone SVG files and rewrites the blocks as image references.
+    standalone image files (PNG by default) and rewrites the blocks as image
+    references.
 
 .DESCRIPTION
-    ADO Repos' markdown preview and ADO's "publish code as wiki" both
-    render Mermaid fences as plain code, not as diagrams. ADO Wiki proper
-    renders them, but its bundled Mermaid version lags the latest release
-    and the experimental chart types we emit (xychart-beta, sankey-beta)
-    are silently dropped.
+    This is an Azure DevOps-only workaround. ADO Repos' markdown preview and
+    ADO's "publish code as wiki" render ```mermaid``` fences as plain code, not
+    diagrams. ADO Wiki proper renders some Mermaid but lags the spec and drops
+    the experimental chart types we emit (xychart-beta, sankey-beta). On top of
+    that, ADO blocks inline SVG images for security, so an SVG <img> shows as a
+    broken image.
 
-    This script bridges that gap. After the renderer produces
-    SecurityDocs/<workspace>/*.md, this pass walks every markdown file,
-    extracts each fenced ```mermaid block, runs it through
+    PNG sidesteps both problems — it renders on every ADO markdown surface
+    (Repos preview, code-wiki, project wiki) — so PNG is the default output.
+
+    GitHub renders ```mermaid``` fences natively, so the GitHub Actions workflow
+    does NOT run this step and ships the raw fences. Only the ADO pipeline
+    pre-renders, gated behind its prerenderChartsToPng parameter.
+
+    After the renderer produces SecurityDocs/<workspace>/*.md, this pass walks
+    every markdown file, extracts each fenced ```mermaid block, runs it through
     `@mermaid-js/mermaid-cli` (mmdc), and rewrites the fenced block as
-    `![Diagram](assets/<hash>.svg)`. The result renders identically on
-    every Markdown host — Repos preview, code-wiki, GitHub, MkDocs.
+    `![Diagram](assets/<hash>.<ext>)`.
 
-    The SVG filename is the first 12 chars of the SHA-256 hash of the
-    Mermaid body, so identical diagrams across files share an SVG and
-    re-runs are idempotent (already-rendered hashes are reused).
+    The asset filename is the first 12 chars of the SHA-256 hash of the Mermaid
+    body, so identical diagrams across files share one image and re-runs are
+    idempotent (already-rendered hashes are reused).
 
-    mmdc failures are warnings — the offending fenced block is left as-is
-    so a syntax error on one chart never breaks the whole doc set.
+    mmdc failures are warnings — the offending fenced block is left as-is so a
+    syntax error on one chart never breaks the whole doc set.
 
 .PARAMETER Root
     Root directory containing per-workspace folders (e.g. SecurityDocs/).
     Each subfolder is treated as an isolated docset with its own
-    assets/<hash>.svg sidecar directory.
+    assets/<hash>.<ext> sidecar directory.
+
+.PARAMETER Format
+    Output image format: 'png' (default) or 'svg'. PNG is required for ADO; SVG
+    is smaller and scalable but only renders on hosts that allow it (e.g.
+    GitHub), which never receive these docs.
 
 .PARAMETER AssetsDir
     Name of the per-workspace asset folder. Defaults to 'assets'.
 
 .PARAMETER Theme
-    mmdc theme. 'dark' / 'forest' / 'neutral' / 'default'. Defaults to 'dark'.
+    mmdc theme. 'default' / 'dark' / 'forest' / 'neutral'. Defaults to 'default'
+    so the dark chart text stays legible on a solid light background.
 
 .PARAMETER Background
-    mmdc background. 'transparent' / '#ffffff' / colour name. Defaults to
-    'transparent' so the SVG inherits the host's page colour (good for
-    both light and dark wiki themes).
+    mmdc background. Defaults to 'white' so a PNG is self-contained and readable
+    on both light and dark Markdown hosts. (A transparent dark-theme chart would
+    be invisible on ADO's light page, and ADO blocks transparent SVG anyway.)
 
 .PARAMETER Width
-    mmdc render width in pixels. Defaults to 1400 to match the wider charts
-    we already emit (MITRE, XDR bar).
+    mmdc render width in pixels. Defaults to 1400 to match the wider charts we
+    already emit (MITRE, XDR bar).
+
+.PARAMETER Scale
+    mmdc output scale factor (PNG only) for retina sharpness. Defaults to 2.
 
 .EXAMPLE
-    pwsh ./Convert-MermaidToSvg.ps1 -Root ./SecurityDocs
+    pwsh ./Convert-MermaidToImage.ps1 -Root ./SecurityDocs
+
+.EXAMPLE
+    pwsh ./Convert-MermaidToImage.ps1 -Root ./SecurityDocs -Format svg
 
 .NOTES
     Requires Node.js and @mermaid-js/mermaid-cli installed globally:
@@ -57,10 +76,12 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Root,
+    [ValidateSet('png', 'svg')][string]$Format = 'png',
     [string]$AssetsDir  = 'assets',
-    [string]$Theme      = 'dark',
-    [string]$Background = 'transparent',
-    [int]   $Width      = 1400
+    [string]$Theme      = 'default',
+    [string]$Background = 'white',
+    [int]   $Width      = 1400,
+    [int]   $Scale      = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -116,30 +137,33 @@ foreach ($wsDir in $workspaceDirs) {
             param($m)
             $body = $m.Groups[1].Value.TrimEnd()
             $hash = Get-MermaidHash $body
-            $svgPath = Join-Path $assetsPath "$hash.svg"
-            if (-not (Test-Path $svgPath)) {
+            $imgPath = Join-Path $assetsPath "$hash.$Format"
+            if (-not (Test-Path $imgPath)) {
                 $temp = Join-Path ([System.IO.Path]::GetTempPath()) "mmd-$hash.mmd"
                 Set-Content -Path $temp -Value $body -Encoding UTF8 -NoNewline
                 try {
-                    & mmdc `
-                        -i $temp `
-                        -o $svgPath `
-                        -t $Theme `
-                        -b $Background `
-                        -w $Width `
-                        -p $puppeteerCfg `
-                        2>&1 | Out-Null
+                    $mmdcArgs = @(
+                        '-i', $temp
+                        '-o', $imgPath
+                        '-t', $Theme
+                        '-b', $Background
+                        '-w', $Width
+                        '-p', $puppeteerCfg
+                    )
+                    # -s (scale) only affects raster output.
+                    if ($Format -eq 'png') { $mmdcArgs += @('-s', $Scale) }
+                    & mmdc @mmdcArgs 2>&1 | Out-Null
                 } finally {
                     Remove-Item $temp -Force -ErrorAction SilentlyContinue
                 }
-                if ($LASTEXITCODE -ne 0 -or -not (Test-Path $svgPath)) {
+                if ($LASTEXITCODE -ne 0 -or -not (Test-Path $imgPath)) {
                     Write-Warning "mmdc failed for hash $hash — leaving fence in place"
                     $script:totalFailed++
                     return $m.Value
                 }
             }
             $script:totalRewritten++
-            return "![Diagram]($AssetsDir/$hash.svg)"
+            return "![Diagram]($AssetsDir/$hash.$Format)"
         })
 
         if ($newContent -ne $content) {
@@ -151,7 +175,8 @@ foreach ($wsDir in $workspaceDirs) {
 
 Write-Host ""
 Write-Host "##[section]Mermaid pre-render summary"
+Write-Host "  Format          : $Format"
 Write-Host "  Charts seen     : $totalCharts"
-Write-Host "  SVGs emitted    : $totalRewritten"
+Write-Host "  Images emitted  : $totalRewritten"
 Write-Host "  Failures        : $totalFailed"
 Write-Host "  Assets root     : <workspace>/$AssetsDir/"

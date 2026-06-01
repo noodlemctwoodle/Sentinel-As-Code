@@ -73,6 +73,11 @@ parameters:
     type: boolean
     default: true
 
+  - name: prerenderChartsToPng
+    displayName: "Pre-render Mermaid charts to PNG (ADO-only — GitHub renders Mermaid natively)"
+    type: boolean
+    default: true
+
   # Optional override — Sentinel-As-Code's convention is that Logic App
   # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
   # from the workspace's RG. When unset, the exporter enumerates playbooks
@@ -196,38 +201,42 @@ stages:
                 & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
                     -WorkspaceName "$(sentinelWorkspaceName)"
 
-          # Pre-render Mermaid fenced blocks to SVG. ADO Repos preview +
-          # publish-code-as-wiki both treat ```mermaid``` as plain code and
-          # do not invoke the Mermaid runtime. Pre-rendering swaps each
-          # fenced block for an <img> reference so the charts render in
-          # every Markdown host (Repos, code-wiki, project wiki, GitHub).
-          - task: UseNode@1
-            displayName: "Install Node 20 (for mmdc)"
-            inputs:
-              version: "20.x"
+          # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
+          # "publish code as wiki" treat ```mermaid``` as plain code, and ADO
+          # blocks inline SVG for security (an SVG <img> shows as a broken
+          # image). PNG renders on every ADO markdown surface. This is an
+          # ADO-only workaround — GitHub renders Mermaid fences natively, so
+          # its workflow ships the raw fences and skips this step. Gated on the
+          # prerenderChartsToPng parameter so it can be turned off per-run.
+          - ${{ if eq(parameters.prerenderChartsToPng, true) }}:
+            - task: UseNode@1
+              displayName: "Install Node 20 (for mmdc)"
+              inputs:
+                version: "20.x"
 
-          - task: PowerShell@2
-            displayName: "Install @mermaid-js/mermaid-cli"
-            inputs:
-              targetType: "inline"
-              pwsh: true
-              script: |
-                $ErrorActionPreference = 'Stop'
-                Write-Host "##[section]Installing mermaid-cli (mmdc)"
-                npm install -g '@mermaid-js/mermaid-cli@10'
-                mmdc --version
+            - task: PowerShell@2
+              displayName: "Install @mermaid-js/mermaid-cli"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  Write-Host "##[section]Installing mermaid-cli (mmdc)"
+                  npm install -g '@mermaid-js/mermaid-cli@10'
+                  mmdc --version
 
-          - task: PowerShell@2
-            displayName: "Pre-render Mermaid → SVG"
-            inputs:
-              targetType: "inline"
-              pwsh: true
-              script: |
-                $ErrorActionPreference = 'Stop'
+            - task: PowerShell@2
+              displayName: "Pre-render Mermaid → PNG"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
 
-                Write-Host "##[section]Sentinel Documenter — Mermaid pre-render"
-                & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-MermaidToSvg.ps1" `
-                    -Root "$(Build.SourcesDirectory)/SecurityDocs"
+                  Write-Host "##[section]Sentinel Documenter — Mermaid pre-render (PNG)"
+                  & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-MermaidToImage.ps1" `
+                      -Root "$(Build.SourcesDirectory)/SecurityDocs" `
+                      -Format png
 
           - task: PowerShell@2
             displayName: "Stage SecurityDocs/ for artefact publish"
