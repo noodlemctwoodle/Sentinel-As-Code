@@ -1,0 +1,6 @@
+{
+  "Ueba": null,
+  "EntityAnalytics": { "name": "EntityAnalytics", "properties": {} },
+  "EyesOn": { "name": "EyesOn", "properties": { "enabled": true } },
+  "Anomalies": { "name": "Anomalies", "properties": {} }
+}

@@ -1,0 +1,423 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Sentinel Documenter (manual)
+# ---------------------------------------------------------------------------
+# Read-only inventory + gap-analysis snapshot of a Microsoft Sentinel workspace.
+# Runs the two-stage Documenter (collector → renderer) and publishes the
+# generated SecurityDocs/<workspace>/ tree as an ADO pipeline artefact named
+# 'sentinel-docs'. Reviewers download the artefact from the build's Summary
+# tab; nothing is committed to the repo.
+#
+# Manual trigger only for now. We'll wire a daily schedule once the pipeline
+# has been smoke-tested against the live workspace.
+#
+# What it produces (under the artefact root SecurityDocs/<workspace>/):
+#   - _raw/*.json     machine-readable snapshot (~30 files)
+#   - index.md        plus 19 Markdown sections covering connectors, rules,
+#                     MITRE coverage, workbooks, watchlists, automation,
+#                     workspace settings, table plans + retention,
+#                     dedicated cluster, DCRs, estimated monthly cost, RBAC,
+#                     subscription context, gap analysis, and references.
+#
+# Prerequisites:
+#   - Variable group 'sentinel-deployment' (shared with the deploy + drift
+#     pipelines) supplying:
+#       azureSubscriptionId
+#       sentinelResourceGroup
+#       sentinelWorkspaceName
+#       sentinelRegion
+#   - Azure Service Connection $(serviceConnection) with the read-only role
+#     set documented in Docs/Operations/Sentinel-Documenter.md:
+#       - Microsoft Sentinel Reader   (workspace scope)
+#       - Log Analytics Reader        (workspace scope)
+#       - Reader                      (resource group scope)
+#       - Monitoring Reader           (subscription scope)
+#       - Reader                      (subscription scope)
+#     The Azure Retail Prices API is anonymous — no extra grant.
+#
+# Manual run:
+#   Pipelines → Sentinel Documenter → Run pipeline. Optionally tick
+#   'Include preview API surface' to pull Content Hub product packages,
+#   summary rules, pricings, and the Sentinel Data Lake feature flag.
+#
+# Output review:
+#   1. Build summary → Related → Published artefacts → 'sentinel-docs' → Download
+#      (always available, every run).
+#   2. (Optional, default ON) An ADO PR is opened/refreshed against
+#      $(targetBranch) showing the rendered docs in-line. The PR is intended
+#      for review only; merging it would commit tenant configuration to
+#      $(targetBranch) which the gitignore is meant to prevent. Treat the PR
+#      as a viewer, not a merge candidate.
+#
+# Why the PR is safe in ADO and would not be safe in GitHub:
+#   This repository's source-of-truth is a public GitHub repo, but pipeline
+#   testing happens in a private ADO mirror. The ADO checkout step sets the
+#   pipeline's 'origin' remote to the ADO repo, NOT to GitHub. A push from
+#   this pipeline therefore lands in the private ADO repo only, and the
+#   committed SecurityDocs/ tree never reaches the public GitHub copy. The
+#   .gitignore stays in place so a developer on a workstation cannot add
+#   SecurityDocs/ via a normal `git add` — the commit step here uses
+#   `git add -f` to force-add, which only the pipeline does.
+# ---------------------------------------------------------------------------
+
+trigger: none
+pr: none
+
+parameters:
+  - name: includePreview
+    displayName: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
+    type: boolean
+    default: false
+
+  - name: openPullRequest
+    displayName: "Open / refresh an ADO PR with the rendered docs (private ADO repo only)"
+    type: boolean
+    default: true
+
+  - name: prerenderChartsToPng
+    displayName: "Pre-render Mermaid charts to PNG (ADO-only — GitHub renders Mermaid natively)"
+    type: boolean
+    default: true
+
+  # Optional override — Sentinel-As-Code's convention is that Logic App
+  # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
+  # from the workspace's RG. When unset, the exporter enumerates playbooks
+  # from the workspace RG (current default behaviour).
+  - name: playbookResourceGroup
+    displayName: "Playbook resource group (leave blank to use the workspace RG)"
+    type: string
+    default: ""
+
+variables:
+  - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
+  - name: serviceConnection
+    value: "sc-sentinel-as-code"
+  - name: SuppressAzurePowerShellBreakingChangeWarnings
+    value: "true"
+
+  # Pinned module versions — keep in sync with Scripts/Documenter/Documenter.psd1
+  # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
+  # with the documenter pipeline on what 'works'.
+  - name: pesterVersion
+    value: "5.7.1"
+  - name: yamlVersion
+    value: "0.4.12"
+
+  # Map preview switch to a flag string at compile time. Mirrors the pattern in
+  # Sentinel-Drift-Detect.yml.
+  - name: flagIncludePreview
+    ${{ if eq(parameters.includePreview, true) }}:
+      value: "-IncludePreview"
+    ${{ else }}:
+      value: ""
+
+  # Rolling docs branch + PR target — bot-managed, never hand-edited. The
+  # branch is per-workspace so multi-workspace runs don't collide on the same
+  # ref. Keep these as variables (not parameters) so the run-pipeline panel
+  # stays minimal.
+  - name: docsBranch
+    value: "auto/sentinel-docs/$(sentinelWorkspaceName)"
+  - name: targetBranch
+    value: "main"
+
+stages:
+  - stage: Document
+    displayName: "Inventory and Render"
+    jobs:
+      - job: Run
+        displayName: "Collect → Render → Publish"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          # persistCredentials exposes System.AccessToken to the git CLI so the
+          # 'Push docs branch' step below can push back to the ADO repo using
+          # the Build Service identity. Required for the rolling docs branch +
+          # PR pattern (mirrors Sentinel-Drift-Detect.yml).
+          - checkout: self
+            persistCredentials: true
+
+          - task: PowerShell@2
+            displayName: "Install pinned PowerShell modules"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing pinned modules"
+
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
+
+          - task: AzurePowerShell@5
+            displayName: "Run collector — Export-SentinelInventory.ps1"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: LatestVersion
+              pwsh: true
+              errorActionPreference: "Stop"
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+
+                $params = @{
+                    SubscriptionId = "$(azureSubscriptionId)"
+                    ResourceGroup  = "$(sentinelResourceGroup)"
+                    WorkspaceName  = "$(sentinelWorkspaceName)"
+                }
+                if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
+
+                $playbookRg = "${{ parameters.playbookResourceGroup }}"
+                if ($playbookRg) { $params['PlaybookResourceGroup'] = $playbookRg }
+
+                Write-Host "##[section]Sentinel Documenter — Collector"
+                Write-Host "============================================================"
+                Write-Host "  Subscription : $(azureSubscriptionId)"
+                Write-Host "  Resource Grp : $(sentinelResourceGroup)"
+                Write-Host "  Workspace    : $(sentinelWorkspaceName)"
+                Write-Host "  Playbook RG  : $(if ($playbookRg) { $playbookRg } else { '(workspace RG)' })"
+                Write-Host "  Preview API  : $(flagIncludePreview)"
+                Write-Host "============================================================"
+
+                & "$(Build.SourcesDirectory)/Scripts/Documenter/Export-SentinelInventory.ps1" @params
+
+          - task: PowerShell@2
+            displayName: "Run renderer — Convert-SentinelInventoryToMarkdown.ps1"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                Write-Host "##[section]Sentinel Documenter — Renderer"
+                & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
+                    -WorkspaceName "$(sentinelWorkspaceName)"
+
+          # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
+          # "publish code as wiki" treat ```mermaid``` as plain code, and ADO
+          # blocks inline SVG for security (an SVG <img> shows as a broken
+          # image). PNG renders on every ADO markdown surface. This is an
+          # ADO-only workaround — GitHub renders Mermaid fences natively, so
+          # its workflow ships the raw fences and skips this step. Gated on the
+          # prerenderChartsToPng parameter so it can be turned off per-run.
+          - ${{ if eq(parameters.prerenderChartsToPng, true) }}:
+            - task: UseNode@1
+              displayName: "Install Node 20 (for mmdc)"
+              inputs:
+                version: "20.x"
+
+            - task: PowerShell@2
+              displayName: "Install @mermaid-js/mermaid-cli"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  Write-Host "##[section]Installing mermaid-cli (mmdc)"
+                  npm install -g '@mermaid-js/mermaid-cli@10'
+                  mmdc --version
+
+            - task: PowerShell@2
+              displayName: "Pre-render Mermaid → PNG"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+
+                  Write-Host "##[section]Sentinel Documenter — Mermaid pre-render (PNG)"
+                  & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-MermaidToImage.ps1" `
+                      -Root "$(Build.SourcesDirectory)/SecurityDocs" `
+                      -Format png
+
+          - task: PowerShell@2
+            displayName: "Stage SecurityDocs/ for artefact publish"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                $src = Join-Path "$(Build.SourcesDirectory)" 'SecurityDocs'
+                $dst = Join-Path "$(Build.ArtifactStagingDirectory)" 'sentinel-docs'
+
+                if (-not (Test-Path $src)) {
+                    Write-Error "SecurityDocs/ was not produced. The collector or renderer failed silently — check the previous task logs."
+                    exit 1
+                }
+
+                # Mirror the workspace tree into the artefact staging directory.
+                # Keep the workspace folder so multiple runs against different
+                # workspaces stay separated when downloaded together.
+                New-Item -ItemType Directory -Path $dst -Force | Out-Null
+                Copy-Item -Path "$src/*" -Destination $dst -Recurse -Force
+
+                $rawCount = (Get-ChildItem -Path $dst -Recurse -Filter '*.json' | Measure-Object).Count
+                $mdCount  = (Get-ChildItem -Path $dst -Recurse -Filter '*.md'   | Measure-Object).Count
+                Write-Host "##[section]Artefact staged"
+                Write-Host "  Raw JSON files : $rawCount"
+                Write-Host "  Markdown files : $mdCount"
+                Write-Host "  Path           : $dst"
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish 'sentinel-docs' artefact"
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/sentinel-docs"
+              artifact: "sentinel-docs"
+              publishLocation: "pipeline"
+
+          # ───────────────────────────────────────────────────────────────
+          # Open / refresh a PR in ADO with the rendered docs.
+          #
+          # Force-adds SecurityDocs/ despite the .gitignore. This is safe in
+          # this pipeline because:
+          #   - 'origin' on the agent is the private ADO repo (not GitHub).
+          #     The ADO checkout step never adds GitHub as a remote, so a
+          #     `git push origin` here cannot reach the public mirror.
+          #   - The .gitignore stays in place so a developer doing a normal
+          #     `git add` on their workstation does not pick up
+          #     SecurityDocs/. Force-add (`-f`) is a deliberate, contained
+          #     pipeline-only operation.
+          #   - The branch name is namespaced under auto/sentinel-docs/<ws>
+          #     and force-pushed each run, so there is no growing history
+          #     of tenant snapshots.
+          #
+          # The PR target is $(targetBranch). It is intended for review,
+          # not merge — merging would commit SecurityDocs/ to the target
+          # branch permanently. Reviewers should view the diff and close.
+          # ───────────────────────────────────────────────────────────────
+          - bash: |
+              set -euo pipefail
+              cd "$(Build.SourcesDirectory)"
+
+              if [ ! -d SecurityDocs ]; then
+                echo "##[error]SecurityDocs/ missing — collector or renderer must run first."
+                exit 1
+              fi
+
+              git config user.email "noreply@sentinel-as-code.local"
+              git config user.name  "Sentinel Documenter"
+
+              # Reset the rolling docs branch from the LATEST target tip so
+              # the branch always descends from the current target. Mirrors
+              # the pattern in Sentinel-Drift-Detect.yml.
+              #
+              # Fetch the docs branch too so --force-with-lease has a current
+              # remote-tracking ref to compare against. Without this fetch
+              # the lease check sees 'stale info' on every run after the
+              # first one and rejects the push. Allowed to fail on the very
+              # first run when the branch doesn't yet exist server-side.
+              git fetch origin "$(targetBranch)"
+              git fetch origin "$(docsBranch)" || true
+              git checkout -B "$(docsBranch)" "origin/$(targetBranch)"
+
+              # Force-add despite .gitignore. The exclusion is a workstation
+              # safety net; this pipeline-only push is the intended channel.
+              git add -f SecurityDocs
+
+              if git diff --cached --quiet; then
+                echo "##[section]No SecurityDocs changes to publish — nothing to PR."
+                exit 0
+              fi
+
+              git commit -m "docs(sentinel): snapshot for $(sentinelWorkspaceName) $(date -u +%Y-%m-%dT%H:%MZ)" \
+                         -m "Auto-generated by Pipelines/Sentinel-Documenter.yml. Review only — do not merge: merging would commit tenant configuration to $(targetBranch)."
+
+              git push --force-with-lease origin "$(docsBranch)"
+
+              echo "##[section]Opening / refreshing PR"
+              echo "$(System.AccessToken)" | az devops login --organization "$(System.CollectionUri)"
+
+              # Build a compact PR description. ADO truncates --description at
+              # ~4000 chars, so we lift only the headline + top findings from
+              # 00-overview.md and link reviewers to the artefact for the full
+              # report.
+              OVERVIEW_PATH="SecurityDocs/$(sentinelWorkspaceName)/00-overview.md"
+              PR_BODY_FILE="$(mktemp)"
+              {
+                echo "# Sentinel Documenter Snapshot — $(sentinelWorkspaceName)"
+                echo ""
+                echo "**Generated:** $(date -u +%Y-%m-%dT%H:%MZ)"
+                BUILD_URL="$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+                echo "**Pipeline run:** [$(Build.BuildNumber)](${BUILD_URL})"
+                echo "**Artefact (zip):** [sentinel-docs](${BUILD_URL}&view=artifacts&type=publishedArtifacts)"
+                echo "**Full overview:** see [\`$OVERVIEW_PATH\`]($OVERVIEW_PATH) in this branch — the **Files Changed** tab on the PR shows every section diff."
+                echo ""
+                echo "> ⚠️ Review only. Do not merge — merging would commit tenant configuration to \`$(targetBranch)\`."
+                echo ""
+                if [ -f "$OVERVIEW_PATH" ]; then
+                  echo "## Headline"
+                  # Lift the Headline + Counts + Top findings sections from
+                  # 00-overview.md, stop at 'See the rest of this folder…'.
+                  awk '
+                    /^See the rest of this folder/ { exit }
+                    /^## Headline/      { p=1; next }
+                    p { print }
+                  ' "$OVERVIEW_PATH"
+                else
+                  echo "_Overview file not found; see the artefact for the full report._"
+                fi
+              } > "$PR_BODY_FILE"
+
+              # ADO --description has a 4000-char hard cap; the lifted overview
+              # can blow past it on a busy workspace. Truncate at 3500 to leave
+              # room for the trailing 'truncated' notice. Reviewers get the
+              # full overview by clicking the link at the top of the body.
+              MAX_LEN=3500
+              BODY_LEN=$(wc -c < "$PR_BODY_FILE")
+              if [ "$BODY_LEN" -gt "$MAX_LEN" ]; then
+                TRUNC_FILE="$(mktemp)"
+                head -c "$MAX_LEN" "$PR_BODY_FILE" > "$TRUNC_FILE"
+                {
+                  echo ""
+                  echo ""
+                  echo "_(truncated to fit ADO's 4000-character description cap; full overview is at the link near the top of this PR, and the Files Changed tab shows every section.)_"
+                } >> "$TRUNC_FILE"
+                mv "$TRUNC_FILE" "$PR_BODY_FILE"
+              fi
+              echo "##[debug]PR body length: $(wc -c < "$PR_BODY_FILE") bytes"
+
+              EXISTING=$(az repos pr list \
+                  --repository "$(Build.Repository.Name)" \
+                  --status active \
+                  --source-branch "refs/heads/$(docsBranch)" \
+                  --target-branch "refs/heads/$(targetBranch)" \
+                  --organization "$(System.CollectionUri)" \
+                  --project "$(System.TeamProject)" \
+                  --query "[0].pullRequestId" \
+                  -o tsv 2>/dev/null || true)
+
+              if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+                echo "Existing PR #$EXISTING refreshed by branch push — updating description."
+                az repos pr update \
+                    --id "$EXISTING" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --output none
+              else
+                az repos pr create \
+                    --repository "$(Build.Repository.Name)" \
+                    --source-branch "$(docsBranch)" \
+                    --target-branch "$(targetBranch)" \
+                    --title "docs(sentinel): snapshot $(sentinelWorkspaceName) $(date -u +%Y-%m-%d)" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --project "$(System.TeamProject)" \
+                    --auto-complete false \
+                    --delete-source-branch false \
+                    --output table
+              fi
+
+              rm -f "$PR_BODY_FILE"
+            displayName: "Push docs branch and open / refresh PR (ADO only)"
+            condition: and(succeeded(), eq('${{ parameters.openPullRequest }}', 'true'))
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.Authorization/locks/no-delete",
+    "name": "no-delete",
+    "type": "Microsoft.Authorization/locks",
+    "properties": {
+      "level": "CanNotDelete",
+      "notes": "Workspace deletion protected per change-management policy."
+    }
+  }
+]

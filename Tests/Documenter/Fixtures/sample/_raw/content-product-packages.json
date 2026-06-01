@@ -1,0 +1,4 @@
+[
+  { "name": "azuread", "properties": { "contentId": "azuread", "version": "3.1.0" } },
+  { "name": "office365", "properties": { "contentId": "office365", "version": "2.5.0" } }
+]
