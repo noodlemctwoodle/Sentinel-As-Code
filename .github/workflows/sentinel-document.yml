@@ -101,21 +101,22 @@ jobs:
           fetch-depth: 1
 
       # ─── Privacy guard ────────────────────────────────────────────────
-      # Defence in depth: if anyone enables open-pull-request on a public
-      # repo, fail loud rather than silently leak tenant config into a
-      # public commit. The PR step also has its own `if:` condition, but
-      # we fail the WHOLE run here so the operator sees the message and
-      # can re-run with PR disabled or migrate to a private repo.
-      - name: Verify repository is private when PR is requested
-        if: ${{ (github.event_name != 'workflow_dispatch') || (github.event.inputs.open-pull-request == 'true') }}
+      # SecurityDocs/ contains tenant configuration. It must never be
+      # produced on a public repository, whether it leaves via a PR or via
+      # the run artefact — artefacts on public repos are world-downloadable.
+      # This runs UNCONDITIONALLY, before the collector, and fails the whole
+      # run on a public repo regardless of the open-pull-request input, so
+      # there is no path (scheduled, dispatch, PR on or off) that can collect
+      # or upload tenant config from a public repo.
+      - name: Verify repository is private
         shell: bash
         run: |
           set -euo pipefail
           if [ "${{ github.event.repository.private }}" != "true" ]; then
-            echo "::error ::This workflow is configured to open a PR with rendered SecurityDocs/, which contains tenant configuration. The repository '${{ github.repository }}' is PUBLIC. Either re-run with 'open-pull-request' disabled, or move this pipeline to a private repository. See Docs/Operations/Sentinel-Documenter.md for the recommended topology."
+            echo "::error ::This workflow produces SecurityDocs/, which contains tenant configuration, and publishes it as a run artefact (and optionally a PR). The repository '${{ github.repository }}' is PUBLIC, where both are world-readable. Move this pipeline to a private repository. See Docs/Operations/Sentinel-Documenter.md for the recommended topology."
             exit 1
           fi
-          echo "Repository is private — PR step may proceed."
+          echo "Repository is private — collection may proceed."
 
       - name: Cache PowerShell modules
         uses: actions/cache@v4

@@ -15,8 +15,7 @@
     once.
 
     To exercise the build logic without going to Azure we mock
-    Invoke-AzRestMethod and Invoke-RestMethod and capture the URL the helper
-    would have sent.
+    Invoke-AzRestMethod and capture the URL the helper would have sent.
 #>
 
 BeforeAll {

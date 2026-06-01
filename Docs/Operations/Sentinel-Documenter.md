@@ -218,7 +218,7 @@ Learn pages the tool depends on.
 
 ## How the gap engine works
 
-The findings on `90-gap-analysis.md` are produced by 28 small `Test-*` functions
+The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
 in [`Scripts/Documenter/Private/GapChecks.ps1`](../../Scripts/Documenter/Private/GapChecks.ps1),
 dispatched by the engine in [`Scripts/Documenter/Private/Get-SentinelGap.ps1`](../../Scripts/Documenter/Private/Get-SentinelGap.ps1).
 Each rule is a row in [`Scripts/Documenter/Private/Resources/best-practices.json`](../../Scripts/Documenter/Private/Resources/best-practices.json):
