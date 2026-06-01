@@ -118,19 +118,18 @@ jobs:
           fi
           echo "Repository is private — collection may proceed."
 
-      - name: Cache PowerShell modules
-        uses: actions/cache@v4
+      - name: Set up PowerShell modules
+        uses: ./.github/actions/setup-pwsh-modules
         with:
-          path: ~/.local/share/powershell/Modules
-          key: pwsh-modules-${{ runner.os }}-documenter-v1-pester${{ env.PESTER_VERSION }}-yaml${{ env.YAML_VERSION }}
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
       - name: Azure login (OIDC)
-        uses: azure/login@v2
+        uses: ./.github/actions/azure-login-oidc
         with:
           client-id:        ${{ secrets.AZURE_DOCUMENTER_CLIENT_ID }}
           tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
           subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
       - name: Run Sentinel inventory collector
         uses: azure/powershell@v2

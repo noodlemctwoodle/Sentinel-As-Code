@@ -224,16 +224,29 @@ function Get-SentinelCostEstimate {
         if ($commitmentTiers) {
             $totalGb30d = ($byPlan.Values | Measure-Object -Property Gb30d -Sum).Sum
             $dailyAvg = $totalGb30d / 30.0
-            foreach ($rung in $commitmentTiers.rungsGbPerDay) {
-                # Rough projection — 25% discount at the rung floor; reality depends on
-                # actual published discount per rung. Surface as illustrative.
+            # Recommend a single rung, not one row per rung: the highest rung the
+            # workspace already qualifies for, or the smallest rung when ingest is
+            # just below it (within 80%), since that is the one decision worth
+            # surfacing. Genuinely low-volume workspaces get no recommendation;
+            # PerGB2018 is the right plan for them.
+            $smallestRung = ($commitmentTiers.rungsGbPerDay | Measure-Object -Minimum).Minimum
+            $qualifying   = @($commitmentTiers.rungsGbPerDay | Where-Object { $dailyAvg -ge $_ })
+            $rung = if ($qualifying) {
+                ($qualifying | Measure-Object -Maximum).Maximum
+            } elseif ($dailyAvg -ge ($smallestRung * 0.8)) {
+                $smallestRung
+            } else {
+                $null
+            }
+            if ($null -ne $rung) {
+                # Illustrative projection: a ~25% discount at the rung floor. The
+                # real per-rung discount lives in retail-prices.json; this is a
+                # planning signal, not a quote.
                 $projected = [math]::Round(($monthlyTotal * 0.75), 2)
-                if ($dailyAvg -ge $rung) {
-                    $commitmentWhatIf += [pscustomobject]@{
-                        Rung                = $rung
-                        ProjectedMonthlyCost = $projected
-                        DeltaVsCurrent      = [math]::Round($projected - $monthlyTotal, 2)
-                    }
+                $commitmentWhatIf += [pscustomobject]@{
+                    Rung                 = $rung
+                    ProjectedMonthlyCost = $projected
+                    DeltaVsCurrent       = [math]::Round($projected - $monthlyTotal, 2)
                 }
             }
         }
