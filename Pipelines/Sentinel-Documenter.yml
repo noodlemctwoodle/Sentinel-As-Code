@@ -201,10 +201,10 @@ stages:
           # do not invoke the Mermaid runtime. Pre-rendering swaps each
           # fenced block for an <img> reference so the charts render in
           # every Markdown host (Repos, code-wiki, project wiki, GitHub).
-          - task: NodeTool@0
+          - task: UseNode@1
             displayName: "Install Node 20 (for mmdc)"
             inputs:
-              versionSpec: "20.x"
+              version: "20.x"
 
           - task: PowerShell@2
             displayName: "Install @mermaid-js/mermaid-cli"
