@@ -1,4 +1,4 @@
-# Sentinel Documenter — References & Conventions
+# Sentinel Documenter: References & Conventions
 
 A durable record of every API version, module, KQL query and Microsoft Learn page the
 documenter depends on. When something in Microsoft's surface area changes, this page is
@@ -44,22 +44,22 @@ Reference: <https://learn.microsoft.com/azure/sentinel/roles>,
 These items have no `Az.SecurityInsights` cmdlet (as of the pinned module versions) and
 go via `Invoke-SentinelRest`:
 
-- Codeless Connector Framework (CCF) — `dataConnectors` (kind `RestApiPoller`/`GCP` etc.)
+- Codeless Connector Framework (CCF): `dataConnectors` (kind `RestApiPoller`/`GCP` etc.)
   and `dataConnectorDefinitions`.
-- Content Hub — `contentPackages`, `contentTemplates`, `contentProductPackages`.
-- Repositories — `sourceControls`.
-- Summary rules — `contentTemplates?$filter=properties/contentKind eq 'SummaryRule'`.
-- Sentinel settings — `Microsoft.SecurityInsights/settings/{Ueba,EntityAnalytics,EyesOn,Anomalies}`.
-- DCR full JSON (transforms) — `Microsoft.Insights/dataCollectionRules/{name}`.
-- Pricings resource — `Microsoft.SecurityInsights/pricings`.
-- Sentinel Data Lake — workspace lake feature + organisational lake resource.
+- Content Hub: `contentPackages`, `contentTemplates`, `contentProductPackages`.
+- Repositories: `sourceControls`.
+- Summary rules: `contentTemplates?$filter=properties/contentKind eq 'SummaryRule'`.
+- Sentinel settings: `Microsoft.SecurityInsights/settings/{Ueba,EntityAnalytics,EyesOn,Anomalies}`.
+- DCR full JSON (transforms): `Microsoft.Insights/dataCollectionRules/{name}`.
+- Pricings resource: `Microsoft.SecurityInsights/pricings`.
+- Sentinel Data Lake: workspace lake feature + organisational lake resource.
 
 ## Recurring KQL queries
 
 The collector issues exactly two KQL queries (cheap; both target the `Usage`/`Operation`
 billing-metadata tables, not raw data):
 
-1. **`tables-with-data.json`** — *which schema'd tables actually receive data*
+1. **`tables-with-data.json`**: *which schema'd tables actually receive data*
 
    ```kql
    Usage
@@ -75,7 +75,7 @@ billing-metadata tables, not raw data):
        by DataType, Solution
    ```
 
-2. **`ingestion-latency.json`** — broken-pipeline detector
+2. **`ingestion-latency.json`**: broken-pipeline detector
 
    ```kql
    Operation
@@ -89,38 +89,38 @@ billing-metadata tables, not raw data):
 
 Linked from `90-gap-analysis.md` and individual section pages.
 
-- Sentinel best practices — <https://learn.microsoft.com/azure/sentinel/best-practices>
-- Deployment guide — <https://learn.microsoft.com/azure/sentinel/deploy-overview>
-- Skill-up training — <https://learn.microsoft.com/azure/sentinel/skill-up-resources>
-- Workspace design — <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design>
-- Sample workspace designs — <https://learn.microsoft.com/azure/sentinel/sample-workspace-designs>
-- MITRE coverage — <https://learn.microsoft.com/azure/sentinel/mitre-coverage>
-- Connector reference — <https://learn.microsoft.com/azure/sentinel/data-connectors-reference>
-- Connector prioritisation — <https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors>
-- Tables ↔ connectors map — <https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference>
-- Cost optimisation — <https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost>
-- Cost logs — <https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs>
-- Daily cap — <https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap>
-- Table plans — <https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans>
-- Basic logs configuration — <https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure>
-- Retention & archive — <https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive>
-- Sentinel Data Lake overview — <https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview>
-- Sentinel billing — <https://learn.microsoft.com/azure/sentinel/billing>
-- Sentinel reduce costs — <https://learn.microsoft.com/azure/sentinel/billing-reduce-costs>
-- Sentinel monitor costs — <https://learn.microsoft.com/azure/sentinel/billing-monitor-costs>
-- Roles & permissions — <https://learn.microsoft.com/azure/sentinel/roles>
-- Content Hub — <https://learn.microsoft.com/azure/sentinel/sentinel-solutions>
-- CCF authoring — <https://learn.microsoft.com/azure/sentinel/create-codeless-connector>
-- CI/CD — <https://learn.microsoft.com/azure/sentinel/ci-cd>
-- Custom content CI/CD — <https://learn.microsoft.com/azure/sentinel/ci-cd-custom-content>
-- Connector health monitoring — <https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health>
-- Workspace replication — <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication>
-- Dedicated clusters — <https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters>
-- Customer-managed keys — <https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys>
-- Private Link Scope (AMPLS) — <https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security>
-- Manage data overview — <https://learn.microsoft.com/azure/sentinel/manage-data-overview>
-- Manage table tiers & retention — <https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention>
-- Defender migration — <https://learn.microsoft.com/azure/sentinel/move-to-defender>
+- Sentinel best practices: <https://learn.microsoft.com/azure/sentinel/best-practices>
+- Deployment guide: <https://learn.microsoft.com/azure/sentinel/deploy-overview>
+- Skill-up training: <https://learn.microsoft.com/azure/sentinel/skill-up-resources>
+- Workspace design: <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design>
+- Sample workspace designs: <https://learn.microsoft.com/azure/sentinel/sample-workspace-designs>
+- MITRE coverage: <https://learn.microsoft.com/azure/sentinel/mitre-coverage>
+- Connector reference: <https://learn.microsoft.com/azure/sentinel/data-connectors-reference>
+- Connector prioritisation: <https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors>
+- Tables ↔ connectors map: <https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference>
+- Cost optimisation: <https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost>
+- Cost logs: <https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs>
+- Daily cap: <https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap>
+- Table plans: <https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans>
+- Basic logs configuration: <https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure>
+- Retention & archive: <https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive>
+- Sentinel Data Lake overview: <https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview>
+- Sentinel billing: <https://learn.microsoft.com/azure/sentinel/billing>
+- Sentinel reduce costs: <https://learn.microsoft.com/azure/sentinel/billing-reduce-costs>
+- Sentinel monitor costs: <https://learn.microsoft.com/azure/sentinel/billing-monitor-costs>
+- Roles & permissions: <https://learn.microsoft.com/azure/sentinel/roles>
+- Content Hub: <https://learn.microsoft.com/azure/sentinel/sentinel-solutions>
+- CCF authoring: <https://learn.microsoft.com/azure/sentinel/create-codeless-connector>
+- CI/CD: <https://learn.microsoft.com/azure/sentinel/ci-cd>
+- Custom content CI/CD: <https://learn.microsoft.com/azure/sentinel/ci-cd-custom-content>
+- Connector health monitoring: <https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health>
+- Workspace replication: <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication>
+- Dedicated clusters: <https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters>
+- Customer-managed keys: <https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys>
+- Private Link Scope (AMPLS): <https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security>
+- Manage data overview: <https://learn.microsoft.com/azure/sentinel/manage-data-overview>
+- Manage table tiers & retention: <https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention>
+- Defender migration: <https://learn.microsoft.com/azure/sentinel/move-to-defender>
 
 ## Azure Retail Prices API
 

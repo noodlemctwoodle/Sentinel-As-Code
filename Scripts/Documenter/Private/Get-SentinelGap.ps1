@@ -48,6 +48,7 @@ function Get-SentinelGap {
     if (-not (Test-Path $RulesPath))      { throw "Rules file not found: $RulesPath" }
     if (-not (Test-Path $GapChecksPath))  { throw "GapChecks not found: $GapChecksPath" }
     if (-not (Test-Path $InputRoot))      { throw "Input root not found: $InputRoot" }
+    if (-not (Test-Path $ResourcesRoot))  { throw "Resources root not found: $ResourcesRoot" }
 
     # Dot-source the gap check functions into the current scope.
     . $GapChecksPath

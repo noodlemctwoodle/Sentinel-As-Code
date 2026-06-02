@@ -10,18 +10,20 @@ the documented Microsoft Learn best practices.
 > charts), see [Documenter-Renderer-Design.md](Documenter-Renderer-Design.md).
 
 > [!IMPORTANT]
-> **Repository must be private to run the PR-creation flow.**
+> **Repository must be private.**
 >
-> The Documenter generates a folder of detailed tenant configuration —
+> The Documenter generates a folder of detailed tenant configuration:
 > workspace IDs, table names, rule details, RBAC principals, cost figures,
-> network ACLs. This information **MUST NOT** land in a public repository.
+> network ACLs. This information **MUST NOT** land in a public repository,
+> and that includes run artefacts, which are world-downloadable on public
+> GitHub repos.
 >
-> Both pipelines (ADO and GitHub Actions) include a privacy guard that
-> refuses to commit `SecurityDocs/` unless the host repository is private.
-> If you run the GitHub Actions workflow on a public repo with the PR step
-> enabled, the run **fails fast** with an explicit error message. The
-> ADO pipeline relies on the fact that ADO repos are private by default
-> within a project.
+> The GitHub Actions workflow therefore never collects or publishes
+> `SecurityDocs/` on a public repo, regardless of the `open-pull-request`
+> toggle: scheduled runs are skipped on a public repo, and a manual run on
+> a public repo **fails fast** with an explicit error before any collection.
+> The ADO pipeline relies on ADO repos being private by default within a
+> project.
 >
 > If your source-of-truth lives in a public GitHub repo and you need the
 > Documenter, see [Topology options](#topology-options) below.
@@ -63,13 +65,17 @@ topology that matches your setup:
 - The **ADO pipeline** opens PRs in the private ADO mirror; its push
   reaches `origin` (= ADO repo on the agent) only and never touches the
   public GitHub copy.
-- The **GitHub Actions workflow's PR step refuses to run on the public
-  repo** — it falls back to artefact-only delivery there, or fails fast
-  if the operator explicitly ticks `open-pull-request`.
+- The **GitHub Actions workflow does not run productively on the public
+  repo at all**: scheduled runs are skipped there, and a manual run fails
+  fast before collecting anything, so no `SecurityDocs/` artefact or PR is
+  ever produced from the public copy. Run the documenter from the private
+  ADO mirror instead.
 
 ### C. Don't want a PR at all
-- Set `open-pull-request: false` (GH) or untick the equivalent
-  parameter (ADO) — the pipeline still publishes the artefact.
+- On a **private** repo, set `open-pull-request: false` (GH) or untick the
+  equivalent parameter (ADO) and the pipeline still publishes the artefact,
+  just without opening a PR. On a public repo nothing is produced either
+  way (see option B).
 
 ---
 

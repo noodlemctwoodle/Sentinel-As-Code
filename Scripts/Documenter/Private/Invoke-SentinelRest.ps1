@@ -24,7 +24,7 @@
 .PARAMETER Path
     The resource path or full URL to call. If a path is given (starting with /) the
     Invoke-AzRestMethod default ARM endpoint is used. If a fully qualified URL is given
-    it is passed through (used by the Retail Prices client).
+    it is passed through (e.g. an ARM paginator nextLink).
 
 .PARAMETER ApiVersion
     The api-version to embed in the query string when not already present.
@@ -171,19 +171,19 @@ function Invoke-SentinelRest {
             }
         }
 
-        # Flatten — most ARM endpoints return { value: [...], nextLink: '...' }; a few
+        # Flatten: most ARM endpoints return { value: [...], nextLink: '...' }; a few
         # return the single resource at the root, in which case 'value' is absent.
         if ($null -ne $response) {
             if ($response.PSObject.Properties.Name -contains 'value') {
                 if ($response.value) {
                     foreach ($item in $response.value) { $accumulator.Add($item) }
                 }
-                # Public Retail Prices uses NextPageLink; ARM uses nextLink. Honour both.
+                # ARM paginates via nextLink. (The Retail Prices API uses Items +
+                # NextPageLink and is paginated by its own client,
+                # Get-AzureRetailPrice, not this helper.)
                 $next = $null
                 if ($response.PSObject.Properties.Name -contains 'nextLink') {
                     $next = $response.nextLink
-                } elseif ($response.PSObject.Properties.Name -contains 'NextPageLink') {
-                    $next = $response.NextPageLink
                 }
                 $url = $next
             } else {

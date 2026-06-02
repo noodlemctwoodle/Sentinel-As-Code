@@ -76,7 +76,8 @@ function Get-SentinelCostEstimate {
         'Query-time billing for Basic/Auxiliary plans not included.',
         'Search-job and restored-log storage not included.',
         'Data-export egress and cross-region transfer not included.',
-        'Defender XDR-side meters not included.'
+        'Defender XDR-side meters not included.',
+        'Sentinel free-benefit tables are priced at zero on the assumption the benefit is active. SENT-019 flags workspaces with eligible Defender plans where the benefit is not detected.'
     )
 
     $byPlan = @{
@@ -218,7 +219,15 @@ function Get-SentinelCostEstimate {
 
     # Commitment-tier what-if — only meaningful for PerGB2018 workspaces.
     $commitmentWhatIf = @()
-    $sku = ($workspace.properties.sku.name) -as [string]
+    # Guard against a missing or corrupt workspace.json. Under StrictMode,
+    # navigating $workspace.properties.sku.name on a null would throw and abort
+    # the whole estimate, so treat an unreadable SKU as unknown (no what-if).
+    $sku = $null
+    if ($workspace -and
+        ($workspace.PSObject.Properties.Name -contains 'properties') -and $workspace.properties -and
+        ($workspace.properties.PSObject.Properties.Name -contains 'sku') -and $workspace.properties.sku) {
+        $sku = ($workspace.properties.sku.name) -as [string]
+    }
     if ($sku -eq 'PerGB2018') {
         $commitmentTiers = Read-Json (Join-Path $ResourcesRoot 'commitment-tiers.json')
         if ($commitmentTiers) {

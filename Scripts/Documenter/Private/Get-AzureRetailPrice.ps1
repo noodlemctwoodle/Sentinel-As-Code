@@ -24,7 +24,8 @@
     if you want to extend the cost calculator (e.g. include 'Storage' for archive).
 
 .OUTPUTS
-    [PSCustomObject[]] — the union of all returned price rows.
+    [pscustomobject] with FetchedAtUtc, Region, Services, and a Prices array
+    holding the union of all returned price rows.
 
 .NOTES
     Endpoint: https://prices.azure.com/api/retail/prices

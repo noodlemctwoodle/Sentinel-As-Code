@@ -93,6 +93,12 @@ jobs:
     name: document
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Skip entirely on public repos for scheduled runs, so the public upstream
+    # does not accrue a permanent daily red failure from the privacy guard.
+    # A manual workflow_dispatch still runs (on any repo) and, on a public
+    # repo, hits the unconditional guard step below and fails loud with the
+    # explanatory message, so an operator who tries it gets told why.
+    if: ${{ github.event.repository.private == true || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout
