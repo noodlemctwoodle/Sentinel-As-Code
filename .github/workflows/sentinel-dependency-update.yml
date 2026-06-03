@@ -62,7 +62,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # GITHUB_TOKEN has contents:write on this repo per the
           # workflow-level permissions block; that's enough to push the

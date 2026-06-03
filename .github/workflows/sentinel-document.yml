@@ -102,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -138,7 +138,7 @@ jobs:
           subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Run Sentinel inventory collector
-        uses: azure/powershell@v2
+        uses: azure/powershell@v3
         with:
           azPSVersion: latest
           inlineScript: |
@@ -172,7 +172,7 @@ jobs:
           fi
 
       - name: Upload private artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sentinel-docs-${{ vars.SENTINEL_WORKSPACE }}-${{ github.run_id }}
           path: SecurityDocs/
@@ -204,7 +204,7 @@ jobs:
 
       - name: Open / refresh rolling PR
         if: ${{ github.event.repository.private == true && ((github.event_name != 'workflow_dispatch') || (github.event.inputs.open-pull-request == 'true')) }}
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: "auto/sentinel-docs/${{ vars.SENTINEL_WORKSPACE }}"

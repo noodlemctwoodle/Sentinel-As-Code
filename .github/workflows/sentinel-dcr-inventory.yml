@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -116,7 +116,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy DCR Watchlist Infrastructure
-        uses: Azure/cli@v2
+        uses: Azure/cli@v3
         with:
           inlineScript: |
             set -euo pipefail
@@ -181,7 +181,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -191,7 +191,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Update Runbook Content
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |

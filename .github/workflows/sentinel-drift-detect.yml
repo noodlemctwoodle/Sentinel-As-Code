@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Need write to push the auto-sync branch back. The default
           # GITHUB_TOKEN has contents:write on this repo per the
@@ -113,7 +113,7 @@ jobs:
           install-pester: 'false'
 
       - name: Run Sentinel drift detection
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload drift report artefact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sentinel-drift-report-${{ github.run_id }}
           path: reports/

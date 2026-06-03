@@ -95,7 +95,7 @@ jobs:
       # this repo, and local composite actions can only be resolved
       # once the runner has the repo on disk.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -106,7 +106,7 @@ jobs:
 
       - name: Check for Existing Resources
         id: check
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -141,7 +141,7 @@ jobs:
       needs.check-infrastructure.outputs.resources_exist == 'false'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -151,7 +151,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy test workspace Bicep
-        uses: Azure/cli@v2
+        uses: Azure/cli@v3
         with:
           inlineScript: |
             az deployment group create \
@@ -171,7 +171,7 @@ jobs:
       (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -181,7 +181,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy single Content Hub solution
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -204,7 +204,7 @@ jobs:
       (needs.deploy-content-hub.result == 'success' || needs.deploy-content-hub.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2   # Smart deployment uses parent commit
 
@@ -231,7 +231,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content (-WhatIf)
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -255,7 +255,7 @@ jobs:
       (needs.deploy-custom-content.result == 'success' || needs.deploy-custom-content.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up PowerShell modules (powershell-yaml only)
         uses: ./.github/actions/setup-pwsh-modules
@@ -271,15 +271,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Defender Detections (-WhatIf)
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
             & "${{ github.workspace }}/Deploy/content/Deploy-DefenderDetections.ps1" `
-                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
-                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
-                -Workspace      "${{ env.WORKSPACE_NAME }}" `
-                -Region         "${{ env.REGION }}" `
                 -BasePath       "${{ github.workspace }}" `
                 -WhatIf
 
@@ -305,7 +301,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Open / refresh failure issue
         env:

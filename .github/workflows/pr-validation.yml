@@ -84,7 +84,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -125,7 +125,7 @@ jobs:
       # PublishPipelineArtifact step.
       - name: Upload Pester results artefact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pester-results-${{ github.run_id }}
           path: test-results/
@@ -146,7 +146,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -201,7 +201,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -344,13 +344,13 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Cache Kusto.Language NuGet build
         id: kusto_cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/kusto-lang
           key: kusto-language-${{ env.KUSTO_LANGUAGE_VERSION }}-${{ runner.os }}
@@ -497,7 +497,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
