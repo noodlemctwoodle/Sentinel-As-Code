@@ -5,7 +5,7 @@ Sentinel workspace and produces a Markdown report of every artefact, every works
 setting, every DCR/DCE, an estimated monthly cost and a findings list scored against
 the documented Microsoft Learn best practices.
 
-> Operating guide (this page) — for users running the tool and consuming its output.
+> Operating guide (this page): for users running the tool and consuming its output.
 > For renderer internals (chart system, helpers, Mermaid-safety rules, how to add
 > charts), see [Documenter-Renderer-Design.md](Documenter-Renderer-Design.md).
 
@@ -119,7 +119,7 @@ SecurityDocs/
 ```
 
 The split between `_raw/` (JSON) and the rendered Markdown means the renderer can be
-re-run locally on a downloaded artefact without touching Azure — handy for iterating
+re-run locally on a downloaded artefact without touching Azure, handy for iterating
 on report layout or evaluating a new gap rule against historical state.
 
 ---
@@ -145,18 +145,18 @@ headline. The five most important pages day-to-day are:
 
 Two pipelines, same scripts, same output, different host:
 
-#### Azure DevOps — `Pipelines/Sentinel-Documenter.yml`
+#### Azure DevOps: `Pipelines/Sentinel-Documenter.yml`
 Manual trigger (`trigger: none`). Use this when pipeline testing lives in a
 private ADO project. Reuses the `sentinel-deployment` variable group and the
 `sc-sentinel-as-code` service connection that the deploy and drift-detect
-pipelines already depend on. Pushes to `origin` on the ADO agent — that is
+pipelines already depend on. Pushes to `origin` on the ADO agent, which is
 the **ADO repo only**, never GitHub.
 
 > Pipelines → **Sentinel Documenter** → Run pipeline → optionally tick
 > *Include preview API surface*. To skip the PR step and get only the
 > artefact, untick *Open / refresh an ADO PR with the rendered docs*.
 
-#### GitHub Actions — `.github/workflows/sentinel-document.yml`
+#### GitHub Actions: `.github/workflows/sentinel-document.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
 service principal. Privacy guard: the workflow **fails fast** if the host
 repo is public and `open-pull-request` is set, on the basis that
@@ -179,14 +179,14 @@ repo is public and `open-pull-request` is set, on the basis that
 # 1. Connect with an account that has the read-only roles described below.
 Connect-AzAccount
 
-# 2. Run the collector — writes to ./SecurityDocs/<workspace>/_raw/.
+# 2. Run the collector. Writes to ./SecurityDocs/<workspace>/_raw/.
 ./Scripts/Documenter/Export-SentinelInventory.ps1 `
     -SubscriptionId 'sub-guid' `
     -ResourceGroup  'rg-sentinel-prod' `
     -WorkspaceName  'law-sentinel-prod' `
     -IncludePreview
 
-# 3. Render — writes ./SecurityDocs/<workspace>/*.md.
+# 3. Render. Writes ./SecurityDocs/<workspace>/*.md.
 ./Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1 `
     -WorkspaceName 'law-sentinel-prod'
 ```
@@ -207,7 +207,7 @@ Read-only at workspace + RG + subscription scope:
 | Monitoring Reader         | subscription | Full DCR JSON, DCEs |
 | Reader                    | subscription | Dedicated clusters, policy assignments, locks, RP registration |
 
-The Azure Retail Prices API used by the cost estimator is anonymous — no auth
+The Azure Retail Prices API used by the cost estimator is anonymous, no auth
 needed.
 
 OIDC federated-credential subject for the `main` branch:
@@ -275,7 +275,7 @@ In short:
    ingestion meter applies.
 3. Unit prices are fetched from the public
    [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
-   for the workspace's region — anonymous, no auth.
+   for the workspace's region (anonymous, no auth).
 4. Sentinel free-benefit-eligible tables (in
    [`Private/Resources/sentinel-benefit-tables.json`](../../Scripts/Documenter/Private/Resources/sentinel-benefit-tables.json))
    have their unit price reduced/zeroed when the benefit applies.
@@ -284,14 +284,14 @@ In short:
 6. The dedicated-cluster candidate flag is set when daily ingest > 500 GB and no
    cluster is currently linked.
 
-### Caveats — explicitly NOT priced
+### Caveats: explicitly NOT priced
 
 - Query-time billing for Basic / Auxiliary plans.
 - Search-job and restored-log storage.
 - Data-export egress and cross-region transfer.
 - Defender XDR-side meters.
 
-Sanity-check the figure once a quarter against your Cost Management bill — the
+Sanity-check the figure once a quarter against your Cost Management bill; the
 documenter is a planning tool, not a billing tool.
 
 ---
@@ -391,11 +391,11 @@ billable data or wasn't seen in the 90-day usage window.
 
 ## Related
 
-- [`Scripts/Documenter/REFERENCES.md`](../../Scripts/Documenter/REFERENCES.md) — durable
+- [`Scripts/Documenter/REFERENCES.md`](../../Scripts/Documenter/REFERENCES.md): durable
   reference of API versions, modules, and Microsoft Learn pages.
-- [`Test-SentinelRuleDrift.ps1`](../../Scripts/Test-SentinelRuleDrift.ps1) — sister
+- [`Test-SentinelRuleDrift.ps1`](../../Scripts/Test-SentinelRuleDrift.ps1): sister
   read-only tool that detects portal-edited rules. The documenter answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
   repo?".
-- [Microsoft Sentinel best practices](https://learn.microsoft.com/azure/sentinel/best-practices)
-  — the upstream source for many of the gap rules.
+- [Microsoft Sentinel best practices](https://learn.microsoft.com/azure/sentinel/best-practices):
+  the upstream source for many of the gap rules.
