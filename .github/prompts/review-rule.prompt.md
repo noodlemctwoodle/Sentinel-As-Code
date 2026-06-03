@@ -77,10 +77,10 @@ user can act on.
 
 - [ ] File path matches `<ContentDir>/<Source>/<RuleName>.yaml`
       pattern
-- [ ] File name is PascalCase, no spaces, no hyphens (Wave 4
+- [ ] File name is PascalCase, no spaces, no hyphens (repo
       convention)
 - [ ] If the rule references a watchlist, the watchlist exists
-      under `Watchlists/<alias>/watchlist.json` with matching
+      under `Content/Watchlists/<alias>/watchlist.json` with matching
       `watchlistAlias`
 - [ ] If the rule was edited, `dependencies.json` was regenerated
       in the same change
@@ -119,4 +119,4 @@ Always quote the relevant line / field, never gesture vaguely.
 - KQL conventions:
   [`.github/instructions/kql-queries.instructions.md`](../instructions/kql-queries.instructions.md)
 - Discovery model:
-  [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+  [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)

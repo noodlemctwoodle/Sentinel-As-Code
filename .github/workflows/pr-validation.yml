@@ -5,17 +5,17 @@
 # every workflow_dispatch:
 #
 #   validate              Pester suites under Tests/ (offline) — calls
-#                         Scripts/Invoke-PRValidation.ps1 (same entry-
+#                         Tools/Invoke-PRValidation.ps1 (same entry-
 #                         point ADO uses); publishes JUnit XML to the
 #                         PR check UI and uploads it as an artefact
 #   bicep-build           Bicep syntax + parameter type check (offline)
-#   arm-validate          ARM template What-If for every Playbooks/**.json (OIDC)
+#   arm-validate          ARM template What-If for every Content/Playbooks/**.json (OIDC)
 #   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
 #   dependency-manifest   dependencies.json drift check vs auto-discovery (offline)
 #
 # Each becomes its own status check the branch-protection ruleset can
 # require independently — useful while OIDC for arm-validate is being
-# wired up. Setup runbook: Docs/Deployment/PR-Validation-Setup.md
+# wired up. Setup runbook: Docs/Deploy/PR-Validation-Setup.md
 #
 # Wiring required checks (one-off, after each job has run at least once):
 #
@@ -84,7 +84,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -97,12 +97,12 @@ jobs:
       # Calls the cross-platform PR-validation entrypoint that the ADO
       # pipeline also calls. Single source of truth for test discovery,
       # NUnit-XML emission, and exit-code logic. Any change to test-
-      # running behaviour lands once in Scripts/Invoke-PRValidation.ps1
+      # running behaviour lands once in Tools/Invoke-PRValidation.ps1
       # and applies to both platforms.
       - name: Run Pester via Invoke-PRValidation.ps1
         shell: pwsh
         run: |
-          ./Scripts/Invoke-PRValidation.ps1 `
+          ./Tools/Invoke-PRValidation.ps1 `
               -RepoPath        '${{ github.workspace }}' `
               -TestResultsPath '${{ github.workspace }}/test-results/pester-results.xml' `
               -InstallModules:$false
@@ -125,7 +125,7 @@ jobs:
       # PublishPipelineArtifact step.
       - name: Upload Pester results artefact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pester-results-${{ github.run_id }}
           path: test-results/
@@ -135,7 +135,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # C1: Bicep build
   # ---------------------------------------------------------------------------
-  # Compiles every .bicep file under Bicep/ to ARM JSON. Catches syntax
+  # Compiles every .bicep file under Infra/ to ARM JSON. Catches syntax
   # errors, undefined parameter references, type mismatches, and lint
   # violations before they reach the deploy pipeline. No Azure auth needed
   # — `az bicep build` is fully offline.
@@ -146,7 +146,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -164,7 +164,7 @@ jobs:
           shopt -s globstar nullglob
 
           failed=0
-          for f in Bicep/**/*.bicep; do
+          for f in Infra/**/*.bicep; do
               echo "::group::az bicep build $f"
               if ! az bicep build --file "$f" --stdout > /dev/null; then
                   echo "::error file=$f::Bicep build failed for $f"
@@ -182,12 +182,12 @@ jobs:
   # ---------------------------------------------------------------------------
   # C2: ARM What-If for every playbook template
   # ---------------------------------------------------------------------------
-  # Runs Test-AzResourceGroupDeployment -WhatIf against every Playbooks/**/*.json
+  # Runs Test-AzResourceGroupDeployment -WhatIf against every Content/Playbooks/**/*.json
   # to catch malformed ARM templates, missing required parameters, and
   # schema-version mismatches before they reach the deploy pipeline.
   #
   # Auth: federated OIDC against the existing deploy SP. One-off setup is
-  # documented in Docs/Deployment/PR-Validation-Setup.md.
+  # documented in Docs/Deploy/PR-Validation-Setup.md.
   #
   # Fork PRs cannot get an OIDC token (the federated subject mismatches),
   # so this job no-ops on fork events and is marked optional in the ruleset.
@@ -201,7 +201,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -225,7 +225,7 @@ jobs:
           # secrets are populated the next PR run will exercise the job.
           if [ -z "${AZURE_CLIENT_ID:-}" ] || [ -z "${AZURE_TENANT_ID:-}" ] || [ -z "${AZURE_SUBSCRIPTION_ID:-}" ]; then
               echo "should_skip=true" >> "$GITHUB_OUTPUT"
-              echo "##[warning]Azure OIDC secrets (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) are not configured on this repository — arm-validate skipped. Wire them up per Docs/Deployment/PR-Validation-Setup.md to enable ARM template validation on PRs."
+              echo "##[warning]Azure OIDC secrets (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) are not configured on this repository — arm-validate skipped. Wire them up per Docs/Deploy/PR-Validation-Setup.md to enable ARM template validation on PRs."
               exit 0
           fi
           echo "should_skip=false" >> "$GITHUB_OUTPUT"
@@ -245,7 +245,7 @@ jobs:
           PR_VALIDATION_RG: ${{ vars.PR_VALIDATION_RESOURCE_GROUP }}
         run: |
           if (-not $env:PR_VALIDATION_RG) {
-              Write-Host '##[error]Repository variable PR_VALIDATION_RESOURCE_GROUP is not set. See Docs/Deployment/PR-Validation-Setup.md.'
+              Write-Host '##[error]Repository variable PR_VALIDATION_RESOURCE_GROUP is not set. See Docs/Deploy/PR-Validation-Setup.md.'
               exit 1
           }
 
@@ -264,9 +264,9 @@ jobs:
               Recipients                 = 'pr-validation@example.com'
           }
 
-          $playbooks = Get-ChildItem -Path 'Playbooks' -Recurse -Filter '*.json' -File
+          $playbooks = Get-ChildItem -Path 'Content/Playbooks' -Recurse -Filter '*.json' -File
           if (-not $playbooks) {
-              Write-Host '##[warning]No playbook ARM templates found under Playbooks/.'
+              Write-Host '##[warning]No playbook ARM templates found under Content/Playbooks/.'
               exit 0
           }
 
@@ -344,13 +344,13 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Cache Kusto.Language NuGet build
         id: kusto_cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/kusto-lang
           key: kusto-language-${{ env.KUSTO_LANGUAGE_VERSION }}-${{ runner.os }}
@@ -389,7 +389,7 @@ jobs:
           Import-Module powershell-yaml -ErrorAction Stop
 
           # Analytical rules + hunting queries + parsers (YAML, query field)
-          foreach ($dir in @('AnalyticalRules', 'HuntingQueries', 'Parsers')) {
+          foreach ($dir in @('Content/AnalyticalRules', 'Content/HuntingQueries', 'Content/Parsers')) {
               if (-not (Test-Path $dir)) { continue }
               Get-ChildItem -Path $dir -Recurse -Filter '*.yaml' -File | ForEach-Object {
                   try {
@@ -406,8 +406,8 @@ jobs:
           }
 
           # Summary rules (JSON, query field)
-          if (Test-Path 'SummaryRules') {
-              Get-ChildItem -Path 'SummaryRules' -Recurse -Filter '*.json' -File | ForEach-Object {
+          if (Test-Path 'Content/SummaryRules') {
+              Get-ChildItem -Path 'Content/SummaryRules' -Recurse -Filter '*.json' -File | ForEach-Object {
                   try {
                       $j = Get-Content $_.FullName -Raw | ConvertFrom-Json
                       if ($j.PSObject.Properties.Name -contains 'query' -and $j.query) {
@@ -420,8 +420,8 @@ jobs:
           }
 
           # Defender custom detections (YAML, queryCondition.queryText)
-          if (Test-Path 'DefenderCustomDetections') {
-              Get-ChildItem -Path 'DefenderCustomDetections' -Recurse -Filter '*.yaml' -File | ForEach-Object {
+          if (Test-Path 'Content/DefenderCustomDetections') {
+              Get-ChildItem -Path 'Content/DefenderCustomDetections' -Recurse -Filter '*.yaml' -File | ForEach-Object {
                   try {
                       $y = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
                       if ($y -and $y.ContainsKey('queryCondition') -and $y.queryCondition.ContainsKey('queryText')) {
@@ -469,8 +469,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # C4: Dependency manifest drift gate
   # ---------------------------------------------------------------------------
-  # Runs Scripts/Build-DependencyManifest.ps1 -Mode Verify, which walks every
-  # AnalyticalRules/**.yaml + HuntingQueries/**.yaml, runs the discovery
+  # Runs Tools/Build-DependencyManifest.ps1 -Mode Verify, which walks every
+  # Content/AnalyticalRules/**.yaml + Content/HuntingQueries/**.yaml, runs the discovery
   # extractors from Modules/Sentinel.Common, and compares the discovered
   # manifest against the on-disk dependencies.json. Any drift fails the gate.
   #
@@ -483,11 +483,11 @@ jobs:
   # Authors fix drift by running the script locally and committing the
   # regenerated manifest:
   #
-  #   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+  #   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
   #   git add dependencies.json && git commit
   #
   # Or by waiting for the daily Update workflow (see
-  # sentinel-dependency-update.yml — Wave 4 Item 4D) to open an auto-PR.
+  # sentinel-dependency-update.yml) to open an auto-PR.
   #
   # Offline — no Azure auth needed; the script reads YAML/JSON only.
   dependency-manifest:
@@ -497,7 +497,7 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -510,9 +510,9 @@ jobs:
       - name: Verify dependency manifest matches discovery
         shell: pwsh
         run: |
-          ./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+          ./Tools/Build-DependencyManifest.ps1 -Mode Verify
           if ($LASTEXITCODE -ne 0) {
               Write-Host '##[error]dependencies.json is out of sync with content.'
-              Write-Host '##[error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
+              Write-Host '##[error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
               exit 1
           }

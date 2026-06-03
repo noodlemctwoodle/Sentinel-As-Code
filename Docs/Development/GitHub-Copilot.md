@@ -55,13 +55,13 @@ glob in the frontmatter.
 
 | File | applies to | Covers |
 | --- | --- | --- |
-| `analytical-rules.instructions.md` | `AnalyticalRules/**/*.yaml` | Schema, field conventions, post-edit checklist |
-| `hunting-queries.instructions.md` | `HuntingQueries/**/*.yaml` | Hunting-vs-analytical decision, schema |
-| `defender-detections.instructions.md` | `DefenderCustomDetections/**/*.yaml` | Schema, table-set difference, response actions |
-| `watchlists.instructions.md` | `Watchlists/**` | Folder layout, alias-equality rule, cross-validation |
-| `playbooks.instructions.md` | `Playbooks/**/*.json` | ARM template structure, trigger-type folders, MSI tag |
+| `analytical-rules.instructions.md` | `Content/AnalyticalRules/**/*.yaml` | Schema, field conventions, post-edit checklist |
+| `hunting-queries.instructions.md` | `Content/HuntingQueries/**/*.yaml` | Hunting-vs-analytical decision, schema |
+| `defender-detections.instructions.md` | `Content/DefenderCustomDetections/**/*.yaml` | Schema, table-set difference, response actions |
+| `watchlists.instructions.md` | `Content/Watchlists/**` | Folder layout, alias-equality rule, cross-validation |
+| `playbooks.instructions.md` | `Content/Playbooks/**/*.json` | ARM template structure, trigger-type folders, MSI tag |
 | `pester-tests.instructions.md` | `Tests/**/*.ps1` | AST-extraction pattern, mocking conventions |
-| `powershell-scripts.instructions.md` | `Scripts/**/*.ps1`, `Modules/**/*.psm1`, `Modules/**/*.psd1` | Style, Sentinel.Common usage, foot-gun list |
+| `powershell-scripts.instructions.md` | `Deploy/**/*.ps1, Tools/**/*.ps1`, `Modules/**/*.psm1`, `Modules/**/*.psd1` | Style, Sentinel.Common usage, foot-gun list |
 | `kql-queries.instructions.md` | Any file with embedded KQL | KQL conventions, discovery-friendly patterns |
 | `workflows.instructions.md` | `.github/workflows/**`, `.github/actions/**`, `Pipelines/**/*.yml` | ADO-as-source-of-truth, composite actions, schedule alignment |
 
@@ -120,9 +120,9 @@ on github.com Chat.
 
 | Prompt | What it does |
 | --- | --- |
-| `/new-analytical-rule` | Bootstraps a fresh `AnalyticalRules/<Source>/<Name>.yaml` |
-| `/new-hunting-query` | Bootstraps a fresh `HuntingQueries/<Source>/<Name>.yaml` |
-| `/new-defender-detection` | Bootstraps a fresh `DefenderCustomDetections/<Category>/<Name>.yaml` |
+| `/new-analytical-rule` | Bootstraps a fresh `Content/AnalyticalRules/<Source>/<Name>.yaml` |
+| `/new-hunting-query` | Bootstraps a fresh `Content/HuntingQueries/<Source>/<Name>.yaml` |
+| `/new-defender-detection` | Bootstraps a fresh `Content/DefenderCustomDetections/<Category>/<Name>.yaml` |
 | `/new-pester-test` | Bootstraps a Pester 5 test using the AST-extraction pattern |
 | `/review-rule` | Reviews a rule against schema + KQL + convention rules |
 | `/regenerate-deps` | Runs `Build-DependencyManifest -Mode Generate` and explains the diff |

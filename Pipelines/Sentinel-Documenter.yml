@@ -26,7 +26,7 @@
 #       sentinelWorkspaceName
 #       sentinelRegion
 #   - Azure Service Connection $(serviceConnection) with the read-only role
-#     set documented in Docs/Operations/Sentinel-Documenter.md:
+#     set documented in Docs/Tools/Documenter/Sentinel-Documenter.md:
 #       - Microsoft Sentinel Reader   (workspace scope)
 #       - Log Analytics Reader        (workspace scope)
 #       - Reader                      (resource group scope)
@@ -94,7 +94,7 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
-  # Pinned module versions — keep in sync with Scripts/Documenter/Documenter.psd1
+  # Pinned module versions — keep in sync with Tools/Documenter/Documenter.psd1
   # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
   # with the documenter pipeline on what 'works'.
   - name: pesterVersion
@@ -187,7 +187,7 @@ stages:
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "============================================================"
 
-                & "$(Build.SourcesDirectory)/Scripts/Documenter/Export-SentinelInventory.ps1" @params
+                & "$(Build.SourcesDirectory)/Tools/Documenter/Export-SentinelInventory.ps1" @params
 
           - task: PowerShell@2
             displayName: "Run renderer — Convert-SentinelInventoryToMarkdown.ps1"
@@ -198,7 +198,7 @@ stages:
                 $ErrorActionPreference = 'Stop'
 
                 Write-Host "##[section]Sentinel Documenter — Renderer"
-                & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
+                & "$(Build.SourcesDirectory)/Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1" `
                     -WorkspaceName "$(sentinelWorkspaceName)"
 
           # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
@@ -237,7 +237,7 @@ stages:
                   $ErrorActionPreference = 'Stop'
 
                   Write-Host "##[section]Sentinel Documenter — Mermaid pre-render (PNG)"
-                  & "$(Build.SourcesDirectory)/Scripts/Documenter/Convert-MermaidToImage.ps1" `
+                  & "$(Build.SourcesDirectory)/Tools/Documenter/Convert-MermaidToImage.ps1" `
                       -Root "$(Build.SourcesDirectory)/SecurityDocs" `
                       -Format png
 

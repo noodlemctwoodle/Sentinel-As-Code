@@ -33,23 +33,23 @@ patches.
 
    | Edited path | Test command |
    | --- | --- |
-   | `AnalyticalRules/**/*.yaml` or `HuntingQueries/**/*.yaml` | `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1` |
-   | `DefenderCustomDetections/**/*.yaml` | `Invoke-Pester -Path Tests/Test-DefenderDetectionYaml.Tests.ps1` |
-   | `Watchlists/**/*` | `Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1` |
-   | `Playbooks/**/*.json` | `Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1` |
-   | `Parsers/**/*.yaml` | `Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1` |
-   | `SummaryRules/**/*.json` | `Invoke-Pester -Path Tests/Test-SummaryRuleJson.Tests.ps1` |
-   | `AutomationRules/**/*.json` | `Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1` |
-   | `Workbooks/**/*.json` | `Invoke-Pester -Path Tests/Test-WorkbookJson.Tests.ps1` |
+   | `Content/AnalyticalRules/**/*.yaml` or `Content/HuntingQueries/**/*.yaml` | `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1` |
+   | `Content/DefenderCustomDetections/**/*.yaml` | `Invoke-Pester -Path Tests/Test-DefenderDetectionYaml.Tests.ps1` |
+   | `Content/Watchlists/**/*` | `Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1` |
+   | `Content/Playbooks/**/*.json` | `Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1` |
+   | `Content/Parsers/**/*.yaml` | `Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1` |
+   | `Content/SummaryRules/**/*.json` | `Invoke-Pester -Path Tests/Test-SummaryRuleJson.Tests.ps1` |
+   | `Content/AutomationRules/**/*.json` | `Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1` |
+   | `Content/Workbooks/**/*.json` | `Invoke-Pester -Path Tests/Test-WorkbookJson.Tests.ps1` |
    | `Modules/Sentinel.Common/**` | `Invoke-Pester -Path Tests/Test-SentinelCommon.Tests.ps1` |
-   | `Scripts/**/*.ps1` | The matching `Tests/Test-<ScriptName>.Tests.ps1` |
+   | `Deploy/**/*.ps1, Tools/**/*.ps1` | The matching `Tests/Test-<ScriptName>.Tests.ps1` |
    | Anything affecting KQL embedded in content | Plus `Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1` |
 
 5. **Regenerate the dep manifest if you changed any KQL.** Editing
    a query body (or adding a watchlist reference, externaldata URL,
    or new table reference) means:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
    Stage `dependencies.json` with your edit.
 

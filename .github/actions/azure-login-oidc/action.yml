@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Composite Action: Azure OIDC Login
 # ---------------------------------------------------------------------------
-# Wraps Azure/login@v2 with the Sentinel-As-Code OIDC parameter set so call
+# Wraps Azure/login@v3 with the Sentinel-As-Code OIDC parameter set so call
 # sites are a single line instead of a six-line block. Replaces the
 # duplicated login step pattern across pr-validation.yml, sentinel-deploy.yml,
 # sentinel-drift-detect.yml, and sentinel-dcr-inventory.yml.
@@ -57,7 +57,7 @@ runs:
   using: composite
   steps:
     - name: Azure login (OIDC)
-      uses: Azure/login@v2
+      uses: Azure/login@v3
       with:
         client-id: ${{ inputs.client-id }}
         tenant-id: ${{ inputs.tenant-id }}

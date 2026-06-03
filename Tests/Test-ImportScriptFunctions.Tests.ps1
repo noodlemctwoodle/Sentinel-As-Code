@@ -9,7 +9,7 @@
     A regression in the helper would break every script-test suite at
     once. These tests pin the contract using a synthetic source script
     written into $TestDrive, plus one real-repo round-trip against
-    Scripts/Test-SentinelRuleDrift.ps1 to confirm the helper works on
+    Tools/Test-SentinelRuleDrift.ps1 to confirm the helper works on
     the original reference suite's source.
 #>
 
@@ -75,7 +75,7 @@ throw "If you see this, Import-ScriptFunctions executed top-level code."
 
 Describe 'Import-ScriptFunctions: real repo round-trip' {
     BeforeAll {
-        $script:realScript = Join-Path (Split-Path -Parent $PSScriptRoot) 'Scripts/Test-SentinelRuleDrift.ps1'
+        $script:realScript = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/Test-SentinelRuleDrift.ps1'
     }
 
     It 'does not throw when invoked against the real script' {

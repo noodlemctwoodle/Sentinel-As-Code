@@ -4,7 +4,7 @@
 
 Summary rules are an Azure Monitor (Log Analytics) feature that execute scheduled batch KQL queries and write aggregated results into a custom `_CL` destination table. They run automatically on a fixed time cadence called a **bin**, processing all data that arrived within each bin's time window.
 
-Source files live under [`SummaryRules/`](../../SummaryRules/).
+Source files live under [`Content/SummaryRules/`](../../Content/SummaryRules/).
 
 ### Why Use Summary Rules?
 
@@ -28,10 +28,10 @@ PUT https://management.azure.com/subscriptions/{sub}/resourceGroups/{rg}/provide
 
 ## Folder Structure
 
-JSON files can be placed directly in `SummaryRules/` or organised into subfolders by data source, use case, or team. The deployment script discovers all `*.json` files recursively.
+JSON files can be placed directly in `Content/SummaryRules/` or organised into subfolders by data source, use case, or team. The deployment script discovers all `*.json` files recursively.
 
 ```
-SummaryRules/
+Content/SummaryRules/
 ├── SignInSummaryByCountry.json
 ├── SecurityAlertSummary.json
 ├── Identity/
@@ -156,7 +156,7 @@ The following columns are automatically appended to every row written to the des
 
 ## Prerequisites
 
-The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](../Deployment/Pipelines.md) for end-to-end pipeline RBAC.
+The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](../Deploy/Pipelines.md) for end-to-end pipeline RBAC.
 
 ---
 
@@ -176,7 +176,7 @@ the repo-wide
 [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
 plus the cross-cutting
 [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
-(loaded automatically when editing `SummaryRules/**/*.json`) cover
+(loaded automatically when editing `Content/SummaryRules/**/*.json`) cover
 the conventions.
 
 Copilot tooling for summary rules:

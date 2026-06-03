@@ -32,15 +32,15 @@ the user can act on (typically via hand-off to `content-editor`,
 
 ## Read first
 
-- [`Docs/Deployment/Pipelines.md#prerequisites`](../../Docs/Deployment/Pipelines.md) —
+- [`Docs/Deploy/Pipelines.md#prerequisites`](../../Docs/Deploy/Pipelines.md) —
   the role table the deploy SP carries.
-- [`Docs/Deployment/Scripts.md#setup-serviceprincipalps1`](../../Docs/Deployment/Scripts.md) —
+- [`Docs/Deploy/Scripts.md#setup-serviceprincipalps1`](../../Docs/Deploy/Scripts.md) —
   what `Setup-ServicePrincipal.ps1` actually grants (Contributor +
   ABAC-conditioned UAA + Security Administrator + Graph
   CustomDetection.ReadWrite.All).
-- [`Docs/Deployment/Scripts.md#set-playbookpermissionsps1`](../../Docs/Deployment/Scripts.md) —
+- [`Docs/Deploy/Scripts.md#set-playbookpermissionsps1`](../../Docs/Deploy/Scripts.md) —
   the post-deploy role mapping for playbook MSIs.
-- [`Docs/Deployment/PR-Validation-Setup.md`](../../Docs/Deployment/PR-Validation-Setup.md) —
+- [`Docs/Deploy/PR-Validation-Setup.md`](../../Docs/Deploy/PR-Validation-Setup.md) —
   federated credential setup.
 
 ## Review checklists

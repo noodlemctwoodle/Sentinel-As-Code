@@ -1,13 +1,13 @@
 ---
 name: Hunting queries
-description: Schema and authoring rules for HuntingQueries/**/*.yaml files.
-applyTo: "HuntingQueries/**/*.yaml"
+description: Schema and authoring rules for Content/HuntingQueries/**/*.yaml files.
+applyTo: "Content/HuntingQueries/**/*.yaml"
 ---
 
 # Hunting query authoring
 
 Saved searches that surface in the Sentinel Hunting blade. Loaded
-automatically when editing any file under `HuntingQueries/`. Full
+automatically when editing any file under `Content/HuntingQueries/`. Full
 schema in
 [`Docs/Content/Hunting-Queries.md`](../../Docs/Content/Hunting-Queries.md).
 
@@ -65,7 +65,7 @@ hunting query, not an analytical rule.
 
 1. Re-run the dep manifest:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 2. Run schema tests: `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1`
    (the same suite covers hunting queries).
