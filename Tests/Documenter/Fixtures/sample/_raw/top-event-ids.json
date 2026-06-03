@@ -1,0 +1,5 @@
+[
+  { "TableName": "SecurityEvent", "EventID": 4624, "EventDescription": "An account was successfully logged on", "BilledSizeGB": 18.234 },
+  { "TableName": "SecurityEvent", "EventID": 4688, "EventDescription": "A new process has been created",         "BilledSizeGB":  9.105 },
+  { "TableName": "Event",         "EventID": 1000, "EventDescription": "Application Error",                      "BilledSizeGB":  3.812 }
+]

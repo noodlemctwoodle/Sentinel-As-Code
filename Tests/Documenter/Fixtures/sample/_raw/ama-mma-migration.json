@@ -1,0 +1,5 @@
+[
+  { "MachineType": "Azure VM",            "MachineCount": 45, "MMACount": 5,  "AMACount": 42, "MigrationStatus": "In Progress" },
+  { "MachineType": "Arc-enabled",         "MachineCount": 12, "MMACount": 0,  "AMACount": 12, "MigrationStatus": "Completed"   },
+  { "MachineType": "Hybrid without Arc",  "MachineCount": 3,  "MMACount": 3,  "AMACount": 0,  "MigrationStatus": "Not Started" }
+]

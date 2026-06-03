@@ -1,0 +1,24 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/threatIntelligence/main/metrics/default",
+    "name": "default",
+    "kind": "metrics",
+    "properties": {
+      "lastUpdatedTimeUtc": "2026-05-13T20:45:32.0627007Z",
+      "threatTypeMetrics": [
+        { "metricName": "url",         "metricValue": 482 },
+        { "metricName": "ipv4-addr",   "metricValue": 1273 },
+        { "metricName": "domain-name", "metricValue": 215 }
+      ],
+      "patternTypeMetrics": [
+        { "metricName": "url",         "metricValue": 482 },
+        { "metricName": "ipv4-addr",   "metricValue": 1273 },
+        { "metricName": "domain-name", "metricValue": 215 }
+      ],
+      "sourceMetrics": [
+        { "metricName": "Microsoft Defender Threat Intelligence", "metricValue": 1700 },
+        { "metricName": "Open Source",                            "metricValue": 270 }
+      ]
+    }
+  }
+]
