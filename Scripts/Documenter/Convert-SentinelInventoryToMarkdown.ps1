@@ -10,7 +10,7 @@
     Markdown report under SecurityDocs/<workspace>/.
 
 .DESCRIPTION
-    Pure file-to-file transformation, no Azure dependency. Designed so the renderer can
+    Pure file-to-file transformation — no Azure dependency. Designed so the renderer can
     be exercised end-to-end by Pester fixtures without auth, and so a re-run produces the
     same output for the same input (idempotent).
 
@@ -51,7 +51,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Component:      Sentinel Documenter, Renderer
+    Component:      Sentinel Documenter — Renderer
     Last Updated:   2026-05-06
 #>
 
@@ -131,11 +131,11 @@ function Write-Section([string]$FileName, [string]$Body) {
     #   2. Bare `SENT-NNN` not already inside a Markdown link → wrap.
     # On 90-gap-analysis.md itself the target collapses to just the anchor
     # so internal links work (`[SENT-001](#sent-001)`). Existing links are
-    # preserved, the lookarounds skip anything already followed by `](`.
+    # preserved — the lookarounds skip anything already followed by `](`.
     $relTarget = if ($FileName -eq '90-gap-analysis.md') { '' } else { '90-gap-analysis.md' }
 
     # Walk the body line-by-line, tracking fenced-code state. Auto-link only
-    # outside fences, references inside ```mermaid / ```kusto / etc must
+    # outside fences — references inside ```mermaid / ```kusto / etc must
     # render literally (Mermaid `click` directives in 85-rbac use SENT-NNN
     # in their tooltips and break if rewritten).
     $sb = New-Object System.Text.StringBuilder
@@ -166,7 +166,7 @@ function Write-Section([string]$FileName, [string]$Body) {
 
 function Format-DateUtc {
     # Renders any datetime-ish input (string ISO, [datetime]) as
-    # `yyyy-MM-dd HH:mm`, locale-invariant, seconds dropped to reduce
+    # `yyyy-MM-dd HH:mm` — locale-invariant, seconds dropped to reduce
     # column width. Empty / null / unparseable inputs return ''.
     param($Value)
     if ($null -eq $Value) { return '' }
@@ -212,7 +212,7 @@ function Format-Banner {
 function Format-Table {
     <# Render an array of [pscustomobject] as a Markdown table. Headers come from -Columns.
        -Items is intentionally non-mandatory because callers commonly pipe empty arrays
-       through ForEach-Object, a null reaching this function is the empty case, not an
+       through ForEach-Object — a null reaching this function is the empty case, not an
        error. #>
     param(
         [Parameter(Mandatory = $false)] [AllowNull()] [object[]]$Items,
@@ -279,7 +279,7 @@ $enabledRules = @($rules | Where-Object { $_.properties.enabled -eq $true })
 $populatedTables = @($tablesWithData | Where-Object { [double]($_.BillableLast90d) -gt 0 })
 
 # Names of tables that have ever received data in the last 90d. Used to
-# scope reports to the operationally relevant subset, the workspace's
+# scope reports to the operationally relevant subset — the workspace's
 # table catalogue lists ~800 Microsoft-defined schemas regardless of
 # whether the customer has onboarded a source for them, so 'tables with
 # schema' is misleading on its own.
@@ -291,7 +291,7 @@ foreach ($t in $populatedTables) {
 # 'Operational' tables = Microsoft tables that have data, plus all
 # CustomLog tables (always intended to receive data, surface even when
 # silent). Excludes ~750 Microsoft pre-defined schemas the workspace
-# never received data for, those are catalogue, not deployment.
+# never received data for — those are catalogue, not deployment.
 $operationalTables = @($workspaceTables | Where-Object {
     $tt = $_.properties.schema.tableType
     ($tt -eq 'CustomLog') -or ($populatedTableNames.ContainsKey($_.name))
@@ -305,7 +305,7 @@ $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){
 # two hashtables consumed by sections 20 and 50:
 #   $rulesByWatchlistAlias   alias  -> @(rule display names)
 #   $watchlistsByRuleId      ruleId -> @(aliases)
-# Both quote styles and a forgiving whitespace pattern are accepted, 
+# Both quote styles and a forgiving whitespace pattern are accepted —
 # matches `_GetWatchlist("X")`, `_GetWatchlist('X')`, and `_GetWatchlist
 # (  "X"  )` with case-insensitive function-name match.
 $rulesByWatchlistAlias = @{}
@@ -340,7 +340,7 @@ foreach ($f in $gapFindings) {
 }
 
 $overviewBody = @"
-$(Format-Banner -Title "Microsoft Sentinel Workspace, Overview")
+$(Format-Banner -Title "Microsoft Sentinel Workspace — Overview")
 
 ## Findings at a glance
 
@@ -390,9 +390,9 @@ $(if ($cost) {
 
 $(if ($top5Findings.Count -gt 0) {
 ($top5Findings | ForEach-Object {
-    "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title), $($_.Evidence) [Learn]($($_.Learn))"
+    "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title) — $($_.Evidence) [Learn]($($_.Learn))"
 }) -join [Environment]::NewLine
-} else { '_No findings, clean run._' })
+} else { '_No findings — clean run._' })
 
 See the rest of this folder for deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md).
 "@
@@ -405,7 +405,7 @@ Write-Section '00-overview.md' $overviewBody
 # Classic connector resources are named by GUID and store per-data-type state
 # under properties.dataTypes.<typename>.state. The earlier rendering pulled
 # Name=$_.name (GUID) and State=$_.properties.connectorUiConfig.connectivityCriterias
-#, a CCF field that doesn't exist on the classic schema, so State was always
+# — a CCF field that doesn't exist on the classic schema, so State was always
 # blank. The fix below maps Kind to a friendly Title, aggregates per-data-type
 # state into a single overall state column, and lists the data-type names in
 # their own column.
@@ -525,7 +525,7 @@ foreach ($t in $tablesWithData) {
 function Get-ConnectorData7d {
     param([psobject]$Connector)
     # RestApiPoller / Push connectors write to a single table at
-    # properties.dataType. The table name itself is the join key, no
+    # properties.dataType. The table name itself is the join key — no
     # data-type-to-table mapping is needed.
     if ($Connector.kind -in @('RestApiPoller','Push')) {
         $tbl = $Connector.properties.dataType
@@ -655,11 +655,11 @@ $(Format-Table -Items $ccfRows -Columns 'Name','Title','Publisher')
 
 Modern Sentinel workspaces ingest most of their data through DCRs and diagnostic settings that don't register against the Sentinel ``dataConnectors`` endpoint. This table fuses every ingestion source the captured inventory can attribute, with precedence rules to avoid double-counting:
 
-1. **Classic**, a classic data-connector explicitly covers the target table.
-2. **CCF**, a Codeless Connector Framework definition. Listed by name; table claim depends on connector implementation.
-3. **DCR**, derived from each data flow's ``outputStream`` (Microsoft-/Custom- prefixes stripped). Skipped when the table is already classic-claimed.
-4. **Diagnostic**, derived from enabled diagnostic-setting log categories. Skipped when already claimed.
-5. **Active-table**, a remaining table receiving billable data (>0 GB in the last 24h) that no captured ingestion mechanism explains. Surfaces as a visibility signal.
+1. **Classic** — a classic data-connector explicitly covers the target table.
+2. **CCF** — a Codeless Connector Framework definition. Listed by name; table claim depends on connector implementation.
+3. **DCR** — derived from each data flow's ``outputStream`` (Microsoft-/Custom- prefixes stripped). Skipped when the table is already classic-claimed.
+4. **Diagnostic** — derived from enabled diagnostic-setting log categories. Skipped when already claimed.
+5. **Active-table** — a remaining table receiving billable data (>0 GB in the last 24h) that no captured ingestion mechanism explains. Surfaces as a visibility signal.
 
 See ``Docs/Operations/Sentinel-Documenter.md`` for the design note.
 
@@ -696,7 +696,7 @@ $schedDisabled = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and -not $_.
 $nrtEnabled    = @($rules | Where-Object { $_.kind -eq 'NRT' -and $_.properties.enabled }).Count
 $nrtDisabled   = @($rules | Where-Object { $_.kind -eq 'NRT' -and -not $_.properties.enabled }).Count
 
-# Mouldy rules, Scheduled / NRT rules enabled but last-modified > 1 year ago.
+# Mouldy rules — Scheduled / NRT rules enabled but last-modified > 1 year ago.
 $yearAgo = (Get-Date).ToUniversalTime().AddYears(-1)
 $mouldyRows = $rules | Where-Object {
     $_.kind -in @('Scheduled','NRT') -and
@@ -712,7 +712,7 @@ $mouldyRows = $rules | Where-Object {
     }
 }
 
-# MS Incident Creation rules, these aren't user-editable detection rules
+# MS Incident Creation rules — these aren't user-editable detection rules
 # in the usual sense; they translate first-party security alerts into
 # Sentinel incidents based on per-product filter criteria. Surface those
 # filter fields explicitly since they don't fit the standard row schema.
@@ -727,7 +727,7 @@ $msIncidentRows = $rules | Where-Object { $_.kind -eq 'MicrosoftSecurityIncident
     }
 }
 
-# Template mismatch, rules whose templateVersion does not match the latest
+# Template mismatch — rules whose templateVersion does not match the latest
 # template version. Look up the template by alertRuleTemplateName in the
 # captured alert-rule-templates.json.
 $alertRuleTemplates = Read-RawArray 'alert-rule-templates.json'
@@ -788,9 +788,9 @@ foreach ($c in $connectors) {
 }
 
 $correlationState = if ($fusionEnabled -and $m365DefenderConnected) {
-    '**Fusion enabled, Defender XDR connector enabled.** If this workspace is onboarded to the Microsoft Defender unified portal (USOP), Microsoft auto-disables Fusion regardless of the displayed state above and the Defender XDR Correlation Engine performs alert-to-incident correlation. Confirm by checking the workspace''s onboarding state in the Defender portal, if onboarded, treat the displayed Fusion state as informational only.'
+    '**Fusion enabled, Defender XDR connector enabled.** If this workspace is onboarded to the Microsoft Defender unified portal (USOP), Microsoft auto-disables Fusion regardless of the displayed state above and the Defender XDR Correlation Engine performs alert-to-incident correlation. Confirm by checking the workspace''s onboarding state in the Defender portal — if onboarded, treat the displayed Fusion state as informational only.'
 } elseif ((-not $fusionEnabled) -and $m365DefenderConnected) {
-    '**Fusion disabled, Defender XDR connector enabled.** This workspace is using the **Defender XDR Correlation Engine** for alert-to-incident correlation. Microsoft auto-disables the Fusion rule on workspaces onboarded to the Defender unified portal, Defender XDR''s correlation replaces it.'
+    '**Fusion disabled, Defender XDR connector enabled.** This workspace is using the **Defender XDR Correlation Engine** for alert-to-incident correlation. Microsoft auto-disables the Fusion rule on workspaces onboarded to the Defender unified portal — Defender XDR''s correlation replaces it.'
 } elseif ($fusionEnabled -and (-not $m365DefenderConnected)) {
     '**Fusion enabled, no Defender XDR connector.** Fusion is performing multi-source ML-based incident correlation across Sentinel data sources. Onboarding the workspace to the Defender unified portal would auto-disable Fusion and hand correlation to Defender XDR.'
 } elseif ($fusionPresent -and -not $fusionEnabled -and -not $m365DefenderConnected) {
@@ -804,7 +804,7 @@ $(Format-Banner -Title "Analytics Rules")
 
 ## Rule taxonomy
 
-Sentinel's ``alertRules`` API surfaces five kinds of detection logic under a single base. The class diagram documents the polymorphism, useful when later sections refer to "MS Incident Creation rules" because those rules have a completely different shape from Scheduled:
+Sentinel's ``alertRules`` API surfaces five kinds of detection logic under a single base. The class diagram documents the polymorphism — useful when later sections refer to "MS Incident Creation rules" because those rules have a completely different shape from Scheduled:
 
 ``````mermaid
 classDiagram
@@ -874,13 +874,13 @@ $correlationState
 
 $(Format-Table -Items $ruleRows -Columns 'Kind','Name','Severity','Enabled','Tactics')
 
-## Mouldy rules, enabled but last modified over a year ago
+## Mouldy rules — enabled but last modified over a year ago
 
 Rules in this table are still firing but haven't been reviewed in over twelve months. Stale thresholds, deprecated KQL operators, and dropped data sources are all common causes. Each row is a candidate for explicit re-review or retirement.
 
 $(Format-Table -Items $mouldyRows -Columns 'Name','Kind','Severity','LastModified')
 
-## Template mismatch, rules behind their latest template version
+## Template mismatch — rules behind their latest template version
 
 Rules where the deployed ``templateVersion`` is older than the version available in the Content Hub catalogue. Update via the rule's "Update from template" action in the portal, or re-deploy from the matching repo YAML.
 
@@ -906,7 +906,7 @@ Write-Section '20-analytics-rules.md' $rulesBody
 #   techniques[] { id, name, tactics (kebab), tacticsSentinel (PascalCase),
 #                  isSubtechnique, parentId, url, platforms, dataSources }
 # The renderer joins each rule's `properties.techniques` against the
-# catalogue so cells show "T1078, Valid Accounts" rather than a bare ID.
+# catalogue so cells show "T1078 — Valid Accounts" rather than a bare ID.
 $mitreFile = Join-Path $ResourcesRoot 'mitre-attack.json'
 $tactics = @()
 $mitreTechniques = @()
@@ -918,7 +918,7 @@ if (Test-Path $mitreFile) {
 
 # Build a technique-id -> name lookup so every render path resolves names
 # consistently. Sub-techniques also get their parent's name prefixed in a
-# separate fullName lookup so a row reading "T1078.004, Cloud Accounts" can
+# separate fullName lookup so a row reading "T1078.004 — Cloud Accounts" can
 # fall back to "Valid Accounts: Cloud Accounts" when richer context helps.
 $techNameById = @{}
 $techFullNameById = @{}
@@ -936,7 +936,7 @@ function Format-MitreTechniqueCell {
     $name = $techNameById[$Id]
     $urlId = if ($Sub) { $Id.Replace('.', '/') } else { $Id }
     if ($name) {
-        return "[$Id, $name](https://attack.mitre.org/techniques/$urlId/)"
+        return "[$Id — $name](https://attack.mitre.org/techniques/$urlId/)"
     }
     return "[$Id](https://attack.mitre.org/techniques/$urlId/)"
 }
@@ -968,7 +968,7 @@ $mitreRows = foreach ($t in $tactics) {
 # T1078.001). The catalogue lookup above resolves IDs to names for display.
 $mitreHierarchy = @{}
 foreach ($r in $enabledRules) {
-    # Filter out $null entries, many rule kinds (Fusion, MicrosoftSecurityIncidentCreation
+    # Filter out $null entries — many rule kinds (Fusion, MicrosoftSecurityIncidentCreation
     # etc.) carry no `techniques` array at all, which arrives as $null and would
     # poison the dictionary key lookup.
     $rTactics    = @($r.properties.tactics    | Where-Object { $_ })
@@ -1062,7 +1062,7 @@ $(Format-Banner -Title "MITRE ATT&CK Coverage")
 
 Coverage is derived from the ``tactics`` and ``techniques`` arrays on every **enabled** Sentinel detection rule. Rules that carry sub-technique IDs (e.g. ``T1078.001``) contribute to both the parent technique and the sub-technique counts. Every ID in the breakdown below links to its canonical entry on attack.mitre.org.
 
-## Coverage shape, rules per tactic
+## Coverage shape — rules per tactic
 
 ``````mermaid
 ---
@@ -1092,7 +1092,7 @@ $($detailSections.ToString())
 Write-Section '25-mitre-coverage.md' $mitreBody
 
 # ---------------------------------------------------------------------------
-# Section: 30 / 35, hunting & parsers
+# Section: 30 / 35 — hunting & parsers
 # ---------------------------------------------------------------------------
 $hunting = Read-RawArray 'hunting-queries.json'
 $parsers = Read-RawArray 'parsers-functions.json'
@@ -1228,7 +1228,7 @@ $wlRows = $watchlists | ForEach-Object {
 }
 
 # Detailed rule-by-watchlist mapping rendered as a separate subsection.
-# Orphan watchlists (zero rule references) are surfaced explicitly, 
+# Orphan watchlists (zero rule references) are surfaced explicitly —
 # they may still be used by hunting queries, workbooks, or analyst
 # KQL, but the absence of any analytics-rule reference is a useful
 # signal that the watchlist might be stale.
@@ -1245,7 +1245,7 @@ foreach ($wl in $watchlists) {
 }
 
 # Watchlist aliases referenced by rules but NOT present in the captured
-# watchlist set. These are 'broken' references, the rule queries will
+# watchlist set. These are 'broken' references — the rule queries will
 # fail at runtime. Surfaced as a separate subsection only when present.
 $wlAliasSet = @{}
 foreach ($wl in $watchlists) {
@@ -1265,7 +1265,7 @@ foreach ($alias in $rulesByWatchlistAlias.Keys) {
 
 # Watchlists by provider for the headline pie (was "by source", but the
 # source field is just the seed filename so all rows have a different
-# value, useless as a pie distribution). Provider groups by who
+# value — useless as a pie distribution). Provider groups by who
 # manages the watchlist (Microsoft vs first-party customer content).
 $wlByProvider = @{}
 foreach ($w in $wlRows) {
@@ -1277,7 +1277,7 @@ $wlPieRows = $wlByProvider.GetEnumerator() | Sort-Object Value -Descending | For
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
-# Pie only when 2+ provider buckets, single-slice pies are uninformative.
+# Pie only when 2+ provider buckets — single-slice pies are uninformative.
 $wlChartBlock = if ($wlRows.Count -gt 0 -and $wlByProvider.Count -ge 2) {
     @"
 
@@ -1295,7 +1295,7 @@ $brokenRefsBlock = if ($brokenWatchlistRefs.Count -gt 0) { @"
 
 ## Broken watchlist references
 
-Analytics rule(s) reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime, investigate whether the watchlist was deleted or the alias is mistyped.
+Analytics rule(s) reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime — investigate whether the watchlist was deleted or the alias is mistyped.
 
 $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','Rules')
 "@ } else { '' }
@@ -1303,13 +1303,13 @@ $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
-**$($wlRows.Count) watchlist(s)** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function, use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run. Item bodies are not captured by the documenter; the source-of-truth for watchlist contents is the IaC repository (``Watchlists/*.csv``).
+**$($wlRows.Count) watchlist(s)** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run. Item bodies are not captured by the documenter; the source-of-truth for watchlist contents is the IaC repository (``Watchlists/*.csv``).
 
 $(Format-Table -Items $wlRows -Columns 'Name','Provider','UsedByRules','ItemsSearchKey','Source','Updated','Description')
 
 ## Used by analytics rules
 
-Cross-reference of every captured watchlist against every Scheduled / NRT analytics rule's KQL ``query`` field. Each row lists the rules that call ``_GetWatchlist("<alias>")`` against this watchlist. A "_(no analytics rule references)_" row doesn't necessarily mean the watchlist is orphaned, hunting queries, workbooks, and ad-hoc KQL aren't scanned, but no rule reference is a useful signal that the watchlist may be stale.
+Cross-reference of every captured watchlist against every Scheduled / NRT analytics rule's KQL ``query`` field. Each row lists the rules that call ``_GetWatchlist("<alias>")`` against this watchlist. A "_(no analytics rule references)_" row doesn't necessarily mean the watchlist is orphaned — hunting queries, workbooks, and ad-hoc KQL aren't scanned — but no rule reference is a useful signal that the watchlist may be stale.
 
 $(Format-Table -Items $wlUsageRows -Columns 'Alias','RuleCount','Rules')
 $brokenRefsBlock
@@ -1325,7 +1325,7 @@ $playbooks = Read-RawArray 'playbooks.json'
 $miAssignments = Read-RawArray 'rbac-playbook-mi.json'
 # Note on schema: the Microsoft.Logic/workflows ?api-version=2016-06-01 list
 # response returns PascalCase properties at the top level (Name, State,
-# Version, ProvisioningState, Definition, etc.), NOT the nested
+# Version, ProvisioningState, Definition, etc.) — NOT the nested
 # `{ properties: { state, ... } }` shape the docs imply. Defensive lookups
 # below try both paths so the renderer works against the live API response
 # AND against fixtures shaped to the documented schema.
@@ -1358,9 +1358,9 @@ $(Format-Banner -Title "Automation Rules and Playbooks")
 
 **$autoCount automation rule(s) · $pbCount playbook(s)** on this workspace.
 
-## Alert-to-response chain, target shape
+## Alert-to-response chain — target shape
 
-The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this, gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SENT-034], missing step 9's MI role = [SENT-011], missing step 11's analyst ack = [SENT-030].
+The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this — gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SENT-034], missing step 9's MI role = [SENT-011], missing step 11's analyst ack = [SENT-030].
 
 ``````mermaid
 sequenceDiagram
@@ -1465,7 +1465,7 @@ $(Format-Table -Items $repoRows -Columns 'Name','Type','Url')
 "@)
 
 # ---------------------------------------------------------------------------
-# Section: 80, workspace
+# Section: 80 — workspace
 # ---------------------------------------------------------------------------
 $features = $workspace.properties.features
 $wsCreated = $workspace.properties.createdDate
@@ -1473,7 +1473,7 @@ $wsAgeDays = if ($wsCreated) {
     [int]([math]::Floor(((Get-Date).ToUniversalTime() - [datetime]$wsCreated).TotalDays))
 } else { $null }
 $wsAgeWarning = if ($null -ne $wsAgeDays -and $wsAgeDays -lt 28) {
-    ", _Workspace is less than 28 days old; some metrics derived from 7-day and 30-day KQL windows may be incomplete._"
+    " — _Workspace is less than 28 days old; some metrics derived from 7-day and 30-day KQL windows may be incomplete._"
 } else { '' }
 $wsDefaultDcr = $null
 if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollectionRuleResourceId') {
@@ -1481,17 +1481,17 @@ if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollect
 }
 # Timeline-line dates. wsCreatedShort = yyyy-MM-dd for the workspace
 # creation event in the timeline diagram. Format-DateUtc returns
-# "yyyy-MM-dd HH:mm", the timeline expects just date so we split on space.
+# "yyyy-MM-dd HH:mm" — the timeline expects just date so we split on space.
 $wsCreatedShort = if ($wsCreated) { (Format-DateUtc $wsCreated).Split(' ')[0] } else { 'unknown' }
 $todayShort = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
 
 # Build the workspace + platform history timeline as a sorted list.
-# Mermaid `timeline` renders entries in source order, without an
+# Mermaid `timeline` renders entries in source order — without an
 # explicit chronological sort the entries appeared in the order they
 # were declared in the heredoc, not by date. Each entry is a hashtable
 # with Date (yyyy-MM-dd) and Lines (one or more colon-suffixed strings).
 # Platform deprecation events pre-dating the workspace's creation are
-# filtered out, they're irrelevant historical context for a new
+# filtered out — they're irrelevant historical context for a new
 # workspace (e.g. a 2026-created workspace doesn't need an MMA-retired
 # bullet from 2024).
 $timelineEvents = @()
@@ -1507,7 +1507,7 @@ $timelineEvents += [pscustomobject]@{ Date = '2025-02-01'; Lines = @('MMA ingest
 $timelineEvents += [pscustomobject]@{ Date = '2025-07-31'; Lines = @('Legacy ThreatIntelligenceIndicator ingestion stopped') }
 # Tables-in-use: operational subset (tables that have received billable
 # data in 90 days, plus CustomLog tables). The 800+ Microsoft-defined
-# schemas the workspace never ingested are catalogue, not deployment, 
+# schemas the workspace never ingested are catalogue, not deployment —
 # surfaced as a separate number to avoid misreading "836 tables in
 # catalogue" as "836 tables in use".
 $timelineEvents += [pscustomobject]@{
@@ -1517,7 +1517,7 @@ $timelineEvents += [pscustomobject]@{
         "$($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($operationalTables.Count) tables receiving data ($($workspaceTables.Count) in catalogue)"
     )
 }
-$timelineEvents += [pscustomobject]@{ Date = '2026-09-14'; Lines = @('HTTP Data Collector API retires, verify no _CL tables affected') }
+$timelineEvents += [pscustomobject]@{ Date = '2026-09-14'; Lines = @('HTTP Data Collector API retires — verify no _CL tables affected') }
 $timelineEvents += [pscustomobject]@{ Date = '2027-03-31'; Lines = @('Sentinel Azure portal retires (forced Defender XDR move)') }
 
 if ($wsCreatedShort -ne 'unknown') {
@@ -1541,7 +1541,7 @@ $(Format-Banner -Title "Workspace Inventory")
 
 ``````mermaid
 timeline
-    title Workspace history, $WorkspaceName
+    title Workspace history — $WorkspaceName
 $timelineBody
 ``````
 
@@ -1607,7 +1607,7 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 | enableLogAccessUsingOnlyResourcePermissions | $(Format-FeatureFlag $features 'enableLogAccessUsingOnlyResourcePermissions') |
 | enableDataExport | $(Format-FeatureFlag $features 'enableDataExport') |
 | immediatePurgeDataOn30Days | $(Format-FeatureFlag $features 'immediatePurgeDataOn30Days') |
-| clusterResourceId | $(if ($features -and $features.PSObject.Properties.Name -contains 'clusterResourceId' -and $features.clusterResourceId) { "``$($features.clusterResourceId)``, see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
+| clusterResourceId | $(if ($features -and $features.PSObject.Properties.Name -contains 'clusterResourceId' -and $features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
 
 ## Resource locks
 
@@ -1624,7 +1624,7 @@ A non-empty list of locks here is a deletion-protection signal. ``CanNotDelete``
 Write-Section '80-workspace.md' $wsBody
 
 # ---------------------------------------------------------------------------
-# Section: 81, table plans + retention
+# Section: 81 — table plans + retention
 # ---------------------------------------------------------------------------
 $tableSchemaByName = @{}
 foreach ($t in $workspaceTables) { $tableSchemaByName[$t.name] = $t }
@@ -1651,7 +1651,7 @@ $tableRows = foreach ($t in $operationalTables) {
 
 $active  = @($tableRows | Where-Object { $_.Last24h })
 $silent  = @($tableRows | Where-Object {
-    # Had data in 90d window (LastIngested set) but nothing in last 24h, 
+    # Had data in 90d window (LastIngested set) but nothing in last 24h —
     # likely connector breakage. Excludes orphan custom tables that never
     # received data.
     -not $_.Last24h -and $_.LastIngested
@@ -1670,7 +1670,7 @@ $gbByPlan = $tableRows | Group-Object Plan | ForEach-Object {
     }
 }
 
-# Catalogue summary, Microsoft pre-defined tables that never received
+# Catalogue summary — Microsoft pre-defined tables that never received
 # data. Most workspaces carry hundreds of these; surface the count and a
 # short head sample rather than dumping every name.
 $catalogueOnly = @($workspaceTables | Where-Object {
@@ -1701,7 +1701,7 @@ pie showData title Operational tables by plan
 
 [SENT-016] flags high-volume Analytics tables that could move to Basic / Auxiliary for cost savings; this chart shows the current tier distribution at a glance.
 
-The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it, typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
+The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it — typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
 
 | | |
 |---|---:|
@@ -1723,11 +1723,11 @@ Total: **$($active.Count)** table(s).
 
 ## Silent (had data in 90d, nothing in last 24h)
 
-Total: **$($silent.Count)** table(s), likely connector breakage.
+Total: **$($silent.Count)** table(s) — likely connector breakage.
 
 ## Orphan custom tables (no data in 90d)
 
-Total: **$($orphans.Count)** custom ``_CL`` table(s), delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
+Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
 
 ## Catalogue-only Microsoft schemas
 
@@ -1747,7 +1747,7 @@ $( $nonDefaultRows = @($tableRows | Where-Object {
 Write-Section '81-table-plans-retention.md' $tablePlansBody
 
 # ---------------------------------------------------------------------------
-# Section: 82, dedicated cluster
+# Section: 82 — dedicated cluster
 # ---------------------------------------------------------------------------
 $cluster = Read-Raw 'dedicated-cluster.json'
 if ($cluster) {
@@ -1779,7 +1779,7 @@ For workspaces sustaining > 500 GB/day, [a dedicated cluster](https://learn.micr
 }
 
 # ---------------------------------------------------------------------------
-# Section: 83, data collection
+# Section: 83 — data collection
 # ---------------------------------------------------------------------------
 $dces = Read-RawArray 'dces.json'
 
@@ -1787,7 +1787,7 @@ $dces = Read-RawArray 'dces.json'
 # workspace) and out-of-scope (targeting other workspaces in the same
 # subscription). The exporter captures DCRs at subscription scope, so
 # without this filter a workspace's report lists every DCR the
-# executing identity can see, even ones that have nothing to do with
+# executing identity can see — even ones that have nothing to do with
 # this workspace, which is confusing.
 function _DcrTargetsWorkspace {
     param($Dcr, [string]$WorkspaceId)
@@ -1837,7 +1837,7 @@ $dcrOutOfScopeRows = $dcrsOutOfScope | ForEach-Object {
 $dceRows = $dces | ForEach-Object {
     [pscustomobject]@{ Name = $_.name; Location = $_.location }
 }
-# Topology flowchart, sourced from the synthesised $effective view
+# Topology flowchart — sourced from the synthesised $effective view
 # rather than $connectors alone, so DCR-driven and diagnostic-settings-
 # driven ingestion (the bulk of any modern workspace) appears too.
 # Tables are grouped into source buckets via the same name-matching
@@ -1895,7 +1895,7 @@ $srcLines = foreach ($b in $displayBuckets) {
     $shortId = "S$srcIdx"
     $sourceEdges += "    $shortId --> WS"
     $label = if ($b.Count -gt 1) { "$($b.Name) · $($b.Count)" } else { $b.Name }
-    # Wrap label in double quotes, Mermaid flowchart treats `(` as a
+    # Wrap label in double quotes — Mermaid flowchart treats `(` as a
     # node-shape directive, so unquoted labels containing parens parse-
     # error with "Expecting SQE/PE/STADIUMEND etc.".
     "    $shortId[`"$label`"]"
@@ -1906,22 +1906,22 @@ if ($overflowBuckets.Count -gt 0) {
 }
 
 # Workspace-side node selection. Each cell renders only when the
-# underlying capture supports it, a workspace with no Sentinel Data
+# underlying capture supports it — a workspace with no Sentinel Data
 # Lake should NOT show the Data Lake node, and a workspace with no
 # Basic/Auxiliary tables should NOT show those plan nodes either.
 #
 # Data Lake detection signals (primary first):
-#   (a) sentinel-data-lake.json, captures the
+#   (a) sentinel-data-lake.json — captures the
 #       Microsoft.SentinelPlatformServices/sentinelPlatformServices
 #       resource (the tenant-wide Sentinel Data Lake provisioning),
 #       resolved via Resource Graph. Non-empty array == Lake exists
 #       in the tenant. Authoritative.
-#   (b) workspace.properties.features.unifiedSentinelBillingOnly, 
+#   (b) workspace.properties.features.unifiedSentinelBillingOnly —
 #       workspace-level flag set when the workspace is onboarded to
 #       the unified Sentinel/Defender billing model. Necessary but
 #       not strictly sufficient for Lake (Lake also needs the
 #       platform-services resource), so kept as a secondary check.
-#   (c) Any workspace table on the 'DataLake' plan, confirms data is
+#   (c) Any workspace table on the 'DataLake' plan — confirms data is
 #       actively routed to the Lake-only tier.
 $sentinelDataLake = Read-RawArray 'sentinel-data-lake.json'
 $unifiedBilling = $false
@@ -1952,7 +1952,7 @@ if ($hasAuxiliary) { $wspNodes += '        AUX[Auxiliary plan tables]'; $wspEdge
 if ($hasDataLake)  { $wspNodes += '        DL[(Sentinel Data Lake)]';   $wspEdges += '    WS --> DL' }
 if ($hasArchive)   { $wspNodes += "        ARC[(Long-term archive · $archiveTables tables)]"; $wspEdges += '    WS --> ARC' }
 
-# Downstream, render only the destinations the capture supports.
+# Downstream — render only the destinations the capture supports.
 $dataExports = Read-RawArray 'data-exports.json'
 $dataExportCount = @($dataExports).Count
 $hasPlaybooks = @($playbooks).Count -gt 0
@@ -1971,7 +1971,7 @@ if ($dataExportCount -gt 0) {
     $dstNodes += "        EXP[Data export · $dataExportCount destination(s)]"
     $dstEdges += '    WS --> EXP'
 }
-# Always-on destination, workbooks consume workspace data regardless
+# Always-on destination — workbooks consume workspace data regardless
 # of incidents. Surface it so the topology shows the reporting flow.
 if (@($workbooksSaved).Count -gt 0) {
     $dstNodes += "        WB[Workbooks · $(@($workbooksSaved).Count)]"
@@ -1988,7 +1988,7 @@ $(Format-Banner -Title "Data Collection Rules and Endpoints")
 
 ## Workspace topology
 
-Every captured ingestion source appears on the left, grouped into product-family buckets (the count after the bucket name is the number of distinct sources contributing). Workspace-side and downstream nodes only render when the underlying state supports them, a workspace with no Data Lake won't show a Data Lake node; the Defender XDR portal only appears when the M365 Defender connector is enabled.
+Every captured ingestion source appears on the left, grouped into product-family buckets (the count after the bucket name is the number of distinct sources contributing). Workspace-side and downstream nodes only render when the underlying state supports them — a workspace with no Data Lake won't show a Data Lake node; the Defender XDR portal only appears when the M365 Defender connector is enabled.
 
 ``````mermaid
 flowchart LR
@@ -2030,7 +2030,7 @@ $(if ($dcrOutOfScopeRows.Count -gt 0) { @"
 
 ## Other DCRs in subscription (targeting different workspaces)
 
-These DCRs were captured at subscription scope but their LA destinations point at workspaces other than ``$WorkspaceName``. Useful for cleanup audits (orphaned DCRs from decommissioned workspaces, mis-routed DCRs after a workspace migration, etc.), not relevant to this workspace's ingestion.
+These DCRs were captured at subscription scope but their LA destinations point at workspaces other than ``$WorkspaceName``. Useful for cleanup audits (orphaned DCRs from decommissioned workspaces, mis-routed DCRs after a workspace migration, etc.) — not relevant to this workspace's ingestion.
 
 $(Format-Table -Items $dcrOutOfScopeRows -Columns 'Name','Kind','TargetsWs')
 "@ })
@@ -2044,7 +2044,7 @@ $(Format-Table -Items $dceRows -Columns 'Name','Location')
 Write-Section '83-data-collection.md' $dcBody
 
 # ---------------------------------------------------------------------------
-# Section: 84, cost estimate
+# Section: 84 — cost estimate
 # ---------------------------------------------------------------------------
 $costBody = if (-not $cost) { @"
 $(Format-Banner -Title "Estimated Monthly Cost")
@@ -2056,7 +2056,7 @@ $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
 }
 
 # ---------------------------------------------------------------------
-# Sankey prep, computed outside the heredoc so $sankeyFlowText and
+# Sankey prep — computed outside the heredoc so $sankeyFlowText and
 # $sankeyHeight can be interpolated, and the long-tail collapse logic
 # is testable in isolation.
 # ---------------------------------------------------------------------
@@ -2105,7 +2105,7 @@ foreach ($t in $allTables) {
 
 # Decide which tables keep their own middle-column node. On a busy
 # workspace with ~80+ tables the Sankey middle column becomes an
-# unreadable wall, fix by collapsing the cost-insignificant tail into
+# unreadable wall — fix by collapsing the cost-insignificant tail into
 # per-source bucket nodes. Rule: tables in the top 90% of billable GB
 # stay individual; the remainder collapse to "<source> tail (N)".
 # Workspaces with ≤25 tables skip the collapse entirely.
@@ -2124,7 +2124,7 @@ if ($sorted.Count -le 25 -or $totalGb -le 0) {
     }
 }
 
-# Promote single-occupant tail sources, a bucket of one is uglier than
+# Promote single-occupant tail sources — a bucket of one is uglier than
 # just showing the table.
 $tailCount = @{}
 foreach ($r in $flowFiltered) {
@@ -2175,7 +2175,7 @@ foreach ($k in $byTableTier.Keys) {
 }
 $sankeyFlowText = $flowRowsList -join [Environment]::NewLine
 
-# Dynamic height, Mermaid sankey-beta crams labels when nodes exceed
+# Dynamic height — Mermaid sankey-beta crams labels when nodes exceed
 # the configured height. Scale with the middle-column count (the wide
 # axis) and the source-column count, whichever's larger.
 $middleNodeCount = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[1] }) | Sort-Object -Unique).Count
@@ -2183,7 +2183,7 @@ $sourceCount     = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[
 $tallestColumn   = [Math]::Max($middleNodeCount, $sourceCount)
 $sankeyHeight    = [Math]::Max(720, 24 * $tallestColumn + 200)
 
-# Disclosure line used in the section narrative, accurate whether the
+# Disclosure line used in the section narrative — accurate whether the
 # long-tail collapse fired or not.
 $sankeyTailNote = if ($flowFiltered.Count -gt $middleNodeCount) {
     $tailTables = $flowFiltered.Count - ($keepIndividual.Keys.Count)
@@ -2222,17 +2222,17 @@ Long-tail concentration: the loudest table is always the right first cost-optimi
 
 $(Format-Table -Items $cost.Top10TablesByCost -Columns 'Table','Plan','Gb30d','MonthlyCost')
 
-## Cost concentration, mindmap
+## Cost concentration — mindmap
 
 ``````mermaid
 mindmap
     root((30-day billable<br/>$([math]::Round([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Sum).Sum, 2)) GB))
 $(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
-    # Two-line label, Mermaid mindmap nodes have a tight horizontal
+    # Two-line label — Mermaid mindmap nodes have a tight horizontal
     # fit-to-text bound that clips long single-line labels. Stacking
     # the table name above the GB value keeps both fully visible.
     # Round-to-significance: ≥100 GB no decimals, ≥10 GB one decimal,
-    # below that two, strips the noisy ".42" tails that contributed
+    # below that two — strips the noisy ".42" tails that contributed
     # to the overflow without losing information for small tables.
     $gb = [double]$_.Gb30d
     $gbLabel = if ($gb -ge 100) {
@@ -2246,9 +2246,9 @@ $(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
 }) -join [Environment]::NewLine)
 ``````
 
-Tree view of where the chargeable footprint lands. Pair with the top-tables bar above, same data, different shape, easier scan for "is one source dominating?".
+Tree view of where the chargeable footprint lands. Pair with the top-tables bar above — same data, different shape, easier scan for "is one source dominating?".
 
-## Cost flow, source → table → billing tier
+## Cost flow — source → table → billing tier
 
 ``````mermaid
 ---
@@ -2269,9 +2269,9 @@ $sankeyFlowText
 
 Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.$sankeyTailNote
 
-## Cost flow, table → billing tier (compact view)
+## Cost flow — table → billing tier (compact view)
 
-Top-10 cost-bearing tables routed to their billing tier. Sentinel-rate covers tables on the Analytics plan; LA-rate covers Basic / Auxiliary. Billing-tier nodes only render when at least one table routes to them, a workspace with no LA-rate tables won't display an LA-rate node.
+Top-10 cost-bearing tables routed to their billing tier. Sentinel-rate covers tables on the Analytics plan; LA-rate covers Basic / Auxiliary. Billing-tier nodes only render when at least one table routes to them — a workspace with no LA-rate tables won't display an LA-rate node.
 
 $(
 $compactSource = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
@@ -2313,7 +2313,7 @@ $($compactClasses -join [Environment]::NewLine)
 
 $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
     Format-Table -Items $cost.CommitmentTierWhatIf -Columns 'Rung','ProjectedMonthlyCost','DeltaVsCurrent'
-} else { '_Workspace not on PerGB2018, or daily ingest below the lowest commitment rung, no projection produced._' })
+} else { '_Workspace not on PerGB2018, or daily ingest below the lowest commitment rung — no projection produced._' })
 
 ## Methodology (v$($cost.MethodologyVersion))
 
@@ -2321,10 +2321,10 @@ $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
 2. Plan attribution: each table's current `plan` decides which meter applies (Analytics / Basic / Auxiliary / DataLake).
 3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time.
 4. Sentinel free benefit: tables in `Private/Resources/sentinel-benefit-tables.json` have their ingestion price reduced/zeroed when the benefit applies.
-5. Commitment-tier projection: illustrative, actual discounts depend on published rates.
+5. Commitment-tier projection: illustrative — actual discounts depend on published rates.
 6. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
 
-## Caveats, explicitly NOT priced
+## Caveats — explicitly NOT priced
 
 $($cost.Caveats | ForEach-Object { "- $_" }) -join "`n")
 
@@ -2334,16 +2334,16 @@ $($cost.Caveats | ForEach-Object { "- $_" }) -join "`n")
 Write-Section '84-cost-estimate.md' $costBody
 
 # ---------------------------------------------------------------------------
-# Section: 85, RBAC
+# Section: 85 — RBAC
 # ---------------------------------------------------------------------------
 $rbacWs = Read-RawArray 'rbac-workspace.json'
 $rbacRg = Read-RawArray 'rbac-resourcegroup.json'
 
-# Principal fallback chain, DisplayName is empty for some assignments
+# Principal fallback chain — DisplayName is empty for some assignments
 # (deleted SPs, certain group types, MIs without a friendly name). Fall
 # back to SignInName, then to the GUID ObjectId so the column always
 # has content. An ObjectId-only row is a signal the principal may have
-# been deleted but the role assignment lingers, itself a useful audit
+# been deleted but the role assignment lingers — itself a useful audit
 # finding.
 function _RbacPrincipal {
     param($Row)
@@ -2399,7 +2399,7 @@ foreach ($role in $rolesSeen) {
         if ($role -in @('Owner', 'Contributor')) {
             $sentId = if ($t -eq 'ServicePrincipal') { 'sent-039' } else { 'sent-009' }
             $principalEdges += "    $prinId -.->|broad| $($roleIdMap[$role])"
-            $principalClicks += "    click $prinId href ""90-gap-analysis.md#$sentId"" ""$($sentId.ToUpper()), broad role recommendation"""
+            $principalClicks += "    click $prinId href ""90-gap-analysis.md#$sentId"" ""$($sentId.ToUpper()) — broad role recommendation"""
         } else {
             $principalEdges += "    $prinId --> $($roleIdMap[$role])"
         }
@@ -2409,7 +2409,7 @@ foreach ($role in $rolesSeen) {
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "RBAC")
 
-$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor), see [SENT-009] and [SENT-039] in the gap analysis.
+$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor) — see [SENT-009] and [SENT-039] in the gap analysis.
 
 ## Who-grants-what-to-whom
 
@@ -2448,7 +2448,7 @@ $(Format-Table -Items $rgRows -Columns 'Principal','Type','Role')
 "@)
 
 # ---------------------------------------------------------------------------
-# Section: 86, subscription context
+# Section: 86 — subscription context
 # ---------------------------------------------------------------------------
 $sub        = Read-Raw 'subscription.json'
 $rps        = Read-RawArray 'resource-providers.json'
@@ -2487,7 +2487,7 @@ $rpChartBlock = if ($rpRows.Count -gt 0) {
 ## Resource-provider registration state
 
 ``````mermaid
-pie showData title Required resource providers, registration state
+pie showData title Required resource providers — registration state
 $($rpPieRows -join [Environment]::NewLine)
 ``````
 
@@ -2524,7 +2524,7 @@ $(Format-Table -Items $polRows -Columns 'Name','Scope')
 "@)
 
 # ---------------------------------------------------------------------------
-# Section: 90, gap analysis
+# Section: 90 — gap analysis
 # ---------------------------------------------------------------------------
 $gapRows = $gapFindings | ForEach-Object {
     [pscustomobject]@{
@@ -2564,7 +2564,7 @@ $lead
 $(($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine)
 "@
     }
-    # No leading colon, bullet the whole list.
+    # No leading colon — bullet the whole list.
     $items = $Evidence -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     return ($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
 }
@@ -2587,7 +2587,7 @@ function _FormatGapLearnLink {
         return "[Microsoft Learn]($Url)"
     }
 }
-# Findings landscape, grouped bar by category × severity. Sort categories
+# Findings landscape — grouped bar by category × severity. Sort categories
 # by Warning-then-Info count desc so the worst buckets land on the left.
 $catOrder = $gapByCategory.Keys | Sort-Object {
     -(1000 * ($gapByCategory[$_].Critical) + 10 * ($gapByCategory[$_].Warning) + ($gapByCategory[$_].Info))
@@ -2604,13 +2604,13 @@ foreach ($c in $catOrder) {
 Write-Section '90-gap-analysis.md' (@"
 $(Format-Banner -Title "Gap Analysis")
 
-The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](../../Scripts/Documenter/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/GapChecks.ps1](../../Scripts/Documenter/Private/GapChecks.ps1), adding a new rule is a two-line change.
+The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](../../Scripts/Documenter/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/GapChecks.ps1](../../Scripts/Documenter/Private/GapChecks.ps1) — adding a new rule is a two-line change.
 
 ## Findings landscape
 
 ``````mermaid
 xychart-beta
-    title "Findings by category, split by severity"
+    title "Findings by category — split by severity"
     x-axis [$catAxis]
     y-axis "Findings" 0 --> $($catMax + 1)
     bar "Warning" [$catWarn]
@@ -2623,7 +2623,7 @@ xychart-beta
 
 Each ID links to the detail card below. Severity badge is colour-coded; full evidence, remediation and reference links live in the per-finding cards. Sort by severity first, then by category.
 
-$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title' } else { '_No findings, clean run._' })
+$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title' } else { '_No findings — clean run._' })
 
 ## Findings detail
 
@@ -2631,7 +2631,7 @@ $(if ($gapFindings.Count -gt 0) {
     ($gapFindings | ForEach-Object { @"
 <a id="$($_.Id.ToLower())"></a>
 
-### $($_.Id), $($_.Title)
+### $($_.Id) — $($_.Title)
 
 **Severity:** $(Format-Severity-Badge $_.Severity)  ·  **Category:** $($_.Category)
 
@@ -2655,10 +2655,10 @@ $($_.Remediation)
 # (TOC numbering shown alongside each MD filename).
 # ---------------------------------------------------------------------------
 
-# Section 01, Live snapshot  (TOC 1)
+# Section 01 — Live snapshot  (TOC 1)
 # Living-documentation framing: this page is regenerated from the live
 # workspace on every CI/CD pipeline trigger and every pull request, so the
-# numbers reflect the workspace at the render timestamp, not a periodic
+# numbers reflect the workspace at the render timestamp — not a periodic
 # audit deliverable. Title and description avoid "report" / "summary"
 # language to reinforce that this is documentation-as-code, not a
 # point-in-time deck.
@@ -2678,7 +2678,7 @@ $clv1Days = _DaysUntilFromToday '2026-09-14'
 $tipDays  = _DaysUntilFromToday '2027-06-30'
 $xdrDays  = _DaysUntilFromToday '2027-03-31'
 
-# MITRE coverage rollup. Reuse $mitreRowsRich from section 25, that view
+# MITRE coverage rollup. Reuse $mitreRowsRich from section 25 — that view
 # already does the intersect-with-catalogue (rules' tactic shortnames must
 # match a catalogue.sentinelShortName) and categorises each tactic as
 # Covered / Thin / None against the 3-rule threshold. Counting from the
@@ -2699,7 +2699,7 @@ $mitreSuffix          = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Co
 $execBody = @"
 $(Format-Banner -Title "Live snapshot")
 
-> Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above, not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
+> Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above — not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
 
 ## Findings by severity
 
@@ -2740,7 +2740,7 @@ gantt
 | Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
 | Data connectors | $($connectors.Count) |
 | Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
-| MITRE tactics, Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
+| MITRE tactics — Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
 | Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 
@@ -2750,7 +2750,7 @@ $(if ($top5Findings.Count -gt 0) {
     ($top5Findings | ForEach-Object {
         "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
     }) -join [Environment]::NewLine
-} else { '_No findings, clean run._' })
+} else { '_No findings — clean run._' })
 
 ## Where to read more
 
@@ -2766,7 +2766,7 @@ $(if ($top5Findings.Count -gt 0) {
 "@
 Write-Section '01-live-snapshot.md' $execBody
 
-# Section 11, Sentinel health (TOC 4.8)
+# Section 11 — Sentinel health (TOC 4.8)
 $health = Read-RawArray 'sentinel-health.json'
 $healthRows = $health | ForEach-Object {
     [pscustomobject]@{
@@ -2817,7 +2817,7 @@ Mostly-Success workspaces are operating cleanly. A non-trivial Failure / Partial
 Write-Section '11-sentinel-health.md' (@"
 $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 
-Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled, see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
+Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock
 
 $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Statuses','LastEvent')
@@ -2833,12 +2833,12 @@ $laQueryLine
 [Sentinel health, audit, and monitoring (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/health-audit)
 "@)
 
-# Section 12, SOC Optimization Insights (TOC 4.9)
+# Section 12 — SOC Optimization Insights (TOC 4.9)
 # Schema note: recommendation objects expose properties.recommendationTypeId
 # (e.g. "Precision_Coverage", "Precision_DataValue"). AffectedItem comes from
 # properties.additionalProperties on a per-kind basis (TableName for DataValue,
 # UseCaseName for Coverage). Split into two sub-tables grouped by kind so the
-# user-action drivers cluster, Coverage rows drive content-hub installs,
+# user-action drivers cluster — Coverage rows drive content-hub installs,
 # DataValue rows drive ingestion-tuning.
 $socOpt = Read-RawArray 'soc-optimization.json'
 function _SocOptRow {
@@ -2890,7 +2890,7 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 $socChartBlock
 
-> Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md), the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
+> Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
 
 ## Coverage recommendations
 
@@ -2911,7 +2911,7 @@ $(Format-Table -Items $socOther -Columns 'Kind','Title','State','Description')
 [SOC optimization in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access)
 "@)
 
-# Section 13, Data source hygiene
+# Section 13 — Data source hygiene
 $cefDevices = Read-RawArray 'cef-devices.json'
 $cefInSyslog = Read-RawArray 'cef-in-syslog.json'
 $secEvtDupes = Read-RawArray 'security-event-duplicates.json'
@@ -2950,7 +2950,7 @@ pie showData title CommonSecurityLog by DeviceVendor (last 7d)
 $($cefPieRows -join [Environment]::NewLine)
 ``````
 
-A single vendor dominating means CEF ingestion is mostly that source, likely a candidate for SENT-043 (`_CL` split) if volume is high.
+A single vendor dominating means CEF ingestion is mostly that source — likely a candidate for SENT-043 (`_CL` split) if volume is high.
 "@
 } else { '' }
 
@@ -2987,7 +2987,7 @@ $(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescr
 [Filter Windows Security events via DCR (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/connect-windows-security-events)
 "@)
 
-# Section 14, Coverage breakdowns
+# Section 14 — Coverage breakdowns
 $azAct  = Read-RawArray 'azure-activity-coverage.json'
 $azDiag = Read-RawArray 'azure-diagnostics-providers.json'
 $xdrPres = Read-RawArray 'xdr-table-presence.json'
@@ -3024,13 +3024,13 @@ config:
     height: 480
 ---
 xychart-beta
-    title "Defender XDR tables, records ingested last 7d"
+    title "Defender XDR tables — records ingested last 7d"
     x-axis [$xdrAxis]
     y-axis "Records" 0 --> $($xdrYmax + ([math]::Ceiling($xdrYmax * 0.1)))
     bar [$xdrBars]
 ``````
 
-A short bar means that XDR surface (email / device / identity / cloud-app) isn't producing data. Bar at 0 = the workspace's XDR connector is silent for that table, investigate or accept (some XDR products gate certain tables behind licensing).
+A short bar means that XDR surface (email / device / identity / cloud-app) isn't producing data. Bar at 0 = the workspace's XDR connector is silent for that table — investigate or accept (some XDR products gate certain tables behind licensing).
 "@
 } else { '' }
 
@@ -3040,13 +3040,13 @@ $(Format-Banner -Title "Coverage Breakdowns")
 Per-source coverage gaps revealed by direct table queries. A subscription, resource provider, or XDR table missing from these tables is a coverage gap to triage.
 $xdrChartBlock
 
-## AzureActivity, per-subscription (last 7d)
+## AzureActivity — per-subscription (last 7d)
 
 Each row is a subscription shipping Activity Logs into the workspace. Subscriptions absent from this table are either not connected or have no activity in the period.
 
 $(Format-Table -Items $azActRows -Columns 'SubscriptionId','LogCount')
 
-## AzureDiagnostics, per resource provider (last 7d)
+## AzureDiagnostics — per resource provider (last 7d)
 
 Resource providers emitting diagnostic settings into the workspace. Maps directly to which Azure services have diagnostic settings wired up to this workspace.
 
@@ -3061,7 +3061,7 @@ $(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
 [Microsoft Sentinel data connector reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/data-connectors-reference)
 "@)
 
-# Section 15, Incidents (TOC 4.10)
+# Section 15 — Incidents (TOC 4.10)
 $incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
 $incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
 $incByRule  = Read-RawArray 'incidents-by-rule.json'
@@ -3111,13 +3111,13 @@ $totalIncidents = if ($incSummary -and $incSummary.Count) { [int]$incSummary.Cou
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
 
-> Aggregate-only. The documenter never exports incident bodies, alert payloads or entity detail, only counts and derived SOC-efficiency metrics.
+> Aggregate-only. The documenter never exports incident bodies, alert payloads or entity detail — only counts and derived SOC-efficiency metrics.
 
 $mttrLine
 
 $dailyLine
 
-> When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load, high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
+> When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
 
 ## Incident lifecycle
 
@@ -3145,7 +3145,7 @@ stateDiagram-v2
     end note
 ``````
 
-## Analyst journey, typical high-severity incident
+## Analyst journey — typical high-severity incident
 
 ``````mermaid
 ---
@@ -3159,7 +3159,7 @@ config:
     taskFontSize: 12
 ---
 journey
-    title Analyst journey, typical high-severity incident
+    title Analyst journey — typical high-severity incident
     section Alert created
         Alert fires: 5: Sentinel
         Incident created: 5: Sentinel
@@ -3193,7 +3193,7 @@ $(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | ForEa
 "@
 Write-Section '15-incidents.md' $incidentBody
 
-# Section 21, Rules by alert volume (TOC 4.11.2)
+# Section 21 — Rules by alert volume (TOC 4.11.2)
 $ruleVolumes = Read-RawArray 'analytics-rule-volumes.json'
 $volChartBlock = if ($ruleVolumes.Count -gt 0) {
     $top10 = $ruleVolumes | Select-Object -First 10
@@ -3211,7 +3211,7 @@ $volChartBlock = if ($ruleVolumes.Count -gt 0) {
     foreach ($r in $top10) { if ([long]$r.Alerts -gt $volMax) { $volMax = [long]$r.Alerts } }
     @"
 
-## Top 10 noisy rules, alert volume
+## Top 10 noisy rules — alert volume
 
 ``````mermaid
 ---
@@ -3221,26 +3221,26 @@ config:
     height: 480
 ---
 xychart-beta
-    title "Top 10 alerting rules, alert count (last 30d)"
+    title "Top 10 alerting rules — alert count (last 30d)"
     x-axis [$volAxis]
     y-axis "Alerts" 0 --> $($volMax + ([math]::Ceiling($volMax * 0.1) + 1))
     bar [$volBars]
 ``````
 
-Short labels chart-axis-only, full rule names in the table below. A single tall bar usually means a tuning candidate (over-broad threshold, missing suppression).
+Short labels chart-axis-only — full rule names in the table below. A single tall bar usually means a tuning candidate (over-broad threshold, missing suppression).
 "@
 } else { '' }
 
 Write-Section '21-analytics-by-volume.md' (@"
-$(Format-Banner -Title "Analytics Rules, by Alert Volume  (TOC 4.11.2)")
+$(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
 
-The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal, review and tune.
+The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
 $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 "@)
 
-# Section 22, Microsoft security rules (TOC 4.11.3)
+# Section 22 — Microsoft security rules (TOC 4.11.3)
 $msRules = @($rules | Where-Object {
     $kind = $_.kind
     $tn = $_.properties.alertRuleTemplateName
@@ -3266,7 +3266,7 @@ pie showData title Microsoft-managed rules by severity
 $($msPieRows -join [Environment]::NewLine)
 ``````
 
-$($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm, these rules are pre-tuned by Microsoft.
+$($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm — these rules are pre-tuned by Microsoft.
 "@
 } else { '' }
 
@@ -3279,8 +3279,8 @@ $msChartBlock
 $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.properties.displayName; Severity = $_.properties.severity; Enabled = if ($_.properties.enabled) {'Yes'} else {'No'} } }) -Columns 'Kind','Name','Severity','Enabled')
 "@)
 
-# Section 23, Modifications (TOC 4.11.4)
-# Sort uses ISO-formatted strings, ISO 8601 sorts lexically in the same
+# Section 23 — Modifications (TOC 4.11.4)
+# Sort uses ISO-formatted strings — ISO 8601 sorts lexically in the same
 # order as chronologically, so Format-DateUtc output preserves ordering.
 $modifiedRows = $rules | ForEach-Object {
     $lm = $null
@@ -3315,26 +3315,26 @@ $modMax = 1
 foreach ($v in $monthBuckets.Values) { if ($v -gt $modMax) { $modMax = $v } }
 
 Write-Section '23-analytics-modifications.md' (@"
-$(Format-Banner -Title "Analytics Rules, Recent Modifications  (TOC 4.11.4)")
+$(Format-Banner -Title "Analytics Rules — Recent Modifications  (TOC 4.11.4)")
 
 ## Modifications per month (last 12 months)
 
 ``````mermaid
 xychart-beta
-    title "Rule modifications per month, last 12 months"
+    title "Rule modifications per month — last 12 months"
     x-axis [$modAxis]
     y-axis "Modifications" 0 --> $($modMax + 1)
     bar [$modBars]
 ``````
 
-Each bar is one calendar month (MM). Tempo reveals release cadence, sustained months at zero suggest abandoned content; periodic spikes usually align with vendor content-pack updates.
+Each bar is one calendar month (MM). Tempo reveals release cadence — sustained months at zero suggest abandoned content; periodic spikes usually align with vendor content-pack updates.
 
-The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Scripts/Test-SentinelRuleDrift.ps1), a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
+The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Scripts/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
 $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
 "@)
 
-# Section 24, By Content Solution (TOC 4.11.5)
+# Section 24 — By Content Solution (TOC 4.11.5)
 $metadataAll = Read-RawArray 'metadata.json'
 $ruleToSolution = @{}
 foreach ($m in $metadataAll) {
@@ -3370,7 +3370,7 @@ $solPieRows = $topSols | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }
 if ($otherSolCount -gt 0) { $solPieRows += "    `"Other`" : $otherSolCount" }
 
 Write-Section '24-analytics-by-solution.md' (@"
-$(Format-Banner -Title "Analytics Rules, by Content Solution  (TOC 4.11.5)")
+$(Format-Banner -Title "Analytics Rules — by Content Solution  (TOC 4.11.5)")
 
 ## Top contributing solutions
 
@@ -3381,15 +3381,15 @@ $($solPieRows -join [Environment]::NewLine)
 
 $($solCounts.Count) distinct solution(s) contributing $counted total rule(s). A heavy long-tail "(custom or unmapped)" slice usually means repo-deployed content not registered against any Content Hub solution.
 
-Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association, typically repo-deployed custom rules.
+Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association — typically repo-deployed custom rules.
 
 $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
 "@)
 
-# Section 26, UEBA (TOC 4.16)
+# Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
 # 1. Configuration: presence of the /settings/Ueba resource. Absence does NOT
-#    imply UEBA is disabled, the portal toggle writes nothing here.
+#    imply UEBA is disabled — the portal toggle writes nothing here.
 # 2. Data presence: row counts in BehaviorAnalytics, IdentityInfo,
 #    UserPeerAnalytics over 12d, from `_raw/ueba-data-presence.json`. Any
 #    non-zero count is the authoritative "UEBA is producing data" signal.
@@ -3399,7 +3399,7 @@ $uebaSources = if ($uebaSetting -and $uebaSetting.properties) { @($uebaSetting.p
 $uebaConfigLabel = if ($uebaSetting) {
     'Yes (settings resource present)'
 } else {
-    'Settings resource not written, UEBA may still be enabled via the portal toggle; the configuration API has not been used to set explicit data sources on this workspace'
+    'Settings resource not written — UEBA may still be enabled via the portal toggle; the configuration API has not been used to set explicit data sources on this workspace'
 }
 $uebaPresence = Read-RawArray 'ueba-data-presence.json'
 $uebaPresenceRows = $uebaPresence | ForEach-Object {
@@ -3407,11 +3407,11 @@ $uebaPresenceRows = $uebaPresence | ForEach-Object {
 }
 $uebaTotalRows = ($uebaPresenceRows | Measure-Object -Property Rows12d -Sum).Sum
 $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
-    "Yes, $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last 12 days"
+    "Yes — $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last 12 days"
 } elseif ($uebaPresence.Count -eq 0) {
-    '_(data-presence capture not available, re-run the exporter to refresh)_'
+    '_(data-presence capture not available — re-run the exporter to refresh)_'
 } else {
-    'No, none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last 12 days'
+    'No — none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last 12 days'
 }
 # Pie of rows per UEBA table when there's something to chart.
 $uebaPiePresenceBlock = if ($uebaPresenceRows.Count -gt 0 -and $uebaTotalRows -gt 0) {
@@ -3453,20 +3453,20 @@ $uebaPiePresenceBlock$uebaPresenceBlock
 [Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
 "@)
 
-# Section 27, Threat Intelligence (TOC 4.17)
+# Section 27 — Threat Intelligence (TOC 4.17)
 # Two capture sources are tried in turn:
-# 1. `threat-intel-metrics.json`, the Sentinel TI metrics REST endpoint.
+# 1. `threat-intel-metrics.json` — the Sentinel TI metrics REST endpoint.
 #    Independent of the workspace KQL path so it survives KQL-side failures
 #    (missing Az.OperationalInsights module, permission gaps, table absence).
-# 2. `threat-intel-counts.json`, the KQL summary against ThreatIntelligenceIndicator.
+# 2. `threat-intel-counts.json` — the KQL summary against ThreatIntelligenceIndicator.
 #    Used as a fallback when the metrics endpoint produced no data.
 #
 # Metrics-API response shape (one record per workspace):
-#   properties.threatTypeMetrics[]   { metricName, metricValue }, by threat type
-#   properties.patternTypeMetrics[]  { metricName, metricValue }, by STIX pattern type
-#   properties.sourceMetrics[]       { metricName, metricValue }, by ingestion source
+#   properties.threatTypeMetrics[]   { metricName, metricValue }  — by threat type
+#   properties.patternTypeMetrics[]  { metricName, metricValue }  — by STIX pattern type
+#   properties.sourceMetrics[]       { metricName, metricValue }  — by ingestion source
 # An earlier version of the renderer read `properties.metrics[]` with
-# `threatType` / `threatTypeCount` fields, those field names appear nowhere
+# `threatType` / `threatTypeCount` fields — those field names appear nowhere
 # in the real API surface and resulted in zero rows being rendered.
 $tiMetrics = Read-RawArray 'threat-intel-metrics.json'
 $tiCounts  = Read-RawArray 'threat-intel-counts.json'
@@ -3511,7 +3511,7 @@ $tiHeadline = if ($tiTotal -and $tiTotal -gt 0) {
     "_No threat intelligence indicators surfaced via either capture path._"
 }
 # Threat-type breakdown only renders when the metrics API path actually
-# returned a populated array, under the KQL fallback there is no
+# returned a populated array — under the KQL fallback there is no
 # equivalent breakdown so the section is suppressed entirely.
 $tiTypeBlock = if ($tiTypeRows.Count -gt 0 -and ($tiTypeRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
     @"
@@ -3551,7 +3551,7 @@ $tiTypeBlock
 [Microsoft Sentinel Threat Intelligence (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence)
 "@)
 
-# Section 36, Data export (TOC 4.3.3)
+# Section 36 — Data export (TOC 4.3.3)
 $dataExports = Read-RawArray 'data-exports.json'
 $exportRows = $dataExports | ForEach-Object {
     [pscustomobject]@{
@@ -3571,7 +3571,7 @@ $(Format-Table -Items $exportRows -Columns 'Name','Destination','Tables','Enable
 [Log Analytics data export (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export)
 "@)
 
-# Section 37, Search and restore (TOC 4.3.4)
+# Section 37 — Search and restore (TOC 4.3.4)
 # Search jobs and restore-logs aren't always pulled per-table; surface what
 # we have at workspace scope.
 $searchJobs = Read-RawArray 'search-jobs.json'
@@ -3592,7 +3592,7 @@ $(Format-Table -Items $restoreJobs -Columns 'name','properties')
 [Search jobs in Azure Monitor Logs](https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs) · [Restore logs](https://learn.microsoft.com/azure/azure-monitor/logs/restore)
 "@)
 
-# Section 38, Summary rules (TOC 4.3.5)
+# Section 38 — Summary rules (TOC 4.3.5)
 # Schema note: the capture comes from `.../workspaces/<ws>/summaryLogs` (under
 # the OperationalInsights provider, not Sentinel). Each item exposes
 # `properties.ruleType`, `properties.ruleDefinition.query`,
@@ -3600,7 +3600,7 @@ $(Format-Table -Items $restoreJobs -Columns 'name','properties')
 # `properties.ruleDefinition.destinationTable`, `properties.isActive`,
 # `properties.statusCode`. The previous renderer included a `BinDelay` column
 # that doesn't exist in the API response (always-empty). `isActive` and
-# `statusCode` ARE present and signal whether the rule is actually running, 
+# `statusCode` ARE present and signal whether the rule is actually running —
 # the first rule on stl-sec-siem-law has isActive=false + status=DataPlaneError,
 # evidence of a broken rule that the old shape never surfaced. Field names
 # round-trip through ConvertFrom-Json as camelCase; PowerShell's PSObject
@@ -3623,7 +3623,7 @@ $summaryRows = $summaryRules | ForEach-Object {
 }
 $brokenSummary = @($summaryRows | Where-Object { $_.Active -eq 'No' -or $_.Status -ne 'Ok' })
 $summaryWarning = if ($brokenSummary.Count -gt 0) {
-    "`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column, `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
+    "`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column — `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
 } else { '' }
 # Active vs Errored pie (only when there's something to chart).
 $summaryActiveCount = @($summaryRows | Where-Object { $_.Active -eq 'Yes' -and $_.Status -eq 'Ok' }).Count
@@ -3634,7 +3634,7 @@ $summaryChartBlock = if ($summaryRows.Count -gt 0) {
 ## Health
 
 ``````mermaid
-pie showData title Summary rules, health
+pie showData title Summary rules — health
     "Active & Ok" : $summaryActiveCount
     "Inactive or errored" : $summaryBrokenCount
 ``````
@@ -3652,7 +3652,7 @@ $(Format-Table -Items $summaryRows -Columns 'Name','RuleType','DestinationTable'
 [Summary rules (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/summary-rules)
 "@)
 
-# Section 87, Azure Monitor Agents (TOC 4.5)
+# Section 87 — Azure Monitor Agents (TOC 4.5)
 $amaAgents = Read-RawArray 'ama-agents.json'
 $agentRows = $amaAgents | ForEach-Object {
     [pscustomobject]@{
@@ -3676,7 +3676,7 @@ $migrationRows = $migration | ForEach-Object {
     }
 }
 # Chart inputs. When the total agent count is < 3 the renderer skips the
-# chart entirely, 1-vs-0 splits are visually meaningless. Otherwise emit
+# chart entirely — 1-vs-0 splits are visually meaningless. Otherwise emit
 # a grouped bar with AMA and MMA per machine type.
 $totalAgents = 0
 foreach ($r in $migrationRows) { $totalAgents += [int]$r.MachineCount }
@@ -3693,14 +3693,14 @@ $agentChartBlock = if ($totalAgents -ge 3 -and $migrationRows.Count -gt 0) {
 
 ``````mermaid
 xychart-beta
-    title "Agent fleet, AMA vs MMA per machine type"
+    title "Agent fleet — AMA vs MMA per machine type"
     x-axis [$mtAxis]
     y-axis "Machines" 0 --> $($yMax + 1)
     bar [$amaArr]
     bar [$mmaArr]
 ``````
 
-Two bars per machine type, AMA first, MMA second. A workspace mid-migration shows MMA bars sitting alongside AMA; a fully-migrated workspace has zero MMA bars across the board.
+Two bars per machine type — AMA first, MMA second. A workspace mid-migration shows MMA bars sitting alongside AMA; a fully-migrated workspace has zero MMA bars across the board.
 "@
 } else {
     "`n> **Agent migration:** $totalAgents agent(s) heartbeating; chart suppressed because the count is too small for a meaningful visual. The migration-status table below carries the per-machine detail."
@@ -3725,10 +3725,10 @@ $(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMAC
 "@)
 
 # ---------------------------------------------------------------------------
-# Section 88, Microsoft Sentinel Data Lake
+# Section 88 — Microsoft Sentinel Data Lake
 # ---------------------------------------------------------------------------
 # Lake-tier tables surfaced from $workspaceTables (those on plan='DataLake').
-# Migration candidates surfaced from $cost.AllTablesByCost, high-volume
+# Migration candidates surfaced from $cost.AllTablesByCost — high-volume
 # tables on the Analytics plan are typical Lake-migration targets for
 # cost optimisation. The enrollment signals were computed in section 83's
 # block ($hasDataLake / $unifiedBilling / $sentinelDataLake / $plansInUse)
@@ -3809,7 +3809,7 @@ foreach ($t in $workspaceTables) {
 }
 
 # Lake billing meters reference. Static per Microsoft Sentinel
-# pricing docs, surfaces all five Lake-specific cost surfaces so
+# pricing docs — surfaces all five Lake-specific cost surfaces so
 # reviewers know what to expect on the bill when Lake is in use.
 $lakeBillingMeters = @(
     [pscustomobject]@{ Meter = 'Data lake ingestion';      ChargedPer = 'GB';            AppliesTo = 'Data ingested into tables with retention set to Lake-only. Mirrored-to-Lake ingest is not charged.' }
@@ -3819,7 +3819,7 @@ $lakeBillingMeters = @(
     [pscustomobject]@{ Meter = 'Advanced data insights';   ChargedPer = 'compute hour';  AppliesTo = 'Jupyter notebook sessions, scheduled notebook jobs, custom graph build/query. Per vCore-hour (pools of 12, 32, or 80 vCores).' }
 )
 
-# Lake-derived capabilities, features that unlock automatically when
+# Lake-derived capabilities — features that unlock automatically when
 # the tenant onboards to Lake. Helps the reader connect "Lake is
 # enrolled" to the operational surfaces they'd see in Defender portal.
 $lakeCapabilities = @(
@@ -3884,18 +3884,18 @@ if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $
         })
 }
 
-# Headline narrative, one of four states based on the captured signals.
+# Headline narrative — one of four states based on the captured signals.
 $lakeHeadline = if ($hasDataLake -and $dlTables.Count -gt 0) {
     "**Sentinel Data Lake is enrolled and active.** $($dlTables.Count) table(s) route to the Lake at the DataLake-rate ingestion meter (~$([math]::Round($lakeGb, 2)) GB / 30d, est. `$$([math]::Round($lakeCost, 2)) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
 } elseif ($hasDataLake -and $dlTables.Count -eq 0) {
-    "**Sentinel Data Lake is enrolled on this workspace** (``features.unifiedSentinelBillingOnly = true``), but no tables currently route to the Lake. All ingest is on the Analytics plan billed at the full Sentinel-rate meter. See *Migration candidates* below for verbose tables that could move to the Lake to reduce monthly cost, the Lake-rate per-GB ingestion meter is typically a fraction of the Sentinel-rate."
+    "**Sentinel Data Lake is enrolled on this workspace** (``features.unifiedSentinelBillingOnly = true``), but no tables currently route to the Lake. All ingest is on the Analytics plan billed at the full Sentinel-rate meter. See *Migration candidates* below for verbose tables that could move to the Lake to reduce monthly cost — the Lake-rate per-GB ingestion meter is typically a fraction of the Sentinel-rate."
 } elseif (-not $hasDataLake -and $analyticsGb -gt 30) {
     "**Sentinel Data Lake is not enrolled.** This workspace ingests $([math]::Round($analyticsGb, 1)) GB / 30d on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
 } else {
     "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB/month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
 }
 
-# Enrollment-signal table, primary signal is the
+# Enrollment-signal table — primary signal is the
 # Microsoft.SentinelPlatformServices resource; the workspace billing
 # flag and table-plan signals are supporting checks.
 $lakeResource = @($sentinelDataLake) | Select-Object -First 1
@@ -3903,12 +3903,12 @@ $lakeSignals = @(
     [pscustomobject]@{
         Signal      = 'Microsoft.SentinelPlatformServices/sentinelPlatformServices'
         Value       = if ($lakeResource) { "$($lakeResource.name) ($($lakeResource.location))" } else { '(not found)' }
-        Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$($lakeResource.location)', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions, tenant is not onboarded to Lake' }
+        Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$($lakeResource.location)', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions — tenant is not onboarded to Lake' }
     },
     [pscustomobject]@{
         Signal      = 'workspace.properties.features.unifiedSentinelBillingOnly'
         Value       = if ($unifiedBilling) { 'true' } else { 'false / absent' }
-        Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing, eligible for Lake' } else { 'Workspace on legacy per-GB billing, not on the unified model' }
+        Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing — eligible for Lake' } else { 'Workspace on legacy per-GB billing — not on the unified model' }
     },
     [pscustomobject]@{
         Signal      = "Tables on plan='DataLake'"
@@ -3940,7 +3940,7 @@ $lakeResourceBlock = if ($lakeResource) {
 | Onboarded at | $createdAt |
 | Last modified | $modifiedAt |
 
-The Sentinel Data Lake is a tenant-wide capability but it's provisioned as a single resource pinned to one subscription / resource group / region. Workspaces in **other regions** still mirror to the Lake, see [Onboard to Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-onboarding) for the cross-region behaviour.
+The Sentinel Data Lake is a tenant-wide capability but it's provisioned as a single resource pinned to one subscription / resource group / region. Workspaces in **other regions** still mirror to the Lake — see [Onboard to Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-onboarding) for the cross-region behaviour.
 "@
 } else { '' }
 
@@ -3955,7 +3955,7 @@ $tierChartBlock = if ($tierPieRows.Count -ge 2) { @"
 
 ## Tier distribution
 
-Pie of every operational table (a table that has received data in the last 90 days, plus all CustomLog tables) by tier configuration. *Analytics + Lake mirror* is the default state on a Lake-enrolled tenant, every Analytics-plan table is auto-mirrored to the Lake at the same retention at no extra cost. *Analytics + Lake extended* means the table also stores beyond the Analytics retention in the Lake (Lake-storage meter applies). *Lake only* means the table bypasses the Analytics tier entirely (Lake-ingestion meter applies; no real-time analytics or detection rules).
+Pie of every operational table (a table that has received data in the last 90 days, plus all CustomLog tables) by tier configuration. *Analytics + Lake mirror* is the default state on a Lake-enrolled tenant — every Analytics-plan table is auto-mirrored to the Lake at the same retention at no extra cost. *Analytics + Lake extended* means the table also stores beyond the Analytics retention in the Lake (Lake-storage meter applies). *Lake only* means the table bypasses the Analytics tier entirely (Lake-ingestion meter applies; no real-time analytics or detection rules).
 
 ``````mermaid
 pie showData title Operational tables by tier configuration
@@ -3963,13 +3963,13 @@ $($tierPieRows -join [Environment]::NewLine)
 ``````
 "@ } else { '' }
 
-# Retention split bar chart, only render when at least one table has
+# Retention split bar chart — only render when at least one table has
 # extended retention (otherwise the chart would be empty).
 $retentionChartBlock = if ($topRetention.Count -gt 0) { @"
 
-## Retention split, top tables by extended Lake retention
+## Retention split — top tables by extended Lake retention
 
-Top 10 tables paying for retention beyond the Analytics-tier interactive period. Each bar is the table's *Lake-only* retention days, the portion of total retention that bills against the Lake-storage meter (per GB · month, with 6:1 compression). Tables with the same Analytics retention as total retention don't appear here because they sit entirely within the Analytics retention window and incur no Lake-storage charge.
+Top 10 tables paying for retention beyond the Analytics-tier interactive period. Each bar is the table's *Lake-only* retention days — the portion of total retention that bills against the Lake-storage meter (per GB · month, with 6:1 compression). Tables with the same Analytics retention as total retention don't appear here because they sit entirely within the Analytics retention window and incur no Lake-storage charge.
 
 ``````mermaid
 ---
@@ -3988,7 +3988,7 @@ xychart-beta
 $(Format-Table -Items $topRetention -Columns 'Table','Plan','AnalyticsDays','LakeOnlyDays','TotalDays')
 "@ } else { '' }
 
-# Lake architecture flowchart, static visual showing the three tiers
+# Lake architecture flowchart — static visual showing the three tiers
 # and the ingestion / mirror / promote / query paths. Always rendered
 # when Lake is enrolled because it's instructional rather than
 # data-driven.
@@ -4020,7 +4020,7 @@ flowchart LR
 ``````
 "@ } else { '' }
 
-# Lake-tier tables block, only when there are explicit Lake-only
+# Lake-tier tables block — only when there are explicit Lake-only
 # tables on the workspace.
 $lakeTablesBlock = if ($dlTableRows.Count -gt 0) { @"
 
@@ -4033,10 +4033,10 @@ $(Format-Table -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetent
 
 ## Lake-only tables
 
-_No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention, see the tier distribution above. *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
+_No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention — see the tier distribution above. *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
 "@ }
 
-# Asset-data block, present when at least one asset-family table is
+# Asset-data block — present when at least one asset-family table is
 # detected. Helps confirm the Lake's auto-onboarded system tables
 # (Entra, M365, Azure Resource Graph) are flowing.
 $assetDataBlock = if ($assetDataRows.Count -gt 0) { @"
@@ -4055,7 +4055,7 @@ $lakeHeadline
 
 ## Enrollment signals
 
-The documenter's primary signal is the **Microsoft.SentinelPlatformServices/sentinelPlatformServices** resource, captured via Resource Graph across every visible subscription. Presence of this resource means the tenant is onboarded to Sentinel Data Lake; absence means the tenant is not. The other two rows are supporting checks: the workspace-level billing flag and the table-plan routing state.
+The documenter's primary signal is the **Microsoft.SentinelPlatformServices/sentinelPlatformServices** resource — captured via Resource Graph across every visible subscription. Presence of this resource means the tenant is onboarded to Sentinel Data Lake; absence means the tenant is not. The other two rows are supporting checks: the workspace-level billing flag and the table-plan routing state.
 
 $(Format-Table -Items $lakeSignals -Columns 'Signal','Value','Interpretation')
 $lakeResourceBlock
@@ -4065,7 +4065,7 @@ $retentionChartBlock
 $lakeTablesBlock
 $assetDataBlock
 
-## Cost split, Analytics vs Lake (last 30d)
+## Cost split — Analytics vs Lake (last 30d)
 
 | Plan | Ingest (GB) | Estimated monthly cost |
 |---|---:|---:|
@@ -4080,9 +4080,9 @@ $(Format-Table -Items $lakeBillingMeters -Columns 'Meter','ChargedPer','AppliesT
 
 > Notes
 >
-> - **Mirrored data is free**, mirroring an Analytics-plan table to the Lake at the same retention incurs no Lake-storage charge. Extended Lake-only retention beyond the Analytics period is where Lake-storage starts billing.
-> - **Compression is 6:1**, Lake-storage bills the compressed footprint. 600 GB of raw logs is billed as 100 GB of compressed Lake storage.
-> - **Long-term retention, search-jobs, and auxiliary-logs meters fold into the Lake meters** once the workspace is onboarded, see the onboarding doc for the exact mapping.
+> - **Mirrored data is free** — mirroring an Analytics-plan table to the Lake at the same retention incurs no Lake-storage charge. Extended Lake-only retention beyond the Analytics period is where Lake-storage starts billing.
+> - **Compression is 6:1** — Lake-storage bills the compressed footprint. 600 GB of raw logs is billed as 100 GB of compressed Lake storage.
+> - **Long-term retention, search-jobs, and auxiliary-logs meters fold into the Lake meters** once the workspace is onboarded — see the onboarding doc for the exact mapping.
 
 ## Lake-derived capabilities
 
@@ -4092,23 +4092,23 @@ $(Format-Table -Items $lakeCapabilities -Columns 'Capability','Surface','Billing
 
 ## Migration candidates
 
-Top Analytics-plan tables (≥0.5 GB/30d) that are typical Lake-tier candidates, high ingest volume, low real-time-query frequency. Defender XDR advanced hunting surfaces (Device*, Email*, Url*) and raw EDR/firewall telemetry are the usual wins. Confirm a table's analytics-rule references first before migrating, a rule whose query joins against the candidate table will start failing if the table is moved without re-pointing the query.
+Top Analytics-plan tables (≥0.5 GB/30d) that are typical Lake-tier candidates — high ingest volume, low real-time-query frequency. Defender XDR advanced hunting surfaces (Device*, Email*, Url*) and raw EDR/firewall telemetry are the usual wins. Confirm a table's analytics-rule references first before migrating — a rule whose query joins against the candidate table will start failing if the table is moved without re-pointing the query.
 
-$(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Columns 'Table','Gb30d','MonthlyCost','Recommendation' } else { '_No Analytics-plan tables above the 0.5 GB / 30d threshold, Lake migration is not currently cost-justified on this workspace._' })
+$(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Columns 'Table','Gb30d','MonthlyCost','Recommendation' } else { '_No Analytics-plan tables above the 0.5 GB / 30d threshold — Lake migration is not currently cost-justified on this workspace._' })
 
 ## When to enroll
 
 - **Sustained ingest > 500 GB/month** of verbose / low-query telemetry (Defender XDR raw events, firewall syslog, EDR process telemetry).
-- **Long-tail investigations need affordable retention**, Lake supports up to 12 years at storage rates with 6:1 compression, vs Analytics' high per-GB interactive retention rate.
-- **Already onboarded to the Defender unified SecOps portal**, Lake is the implicit storage tier for unified-portal workflows (graph, MCP, notebooks).
-- **Compliance retention requirements**, regulatory retention obligations (SOX, GDPR audit, PCI-DSS) often demand multi-year retention that's prohibitively expensive on Analytics-tier storage.
+- **Long-tail investigations need affordable retention** — Lake supports up to 12 years at storage rates with 6:1 compression, vs Analytics' high per-GB interactive retention rate.
+- **Already onboarded to the Defender unified SecOps portal** — Lake is the implicit storage tier for unified-portal workflows (graph, MCP, notebooks).
+- **Compliance retention requirements** — regulatory retention obligations (SOX, GDPR audit, PCI-DSS) often demand multi-year retention that's prohibitively expensive on Analytics-tier storage.
 
 ## When to stay on the legacy model
 
-- **Ingest < ~100 GB/month**, Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
-- **Every table queries in near-real-time**, the Lake's higher query latency makes it a poor fit for detection-rule-heavy workloads.
-- **CMK encryption is required**, Sentinel Data Lake does **not** support Customer-Managed Keys; workspaces using CMK cannot use Lake experiences.
-- **Compliance / contract requires PerGB2018 billing**, some enterprise agreements lock to legacy meters that don't include the Lake meter set.
+- **Ingest < ~100 GB/month** — Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
+- **Every table queries in near-real-time** — the Lake's higher query latency makes it a poor fit for detection-rule-heavy workloads.
+- **CMK encryption is required** — Sentinel Data Lake does **not** support Customer-Managed Keys; workspaces using CMK cannot use Lake experiences.
+- **Compliance / contract requires PerGB2018 billing** — some enterprise agreements lock to legacy meters that don't include the Lake meter set.
 
 [Microsoft Sentinel Data Lake overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview)
 [Onboard to Microsoft Sentinel data lake (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-onboarding)
@@ -4121,7 +4121,7 @@ $(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Colu
 "@
 Write-Section '88-sentinel-data-lake.md' $lakeBody
 
-# Section 96, User-facing Microsoft references (TOC 6.x)
+# Section 96 — User-facing Microsoft references (TOC 6.x)
 Write-Section '96-references-microsoft.md' (@"
 $(Format-Banner -Title "Useful Microsoft References")
 
@@ -4129,10 +4129,10 @@ Curated Microsoft Learn entry points for the topics covered in this report. Dist
 
 ## Microsoft Sentinel
 
-- [Microsoft Sentinel documentation](https://learn.microsoft.com/azure/sentinel/), landing page
+- [Microsoft Sentinel documentation](https://learn.microsoft.com/azure/sentinel/) — landing page
 - [Best practices](https://learn.microsoft.com/azure/sentinel/best-practices)
-- [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources), training paths
-- [Move to Microsoft Defender XDR](https://learn.microsoft.com/azure/sentinel/move-to-defender), 2027-03-31 portal retirement
+- [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources) — training paths
+- [Move to Microsoft Defender XDR](https://learn.microsoft.com/azure/sentinel/move-to-defender) — 2027-03-31 portal retirement
 
 ## Connectors
 
@@ -4181,7 +4181,7 @@ Curated Microsoft Learn entry points for the topics covered in this report. Dist
 "@)
 
 # ---------------------------------------------------------------------------
-# Section: 99, references
+# Section: 99 — references
 # ---------------------------------------------------------------------------
 $refSrc = Join-Path $PSScriptRoot 'REFERENCES.md'
 if (Test-Path $refSrc) {
@@ -4193,21 +4193,21 @@ if (Test-Path $refSrc) {
 # Index
 # ---------------------------------------------------------------------------
 $indexBody = @"
-# $WorkspaceName, Sentinel Documentation Index
+# $WorkspaceName — Sentinel Documentation Index
 
 Generated $(Format-DateUtc $run.StartedAtUtc) UTC by Sentinel Documenter v$($run.DocumenterVersion).
 
-Sections are numbered to match the formal Sentinel Configuration TOC where applicable. Customer-narrative sections (architectural diagrams, SOC operational processes, the licensing inventory) are intentionally not auto-generated, supply those separately.
+Sections are numbered to match the formal Sentinel Configuration TOC where applicable. Customer-narrative sections (architectural diagrams, SOC operational processes, the licensing inventory) are intentionally not auto-generated — supply those separately.
 
 | Section | TOC | Description |
 |---|---|---|
-| [00-overview.md](00-overview.md) |, | Headline counts, top findings, cost summary |
-| [01-live-snapshot.md](01-live-snapshot.md) | 1 | Workspace-at-a-glance, regenerates every pipeline run |
+| [00-overview.md](00-overview.md) | — | Headline counts, top findings, cost summary |
+| [01-live-snapshot.md](01-live-snapshot.md) | 1 | Workspace-at-a-glance — regenerates every pipeline run |
 | [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
 | [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
-| [13-data-source-hygiene.md](13-data-source-hygiene.md) |, | CEF/Syslog hygiene, agent dual-collection, top noisy events |
-| [14-coverage-breakdowns.md](14-coverage-breakdowns.md) |, | AzureActivity / AzureDiagnostics / XDR coverage by source |
+| [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
+| [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | — | AzureActivity / AzureDiagnostics / XDR coverage by source |
 | [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
 | [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
 | [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
@@ -4218,7 +4218,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [26-ueba.md](26-ueba.md) | 4.16 | UEBA configuration |
 | [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source |
 | [30-hunting-queries.md](30-hunting-queries.md) | 4.15 | Hunting queries |
-| [35-parsers-functions.md](35-parsers-functions.md) |, | Parsers and functions |
+| [35-parsers-functions.md](35-parsers-functions.md) | — | Parsers and functions |
 | [36-data-export.md](36-data-export.md) | 4.3.3 | Data export configuration |
 | [37-search-restore.md](37-search-restore.md) | 4.3.4 | Search jobs / restore logs |
 | [38-summary-rules.md](38-summary-rules.md) | 4.3.5 | Summary rules |
@@ -4229,16 +4229,16 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [80-workspace.md](80-workspace.md) | 4.2 | SKU, retention, networking, feature flags |
 | [81-table-plans-retention.md](81-table-plans-retention.md) | 4.3.1-2 | Per-table plan, retention, activity |
 | [82-dedicated-cluster.md](82-dedicated-cluster.md) | 4.2.2 | Dedicated cluster, CMK, AZ |
-| [83-data-collection.md](83-data-collection.md) |, | DCRs and DCEs |
-| [84-cost-estimate.md](84-cost-estimate.md) |, | Estimated monthly cost |
+| [83-data-collection.md](83-data-collection.md) | — | DCRs and DCEs |
+| [84-cost-estimate.md](84-cost-estimate.md) | — | Estimated monthly cost |
 | [85-rbac.md](85-rbac.md) | 4.4 | Role assignments |
 | [86-subscription-context.md](86-subscription-context.md) | 4.1 | Subscription, tenant, RPs, locks, policy |
 | [87-azure-monitor-agents.md](87-azure-monitor-agents.md) | 4.5 | AMA agents heartbeating into the workspace |
-| [88-sentinel-data-lake.md](88-sentinel-data-lake.md) |, | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
-| [90-gap-analysis.md](90-gap-analysis.md) |, | Findings against MS Learn best practices |
+| [88-sentinel-data-lake.md](88-sentinel-data-lake.md) | — | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
+| [90-gap-analysis.md](90-gap-analysis.md) | — | Findings against MS Learn best practices |
 | [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
-| [99-references.md](99-references.md) |, | Documenter's own API versions and modules |
+| [99-references.md](99-references.md) | — | Documenter's own API versions and modules |
 "@
 Write-Section 'index.md' $indexBody
 
-Write-Information "✓ Renderer complete, output: $OutputRoot"
+Write-Information "✓ Renderer complete — output: $OutputRoot"
