@@ -1,0 +1,26 @@
+[
+  {
+    "Id": "SENT-001",
+    "Title": "Daily cap not configured on the Log Analytics workspace",
+    "Category": "Cost",
+    "Severity": "Warning",
+    "Evidence": "workspaceCapping.dailyQuotaGb is unset (-1 = unlimited).",
+    "Detail": { "DailyQuotaGb": -1 },
+    "Remediation": "Set workspaceCapping.dailyQuotaGb to a sensible ceiling.",
+    "Learn": "https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap",
+    "CheckName": "Test-DailyCapConfigured",
+    "PassedAt": "2026-05-06T08:01:00Z"
+  },
+  {
+    "Id": "SENT-002",
+    "Title": "Workspace default retention below the 90-day Sentinel free benefit",
+    "Category": "Cost",
+    "Severity": "Warning",
+    "Evidence": "Workspace default retention is 30 days; Sentinel includes the 30->90d upgrade at no extra cost.",
+    "Detail": { "RetentionInDays": 30 },
+    "Remediation": "Increase retentionInDays to 90.",
+    "Learn": "https://learn.microsoft.com/azure/sentinel/billing",
+    "CheckName": "Test-WorkspaceRetentionMeetsSentinelBenefit",
+    "PassedAt": "2026-05-06T08:01:01Z"
+  }
+]

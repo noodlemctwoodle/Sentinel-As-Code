@@ -1,0 +1,14 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.Insights/diagnosticSettings/sentinel-self-diag",
+    "name": "sentinel-self-diag",
+    "type": "Microsoft.Insights/diagnosticSettings",
+    "properties": {
+      "workspaceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test",
+      "logs": [
+        { "category": "Audit",       "enabled": true,  "retentionPolicy": { "enabled": false, "days": 0 } },
+        { "category": "SummaryLogs", "enabled": false, "retentionPolicy": { "enabled": false, "days": 0 } }
+      ]
+    }
+  }
+]

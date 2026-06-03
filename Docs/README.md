@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../.images/Sentinel-As-Code-Wave3.png" alt="Sentinel-As-Code" />
+  <img src="../.images/Sentinel-As-Code-Wave4.png" alt="Sentinel-As-Code" />
 </p>
 
 # Documentation

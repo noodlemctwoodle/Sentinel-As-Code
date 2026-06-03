@@ -1,0 +1,4 @@
+[
+  { "ProviderName": "MDATP",       "ProductName": "Microsoft Defender for Endpoint", "FirstRule": "rule-abc", "AlertCount": 521 },
+  { "ProviderName": "ASI Scheduled Alerts", "ProductName": "Microsoft Sentinel",     "FirstRule": "rule-def", "AlertCount": 318 }
+]

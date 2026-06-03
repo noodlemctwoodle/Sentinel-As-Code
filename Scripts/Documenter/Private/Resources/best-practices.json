@@ -1,0 +1,411 @@
+{
+  "$schema": "best-practices.schema.json",
+  "version": "2.0.0",
+  "rules": [
+    {
+      "id": "SENT-001",
+      "title": "Daily cap not configured on the Log Analytics workspace",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-DailyCapConfigured",
+      "remediation": "Set workspaceCapping.dailyQuotaGb to a sensible ceiling (e.g. 110% of expected daily ingest) so a runaway connector cannot accidentally bill several thousand pounds.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap"
+    },
+    {
+      "id": "SENT-002",
+      "title": "Workspace default retention below the 90-day Sentinel free benefit",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-WorkspaceRetentionMeetsSentinelBenefit",
+      "remediation": "Microsoft Sentinel includes the upgrade from 30d to 90d at no extra cost on Sentinel-eligible tables. Increase retentionInDays to 90 to capture the benefit.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/billing"
+    },
+    {
+      "id": "SENT-003",
+      "title": "High-volume table on Analytics plan with no DCR transform",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-NoisyTableHasTransform",
+      "remediation": "Tables ingesting > 50 GB/30d on the Analytics plan with no transformKql in their DCR are candidates for either a DCR transform that drops noise, the Basic plan, or the Auxiliary plan.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention"
+    },
+    {
+      "id": "SENT-004",
+      "title": "Recommended data connectors not deployed",
+      "category": "Coverage",
+      "severity": "Info",
+      "check": "Test-RecommendedConnectorsDeployed",
+      "remediation": "Compare connector definitions in Content Hub against deployed connectors. Microsoft maintains a recommendation matrix per industry; missing connectors leave detection gaps.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/data-connectors-reference"
+    },
+    {
+      "id": "SENT-005",
+      "title": "User & Entity Behaviour Analytics (UEBA) disabled",
+      "category": "Coverage",
+      "severity": "Warning",
+      "check": "Test-UebaEnabled",
+      "remediation": "UEBA enriches incidents with anomaly scores and entity timelines. Enable it from the Sentinel > Entity behaviour blade or via the Microsoft.SecurityInsights/settings/Ueba REST resource.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics"
+    },
+    {
+      "id": "SENT-006",
+      "title": "MITRE ATT&CK tactic with zero enabled detection rules",
+      "category": "Coverage",
+      "severity": "Warning",
+      "check": "Test-MitreTacticCoverage",
+      "remediation": "Aggregate enabled rules' tactics; any tactic with zero coverage is a blind spot. Use the Sentinel MITRE blade and Content Hub solutions to onboard rules for missing tactics.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/mitre-coverage"
+    },
+    {
+      "id": "SENT-007",
+      "title": "Analytics rules disabled or in error state",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-RulesDisabledOrFailing",
+      "remediation": "A disabled or failing rule produces no alerts. Investigate why each rule is off — missing data source, broken parser, or deliberate suppression — and either remediate or remove.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-built-in"
+    },
+    {
+      "id": "SENT-008",
+      "title": "High-severity rule templates not deployed",
+      "category": "Coverage",
+      "severity": "Info",
+      "check": "Test-HighSeverityTemplatesDeployed",
+      "remediation": "Content Hub templates flagged High severity that aren't deployed are usually quick wins. Review and onboard those that match your data sources.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-from-template"
+    },
+    {
+      "id": "SENT-009",
+      "title": "Owner or Contributor RBAC at workspace scope",
+      "category": "Identity",
+      "severity": "Warning",
+      "check": "Test-RbacOverPrivileged",
+      "remediation": "Owner/Contributor at workspace scope grants more rights than any analyst needs. Replace with Microsoft Sentinel Reader/Responder/Contributor or Log Analytics Reader/Contributor.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/roles"
+    },
+    {
+      "id": "SENT-010",
+      "title": "Diagnostic settings on the Log Analytics workspace not configured",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-DiagnosticSettingsConfigured",
+      "remediation": "Without diagnostic settings the workspace cannot self-monitor (audit logs, query logs, ingestion errors). Forward LAQueryLogs and SentinelHealth to a separate workspace for tamper-evidence.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/monitor-workspace"
+    },
+    {
+      "id": "SENT-011",
+      "title": "Playbook managed identity lacks the Microsoft Sentinel Responder role",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-PlaybookMiHasResponder",
+      "remediation": "A playbook that should comment on or change incident state requires Microsoft Sentinel Responder on the workspace; missing the role causes silent failures.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks"
+    },
+    {
+      "id": "SENT-012",
+      "title": "DCR transform missing on noisy custom tables",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-DcrTransformMissing",
+      "remediation": "Custom _CL tables on the Analytics plan benefit from an ingestion-time KQL transform to drop low-value rows before they're billed.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations"
+    },
+    {
+      "id": "SENT-013",
+      "title": "Content Hub solution updates available",
+      "category": "Hygiene",
+      "severity": "Info",
+      "check": "Test-ContentHubUpdatesAvailable",
+      "remediation": "An installed solution older than the available template version is missing the latest Microsoft-shipped detections. Update via Content Hub or your CI/CD pipeline.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/sentinel-solutions"
+    },
+    {
+      "id": "SENT-014",
+      "title": "Sentinel still on Azure portal — Defender XDR migration deadline 2027-03-31",
+      "category": "Strategic",
+      "severity": "Info",
+      "check": "Test-OnboardedToDefender",
+      "remediation": "Microsoft Sentinel in the Azure portal retires 2027-03-31. Plan and execute the move to the unified Defender XDR experience.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/move-to-defender"
+    },
+    {
+      "id": "SENT-015",
+      "title": "Workspace on PerGB2018 while sustained ingest exceeds the next commitment-tier break-even",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-CommitmentTierOpportunity",
+      "remediation": "When 30-day p95 daily ingest is consistently above a commitment-tier threshold, switching to that tier reduces cost. The cost-estimate page shows the projected monthly delta.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs"
+    },
+    {
+      "id": "SENT-016",
+      "title": "High-volume Analytics-plan table is a Basic/Auxiliary candidate",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-HighVolumeTablePlanCandidate",
+      "remediation": "Tables > 50 GB/30d on Analytics that are queried infrequently (no detection rules, no recent ad-hoc queries) are good candidates for the Basic or Auxiliary plan.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure"
+    },
+    {
+      "id": "SENT-017",
+      "title": "Long-term data on Analytics interactive retention rather than archive",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-RetentionOverArchive",
+      "remediation": "Interactive (Analytics) retention is far more expensive than archive (Long-Term Retention). For data accessed rarely, lower retentionInDays and let totalRetentionInDays take the data into archive.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive"
+    },
+    {
+      "id": "SENT-018",
+      "title": "Total ingest > 500 GB/day but no dedicated cluster",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-DedicatedClusterCandidate",
+      "remediation": "At sustained > 500 GB/day a dedicated Log Analytics cluster offers cluster-level CR pricing, CMK and Availability Zones. Run the break-even projection in the cost-estimate page.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters"
+    },
+    {
+      "id": "SENT-019",
+      "title": "Sentinel free benefit not detected on a workspace with eligible Defender plans",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-SentinelBenefitApplied",
+      "remediation": "Defender for Servers P2, Defender for Cloud and M365 E5 grant a free Sentinel ingestion allowance. If billable security-table ingest is non-zero on a workspace with these plans, the benefit may not be applied — open a support case.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/billing-reduce-costs"
+    },
+    {
+      "id": "SENT-020",
+      "title": "Workspace replication disabled in a paired-region production tenant",
+      "category": "Resilience",
+      "severity": "Info",
+      "check": "Test-ReplicationEnabled",
+      "remediation": "Workspace replication (GA) keeps a synchronous mirror in the paired region for failover. Enable on production workspaces unless an alternative DR strategy is in place.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication"
+    },
+    {
+      "id": "SENT-021",
+      "title": "Public network access enabled for ingestion or query (no AMPLS)",
+      "category": "Network",
+      "severity": "Warning",
+      "check": "Test-PublicNetworkAccessDisabled",
+      "remediation": "Set publicNetworkAccessForIngestion and publicNetworkAccessForQuery to Disabled and front the workspace with an Azure Monitor Private Link Scope (AMPLS). Required for many compliance frameworks.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security"
+    },
+    {
+      "id": "SENT-022",
+      "title": "Sentinel or Log Analytics resource provider not registered on the subscription",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-ResourceProvidersRegistered",
+      "remediation": "Register Microsoft.SecurityInsights and Microsoft.OperationalInsights via Register-AzResourceProvider. Without registration, every deployment fails at the API gate.",
+      "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types"
+    },
+    {
+      "id": "SENT-023",
+      "title": "Eligible tables not yet evaluated for Sentinel Data Lake mirroring",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-DataLakeMirroringCandidate",
+      "remediation": "Long-tail security data (e.g. raw firewall logs kept for hunt and forensics) is a candidate for Sentinel Data Lake mirroring at a fraction of Analytics-plan cost.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview"
+    },
+    {
+      "id": "SENT-024",
+      "title": "disableLocalAuth is false on the workspace (shared-key ingestion permitted)",
+      "category": "Identity",
+      "severity": "Warning",
+      "check": "Test-DisableLocalAuth",
+      "remediation": "Set features.disableLocalAuth = true to require Entra-based authentication for ingestion and disable the workspace shared keys.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/manage-access"
+    },
+    {
+      "id": "SENT-025",
+      "title": "enableLogAccessUsingOnlyResourcePermissions misconfigured for the chosen access model",
+      "category": "Identity",
+      "severity": "Info",
+      "check": "Test-AccessModeConsistent",
+      "remediation": "Decide between workspace-context and resource-context access (see access modes doc) and align this flag accordingly. Mismatched configuration leads to surprise authorisation gaps.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/manage-access"
+    },
+    {
+      "id": "SENT-026",
+      "title": "Silent table — had ingestion historically but nothing in the last 7 days",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-SilentTables",
+      "remediation": "A table with last-ingestion older than 7 days but younger than 90 days usually means a connector has broken. Check connector state, agent health and DCR associations.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
+    },
+    {
+      "id": "SENT-027",
+      "title": "Orphan table — schema deployed but no data in the last 90 days",
+      "category": "Hygiene",
+      "severity": "Info",
+      "check": "Test-OrphanTables",
+      "remediation": "A table with a schema but no ingestion in 90 days is either a delete candidate or a never-onboarded source. Confirm the source intent before removal.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table"
+    },
+    {
+      "id": "SENT-028",
+      "title": "Connector reports Connected but its target table has zero ingestion in 24h",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-ConnectorTableMismatch",
+      "remediation": "A Connected-state connector with no recent data in its target table is a near-certain breakage. Compare against connector health logs and DCR associations.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
+    },
+    {
+      "id": "SENT-029",
+      "title": "Incident MTTR above the 24-hour SOC efficiency threshold",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-IncidentMttrThreshold",
+      "remediation": "When the 30-day mean-time-to-resolve exceeds 24 hours the SOC is over capacity, the rules are too noisy, or the automation gap is shifting work onto analysts. Cross-reference the noisy-rules table in section 21 and the automation-rules count below.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/manage-soc-with-incident-metrics"
+    },
+    {
+      "id": "SENT-030",
+      "title": "Majority of incidents closed without ever being acknowledged",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-IncidentClosedWithoutAcknowledgement",
+      "remediation": "When more than half of closed incidents have no FirstModifiedTime, either automation is auto-closing without analyst review or the analytics rules are flooding the queue with non-actionable alerts. Review automation rules' close-as-suppressed actions and tune the loudest rules.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/manage-soc-with-incident-metrics"
+    },
+    {
+      "id": "SENT-031",
+      "title": "Enabled detection rule not modified in over 12 months",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-MouldyAnalyticsRules",
+      "remediation": "A Scheduled or NRT rule whose lastModifiedUtc is older than a year may be drifting from the data it was authored against. Re-run the rule wizard against the live schema, confirm coverage is still relevant, and either update or retire.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-analytics-rule-integrity"
+    },
+    {
+      "id": "SENT-032",
+      "title": "Deployed analytics rule lags behind the latest template version",
+      "category": "Hygiene",
+      "severity": "Info",
+      "check": "Test-AnalyticsRuleTemplateDrift",
+      "remediation": "When templateVersion on the deployed rule is older than the latest available alertRuleTemplate, Microsoft has shipped detection improvements that haven't been picked up. Update via Content Hub or your CI/CD pipeline.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-from-template"
+    },
+    {
+      "id": "SENT-033",
+      "title": "Single analytics rule accounts for over 30 % of total alert volume",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-DominantNoisyRule",
+      "remediation": "A rule producing > 30 % of total alerts is usually a tuning candidate — too-broad threshold, missing exclusion, or wrong table. Investigate before it inflates MTTA for every other incident sharing the queue.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-optimize-analytics-rule-execution"
+    },
+    {
+      "id": "SENT-034",
+      "title": "No automation rules defined — every incident hits analysts manually",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-AutomationRulesPresent",
+      "remediation": "Without automation rules, every incident requires manual triage. Start with basic enrichment (assign owner, tag by tactic, suppress known-benign) before moving to playbook-driven response.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/automate-incident-handling-with-automation-rules"
+    },
+    {
+      "id": "SENT-035",
+      "title": "Enabled rule has produced zero alerts in the last 90 days",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-DeadAnalyticsRule",
+      "remediation": "A rule with zero alerts in 90 days is either operating against a silent data source, has a broken query, or is genuinely covering a rare event. Confirm intent — if the underlying log table has data, the rule logic likely needs review.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/troubleshoot-analytics-rules"
+    },
+    {
+      "id": "SENT-039",
+      "title": "Service principal granted Owner or Contributor at workspace scope",
+      "category": "Identity",
+      "severity": "Warning",
+      "check": "Test-ServicePrincipalOverPrivileged",
+      "remediation": "A service principal with Owner or Contributor at workspace scope is a programmatic blast-radius risk — credential leakage gives an attacker full Sentinel modification rights. Replace with Microsoft Sentinel Contributor, Responder, or Reader as appropriate to the workload.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/roles"
+    },
+    {
+      "id": "SENT-040",
+      "title": "No identity holds the Microsoft Sentinel Responder role",
+      "category": "Identity",
+      "severity": "Warning",
+      "check": "Test-ResponderRoleAssigned",
+      "remediation": "Without anyone holding the Responder role, your SOC cannot acknowledge, comment on, or close incidents through least-privilege access — analysts end up using Contributor or Owner. Assign Microsoft Sentinel Responder to your tier-1 / tier-2 analyst groups.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/roles"
+    },
+    {
+      "id": "SENT-042",
+      "title": "No deletion-protection lock on the Sentinel workspace",
+      "category": "Resilience",
+      "severity": "Warning",
+      "check": "Test-WorkspaceLockPresent",
+      "remediation": "A CanNotDelete lock at the workspace scope prevents accidental or malicious deletion (which would lose all detection rules, watchlists, hunting queries, and historical incident data). Apply via Resource Manager: `New-AzResourceLock -LockLevel CanNotDelete -LockName ProductionWorkspace -Scope <workspaceResourceId>`.",
+      "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources"
+    },
+    {
+      "id": "SENT-043",
+      "title": "CommonSecurityLog volume warrants a custom-table split to a vendor _CL",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-CefSplitOpportunity",
+      "remediation": "CommonSecurityLog records are billed at the Sentinel security-data rate. Routine, non-security records (link-state, informational vendor events) can be split into a vendor-specific _CL table via a DCR `filter+split` transformation, dropping the per-GB charge to plain Log Analytics rates. See the link for the canonical split pattern.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/transformation-filter-split"
+    },
+    {
+      "id": "SENT-044",
+      "title": "Syslog volume warrants a facility-based DCR filter or _CL split",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-SyslogSplitOpportunity",
+      "remediation": "Syslog records are billed at the Sentinel security-data rate when the workspace is Sentinel-enabled. Use the DCR facilityNames and logLevels controls to drop non-security facilities (cron, user, mail) at collection; route operational records to a custom _CL table at LA rates.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-syslog"
+    },
+    {
+      "id": "SENT-045",
+      "title": "SecurityEvent or WindowsEvent volume warrants an XPath filter on the AMA DCR",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-WindowsEventXPathFilterOpportunity",
+      "remediation": "A common AMA SecurityEvent DCR collects every Event ID under Security, of which 4624/4634/4672/5379 typically dominate volume. Add an XPath filter to the DCR's WindowsEventLogs xPathQueries to drop the high-volume Event IDs at collection (or move them to a separate, cheaper destination).",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-windows-events"
+    },
+    {
+      "id": "SENT-046",
+      "title": "AzureDiagnostics carrying multiple resource providers — switch to resource-specific tables",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-AzureDiagnosticsResourceSpecific",
+      "remediation": "Resource-specific tables are cheaper per-GB, faster to query, and have stable column schemas (AzureDiagnostics is a superset of every resource provider's schema). For each resource type, switch the diagnostic setting from 'Azure diagnostics' to 'Resource-specific' so new data lands in the dedicated table.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/platform/resource-logs"
+    },
+    {
+      "id": "SENT-047",
+      "title": "Custom log table still using the HTTP Data Collector API (CLv1) — retirement 2026-09-14",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-CustomLogsV1Migration",
+      "remediation": "Microsoft retires the HTTP Data Collector API on 14 September 2026; after that date, CLv1 endpoints stop accepting data and ingestion fails silently. For each affected _CL table either issue the table-level migrate API (POST .../tables/{name}/migrate?api-version=2021-12-01-preview) to convert the schema, then wire ingestion through a DCR pointing at the table; or recreate the source via a fresh DCR-based Logs Ingestion API path. Migrate every affected table before the cutoff to avoid data loss.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate"
+    },
+    {
+      "id": "SENT-048",
+      "title": "Legacy Log Analytics agent (MMA / OMS) still heartbeating — retired 2024-08-31",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-MmaAgentStillHeartbeating",
+      "remediation": "The Microsoft Monitoring Agent (MMA, also known as OMS Agent or Log Analytics agent) retired on 31 August 2024. Ingestion was kept running until 1 February 2025 but is degraded after that and unsupported. Migrate every machine to the Azure Monitor Agent (AMA) using the Azure Monitor agent migration tooling, switch the relevant data sources to DCR-based collection, and remove the MMA extension. Only SCOM-only agents are exempt.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration"
+    },
+    {
+      "id": "SENT-049",
+      "title": "Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table — stopped 2025-07-31",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-LegacyThreatIntelligenceTable",
+      "remediation": "Microsoft stopped ingesting threat intelligence into the legacy ThreatIntelligenceIndicator table on 31 July 2025. New indicators land in ThreatIntelIndicators and ThreatIntelObjects (STIX 2.1). Update every TI-aware analytics rule, hunting query, workbook, and automation to reference the new tables (use union for the transition window where historical data still matters), then switch ingestion sources off the legacy TI Platforms connector (itself deprecated June 2026) and onto the Threat Intelligence Upload API.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
+    }
+  ]
+}

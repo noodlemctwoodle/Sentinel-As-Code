@@ -1,0 +1,11 @@
+{
+  "FetchedAtUtc": "2026-05-06T08:00:00Z",
+  "Region": "uksouth",
+  "Services": ["Microsoft Sentinel", "Log Analytics"],
+  "Prices": [
+    { "meterName": "Pay-As-You-Go Data Ingestion", "productName": "Log Analytics", "unitPrice": 2.30, "currencyCode": "GBP", "tierMinimumUnits": 0, "armRegionName": "uksouth" },
+    { "meterName": "Basic Logs Data Ingestion", "productName": "Log Analytics", "unitPrice": 0.45, "currencyCode": "GBP", "tierMinimumUnits": 0, "armRegionName": "uksouth" },
+    { "meterName": "Auxiliary Logs Data Ingestion", "productName": "Log Analytics", "unitPrice": 0.10, "currencyCode": "GBP", "tierMinimumUnits": 0, "armRegionName": "uksouth" },
+    { "meterName": "Data Retention", "productName": "Log Analytics", "unitPrice": 0.10, "currencyCode": "GBP", "tierMinimumUnits": 0, "armRegionName": "uksouth" }
+  ]
+}

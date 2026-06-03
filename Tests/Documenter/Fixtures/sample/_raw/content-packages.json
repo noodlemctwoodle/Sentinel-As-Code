@@ -1,0 +1,4 @@
+[
+  { "name": "azuread", "properties": { "contentId": "azuread", "displayName": "Azure Active Directory", "version": "3.0.0", "source": { "kind": "Solution" } } },
+  { "name": "office365", "properties": { "contentId": "office365", "displayName": "Microsoft 365", "version": "2.5.0", "source": { "kind": "Solution" } } }
+]

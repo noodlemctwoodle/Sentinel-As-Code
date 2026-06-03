@@ -1,0 +1,7 @@
+{
+  "$comment": "Microsoft Sentinel + Log Analytics commitment tier rungs (GB/day). Used by the cost estimator's commitment-tier 'what-if' projection. Discount percentages are illustrative and live in retail-prices.json at run time — this list only enumerates the rung GB values.",
+  "version": "1.0.0",
+  "reviewedOn": "2026-05-06",
+  "source": "https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs",
+  "rungsGbPerDay": [100, 200, 300, 400, 500, 1000, 2000, 5000, 10000, 25000, 50000]
+}

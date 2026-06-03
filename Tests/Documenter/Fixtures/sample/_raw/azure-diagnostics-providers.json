@@ -1,0 +1,5 @@
+[
+  { "ResourceProvider": "MICROSOFT.KEYVAULT",     "LogCount": 38201 },
+  { "ResourceProvider": "MICROSOFT.NETWORK",      "LogCount": 12099 },
+  { "ResourceProvider": "MICROSOFT.STORAGE",      "LogCount":  4012 }
+]

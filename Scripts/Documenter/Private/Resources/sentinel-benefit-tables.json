@@ -1,0 +1,27 @@
+{
+  "$comment": "Tables eligible for the Microsoft Sentinel free ingestion benefit. Reviewed against learn.microsoft.com/azure/sentinel/billing-reduce-costs on each release. Update the source URL and reviewedOn date when refreshing.",
+  "version": "1.0.0",
+  "reviewedOn": "2026-05-06",
+  "source": "https://learn.microsoft.com/azure/sentinel/billing-reduce-costs",
+  "tables": [
+    "AzureActivity",
+    "AADNonInteractiveUserSignInLogs",
+    "AADProvisioningLogs",
+    "AADRiskyUsers",
+    "AADServicePrincipalSignInLogs",
+    "AuditLogs",
+    "AzureDiagnostics",
+    "CommonSecurityLog",
+    "DnsEvents",
+    "OfficeActivity",
+    "SecurityAlert",
+    "SecurityEvent",
+    "SecurityIncident",
+    "SigninLogs",
+    "Syslog",
+    "ThreatIntelligenceIndicator",
+    "ThreatIntelIndicators",
+    "WindowsEvent",
+    "WindowsFirewall"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "MonthlyTotal": 5244.0,
+  "Currency": "GBP",
+  "Region": "uksouth",
+  "AsOfUtc": "2026-05-06T08:00:00Z",
+  "ByPlan": {
+    "Analytics": { "Gb30d": 2780.0, "MonthlyCost": 5244.0 },
+    "Basic": { "Gb30d": 0.0, "MonthlyCost": 0.0 },
+    "Auxiliary": { "Gb30d": 0.0, "MonthlyCost": 0.0 },
+    "DataLake": { "Gb30d": 0.0, "MonthlyCost": 0.0 }
+  },
+  "Top10TablesByCost": [
+    { "Table": "FirewallLogs_CL", "Plan": "Analytics", "Gb30d": 2000.0, "MonthlyCost": 4600.0 },
+    { "Table": "Syslog", "Plan": "Analytics", "Gb30d": 280.0, "MonthlyCost": 644.0 }
+  ],
+  "CommitmentTierWhatIf": [
+    { "Rung": 100, "ProjectedMonthlyCost": 3933.0, "DeltaVsCurrent": -1311.0 }
+  ],
+  "DedicatedClusterCandidate": false,
+  "Caveats": [
+    "Query-time billing for Basic/Auxiliary plans not included.",
+    "Search-job and restored-log storage not included."
+  ],
+  "MethodologyVersion": "1.0.0"
+}

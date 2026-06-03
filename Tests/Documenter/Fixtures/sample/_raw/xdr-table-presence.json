@@ -1,0 +1,6 @@
+[
+  { "Type": "DeviceEvents",        "RecordCount": 28401 },
+  { "Type": "DeviceNetworkEvents", "RecordCount": 14012 },
+  { "Type": "EmailEvents",         "RecordCount":  2204 },
+  { "Type": "IdentityLogonEvents", "RecordCount":  8917 }
+]

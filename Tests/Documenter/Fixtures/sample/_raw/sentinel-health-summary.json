@@ -1,0 +1,5 @@
+[
+  { "OperationName": "Data fetcher run",     "Status": "Success",   "LogCount": 521 },
+  { "OperationName": "Data fetcher run",     "Status": "Failure",   "LogCount":   8 },
+  { "OperationName": "Scheduled analytics",  "Status": "Success",   "LogCount": 1432 }
+]

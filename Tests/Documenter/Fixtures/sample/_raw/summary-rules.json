@@ -1,0 +1,17 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/summaryLogs/SigninLogsHourlyRollup",
+    "name": "SigninLogsHourlyRollup",
+    "type": "Microsoft.OperationalInsights/workspaces/summaryLogs",
+    "properties": {
+      "ruleType": "User",
+      "RuleDefinition": {
+        "Query": "SigninLogs | summarize count() by bin(TimeGenerated,1h), UserPrincipalName",
+        "BinSize": 60,
+        "BinDelay": 5,
+        "TimeSelector": "TimeGenerated",
+        "DestinationTable": "SigninLogsHourly_CL"
+      }
+    }
+  }
+]

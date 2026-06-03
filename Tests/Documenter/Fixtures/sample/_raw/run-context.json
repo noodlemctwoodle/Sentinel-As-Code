@@ -1,0 +1,12 @@
+{
+  "SubscriptionId": "00000000-0000-0000-0000-000000000001",
+  "TenantId": "00000000-0000-0000-0000-000000000002",
+  "ResourceGroup": "rg-sentinel-test",
+  "WorkspaceName": "law-sentinel-test",
+  "WorkspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test",
+  "StartedAtUtc": "2026-05-06T08:00:00.0000000Z",
+  "CompletedAtUtc": "2026-05-06T08:02:30.0000000Z",
+  "DocumenterVersion": "0.1.0",
+  "AzPSVersion": "3.0.4",
+  "IncludePreview": false
+}

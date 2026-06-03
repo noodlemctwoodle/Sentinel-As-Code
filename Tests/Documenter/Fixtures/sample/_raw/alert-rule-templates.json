@@ -1,0 +1,17 @@
+[
+  {
+    "name": "tmpl-suspicious-signin",
+    "kind": "Scheduled",
+    "properties": { "displayName": "Suspicious sign-in", "severity": "High", "version": "1.2.0" }
+  },
+  {
+    "name": "tmpl-data-exfiltration",
+    "kind": "Scheduled",
+    "properties": { "displayName": "Data exfiltration", "severity": "High" }
+  },
+  {
+    "name": "tmpl-low-noise",
+    "kind": "Scheduled",
+    "properties": { "displayName": "Low-severity noise", "severity": "Low" }
+  }
+]

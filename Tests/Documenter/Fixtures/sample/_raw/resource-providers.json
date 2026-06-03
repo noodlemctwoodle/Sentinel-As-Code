@@ -1,0 +1,5 @@
+[
+  { "ProviderNamespace": "Microsoft.SecurityInsights", "RegistrationState": "Registered" },
+  { "ProviderNamespace": "Microsoft.OperationalInsights", "RegistrationState": "Registered" },
+  { "ProviderNamespace": "Microsoft.Insights", "RegistrationState": "NotRegistered" }
+]

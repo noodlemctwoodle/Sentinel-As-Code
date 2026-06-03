@@ -1,0 +1,5 @@
+[
+  { "DisplayName": "Sentinel SOC Reader", "ObjectType": "Group", "RoleDefinitionName": "Microsoft Sentinel Reader", "Scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test" },
+  { "DisplayName": "Legacy Admin Group", "ObjectType": "Group", "RoleDefinitionName": "Owner", "Scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test" },
+  { "DisplayName": "ci-deployer-sp", "ObjectType": "ServicePrincipal", "RoleDefinitionName": "Contributor", "Scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test" }
+]

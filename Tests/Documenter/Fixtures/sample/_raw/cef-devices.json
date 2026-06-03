@@ -1,0 +1,5 @@
+[
+  { "DeviceVendor": "Palo Alto Networks", "DeviceProduct": "PAN-OS",   "LogCount": 145820 },
+  { "DeviceVendor": "Fortinet",           "DeviceProduct": "Fortigate", "LogCount":  92143 },
+  { "DeviceVendor": "Check Point",        "DeviceProduct": "VPN-1 & FireWall-1", "LogCount": 38112 }
+]
