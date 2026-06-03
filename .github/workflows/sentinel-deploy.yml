@@ -211,12 +211,12 @@ jobs:
                     Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' exists."
 
                     # Sentinel uses a dual onboarding pattern (see
-                    # Docs/Deployment/Bicep.md "Why two onboarding
+                    # Docs/Infra/Bicep.md "Why two onboarding
                     # mechanisms?"): the legacy
                     # Microsoft.OperationsManagement/solutions
                     # SecurityInsights(<workspace>) resource AND the
                     # modern Microsoft.SecurityInsights/onboardingStates
-                    # /default resource. Bicep/sentinel.bicep deploys
+                    # /default resource. Infra/sentinel/sentinel.bicep deploys
                     # both. Both must exist for the workspace to be
                     # considered fully onboarded. Probe both
                     # independently so a partially-deleted onboarding
@@ -277,7 +277,7 @@ jobs:
                         Write-Host "::error::Resolution options:"
                         Write-Host "::error::  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
                         Write-Host "::error::  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
-                        Write-Host "::error::Background: Docs/Deployment/Bicep.md 'Why two onboarding mechanisms?'."
+                        Write-Host "::error::Background: Docs/Infra/Bicep.md 'Why two onboarding mechanisms?'."
                         throw "Unrecoverable partial Sentinel onboarding state - aborting deploy."
                     }
                 }
@@ -359,7 +359,7 @@ jobs:
             # `tr -d '[:space:]'` is POSIX-portable and strips every
             # whitespace class on every shell environment we target.
             #
-            # Empty input stays empty, which Bicep/main.bicep:55 treats
+            # Empty input stays empty, which Infra/sentinel/main.bicep:55 treats
             # as "no separate playbook RG required" (the conditional
             # playbookRg resource only fires when playbookRgName is
             # non-empty and != rgName).
@@ -367,7 +367,7 @@ jobs:
 
             az deployment sub create \
               --location "${{ env.REGION }}" \
-              --template-file Bicep/main.bicep \
+              --template-file Infra/sentinel/main.bicep \
               --parameters \
                 rgLocation="${{ env.REGION }}" \
                 rgName="${{ env.RESOURCE_GROUP }}" \
@@ -499,7 +499,7 @@ jobs:
             if ("${{ inputs.force_content_deployment }}" -eq "true")   { $scriptParams['ForceContentDeployment']   = $true }
             if ("${{ inputs.what_if }}" -eq "true")                    { $scriptParams['WhatIf']                   = $true }
 
-            & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+            & "${{ github.workspace }}/Deploy/content/Deploy-SentinelContentHub.ps1" @scriptParams
 
   # ===========================================================================
   # Stage 4: Deploy Custom Content
@@ -544,10 +544,10 @@ jobs:
       - name: Verify dependency manifest is current
         shell: pwsh
         run: |
-          & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
+          & "${{ github.workspace }}/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) {
               Write-Host "::error::dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-              Write-Host "::error::Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              Write-Host "::error::Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
               exit 1
           }
 
@@ -601,7 +601,7 @@ jobs:
             if ("${{ inputs.smart_deployment }}" -ne "false")            { $scriptParams['SmartDeployment']    = $true }
             if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
 
-            & "${{ github.workspace }}/Scripts/Deploy-CustomContent.ps1" @scriptParams
+            & "${{ github.workspace }}/Deploy/content/Deploy-CustomContent.ps1" @scriptParams
 
       - name: Save Deployment State
         if: always()
@@ -651,4 +651,4 @@ jobs:
 
             if ("${{ inputs.what_if }}" -eq "true") { $scriptParams['WhatIf'] = $true }
 
-            & "${{ github.workspace }}/Scripts/Deploy-DefenderDetections.ps1" @scriptParams
+            & "${{ github.workspace }}/Deploy/content/Deploy-DefenderDetections.ps1" @scriptParams

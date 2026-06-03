@@ -3,11 +3,11 @@
 <#
 .SYNOPSIS
     Pester 5 unit tests for the pure function in
-    Scripts/Deploy-DefenderDetections.ps1: the YAML-to-Graph-API body
+    Deploy/content/Deploy-DefenderDetections.ps1: the YAML-to-Graph-API body
     converter.
 
 .DESCRIPTION
-    The Defender deployer reads YAML rules from DefenderCustomDetections/
+    The Defender deployer reads YAML rules from Content/DefenderCustomDetections/
     and converts each into the JSON body expected by the Graph Security
     custom-detection-rule POST/PATCH endpoints. Schema docs:
     Docs/Content/Defender-Custom-Detections.md.
@@ -23,7 +23,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Deploy-DefenderDetections.ps1'
+    $scriptPath = Join-Path $repoRoot 'Deploy/content/Deploy-DefenderDetections.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath

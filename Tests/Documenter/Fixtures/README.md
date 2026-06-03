@@ -17,7 +17,7 @@ test suite on credentials and make every PR untestable in CI.
 
 `sample/_raw/` encodes a workspace that violates many best-practice rules
 on purpose, so each `Test-*` function in
-[`Scripts/Documenter/Private/GapChecks.ps1`](../../../Scripts/Documenter/Private/GapChecks.ps1)
+[`Tools/Documenter/Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1)
 has at least one positive case to prove against. Each rule's expected
 firing condition is documented in the comment block at the top of
 [`Get-SentinelGap.Tests.ps1`](../Get-SentinelGap.Tests.ps1).
@@ -35,7 +35,7 @@ Examples of the brokenness:
 
 ## How real workspaces produce JSON
 
-When you run `Scripts/Documenter/Export-SentinelInventory.ps1` against your
+When you run `Tools/Documenter/Export-SentinelInventory.ps1` against your
 live workspace the collector writes JSON to `SecurityDocs/<workspace>/_raw/`
 at the **repo root**. That folder is `.gitignore`'d so the data stays local
 and rides out via the workflow's private artefact — it never lands in this
@@ -44,7 +44,7 @@ fixture directory.
 Workflow → JSON path:
 ```
 .github/workflows/sentinel-document.yml
-  → Scripts/Documenter/Export-SentinelInventory.ps1
+  → Tools/Documenter/Export-SentinelInventory.ps1
     → SecurityDocs/<workspace>/_raw/*.json    ← gitignored, real data
 ```
 

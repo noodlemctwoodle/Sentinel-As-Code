@@ -1,13 +1,13 @@
 ---
 name: Analytical rules
-description: Schema and authoring rules for AnalyticalRules/**/*.yaml files.
-applyTo: "AnalyticalRules/**/*.yaml"
+description: Schema and authoring rules for Content/AnalyticalRules/**/*.yaml files.
+applyTo: "Content/AnalyticalRules/**/*.yaml"
 ---
 
 # Analytical rule authoring
 
 Custom Sentinel analytical rules in YAML. Loaded automatically when
-editing any file under `AnalyticalRules/`. Full schema and worked
+editing any file under `Content/AnalyticalRules/`. Full schema and worked
 examples in
 [`Docs/Content/Analytical-Rules.md`](../../Docs/Content/Analytical-Rules.md).
 
@@ -56,7 +56,7 @@ defaults to Scheduled.
 
 1. **`id` must be a fresh GUID.** Never reuse one from another rule.
    The schema test enforces uniqueness across the entire
-   `AnalyticalRules/` tree.
+   `Content/AnalyticalRules/` tree.
 2. **`enabled: true | false`.** This is the field name (not `status`,
    not `state`). Rules deploy enabled by default; set
    `enabled: false` to deploy disabled for review. The deployer also
@@ -80,7 +80,7 @@ defaults to Scheduled.
 
 1. Re-run the dep manifest:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 2. Stage the rule + the regenerated `dependencies.json` together.
 3. Run Pester locally: `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1`.
@@ -102,11 +102,11 @@ The deploy pipeline reads this YAML, converts it to the Sentinel REST
 API JSON shape, and `PUT`s it under
 `/providers/Microsoft.SecurityInsights/alertRules/<ruleId>`. The script
 that does this is
-[`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1).
+[`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1).
 
 ## Cross-references
 
 - Full schema: [`Docs/Content/Analytical-Rules.md`](../../Docs/Content/Analytical-Rules.md)
 - KQL conventions: [`./kql-queries.instructions.md`](./kql-queries.instructions.md)
 - Test suite: [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1)
-- Discovery model: [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+- Discovery model: [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)

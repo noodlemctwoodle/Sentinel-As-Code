@@ -8,7 +8,7 @@ tools: ['search/codebase', 'edit/applyPatch', 'terminal/run']
 # New Defender XDR custom detection
 
 Bootstrap a fresh Defender XDR custom detection rule under
-`DefenderCustomDetections/<Category>/<DetectionName>.yaml`.
+`Content/DefenderCustomDetections/<Category>/<DetectionName>.yaml`.
 
 ## When to use this vs an analytical rule
 
@@ -40,12 +40,12 @@ an analytical rule (`/new-analytical-rule`).
 ## Steps
 
 1. **Pick a category folder.** Existing structure:
-   - `DefenderCustomDetections/Email/` — EmailEvents-based
-   - `DefenderCustomDetections/Endpoint/` — Device*-based
-   - `DefenderCustomDetections/Identity/` — IdentityLogon /
+   - `Content/DefenderCustomDetections/Email/` — EmailEvents-based
+   - `Content/DefenderCustomDetections/Endpoint/` — Device*-based
+   - `Content/DefenderCustomDetections/Identity/` — IdentityLogon /
      IdentityDirectory-based
-   - `DefenderCustomDetections/CloudApps/` — CloudAppEvents-based
-   - `DefenderCustomDetections/Office365/` — OfficeActivity-based
+   - `Content/DefenderCustomDetections/CloudApps/` — CloudAppEvents-based
+   - `Content/DefenderCustomDetections/Office365/` — OfficeActivity-based
    If a fitting folder doesn't exist, ask before creating one.
 
 2. **Pick a file name.** PascalCase, descriptive of the detection.

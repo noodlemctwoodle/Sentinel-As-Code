@@ -2,7 +2,7 @@
 
 Automatically inventories all Data Collection Rule (DCR) associations in a subscription and syncs them to a Microsoft Sentinel watchlist. Designed for billing, audit, and operational visibility.
 
-Source files live under [`Automation/DCR-Watchlist/`](../../Automation/DCR-Watchlist/).
+The Bicep stack lives under [`Infra/dcr-watchlist/`](../../Infra/dcr-watchlist/); the runbook is [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) and the permissions helper [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1).
 
 ## What It Does
 
@@ -92,14 +92,14 @@ _GetWatchlist('CustomerResources')
 | **Azure subscription** | Target subscription containing DCRs |
 | **Sentinel workspace** | Log Analytics workspace with Sentinel enabled |
 | **Azure DevOps** | Service connection with **Contributor** on the subscription |
-| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](../Deployment/Pipelines.md)) |
+| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](../Deploy/Pipelines.md)) |
 | **Manual RBAC** | One-time post-deployment (see below) |
 
 ## Deployment
 
 ### 1. Run the Pipeline
 
-The pipeline is at [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) and triggers on changes to `Automation/DCR-Watchlist/**`.
+The pipeline is at [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) and triggers on changes to `Infra/dcr-watchlist/**`, `Tools/Invoke-DCRWatchlistSync.ps1`, or `Deploy/permissions/Set-RunbookPermissions.ps1`.
 
 It has two stages:
 
@@ -123,10 +123,10 @@ Pipeline parameters:
 
 ### 2. Apply RBAC (One-Time, Manual)
 
-The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1`](../../Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1):
+The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1):
 
 ```powershell
-./Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'
+./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'
 ```
 
 This assigns:
@@ -139,7 +139,7 @@ This assigns:
 To remove the permissions:
 
 ```powershell
-./Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>' -Remove
+./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>' -Remove
 ```
 
 ### 3. Verify
@@ -153,13 +153,13 @@ After the first scheduled run (or a manual trigger from the Azure Portal):
 ## File Structure
 
 ```
-Automation/DCR-Watchlist/
+Infra/dcr-watchlist/
 ├── main.bicep                         # Subscription-scoped Bicep orchestrator
-├── modules/
-│   └── automationAccount.bicep        # Automation Account, schedule, runbook shell
-└── scripts/
-    ├── Invoke-DCRWatchlistSync.ps1    # Runbook — DCR enumeration and watchlist sync
-    └── Set-RunbookPermissions.ps1     # Post-deployment RBAC assignment script
+└── modules/
+    └── automationAccount.bicep        # Automation Account, schedule, runbook shell
+
+Tools/Invoke-DCRWatchlistSync.ps1      # Runbook — DCR enumeration and watchlist sync
+Deploy/permissions/Set-RunbookPermissions.ps1      # Post-deployment RBAC assignment script
 
 Pipelines/
 └── Sentinel-DCR-Inventory.yml           # Azure DevOps pipeline

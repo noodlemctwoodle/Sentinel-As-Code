@@ -41,13 +41,13 @@ BeforeDiscovery {
     # Set in BeforeDiscovery so test-case data carries the Skeleton flag —
     # -Skip: predicates evaluate at discovery and need static data.
     $skeletonPlaybooks = @(
-        'Playbooks/Template/Template.json',
-        'Playbooks/Other/Schedule-AutomationRules.json',
-        'Playbooks/Alert/AzureOpenAIAssistant.json'
+        'Content/Playbooks/Template/Template.json',
+        'Content/Playbooks/Other/Schedule-AutomationRules.json',
+        'Content/Playbooks/Alert/AzureOpenAIAssistant.json'
     )
 
     $script:playbookCases = @()
-    $playbookRoot = Join-Path $repoRoot 'Playbooks'
+    $playbookRoot = Join-Path $repoRoot 'Content/Playbooks'
     if (Test-Path $playbookRoot) {
         $script:playbookCases = @(Get-ChildItem -Path $playbookRoot -Recurse -Filter '*.json' -File | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'

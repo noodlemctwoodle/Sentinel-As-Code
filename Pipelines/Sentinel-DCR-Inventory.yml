@@ -27,7 +27,9 @@ trigger:
       - main
   paths:
     include:
-      - Automation/DCR-Watchlist/**
+      - Infra/dcr-watchlist/**
+      - Tools/Invoke-DCRWatchlistSync.ps1
+      - Deploy/permissions/Set-RunbookPermissions.ps1
 
 parameters:
   # ── Deployment Options ───────────────────────────────────────────────────
@@ -88,7 +90,7 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
   - name: bicepPath
-    value: "$(Build.SourcesDirectory)/Automation/DCR-Watchlist"
+    value: "$(Build.SourcesDirectory)/Infra/dcr-watchlist"
 
 pool:
   vmImage: "ubuntu-latest"
@@ -193,7 +195,7 @@ stages:
                 Write-Host "  Runbook:            Invoke-DCRWatchlistSync"
                 Write-Host "============================================================"
 
-                $scriptPath = "$(bicepPath)/scripts/Invoke-DCRWatchlistSync.ps1"
+                $scriptPath = "$(Build.SourcesDirectory)/Tools/Invoke-DCRWatchlistSync.ps1"
 
                 if (-not (Test-Path $scriptPath)) {
                     Write-Error "Script not found: $scriptPath"

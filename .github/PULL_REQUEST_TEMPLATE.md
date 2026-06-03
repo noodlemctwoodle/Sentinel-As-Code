@@ -53,9 +53,9 @@ The PR-validation gate enforces most of these automatically; tick
 them when you've confirmed locally so reviewers know what was run.
 -->
 
-- [ ] **Pester suite** passes locally (`./Scripts/Invoke-PRValidation.ps1 -RepoPath .`)
-- [ ] **Bicep build** passes locally if Bicep changed (`az bicep build --file Bicep/main.bicep --stdout > /dev/null`)
-- [ ] **`dependencies.json` regenerated** if KQL content changed (`./Scripts/Build-DependencyManifest.ps1 -Mode Generate`)
+- [ ] **Pester suite** passes locally (`./Tools/Invoke-PRValidation.ps1 -RepoPath .`)
+- [ ] **Bicep build** passes locally if Bicep changed (`az bicep build --file Infra/sentinel/main.bicep --stdout > /dev/null`)
+- [ ] **`dependencies.json` regenerated** if KQL content changed (`./Tools/Build-DependencyManifest.ps1 -Mode Generate`)
 - [ ] **Cross-platform parity** maintained if pipelines/workflows changed (ADO + GitHub both updated)
 - [ ] **Path-scoped instructions** still match the touched content type's schema
 - [ ] **No secrets** in committed files (env vars, hardcoded tokens, connection strings)
@@ -83,7 +83,7 @@ explicit reviewer agreement.
 -->
 
 - `validate` — Pester suite under Tests/
-- `bicep-build` — `az bicep build` against Bicep/**/*.bicep
+- `bicep-build` — `az bicep build` against Infra/**/*.bicep
 - `arm-validate` — Test-AzResourceGroupDeployment -WhatIf for playbooks (OIDC)
 - `kql-validate` — Microsoft.Azure.Kusto.Language parser across all queries
 - `dependency-manifest` — dependencies.json drift gate

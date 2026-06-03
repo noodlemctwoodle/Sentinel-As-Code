@@ -25,19 +25,19 @@ explain, and direct.
 
 3. **Use the deploy flow as a mental model.** Most "how does X
    work?" questions trace a path through:
-   - Authoring (`AnalyticalRules/`, `HuntingQueries/`, etc.)
-   - Discovery (`Modules/Sentinel.Common/` + `Scripts/Build-DependencyManifest.ps1`)
+   - Authoring (`Content/AnalyticalRules/`, `Content/HuntingQueries/`, etc.)
+   - Discovery (`Modules/Sentinel.Common/` + `Tools/Build-DependencyManifest.ps1`)
    - PR-validation gate (`.github/workflows/pr-validation.yml`)
-   - Deploy (`Scripts/Deploy-CustomContent.ps1`,
-     `Scripts/Deploy-SentinelContentHub.ps1`,
-     `Scripts/Deploy-DefenderDetections.ps1`)
-   - Post-deploy ops (`Scripts/Test-SentinelRuleDrift.ps1`,
-     `Scripts/Set-PlaybookPermissions.ps1`)
+   - Deploy (`Deploy/content/Deploy-CustomContent.ps1`,
+     `Deploy/content/Deploy-SentinelContentHub.ps1`,
+     `Deploy/content/Deploy-DefenderDetections.ps1`)
+   - Post-deploy ops (`Tools/Test-SentinelRuleDrift.ps1`,
+     `Deploy/permissions/Set-PlaybookPermissions.ps1`)
 
 4. **Surface the dependency-manifest model.** If the user is
    confused about how rules get classified, ordered, or validated,
    point them at
-   [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md).
+   [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md).
    That doc is the single source of truth for the
    tables-vs-functions classification, watchlist cross-validation,
    and the daily auto-PR pattern.
@@ -75,13 +75,13 @@ explain, and direct.
 
 | User asks | Start at |
 | --- | --- |
-| "How does the deploy work?" | [`Docs/Deployment/Pipelines.md`](../../Docs/Deployment/Pipelines.md) |
-| "How are dependencies managed?" | [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md) |
+| "How does the deploy work?" | [`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md) |
+| "How are dependencies managed?" | [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md) |
 | "How is X tested?" | [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md) |
 | "What's the YAML schema for Y?" | `Docs/Content/<ContentType>.md` |
-| "Where's the script for Z?" | [`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md) |
-| "How does drift detection work?" | [`Docs/Operations/Sentinel-Drift-Detection.md`](../../Docs/Operations/Sentinel-Drift-Detection.md) |
-| "Why isn't my rule deploying?" | The deploy workflow logs first, then [`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md) |
+| "Where's the script for Z?" | [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md) |
+| "How does drift detection work?" | [`Docs/Tools/Sentinel-Drift-Detection.md`](../../Docs/Tools/Sentinel-Drift-Detection.md) |
+| "Why isn't my rule deploying?" | The deploy workflow logs first, then [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md) |
 
 ## Output style
 

@@ -31,7 +31,7 @@ the prompt bootstraps one file; you reason about the suite.
 
 - `Tests/*.Tests.ps1` — every Pester file
 - `Tests/_helpers/Import-ScriptFunctions.psm1` — the AST helper
-- `Scripts/Invoke-PRValidation.ps1` — the cross-platform PR gate
+- `Tools/Invoke-PRValidation.ps1` — the cross-platform PR gate
   entry point
 
 ## Read this before editing
@@ -59,7 +59,7 @@ For a `.psm1` module (like `Sentinel.Common`), use direct
 
 1. **Identify what's missing.** Look at
    [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)'s
-   test inventory. If a script under `Scripts/` has no
+   test inventory. If a script under `Deploy/` or `Tools/` has no
    corresponding `Tests/Test-<ScriptName>.Tests.ps1`, that's the
    gap.
 2. **Pick the functions to cover.** Read the script. Functions
@@ -72,7 +72,7 @@ For a `.psm1` module (like `Sentinel.Common`), use direct
        Import-Module "$repoRoot/Tests/_helpers/Import-ScriptFunctions.psm1" -Force
 
        $functions = Import-ScriptFunctions `
-           -ScriptPath "$repoRoot/Scripts/<Name>.ps1"
+           -ScriptPath "$repoRoot/Deploy/<Name>.ps1"
        . ([scriptblock]::Create($functions))
 
        Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
@@ -97,7 +97,7 @@ For a `.psm1` module (like `Sentinel.Common`), use direct
    Invoke-Pester -Path Tests/Test-X.Tests.ps1 -Output Detailed
    ```
 2. **Look for repeated work.** A `BeforeAll` that walks the entire
-   `AnalyticalRules/` tree once per test should walk it once per
+   `Content/AnalyticalRules/` tree once per test should walk it once per
    `Describe`.
 3. **Lift `Get-ChildItem` into `BeforeDiscovery`.** That runs once
    per file at discovery time, before any test runs. Per-file `It`

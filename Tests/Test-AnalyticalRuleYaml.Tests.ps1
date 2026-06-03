@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every YAML in AnalyticalRules/ and
-    HuntingQueries/. Wired into the PR-validation workflow as a required
+    Pester 5 schema validation for every YAML in Content/AnalyticalRules/ and
+    Content/HuntingQueries/. Wired into the PR-validation workflow as a required
     check so PRs are blocked when a rule YAML is malformed or breaks the
     repo's schema rules.
 
@@ -83,13 +83,13 @@ BeforeDiscovery {
         }
     }
 
-    $script:analyticalRuleCases = @(Get-YamlCases -Subdirectory 'AnalyticalRules')
-    $script:huntingQueryCases   = @(Get-YamlCases -Subdirectory 'HuntingQueries')
+    $script:analyticalRuleCases = @(Get-YamlCases -Subdirectory 'Content/AnalyticalRules')
+    $script:huntingQueryCases   = @(Get-YamlCases -Subdirectory 'Content/HuntingQueries')
 }
 
 BeforeAll {
     # Schema constants. Keep these in sync with Docs/Content/Analytical-Rules.md
-    # and the deployer's own tolerances in Scripts/Deploy-CustomContent.ps1.
+    # and the deployer's own tolerances in Deploy/content/Deploy-CustomContent.ps1.
     $script:ValidSeverities       = @('High', 'Medium', 'Low', 'Informational')
     $script:ValidKinds            = @('Scheduled', 'NRT')
     # Repo style is the short YAML form. Deploy-CustomContent.ps1 expands these
@@ -130,7 +130,7 @@ Describe 'Analytical rule schema: <RelativePath>' -ForEach $script:analyticalRul
         }
 
         It 'has a GUID-format id' -Skip:$IsCommunity {
-            # Community rules under AnalyticalRules/Community/ are imported from
+            # Community rules under Content/AnalyticalRules/Community/ are imported from
             # third-party repos that use deliberately-non-GUID identifiers
             # (e.g. 'a1b2c3d4-0011-4a5b-8c9d-dns011certutil'). The deployer
             # force-disables every community rule and they are opt-in via the
@@ -246,9 +246,9 @@ Describe 'Analytical rules: cross-file invariants' {
             Import-Module powershell-yaml -ErrorAction Stop
         }
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $rulesPath = Join-Path $repoRoot 'AnalyticalRules'
+        $rulesPath = Join-Path $repoRoot 'Content/AnalyticalRules'
 
-        # Community rules under AnalyticalRules/Community/ are imported from
+        # Community rules under Content/AnalyticalRules/Community/ are imported from
         # third-party repos. David's upstream deliberately reuses ids across
         # categories. Since community rules are opt-in and force-disabled at
         # deploy, an upstream id collision should not block our PR gate.
@@ -273,7 +273,7 @@ Describe 'Analytical rules: cross-file invariants' {
         }
     }
 
-    It 'every rule id is unique across in-house AnalyticalRules/ (excluding Community/)' {
+    It 'every rule id is unique across in-house Content/AnalyticalRules/ (excluding Community/)' {
         $duplicates = $script:idMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
