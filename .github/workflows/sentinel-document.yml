@@ -145,7 +145,7 @@ jobs:
             $ErrorActionPreference = 'Stop'
             $env:SENTINEL_RG          = '${{ vars.SENTINEL_RG }}'
             $env:SENTINEL_WORKSPACE   = '${{ vars.SENTINEL_WORKSPACE }}'
-            $includePreview = [bool]::Parse('${{ inputs.include-preview || ''false'' }}')
+            $includePreview = [bool]::Parse('${{ inputs.include-preview || 'false' }}')
 
             ./Scripts/Documenter/Export-SentinelInventory.ps1 `
               -SubscriptionId  '${{ secrets.AZURE_SUBSCRIPTION_ID }}' `
