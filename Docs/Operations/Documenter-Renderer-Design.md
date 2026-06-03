@@ -1,9 +1,9 @@
-# Sentinel Documenter — renderer design spec
+# Sentinel Documenter, renderer design spec
 
 > Maintainer-facing reference for [`Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1).
 > The user-facing operating guide is the sibling [`Sentinel-Documenter.md`](Sentinel-Documenter.md).
 
-This doc captures the design of the renderer — what each chart is driven
+This doc captures the design of the renderer, what each chart is driven
 by, where every helper lives, the Mermaid-safety conventions that govern
 chart emission, and how to extend any of it without regressing.
 
@@ -20,18 +20,18 @@ Live workspace → Export-SentinelInventory.ps1 → _raw/*.json
 _raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 37 .md files
 ```
 
-This spec covers stage 2 — the renderer. The renderer is a single
+This spec covers stage 2, the renderer. The renderer is a single
 PowerShell script organised as:
 
-1. **Param block + module bootstrap** (lines 1–93): `-WorkspaceName`,
+1. **Param block + module bootstrap** (lines 1, 93): `-WorkspaceName`,
    `-InputRoot`, `-OutputRoot`, `-ResourcesRoot` parameters; dot-sources
    `Private/Get-EffectiveConnectors.ps1`.
-2. **Helpers** (lines 95–243): the toolbox. Documented in detail below.
-3. **Inventory loading + cross-section hoisting** (lines 174–296): every
+2. **Helpers** (lines 95, 243): the toolbox. Documented in detail below.
+3. **Inventory loading + cross-section hoisting** (lines 174, 296): every
    `_raw/*.json` is read once into a typed PSObject; the few globals that
    multiple sections share (`$gapBySeverity`, `$gapByCategory`,
    `$mitreRowsRich`, `$populatedTableNames`) are computed here.
-4. **Section emit blocks** (lines 286–2713): one block per `.md` file. Each
+4. **Section emit blocks** (lines 286, 2713): one block per `.md` file. Each
    block builds its data, optionally builds a Mermaid chart, then calls
    `Write-Section <filename> <body>` which writes to disk + applies the
    `SENT-NNN` auto-link pass.
@@ -59,7 +59,7 @@ hoisted globals).
 
 **25+ Mermaid chart blocks across 25 of 37 sections.** Every chart is
 driven by data from the captured `_raw/*.json` (no static decoration).
-Every chart guards against empty data — sections with nothing to chart
+Every chart guards against empty data, sections with nothing to chart
 emit the table only.
 
 ### Charts by section
@@ -108,12 +108,12 @@ emit the table only.
 7 sections do not emit charts because the data shape doesn't support
 one or the page is pure-reference:
 
-- `36-data-export.md`, `37-search-restore.md`, `82-dedicated-cluster.md` —
+- `36-data-export.md`, `37-search-restore.md`, `82-dedicated-cluster.md`, 
   typically empty on most workspaces.
-- `96-references-microsoft.md`, `99-references.md` — Microsoft-link
+- `96-references-microsoft.md`, `99-references.md`, Microsoft-link
   reference pages.
-- `index.md` — navigation TOC.
-- `87-azure-monitor-agents.md` when agent count < 3 — renders a sentence
+- `index.md`, navigation TOC.
+- `87-azure-monitor-agents.md` when agent count < 3, renders a sentence
   instead because a 1-vs-0 pie is visually meaningless.
 
 The rule: **chart only when data shape justifies it; never as decoration.**
@@ -122,18 +122,18 @@ The rule: **chart only when data shape justifies it; never as decoration.**
 
 | Helper | Lines (~) | Purpose | Called from |
 |---|---|---|---|
-| `Read-Raw` | 95–101 | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
-| `Read-RawArray` | 103–114 | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing — prevents phantom rows. | Every section that consumes an array |
-| `Write-Section` | 116–148 | Writes a body to `<OutputRoot>/<FileName>` AND runs the two-pass SENT-NNN auto-link regex on the body before writing. | Every section block |
-| `Format-DateUtc` | 150–166 | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
-| `Format-Gb` | 168–182 | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
-| `Format-Banner` | 184–193 | Section header — title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
-| `Format-Table` | 195–221 | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
-| `Format-Severity-Badge` | 223–230 | Severity string → coloured emoji (`🔴 Critical`, `🟠 Warning`, `🔵 Info`). | Top-recommendations bullets in 00 / 01, gap-analysis findings table |
-| `Format-FeatureFlag` | 236–243 | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
+| `Read-Raw` | 95, 101 | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
+| `Read-RawArray` | 103, 114 | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
+| `Write-Section` | 116, 148 | Writes a body to `<OutputRoot>/<FileName>` AND runs the two-pass SENT-NNN auto-link regex on the body before writing. | Every section block |
+| `Format-DateUtc` | 150, 166 | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
+| `Format-Gb` | 168, 182 | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
+| `Format-Banner` | 184, 193 | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
+| `Format-Table` | 195, 221 | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
+| `Format-Severity-Badge` | 223, 230 | Severity string → coloured emoji (`🔴 Critical`, `🟠 Warning`, `🔵 Info`). | Top-recommendations bullets in 00 / 01, gap-analysis findings table |
+| `Format-FeatureFlag` | 236, 243 | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
 | `Format-MinutesScalar` | ~2487 | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
-| `Format-MitreTechniqueCell` | ~672 | Technique ID → `[T1078 — Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
-| `_SocOptRow` | ~2267 | Internal — builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
+| `Format-MitreTechniqueCell` | ~672 | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
+| `_SocOptRow` | ~2267 | Internal, builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
 | `_CostSourceFor` | ~1746 | Inline (within 84 emit block). Table name regex → cost source category for Sankey aggregation. | Cost Sankey (84) |
 | `_DaysUntilFromToday` | ~2094 | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
 | `Get-ConnectorFriendlyTitle` | ~368 | Connector `kind` → user-readable name (e.g. "MicrosoftThreatProtection" → "Microsoft Defender XDR"). Knows the CCF lookup via `$ccfTitleByName`. | 10-data-connectors classic + CCF tables |
@@ -144,11 +144,11 @@ The rule: **chart only when data shape justifies it; never as decoration.**
 
 External helpers used by the renderer:
 
-- `Get-EffectiveConnectors` — [`Scripts/Documenter/Private/Get-EffectiveConnectors.ps1`](../../Scripts/Documenter/Private/Get-EffectiveConnectors.ps1) —
+- `Get-EffectiveConnectors`, [`Scripts/Documenter/Private/Get-EffectiveConnectors.ps1`](../../Scripts/Documenter/Private/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
-- `Get-SentinelCostEstimate` — used by the **exporter** (not the renderer) to
+- `Get-SentinelCostEstimate`, used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-Raw`.
-- `Get-SentinelGap` + `GapChecks.ps1` — also exporter-side; produces
+- `Get-SentinelGap` + `GapChecks.ps1`, also exporter-side; produces
   `_raw/gap-analysis.json`.
 
 ## Cross-section hoisted globals
@@ -157,16 +157,16 @@ These are computed once near the top of the renderer (around line 285)
 and consumed by multiple section blocks. Hoisting prevents drift between
 sections that all need the same numbers.
 
-- **`$gapBySeverity`** — `@{ Critical = N; Warning = N; Info = N }`. Consumed by
+- **`$gapBySeverity`**, `@{ Critical = N; Warning = N; Info = N }`. Consumed by
   00-overview pie + 01-live-snapshot pie + 01 KPI table + 01 top-five
   recommendations sort.
-- **`$gapByCategory`** — `@{ <Category> = @{ Critical = N; Warning = N; Info = N } }`.
+- **`$gapByCategory`**, `@{ <Category> = @{ Critical = N; Warning = N; Info = N } }`.
   Consumed by 90-gap-analysis grouped bar chart.
-- **`$mitreRowsRich`** — array of `{ ID, Tactic, EnabledRules, Techniques,
+- **`$mitreRowsRich`**, array of `{ ID, Tactic, EnabledRules, Techniques,
   SubTechniques, Coverage }`. Built once in the section-25 block; consumed
   by the 25 matrix table, the 25 bar chart, and the section-01 MITRE
   headline row.
-- **`$populatedTableNames`** — hashtable of table names with billable data in
+- **`$populatedTableNames`**, hashtable of table names with billable data in
   the last 90 days. Consumed by 81 (operational subset filter) + 84
   (cost calculation gating).
 
@@ -178,9 +178,9 @@ must respect these:
 ### Pie charts
 - Always emit `pie showData title <Title>` (the `showData` flag puts the
   count + percentage next to each slice).
-- 2–6 slices ideal. Above 6 → top-N + "Other" bucket.
+- 2, 6 slices ideal. Above 6 → top-N + "Other" bucket.
 - 1 non-zero slice → **skip the chart** and emit a sentence (saw this
-  with AMA=1/MMA=0 earlier — visually meaningless).
+  with AMA=1/MMA=0 earlier, visually meaningless).
 
 ### xychart-beta
 - **Vertical only.** Horizontal mode (`xychart-beta horizontal`) with
@@ -202,7 +202,7 @@ must respect these:
   `Expecting 'SQE', 'PE', 'STADIUMEND' got 'PS'`. This rule applies
   whenever the source data is user-supplied or vendor-supplied (CCF
   titles, table names, etc.).
-- **Subgraph labels** must be short — Mermaid clips them when the
+- **Subgraph labels** must be short, Mermaid clips them when the
   topmost child node is tall. Keep ≤ 30 chars and avoid embedding the
   workspace name (the page banner already carries it).
 - **Cap node count** at ≤ 10 per subgraph before falling back to an
@@ -218,17 +218,17 @@ must respect these:
   rows.
 
 ### Mindmap
-- **Avoid `(N)` in node text** — Mermaid interprets parens as a shape
+- **Avoid `(N)` in node text**, Mermaid interprets parens as a shape
   directive. Use `· N` or `[N]` separators instead.
 
-### Experimental types — DO NOT USE
-- `quadrantChart` — no anti-overlap. Even 3-4 close points collide.
+### Experimental types, DO NOT USE
+- `quadrantChart`, no anti-overlap. Even 3-4 close points collide.
   Use a 2x2 flowchart (subgraph per quadrant) instead.
-- `architecture-beta` — GitHub's Mermaid version errors on otherwise-valid
+- `architecture-beta`, GitHub's Mermaid version errors on otherwise-valid
   syntax. Use flowchart with subgraphs instead.
-- `kanban` — GitHub rejects `[brackets]` in card text and may not know
+- `kanban`, GitHub rejects `[brackets]` in card text and may not know
   the `kanban` keyword. Use flowchart with column-shaped subgraphs.
-- `block-beta`, `treemap-beta`, `packet-beta`, `radar-beta` — version
+- `block-beta`, `treemap-beta`, `packet-beta`, `radar-beta`, version
   drift between renderers. Use established types until they stabilise.
 
 ### General
@@ -242,12 +242,12 @@ must respect these:
 ## Auto-link rewriting
 
 `Write-Section` runs every section's body through a two-pass regex
-before writing to disk (lines 132–145):
+before writing to disk (lines 132, 145):
 
-1. **Pass 1**: `\[(SENT-\d{3,})\](?!\()` — bracketed-but-unlinked IDs.
+1. **Pass 1**: `\[(SENT-\d{3,})\](?!\()`, bracketed-but-unlinked IDs.
    Catches the existing `[SENT-NNN]` bullet shape in 00-overview's
    "Top recommendations" lists and turns them into Markdown links.
-2. **Pass 2**: `(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])` — bare IDs not
+2. **Pass 2**: `(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])`, bare IDs not
    already inside a Markdown link. Catches mentions in prose.
 
 Both rewrite to `[SENT-NNN](90-gap-analysis.md#sent-nnn)`. Within
@@ -256,7 +256,7 @@ anchor (`(#sent-nnn)`).
 
 Anchor targets are written in the same section's
 remediation-detail block as `<a id="sent-nnn"></a>` immediately above
-each `### SENT-NNN — Title` H3 heading. HTML anchors render to nothing
+each `### SENT-NNN, Title` H3 heading. HTML anchors render to nothing
 on every Markdown host but provide stable link targets that don't shift
 when titles change.
 
@@ -265,9 +265,9 @@ when titles change.
 | Path | Role |
 |---|---|
 | [`Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1) | The renderer this spec describes |
-| [`Scripts/Documenter/Export-SentinelInventory.ps1`](../../Scripts/Documenter/Export-SentinelInventory.ps1) | Stage 1 — produces `_raw/*.json` |
+| [`Scripts/Documenter/Export-SentinelInventory.ps1`](../../Scripts/Documenter/Export-SentinelInventory.ps1) | Stage 1, produces `_raw/*.json` |
 | [`Scripts/Documenter/Private/Get-EffectiveConnectors.ps1`](../../Scripts/Documenter/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
-| [`Scripts/Documenter/Private/Get-SentinelGap.ps1`](../../Scripts/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../Scripts/Documenter/Private/GapChecks.ps1) | Gap engine — exporter consumes them to produce `gap-analysis.json` |
+| [`Scripts/Documenter/Private/Get-SentinelGap.ps1`](../../Scripts/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../Scripts/Documenter/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Scripts/Documenter/Private/Resources/best-practices.json`](../../Scripts/Documenter/Private/Resources/best-practices.json) | 45-rule catalogue driving the gap engine |
 | [`Scripts/Documenter/Private/Resources/mitre-attack.json`](../../Scripts/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Scripts/Documenter/Private/Resources/sentinel-benefit-tables.json`](../../Scripts/Documenter/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
@@ -298,7 +298,7 @@ when titles change.
    "@ } else { '' }
    ```
 4. Inject `$chartBlock` at the desired position inside the section body.
-5. Verify rules from "Conventions and gotchas" above — especially
+5. Verify rules from "Conventions and gotchas" above, especially
    quote-flowchart-labels and skip-on-empty.
 
 ### Adding a new section
@@ -316,7 +316,7 @@ when titles change.
 
 ### Adding a new helper
 1. Place the function in the helpers block at the top of the renderer
-   (lines 95–243), in alphabetical order by name.
+   (lines 95, 243), in alphabetical order by name.
 2. Add a row to the "Helper toolbox" table in this spec when the next
    maintainer updates the doc.
 3. Helpers must be **single-purpose, side-effect-free, and accept any
@@ -328,7 +328,7 @@ when titles change.
    triggers a read-only-variable write error.
 
 ### Adding a new gap rule
-Out of scope for this renderer spec — see the [`best-practices.json`](../../Scripts/Documenter/Private/Resources/best-practices.json)
+Out of scope for this renderer spec, see the [`best-practices.json`](../../Scripts/Documenter/Private/Resources/best-practices.json)
 schema and [`GapChecks.ps1`](../../Scripts/Documenter/Private/GapChecks.ps1)
 pattern. The renderer consumes the gap output via `_raw/gap-analysis.json`
 and writes the 90-gap-analysis.md page; new rules surface automatically.
@@ -372,26 +372,26 @@ diagram" messages. Particular attention to:
 
 ### 4. Auto-link round-trip
 Open any section that mentions `SENT-NNN` (00, 01, 90, 38). Click the
-link — it must navigate to the matching `<a id="sent-nnn">` anchor in
+link, it must navigate to the matching `<a id="sent-nnn">` anchor in
 90-gap-analysis.md.
 
 ## Outstanding work (forward-looking)
 
 Items deferred for future passes:
 
-- **Daily incident line chart** (15-incidents.md) — needs a new exporter
+- **Daily incident line chart** (15-incidents.md), needs a new exporter
   capture `incidents-daily-7d.json` with per-day counts. Currently the
   page has scalar avg+peak only.
-- **Daily ingest line chart** (80-workspace.md or 84-cost-estimate.md) —
+- **Daily ingest line chart** (80-workspace.md or 84-cost-estimate.md), 
   needs `workspace-usage-14d.json` with per-day GB. Currently scalar
   peak/avg only.
-- **More gap rules** — the `best-practices.json` catalogue is at 45
+- **More gap rules**, the `best-practices.json` catalogue is at 45
   rules; future v2.x batches can extend per-vendor connector checks,
   detection engineering depth, identity & access depth, and XDR
   migration readiness.
-- **CI integration** — a dedicated GitHub Action for the Documenter
+- **CI integration**, a dedicated GitHub Action for the Documenter
   running on PR + nightly would tighten the regenerate-on-every-trigger
   story.
-- **Renderer-output → vault sync** — a `-EmitTo <path>` parameter on
+- **Renderer-output → vault sync**, a `-EmitTo <path>` parameter on
   the renderer (or a small `Sync-DocsTo.ps1` helper) would remove the
   manual-copy drift class.

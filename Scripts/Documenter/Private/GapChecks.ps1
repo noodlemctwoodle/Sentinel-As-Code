@@ -1,10 +1,16 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/GapChecks.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Gap-analysis check functions, one per row in best-practices.json.
 
 .DESCRIPTION
-    Each function takes a single $Inventory parameter — the in-memory object built by
-    Get-SentinelGap from the _raw/ JSON files — and returns either:
+    Each function takes a single $Inventory parameter, the in-memory object built by
+    Get-SentinelGap from the _raw/ JSON files, and returns either:
 
       $null                   : no gap detected (rule passes)
       [pscustomobject]@{...}  : a finding with Evidence + Detail fields
@@ -14,12 +20,12 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Component:      Sentinel Documenter — Gap Engine
+    Component:      Sentinel Documenter, Gap Engine
 #>
 
 Set-StrictMode -Version Latest
 
-# Helper — produces a Finding object with consistent shape.
+# Helper, produces a Finding object with consistent shape.
 function New-Finding {
     [CmdletBinding()]
     param(
@@ -34,7 +40,7 @@ function New-Finding {
     }
 }
 
-# Helper — returns a property if it exists, else default. Sentinel/LA REST occasionally
+# Helper, returns a property if it exists, else default. Sentinel/LA REST occasionally
 # returns objects with subtly different property shapes between API versions; this lets
 # checks stay tolerant.
 function Get-PropOrDefault {
@@ -61,7 +67,7 @@ function Get-PropOrDefault {
 }
 
 # ------------------------------------------------------------
-# SENT-001 — Daily cap not configured
+# SENT-001, Daily cap not configured
 # ------------------------------------------------------------
 function Test-DailyCapConfigured {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -73,7 +79,7 @@ function Test-DailyCapConfigured {
 }
 
 # ------------------------------------------------------------
-# SENT-002 — Workspace default retention < 90d
+# SENT-002, Workspace default retention < 90d
 # ------------------------------------------------------------
 function Test-WorkspaceRetentionMeetsSentinelBenefit {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -85,7 +91,7 @@ function Test-WorkspaceRetentionMeetsSentinelBenefit {
 }
 
 # ------------------------------------------------------------
-# SENT-003 — High-volume table on Analytics with no transform
+# SENT-003, High-volume table on Analytics with no transform
 # ------------------------------------------------------------
 function Test-NoisyTableHasTransform {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -120,7 +126,7 @@ function Test-NoisyTableHasTransform {
 }
 
 # ------------------------------------------------------------
-# SENT-004 — Recommended connectors not deployed
+# SENT-004, Recommended connectors not deployed
 # ------------------------------------------------------------
 function Test-RecommendedConnectorsDeployed {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -139,7 +145,7 @@ function Test-RecommendedConnectorsDeployed {
 }
 
 # ------------------------------------------------------------
-# SENT-005 — UEBA disabled
+# SENT-005, UEBA disabled
 # ------------------------------------------------------------
 function Test-UebaEnabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -177,7 +183,7 @@ function Test-UebaEnabled {
 }
 
 # ------------------------------------------------------------
-# SENT-006 — MITRE tactic with zero enabled rules
+# SENT-006, MITRE tactic with zero enabled rules
 # ------------------------------------------------------------
 function Test-MitreTacticCoverage {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -198,7 +204,7 @@ function Test-MitreTacticCoverage {
 }
 
 # ------------------------------------------------------------
-# SENT-007 — Rules disabled or in error
+# SENT-007, Rules disabled or in error
 # ------------------------------------------------------------
 function Test-RulesDisabledOrFailing {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -217,7 +223,7 @@ function Test-RulesDisabledOrFailing {
 }
 
 # ------------------------------------------------------------
-# SENT-008 — High-severity templates not deployed
+# SENT-008, High-severity templates not deployed
 # ------------------------------------------------------------
 function Test-HighSeverityTemplatesDeployed {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -238,7 +244,7 @@ function Test-HighSeverityTemplatesDeployed {
 }
 
 # ------------------------------------------------------------
-# SENT-009 — Owner/Contributor at workspace scope
+# SENT-009, Owner/Contributor at workspace scope
 # ------------------------------------------------------------
 function Test-RbacOverPrivileged {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -253,7 +259,7 @@ function Test-RbacOverPrivileged {
 }
 
 # ------------------------------------------------------------
-# SENT-010 — Diagnostic settings not configured
+# SENT-010, Diagnostic settings not configured
 # ------------------------------------------------------------
 function Test-DiagnosticSettingsConfigured {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -264,7 +270,7 @@ function Test-DiagnosticSettingsConfigured {
 }
 
 # ------------------------------------------------------------
-# SENT-011 — Playbook MI lacks Sentinel Responder role
+# SENT-011, Playbook MI lacks Sentinel Responder role
 # ------------------------------------------------------------
 function Test-PlaybookMiHasResponder {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -282,7 +288,7 @@ function Test-PlaybookMiHasResponder {
 }
 
 # ------------------------------------------------------------
-# SENT-012 — DCR transform missing on noisy custom table
+# SENT-012, DCR transform missing on noisy custom table
 # ------------------------------------------------------------
 function Test-DcrTransformMissing {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -299,7 +305,7 @@ function Test-DcrTransformMissing {
 }
 
 # ------------------------------------------------------------
-# SENT-013 — Content Hub solution updates available
+# SENT-013, Content Hub solution updates available
 # ------------------------------------------------------------
 function Test-ContentHubUpdatesAvailable {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -322,7 +328,7 @@ function Test-ContentHubUpdatesAvailable {
 }
 
 # ------------------------------------------------------------
-# SENT-014 — Sentinel still on Azure portal (info-only)
+# SENT-014, Sentinel still on Azure portal (info-only)
 # ------------------------------------------------------------
 function Test-OnboardedToDefender {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -333,7 +339,7 @@ function Test-OnboardedToDefender {
 }
 
 # ------------------------------------------------------------
-# SENT-015 — Commitment-tier opportunity
+# SENT-015, Commitment-tier opportunity
 # ------------------------------------------------------------
 function Test-CommitmentTierOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -357,7 +363,7 @@ function Test-CommitmentTierOpportunity {
 }
 
 # ------------------------------------------------------------
-# SENT-016 — High-volume table candidate for Basic/Auxiliary
+# SENT-016, High-volume table candidate for Basic/Auxiliary
 # ------------------------------------------------------------
 function Test-HighVolumeTablePlanCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -379,7 +385,7 @@ function Test-HighVolumeTablePlanCandidate {
 }
 
 # ------------------------------------------------------------
-# SENT-017 — Long retention on Analytics rather than archive
+# SENT-017, Long retention on Analytics rather than archive
 # ------------------------------------------------------------
 function Test-RetentionOverArchive {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -394,7 +400,7 @@ function Test-RetentionOverArchive {
 }
 
 # ------------------------------------------------------------
-# SENT-018 — Dedicated cluster candidate
+# SENT-018, Dedicated cluster candidate
 # ------------------------------------------------------------
 function Test-DedicatedClusterCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -405,13 +411,13 @@ function Test-DedicatedClusterCandidate {
     }
     $dailyAvg = $totalGb30d / 30.0
     if ($dailyAvg -gt 500.0) {
-        return New-Finding -Evidence "Average ingest ~$([math]::Round($dailyAvg,1)) GB/day with no dedicated cluster — cluster offers cluster-level CR pricing, CMK, and AZ." -Detail @{ DailyAvgGb = $dailyAvg }
+        return New-Finding -Evidence "Average ingest ~$([math]::Round($dailyAvg,1)) GB/day with no dedicated cluster, cluster offers cluster-level CR pricing, CMK, and AZ." -Detail @{ DailyAvgGb = $dailyAvg }
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# SENT-019 — Sentinel benefit not detected
+# SENT-019, Sentinel benefit not detected
 # ------------------------------------------------------------
 function Test-SentinelBenefitApplied {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -429,7 +435,7 @@ function Test-SentinelBenefitApplied {
 }
 
 # ------------------------------------------------------------
-# SENT-020 — Workspace replication disabled
+# SENT-020, Workspace replication disabled
 # ------------------------------------------------------------
 function Test-ReplicationEnabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -441,7 +447,7 @@ function Test-ReplicationEnabled {
 }
 
 # ------------------------------------------------------------
-# SENT-021 — Public network access enabled
+# SENT-021, Public network access enabled
 # ------------------------------------------------------------
 function Test-PublicNetworkAccessDisabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -454,7 +460,7 @@ function Test-PublicNetworkAccessDisabled {
 }
 
 # ------------------------------------------------------------
-# SENT-022 — Resource providers registered
+# SENT-022, Resource providers registered
 # ------------------------------------------------------------
 function Test-ResourceProvidersRegistered {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -472,48 +478,48 @@ function Test-ResourceProvidersRegistered {
 }
 
 # ------------------------------------------------------------
-# SENT-023 — Data Lake mirroring candidate
+# SENT-023, Data Lake mirroring candidate
 # ------------------------------------------------------------
 function Test-DataLakeMirroringCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    # Heuristic — long-tail tables (>30 GB/30d, retention > 90d, plan = Analytics).
+    # Heuristic, long-tail tables (>30 GB/30d, retention > 90d, plan = Analytics).
     $analyticsLongRetention = @($Inventory.WorkspaceTables | Where-Object {
         (Get-PropOrDefault $_ 'properties.plan' '') -eq 'Analytics' -and
         [int](Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0) -gt 365
     })
     if ($analyticsLongRetention.Count -gt 0) {
-        return New-Finding -Evidence "$($analyticsLongRetention.Count) Analytics-plan table(s) with > 365d total retention — Data Lake mirroring candidates." -Detail @{ Count = $analyticsLongRetention.Count }
+        return New-Finding -Evidence "$($analyticsLongRetention.Count) Analytics-plan table(s) with > 365d total retention, Data Lake mirroring candidates." -Detail @{ Count = $analyticsLongRetention.Count }
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# SENT-024 — disableLocalAuth
+# SENT-024, disableLocalAuth
 # ------------------------------------------------------------
 function Test-DisableLocalAuth {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $disabled = Get-PropOrDefault $Inventory.Workspace 'properties.features.disableLocalAuth' $false
     if (-not $disabled) {
-        return New-Finding -Evidence 'features.disableLocalAuth is false — workspace shared keys are accepted for ingestion.'
+        return New-Finding -Evidence 'features.disableLocalAuth is false, workspace shared keys are accepted for ingestion.'
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# SENT-025 — Access mode consistency
+# SENT-025, Access mode consistency
 # ------------------------------------------------------------
 function Test-AccessModeConsistent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    # Informational — surface the flag value so the reviewer can confirm it matches intent.
+    # Informational, surface the flag value so the reviewer can confirm it matches intent.
     $flag = Get-PropOrDefault $Inventory.Workspace 'properties.features.enableLogAccessUsingOnlyResourcePermissions' $null
     if ($null -eq $flag) {
-        return New-Finding -Evidence 'enableLogAccessUsingOnlyResourcePermissions is unset — confirm whether resource-context or workspace-context access is intended.'
+        return New-Finding -Evidence 'enableLogAccessUsingOnlyResourcePermissions is unset, confirm whether resource-context or workspace-context access is intended.'
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# SENT-026 — Silent tables (had data, none last 7d)
+# SENT-026, Silent tables (had data, none last 7d)
 # ------------------------------------------------------------
 function Test-SilentTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -531,7 +537,7 @@ function Test-SilentTables {
 }
 
 # ------------------------------------------------------------
-# SENT-027 — Orphan tables (schema, no data 90d)
+# SENT-027, Orphan tables (schema, no data 90d)
 # ------------------------------------------------------------
 function Test-OrphanTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -545,7 +551,7 @@ function Test-OrphanTables {
         $type = Get-PropOrDefault $_ 'properties.schema.tableType' ''
         # Custom (_CL) tables only. Microsoft pre-defined tables without data
         # are part of every workspace's catalogue (~750 of them on a typical
-        # Sentinel workspace) and aren't orphans — they're 'sources we
+        # Sentinel workspace) and aren't orphans, they're 'sources we
         # haven't onboarded'. Custom tables, on the other hand, were
         # explicitly created to receive data; if none has arrived in 90d,
         # the source is broken or the table should be deleted.
@@ -558,7 +564,7 @@ function Test-OrphanTables {
 }
 
 # ------------------------------------------------------------
-# Helper — does a TablesWithData record claim non-zero billable ingest in
+# Helper, does a TablesWithData record claim non-zero billable ingest in
 # the last 30 days? Returns the GB value as a [double], or 0 when missing.
 # ------------------------------------------------------------
 function _GetBillable30d {
@@ -571,7 +577,7 @@ function _GetBillable30d {
 }
 
 # ------------------------------------------------------------
-# SENT-028 — Connector connected but target table has no recent data
+# SENT-028, Connector connected but target table has no recent data
 # ------------------------------------------------------------
 function Test-ConnectorTableMismatch {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -583,7 +589,7 @@ function Test-ConnectorTableMismatch {
             $active24h[(Get-PropOrDefault $t 'DataType' '')] = $true
         }
     }
-    # Connector → expected target tables. For now this is a coarse heuristic — kind name
+    # Connector → expected target tables. For now this is a coarse heuristic, kind name
     # → known table list. Refined per connector by maintaining a lookup elsewhere.
     $kindToTables = @{
         'AzureActiveDirectory'                       = @('SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs')
@@ -607,7 +613,7 @@ function Test-ConnectorTableMismatch {
 }
 
 # ------------------------------------------------------------
-# SENT-029 — Incident MTTR above 24h
+# SENT-029, Incident MTTR above 24h
 # ------------------------------------------------------------
 function Test-IncidentMttrThreshold {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -624,7 +630,7 @@ function Test-IncidentMttrThreshold {
 }
 
 # ------------------------------------------------------------
-# SENT-030 — Majority of incidents closed without ever being acknowledged
+# SENT-030, Majority of incidents closed without ever being acknowledged
 # ------------------------------------------------------------
 function Test-IncidentClosedWithoutAcknowledgement {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -635,7 +641,7 @@ function Test-IncidentClosedWithoutAcknowledgement {
     # capture files it isn't present and the check has nothing to evaluate.
     if ($row.PSObject.Properties.Name -notcontains 'AcknowledgedCount') { return $null }
     $ack = [int](Get-PropOrDefault $row 'AcknowledgedCount' 0)
-    if ($closed -lt 10) { return $null }            # statistical floor — small samples lie
+    if ($closed -lt 10) { return $null }            # statistical floor, small samples lie
     $unack = $closed - $ack
     $ratio = $unack / [double]$closed
     if ($ratio -le 0.5) { return $null }
@@ -643,7 +649,7 @@ function Test-IncidentClosedWithoutAcknowledgement {
 }
 
 # ------------------------------------------------------------
-# SENT-031 — Mouldy rules — enabled, untouched > 12 months
+# SENT-031, Mouldy rules, enabled, untouched > 12 months
 # ------------------------------------------------------------
 function Test-MouldyAnalyticsRules {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -669,7 +675,7 @@ function Test-MouldyAnalyticsRules {
 }
 
 # ------------------------------------------------------------
-# SENT-032 — Deployed rule's templateVersion lags the latest template
+# SENT-032, Deployed rule's templateVersion lags the latest template
 # ------------------------------------------------------------
 function Test-AnalyticsRuleTemplateDrift {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -703,7 +709,7 @@ function Test-AnalyticsRuleTemplateDrift {
 }
 
 # ------------------------------------------------------------
-# SENT-033 — Single rule producing > 30% of alert volume
+# SENT-033, Single rule producing > 30% of alert volume
 # ------------------------------------------------------------
 function Test-DominantNoisyRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -716,28 +722,28 @@ function Test-DominantNoisyRule {
     $ratio = $topAlerts / [double]$totalAlerts
     if ($ratio -le 0.30) { return $null }
     $name = Get-PropOrDefault $top 'AlertName' '?'
-    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in 30d ($([math]::Round($ratio*100,0))%) — tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
+    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in 30d ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
 }
 
 # ------------------------------------------------------------
-# SENT-034 — No automation rules defined
+# SENT-034, No automation rules defined
 # ------------------------------------------------------------
 function Test-AutomationRulesPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $count = @($Inventory.AutomationRules).Count
     if ($count -gt 0) { return $null }
-    return New-Finding -Evidence 'No automation rules defined — every incident requires manual triage.'
+    return New-Finding -Evidence 'No automation rules defined, every incident requires manual triage.'
 }
 
 # ------------------------------------------------------------
-# SENT-035 — Enabled rule with zero alerts in 90d
+# SENT-035, Enabled rule with zero alerts in 90d
 # ------------------------------------------------------------
 function Test-DeadAnalyticsRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (-not $Inventory.AlertRules -or -not $Inventory.AnalyticsRuleVolumes) { return $null }
     # Volumes capture is over 30d. Project the noisy-rule set into a name lookup
     # then surface enabled Scheduled/NRT rules whose displayName is absent
-    # from it — they produced no alerts in the window.
+    # from it, they produced no alerts in the window.
     $noisy = @{}
     foreach ($v in $Inventory.AnalyticsRuleVolumes) {
         $n = Get-PropOrDefault $v 'AlertName' ''
@@ -757,7 +763,7 @@ function Test-DeadAnalyticsRule {
 }
 
 # ------------------------------------------------------------
-# SENT-039 — Service principal with Owner/Contributor at workspace scope
+# SENT-039, Service principal with Owner/Contributor at workspace scope
 # ------------------------------------------------------------
 function Test-ServicePrincipalOverPrivileged {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -774,7 +780,7 @@ function Test-ServicePrincipalOverPrivileged {
 }
 
 # ------------------------------------------------------------
-# SENT-040 — Zero Microsoft Sentinel Responder assignments
+# SENT-040, Zero Microsoft Sentinel Responder assignments
 # ------------------------------------------------------------
 function Test-ResponderRoleAssigned {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -787,7 +793,7 @@ function Test-ResponderRoleAssigned {
 }
 
 # ------------------------------------------------------------
-# SENT-042 — No deletion-protection lock on the workspace
+# SENT-042, No deletion-protection lock on the workspace
 # ------------------------------------------------------------
 function Test-WorkspaceLockPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -801,17 +807,17 @@ function Test-WorkspaceLockPresent {
 }
 
 # ------------------------------------------------------------
-# Data-routing helper — CEF / Syslog / Windows split-opportunity threshold
+# Data-routing helper, CEF / Syslog / Windows split-opportunity threshold
 # ------------------------------------------------------------
 # All four data-routing rules use the same pattern: "is table X carrying
 # enough volume to make the engineering effort to split worth it?". Five GB
-# over the 30-day window (~150 GB/30d) is the conservative default — below
+# over the 30-day window (~150 GB/30d) is the conservative default, below
 # that, the per-month saving from splitting probably can't pay for the DCR
 # authoring time.
 $script:DataRoutingSplitThresholdGb30d = 150.0
 
 # ------------------------------------------------------------
-# SENT-043 — CommonSecurityLog volume warrants a vendor _CL split
+# SENT-043, CommonSecurityLog volume warrants a vendor _CL split
 # ------------------------------------------------------------
 function Test-CefSplitOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -821,11 +827,11 @@ function Test-CefSplitOpportunity {
     if ($cef.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $cef[0]
     if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last 30 days at the Sentinel security-data rate — routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last 30 days at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
-# SENT-044 — Syslog volume warrants a facility-based DCR filter or _CL split
+# SENT-044, Syslog volume warrants a facility-based DCR filter or _CL split
 # ------------------------------------------------------------
 function Test-SyslogSplitOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -835,15 +841,15 @@ function Test-SyslogSplitOpportunity {
     if ($sys.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $sys[0]
     if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last 30 days — narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last 30 days, narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
-# SENT-045 — SecurityEvent / WindowsEvent XPath filter opportunity
+# SENT-045, SecurityEvent / WindowsEvent XPath filter opportunity
 # ------------------------------------------------------------
 function Test-WindowsEventXPathFilterOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    # 5 GB / day across SecurityEvent + WindowsEvent is the trigger — the
+    # 5 GB / day across SecurityEvent + WindowsEvent is the trigger, the
     # AMA DCRs that ship Microsoft's own SecurityEvent collection ('All
     # Events') easily clear that on a domain controller, and the XPath
     # change is a documented, low-risk DCR edit.
@@ -855,11 +861,11 @@ function Test-WindowsEventXPathFilterOpportunity {
         }
     }
     if ($totalGb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last 30 days — typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
+    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last 30 days, typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
 }
 
 # ------------------------------------------------------------
-# SENT-046 — AzureDiagnostics carries multiple resource providers
+# SENT-046, AzureDiagnostics carries multiple resource providers
 # ------------------------------------------------------------
 function Test-AzureDiagnosticsResourceSpecific {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -868,17 +874,17 @@ function Test-AzureDiagnosticsResourceSpecific {
     } | Select-Object -First 1)
     if ($ad.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $ad[0]
-    if ($gb30 -lt 10.0) { return $null }    # smaller threshold — even 10 GB across many RPs is messy
+    if ($gb30 -lt 10.0) { return $null }    # smaller threshold, even 10 GB across many RPs is messy
     # We don't know per-RP breakdown from tables-with-data alone (the
     # AzureDiagnostics rendering is summarised in 14-coverage-breakdowns.md
-    # but isn't a separate _raw capture). Flag based on volume alone — the
+    # but isn't a separate _raw capture). Flag based on volume alone, the
     # remediation is still correct: switch any RP that has a dedicated
     # resource-specific table.
-    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last 30 days. Resource-specific tables are cheaper, faster to query, and have stable schemas — review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last 30 days. Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
-# SENT-047 — CLv1 (HTTP Data Collector API) custom log tables still in use
+# SENT-047, CLv1 (HTTP Data Collector API) custom log tables still in use
 # ------------------------------------------------------------
 function Test-CustomLogsV1Migration {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -906,7 +912,7 @@ function Test-CustomLogsV1Migration {
         if ($name -and $gb90 -gt 0) { $active[$name] = $true }
     }
 
-    # Filter to genuine custom-log tables. tableType alone is unreliable —
+    # Filter to genuine custom-log tables. tableType alone is unreliable, 
     # some workspaces report AzureDiagnostics and other Microsoft service
     # tables as 'CustomLog' when custom diagnostic settings have been
     # written to them. The `_CL` name suffix is enforced at table creation
@@ -919,11 +925,11 @@ function Test-CustomLogsV1Migration {
     if ($clv1.Count -eq 0) { return $null }
     $names = ($clv1 | Select-Object -First 8 | ForEach-Object { Get-PropOrDefault $_ 'name' '?' }) -join ', '
     $suffix = if ($clv1.Count -gt 8) { " (+ $($clv1.Count - 8) more)" } else { '' }
-    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them — likely still using the HTTP Data Collector API (CLv1). Affected: $names$suffix. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
+    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them, likely still using the HTTP Data Collector API (CLv1). Affected: $names$suffix. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
 }
 
 # ------------------------------------------------------------
-# SENT-048 — MMA / OMS / Log Analytics agent still heartbeating
+# SENT-048, MMA / OMS / Log Analytics agent still heartbeating
 # ------------------------------------------------------------
 function Test-MmaAgentStillHeartbeating {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -938,7 +944,7 @@ function Test-MmaAgentStillHeartbeating {
 }
 
 # ------------------------------------------------------------
-# SENT-049 — Legacy ThreatIntelligenceIndicator table still in use
+# SENT-049, Legacy ThreatIntelligenceIndicator table still in use
 # ------------------------------------------------------------
 function Test-LegacyThreatIntelligenceTable {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -950,16 +956,16 @@ function Test-LegacyThreatIntelligenceTable {
     if ($legacy.Count -eq 0) { return $null }
     $gb30 = [double](Get-PropOrDefault $legacy[0] 'BillableLast30d' 0)
     # Detect whether the workspace has ALSO started receiving into the new
-    # ThreatIntelIndicators table — if yes the finding evidence calls out
+    # ThreatIntelIndicators table, if yes the finding evidence calls out
     # that the migration is half done; if no, fresh ingestion is broken.
     $newPresent = @($Inventory.TablesWithData | Where-Object {
         (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelIndicators' -and
         [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
     }).Count -gt 0
     $statusNote = if ($newPresent) {
-        'New ThreatIntelIndicators table is also active — partial migration; ensure all detections, hunting queries and workbooks read from the new tables.'
+        'New ThreatIntelIndicators table is also active, partial migration; ensure all detections, hunting queries and workbooks read from the new tables.'
     } else {
-        'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables — TI ingestion may be broken since the 2025-07-31 cutoff.'
+        'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables, TI ingestion may be broken since the 2025-07-31 cutoff.'
     }
     return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last 30 days. $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
 }

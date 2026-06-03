@@ -1,10 +1,16 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/Get-AzureRetailPrice.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Anonymous client for the Azure Retail Prices API with on-disk caching.
 
 .DESCRIPTION
     Pulls Sentinel and Log Analytics meter prices for the workspace's region. The Retail
-    Prices API is anonymous — no auth header needed — so this client uses Invoke-RestMethod
+    Prices API is anonymous, no auth header needed, so this client uses Invoke-RestMethod
     directly rather than going through Az context.
 
     Results are cached on disk under the OutputRoot keyed by (region + day) so a same-day
@@ -63,9 +69,9 @@ function Get-AzureRetailPrice {
     $allPrices = New-Object System.Collections.Generic.List[object]
 
     foreach ($service in $ServiceNames) {
-        # Filter syntax — single-quoted values, AND-joined.
+        # Filter syntax, single-quoted values, AND-joined.
         $filter = "serviceName eq '$service' and armRegionName eq '$Region' and priceType eq 'Consumption'"
-        # [uri]::EscapeDataString is built into the BCL — no `Add-Type
+        # [uri]::EscapeDataString is built into the BCL, no `Add-Type
         # -AssemblyName System.Web` required, so this works on every
         # PowerShell 7 host including the minimal pwsh container images
         # used by the documenter pipeline. Semantically equivalent for
@@ -83,7 +89,7 @@ function Get-AzureRetailPrice {
             } catch {
                 # The Retail Prices API is best-effort during the run. If it's unreachable
                 # we proceed with whatever we collected and let the cost calculator emit a
-                # 'pricing unavailable' caveat — a missing currency line beats a hung run.
+                # 'pricing unavailable' caveat, a missing currency line beats a hung run.
                 Write-Warning "Retail Prices API failure on page $page for ${service}: $($_.Exception.Message)"
                 break
             }

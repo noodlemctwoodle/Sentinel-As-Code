@@ -1,10 +1,16 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/Invoke-SentinelRest.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Paginating wrapper around Invoke-AzRestMethod for Sentinel and Azure Resource Manager
     REST endpoints.
 
 .DESCRIPTION
-    The Az.SecurityInsights cmdlets do not cover the full Sentinel REST surface — Codeless
+    The Az.SecurityInsights cmdlets do not cover the full Sentinel REST surface, Codeless
     Connector Framework (CCF) connectors, Content Hub packages, summary rules, settings,
     pricings, sourceControls, and full DCR JSON all require direct REST calls. This helper
     centralises the call pattern so:
@@ -17,7 +23,7 @@
       expected steady-state (settings/Ueba on a workspace where UEBA is off, etc.). Pass
       -ThrowOn404 to opt out.
     - The api-version is forced into the query string when the caller hasn't already
-      embedded one — saves every caller from string-building.
+      embedded one, saves every caller from string-building.
 
     Read-only by design: only GET requests. The collector should never mutate the tenant.
 
@@ -36,7 +42,7 @@
     Maximum retry attempts (default 5). Each retry waits 2^(attempt-1) seconds plus jitter.
 
 .OUTPUTS
-    [PSCustomObject[]] — the flattened 'value' collection, or for endpoints that return a
+    [PSCustomObject[]], the flattened 'value' collection, or for endpoints that return a
     single object, the object itself wrapped in a single-element array.
 
 .EXAMPLE
@@ -63,7 +69,7 @@
       explicit refresh in this helper. If a future enhancement needs to force
       a refresh boundary (e.g. for ETag-style coordination), use
       `Get-AzAccessToken -AsSecureString` and pass it via the appropriate Az
-      cmdlet — direct Invoke-RestMethod with a manually-cached header is
+      cmdlet, direct Invoke-RestMethod with a manually-cached header is
       explicitly NOT the pattern this helper uses, by design.
 #>
 
@@ -87,7 +93,7 @@ function Invoke-SentinelRest {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # Build initial URL — embed api-version if the caller hasn't already.
+    # Build initial URL, embed api-version if the caller hasn't already.
     # NOTE: do NOT write the interpolation as "$url$separator`api-version=..."
     # The backtick before 'a' is parsed as the bell-character escape (`a == \x07),
     # so the URL emitted to Azure becomes  ".../?<BEL>pi-version=..."
@@ -117,12 +123,12 @@ function Invoke-SentinelRest {
                 #     and route through Invoke-AzRestMethod.
                 #   - Any other absolute URL is treated as anonymous (the
                 #     public Retail Prices API is the only known caller).
-                #   - Otherwise the path is ARM-relative — Invoke-AzRestMethod.
+                #   - Otherwise the path is ARM-relative, Invoke-AzRestMethod.
                 # Recognised ARM hosts across every published Azure cloud:
-                #   management.azure.com          — public
-                #   management.usgovcloudapi.net  — US Gov
-                #   management.chinacloudapi.cn   — Mooncake
-                #   management.microsoftazure.de  — Germany (legacy, retained for completeness)
+                #   management.azure.com, public
+                #   management.usgovcloudapi.net, US Gov
+                #   management.chinacloudapi.cn, Mooncake
+                #   management.microsoftazure.de, Germany (legacy, retained for completeness)
                 # Restricting the regex to the public host stripped the bearer
                 # token from paginator nextLinks on sovereign clouds, breaking
                 # every 2nd-page ARM call with a 401.

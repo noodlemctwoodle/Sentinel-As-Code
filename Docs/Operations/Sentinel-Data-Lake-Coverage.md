@@ -1,4 +1,4 @@
-# Sentinel Data Lake — Documenter coverage
+# Sentinel Data Lake, Documenter coverage
 
 What the Sentinel Documenter captures and renders for Microsoft Sentinel Data
 Lake. Scope reference for anyone asking *"what does this tool tell me about
@@ -14,7 +14,7 @@ on Microsoft Learn.
 
 Sentinel Data Lake is **tenant-wide** but provisioned as a single Azure
 resource pinned to one subscription / resource group / region. The relevant
-ARM surface is **not** under `Microsoft.SecurityInsights` — it lives on a
+ARM surface is **not** under `Microsoft.SecurityInsights`, it lives on a
 separate resource provider:
 
 | Property | Value |
@@ -28,7 +28,7 @@ separate resource provider:
 | Resource name | `msg-resources-<guid>` (system-generated) |
 
 Probing `Microsoft.SecurityInsights/dataLake` against a workspace returns
-**400 NoRegisteredProviderFound** — this was the path most operators reach
+**400 NoRegisteredProviderFound**, this was the path most operators reach
 for first, but it does not exist. Workspace-level `/settings`,
 `/onboardingStates`, etc. carry no Lake-related fields either.
 
@@ -46,7 +46,7 @@ Resources
 ```
 
 This handles the cross-subscription case (Lake billed to a different sub
-than the workspace's). Result is saved to `_raw/sentinel-data-lake.json` —
+than the workspace's). Result is saved to `_raw/sentinel-data-lake.json`, 
 non-empty array means Lake is onboarded, empty array means it isn't.
 
 ---
@@ -64,7 +64,7 @@ Each is captured separately so a reviewer can audit the decision.
 
 A workspace can be on `unifiedSentinelBillingOnly` without the tenant being
 onboarded to Lake (the billing flag is set independently). Conversely, a
-Lake-onboarded tenant may have no tables on `plan = DataLake` — every
+Lake-onboarded tenant may have no tables on `plan = DataLake`, every
 workspace table is auto-mirrored to Lake at the same retention by default.
 
 ---
@@ -200,7 +200,7 @@ overview, KQL jobs, notebooks-overview, sentinel-graph-overview.
 Section 88 is the deep-dive, but Lake state also flows into two other
 sections:
 
-### `83-data-collection.md` — topology flowchart
+### `83-data-collection.md`, topology flowchart
 
 The workspace topology emits a `DL[(Sentinel Data Lake)]` cylinder when any
 of the three detection signals fires. The cylinder is wired into the
@@ -208,7 +208,7 @@ workspace subgraph alongside the Log Analytics cylinder, Analytics rules,
 and (conditionally) Basic / Auxiliary plan nodes and the Long-term archive
 node.
 
-### `84-cost-estimate.md` — Sankey + cost split
+### `84-cost-estimate.md`, Sankey + cost split
 
 The cost calculator ([`Scripts/Documenter/Private/Get-SentinelCostEstimate.ps1`](../../Scripts/Documenter/Private/Get-SentinelCostEstimate.ps1))
 recognises the `DataLake` plan as one of the four ingestion buckets
@@ -240,7 +240,7 @@ purposes of the Sentinel-rate vs LA-rate split).
 | `_raw/tables-with-data.json` | Operational-table classification (90-day billable filter) |
 | `_raw/cost-estimate.json` | Cost split table + migration-candidate rows |
 
-No new captures were required to add Section 88 — it composes from existing
+No new captures were required to add Section 88, it composes from existing
 inventory.
 
 ---
@@ -263,7 +263,7 @@ inventory.
 - **CMK incompatibility surface.** "Lake doesn't support CMK" is currently
   prose in *When to stay on legacy*. A gap rule (`SENT-xxx`) flagging a
   workspace that has both CMK configured AND `unifiedSentinelBillingOnly`
-  set would be a useful sanity check — Microsoft's docs say these states
+  set would be a useful sanity check, Microsoft's docs say these states
   are mutually exclusive in practice.
 - **Lake-tier ingest history.** The cost split shows the current month's
   Lake ingest in GB but not a per-day trend. A `lake-ingest-daily.json`

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/Get-SentinelGap.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Gap-analysis engine. Loads the best-practices ruleset, builds an in-memory
@@ -5,7 +11,7 @@
     aggregates findings.
 
 .DESCRIPTION
-    Pure data-in/data-out — testable end-to-end with fixture files.
+    Pure data-in/data-out, testable end-to-end with fixture files.
 
     Usage:
         $findings = Get-SentinelGap -InputRoot './SecurityDocs/myws/_raw' `

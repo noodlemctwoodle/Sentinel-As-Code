@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/Get-EffectiveConnectors.ps1
+#
+# Created by noodlemctwoodle on 13/05/2026.
+#
+
 <#
 .SYNOPSIS
     Synthesise an "effective connectors" view from the captured inventory.
@@ -66,8 +72,8 @@ function Get-EffectiveConnectors {
         # When provided, DCR data flows are filtered to those whose
         # `destinations` reference an LA destination on this workspace.
         # Without this filter the helper surfaces every DCR in the
-        # subscription's data-collection scope — including DCRs that
-        # send to OTHER workspaces — and they show up as orphan rows
+        # subscription's data-collection scope, including DCRs that
+        # send to OTHER workspaces, and they show up as orphan rows
         # against the current workspace.
         [Parameter(Mandatory = $false)] [string]$WorkspaceResourceId
     )
@@ -191,7 +197,7 @@ function Get-EffectiveConnectors {
                     }
                 }
             }
-            # DCR has no destination targeting the current workspace — skip entirely.
+            # DCR has no destination targeting the current workspace, skip entirely.
             if ($inScopeDestNames.Count -eq 0) { continue }
         }
 

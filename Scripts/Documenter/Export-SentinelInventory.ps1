@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Export-SentinelInventory.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Export every Microsoft Sentinel artefact, the supporting Log Analytics + DCR layer,
@@ -81,7 +87,7 @@ $InformationPreference = 'Continue'
 # ---------------------------------------------------------------------------
 # API versions are hardcoded here rather than read from Documenter.psd1.
 # Reading the manifest at script start was failing silently on the ADO Linux
-# agent, with $apiVersions arriving empty inside Try-Capture's child scope —
+# agent, with $apiVersions arriving empty inside Try-Capture's child scope, 
 # every subsequent REST call then fired without an api-version and Azure
 # returned 400 'MissingApiVersionParameter'. Inlining the table removes the
 # external file as a moving part. Keep these values in sync with the
@@ -113,7 +119,7 @@ if (-not (Test-Path $rawOut)) {
 
 function Save-Json {
     # $Data is intentionally optional + nullable. An ARM endpoint that returns no
-    # results legitimately surfaces as $null in PowerShell — the helper should
+    # results legitimately surfaces as $null in PowerShell, the helper should
     # write '[]' for that case rather than refusing the parameter, otherwise the
     # collector emits dozens of misleading 'Cannot bind argument to parameter
     # Data because it is null' warnings on a quiet workspace.
@@ -142,7 +148,7 @@ function Save-Json {
     }
     else {
         # Collection-shape file. Pipe through ConvertTo-Json so each item is
-        # treated as a separate input — pipe + -AsArray always emits a JSON
+        # treated as a separate input, pipe + -AsArray always emits a JSON
         # array, including the single-element and empty cases. Using
         # -InputObject would treat the whole array as one input, which then
         # double-wraps under -AsArray.
@@ -198,7 +204,7 @@ $workspaceResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceG
 $sentinelScope       = "$workspaceResourceId/providers/Microsoft.SecurityInsights"
 
 # ---------------------------------------------------------------------------
-# Run context — anchors every output
+# Run context, anchors every output
 # ---------------------------------------------------------------------------
 $runContext = [pscustomobject]@{
     SubscriptionId    = $SubscriptionId
@@ -231,7 +237,7 @@ Try-Capture 'workspace-tables' {
 
 Try-Capture 'sentinel-pricing' {
     # Microsoft.SecurityInsights/pricings is preview-only and the api-version
-    # surface is volatile. The endpoint also doesn't exist in every region —
+    # surface is volatile. The endpoint also doesn't exist in every region, 
     # against a uksouth workspace ARM rejects the preview version. Probe the
     # GA Sentinel api-version first, fall back to preview, and treat 4xx as a
     # 'not present' signal so an empty file is still produced.
@@ -295,7 +301,7 @@ Try-Capture 'automation-rules' {
 
 Try-Capture 'watchlists' {
     # Enumerate watchlist definitions only. Item contents are intentionally not
-    # captured — on workspaces with large lookup lists (GeoIP ranges, asset
+    # captured, on workspaces with large lookup lists (GeoIP ranges, asset
     # inventories) the per-watchlist /watchlistItems pagination dominates the
     # collector runtime, and the rendered report never embeds item bodies.
     # Watchlist contents in a customer environment are expected to be sourced
@@ -321,7 +327,7 @@ Try-Capture 'content-packages' {
 
 Try-Capture 'content-product-packages' {
     # Content Hub catalogue. Was gated behind -IncludePreview which meant
-    # production runs without the switch produced no catalogue file at all —
+    # production runs without the switch produced no catalogue file at all, 
     # which then broke the "Update Available" column in section 70.
     # contentProductPackages is GA via the preview api-version; treat
     # missing-file outcomes as endpoint unavailability rather than gate-skip.
@@ -335,7 +341,7 @@ Try-Capture 'content-product-packages' {
 
 Try-Capture 'summary-rules' {
     # Summary rules are owned by the OperationalInsights provider, not Sentinel
-    # — the API path is `.../workspaces/<ws>/summaryLogs`, not the Content Hub
+    #, the API path is `.../workspaces/<ws>/summaryLogs`, not the Content Hub
     # `.../contentTemplates?$filter=contentKind eq 'SummaryRule'` (which would
     # only return installable templates, not deployed rule instances). The
     # earlier implementation queried the wrong endpoint AND gated the call on
@@ -408,13 +414,13 @@ Try-Capture 'sentinel-settings' {
 # Capture the per-table row counts over the last 12 days so the renderer can
 # surface "data flowing -> Yes" even when the settings GET reported absence.
 Try-Capture 'ueba-data-presence' {
-    # Stamp the table name onto every row BEFORE union — `union withsource`
+    # Stamp the table name onto every row BEFORE union, `union withsource`
     # only labels rows present at the moment of the union, and the inner
     # `summarize count()` collapsed each arm to a single row, so withsource
     # fell back to synthetic positional names (union_arg0/1/2) instead of
     # the real table name. The fix: extend Table at the source, summarize
     # by Table after the union. `isfuzzy=true` also handles a workspace
-    # that hasn't enabled UEBA yet (UserPeerAnalytics may be missing) —
+    # that hasn't enabled UEBA yet (UserPeerAnalytics may be missing), 
     # KQL skips the missing arm rather than throwing.
     $kql = @'
 union isfuzzy=true
@@ -437,7 +443,7 @@ Try-Capture 'kql-savedsearches' {
     Save-Json -FileName 'kql-savedsearches.json' -Data $all
 
     if ($all) {
-        # StrictMode-safe property access — savedSearch records do not all carry
+        # StrictMode-safe property access, savedSearch records do not all carry
         # 'functionAlias' on their PSObject, so a bare $_.properties.functionAlias
         # throws under StrictMode 'Latest'. Use HasMember-style probing.
         $hunting = @($all | Where-Object {
@@ -541,7 +547,7 @@ Try-Capture 'playbooks' {
 }
 
 # ---------------------------------------------------------------------------
-# Data Collection — DCRs / DCEs / DCRA / Diagnostic Settings
+# Data Collection, DCRs / DCEs / DCRA / Diagnostic Settings
 # ---------------------------------------------------------------------------
 Try-Capture 'dcrs' {
     $dcrs = Invoke-SentinelRest -Path "/subscriptions/$SubscriptionId/providers/Microsoft.Insights/dataCollectionRules" -ApiVersion $apiVersions.DataCollection
@@ -585,7 +591,7 @@ Try-Capture 'sentinel-data-lake' {
     # Sentinel Data Lake is provisioned as a Microsoft.SentinelPlatformServices/
     # sentinelPlatformServices resource. It's a tenant-wide capability but
     # the resource lives in a specific subscription / resource group / region
-    # that the operator chose during Defender-portal onboarding — typically
+    # that the operator chose during Defender-portal onboarding, typically
     # NOT the same RG as the Sentinel workspace. Workspace-scoped GETs against
     # Microsoft.SecurityInsights/dataLake return 400 because no such
     # subresource is registered there. Resource Graph finds the platform-
@@ -691,7 +697,7 @@ Try-Capture 'rbac-resourcegroup' {
 }
 
 # ---------------------------------------------------------------------------
-# Cost / usage — KQL queries
+# Cost / usage, KQL queries
 # ---------------------------------------------------------------------------
 Try-Capture 'tables-with-data' {
     $kql = @'
@@ -773,7 +779,7 @@ Try-Capture 'soc-optimization' {
 }
 
 Try-Capture 'incidents-summary' {
-    # Aggregate-only — the documenter never exports incident bodies (PII).
+    # Aggregate-only, the documenter never exports incident bodies (PII).
     $kql = @'
 SecurityIncident
 | where TimeGenerated > ago(30d)
@@ -794,7 +800,7 @@ SecurityIncident
 Try-Capture 'incidents-mttr' {
     # Mean time to acknowledge / resolve, last 30 days. Surfaces SOC efficiency
     # without exporting incident detail. FirstModifiedTime can be null when an
-    # incident was auto-closed without ever being modified — filter those out
+    # incident was auto-closed without ever being modified, filter those out
     # of the acknowledge-window average so the result isn't NaN; report the
     # acknowledged subset count separately so the omission is visible.
     $kql = @'
@@ -881,7 +887,7 @@ Total30d
 Try-Capture 'incidents-detail-by-provider' {
     # SecurityIncident <-> SecurityAlert join with the first-rule indirection
     # producing per-provider, per-product, per-rule incident detail. Aggregate
-    # counts only — no incident bodies or alert payloads.
+    # counts only, no incident bodies or alert payloads.
     $kql = @'
 SecurityIncident
 | where TimeGenerated > ago(8d)
@@ -1006,7 +1012,7 @@ Try-Capture 'data-exports' {
 }
 
 Try-Capture 'threat-intel-counts' {
-    # KQL on the indicator tables — counts only, never indicator detail.
+    # KQL on the indicator tables, counts only, never indicator detail.
     $kql = @'
 union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
 | where TimeGenerated > ago(30d)
@@ -1021,7 +1027,7 @@ union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
     }
 }
 
-# Second TI capture source — the Sentinel TI metrics API. Independent of the
+# Second TI capture source, the Sentinel TI metrics API. Independent of the
 # Az.OperationalInsights module + KQL path above, so the section can still
 # render when one source fails. The renderer prefers metrics when both
 # present (it carries an indicator-type breakdown the KQL summary doesn't).
@@ -1045,7 +1051,7 @@ CommonSecurityLog
 }
 
 Try-Capture 'cef-in-syslog' {
-    # CEF records that landed in the Syslog table — usually a Linux syslog
+    # CEF records that landed in the Syslog table, usually a Linux syslog
     # forwarder misconfiguration that should be split into a dedicated
     # CommonSecurityLog stream.
     $kql = @'
@@ -1062,7 +1068,7 @@ Syslog
 }
 
 Try-Capture 'security-event-duplicates' {
-    # Duplicate SecurityEvent records over a 1-hour window — typically an
+    # Duplicate SecurityEvent records over a 1-hour window, typically an
     # agent dual-collection misconfiguration (MMA + AMA reporting the same
     # events into the workspace).
     $kql = @'
@@ -1086,7 +1092,7 @@ DuplicateEvents
 }
 
 Try-Capture 'azure-activity-coverage' {
-    # Per-subscription AzureActivity volume — surfaces subscriptions NOT
+    # Per-subscription AzureActivity volume, surfaces subscriptions NOT
     # shipping Activity Logs to this workspace.
     $kql = @'
 AzureActivity
@@ -1137,7 +1143,7 @@ union withsource = tt *
 }
 
 Try-Capture 'top-event-ids' {
-    # Top 10 Windows event IDs by billable size — drives table-noise tuning.
+    # Top 10 Windows event IDs by billable size, drives table-noise tuning.
     $kql = @'
 find withsource = TableName1 in (Event, SecurityEvent)
     where TimeGenerated > ago(7d) project _BilledSize, _IsBillable, Computer, _ResourceId, EventID, Activity, RenderedDescription
@@ -1157,7 +1163,7 @@ find withsource = TableName1 in (Event, SecurityEvent)
 Try-Capture 'analytics-rule-volumes' {
     # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
     # breakout (TOC 4.11.2). Note: SecurityAlert's severity column is named
-    # `AlertSeverity`, not `Severity` — an earlier version of this KQL used
+    # `AlertSeverity`, not `Severity`, an earlier version of this KQL used
     # `Severity` which the workspace rejected with BadRequest, returning an
     # empty array and leaving section 21 unpopulated.
     $kql = @'
@@ -1203,11 +1209,11 @@ Try-Capture 'gap-analysis' {
 $runContext = $runContext | Add-Member -MemberType NoteProperty -Name CompletedAtUtc -Value (Get-Date).ToUniversalTime().ToString('o') -PassThru
 Save-Json -FileName 'run-context.json' -Data $runContext
 
-# Diagnostic pass — sanity-check captures that typically contain data on
+# Diagnostic pass, sanity-check captures that typically contain data on
 # any active workspace. Empty results here are NOT necessarily a bug
 # (some files legitimately empty on quiet workspaces), but they almost
 # always indicate either an RBAC gap, an unsupported region, or an
-# undocumented schema change — and they're the single most common
+# undocumented schema change, and they're the single most common
 # source of "the renderer says zero of X but I have a hundred"
 # regressions. Surface them prominently in the run log so the operator
 # notices before opening a bug.
@@ -1243,7 +1249,7 @@ foreach ($f in ($expectNonEmpty + $expectIfActive)) {
     try {
         $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
         if ($isSingleObj) {
-            # Single-object file (cost-estimate, workspace, settings, ...) — empty if `{}`.
+            # Single-object file (cost-estimate, workspace, settings, ...), empty if `{}`.
             $count = if ($raw.Trim() -eq '{}' -or $null -eq $parsed -or @($parsed.PSObject.Properties).Count -eq 0) { 0 } else { 1 }
         } else {
             $count = if ($null -eq $parsed) { 0 } else { @($parsed).Count }

@@ -1,4 +1,10 @@
-#requires -Version 7
+#
+# Sentinel-As-Code/Scripts/Documenter/Convert-MermaidToImage.ps1
+#
+# Created by noodlemctwoodle on 14/05/2026.
+#
+
+#requires -Version 7.2
 <#
 .SYNOPSIS
     Pre-renders Mermaid fenced blocks in the Documenter's markdown output to
@@ -13,8 +19,8 @@
     that, ADO blocks inline SVG images for security, so an SVG <img> shows as a
     broken image.
 
-    PNG sidesteps both problems — it renders on every ADO markdown surface
-    (Repos preview, code-wiki, project wiki) — so PNG is the default output.
+    PNG sidesteps both problems, it renders on every ADO markdown surface
+    (Repos preview, code-wiki, project wiki), so PNG is the default output.
 
     GitHub renders ```mermaid``` fences natively, so the GitHub Actions workflow
     does NOT run this step and ships the raw fences. Only the ADO pipeline
@@ -29,7 +35,7 @@
     body, so identical diagrams across files share one image and re-runs are
     idempotent (already-rendered hashes are reused).
 
-    mmdc failures are warnings — the offending fenced block is left as-is so a
+    mmdc failures are warnings, the offending fenced block is left as-is so a
     syntax error on one chart never breaks the whole doc set.
 
 .PARAMETER Root
@@ -93,7 +99,7 @@ if (-not $mmdcCmd) {
     throw "mmdc not found on PATH. Install via: npm install -g @mermaid-js/mermaid-cli"
 }
 
-# Puppeteer launch config — Linux hosted CI agents run as root and need
+# Puppeteer launch config, Linux hosted CI agents run as root and need
 # --no-sandbox. Harmless on macOS/Windows.
 $puppeteerCfg = Join-Path ([System.IO.Path]::GetTempPath()) 'puppeteer-mmdc.json'
 @'
@@ -112,7 +118,7 @@ function Get-MermaidHash {
 
 $workspaceDirs = Get-ChildItem -Path $Root -Directory -ErrorAction SilentlyContinue
 if (-not $workspaceDirs) {
-    Write-Host "No workspace folders found under $Root — nothing to do."
+    Write-Host "No workspace folders found under $Root, nothing to do."
     return
 }
 
@@ -157,7 +163,7 @@ foreach ($wsDir in $workspaceDirs) {
                     Remove-Item $temp -Force -ErrorAction SilentlyContinue
                 }
                 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $imgPath)) {
-                    Write-Warning "mmdc failed for hash $hash — leaving fence in place"
+                    Write-Warning "mmdc failed for hash $hash, leaving fence in place"
                     $script:totalFailed++
                     return $m.Value
                 }
@@ -168,7 +174,7 @@ foreach ($wsDir in $workspaceDirs) {
 
         if ($newContent -ne $content) {
             Set-Content -Path $md.FullName -Value $newContent -Encoding UTF8
-            Write-Host "  ↳ rewrote $($wsDir.Name)/$($md.Name) — $matchCount charts"
+            Write-Host "  ↳ rewrote $($wsDir.Name)/$($md.Name), $matchCount charts"
         }
     }
 }

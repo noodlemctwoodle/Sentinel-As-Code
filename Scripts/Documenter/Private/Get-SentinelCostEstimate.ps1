@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Scripts/Documenter/Private/Get-SentinelCostEstimate.ps1
+#
+# Created by noodlemctwoodle on 06/05/2026.
+#
+
 <#
 .SYNOPSIS
     Compute an estimated monthly cost for the workspace from the captured 30-day Usage,
@@ -23,7 +29,7 @@
       Top10TablesByCost            array of @{ Table; Plan; Gb30d; MonthlyCost }
       CommitmentTierWhatIf         array of @{ Rung; ProjectedMonthlyCost; DeltaVsCurrent }
       DedicatedClusterCandidate    bool
-      Caveats                      array of strings — items NOT priced
+      Caveats                      array of strings, items NOT priced
       MethodologyVersion           '1.0.0'
 
     Methodology notes
@@ -38,7 +44,7 @@
     5. Archive (totalRetentionInDays minus retentionInDays) is priced against the
        'Long-Term Retention' meter.
 
-    Caveats — explicitly NOT priced:
+    Caveats, explicitly NOT priced:
       - Query-time billing for Basic/Auxiliary plans.
       - Search-job and restore-log storage.
       - Data export egress.
@@ -97,7 +103,7 @@ function Get-SentinelCostEstimate {
             Top10TablesByCost         = @()
             CommitmentTierWhatIf      = @()
             DedicatedClusterCandidate = $false
-            Caveats                   = $caveats + 'No table or usage data available — workspace may be empty or KQL Usage query failed.'
+            Caveats                   = $caveats + 'No table or usage data available, workspace may be empty or KQL Usage query failed.'
             MethodologyVersion        = '1.0.0'
         }
     }
@@ -116,8 +122,8 @@ function Get-SentinelCostEstimate {
 
     # Pricing table lookup driven by Resources/cost-meters.json. Each
     # category in that file declares either:
-    #   - meterNames    — exact-match meter strings (case-sensitive), OR
-    #   - meterContains — list of substrings that must ALL be present in
+    #   - meterNames, exact-match meter strings (case-sensitive), OR
+    #   - meterContains, list of substrings that must ALL be present in
     #                     the meter name (used for the Data Lake meter
     #                     whose exact wording has varied).
     # Microsoft renames Retail Prices meters periodically; supporting the
@@ -125,7 +131,7 @@ function Get-SentinelCostEstimate {
     #
     # When the API returns more than one row for the same meter (a
     # 0-priced commitment-tier 'included' row plus a non-zero PAYG row),
-    # we take the MAX unit price across rows — that yields the PAYG rate,
+    # we take the MAX unit price across rows, that yields the PAYG rate,
     # which is the right baseline for an uncommitted workspace. The
     # CommitmentTierWhatIf surface below projects savings from this
     # baseline.
@@ -171,7 +177,7 @@ function Get-SentinelCostEstimate {
             }
         }
     } else {
-        $caveats += 'Retail Prices snapshot unavailable — monthly cost is reported as zero.'
+        $caveats += 'Retail Prices snapshot unavailable, monthly cost is reported as zero.'
     }
 
     # Analytics plan = LA ingestion + Sentinel premium (both per-GB and
@@ -217,7 +223,7 @@ function Get-SentinelCostEstimate {
     $perTableSorted = @($perTable | Sort-Object -Property MonthlyCost -Descending)
     $top10 = $perTableSorted | Select-Object -First 10
 
-    # Commitment-tier what-if — only meaningful for PerGB2018 workspaces.
+    # Commitment-tier what-if, only meaningful for PerGB2018 workspaces.
     $commitmentWhatIf = @()
     # Guard against a missing or corrupt workspace.json. Under StrictMode,
     # navigating $workspace.properties.sku.name on a null would throw and abort
