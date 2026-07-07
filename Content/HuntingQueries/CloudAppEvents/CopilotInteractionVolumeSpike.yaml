@@ -1,0 +1,54 @@
+id: 2450e68c-f551-4f7e-adb1-93c4f3abba4b
+name: Copilot interaction volume spike versus user baseline
+description: |
+  Compares each user's Copilot interaction count today against their own
+  14-day baseline and flags accounts exceeding the mean plus three standard
+  deviations. A sudden spike can indicate automated or scripted use, bulk
+  data collection through Copilot, or an attacker exercising a compromised
+  identity.
+
+  Investigation question answered: is the volume normal for this user?
+
+  The CloudAppEvents ActionType for Copilot is "CopilotInteraction". Confirm in
+  tenant with
+  `CloudAppEvents | where RawEventData has "Copilot" | distinct ActionType`.
+query: |
+  let Lookback = 14d;
+  // Materialise the Copilot slice once and project only the needed columns:
+  // the slice is consumed by both branches below, so this avoids scanning
+  // CloudAppEvents twice and stops the large RawEventData blob being carried.
+  let Copilot = materialize(
+      CloudAppEvents
+      | where TimeGenerated > ago(Lookback)
+      | where ActionType == "CopilotInteraction"
+      | project TimeGenerated, AccountObjectId, AccountDisplayName, IPAddress, Application);
+  let Baseline = Copilot
+    | where TimeGenerated < startofday(now())
+    | summarize DailyCount = count() by AccountObjectId, Day = startofday(TimeGenerated)
+    | summarize AvgPerDay = avg(DailyCount), StdevPerDay = stdev(DailyCount) by AccountObjectId;
+  let Today = Copilot
+    | where TimeGenerated >= startofday(now())
+    | summarize
+        TodayCount = count(),
+        IPs = make_set(IPAddress, 20),
+        Surfaces = make_set(Application, 10)
+      by AccountObjectId, AccountDisplayName;
+  Today
+  | join kind=leftouter Baseline on AccountObjectId
+  | extend AvgPerDay = coalesce(AvgPerDay, 0.0), StdevPerDay = coalesce(StdevPerDay, 0.0)
+  | extend Threshold = AvgPerDay + (3 * StdevPerDay)
+  | where TodayCount > 20 and TodayCount > Threshold
+  | project
+      AccountObjectId,
+      AccountDisplayName,
+      TodayCount,
+      AvgPerDay = round(AvgPerDay, 1),
+      Threshold = round(Threshold, 1),
+      Surfaces,
+      IPs
+  | order by TodayCount desc
+tactics:
+  - Collection
+techniques:
+  - T1213
+  - T1530

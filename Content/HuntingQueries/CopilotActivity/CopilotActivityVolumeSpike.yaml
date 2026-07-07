@@ -1,0 +1,49 @@
+id: 3e82884b-06b1-450c-9a87-90907b0d0d37
+name: Copilot interaction volume spike versus user baseline (CopilotActivity)
+description: |
+  Compares each user's Copilot interaction count today against their own
+  14-day baseline in the CopilotActivity table and flags accounts exceeding
+  the mean plus three standard deviations. A sudden spike can indicate
+  automated or scripted use, bulk data collection through Copilot, or a
+  compromised identity.
+
+  Investigation question answered: is the volume normal for this user?
+query: |
+  let Lookback = 14d;
+  // Materialise the interaction slice once; it is consumed by both branches.
+  let Copilot = materialize(
+      CopilotActivity
+      | where TimeGenerated > ago(Lookback)
+      | where RecordType == "CopilotInteraction"
+      | project TimeGenerated, ActorName, ActorUserId, SrcIpAddr, AppHost);
+  let Baseline = Copilot
+    | where TimeGenerated < startofday(now())
+    | summarize DailyCount = count() by ActorUserId, Day = startofday(TimeGenerated)
+    | summarize AvgPerDay = avg(DailyCount), StdevPerDay = stdev(DailyCount) by ActorUserId;
+  let Today = Copilot
+    | where TimeGenerated >= startofday(now())
+    | summarize
+        TodayCount = count(),
+        ActorName = any(ActorName),
+        SourceIPs = make_set(SrcIpAddr, 20),
+        Surfaces = make_set(AppHost, 10)
+      by ActorUserId;
+  Today
+  | join kind=leftouter Baseline on ActorUserId
+  | extend AvgPerDay = coalesce(AvgPerDay, 0.0), StdevPerDay = coalesce(StdevPerDay, 0.0)
+  | extend Threshold = AvgPerDay + (3 * StdevPerDay)
+  | where TodayCount > 20 and TodayCount > Threshold
+  | project
+      ActorName,
+      ActorUserId,
+      TodayCount,
+      AvgPerDay = round(AvgPerDay, 1),
+      Threshold = round(Threshold, 1),
+      Surfaces,
+      SourceIPs
+  | order by TodayCount desc
+tactics:
+  - Collection
+techniques:
+  - T1213
+  - T1530

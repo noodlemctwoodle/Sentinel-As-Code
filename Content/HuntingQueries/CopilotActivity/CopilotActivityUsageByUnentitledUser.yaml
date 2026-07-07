@@ -1,0 +1,33 @@
+id: 1417a02d-05dd-491e-aacd-0f28c08e793b
+name: Copilot activity by an unentitled user (CopilotActivity)
+description: |
+  Surfaces Microsoft Copilot interactions recorded in the CopilotActivity
+  table for accounts that are not on the "CopilotEntitledUsers" watchlist.
+  CopilotActivity is the dedicated Microsoft Copilot data-connector table, so
+  this is the highest-fidelity view of who is using Copilot without a recorded
+  entitlement.
+
+  Investigation question answered: is this user expected to use Copilot?
+
+  REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
+query: |
+  let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
+    | project UserPrincipalName = tolower(UserPrincipalName);
+  CopilotActivity
+  | where TimeGenerated > ago(7d)
+  | where RecordType == "CopilotInteraction"
+  | extend UserPrincipalName = tolower(ActorName)
+  | where UserPrincipalName !in (EntitledUsers)
+  | summarize
+      Interactions = count(),
+      Surfaces = make_set(AppHost, 10),
+      SourceIPs = make_set(SrcIpAddr, 20),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by UserPrincipalName, ActorUserId
+  | order by Interactions desc
+tactics:
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004
