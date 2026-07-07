@@ -1,0 +1,16 @@
+Sentinel-As-Code
+Copyright 2025-2026 noodlemctwoodle
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Portions of this repository are third-party content distributed under their own
+licences and are NOT covered by the Apache License above:
+
+  * Content/AnalyticalRules/Community/ - community-contributed detection rules;
+    each retains its upstream licence and attribution.
+  * Microsoft-published Content Hub content referenced, deployed, or exported by
+    this repository remains subject to Microsoft's own terms.
+
+Releases up to and including 26.06.1 were published under the MIT License and
+remain available under those terms; the Apache License 2.0 applies from 26.07
+onward.

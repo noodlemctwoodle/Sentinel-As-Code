@@ -4,7 +4,7 @@
     GUID              = '8d0c8a73-2b16-4f5a-8e7f-1c5e6f1a8d4b'
     Author            = 'noodlemctwoodle'
     CompanyName       = 'Sentinel-As-Code'
-    Copyright         = '(c) noodlemctwoodle. Released under MIT.'
+    Copyright         = '(c) noodlemctwoodle. Released under the Apache License 2.0.'
     Description       = 'Shared helpers for the Sentinel-As-Code deployer scripts: Write-PipelineMessage (logging abstraction), Invoke-SentinelApi (REST wrapper with retry), Connect-AzureEnvironment (Az context bootstrap). Single source of truth removes inline duplication across Deploy-CustomContent, Deploy-SentinelContentHub, Deploy-DefenderDetections, and Test-SentinelRuleDrift.'
     PowerShellVersion = '7.2'
     RequiredModules   = @(

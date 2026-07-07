@@ -4,6 +4,20 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.07
+
+- **Word report generation** — a pandoc-based converter renders the Sentinel
+  Documenter's Markdown pack into a formatted Word (.docx) report with a real,
+  page-numbered table of contents, colour-coded severities and styled tables.
+  Lives under `Tools/Documenter/Report/`, with a manual pipeline
+  (`Sentinel-Word-Report.yml`) that publishes the .docx artefact.
+- **Relicensed from MIT to the Apache License 2.0** — still open source, now
+  with an explicit patent grant and a `NOTICE` file. Applies from this release
+  forward; earlier tagged releases remain under MIT.
+- Added a GitHub Sponsors button (`.github/FUNDING.yml`) and documented the
+  external tool dependencies in
+  `Docs/Development/PowerShell-Module-Requirements.md`.
+
 ## 26.06.1
 
 - **Repository restructure** into a by-concern layout — `Content/`, `Infra/`,

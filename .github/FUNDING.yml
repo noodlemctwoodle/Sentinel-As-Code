@@ -1,0 +1,4 @@
+# GitHub "Sponsor" button target for Sentinel-As-Code.
+# Funding runs through sentinel.blog/support (Stripe): recurring Organisation
+# tiers, one-off tips at any amount, and annual sponsorships by invoice.
+custom: ["https://sentinel.blog/support/"]

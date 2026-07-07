@@ -77,6 +77,7 @@ Testing, contributing, and extending the tooling.
 | Doc | What it covers |
 | --- | --- |
 | [Pester Tests](Development/Pester-Tests.md) | Running and extending the Pester suite, the AST-extraction pattern this repo uses |
+| [PowerShell Module Requirements](Development/PowerShell-Module-Requirements.md) | Full audit of every PowerShell module, external binary, and Azure/Entra/Graph permission the scripts need, split by validate vs use |
 | [GitHub Copilot](Development/GitHub-Copilot.md) | Copilot customisations shipped with the repo: instructions, agents, prompts (cross-platform: github.com + every IDE) |
 
 ## Releases
