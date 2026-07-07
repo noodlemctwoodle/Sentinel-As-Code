@@ -1,11 +1,11 @@
 # Workbooks
 
-Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Workbooks/`](../../Workbooks/) containing the gallery template JSON exported from the Sentinel workbook editor, and an optional metadata file.
+Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Content/Workbooks/`](../../Content/Workbooks/) containing the gallery template JSON exported from the Sentinel workbook editor, and an optional metadata file.
 
 ## Folder Structure
 
 ```
-Workbooks/
+Content/Workbooks/
   SOCOverview/
     workbook.json           # Gallery template JSON (source of truth)
     metadata.json           # Optional: display name, description, stable GUID
@@ -23,7 +23,7 @@ The gallery template JSON exported from the Sentinel workbook editor. Two ways t
 For exporting many workbooks at once, or for a one-off bootstrap of a workspace into the repo:
 
 ```powershell
-./Scripts/Export-SentinelWorkbooks.ps1 `
+./Tools/Export-SentinelWorkbooks.ps1 `
     -ResourceGroup 'rg-sentinel-prod' `
     -Workspace     'law-sentinel-prod' `
     -Region        'uksouth'
@@ -33,7 +33,7 @@ This:
 
 - Lists every Sentinel workbook in the workspace via the `Microsoft.Insights/workbooks` API (`category=sentinel`, filtered by `sourceId == workspaceResourceId`).
 - Skips Content Hub-managed workbooks by default (override with `-IncludeContentHub`).
-- For each remaining (Custom) workbook, writes `Workbooks/<FolderName>/workbook.json` (the gallery template) and `Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
+- For each remaining (Custom) workbook, writes `Content/Workbooks/<FolderName>/workbook.json` (the gallery template) and `Content/Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
 - **Folder name = PascalCase compaction of `displayName`** (with the workspace-name suffix stripped). Non-alphanumeric runs become word boundaries; all-upper acronyms TitleCase to match the repo convention (`GBP` → `Gbp`); user-curated camelCase (e.g. `pfSense`) is preserved.
 
 Useful flags:
@@ -41,11 +41,11 @@ Useful flags:
 | Flag | Purpose |
 | --- | --- |
 | `-Filter '^Identity'` | Regex applied to `displayName`; only matching workbooks export |
-| `-OnlyMissing` | Skip workbooks that already have a folder under `Workbooks/`. Useful for incremental import without overwriting in-repo customisations |
+| `-OnlyMissing` | Skip workbooks that already have a folder under `Content/Workbooks/`. Useful for incremental import without overwriting in-repo customisations |
 | `-WhatIf` | Read everything, write nothing |
 | `-IsGov` | Target Azure Government cloud |
 
-Symmetry contract — the output shape exactly matches what [`Deploy-CustomWorkbooks`](../../Scripts/Deploy-CustomContent.ps1) reads back, including the workbook resource GUID, so the next deploy run updates the same Azure resource rather than spawning a duplicate.
+Symmetry contract — the output shape exactly matches what [`Deploy-CustomWorkbooks`](../../Deploy/content/Deploy-CustomContent.ps1) reads back, including the workbook resource GUID, so the next deploy run updates the same Azure resource rather than spawning a duplicate.
 
 ### Option 2: manual per-workbook export
 
@@ -72,7 +72,7 @@ The JSON should look like:
     }
   ],
   "styleSettings": {},
-  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+  "$schema": "https://github.com/Microsoft/Application-Insights-Content/Workbooks/blob/master/schema/workbook.json"
 }
 ```
 
@@ -112,4 +112,4 @@ See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout
 - The `sourceId` (workspace resource ID) is set automatically by the deployment script
 - Workbooks appear in the **My Workbooks** section of the Sentinel Workbooks blade
 - Re-deploying with the same GUID updates the existing workbook in place
-- Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](../Deployment/Scripts.md#deploy-customcontentps1)
+- Deployment is handled by [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) — see [Scripts.md](../Deploy/Scripts.md#deploy-customcontentps1)

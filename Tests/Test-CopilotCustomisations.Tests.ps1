@@ -27,7 +27,7 @@
 
 .NOTES
     Run as part of the repo-wide Pester gate
-    (Scripts/Invoke-PRValidation.ps1) on every PR via the
+    (Tools/Invoke-PRValidation.ps1) on every PR via the
     `validate` job in .github/workflows/pr-validation.yml.
 #>
 

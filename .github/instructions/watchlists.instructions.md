@@ -1,7 +1,7 @@
 ---
 name: Watchlists
-description: Schema for Watchlists/<alias>/watchlist.json + data.csv pairs.
-applyTo: "Watchlists/**"
+description: Schema for Content/Watchlists/<alias>/watchlist.json + data.csv pairs.
+applyTo: "Content/Watchlists/**"
 ---
 
 # Watchlist authoring
@@ -15,7 +15,7 @@ with two files. Full schema in
 ## Folder layout
 
 ```
-Watchlists/
+Content/Watchlists/
 └── <alias>/
     ├── watchlist.json   # metadata
     └── data.csv         # the actual data
@@ -62,17 +62,17 @@ the deploy on mismatch.
 
 When a rule's KQL contains `_GetWatchlist('Foo')`,
 `Build-DependencyManifest.ps1` checks that
-`Watchlists/Foo/watchlist.json` exists with `watchlistAlias: Foo`.
+`Content/Watchlists/Foo/watchlist.json` exists with `watchlistAlias: Foo`.
 If not, the build script logs a warning. The Pester test
 ([`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1))
 turns that warning into a hard fail.
 
 To add a new watchlist that's referenced by a rule:
 
-1. Create the `Watchlists/<alias>/` folder with both files.
+1. Create the `Content/Watchlists/<alias>/` folder with both files.
 2. Re-run the dep manifest:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 3. Run schema tests:
    ```powershell
@@ -84,4 +84,4 @@ To add a new watchlist that's referenced by a rule:
 
 - Schema: [`Docs/Content/Watchlists.md`](../../Docs/Content/Watchlists.md)
 - Tests: [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1)
-- Discovery / cross-validation: [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+- Discovery / cross-validation: [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)

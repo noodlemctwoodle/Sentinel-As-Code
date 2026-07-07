@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every Watchlists/{Name}/watchlist.json
+    Pester 5 schema validation for every Content/Watchlists/{Name}/watchlist.json
     plus its sibling data.csv. Verifies metadata correctness AND the
     JSON-to-CSV invariants the Sentinel deploy logic relies on.
 
@@ -36,7 +36,7 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
 
     $script:watchlistCases = @()
-    $watchlistRoot = Join-Path $repoRoot 'Watchlists'
+    $watchlistRoot = Join-Path $repoRoot 'Content/Watchlists'
     if (Test-Path $watchlistRoot) {
         $script:watchlistCases = @(Get-ChildItem -Path $watchlistRoot -Directory | ForEach-Object {
             $dir       = $_.FullName
@@ -102,7 +102,7 @@ BeforeAll {
 Describe 'Watchlist: <Directory>' -ForEach $script:watchlistCases {
 
     It 'has a watchlist.json file' {
-        $JsonExists | Should -BeTrue -Because "Watchlists/$Directory must contain a watchlist.json (deploy logic looks for it by name)"
+        $JsonExists | Should -BeTrue -Because "Content/Watchlists/$Directory must contain a watchlist.json (deploy logic looks for it by name)"
     }
 
     It 'watchlist.json parses as JSON' -Skip:(-not $JsonExists) {
@@ -129,7 +129,7 @@ Describe 'Watchlist: <Directory>' -ForEach $script:watchlistCases {
 
     Context 'CSV pairing' -Skip:$JsonParseFailed {
         It 'has a sibling data.csv' {
-            $CsvExists | Should -BeTrue -Because "Watchlists/$Directory must contain a data.csv (deploy uses it as the watchlist's initial content)"
+            $CsvExists | Should -BeTrue -Because "Content/Watchlists/$Directory must contain a data.csv (deploy uses it as the watchlist's initial content)"
         }
 
         It 'data.csv header contains the JSON itemsSearchKey column' -Skip:(-not $CsvExists) {
@@ -149,7 +149,7 @@ Describe 'Watchlists: cross-directory invariants' {
         # Self-contained walk so this Describe survives running alongside
         # other test files via Invoke-PRValidation.ps1.
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $watchlistRoot = Join-Path $repoRoot 'Watchlists'
+        $watchlistRoot = Join-Path $repoRoot 'Content/Watchlists'
 
         $script:wlAliasMap = @{}
         if (Test-Path $watchlistRoot) {
@@ -171,7 +171,7 @@ Describe 'Watchlists: cross-directory invariants' {
         }
     }
 
-    It 'every watchlistAlias is unique across Watchlists/' {
+    It 'every watchlistAlias is unique across Content/Watchlists/' {
         $duplicates = $script:wlAliasMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {

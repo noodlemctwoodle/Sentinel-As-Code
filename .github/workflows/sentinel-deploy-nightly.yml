@@ -2,7 +2,7 @@
 # GitHub Actions Workflow: Nightly E2E Deploy Validation
 # ---------------------------------------------------------------------------
 # Smoke-tests the deploy pipeline against the test workspace deployed by
-# Bicep/test/main.bicep. Runs every night at 03:00 UTC.
+# Infra/test-workspace/main.bicep. Runs every night at 03:00 UTC.
 #
 # Why this exists:
 #   The PR-validation gate (validate / bicep-build / arm-validate /
@@ -18,7 +18,7 @@
 #       against a real workspace state file)
 #     - Permission drift on the deploy SP (a previously-required role
 #       got removed by an Azure Policy update)
-#     - Cumulative effects of multiple Wave 4 changes that pass each
+#     - Cumulative effects of multiple changes that pass each
 #       individual unit test but interact badly at deploy time
 #
 #   A nightly run against the existing test workspace catches all of
@@ -95,7 +95,7 @@ jobs:
       # this repo, and local composite actions can only be resolved
       # once the runner has the repo on disk.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -106,7 +106,7 @@ jobs:
 
       - name: Check for Existing Resources
         id: check
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -141,7 +141,7 @@ jobs:
       needs.check-infrastructure.outputs.resources_exist == 'false'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -151,12 +151,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy test workspace Bicep
-        uses: Azure/cli@v2
+        uses: Azure/cli@v3
         with:
           inlineScript: |
             az deployment group create \
               --resource-group "${{ env.RESOURCE_GROUP }}" \
-              --template-file Bicep/test/main.bicep \
+              --template-file Infra/test-workspace/main.bicep \
               --parameters location="${{ env.REGION }}"
 
   # ===========================================================================
@@ -171,7 +171,7 @@ jobs:
       (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure Login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -181,11 +181,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy single Content Hub solution
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
-            & "${{ github.workspace }}/Scripts/Deploy-SentinelContentHub.ps1" `
+            & "${{ github.workspace }}/Deploy/content/Deploy-SentinelContentHub.ps1" `
                 -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
                 -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
                 -Workspace      "${{ env.WORKSPACE_NAME }}" `
@@ -204,7 +204,7 @@ jobs:
       (needs.deploy-content-hub.result == 'success' || needs.deploy-content-hub.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2   # Smart deployment uses parent commit
 
@@ -217,7 +217,7 @@ jobs:
       - name: Verify dependency manifest is current
         shell: pwsh
         run: |
-          & "${{ github.workspace }}/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
+          & "${{ github.workspace }}/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error]dependencies.json is out of sync. Refusing to run E2E with a stale manifest."
               exit 1
@@ -231,11 +231,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content (-WhatIf)
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
-            & "${{ github.workspace }}/Scripts/Deploy-CustomContent.ps1" `
+            & "${{ github.workspace }}/Deploy/content/Deploy-CustomContent.ps1" `
                 -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
                 -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
                 -Workspace      "${{ env.WORKSPACE_NAME }}" `
@@ -255,7 +255,7 @@ jobs:
       (needs.deploy-custom-content.result == 'success' || needs.deploy-custom-content.result == 'skipped')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up PowerShell modules (powershell-yaml only)
         uses: ./.github/actions/setup-pwsh-modules
@@ -271,15 +271,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Defender Detections (-WhatIf)
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
-            & "${{ github.workspace }}/Scripts/Deploy-DefenderDetections.ps1" `
-                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
-                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
-                -Workspace      "${{ env.WORKSPACE_NAME }}" `
-                -Region         "${{ env.REGION }}" `
+            & "${{ github.workspace }}/Deploy/content/Deploy-DefenderDetections.ps1" `
                 -BasePath       "${{ github.workspace }}" `
                 -WhatIf
 
@@ -305,7 +301,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Open / refresh failure issue
         env:

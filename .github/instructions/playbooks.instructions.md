@@ -1,13 +1,13 @@
 ---
 name: Playbooks
-description: ARM template requirements for Logic App playbooks under Playbooks/.
-applyTo: "Playbooks/**/*.json"
+description: ARM template requirements for Logic App playbooks under Content/Playbooks/.
+applyTo: "Content/Playbooks/**/*.json"
 ---
 
 # Playbook authoring (Logic App ARM templates)
 
 Logic App playbooks deployed via ARM template under
-`Playbooks/<Trigger-Type>/<Name>.json`. Trigger-type folders are:
+`Content/Playbooks/<Trigger-Type>/<Name>.json`. Trigger-type folders are:
 
 - `Alert/` — playbooks triggered by analytical rule alerts
 - `Entity/` — entity-trigger playbooks (run from an entity timeline)
@@ -64,12 +64,12 @@ Full schema in [`Docs/Content/Playbooks.md`](../../Docs/Content/Playbooks.md).
    resource names are limited to 64 characters; the deploy script
    truncates automatically but a default that's already short avoids
    surprises.
-4. **Module playbooks must deploy first.** Files under `Playbooks/Module/`
+4. **Module playbooks must deploy first.** Files under `Content/Playbooks/Module/`
    are sub-flows that other playbooks invoke. The deploy script
    orders them first automatically — but if module A depends on
    module B, B must come before A alphabetically (the script's
    secondary ordering hint).
-5. **Files under `Playbooks/Template/` do not deploy.** That folder
+5. **Files under `Content/Playbooks/Template/` do not deploy.** That folder
    is for in-repo reference templates only. Don't put real playbooks
    there.
 6. **Use system-assigned managed identity** for connections to
@@ -93,16 +93,16 @@ Full schema in [`Docs/Content/Playbooks.md`](../../Docs/Content/Playbooks.md).
 
 ## Post-deploy permission grant
 
-After deploy, `Scripts/Set-PlaybookPermissions.ps1` runs separately
+After deploy, `Deploy/permissions/Set-PlaybookPermissions.ps1` runs separately
 (not in the deploy pipeline) under a higher-privilege identity. It
 inspects each playbook's workflow content and grants the playbook's
 managed identity the minimum role set it needs. New connector types
 or HTTP-action endpoints may require updating that script — see
-[`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md#set-playbookpermissionsps1)
+[`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md#set-playbookpermissionsps1)
 for the role mapping.
 
 ## Cross-references
 
 - Full schema + connector mapping: [`Docs/Content/Playbooks.md`](../../Docs/Content/Playbooks.md)
-- Permission script: [`Docs/Deployment/Scripts.md#set-playbookpermissionsps1`](../../Docs/Deployment/Scripts.md#set-playbookpermissionsps1)
+- Permission script: [`Docs/Deploy/Scripts.md#set-playbookpermissionsps1`](../../Docs/Deploy/Scripts.md#set-playbookpermissionsps1)
 - Tests: [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1)

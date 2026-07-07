@@ -33,20 +33,21 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 
 | Folder | Contents | Authoring guide |
 | --- | --- | --- |
-| `AnalyticalRules/` | Custom Sentinel analytical rules (YAML) | [Docs/Content/Analytical-Rules.md](../Docs/Content/Analytical-Rules.md) |
-| `HuntingQueries/` | Custom hunting queries (YAML) | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) |
-| `DefenderCustomDetections/` | Defender XDR custom detections (YAML) | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) |
-| `Watchlists/` | Reusable data lists (`watchlist.json` + `data.csv` per alias) | [Docs/Content/Watchlists.md](../Docs/Content/Watchlists.md) |
-| `Playbooks/` | Logic App playbooks (ARM templates, JSON) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
-| `Workbooks/` | Workbook gallery JSON | [Docs/Content/Workbooks.md](../Docs/Content/Workbooks.md) |
-| `Parsers/` | KQL parser/function YAMLs | [Docs/Deployment/Scripts.md](../Docs/Deployment/Scripts.md#deploy-customcontentps1) |
-| `SummaryRules/` | Summary-rule JSON | [Docs/Content/Summary-Rules.md](../Docs/Content/Summary-Rules.md) |
-| `AutomationRules/` | Sentinel automation rules (JSON) | [Docs/Content/Automation-Rules.md](../Docs/Content/Automation-Rules.md) |
-| `Bicep/` | Subscription-scoped infra templates | [Docs/Deployment/Bicep.md](../Docs/Deployment/Bicep.md) |
-| `Modules/Sentinel.Common/` | Shared deployer + KQL discovery helpers (PowerShell module) | [Docs/Deployment/Scripts.md](../Docs/Deployment/Scripts.md) |
-| `Scripts/` | Deploy / drift / dependency / bootstrap PowerShell scripts | [Docs/Deployment/Scripts.md](../Docs/Deployment/Scripts.md) |
-| `Tests/` | Pester suites (Wave 3 schema + Wave 4 module unit tests) | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) |
-| `dependencies.json` | Auto-derived content dependency graph | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) |
+| `Content/AnalyticalRules/` | Custom Sentinel analytical rules (YAML) | [Docs/Content/Analytical-Rules.md](../Docs/Content/Analytical-Rules.md) |
+| `Content/HuntingQueries/` | Custom hunting queries (YAML) | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) |
+| `Content/DefenderCustomDetections/` | Defender XDR custom detections (YAML) | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) |
+| `Content/Watchlists/` | Reusable data lists (`watchlist.json` + `data.csv` per alias) | [Docs/Content/Watchlists.md](../Docs/Content/Watchlists.md) |
+| `Content/Playbooks/` | Logic App playbooks (ARM templates, JSON) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
+| `Content/Workbooks/` | Workbook gallery JSON | [Docs/Content/Workbooks.md](../Docs/Content/Workbooks.md) |
+| `Content/Parsers/` | KQL parser/function YAMLs | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md#deploy-customcontentps1) |
+| `Content/SummaryRules/` | Summary-rule JSON | [Docs/Content/Summary-Rules.md](../Docs/Content/Summary-Rules.md) |
+| `Content/AutomationRules/` | Sentinel automation rules (JSON) | [Docs/Content/Automation-Rules.md](../Docs/Content/Automation-Rules.md) |
+| `Infra/` | Subscription-scoped infra templates | [Docs/Infra/Bicep.md](../Docs/Infra/Bicep.md) |
+| `Modules/Sentinel.Common/` | Shared deployer + KQL discovery helpers (PowerShell module) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
+| `Deploy/` | Content + infra deployment scripts and `sentinel-deployment.config` | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
+| `Tools/` | CI / maintenance / reporting scripts (manifest, drift, PR validation, Documenter) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
+| `Tests/` | Pester suites (schema + module unit tests) | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) |
+| `dependencies.json` | Auto-derived content dependency graph | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) |
 
 ## Conventions you must follow
 
@@ -71,7 +72,7 @@ DD/MM/YYYY format. Example:
 
 ```powershell
 #
-# Sentinel-As-Code/Scripts/Foo.ps1
+# Sentinel-As-Code/Deploy/Foo.ps1
 #
 # Created by <author> on DD/MM/YYYY.
 #
@@ -118,7 +119,7 @@ Conventional commit format: `type(scope): brief description`.
    pushed by their workflows.
 3. **Never modify `dependencies.json` by hand.** It is auto-derived.
    To update it, edit the content that generates it and run
-   `./Scripts/Build-DependencyManifest.ps1 -Mode Generate`. The
+   `./Tools/Build-DependencyManifest.ps1 -Mode Generate`. The
    PR-validation `dependency-manifest` job will fail any hand-edit.
 4. **Don't commit secrets.** Use OIDC federated credentials for Azure
    auth (already configured); use Key Vault references for runtime
@@ -139,23 +140,23 @@ Conventional commit format: `type(scope): brief description`.
 | Add a Pester test | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
 | Tune an existing rule | n/a | Agent `rule-tuner` |
 | Understand the repo | [Docs/README.md](../Docs/README.md) | Agent `repo-explorer` |
-| Edit / diagnose a pipeline | [Docs/Deployment/Pipelines.md](../Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
-| Add or refactor a function in `Sentinel.Common` | [Docs/Deployment/Scripts.md](../Docs/Deployment/Scripts.md) | Agent `powershell-engineer` |
-| Edit a Bicep template | [Docs/Deployment/Bicep.md](../Docs/Deployment/Bicep.md) | Agent `bicep-engineer` |
+| Edit / diagnose a pipeline | [Docs/Deploy/Pipelines.md](../Docs/Deploy/Pipelines.md) | Agent `pipeline-engineer` |
+| Add or refactor a function in `Sentinel.Common` | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) | Agent `powershell-engineer` |
+| Edit a Bicep template | [Docs/Infra/Bicep.md](../Docs/Infra/Bicep.md) | Agent `bicep-engineer` |
 | Optimise a KQL query | [`.github/instructions/kql-queries.instructions.md`](./instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
 | Add coverage for an untested script / refactor a Pester suite | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
 | Security-review a playbook / script / workflow | n/a | Agent `security-reviewer` |
-| Triage a drift auto-PR | [Docs/Operations/Sentinel-Drift-Detection.md](../Docs/Operations/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
-| Investigate why dependencies.json is wrong / extend the discovery extractor | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Agent `dependencies-engineer` |
-| Refresh the dependency manifest | [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` (or agent `dependencies-engineer` for non-trivial issues) |
+| Triage a drift auto-PR | [Docs/Tools/Sentinel-Drift-Detection.md](../Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
+| Investigate why dependencies.json is wrong / extend the discovery extractor | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Refresh the dependency manifest | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) | Prompt `/regenerate-deps` (or agent `dependencies-engineer` for non-trivial issues) |
 
 ## Testing
 
 Every PR runs the full Pester suite (~6,000 assertions across 17
-files) plus the Wave 3 schema gates. To run locally before pushing:
+files) plus the schema gates. To run locally before pushing:
 
 ```powershell
-./Scripts/Invoke-PRValidation.ps1 -RepoPath .
+./Tools/Invoke-PRValidation.ps1 -RepoPath .
 ```
 
 To run a specific suite:
@@ -173,9 +174,9 @@ end-to-end. Read that doc before adding tests.
 ## When you're unsure
 
 - For schema questions: read the relevant `Docs/Content/<Type>.md` first.
-- For deploy-pipeline questions: read [Docs/Deployment/Pipelines.md](../Docs/Deployment/Pipelines.md).
+- For deploy-pipeline questions: read [Docs/Deploy/Pipelines.md](../Docs/Deploy/Pipelines.md).
 - For test-authoring questions: read [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md).
-- For dependency / discovery questions: read [Docs/Operations/Dependency-Manifest.md](../Docs/Operations/Dependency-Manifest.md).
+- For dependency / discovery questions: read [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md).
 
 If the docs disagree with the code, **the code is the source of
 truth** and the docs need updating — flag it in your PR.

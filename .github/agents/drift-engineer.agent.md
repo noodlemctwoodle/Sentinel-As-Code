@@ -18,12 +18,12 @@ other agent has the full picture.
   produces a PR if portal-edited rules are detected. You review
   the changes, decide whether to merge, and update the workflow's
   detection logic if it's flagging false positives.
-- **Editing `Scripts/Test-SentinelRuleDrift.ps1`** — the
+- **Editing `Tools/Test-SentinelRuleDrift.ps1`** — the
   detection script itself. Adjusts the diff sensitivity, the
   rule-bucket categorisation (Custom / ContentHub / Orphan), the
   absorption logic, the patch-version bump rule.
 - **Custom-vs-ContentHub-vs-Orphan classification** — when a rule
-  is neither in the repo's `AnalyticalRules/` (Custom) nor a
+  is neither in the repo's `Content/AnalyticalRules/` (Custom) nor a
   Content Hub solution (ContentHub), it's Orphan. Each bucket
   has different absorption semantics.
 - **Patch-version bumps on absorbed Custom drift** — every Custom
@@ -37,23 +37,23 @@ other agent has the full picture.
 
 ## Files you work on
 
-- `Scripts/Test-SentinelRuleDrift.ps1` — the detection script
+- `Tools/Test-SentinelRuleDrift.ps1` — the detection script
 - `Tests/Test-SentinelRuleDrift.Tests.ps1` — its 58-assertion
   Pester suite
 - `.github/workflows/sentinel-drift-detect.yml` — the GitHub
   workflow (06:00 UTC daily)
 - `Pipelines/Sentinel-Drift-Detect.yml` — the ADO pipeline (mirror)
-- `AnalyticalRules/AbsorbedFromPortal/ContentHub/<Solution>/` —
+- `Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/<Solution>/` —
   ContentHub-bucket absorptions land here as Custom YAMLs
-- `AnalyticalRules/AbsorbedFromPortal/Orphans/` — Orphan-bucket
+- `Content/AnalyticalRules/AbsorbedFromPortal/Orphans/` — Orphan-bucket
   absorptions land here
 
 ## Read first
 
-- [`Docs/Operations/Sentinel-Drift-Detection.md`](../../Docs/Operations/Sentinel-Drift-Detection.md) —
+- [`Docs/Tools/Sentinel-Drift-Detection.md`](../../Docs/Tools/Sentinel-Drift-Detection.md) —
   full reference for the drift sub-system: bucket semantics,
   absorption rules, the auto-PR pattern.
-- [`Scripts/Test-SentinelRuleDrift.ps1`](../../Scripts/Test-SentinelRuleDrift.ps1) —
+- [`Tools/Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) —
   the script header carries the operating model; read the
   `.SYNOPSIS` and `.DESCRIPTION` blocks before diving in.
 
@@ -61,12 +61,12 @@ other agent has the full picture.
 
 | Bucket | Definition | Absorption behaviour |
 | --- | --- | --- |
-| **Custom drift** | Rule in repo's `AnalyticalRules/**.yaml` AND deployed to workspace, but the deployed version differs from repo | Repo YAML is updated to reflect the deployed state. Patch version bumped (`1.0.0` → `1.0.1`). |
-| **ContentHub** | Rule deployed via a Content Hub solution; analyst customised it in the portal | Deployed rule promoted to a Custom YAML at `AnalyticalRules/AbsorbedFromPortal/ContentHub/<Solution>/`. The YAML reuses the rule's resource GUID as its `id:`, so the next deploy run takes over governance from the Content Hub template. |
-| **Orphan** | Rule exists in the workspace but is neither in the repo nor a known Content Hub template | Promoted to a Custom YAML at `AnalyticalRules/AbsorbedFromPortal/Orphans/`. Author becomes "absorbed-from-portal". |
+| **Custom drift** | Rule in repo's `Content/AnalyticalRules/**.yaml` AND deployed to workspace, but the deployed version differs from repo | Repo YAML is updated to reflect the deployed state. Patch version bumped (`1.0.0` → `1.0.1`). |
+| **ContentHub** | Rule deployed via a Content Hub solution; analyst customised it in the portal | Deployed rule promoted to a Custom YAML at `Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/<Solution>/`. The YAML reuses the rule's resource GUID as its `id:`, so the next deploy run takes over governance from the Content Hub template. |
+| **Orphan** | Rule exists in the workspace but is neither in the repo nor a known Content Hub template | Promoted to a Custom YAML at `Content/AnalyticalRules/AbsorbedFromPortal/Orphans/`. Author becomes "absorbed-from-portal". |
 
 Once absorbed, every subsequent run treats the rule as Custom
-(because the YAML now exists in `AnalyticalRules/`), so further
+(because the YAML now exists in `Content/AnalyticalRules/`), so further
 portal edits flow through the standard Custom-drift update path.
 
 ## Workflow patterns
@@ -123,7 +123,7 @@ If a Microsoft Sentinel REST API change adds a new rule field
 that's portal-editable:
 
 1. **Document the field** in
-   `Docs/Operations/Sentinel-Drift-Detection.md` — what is it,
+   `Docs/Tools/Sentinel-Drift-Detection.md` — what is it,
    why does it matter for drift detection.
 2. **Update `Compare-SentinelRule`** to include the field in the
    per-rule diff.
