@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Documenter/Report/Convert-MarkdownToWord.ps1
+#
+# Created by noodlemctwoodle on 25/06/2026.
+#
+
 <#
 .SYNOPSIS
     Combine a folder of Markdown files into a single, formatted Word
