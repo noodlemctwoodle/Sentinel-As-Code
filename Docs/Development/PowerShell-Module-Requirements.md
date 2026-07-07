@@ -12,7 +12,7 @@ dependencies or permissions, update this doc in the same PR.
 
 ## Baseline runtime
 
-- **PowerShell 7.2 or later** — required by every script and declared in the
+- **PowerShell 7.2 or later** - required by every script and declared in the
   `Sentinel.Common` manifest (`PowerShellVersion = '7.2'`).
 
 ## Modules required to validate the project

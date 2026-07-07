@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Documenter/Report/Convert-FolderToWordReport.ps1
+#
+# Created by noodlemctwoodle on 25/06/2026.
+#
+
 <#
 .SYNOPSIS
     Render every file in a folder tree into a single, formatted Word
@@ -437,8 +443,8 @@ foreach ($entry in $files) {
 
     # Truncate oversized files so Word stays openable.
     $truncated = $false
-    if ($content.Length -gt $maxBytes) {
-        $content = $content.Substring(0, [int][Math]::Min($maxBytes, [int]::MaxValue))
+    if ($file.Length -gt $maxBytes) {
+        $content = $content.Substring(0, [Math]::Min($maxBytes, $content.Length))
         $truncated = $true
     }
 

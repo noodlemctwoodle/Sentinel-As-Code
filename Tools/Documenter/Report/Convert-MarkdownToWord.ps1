@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Documenter/Report/Convert-MarkdownToWord.ps1
+#
+# Created by noodlemctwoodle on 25/06/2026.
+#
+
 <#
 .SYNOPSIS
     Combine a folder of Markdown files into a single, formatted Word
@@ -339,7 +345,7 @@ function Invoke-LibreOfficeBake {
     <#
     .SYNOPSIS
         Populate the Word TOC field's entries and page numbers in-place by
-        driving LibreOffice headless with a Basic macro (open hidden,
+        driving LibreOffice headless through the UNO API (open hidden,
         update all indexes, save, close).
 
     .DESCRIPTION

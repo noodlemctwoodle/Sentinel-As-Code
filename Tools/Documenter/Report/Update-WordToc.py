@@ -55,12 +55,17 @@ def main():
     conn = "pipe,name=%s;urp;StarOffice.ComponentContext" % pipe
 
     import subprocess
-    proc = subprocess.Popen([
-        soffice, "--headless", "--invisible", "--norestore", "--nologo",
-        "--nodefault", "--nofirststartwizard",
-        "--accept=" + conn.replace(";StarOffice.ComponentContext", ""),
-        "-env:UserInstallation=" + uno.systemPathToFileUrl(profile),
-    ])
+    try:
+        proc = subprocess.Popen([
+            soffice, "--headless", "--invisible", "--norestore", "--nologo",
+            "--nodefault", "--nofirststartwizard",
+            "--accept=" + conn.replace(";StarOffice.ComponentContext", ""),
+            "-env:UserInstallation=" + uno.systemPathToFileUrl(profile),
+        ])
+    except (FileNotFoundError, OSError) as exc:
+        shutil.rmtree(profile, ignore_errors=True)
+        sys.stderr.write("could not start soffice (%s): %s\n" % (soffice, exc))
+        return 4
 
     try:
         local = uno.getComponentContext()
