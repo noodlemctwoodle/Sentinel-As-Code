@@ -222,6 +222,13 @@ All documentation lives under [`Docs/`](./Docs/), grouped by concern. Start at [
 | Pester Tests | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) |
 | GitHub Copilot | [Docs/Development/GitHub-Copilot.md](./Docs/Development/GitHub-Copilot.md) |
 
+### Releases — versioning and changelog
+
+| Area | Doc |
+|------|-----|
+| Versioning | [Docs/Releases/Versioning.md](./Docs/Releases/Versioning.md) |
+| Changelog | [Docs/Releases/CHANGELOG.md](./Docs/Releases/CHANGELOG.md) |
+
 ## Infrastructure (Bicep)
 
 Subscription-scoped Bicep templates in `Infra/` provision the resource group, Log Analytics workspace, Sentinel onboarding (both legacy `OperationsManagement/solutions` and modern `SecurityInsights/onboardingStates`), diagnostic settings, and an optional separate playbook resource group. Sentinel feature settings (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in the same pipeline stage.
@@ -256,4 +263,4 @@ You are solely responsible for reviewing, testing, and validating any content fr
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [Apache License 2.0](./LICENSE). See [`NOTICE`](./NOTICE) for copyright and third-party attribution. Releases from `26.07` onward are Apache-2.0; earlier tagged releases remain under the MIT License.

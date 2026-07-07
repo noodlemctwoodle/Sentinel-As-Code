@@ -56,7 +56,8 @@ immutable git history). The mapping:
 | Wave 2 | `26.04` | approximate (direct-to-main batch) |
 | Wave 3 | `26.05` | PR #7 |
 | Wave 4 | `26.06.0` | PR #25 |
-| Repository restructure | `26.06.1` | this release — first tagged release |
+| Repository restructure | `26.06.1` | first tagged release |
+| Word report + Apache-2.0 relicence | `26.07` | PR #29 |
 
 Tagging begins at `v26.06.1`; earlier releases are recorded here for reference
 and are not retroactively tagged.
