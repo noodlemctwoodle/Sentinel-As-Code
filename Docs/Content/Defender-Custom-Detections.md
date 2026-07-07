@@ -1,6 +1,6 @@
 # Defender XDR Custom Detection Rules
 
-Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`DefenderCustomDetections/`](../../DefenderCustomDetections/).
+Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/).
 
 ## Overview
 
@@ -11,14 +11,14 @@ These rules run Advanced Hunting (KQL) queries on a schedule in the Defender XDR
 ## Folder Structure
 
 ```
-DefenderCustomDetections/
+Content/DefenderCustomDetections/
   <RuleName>.yaml               # One YAML file per detection rule
 ```
 
 Rules can also be organised into subfolders by category:
 
 ```
-DefenderCustomDetections/
+Content/DefenderCustomDetections/
   Endpoint/
     SuspiciousProcessExecution.yaml
   Identity/
@@ -225,7 +225,7 @@ detectionAction:
 2. Create and test your rule in the portal
 3. Export the rule configuration
 4. Convert to the YAML format documented above
-5. Save as `DefenderCustomDetections/<Category>/<RuleName>.yaml`
+5. Save as `Content/DefenderCustomDetections/<Category>/<RuleName>.yaml`
 
 ### From Scratch
 
@@ -255,7 +255,7 @@ The service principal used by the pipeline requires:
 |------------|------|-------------|
 | `CustomDetection.ReadWrite.All` | Application | Create, read, update, and delete custom detections |
 
-Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Scripts/Setup-ServicePrincipal.ps1`](../../Scripts/Setup-ServicePrincipal.ps1) handles this — see [Scripts](../Deployment/Scripts.md#setup-serviceprincipalps1).
+Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Deploy/setup/Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) handles this — see [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1).
 
 ### Authentication
 
@@ -263,7 +263,7 @@ The pipeline acquires a Graph API token separately from the ARM token used for S
 
 ## Deployment
 
-Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../../Scripts/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deployment/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Deployment/Pipelines.md).
+Handled by [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deploy/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Deploy/Pipelines.md).
 
 ## API Reference
 
@@ -274,7 +274,7 @@ Handled by [`Scripts/Deploy-DefenderDetections.ps1`](../../Scripts/Deploy-Defend
 
 ## Authoring with GitHub Copilot
 
-When editing files under `DefenderCustomDetections/**`, Copilot
+When editing files under `Content/DefenderCustomDetections/**`, Copilot
 automatically loads [`.github/instructions/defender-detections.instructions.md`](../../.github/instructions/defender-detections.instructions.md).
 The path-scoped instructions call out the Defender-specific gotchas
 (`isEnabled` not `enabled`, lowercase severity, Advanced Hunting

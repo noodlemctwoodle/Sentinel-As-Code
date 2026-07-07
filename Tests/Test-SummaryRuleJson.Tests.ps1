@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every JSON in SummaryRules/.
+    Pester 5 schema validation for every JSON in Content/SummaryRules/.
 
 .DESCRIPTION
     Schema follows Docs/Content/Summary-Rules.md. Validates required fields,
@@ -26,7 +26,7 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
 
     $script:summaryRuleCases = @()
-    $rulesRoot = Join-Path $repoRoot 'SummaryRules'
+    $rulesRoot = Join-Path $repoRoot 'Content/SummaryRules'
     if (Test-Path $rulesRoot) {
         $script:summaryRuleCases = @(Get-ChildItem -Path $rulesRoot -Recurse -Filter '*.json' -File | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
@@ -143,7 +143,7 @@ Describe 'Summary rule schema: <RelativePath>' -ForEach $script:summaryRuleCases
 Describe 'Summary rules: cross-file invariants' {
     BeforeAll {
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $rulesRoot = Join-Path $repoRoot 'SummaryRules'
+        $rulesRoot = Join-Path $repoRoot 'Content/SummaryRules'
 
         $script:summaryNameMap = @{}
         if (Test-Path $rulesRoot) {
@@ -163,7 +163,7 @@ Describe 'Summary rules: cross-file invariants' {
         }
     }
 
-    It 'every summary-rule name is unique across SummaryRules/' {
+    It 'every summary-rule name is unique across Content/SummaryRules/' {
         $duplicates = $script:summaryNameMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {

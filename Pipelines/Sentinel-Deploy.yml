@@ -437,7 +437,7 @@ stages:
 
                 az deployment sub create \
                   --location "$(sentinelRegion)" \
-                  --template-file Bicep/main.bicep \
+                  --template-file Infra/sentinel/main.bicep \
                   --parameters $PARAMS
 
           - task: PowerShell@2
@@ -580,7 +580,7 @@ stages:
                 Write-Host "Solutions: $($solutionList -join ', ')"
                 Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
 
-                & "$(Build.SourcesDirectory)/Scripts/Deploy-SentinelContentHub.ps1" @scriptParams
+                & "$(Build.SourcesDirectory)/Deploy/content/Deploy-SentinelContentHub.ps1" @scriptParams
               azurePowerShellVersion: "LatestVersion"
               pwsh: true
               errorActionPreference: "Continue"
@@ -654,10 +654,10 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                & "$(Build.SourcesDirectory)/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
+                & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-                    Write-Host "##vso[task.logissue type=error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this pipeline."
+                    Write-Host "##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this pipeline."
                     exit 1
                 }
 
@@ -695,7 +695,7 @@ stages:
                 Write-Host "##[section]Launching Custom Content Deployment"
                 Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
 
-                & "$(Build.SourcesDirectory)/Scripts/Deploy-CustomContent.ps1" @scriptParams
+                & "$(Build.SourcesDirectory)/Deploy/content/Deploy-CustomContent.ps1" @scriptParams
               azurePowerShellVersion: "LatestVersion"
               pwsh: true
               errorActionPreference: "Continue"
@@ -711,7 +711,7 @@ stages:
   # =================================================================================
   # Stage 5: Deploy Defender XDR Custom Detections
   # Deploys custom detection rules to the Microsoft Defender XDR platform via the
-  # Microsoft Graph Security API. Rules are defined as YAML files in DefenderCustomDetections/.
+  # Microsoft Graph Security API. Rules are defined as YAML files in Content/DefenderCustomDetections/.
   # Requires CustomDetection.ReadWrite.All Graph application permission.
   # =================================================================================
   - stage: DeployDefenderDetections
@@ -762,7 +762,7 @@ stages:
 
                 Write-Host "##[section]Launching Defender XDR Custom Detections Deployment"
 
-                & "$(Build.SourcesDirectory)/Scripts/Deploy-DefenderDetections.ps1" @scriptParams
+                & "$(Build.SourcesDirectory)/Deploy/content/Deploy-DefenderDetections.ps1" @scriptParams
               azurePowerShellVersion: "LatestVersion"
               pwsh: true
               errorActionPreference: "Continue"

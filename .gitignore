@@ -21,12 +21,13 @@ test-results/
 .deployment-state.json
 
 # Blog drafts (kept locally)
+Blog
 Blog/*
 
 # Local-only scripts not yet ready for the repo
-Scripts/Test-DefenderSentinelParity.ps1
-Scripts/GUIDE-DefenderSentinelParity.md
-Scripts/Export-Playbooks.ps1
+Tools/Test-DefenderSentinelParity.ps1
+Tools/GUIDE-DefenderSentinelParity.md
+Tools/Export-Playbooks.ps1
 
 # Sentinel documenter output — contains tenant configuration; never commit.
 # Delivered via the workflow's private GitHub Actions artefact instead.

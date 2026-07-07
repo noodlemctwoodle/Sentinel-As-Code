@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Pester 5 unit tests for the pure functions in
-    Scripts/Set-PlaybookPermissions.ps1: connector-to-role mapping and
+    Deploy/permissions/Set-PlaybookPermissions.ps1: connector-to-role mapping and
     scope resolution.
 
 .DESCRIPTION
@@ -22,7 +22,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Set-PlaybookPermissions.ps1'
+    $scriptPath = Join-Path $repoRoot 'Deploy/permissions/Set-PlaybookPermissions.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath

@@ -48,13 +48,13 @@ canonical instructions in
 - **Never push to `main` directly.** All changes via PR.
 - **Never push to `auto/*` branches.** Bot-managed.
 - **Never hand-edit `dependencies.json`.** Auto-derived. Run
-  `./Scripts/Build-DependencyManifest.ps1 -Mode Generate` instead.
+  `./Tools/Build-DependencyManifest.ps1 -Mode Generate` instead.
 - **Never include AI / LLM references in commit messages or
   `Co-Authored-By` trailers.** This includes Claude, Anthropic,
   ChatGPT, Copilot, etc.
 - **Never use em-dashes (—) in new prose.** Use hyphens or
   parenthetical phrasing.
-- **Always run Pester locally before pushing**: `./Scripts/Invoke-PRValidation.ps1`.
+- **Always run Pester locally before pushing**: `./Tools/Invoke-PRValidation.ps1`.
 
 ## What to do for common tasks
 
@@ -67,22 +67,22 @@ canonical instructions in
 | Tune an existing rule's threshold / severity | The rule file itself | Agent `rule-tuner` |
 | Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Agent `repo-explorer` |
 | Explain a rule's KQL | The rule file | Agent `code-explainer` |
-| Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Deployment/Pipelines.md](./Docs/Deployment/Pipelines.md) | Agent `pipeline-engineer` |
-| Add a function to `Sentinel.Common` or refactor a script | [Docs/Deployment/Scripts.md](./Docs/Deployment/Scripts.md) | Agent `powershell-engineer` |
-| Edit a Bicep template | [Docs/Deployment/Bicep.md](./Docs/Deployment/Bicep.md) | Agent `bicep-engineer` |
+| Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Deploy/Pipelines.md](./Docs/Deploy/Pipelines.md) | Agent `pipeline-engineer` |
+| Add a function to `Sentinel.Common` or refactor a script | [Docs/Deploy/Scripts.md](./Docs/Deploy/Scripts.md) | Agent `powershell-engineer` |
+| Edit a Bicep template | [Docs/Infra/Bicep.md](./Docs/Infra/Bicep.md) | Agent `bicep-engineer` |
 | Optimise a KQL query (performance, parser extraction, watchlist promotion) | [`.github/instructions/kql-queries.instructions.md`](./.github/instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
 | Add coverage / refactor a Pester suite | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
 | Security-review a playbook / script / workflow | The file in question | Agent `security-reviewer` |
-| Triage a drift auto-PR or fix the drift detector | [Docs/Operations/Sentinel-Drift-Detection.md](./Docs/Operations/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
-| Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Agent `dependencies-engineer` |
-| Refresh `dependencies.json` (routine regeneration) | [Docs/Operations/Dependency-Manifest.md](./Docs/Operations/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
+| Triage a drift auto-PR or fix the drift detector | [Docs/Tools/Sentinel-Drift-Detection.md](./Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
+| Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Tools/Dependency-Manifest.md](./Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Refresh `dependencies.json` (routine regeneration) | [Docs/Tools/Dependency-Manifest.md](./Docs/Tools/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Test before you ship
 
 Always run the Pester suite locally before opening a PR:
 
 ```powershell
-./Scripts/Invoke-PRValidation.ps1 -RepoPath .
+./Tools/Invoke-PRValidation.ps1 -RepoPath .
 ```
 
 Five-job CI gate on every PR to `main`:

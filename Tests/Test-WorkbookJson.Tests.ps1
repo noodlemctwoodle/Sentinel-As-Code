@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every Workbooks/{Name}/workbook.json
+    Pester 5 schema validation for every Content/Workbooks/{Name}/workbook.json
     plus its sibling metadata.json.
 
 .DESCRIPTION
@@ -37,7 +37,7 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
 
     $script:workbookCases = @()
-    $workbookRoot = Join-Path $repoRoot 'Workbooks'
+    $workbookRoot = Join-Path $repoRoot 'Content/Workbooks'
     if (Test-Path $workbookRoot) {
         $script:workbookCases = @(Get-ChildItem -Path $workbookRoot -Directory | ForEach-Object {
             $dir       = $_.FullName
@@ -185,7 +185,7 @@ Describe 'Workbook: <Directory>' -ForEach $script:workbookCases {
 Describe 'Workbooks: cross-directory invariants' {
     BeforeAll {
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $workbookRoot = Join-Path $repoRoot 'Workbooks'
+        $workbookRoot = Join-Path $repoRoot 'Content/Workbooks'
 
         # Only ARM-format workbooks have a resource GUID we can dedupe on.
         # Gallery notebooks don't expose one (the GUID lives in metadata.json
@@ -213,7 +213,7 @@ Describe 'Workbooks: cross-directory invariants' {
         }
     }
 
-    It 'every ARM workbook resource GUID is unique across Workbooks/' {
+    It 'every ARM workbook resource GUID is unique across Content/Workbooks/' {
         $duplicates = $script:workbookGuidMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {

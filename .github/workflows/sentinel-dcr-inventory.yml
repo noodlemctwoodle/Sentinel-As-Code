@@ -31,7 +31,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'Automation/DCR-Watchlist/**'
+      - 'Infra/dcr-watchlist/**'
+      - 'Tools/Invoke-DCRWatchlistSync.ps1'
+      - 'Deploy/permissions/Set-RunbookPermissions.ps1'
       - '.github/workflows/sentinel-dcr-inventory.yml'
 
   workflow_dispatch:
@@ -91,7 +93,7 @@ env:
   SCHEDULE_FREQUENCY_HOURS:   ${{ github.event_name == 'workflow_dispatch' && inputs.scheduleFrequencyHours || '24' }}
   LOCATION:                   ${{ github.event_name == 'workflow_dispatch' && inputs.location || 'uksouth' }}
   WHAT_IF:                    ${{ github.event_name == 'workflow_dispatch' && inputs.whatIf || 'false' }}
-  BICEP_PATH:                 Automation/DCR-Watchlist
+  BICEP_PATH:                 Infra/dcr-watchlist
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -104,7 +106,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -114,7 +116,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy DCR Watchlist Infrastructure
-        uses: Azure/cli@v2
+        uses: Azure/cli@v3
         with:
           inlineScript: |
             set -euo pipefail
@@ -179,7 +181,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure login (OIDC)
         uses: ./.github/actions/azure-login-oidc
@@ -189,7 +191,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Update Runbook Content
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -202,7 +204,7 @@ jobs:
             Write-Host "  Runbook:            Invoke-DCRWatchlistSync"
             Write-Host "============================================================"
 
-            $scriptPath = "$env:GITHUB_WORKSPACE/$env:BICEP_PATH/scripts/Invoke-DCRWatchlistSync.ps1"
+            $scriptPath = "$env:GITHUB_WORKSPACE/Tools/Invoke-DCRWatchlistSync.ps1"
 
             if (-not (Test-Path $scriptPath)) {
                 Write-Error "Script not found: $scriptPath"

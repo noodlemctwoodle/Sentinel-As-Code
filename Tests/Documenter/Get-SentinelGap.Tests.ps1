@@ -33,19 +33,19 @@
 BeforeDiscovery {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/Documenter/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Scripts/Documenter/Private/Resources'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Tools/Documenter/Private/Resources'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
-    $script:gapChecks    = Join-Path $script:repoRoot 'Scripts/Documenter/Private/GapChecks.ps1'
-    $script:gapEngine    = Join-Path $script:repoRoot 'Scripts/Documenter/Private/Get-SentinelGap.ps1'
+    $script:gapChecks    = Join-Path $script:repoRoot 'Tools/Documenter/Private/GapChecks.ps1'
+    $script:gapEngine    = Join-Path $script:repoRoot 'Tools/Documenter/Private/Get-SentinelGap.ps1'
 }
 
 BeforeAll {
     $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $fixtureRaw   = Join-Path $repoRoot 'Tests/Documenter/Fixtures/sample/_raw'
-    $resourcesDir = Join-Path $repoRoot 'Scripts/Documenter/Private/Resources'
+    $resourcesDir = Join-Path $repoRoot 'Tools/Documenter/Private/Resources'
     $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-    $gapChecks    = Join-Path $repoRoot 'Scripts/Documenter/Private/GapChecks.ps1'
-    $gapEngine    = Join-Path $repoRoot 'Scripts/Documenter/Private/Get-SentinelGap.ps1'
+    $gapChecks    = Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1'
+    $gapEngine    = Join-Path $repoRoot 'Tools/Documenter/Private/Get-SentinelGap.ps1'
 
     . $gapEngine
 

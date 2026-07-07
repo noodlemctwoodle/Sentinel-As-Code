@@ -7,16 +7,16 @@
 # deploy pipelines), absorbs the changes back into the repo, and opens
 # a PR for review.
 #
-# Behaviour (every drift bucket is absorbed into AnalyticalRules/):
-#   - Custom drift  -> matching AnalyticalRules/**.yaml is updated to
+# Behaviour (every drift bucket is absorbed into Content/AnalyticalRules/):
+#   - Custom drift  -> matching Content/AnalyticalRules/**.yaml is updated to
 #                      reflect the deployed state. Patch version bumped.
 #   - ContentHub    -> deployed rule promoted to a Custom YAML at
-#                      AnalyticalRules/AbsorbedFromPortal/ContentHub/
+#                      Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/
 #                      {Solution}/. The YAML reuses the rule's resource
 #                      GUID as 'id:' so the next deploy run takes over
 #                      governance from the Content Hub template.
 #   - Orphan        -> portal-only rule exported to a Custom YAML at
-#                      AnalyticalRules/AbsorbedFromPortal/Orphans/.
+#                      Content/AnalyticalRules/AbsorbedFromPortal/Orphans/.
 #   - No drift      -> nothing committed. No PR.
 #
 # When drift IS detected:
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Need write to push the auto-sync branch back. The default
           # GITHUB_TOKEN has contents:write on this repo per the
@@ -113,7 +113,7 @@ jobs:
           install-pester: 'false'
 
       - name: Run Sentinel drift detection
-        uses: Azure/powershell@v2
+        uses: Azure/powershell@v3
         with:
           azPSVersion: "latest"
           inlineScript: |
@@ -136,7 +136,7 @@ jobs:
             $activeFlags = ($scriptParams.GetEnumerator() | Where-Object { $_.Value -eq $true } | ForEach-Object { $_.Key }) -join ', '
             Write-Host "Switches:  $activeFlags"
 
-            & "${{ github.workspace }}/Scripts/Test-SentinelRuleDrift.ps1" @scriptParams
+            & "${{ github.workspace }}/Tools/Test-SentinelRuleDrift.ps1" @scriptParams
 
       # Commit + push + PR. Skipped entirely when -ReportOnly was passed
       # (nothing on disk to commit) or when no drift was detected (working
@@ -170,7 +170,7 @@ jobs:
           git stash pop --quiet || true
 
           # Stage only paths the script may legitimately have touched.
-          git add AnalyticalRules reports
+          git add Content/AnalyticalRules reports
 
           REPORT_PATH=$(ls -1t reports/sentinel-drift-*.md 2>/dev/null | head -1 || true)
           git commit \
@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload drift report artefact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sentinel-drift-report-${{ github.run_id }}
           path: reports/

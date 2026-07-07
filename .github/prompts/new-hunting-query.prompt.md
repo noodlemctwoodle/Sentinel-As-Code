@@ -8,7 +8,7 @@ tools: ['search/codebase', 'edit/applyPatch', 'terminal/run']
 # New hunting query
 
 Bootstrap a fresh Sentinel hunting query under
-`HuntingQueries/<SourceFolder>/<QueryName>.yaml`.
+`Content/HuntingQueries/<SourceFolder>/<QueryName>.yaml`.
 
 ## Hunting vs analytical rule
 
@@ -32,9 +32,9 @@ need to interpret the results?"
 
 ## Steps
 
-1. **Confirm the source folder** under `HuntingQueries/`. Pick by
-   data source (`HuntingQueries/SigninLogs/`,
-   `HuntingQueries/AzureActivity/`, etc.).
+1. **Confirm the source folder** under `Content/HuntingQueries/`. Pick by
+   data source (`Content/HuntingQueries/SigninLogs/`,
+   `Content/HuntingQueries/AzureActivity/`, etc.).
 
 2. **Pick a file name** that describes the *hunt question*, not
    the technique. Example: `OrphanedServicePrincipalActivity.yaml`.
@@ -52,7 +52,7 @@ need to interpret the results?"
 
 6. **Regenerate dependencies + run tests:**
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1
    Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1
    ```

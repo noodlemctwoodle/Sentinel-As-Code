@@ -8,7 +8,7 @@ tools: ['search/codebase', 'edit/applyPatch', 'terminal/run']
 # New analytical rule
 
 Bootstrap a fresh Sentinel analytical rule under
-`AnalyticalRules/<SourceFolder>/<RuleName>.yaml`.
+`Content/AnalyticalRules/<SourceFolder>/<RuleName>.yaml`.
 
 ## Inputs to gather (ask if not provided)
 
@@ -27,13 +27,13 @@ Bootstrap a fresh Sentinel analytical rule under
 ## Steps
 
 1. **Confirm the source folder.** Existing analytical rules group
-   by data source under `AnalyticalRules/`:
-   - `AnalyticalRules/AzureActivity/` for AzureActivity rules
-   - `AnalyticalRules/MicrosoftEntraID/` for SigninLogs / AuditLogs
-   - `AnalyticalRules/AWS/` for AWS connector tables
+   by data source under `Content/AnalyticalRules/`:
+   - `Content/AnalyticalRules/AzureActivity/` for AzureActivity rules
+   - `Content/AnalyticalRules/MicrosoftEntraID/` for SigninLogs / AuditLogs
+   - `Content/AnalyticalRules/AWS/` for AWS connector tables
    - etc.
    Pick the folder that matches the source data table. If you're
-   unsure, run `ls AnalyticalRules/` to see what exists.
+   unsure, run `ls Content/AnalyticalRules/` to see what exists.
 
 2. **Pick a file name.** PascalCase, hyphen-free, descriptive of
    the *detection*, not the technique. Example:
@@ -70,7 +70,7 @@ Bootstrap a fresh Sentinel analytical rule under
 
 7. **Regenerate the dependency manifest:**
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 
 8. **Run the schema tests:**
@@ -90,7 +90,7 @@ Bootstrap a fresh Sentinel analytical rule under
     <Tactic>. Technique: <T#### + name>.
 
     Files:
-    - AnalyticalRules/<Source>/<RuleName>.yaml (new)
+    - Content/AnalyticalRules/<Source>/<RuleName>.yaml (new)
     - dependencies.json (regenerated)
 
     Testing:

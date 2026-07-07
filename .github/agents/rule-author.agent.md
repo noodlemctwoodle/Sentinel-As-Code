@@ -27,11 +27,11 @@ For every new rule:
 
 2. **Pick the right content type.** Decision tree:
    - **Sentinel + high-confidence + alert-worthy** → analytical rule
-     in `AnalyticalRules/<Source>/<RuleName>.yaml`
+     in `Content/AnalyticalRules/<Source>/<RuleName>.yaml`
    - **Sentinel + exploratory / too noisy to alert on** → hunting
-     query in `HuntingQueries/<Source>/<QueryName>.yaml`
+     query in `Content/HuntingQueries/<Source>/<QueryName>.yaml`
    - **Defender XDR Advanced Hunting tables** → Defender detection
-     in `DefenderCustomDetections/<Category>/<DetectionName>.yaml`
+     in `Content/DefenderCustomDetections/<Category>/<DetectionName>.yaml`
 
 3. **Read the matching path-scoped instruction file** before
    writing:
@@ -48,13 +48,13 @@ For every new rule:
 
 5. **Add a watchlist if you reference one.** A
    `_GetWatchlist('alias')` reference must resolve to
-   `Watchlists/<alias>/watchlist.json` with matching
+   `Content/Watchlists/<alias>/watchlist.json` with matching
    `watchlistAlias`. If the watchlist doesn't exist, create it
    alongside the rule.
 
 6. **Regenerate the dependency manifest:**
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
    Stage `dependencies.json` together with the new rule.
 
@@ -73,7 +73,7 @@ For every new rule:
    <tactics>. Technique: <T#### + name>.
 
    Files:
-   - AnalyticalRules/<Source>/<RuleName>.yaml (new)
+   - Content/AnalyticalRules/<Source>/<RuleName>.yaml (new)
    - dependencies.json (regenerated)
 
    Testing:

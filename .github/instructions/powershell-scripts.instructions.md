@@ -1,14 +1,14 @@
 ---
 name: PowerShell scripts and modules
-description: Conventions for Scripts/**/*.ps1 and Modules/**/*.psm1 files.
-applyTo: "Scripts/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
+description: Conventions for Deploy/**/*.ps1, Tools/**/*.ps1 and Modules/**/*.psm1 files.
+applyTo: "Deploy/**/*.ps1,Tools/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
 ---
 
 # PowerShell scripts and modules
 
 Deploy, drift, dependency, and bootstrap PowerShell. Conventions match
 the existing repo style. Reference doc:
-[`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md).
+[`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md).
 
 ## Style and structure
 
@@ -25,7 +25,7 @@ the existing repo style. Reference doc:
 
 ```powershell
 #
-# Sentinel-As-Code/Scripts/<Name>.ps1
+# Sentinel-As-Code/Deploy/<Name>.ps1
 #
 # Created by <author> on DD/MM/YYYY.
 #
@@ -42,7 +42,7 @@ the existing repo style. Reference doc:
     Per-parameter description.
 
 .EXAMPLE
-    ./Scripts/Foo.ps1 -ParamName Value
+    ./Deploy/Foo.ps1 -ParamName Value
     Brief description of what the example does.
 
 .NOTES
@@ -76,7 +76,7 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
 ## Hard rules
 
 1. **Don't reimplement `Write-PipelineMessage`, `Invoke-SentinelApi`,
-   or `Connect-AzureEnvironment`.** Wave 4 Item 1 extracted those out
+   or `Connect-AzureEnvironment`.** The Sentinel.Common module extracted those out
    of every script into the shared module specifically because
    inline duplication caused bug-fix-in-one-copy regressions. If a
    shared helper doesn't fit your need, add a new export to
@@ -89,7 +89,7 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
    `HashSet.Add(item)`, `List.Remove(item)` all return `Boolean`
    that PowerShell pipes to the function output stream. Prefix with
    `[void]` to suppress: `[void]$dict.Remove($key)`. The
-   `Set-PlaybookPermissions.ps1` Wave 3 fix is the canonical example.
+   `Set-PlaybookPermissions.ps1` fix is the canonical example.
 4. **Single-element array indexing.** `($func | ...)[0]` may index
    into a string when the pipeline returns one item. Use `@(...)[0]`
    to force array context first.
@@ -125,7 +125,7 @@ scripts (rather than modules).
 
 ## Cross-references
 
-- Script reference: [`Docs/Deployment/Scripts.md`](../../Docs/Deployment/Scripts.md)
+- Script reference: [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md)
 - Module manifest: [`Modules/Sentinel.Common/Sentinel.Common.psd1`](../../Modules/Sentinel.Common/Sentinel.Common.psd1)
 - Module body: [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1)
 - Tests: [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1)

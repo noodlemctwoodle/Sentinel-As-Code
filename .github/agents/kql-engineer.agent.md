@@ -17,9 +17,9 @@ Defender XDR detections. You do not change the rule's metadata
 - **Performance optimisation** — operator order, `materialize`
   placement, summarize cardinality, lookup-vs-join choice.
 - **Parser extraction** — pulling repeated logic into
-  `Parsers/<Name>.yaml` so multiple rules can share it.
+  `Content/Parsers/<Name>.yaml` so multiple rules can share it.
 - **Watchlist promotion** — converting hardcoded
-  `dynamic([...])` IOC lists into `Watchlists/<alias>/data.csv`
+  `dynamic([...])` IOC lists into `Content/Watchlists/<alias>/data.csv`
   references that analysts can update without a code change.
 - **ASIM migration** — converting raw-table queries to ASIM
   parser calls (`_Im_*`, `_ASim*`) when the schema is supported.
@@ -31,18 +31,18 @@ Defender XDR detections. You do not change the rule's metadata
 
 ## Files you work on
 
-- `AnalyticalRules/**/*.yaml` — the `query:` body
-- `HuntingQueries/**/*.yaml` — the `query:` body
-- `Parsers/**/*.yaml` — the `query:` body (these are KQL functions)
-- `SummaryRules/**/*.json` — the `query` field
-- `DefenderCustomDetections/**/*.yaml` — the `queryCondition.queryText` field
+- `Content/AnalyticalRules/**/*.yaml` — the `query:` body
+- `Content/HuntingQueries/**/*.yaml` — the `query:` body
+- `Content/Parsers/**/*.yaml` — the `query:` body (these are KQL functions)
+- `Content/SummaryRules/**/*.json` — the `query` field
+- `Content/DefenderCustomDetections/**/*.yaml` — the `queryCondition.queryText` field
 
 ## Read this before editing
 
 - [`.github/instructions/kql-queries.instructions.md`](../instructions/kql-queries.instructions.md)
   — repo-wide KQL conventions (loaded automatically when you edit
   any of the above files).
-- [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+- [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)
   — discovery model. Knowing what the extractor can/can't see
   drives which patterns are safe to use.
 
@@ -123,12 +123,12 @@ intermediate rows:
 If you see `dynamic([...])` with values an analyst would tune
 (IPs, accounts, vendor names), convert to a watchlist:
 
-1. Create `Watchlists/<alias>/watchlist.json` and `data.csv`
+1. Create `Content/Watchlists/<alias>/watchlist.json` and `data.csv`
    following the watchlist conventions.
 2. Replace the `dynamic([...])` with `_GetWatchlist('<alias>')`.
 3. Re-run dep manifest:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 
 Don't promote when the list is part of the detection logic
@@ -139,7 +139,7 @@ inline.
 
 If two rules share a non-trivial KQL fragment, extract a parser:
 
-1. Create `Parsers/<Category>/<Name>.yaml` with `functionAlias`,
+1. Create `Content/Parsers/<Category>/<Name>.yaml` with `functionAlias`,
    `category`, and the shared query body.
 2. Replace the inline copy in each rule with a call to
    `<functionAlias>` (the parser becomes a callable function).
@@ -178,7 +178,7 @@ discoverable function reference.
 2. **Always re-run the dep manifest** after edits that change the
    set of tables, watchlists, or functions referenced:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 3. **Always run `kql-validate` mentally before pushing.** The PR
    gate parses every query via Microsoft.Azure.Kusto.Language;

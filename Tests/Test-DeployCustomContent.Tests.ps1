@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Pester 5 unit tests for the pure functions in
-    Scripts/Deploy-CustomContent.ps1, covering dependency-graph
+    Deploy/content/Deploy-CustomContent.ps1, covering dependency-graph
     initialisation, smart-deployment file ordering, and the
     content-vs-prerequisite resolver.
 
@@ -30,7 +30,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Deploy-CustomContent.ps1'
+    $scriptPath = Join-Path $repoRoot 'Deploy/content/Deploy-CustomContent.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath

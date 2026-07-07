@@ -74,7 +74,7 @@ function Import-ScriptFunctions {
 .EXAMPLE
     BeforeAll {
         Import-Module "$PSScriptRoot/_helpers/Import-ScriptFunctions.psm1"
-        Import-ScriptFunctions -Path "$PSScriptRoot/../Scripts/Deploy-CustomContent.ps1"
+        Import-ScriptFunctions -Path "$PSScriptRoot/../Deploy/content/Deploy-CustomContent.ps1"
         # Functions like Get-PrioritizedFiles, Test-ContentDependencies
         # are now callable in this Describe block.
     }
@@ -84,7 +84,7 @@ function Import-ScriptFunctions {
     BeforeAll {
         Import-Module "$PSScriptRoot/_helpers/Import-ScriptFunctions.psm1"
         $script:SentinelApiVersion = '2025-09-01'
-        Import-ScriptFunctions -Path "$PSScriptRoot/../Scripts/Test-SentinelRuleDrift.ps1"
+        Import-ScriptFunctions -Path "$PSScriptRoot/../Tools/Test-SentinelRuleDrift.ps1"
     }
 #>
     [CmdletBinding()]

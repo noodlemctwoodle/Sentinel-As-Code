@@ -18,7 +18,7 @@ refreshes the manifest. You maintain all of it.
 - **Discovery library** — the eight functions in
   `Modules/Sentinel.Common/Sentinel.Common.psm1` that parse KQL
   and emit dependency manifest entries.
-- **Build script** — `Scripts/Build-DependencyManifest.ps1`,
+- **Build script** — `Tools/Build-DependencyManifest.ps1`,
   with its three modes (Generate / Verify / Update) and the
   in-repo inventory walker (Parsers / Watchlists / Playbooks).
 - **`dependencies.json` schema** — version, top-level shape,
@@ -45,7 +45,7 @@ refreshes the manifest. You maintain all of it.
   `Get-ContentKqlQuery`, `Get-ContentDependencies`)
 - `Modules/Sentinel.Common/Sentinel.Common.psd1` (manifest +
   exports + ReleaseNotes)
-- `Scripts/Build-DependencyManifest.ps1`
+- `Tools/Build-DependencyManifest.ps1`
 - `dependencies.json` (output — only ever via `-Mode Generate`,
   never hand-edited)
 - `Tests/Test-SentinelCommon.Tests.ps1` (discovery unit tests)
@@ -60,10 +60,10 @@ refreshes the manifest. You maintain all of it.
 
 ## Read first
 
-- [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md) —
+- [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md) —
   the canonical reference. Discovery model, classification rules,
   KQL pattern coverage table, schema, validation strategy.
-- [`Docs/Deployment/Scripts.md#build-dependencymanifestps1`](../../Docs/Deployment/Scripts.md) —
+- [`Docs/Deploy/Scripts.md#build-dependencymanifestps1`](../../Docs/Deploy/Scripts.md) —
   the build-script reference (modes, parameters, examples).
 - [`.github/instructions/kql-queries.instructions.md`](../instructions/kql-queries.instructions.md) —
   KQL conventions, including the discovery-friendliness table.
@@ -73,7 +73,7 @@ refreshes the manifest. You maintain all of it.
 The discovery extractor uses a repo-driven model — no hard-coded
 table catalogue. For each bare identifier at a data-source position:
 
-1. **In-repo function** (matches `Parsers/**/*.yaml` `functionAlias`)
+1. **In-repo function** (matches `Content/Parsers/**/*.yaml` `functionAlias`)
    → `functions:` bucket
 2. **Microsoft ASIM function** (matches `^_?ASim|_Im_|im\w+$`
    regex) → `functions:` bucket
@@ -138,7 +138,7 @@ silently gets wrong data):
 5. **Regenerate the manifest** to surface the new pattern's
    discoveries:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 6. **Compare against the previous manifest.** Use git diff;
    confirm the additions look correct.
@@ -154,12 +154,12 @@ silently gets wrong data):
 
 When `Build-DependencyManifest -Mode Generate` reports a watchlist
 reference that doesn't resolve to an in-repo
-`Watchlists/<alias>/watchlist.json`:
+`Content/Watchlists/<alias>/watchlist.json`:
 
 1. **Identify which rule is the consumer.** The warning lists
    the consumer paths.
 2. **Check whether the watchlist should be in the repo.**
-   - If yes: create `Watchlists/<alias>/{watchlist.json, data.csv}`
+   - If yes: create `Content/Watchlists/<alias>/{watchlist.json, data.csv}`
      following the watchlist conventions, then re-run `-Mode Generate`.
    - If no (the watchlist is provisioned out-of-band):
      accept the warning. Document that fact in the consumer
@@ -194,7 +194,7 @@ When a user reports "this rule's manifest entry looks wrong":
    ```powershell
    Import-Module Modules/Sentinel.Common/Sentinel.Common.psd1 -Force
    $known = @{}
-   Get-ContentDependencies -Path 'AnalyticalRules/Foo/Bar.yaml' -KnownFunctions $known
+   Get-ContentDependencies -Path 'Content/AnalyticalRules/Foo/Bar.yaml' -KnownFunctions $known
    ```
 2. **Drill in.** If `tables` is missing an entry, run
    `Get-KqlBareIdentifiers` on the rule's query body. If it's a
@@ -219,7 +219,7 @@ When a user reports "this rule's manifest entry looks wrong":
    what the PR gate runs; if it fails locally, the gate will
    fail in CI:
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+   ./Tools/Build-DependencyManifest.ps1 -Mode Verify
    ```
 3. **Bump `Sentinel.Common.psd1 ModuleVersion`** when you change
    any exported discovery function. Patch for additive (new
@@ -228,17 +228,17 @@ When a user reports "this rule's manifest entry looks wrong":
 4. **Cover every new discovery pattern with a unit test** in
    `Tests/Test-SentinelCommon.Tests.ps1`. The pattern table at
    the top of this agent (and in
-   `Docs/Operations/Dependency-Manifest.md`) is the source of
+   `Docs/Tools/Dependency-Manifest.md`) is the source of
    truth — extend it when you add a pattern.
 5. **The schedule is intentional.** The daily refresh runs at
    02:00 UTC so a fresh manifest is on disk before the
    06:00 UTC drift detection and the 04:00 UTC Monday production
    deploy. Don't move the cron without coordinating.
-6. **No hard-coded table catalogue.** Wave 4 deliberately moved
+6. **No hard-coded table catalogue.** The dependency-manifest build deliberately moved
    away from a static `KnownTables` list because the catalogue
    inevitably drifts from reality. The classification model is
-   repo-driven (functions from `Parsers/`, watchlists from
-   `Watchlists/`); tables default to "anything not classified
+   repo-driven (functions from `Content/Parsers/`, watchlists from
+   `Content/Watchlists/`); tables default to "anything not classified
    as a function". Don't reintroduce a static list.
 
 ## Hand-offs
@@ -254,5 +254,5 @@ When a user reports "this rule's manifest entry looks wrong":
   [`.github/instructions/kql-queries.instructions.md`](../instructions/kql-queries.instructions.md)
   or hand off to `kql-engineer`.
 - **Documentation update on the discovery model** → update
-  [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+  [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)
   inline; for major restructures hand off to `content-editor`.

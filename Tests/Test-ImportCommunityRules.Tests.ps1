@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Pester 5 unit tests for the pure functions in
-    Scripts/Import-CommunityRules.ps1: the YAML/ARM normalisation
+    Tools/Import-CommunityRules.ps1: the YAML/ARM normalisation
     pipeline applied to imported community rule content.
 
 .DESCRIPTION
@@ -23,7 +23,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Import-CommunityRules.ps1'
+    $scriptPath = Join-Path $repoRoot 'Tools/Import-CommunityRules.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath

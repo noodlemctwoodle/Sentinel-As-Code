@@ -20,7 +20,7 @@
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $script:repoRoot 'Scripts/Documenter/Private/Invoke-SentinelRest.ps1')
+    . (Join-Path $script:repoRoot 'Tools/Documenter/Private/Invoke-SentinelRest.ps1')
 }
 
 Describe 'Invoke-SentinelRest URL construction' {

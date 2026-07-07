@@ -251,7 +251,7 @@ Describe 'Connect-AzureEnvironment' {
 }
 
 # ===========================================================================
-# Discovery helpers (Wave 4 Item 4)
+# Discovery helpers (KQL dependency discovery)
 # ===========================================================================
 
 Describe 'Remove-KqlComments' {
@@ -473,7 +473,7 @@ union isfuzzy=true aadSignin, aadNonInt
 Describe 'Get-ContentDependencies' {
     BeforeAll {
         # Repo-driven model: only KnownFunctions is needed (built from
-        # Parsers/ in the real script). Anything not matched as a function
+        # Content/Parsers/ in the real script). Anything not matched as a function
         # defaults to a table.
         $script:knownFunctions = @{
             UnifiedSignInLogs = $true

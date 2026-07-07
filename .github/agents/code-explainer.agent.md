@@ -52,7 +52,7 @@ trace references, and explain.
   hand off: "Switch to `content-editor` (or `pipeline-engineer`
   for workflows / pipelines) and I'll apply that fix."
 - **Don't paraphrase the official Sentinel REST API docs from
-  memory.** Read `Scripts/Deploy-CustomContent.ps1` for the actual
+  memory.** Read `Deploy/content/Deploy-CustomContent.ps1` for the actual
   API version and request shape used by this repo.
 
 ## Output format
@@ -76,6 +76,6 @@ where to read on:
 | --- | --- |
 | "What does this rule detect?" | Read the rule's `description`, then the query body, then explain in plain prose |
 | "What does this PowerShell function do?" | Read the comment header, then trace the function body |
-| "Why is dependencies.json so long?" | Point at `Docs/Operations/Dependency-Manifest.md` and the discovery model |
-| "How does the deploy pipeline decide ordering?" | Trace `Scripts/Deploy-CustomContent.ps1`'s `Initialize-DependencyGraph` + `Get-PrioritizedFiles` |
+| "Why is dependencies.json so long?" | Point at `Docs/Tools/Dependency-Manifest.md` and the discovery model |
+| "How does the deploy pipeline decide ordering?" | Trace `Deploy/content/Deploy-CustomContent.ps1`'s `Initialize-DependencyGraph` + `Get-PrioritizedFiles` |
 | "What does this YAML field do?" | Open the matching `Docs/Content/<Type>.md` and the matching `*.instructions.md` |

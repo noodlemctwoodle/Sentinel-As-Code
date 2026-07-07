@@ -11,7 +11,7 @@ the repo working tree.
 | Test files | [`Tests/`](../../Tests/) — one `<ScriptName>.Tests.ps1` per source script, plus content-validation suites |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
-| PR-gate entrypoint | [`Scripts/Invoke-PRValidation.ps1`](../../Scripts/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
+| PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
 | GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) — triggers on `pull_request` to `main` |
 | ADO pipeline | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) — wired as a build-validation policy on `main` |
 
@@ -34,7 +34,7 @@ Get-Module -ListAvailable Pester | Select-Object Name, Version
 ### As the PR gate runs them
 
 ```powershell
-./Scripts/Invoke-PRValidation.ps1
+./Tools/Invoke-PRValidation.ps1
 ```
 
 `Invoke-PRValidation.ps1` is the single entrypoint both pipelines call. It
@@ -82,7 +82,7 @@ Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 -Output Detailed
 
 ```powershell
 Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 `
-    -CodeCoverage Scripts/Test-SentinelRuleDrift.ps1 `
+    -CodeCoverage Tools/Test-SentinelRuleDrift.ps1 `
     -Output Detailed
 ```
 
@@ -98,7 +98,7 @@ The gate is enforced on both platforms:
 | GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) | `pull_request` events on `main`, plus path-scoped pushes to feature branches |
 | Azure DevOps | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | The `pr:` trigger inside the YAML; required as a build-validation policy on `main` |
 
-Both call the same [`Scripts/Invoke-PRValidation.ps1`](../../Scripts/Invoke-PRValidation.ps1)
+Both call the same [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1)
 entrypoint, so the validation logic stays in one place. The pipelines just
 handle environment setup, NUnit-XML publishing, and merge gating.
 
@@ -111,10 +111,10 @@ ruleset can require independently:
 | Job | What | Auth | Setup |
 | --- | --- | --- | --- |
 | `validate` | Every Pester suite under `Tests/` (~6,000 assertions; grows with content) | None | Already wired |
-| `bicep-build` | `az bicep build` against every `Bicep/**/*.bicep` | None | Already wired |
-| `arm-validate` | `Test-AzResourceGroupDeployment -WhatIf` against every `Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) |
+| `bicep-build` | `az bicep build` against every `Infra/**/*.bicep` | None | Already wired |
+| `arm-validate` | `Test-AzResourceGroupDeployment -WhatIf` against every `Content/Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) |
 | `kql-validate` | KQL syntax check via the Microsoft.Azure.Kusto.Language parser across all rule queries | None | Already wired |
-| `dependency-manifest` | `Build-DependencyManifest -Mode Verify` — fails if `dependencies.json` drifts from discovery | None | Already wired. See [Dependency Manifest](../Operations/Dependency-Manifest.md) |
+| `dependency-manifest` | `Build-DependencyManifest -Mode Verify` — fails if `dependencies.json` drifts from discovery | None | Already wired. See [Dependency Manifest](../Tools/Dependency-Manifest.md) |
 
 #### Pester suites covered by `validate`
 
@@ -157,13 +157,13 @@ build policy. Configure the gate once per platform:
   - `bicep-build` (Bicep build)
   - `kql-validate` (KQL syntax)
   - `dependency-manifest` (`dependencies.json` drift gate)
-  - `arm-validate` (ARM What-If — only after [PR-Validation-Setup.md](../Deployment/PR-Validation-Setup.md) is complete)
+  - `arm-validate` (ARM What-If — only after [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) is complete)
 
 **Azure DevOps** — Project Settings → Repos → Repositories → `<repo>` →
 Policies → Branch policies for `main`:
 - Build validation → + Add build policy
 - Build pipeline: `Sentinel-PR-Validation`
-- Path filter: `AnalyticalRules/*;HuntingQueries/*;Modules/*;Scripts/*;Tests/*;dependencies.json`
+- Path filter: `Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json`
 - Trigger: Automatic
 - Policy requirement: Required
 - Build expiration: Immediately when the source branch is updated
@@ -175,7 +175,7 @@ pipeline reports success against the latest commit.
 ### Community-rule relaxations
 
 Two schema rules are intentionally relaxed for files under
-`AnalyticalRules/Community/`:
+`Content/AnalyticalRules/Community/`:
 
 1. **GUID-format `id:`** — David Alonso's upstream repo uses
    deliberately-non-GUID identifiers (e.g. `a1b2c3d4-0011-4a5b-8c9d-dns011certutil`).
@@ -201,7 +201,7 @@ for the full real example):
 
 BeforeAll {
     # 1. Resolve the source script path
-    $scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Scripts/<ScriptName>.ps1'
+    $scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Deploy/<ScriptName>.ps1'
 
     # 2. AST-extract just the function definitions — see "AST extraction" below
     $tokens = $null; $errors = $null
@@ -283,7 +283,7 @@ in a module the source script imports at top level. The four deployer
 scripts do this for `Sentinel.Common`:
 
 ```powershell
-# Top of Scripts/Deploy-CustomContent.ps1 (skipped by AST extractor)
+# Top of Deploy/content/Deploy-CustomContent.ps1 (skipped by AST extractor)
 Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force
 
 # An extracted function calls Write-PipelineMessage from that module.
@@ -301,7 +301,7 @@ Two equivalent options for the test scope:
    BeforeAll {
        $repoRoot = Split-Path -Parent $PSScriptRoot
        Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force
-       Import-ScriptFunctions -Path "$repoRoot/Scripts/Deploy-CustomContent.ps1"
+       Import-ScriptFunctions -Path "$repoRoot/Deploy/content/Deploy-CustomContent.ps1"
 
        # Pull in the same module the source script imports at runtime.
        Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
@@ -374,7 +374,7 @@ It 'rewrites severity in place' {
 }
 ```
 
-Never write into `$repoRoot/AnalyticalRules/` from a test — that would
+Never write into `$repoRoot/Content/AnalyticalRules/` from a test — that would
 mutate real repo files. Always copy the fixture into `$TestDrive` first.
 
 ## Adding tests for a new script
@@ -492,7 +492,7 @@ tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; alias uniqueness | 9 |
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
-| [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
+| [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
 
 Add new entries to this table as you cover more scripts.
 

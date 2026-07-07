@@ -1,14 +1,14 @@
 ---
 name: Defender XDR custom detections
-description: Schema and authoring rules for DefenderCustomDetections/**/*.yaml files.
-applyTo: "DefenderCustomDetections/**/*.yaml"
+description: Schema and authoring rules for Content/DefenderCustomDetections/**/*.yaml files.
+applyTo: "Content/DefenderCustomDetections/**/*.yaml"
 ---
 
 # Defender XDR custom detection authoring
 
 Custom detection rules deployed to Defender XDR via the Microsoft
 Graph Security API (beta). Loaded automatically when editing any
-file under `DefenderCustomDetections/`. Full schema in
+file under `Content/DefenderCustomDetections/`. Full schema in
 [`Docs/Content/Defender-Custom-Detections.md`](../../Docs/Content/Defender-Custom-Detections.md).
 
 ## Required fields
@@ -75,12 +75,12 @@ detectionAction:
 ## After editing
 
 1. Run schema tests: `Invoke-Pester -Path Tests/Test-DefenderDetectionYaml.Tests.ps1`
-2. The `DefenderCustomDetections/` content is **not** in
+2. The `Content/DefenderCustomDetections/` content is **not** in
    `dependencies.json` — Defender XDR is a separate deploy stage with
    its own table catalogue.
 
 ## Cross-references
 
 - Full schema + response actions: [`Docs/Content/Defender-Custom-Detections.md`](../../Docs/Content/Defender-Custom-Detections.md)
-- Deploy script: [`Scripts/Deploy-DefenderDetections.ps1`](../../Scripts/Deploy-DefenderDetections.ps1)
+- Deploy script: [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1)
 - Tests: [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1)

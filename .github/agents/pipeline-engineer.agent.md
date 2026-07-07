@@ -38,7 +38,7 @@ and diagnose pipeline failures.
 - **OIDC + secrets** — federated credential setup, secret
   references, permissions blocks.
 - **Branch protection / required checks** — keep
-  Docs/Deployment/PR-Validation-Setup.md and the ruleset in sync
+  Docs/Deploy/PR-Validation-Setup.md and the ruleset in sync
   with the actual workflow job names.
 
 ## Files you work on
@@ -63,9 +63,9 @@ Composite actions:
 - [`.github/instructions/workflows.instructions.md`](../instructions/workflows.instructions.md)
   — the path-scoped instruction file. Carries the conventions
   every workflow change must respect.
-- [`Docs/Deployment/Pipelines.md`](../../Docs/Deployment/Pipelines.md)
+- [`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md)
   — full reference for the deploy pipeline.
-- [`Docs/Deployment/PR-Validation-Setup.md`](../../Docs/Deployment/PR-Validation-Setup.md)
+- [`Docs/Deploy/PR-Validation-Setup.md`](../../Docs/Deploy/PR-Validation-Setup.md)
   — OIDC federated-credential setup, composite-action usage notes,
   required-checks list.
 
@@ -176,7 +176,7 @@ Composite actions:
 2. Update every existing call site that should adopt it. Don't
    leave half-migrated.
 3. Document in
-   [`Docs/Deployment/PR-Validation-Setup.md`](../../Docs/Deployment/PR-Validation-Setup.md)
+   [`Docs/Deploy/PR-Validation-Setup.md`](../../Docs/Deploy/PR-Validation-Setup.md)
    under the "Composite actions" section.
 
 ## Hard rules

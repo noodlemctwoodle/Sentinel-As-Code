@@ -18,8 +18,8 @@ BeforeAll {
     $script:repoRoot   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/Documenter/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:renderer   = Join-Path $script:repoRoot 'Scripts/Documenter/Convert-SentinelInventoryToMarkdown.ps1'
-    $script:resources  = Join-Path $script:repoRoot 'Scripts/Documenter/Private/Resources'
+    $script:renderer   = Join-Path $script:repoRoot 'Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1'
+    $script:resources  = Join-Path $script:repoRoot 'Tools/Documenter/Private/Resources'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "documenter-test-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:outDir -Force | Out-Null
@@ -805,7 +805,7 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
-    Context '99-references.md is a copy of REFERENCES.md' {
+    Context '99-references.md is a copy of Documenter-References.md' {
         It 'exists and contains the API versions table' {
             $p = Join-Path $script:tempWsRoot '99-references.md'
             (Get-Content $p -Raw) | Should -Match '## API versions in use'

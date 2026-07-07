@@ -2,7 +2,7 @@
 # Azure DevOps Pipeline: PR Validation Gate
 # ---------------------------------------------------------------------------
 # Equivalent of .github/workflows/pr-validation.yml for Azure-DevOps-hosted
-# repos. Calls Scripts/Invoke-PRValidation.ps1, which runs every Pester
+# repos. Calls Tools/Invoke-PRValidation.ps1, which runs every Pester
 # suite under Tests/ (drift-detector pure functions + AnalyticalRules /
 # HuntingQueries YAML schema). The pipeline fails if any test fails, which
 # blocks the PR when wired up as a build-validation policy.
@@ -13,7 +13,7 @@
 #     Branch policies for: main
 #       Build validation -> + Add build policy
 #         Build pipeline:        Sentinel-PR-Validation
-#         Path filter:           AnalyticalRules/*;HuntingQueries/*;Scripts/*;Tests/*
+#         Path filter:           Content/AnalyticalRules/*;Content/HuntingQueries/*;Deploy/*;Tools/*;Tests/*
 #         Trigger:               Automatic
 #         Policy requirement:    Required
 #         Build expiration:      Immediately when {repo} is updated
@@ -37,10 +37,11 @@ pr:
       - main
   paths:
     include:
-      - AnalyticalRules
-      - HuntingQueries
+      - Content/AnalyticalRules
+      - Content/HuntingQueries
       - Modules
-      - Scripts
+      - Deploy
+      - Tools
       - Tests
       - dependencies.json
       - Pipelines/Sentinel-PR-Validation.yml
@@ -53,10 +54,11 @@ trigger:
       - main
   paths:
     include:
-      - AnalyticalRules
-      - HuntingQueries
+      - Content/AnalyticalRules
+      - Content/HuntingQueries
       - Modules
-      - Scripts
+      - Deploy
+      - Tools
       - Tests
       - dependencies.json
       - Pipelines/Sentinel-PR-Validation.yml
@@ -100,7 +102,7 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                & "$(Build.SourcesDirectory)/Scripts/Invoke-PRValidation.ps1" `
+                & "$(Build.SourcesDirectory)/Tools/Invoke-PRValidation.ps1" `
                     -RepoPath        "$(Build.SourcesDirectory)" `
                     -TestResultsPath "$(testResultsFile)" `
                     -InstallModules:$false
@@ -109,7 +111,7 @@ stages:
           # as the GH Actions dependency-manifest job — fails the PR if the
           # on-disk dependencies.json doesn't match what discovery produces
           # from the current content. Author fix: run
-          # `./Scripts/Build-DependencyManifest.ps1 -Mode Generate` locally
+          # `./Tools/Build-DependencyManifest.ps1 -Mode Generate` locally
           # and commit the result, or wait for the daily auto-PR workflow
           # to open one.
           - task: PowerShell@2
@@ -118,10 +120,10 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                & "$(Build.SourcesDirectory)/Scripts/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
+                & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync with content."
-                    Write-Host "##vso[task.logissue type=error]Fix: run ./Scripts/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result."
+                    Write-Host "##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result."
                     exit 1
                 }
 

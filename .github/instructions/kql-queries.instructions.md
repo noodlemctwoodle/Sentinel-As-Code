@@ -1,7 +1,7 @@
 ---
 name: KQL queries
 description: KQL conventions across every content type that embeds a query.
-applyTo: "AnalyticalRules/**/*.yaml,HuntingQueries/**/*.yaml,Parsers/**/*.yaml,SummaryRules/**/*.json,DefenderCustomDetections/**/*.yaml"
+applyTo: "Content/AnalyticalRules/**/*.yaml,Content/HuntingQueries/**/*.yaml,Content/Parsers/**/*.yaml,Content/SummaryRules/**/*.json,Content/DefenderCustomDetections/**/*.yaml"
 ---
 
 # KQL conventions
@@ -64,14 +64,14 @@ Avoid these — they confuse the extractor:
 - **Global `let` outside the rule body**: KQL has no module system,
   so don't try.
 
-If you need indirection, extract a parser to `Parsers/` and
+If you need indirection, extract a parser to `Content/Parsers/` and
 reference it by name.
 
 ## Watchlists vs `dynamic([...])`
 
 For a fixed list of values used in a query, prefer either:
 
-- **A watchlist** at `Watchlists/<alias>/data.csv`, referenced via
+- **A watchlist** at `Content/Watchlists/<alias>/data.csv`, referenced via
   `_GetWatchlist('alias')`. Right when the list might change without
   a code review (analyst-managed).
 - **A `dynamic([...])`** literal in the query body. Right when the
@@ -113,6 +113,6 @@ won't catch column-existence errors (no schema), so:
 
 ## Cross-references
 
-- Discovery model: [`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+- Discovery model: [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)
 - Discovery helpers: [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1) (see `Get-KqlBareIdentifiers`)
 - Discovery tests: [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1)

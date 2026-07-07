@@ -2,7 +2,7 @@
 
 Custom threat hunting queries authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. Unlike analytics rules, hunting queries do not generate alerts or incidents — they are executed manually or on-demand by analysts conducting proactive threat hunts.
 
-Source files live under [`HuntingQueries/`](../../HuntingQueries/).
+Source files live under [`Content/HuntingQueries/`](../../Content/HuntingQueries/).
 
 ## How Hunting Queries Differ from Analytics Rules
 
@@ -22,7 +22,7 @@ Hunting queries appear in **Microsoft Sentinel > Hunting** and can be run direct
 Organise queries by MITRE ATT&CK tactic using subfolders:
 
 ```
-HuntingQueries/
+Content/HuntingQueries/
   Identity/
     SuspiciousSignInFromNewCountry.yaml
   Persistence/
@@ -173,7 +173,7 @@ The [Azure-Sentinel Hunting Queries folder](https://github.com/Azure/Azure-Senti
 
 ## Authoring with GitHub Copilot
 
-When editing files under `HuntingQueries/**`, Copilot automatically
+When editing files under `Content/HuntingQueries/**`, Copilot automatically
 loads [`.github/instructions/hunting-queries.instructions.md`](../../.github/instructions/hunting-queries.instructions.md)
 plus the cross-cutting
 [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md).

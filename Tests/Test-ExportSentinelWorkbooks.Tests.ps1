@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Pester 5 unit tests for the helper functions inside
-    Scripts/Export-SentinelWorkbooks.ps1.
+    Tools/Export-SentinelWorkbooks.ps1.
 
 .DESCRIPTION
     Uses the AST-extraction pattern (Tests/_helpers/Import-ScriptFunctions.psm1)
@@ -12,9 +12,9 @@
     the two pure helpers:
 
       - ConvertTo-FolderName: PascalCase folder-name derivation matching the
-        existing Workbooks/<Folder>/ naming convention.
+        existing Content/Workbooks/<Folder>/ naming convention.
       - Format-WorkbookJson:  pretty-printing parity with the existing
-        Workbooks/*/workbook.json formatting.
+        Content/Workbooks/*/workbook.json formatting.
 
     The Connect-AzureEnvironment / Invoke-SentinelApi orchestration that
     the rest of the script does is exercised at deploy-time (the matching
@@ -24,7 +24,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Export-SentinelWorkbooks.ps1'
+    $scriptPath = Join-Path $repoRoot 'Tools/Export-SentinelWorkbooks.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
     Import-ScriptFunctions -Path $scriptPath
@@ -38,7 +38,7 @@ BeforeAll {
 Describe 'ConvertTo-FolderName' {
 
     # Folder names are PascalCase, no spaces, no punctuation. Matches
-    # the convention used by every existing Workbooks/<Folder>/ in
+    # the convention used by every existing Content/Workbooks/<Folder>/ in
     # the repo. Acronyms (GBP, DNS) are TitleCased to match the
     # repo's style ('Gbp' not 'GBP'); user-curated camelCase
     # (pfSense, MicrosoftSentinel) is preserved.

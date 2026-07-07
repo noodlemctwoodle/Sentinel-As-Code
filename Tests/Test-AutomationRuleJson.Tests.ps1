@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every JSON in AutomationRules/.
+    Pester 5 schema validation for every JSON in Content/AutomationRules/.
 
 .DESCRIPTION
     Generates one It block per JSON file via -ForEach so per-file pass/fail
@@ -23,7 +23,7 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
 
     $script:automationRuleCases = @()
-    $rulesRoot = Join-Path $repoRoot 'AutomationRules'
+    $rulesRoot = Join-Path $repoRoot 'Content/AutomationRules'
     if (Test-Path $rulesRoot) {
         $script:automationRuleCases = @(Get-ChildItem -Path $rulesRoot -Recurse -Filter '*.json' -File | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
@@ -197,7 +197,7 @@ Describe 'Automation rule schema: <RelativePath>' -ForEach $script:automationRul
 Describe 'Automation rules: cross-file invariants' {
     BeforeAll {
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $rulesRoot = Join-Path $repoRoot 'AutomationRules'
+        $rulesRoot = Join-Path $repoRoot 'Content/AutomationRules'
 
         $script:ruleIdMap = @{}
         if (Test-Path $rulesRoot) {
@@ -217,7 +217,7 @@ Describe 'Automation rules: cross-file invariants' {
         }
     }
 
-    It 'every automationRuleId is unique across AutomationRules/' {
+    It 'every automationRuleId is unique across Content/AutomationRules/' {
         $duplicates = $script:ruleIdMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {

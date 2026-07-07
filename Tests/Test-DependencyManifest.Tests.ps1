@@ -19,9 +19,9 @@
 
     - Top-level shape: `version`, `description`, `dependencies` keys present.
     - Path resolution: every key under `dependencies` resolves to a real file
-      on disk under AnalyticalRules/ or HuntingQueries/.
+      on disk under Content/AnalyticalRules/ or Content/HuntingQueries/.
     - Watchlist resolution: every `watchlists[]` alias declared by any entry
-      maps to a real `Watchlists/*/watchlist.json` whose `watchlistAlias`
+      maps to a real `Content/Watchlists/*/watchlist.json` whose `watchlistAlias`
       field matches.
     - Function resolution: every `functions[]` alias maps to a real
       `Parsers/*.yaml` `functionAlias`, OR matches the known-external pattern
@@ -117,10 +117,10 @@ BeforeAll {
         Import-Module powershell-yaml -ErrorAction Stop
     }
 
-    # Lookup of known watchlistAlias values declared by Watchlists/*/watchlist.json.
+    # Lookup of known watchlistAlias values declared by Content/Watchlists/*/watchlist.json.
     # Built once in BeforeAll so per-test assertions are O(1) lookups.
     $script:knownWatchlistAliases = @{}
-    $watchlistRoot = Join-Path $repoRoot 'Watchlists'
+    $watchlistRoot = Join-Path $repoRoot 'Content/Watchlists'
     if (Test-Path $watchlistRoot) {
         Get-ChildItem -Path $watchlistRoot -Recurse -Filter 'watchlist.json' -File | ForEach-Object {
             try {
@@ -137,7 +137,7 @@ BeforeAll {
 
     # Lookup of known functionAlias values declared by Parsers/*.yaml.
     $script:knownFunctionAliases = @{}
-    $parsersRoot = Join-Path $repoRoot 'Parsers'
+    $parsersRoot = Join-Path $repoRoot 'Content/Parsers'
     if (Test-Path $parsersRoot) {
         Get-ChildItem -Path $parsersRoot -Recurse -Filter '*.yaml' -File | ForEach-Object {
             try {
@@ -251,8 +251,8 @@ Describe 'Dependency entry path resolves: <Key>' -ForEach $script:entryCases {
 
 Describe 'Watchlist alias resolves: <Alias>' -ForEach $script:watchlistAliasCases {
 
-    It 'maps to a real Watchlists/*/watchlist.json' {
-        $script:knownWatchlistAliases.ContainsKey($Alias) | Should -BeTrue -Because "watchlist alias '$Alias' is referenced by $($CitedBy.Count) dependency entr(y/ies) (e.g. $($CitedBy[0])) but no Watchlists/*/watchlist.json declares this watchlistAlias"
+    It 'maps to a real Content/Watchlists/*/watchlist.json' {
+        $script:knownWatchlistAliases.ContainsKey($Alias) | Should -BeTrue -Because "watchlist alias '$Alias' is referenced by $($CitedBy.Count) dependency entr(y/ies) (e.g. $($CitedBy[0])) but no Content/Watchlists/*/watchlist.json declares this watchlistAlias"
     }
 }
 

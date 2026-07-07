@@ -1,11 +1,11 @@
 # Watchlists
 
-Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Watchlists/`](../../Watchlists/) containing a JSON metadata file and a CSV data file.
+Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Content/Watchlists/`](../../Content/Watchlists/) containing a JSON metadata file and a CSV data file.
 
 ## Folder Structure
 
 ```
-Watchlists/
+Content/Watchlists/
   HighValueAssets/
     watchlist.json          # Metadata definition
     data.csv                # Watchlist data
@@ -61,12 +61,12 @@ SigninLogs
 - Maximum CSV size for inline upload is approximately 3.5 MB
 - TSV format is also supported — rename the file to `data.tsv`
 - The `itemsSearchKey` value is case-sensitive and must exactly match a CSV column header
-- Deployment is handled by [`Scripts/Deploy-CustomContent.ps1`](../../Scripts/Deploy-CustomContent.ps1) — see [Scripts.md](../Deployment/Scripts.md#deploy-customcontentps1)
+- Deployment is handled by [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) — see [Scripts.md](../Deploy/Scripts.md#deploy-customcontentps1)
 - For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](../Operations/DCR-Watchlist.md)
 
 ## Authoring with GitHub Copilot
 
-When editing files under `Watchlists/**`, Copilot automatically
+When editing files under `Content/Watchlists/**`, Copilot automatically
 loads [`.github/instructions/watchlists.instructions.md`](../../.github/instructions/watchlists.instructions.md).
 The path-scoped instructions enforce the alias-equals-folder rule
 that the cross-validation Pester test relies on.

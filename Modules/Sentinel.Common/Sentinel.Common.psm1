@@ -3,8 +3,7 @@
     Shared helpers used across the Sentinel-As-Code deployer scripts and the
     drift-detection script. Removes the byte-identical Write-PipelineMessage
     duplication and consolidates the divergent Invoke-SentinelApi /
-    Connect-AzureEnvironment copies onto a single source of truth per
-    Wave 4 plan Item 1.
+    Connect-AzureEnvironment copies onto a single source of truth.
 
 .DESCRIPTION
     Three exported functions:
@@ -358,7 +357,7 @@ function Connect-AzureEnvironment {
 # ===========================================================================
 # Dependency-Discovery Helpers
 # ===========================================================================
-# Used by Scripts/Build-DependencyManifest.ps1 to derive dependencies.json
+# Used by Tools/Build-DependencyManifest.ps1 to derive dependencies.json
 # from content sources rather than hand-maintaining the manifest.
 #
 # Each Get-Kql*Reference function takes a KQL string and returns the array

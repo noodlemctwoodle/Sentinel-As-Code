@@ -14,23 +14,23 @@ from current content, then validate and explain the result.
 1. **Generate the manifest:**
 
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Generate
+   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
    ```
 
-   This walks `AnalyticalRules/**/*.yaml` and `HuntingQueries/**/*.yaml`,
+   This walks `Content/AnalyticalRules/**/*.yaml` and `Content/HuntingQueries/**/*.yaml`,
    parses every embedded KQL via `Modules/Sentinel.Common`, and
    writes `dependencies.json`. Output includes:
 
-   - In-repo function inventory (from `Parsers/`)
-   - Watchlist inventory (from `Watchlists/`)
-   - Playbook inventory (from `Playbooks/`)
+   - In-repo function inventory (from `Content/Parsers/`)
+   - Watchlist inventory (from `Content/Watchlists/`)
+   - Playbook inventory (from `Content/Playbooks/`)
    - Discovered entry count
    - Any unresolved watchlist references (warnings)
 
 2. **Verify against the now-on-disk file:**
 
    ```powershell
-   ./Scripts/Build-DependencyManifest.ps1 -Mode Verify
+   ./Tools/Build-DependencyManifest.ps1 -Mode Verify
    ```
 
    Should exit 0. If it exits 1, that's a script bug — report
@@ -44,8 +44,8 @@ from current content, then validate and explain the result.
 
    This runs ~1,000 per-entry assertions: every key resolves to
    a real file, every watchlist alias maps to a real
-   `Watchlists/<alias>/watchlist.json`, every function alias maps
-   to a `Parsers/*.yaml` `functionAlias` or matches the ASIM
+   `Content/Watchlists/<alias>/watchlist.json`, every function alias maps
+   to a `Content/Parsers/*.yaml` `functionAlias` or matches the ASIM
    external pattern.
 
 4. **Explain the diff** if anything changed:
@@ -90,5 +90,5 @@ If discovery is producing the wrong output (e.g. classifying a
 real table as unclassified, or missing a watchlist reference your
 rule does use), the bug is in the discovery extractors, not the
 manifest. Read
-[`Docs/Operations/Dependency-Manifest.md`](../../Docs/Operations/Dependency-Manifest.md)
+[`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)
 for the discovery model and patterns the extractor handles.

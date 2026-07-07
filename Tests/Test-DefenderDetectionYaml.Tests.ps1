@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every YAML in DefenderCustomDetections/.
+    Pester 5 schema validation for every YAML in Content/DefenderCustomDetections/.
 
 .DESCRIPTION
     Generates one It block per YAML file via -ForEach so per-file pass/fail
@@ -37,7 +37,7 @@ BeforeDiscovery {
     Import-Module powershell-yaml -ErrorAction Stop
 
     $script:defenderCases = @()
-    $detectionsRoot = Join-Path $repoRoot 'DefenderCustomDetections'
+    $detectionsRoot = Join-Path $repoRoot 'Content/DefenderCustomDetections'
     if (Test-Path $detectionsRoot) {
         $script:defenderCases = @(Get-ChildItem -Path $detectionsRoot -Recurse -Filter '*.yaml' -File | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
@@ -228,7 +228,7 @@ Describe 'Defender custom detections: cross-file invariants' {
             Import-Module powershell-yaml -ErrorAction Stop
         }
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $detectionsRoot = Join-Path $repoRoot 'DefenderCustomDetections'
+        $detectionsRoot = Join-Path $repoRoot 'Content/DefenderCustomDetections'
 
         $script:displayNameMap = @{}
         if (Test-Path $detectionsRoot) {

@@ -17,9 +17,9 @@ new test file.
 `Tests/Test-<TargetName>.Tests.ps1`.
 
 - `Tests/Test-AnalyticalRuleYaml.Tests.ps1` — schema test for content
-  under `AnalyticalRules/` and `HuntingQueries/`
+  under `Content/AnalyticalRules/` and `Content/HuntingQueries/`
 - `Tests/Test-DeployCustomContent.Tests.ps1` — unit tests for
-  functions inside `Scripts/Deploy-CustomContent.ps1`
+  functions inside `Deploy/content/Deploy-CustomContent.ps1`
 - `Tests/Test-SentinelCommon.Tests.ps1` — unit tests for the
   `Modules/Sentinel.Common/` PowerShell module
 
@@ -72,7 +72,7 @@ cmdlets and connect to Azure) never runs.
 ```powershell
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Scripts/Deploy-CustomContent.ps1'
+    $scriptPath = Join-Path $repoRoot 'Deploy/content/Deploy-CustomContent.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
 
@@ -148,7 +148,7 @@ name: Test
 
 ```powershell
 # All tests
-./Scripts/Invoke-PRValidation.ps1 -RepoPath .
+./Tools/Invoke-PRValidation.ps1 -RepoPath .
 
 # Specific file
 Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1
@@ -161,4 +161,4 @@ Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1 -FullName 'Get-Prio
 
 - Full conventions: [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)
 - AST helper: [`Tests/_helpers/Import-ScriptFunctions.psm1`](../../Tests/_helpers/Import-ScriptFunctions.psm1)
-- PR-validation entrypoint: [`Scripts/Invoke-PRValidation.ps1`](../../Scripts/Invoke-PRValidation.ps1)
+- PR-validation entrypoint: [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1)

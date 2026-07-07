@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every YAML in Parsers/.
+    Pester 5 schema validation for every YAML in Content/Parsers/.
 
 .DESCRIPTION
     Parsers ship as YAML files describing a workspace saved-search KQL
@@ -31,7 +31,7 @@ BeforeDiscovery {
     Import-Module powershell-yaml -ErrorAction Stop
 
     $script:parserCases = @()
-    $parsersRoot = Join-Path $repoRoot 'Parsers'
+    $parsersRoot = Join-Path $repoRoot 'Content/Parsers'
     if (Test-Path $parsersRoot) {
         $script:parserCases = @(Get-ChildItem -Path $parsersRoot -Recurse -Filter '*.yaml' -File | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
@@ -91,7 +91,7 @@ Describe 'Parsers: cross-file invariants' {
             Import-Module powershell-yaml -ErrorAction Stop
         }
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $parsersRoot = Join-Path $repoRoot 'Parsers'
+        $parsersRoot = Join-Path $repoRoot 'Content/Parsers'
 
         $script:functionAliasMap = @{}
         if (Test-Path $parsersRoot) {
@@ -111,7 +111,7 @@ Describe 'Parsers: cross-file invariants' {
         }
     }
 
-    It 'every functionAlias is unique across Parsers/' {
+    It 'every functionAlias is unique across Content/Parsers/' {
         $duplicates = $script:functionAliasMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
