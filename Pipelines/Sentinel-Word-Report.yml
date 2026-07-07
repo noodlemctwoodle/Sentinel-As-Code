@@ -1,0 +1,114 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Sentinel Word Report (manual)
+# ---------------------------------------------------------------------------
+# Renders the Sentinel Documenter Markdown (SecurityDocs/<workspace>/) into a
+# single, formatted Word document with a real, page-numbered table of
+# contents, and publishes it as the pipeline artefact 'sentinel-word-report'.
+#
+# It runs Tools/Documenter/Report/Convert-MarkdownToWord.ps1 in its default
+# '-Toc Baked' mode:
+#   - pandoc builds the .docx (styled tables, colour-coded severities, the
+#     provenance line once under the overview, a genuine Word TOC field);
+#   - LibreOffice (headless, via Tools/Documenter/Report/Update-WordToc.py and
+#     the UNO API) populates the TOC entries and page numbers, so the document
+#     opens fully paginated with no "update fields" prompt.
+#
+# Why this runs on Ubuntu, not a Mac:
+#   The page-numbered TOC needs a layout engine. LibreOffice + python3-uno
+#   provide that reliably on the Ubuntu agent. The command-line Basic-macro
+#   shortcut is documented as unreliable in headless mode, so the script
+#   drives LibreOffice over UNO instead. On a developer machine without
+#   LibreOffice + python3-uno the same script auto-falls back to a static,
+#   clickable contents (no page numbers) - see
+#   Tools/Documenter/Report/Convert-MarkdownToWord.ps1.
+#
+# Source of the Markdown:
+#   Pipelines/Sentinel-Documenter.yml commits SecurityDocs/<workspace>/ to the
+#   private ADO mirror. This pipeline checks that out and converts it. Point
+#   'sourcePath' at that folder (it must contain the section .md files and the
+#   assets/ image folder; the _raw/ JSON is ignored).
+#
+# Manual run:
+#   Pipelines -> Sentinel Word Report -> Run pipeline. Set 'sourcePath' and
+#   'title' if they differ from the defaults, then download the artefact from
+#   the build Summary -> Published artefacts -> 'sentinel-word-report'.
+# ---------------------------------------------------------------------------
+
+trigger: none
+pr: none
+
+parameters:
+  - name: sourcePath
+    displayName: "Documenter output folder (section .md + assets/)"
+    type: string
+    default: "SecurityDocs/SEC-UKS-PROD-SIEM-WS"
+  - name: title
+    displayName: "Document title"
+    type: string
+    default: "SEC-UKS-PROD-SIEM-WS - Sentinel Documentation"
+  - name: outputName
+    displayName: "Output .docx file name"
+    type: string
+    default: "SEC-UKS-PROD-SIEM-WS.docx"
+  - name: pandocVersion
+    displayName: "Pandoc version"
+    type: string
+    default: "3.10"
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    displayName: "Checkout (brings SecurityDocs/ from the ADO mirror)"
+
+  - script: |
+      set -euo pipefail
+      echo "Installing LibreOffice + python3-uno..."
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends libreoffice-writer python3-uno fonts-liberation
+      echo "Installing pandoc ${{ parameters.pandocVersion }}..."
+      curl -fsSL -o /tmp/pandoc.deb \
+        "https://github.com/jgm/pandoc/releases/download/${{ parameters.pandocVersion }}/pandoc-${{ parameters.pandocVersion }}-1-amd64.deb"
+      sudo dpkg -i /tmp/pandoc.deb
+      echo "--- versions ---"
+      pandoc --version | head -1
+      soffice --version | head -1
+      python3 -c 'import uno; print("python3-uno OK")'
+    displayName: "Install pandoc + LibreOffice + python3-uno"
+
+  - pwsh: |
+      $src = '${{ parameters.sourcePath }}'
+      if (-not (Test-Path -LiteralPath $src)) {
+          Write-Host "##vso[task.logissue type=error]Source folder not found: $src"
+          exit 1
+      }
+      $out = Join-Path '$(Build.ArtifactStagingDirectory)' '${{ parameters.outputName }}'
+      ./Tools/Documenter/Report/Convert-MarkdownToWord.ps1 -Source $src -OutputPath $out -Title '${{ parameters.title }}' -Toc Baked
+      if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $out)) {
+          Write-Host "##vso[task.logissue type=error]Conversion failed."
+          exit 1
+      }
+
+      # Confirm LibreOffice actually populated the TOC field (a baked TOC
+      # carries LibreOffice '__RefHeading' anchors). Fail the build if the
+      # field came out empty, rather than publishing a broken document.
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      $zip = [System.IO.Compression.ZipFile]::OpenRead($out)
+      try {
+          $entry = $zip.GetEntry('word/document.xml')
+          $reader = New-Object System.IO.StreamReader($entry.Open())
+          $xml = $reader.ReadToEnd(); $reader.Close()
+      }
+      finally { $zip.Dispose() }
+      $tocEntries = ([regex]::Matches($xml, '__RefHeading')).Count
+      Write-Host "Baked TOC entry anchors: $tocEntries"
+      if ($tocEntries -lt 1) {
+          Write-Host "##vso[task.logissue type=error]TOC field is empty - the LibreOffice bake did not populate it."
+          exit 1
+      }
+    displayName: "Convert Markdown to Word (page-numbered TOC)"
+
+  - publish: "$(Build.ArtifactStagingDirectory)/${{ parameters.outputName }}"
+    artifact: sentinel-word-report
+    displayName: "Publish the .docx artefact"
