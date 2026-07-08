@@ -152,7 +152,7 @@ Conventional commit format: `type(scope): brief description`.
 
 ## Testing
 
-Every PR runs the full Pester suite (~6,000 assertions across 17
+Every PR runs the full Pester suite (~6,000 assertions across 18
 files) plus the schema gates. To run locally before pushing:
 
 ```powershell
