@@ -14,7 +14,7 @@ What the automated check enforces:
 
 Convention notes (per .github/copilot-instructions.md and AGENTS.md):
   - en-GB spelling (analyse, behaviour, customise, prioritise)
-  - No em-dashes (-) in new prose; hyphens or parenthetical phrasing instead
+  - No em-dashes (—) in new prose; hyphens (-) or parenthetical phrasing instead
   - No AI / LLM references in commit messages or PR descriptions
   - No Co-Authored-By trailers for AI tools
 -->
