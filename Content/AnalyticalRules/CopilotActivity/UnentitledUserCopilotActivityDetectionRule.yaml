@@ -1,7 +1,7 @@
 id: 15badc16-22eb-4028-960f-360feab01f58
 name: Copilot usage by an unentitled user (CopilotActivity)
 description: |
-  'Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
+  Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
   generates Copilot activity in the CopilotActivity table in the last day. This
   catches Copilot access granted outside the normal entitlement process and
   Copilot use by accounts that should not have it, including potentially
@@ -10,7 +10,7 @@ description: |
   Investigation question answered: is this user expected to use Copilot?
 
   REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
-  Until the watchlist exists the deployer will disable the rule automatically.'
+  Until the watchlist exists the deployer will disable the rule automatically.
 severity: Medium
 requiredDataConnectors:
 - connectorId: MicrosoftCopilot
