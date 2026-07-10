@@ -7,8 +7,8 @@
 The `Docs/` tree mirrors the repository layout: each folder documents the
 same-named folder in the repo, so the docs for a piece of code live under the
 matching path (`Deploy/` maps to `Docs/Deploy/`, `Pipelines/` to
-`Docs/Pipelines/`, `.github/` to `Docs/GitHub/`, and so on). Two folders have no
-code counterpart and are grouped by concern instead: `Releases/` and `Toolkit/`
+`Docs/Pipelines/`, `.github/` to `Docs/GitHub/`, and so on). Three folders have no
+code counterpart and are grouped by concern instead: `Guides/`, `Releases/` and `Toolkit/`
 (the companion VS Code extension, which lives in a separate repository).
 
 ## Content - `Content/`
@@ -129,6 +129,14 @@ not deploy. Its schemas and templates are the authoring source of truth for the
 | [Configuration](Toolkit/Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
 | [ARM to YAML Conversion](Toolkit/ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
 | [Defender Workflows](Toolkit/Defender-Workflows.md) | Formatting, validating, and converting Defender XDR custom detections for the repository |
+
+## Guides
+
+End-to-end walkthroughs. No code counterpart.
+
+| Doc | What it covers |
+| --- | --- |
+| [Build and Test Guide](Guides/Sentinel-As-Code-Build-and-Test-Guide.md) | Running and validating Sentinel-As-Code without a local PowerShell install: requirements, build/test steps, and deployment |
 
 ## Releases
 
