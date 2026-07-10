@@ -31,30 +31,45 @@ Content/DefenderCustomDetections/
 
 Each YAML file defines a single custom detection rule. The schema maps directly to the [Microsoft Graph Security API `detectionRule` resource](https://learn.microsoft.com/en-us/graph/api/resources/security-detectionrule).
 
+> **Authoring with the Toolkit**: The Sentinel as Code Toolkit (VS Code extension) scaffolds a starter rule (`Defender-As-Code: Generate Custom Detection Template`) and validates every field, enum, pattern and the canonical field order against its bundled `defender-custom-detection-schema.json`, which is the authoring contract described below. See [Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md).
+
 ### Required Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `displayName` | string | Rule display name |
-| `queryCondition.queryText` | string | Advanced Hunting KQL query |
-| `schedule.period` | string | Run frequency: `0` (NRT), `1H`, `3H`, `12H`, `24H` |
-| `detectionAction.alertTemplate.title` | string | Alert title |
-| `detectionAction.alertTemplate.severity` | string | `informational`, `low`, `medium`, `high` |
-| `detectionAction.alertTemplate.category` | string | Alert category, one of the MITRE-tactic-shaped values (see [Alert Categories](#alert-categories)) |
-| `detectionAction.alertTemplate.mitreTechniques` | array | MITRE ATT&CK technique IDs |
+| `displayName` | string | Rule display name (1-255 characters) |
+| `queryCondition.queryText` | string | Advanced Hunting KQL query (must be non-empty) |
+| `schedule.period` | string | Run frequency, one of: `0` (NRT), `1H`, `3H`, `12H`, `24H` |
+| `detectionAction.alertTemplate.title` | string | Alert title (must be non-empty) |
+| `detectionAction.alertTemplate.severity` | string | One of: `informational`, `low`, `medium`, `high` |
+| `detectionAction.alertTemplate.category` | string | Alert category, a free string; by convention one of the MITRE-tactic-shaped values (see [Alert Categories](#alert-categories)) |
+| `detectionAction.alertTemplate.mitreTechniques` | array | MITRE ATT&CK technique IDs. Each must match `^T[0-9]{4}(\.[0-9]{3})?$` (e.g. `T1059` or `T1059.001`) |
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `isEnabled` | boolean | Whether the rule is active (default: `true` when the YAML omits it) |
-| `queryCondition.lastModifiedDateTime` | string | ISO 8601 timestamp recording when the query body was last touched (e.g. `"2026-03-23T00:00:00Z"`). Passed through verbatim by `ConvertTo-GraphDetectionBody` and present in nearly every rule in the tree |
 | `detectionAction.alertTemplate.description` | string | Alert description |
 | `detectionAction.alertTemplate.recommendedActions` | string | Recommended investigation steps |
-| `detectionAction.alertTemplate.impactedAssets` | array | Entity mappings for alerts |
+| `detectionAction.alertTemplate.impactedAssets` | array | Entity mappings for alerts (see [Impacted Assets](#impacted-assets-entity-mappings)) |
 | `detectionAction.responseActions` | array | Automated response actions (defaults to an empty array when omitted) |
 
+The schema is closed (`additionalProperties: false`) at the top level and on each `impactedAssets` / `responseActions` entry, so only the fields documented here are accepted in those positions.
+
+> **Deploy-time note**: The Toolkit schema requires `detectionAction.alertTemplate.mitreTechniques`, but the deploy script (`Deploy-DefenderDetections.ps1`) does **not** enforce it. `Deploy-DefenderDetections` validates only `displayName`, `queryCondition.queryText`, `schedule.period` and the `alertTemplate` `title` / `severity` / `category` before building the Graph body; a rule with no `mitreTechniques` still deploys. Author to the schema (always include `mitreTechniques`) so the Toolkit passes validation.
+
+> **Deploy-time note**: `queryCondition.lastModifiedDateTime` is **not** part of the Toolkit authoring schema, so the Toolkit does not scaffold or require it. The deploy script passes it through verbatim to Graph if present (an ISO 8601 timestamp such as `"2026-03-23T00:00:00Z"` recording when the query body was last touched), and many rules in the tree carry one. It is optional and safe to omit.
+
 > **Not settable via YAML**: `detectionAction.organizationalScope` is always sent as `null` by the deploy script regardless of YAML content, so there is no way to scope a rule to specific device groups or tenants from the repository. Any `organizationalScope` you add to the YAML is silently discarded.
+
+### Field Order
+
+The Toolkit's canonical field order (enforced by `Sentinel-As-Code: Fix Field Order` and drawn from the bundled template) is:
+
+- Top level: `displayName`, `isEnabled`, `queryCondition`, `schedule`, `detectionAction`
+- Inside `detectionAction.alertTemplate`: `title`, `description`, `severity`, `category`, `mitreTechniques`, `recommendedActions`, `impactedAssets`
+- Inside `detectionAction`: `alertTemplate`, then `responseActions`
 
 ### Required Query Output Columns
 
@@ -92,7 +107,11 @@ Pick the tactic that best matches the behaviour the query detects. The value is 
 
 ### Impacted Assets (Entity Mappings)
 
-Map query columns to alert entities using the `impactedAssets` array:
+Map query columns to alert entities using the `impactedAssets` array. Each entry requires `@odata.type` and `identifier` (and accepts no other fields). `@odata.type` must be one of three values:
+
+- `#microsoft.graph.security.impactedDeviceAsset`
+- `#microsoft.graph.security.impactedUserAsset`
+- `#microsoft.graph.security.impactedMailboxAsset`
 
 ```yaml
 impactedAssets:
@@ -108,9 +127,11 @@ impactedAssets:
 
 ### Response Actions
 
-Automated actions taken when the rule triggers. Each action requires `@odata.type` and `identifier`. Some actions require additional fields.
+Automated actions taken when the rule triggers. In the schema, every entry requires `@odata.type` and `identifier`, and the only other fields it accepts are `isolationType` (isolate-device only) and `deviceGroupNames` (allow-file / block-file only). `@odata.type` must be one of the sixteen values in the [Complete Action Reference](#complete-action-reference) below.
 
 > **Important**: The `identifier` field is an enum value that tells Defender which query column to read, not a free-form column name. Each action type has its own set of valid identifier values.
+
+> **Note**: The Toolkit schema marks only `@odata.type` and `identifier` as structurally required. `isolationType` is optional in the schema but Defender requires it at runtime for `isolateDeviceResponseAction`, so always set it (`full` or `selective`).
 
 #### Device Actions
 

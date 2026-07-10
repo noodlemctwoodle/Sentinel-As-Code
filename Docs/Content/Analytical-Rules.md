@@ -5,6 +5,15 @@ Custom analytics rules authored in YAML, following the
 YAML files are converted to REST API JSON at deploy time by
 [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1).
 
+The authoring contract for this content type (field names, required-vs-optional,
+types, enums, patterns, and canonical field order) is defined by the Sentinel as
+Code Toolkit, whose VS Code extension scaffolds a rule from a template and
+validates it in the editor. See [Toolkit templates](../Toolkit/Templates.md)
+(the `standard-rule` and `nrt-rule` templates) and
+[schemas and validation](../Toolkit/Schemas-and-Validation.md)
+(`sentinel-analytics-rule-schema.json`). The Toolkit authors and validates; it
+does not deploy - deployment is this repository's pipeline.
+
 | Concern | Where |
 | --- | --- |
 | Rule files | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) |
@@ -42,42 +51,52 @@ script walks all `*.yaml` and `*.yml` recursively.
 
 ## YAML schema
 
-### Required field order
+### Canonical field order
+
+The order below is the one the Toolkit template uses and the extension's
+field-ordering formatter enforces. Fields are marked **REQUIRED** or *optional*
+per `sentinel-analytics-rule-schema.json`.
 
 ```yaml
-id:                      # GUID — unique per rule
-name:                    # Sentence case, no trailing period
-description: |           # Block style, starts with 'Identifies' or 'Detects'
-severity:                # Informational | Low | Medium | High
-requiredDataConnectors:  # connectorId + dataTypes
-queryFrequency:          # ISO 8601 duration (PT1H, P1D) — Scheduled only
-queryPeriod:             # ISO 8601 duration, max P14D — Scheduled only
-triggerOperator:         # gt | lt | eq | ne (short form only)
-triggerThreshold:        # Integer 0-10000 — Scheduled only
-enabled:                 # true (rule runs after deploy) or false (deploys disabled)
-tactics:                 # MITRE ATT&CK tactics (camelCase, no spaces)
-relevantTechniques:      # MITRE technique IDs (T####, T####.###)
-query: |                 # KQL, block style, max 10000 chars
-entityMappings:          # Optional: 1-10 mappings, 1-3 identifiers each
-sentinelEntitiesMappings:# Optional: alternate/legacy entity-mapping shape, forwarded as-is
-alertDetailsOverride:    # Optional: max 3 {{column}} placeholders per field
-customDetails:           # Optional: key max 20 chars
-eventGroupingSettings:   # Optional
-incidentConfiguration:   # Optional
-suppressionEnabled:      # Optional: bool, defaults false at deploy
-suppressionDuration:     # Optional: ISO 8601 duration, defaults PT5H at deploy
-version:                 # Semver (a.b.c)
-kind:                    # Scheduled | NRT
-tags:                    # Optional: freeform labels
+id:                      # REQUIRED. GUID (8-4-4-4-12 hex), stable per rule
+name:                    # REQUIRED. Display name, 1-260 chars
+description: |           # REQUIRED. Block style (|), 1-5000 chars
+severity:                # REQUIRED. Informational | Low | Medium | High
+requiredDataConnectors:  # REQUIRED. >= 1 { connectorId, dataTypes } entry
+queryFrequency:          # REQUIRED (Scheduled). ISO 8601 duration (PT1H, P1D)
+queryPeriod:             # REQUIRED (Scheduled). ISO 8601 duration
+triggerOperator:         # REQUIRED (Scheduled). gt | lt | eq | ne
+triggerThreshold:        # REQUIRED (Scheduled). Integer >= 0
+enabled:                 # Optional. Boolean, defaults true
+tactics:                 # REQUIRED. >= 1 MITRE tactic (camelCase, no spaces)
+relevantTechniques:      # Optional. MITRE technique IDs (T####, T####.###)
+query: |                 # REQUIRED. KQL, block style (|), non-empty
+entityMappings:          # Optional. >= 1 mapping, each with >= 1 field mapping
+alertDetailsOverride:    # Optional. Per-row alert title/description/severity
+customDetails:           # Optional. Surface extra query columns as key/value
+eventGroupingSettings:   # Optional. aggregationKind: SingleAlert | AlertPerResult
+incidentConfiguration:   # Optional. Incident creation + grouping
+suppressionDuration:     # Optional. ISO 8601 duration
+suppressionEnabled:      # Optional. Boolean
+version:                 # REQUIRED. Semver (a.b.c)
+kind:                    # REQUIRED. Scheduled | NRT
+tags:                    # Optional. Freeform labels
 ```
 
-Only five fields are hard-required by the deploy script itself (`id`, `name`,
-`kind`, `severity`, `query`); everything else is optional at the
-`Deploy-CustomDetections` level. `Scheduled` rules additionally require
-`queryFrequency`, `queryPeriod`, `triggerOperator`, and `triggerThreshold`, or
-the rule is skipped. Note, however, that the Pester schema test enforces a
-stricter contract before a PR can merge - see [CI schema
-enforcement](#ci-schema-enforcement) below.
+Under the Toolkit schema the required fields are `id`, `name`, `description`,
+`severity`, `requiredDataConnectors`, `tactics`, `query`, `version`, and `kind`.
+`Scheduled` rules additionally require `queryFrequency`, `queryPeriod`,
+`triggerOperator`, and `triggerThreshold` (`NRT` rules omit all four -
+Sentinel manages their cadence). The extension flags any missing required field,
+any unknown field (the schema is `additionalProperties: false`), and any value
+that breaks an enum or pattern.
+
+**Deploy-time note:** the deploy script is looser than the authoring schema.
+`Deploy-CustomDetections` hard-requires only five fields (`id`, `name`, `kind`,
+`severity`, `query`), plus the four scheduling fields for `Scheduled` rules; a
+rule missing anything else still deploys. Author to the Toolkit schema
+regardless - the Pester schema test also enforces a stricter contract before a
+PR can merge (see [CI schema enforcement](#ci-schema-enforcement) below).
 
 ### Style rules
 
@@ -118,36 +137,52 @@ enforcement](#ci-schema-enforcement) below.
   delete or disable the YAML file rather than renaming it.
 - **Tactics casing** — camelCase, no spaces: `InitialAccess`,
   `LateralMovement`, `PrivilegeEscalation`, `CredentialAccess`, etc.
-- **`alertDetailsOverride`** — max 3 `{{columnName}}` placeholders per
-  field if present.
-- **`customDetails`** — max 20 key-value pairs; keys max 20 characters.
-- **`entityMappings`** — 1-10 entries (cannot be empty if the key is
-  present).
+- **`entityMappings`** - optional, but when the key is present the Toolkit
+  schema requires at least one mapping (`minItems: 1`), each with at least one
+  field mapping (an `identifier` plus a `columnName`). Sentinel itself caps a
+  rule at 10 entity mappings with up to 3 field mappings each; the Toolkit
+  schema does not enforce those upper bounds.
+- **`sentinelEntitiesMappings`** - this is **not** part of the Toolkit authoring
+  schema. Because the schema is `additionalProperties: false`, the extension
+  flags a `sentinelEntitiesMappings` block as an unknown field and does not
+  scaffold or format it.
+
+  **Deploy-time note:** if a rule nonetheless carries a
+  `sentinelEntitiesMappings` block, `Deploy-CustomDetections` forwards it to the
+  API verbatim (in addition to any `entityMappings`). Treat it as a
+  compatibility escape hatch for rules imported from sources that use the legacy
+  shape, not a field to author by hand.
+- **`alertDetailsOverride`** - the Toolkit schema accepts the four sub-fields
+  `alertDisplayNameFormat`, `alertDescriptionFormat`, `alertSeverityColumnName`,
+  and `alertTacticsColumnName`, all optional. The "max 3 `{{columnName}}`
+  placeholders per field" cap is a Sentinel service limit, not a schema rule.
+- **`customDetails`** - the Toolkit schema accepts an object of string values.
+  Sentinel limits this to 20 key-value pairs with keys of at most 20 characters;
+  the schema does not enforce those limits.
 
 ### Field details
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | GUID | Generate with `New-Guid` (PowerShell) or `uuidgen` (bash) |
-| `name` | string | Sentence case, max ~50 chars, no trailing period |
-| `description` | string | Block style (`\|`). By convention starts with "Detects" or "Identifies", but this wording is a house style aspiration only - it is not enforced by the deploy script or the Pester tests, and several in-repo rules do not follow it. The Pester test only requires the description to be present and non-empty. |
+| `name` | string | Required. 1-260 chars (schema `maxLength: 260`). House style: sentence case, no trailing period. |
+| `description` | string | Required. 1-5000 chars (schema). Block style (`\|`). By convention starts with "Detects" or "Identifies", but this wording is a house style aspiration only - it is not enforced by the deploy script or the Pester tests, and several in-repo rules do not follow it. The Pester test only requires the description to be present and non-empty. |
 | `severity` | string | `Informational`, `Low`, `Medium`, or `High` |
 | `enabled` | boolean | `true` (default) or `false`. Force-disabled by the deploy script for community rules, missing dependencies, and KQL validation failures (see Style rules above) |
 | `kind` | string | `Scheduled` (requires queryFrequency, queryPeriod, triggerOperator, triggerThreshold) or `NRT` |
 | `queryFrequency` | string | ISO 8601 duration (e.g., `PT1H`, `P1D`). Scheduled only. |
-| `queryPeriod` | string | ISO 8601 duration, max `P14D`. Scheduled only. |
-| `triggerOperator` | string | Short form: `gt`, `lt`, `eq`, or `ne`. Scheduled only. |
-| `triggerThreshold` | integer | 0–10000. Scheduled only. |
-| `tactics` | string[] | MITRE ATT&CK tactic names (camelCase, e.g., `CredentialAccess`, `Persistence`) |
+| `queryPeriod` | string | ISO 8601 duration; should be >= `queryFrequency`. Scheduled only. The schema validates the duration format only; the `P14D` maximum is a Sentinel service limit, not a schema rule. |
+| `triggerOperator` | string | Short form: `gt`, `lt`, `eq`, or `ne` (schema enum). Scheduled only. |
+| `triggerThreshold` | integer | Minimum 0; the schema sets no upper bound. Scheduled only. |
+| `tactics` | string[] | Required, >= 1 entry. MITRE ATT&CK tactic names (camelCase, e.g., `CredentialAccess`, `Persistence`) |
 | `relevantTechniques` | string[] | MITRE IDs (e.g., `T1110`, `T1078.004`). Use `relevantTechniques`, not `techniques`. At deploy the list is split: parent IDs (`T####`) go to the API `techniques` property, and any sub-technique IDs (`T####.###`) are additionally sent to the preview `subTechniques` property. This is why the portal may display parent and sub-techniques in separate fields. |
-| `requiredDataConnectors` | array | Array of `{connectorId, dataTypes}` objects |
-| `query` | string | Block style (`\|`). KQL query, max 10,000 chars. |
-| `entityMappings` | array | Optional. 1-10 entity mappings (see reference below) |
-| `sentinelEntitiesMappings` | array | Optional. Alternate/legacy entity-mapping shape. If present it is forwarded to the API verbatim (in addition to any `entityMappings`). |
-| `customDetails` | object | Optional. Max 20 key-value pairs; key max 20 chars. |
-| `alertDetailsOverride` | object | Optional. Override alert title/description with query columns (max 3 placeholders per field) |
-| `eventGroupingSettings` | object | Optional. `SingleAlert` (default) or `AlertPerResult`. |
-| `incidentConfiguration` | object | Optional. Incident grouping and lookup behaviour. |
+| `requiredDataConnectors` | array | Required. >= 1 `{ connectorId, dataTypes }` object; each `dataTypes` array needs >= 1 entry. `connectorId` matches `^[A-Za-z][A-Za-z0-9]*$`. |
+| `query` | string | Required. Block style (`\|`). KQL query, non-empty (schema `minLength: 1`); the schema sets no maximum length. |
+| `entityMappings` | array | Optional. When present, >= 1 mapping, each with >= 1 field mapping of `identifier` + `columnName` (see reference below). The 10-mapping / 3-identifier caps are Sentinel limits, not schema rules. |
+| `customDetails` | object | Optional. Object of string values. The 20-pair / 20-char-key limits are Sentinel limits, not schema rules. |
+| `alertDetailsOverride` | object | Optional. Sub-fields (all optional): `alertDisplayNameFormat`, `alertDescriptionFormat`, `alertSeverityColumnName`, `alertTacticsColumnName`. The 3-placeholder-per-field cap is a Sentinel limit. |
+| `eventGroupingSettings` | object | Optional. `aggregationKind`: `SingleAlert` or `AlertPerResult`. |
+| `incidentConfiguration` | object | Optional. `createIncident`, plus `groupingConfiguration` (`enabled`, `reopenClosedIncident`, `lookbackDuration`, `matchingMethod`: `AllEntities` \| `AnyAlert` \| `Selected`, `groupByEntities`). |
 | `suppressionEnabled` | boolean | Optional. Defaults to `false` at deploy. When `true`, alerting is suppressed for `suppressionDuration` after a rule fires. |
 | `suppressionDuration` | string | Optional. ISO 8601 duration. Defaults to `PT5H` at deploy. Only meaningful when `suppressionEnabled` is `true`. |
 | `version` | string | Semver (e.g., `1.0.0`). The drift sync bumps the patch component when it absorbs portal edits — see [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md#how-custom-drift-gets-absorbed). |
@@ -361,6 +396,11 @@ See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout
 
 ## Related docs
 
+- [Toolkit Templates](../Toolkit/Templates.md) - the `standard-rule` and
+  `nrt-rule` templates the extension scaffolds this type from
+- [Toolkit Schemas and Validation](../Toolkit/Schemas-and-Validation.md) -
+  `sentinel-analytics-rule-schema.json`, the authoring contract the extension
+  validates against
 - [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) — daily detection of
   portal-edited rules, with auto-PR back into the repo for Custom drift
 - [Community Rules](Community-Rules.md) — opt-in third-party contributions

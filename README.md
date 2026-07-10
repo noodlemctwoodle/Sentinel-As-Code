@@ -18,6 +18,10 @@ It ships with a five-job PR validation gate, a nightly end-to-end smoke test aga
 >
 > [![Support sentinel.blog](https://img.shields.io/badge/💛%20Support%20—%20sentinel.blog%2Fsupport-orange?style=for-the-badge&logo=heart&logoColor=white)](https://sentinel.blog/support/)
 
+### Sentinel as Code Toolkit
+
+The [Sentinel as Code Toolkit](https://marketplace.visualstudio.com/items?itemName=noodlemctwoodle.sentinelcodeguard) is a companion VS Code extension for authoring content in this repo, covering schema validation, IntelliSense, field-order formatting, ARM-to-YAML conversion, and Defender XDR authoring helpers. It authors and validates; it does not deploy, so it pairs with (rather than replaces) the pipelines documented here. See [Docs/Toolkit/README.md](./Docs/Toolkit/README.md).
+
 ## Repository Structure
 
 ```
@@ -126,7 +130,7 @@ For details on what's inside each folder and how content is authored, see the
 
 ### Optional: standalone pipelines
 
-The repo ships **seven Azure DevOps pipelines** under `Pipelines/` and **seven GitHub Actions workflows** under `.github/workflows/`. Most map one-to-one across the two CI systems, but the coverage is not fully symmetric (see the asymmetry notes below). Alongside the main deploy, these run on their own schedule:
+The repo ships **seven Azure DevOps pipelines** under `Pipelines/` and **seven GitHub Actions workflows** under `.github/workflows/`. Most map one-to-one across the two CI systems, but the coverage is not fully symmetric (see the asymmetry notes below). Per-pipeline detail lives under [Docs/Deploy/Pipelines/](./Docs/Deploy/Pipelines/). Alongside the main deploy, these run on their own schedule:
 
 - **`Pipelines/Sentinel-Drift-Detect.yml`** (daily 06:00 UTC): detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. A `-ReportOnly` run writes the drift report artefact only and never opens a PR. See [Docs/Tools/Sentinel-Drift-Detection.md](./Docs/Tools/Sentinel-Drift-Detection.md).
 - **`Pipelines/Sentinel-DCR-Inventory.yml`** (on-change): deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. The runbook syncs one watchlist row per DCR, keyed on `DCRName`. See [Docs/Operations/DCR-Watchlist.md](./Docs/Operations/DCR-Watchlist.md).

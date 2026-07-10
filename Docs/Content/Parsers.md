@@ -35,9 +35,13 @@ Place a new parser in whichever folder best matches the source it normalises (fo
 
 ## YAML Schema
 
+Parsers are authored against the Toolkit's `sentinel-parser-schema.json`, which is the source of truth for field names, types, and which fields are required. The Sentinel as Code Toolkit scaffolds a parser from its `parser.template.yaml` and validates it live in the editor as you type (see [Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md)). The schema requires four fields (`id`, `name`, `functionAlias`, `query`) and defines five further optional fields (`description`, `category`, `functionParameters`, `version`, `tags`); additional properties are permitted. The template's canonical field order is:
+
+`id`, `name`, `description`, `category`, `functionAlias`, `functionParameters`, `query`, `version`, `tags`
+
 ### Required Fields
 
-`Deploy-CustomParsers` hard-requires four fields (`$requiredFields = @('id', 'name', 'functionAlias', 'query')`). A file missing any of them, or leaving any of them blank, is skipped with a warning and does not deploy.
+The schema requires four fields (`id`, `name`, `functionAlias`, `query`), and `Deploy-CustomParsers` enforces the same set (`$requiredFields = @('id', 'name', 'functionAlias', 'query')`). A file missing any of them, or leaving any of them blank, is skipped with a warning and does not deploy.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -55,6 +59,10 @@ The stricter CI schema gate (`Tests/Test-ParserYaml.Tests.ps1`) additionally req
 | `description` | string | Plain-English explanation of what the parser normalises and why. **Enforced as required by CI**, even though `Deploy-CustomParsers` treats it as optional. Not written into the saved-search body by the deployer. |
 | `category` | string | Grouping category stored on the saved search. Defaults to `"Sentinel Parsers"` when omitted. The example parser sets `category: Security`. **Enforced as non-empty by CI.** |
 | `functionParameters` | string | A parameter signature string (for example `table:string, lookback:timespan`) that makes the function parameterised. When present and non-empty it is written to `properties.functionParameters`; when absent the function takes no parameters. |
+| `version` | string | Semantic version of the parser (for example `1.0.0`); bump it when the output schema of the function changes. Authoring metadata only, see the deploy-time note below. |
+| `tags` | array of strings | Free-form string tags for organisation and discovery. Authoring metadata only, see the deploy-time note below. |
+
+> **Deploy-time note:** `Deploy-CustomParsers` does not read the YAML `version` or `tags` fields. The `version` it writes into the saved-search body (`"version": 2`) is a fixed saved-search function-schema version, unrelated to the parser's own `version` field, and `tags` are not carried onto the deployed saved search at all. Both fields are authoring metadata: they are retained in source control and understood by the Toolkit, but they do not change the deployed resource.
 
 > **CI note:** `Tests/Test-ParserYaml.Tests.ps1` validates every YAML under `Content/Parsers/` on each PR. It asserts that all six of `id`, `name`, `description`, `category`, `functionAlias`, `query` are present and non-empty, that `functionAlias` matches the KQL identifier pattern `^[A-Za-z_][A-Za-z0-9_]*$` (letter or underscore start, then word characters only), and that every `functionAlias` is unique across the whole parser tree. This is deliberate two-layer validation: `Deploy-CustomParsers` is lenient (it only hard-requires the four deploy-critical fields), while the CI gate is strict so that a typo in an alias, which would silently break every rule that depends on it, is caught before merge.
 
@@ -175,7 +183,7 @@ The `Microsoft.OperationalInsights/workspaces/savedSearches/write` permission is
 
 1. Author and validate the KQL in the Sentinel **Logs** blade, confirming it returns the shape you want across all the tables it unions.
 2. Choose a `functionAlias` that is a valid KQL identifier and not already used by another parser (the CI gate rejects duplicates).
-3. Create a YAML file following the schema above and place it under `Content/Parsers/` in a folder that matches the source or domain.
+3. Create a YAML file following the schema above and place it under `Content/Parsers/` in a folder that matches the source or domain. The [Sentinel as Code Toolkit](../Toolkit/Templates.md) can scaffold this file for you (its **Create Parser** command) with the canonical field order already in place.
 4. Populate all six fields the CI gate checks (`id`, `name`, `description`, `category`, `functionAlias`, `query`) so PR validation passes.
 5. If any analytics rule, hunting query, or summary rule references the new alias, regenerate the dependency manifest (see [Analytical Rules](Analytical-Rules.md)) so the `functions` dependency is recorded.
 6. Open a pull request; the pipeline will deploy the parser at stage 1 on merge to `main`.

@@ -18,15 +18,19 @@ Each subfolder holds exactly two files with fixed names: `watchlist.json` and `d
 
 ## Metadata Schema (watchlist.json)
 
+The authoring contract is defined by the Toolkit's `sentinel-watchlist-schema.json`, which the Sentinel as Code Toolkit uses to scaffold and validate this file (see [Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md)). All five fields are required, and no additional properties are allowed. Fields appear below in the canonical order the template writes them:
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `watchlistAlias` | string | Yes | Unique alias used in KQL queries (e.g., `_GetWatchlist('HighValueAssets')`). Must match the pattern `^[A-Za-z][A-Za-z0-9]*$` (starts with a letter, letters and digits only, no hyphens, underscores or spaces) and be unique across the whole `Content/Watchlists/` tree |
-| `displayName` | string | Yes | Human-readable name shown in the Sentinel UI |
-| `description` | string | CI-required | Description of the watchlist's purpose. Optional to the deploy script (defaults to an empty string if absent), but the Pester schema gate requires it to be present and non-empty |
-| `provider` | string | CI-required | Must be exactly `Custom`. Optional to the deploy script (defaults to `Custom` if absent), but the Pester schema gate rejects any other value: this repo only manages Custom-provider watchlists (Microsoft-provided watchlists ship via Content Hub solutions) |
-| `itemsSearchKey` | string | Yes | Column name used as the primary key (must match a CSV header exactly) |
+| `watchlistAlias` | string | Yes | Non-empty. Unique alias used in KQL queries (e.g. `_GetWatchlist('HighValueAssets')`). The Toolkit convention (and its schema description) is that the alias matches the containing folder name; it must also be unique across the whole `Content/Watchlists/` tree |
+| `displayName` | string | Yes | Non-empty. Human-readable name shown in the Sentinel UI |
+| `description` | string | Yes | Description of the watchlist's purpose |
+| `provider` | string | Yes | Set to `Custom` for customer-authored watchlists (Microsoft-provided watchlists ship via Content Hub solutions) |
+| `itemsSearchKey` | string | Yes | Non-empty. Column name used as the primary key. Must match a CSV header exactly (case-sensitive) |
 
-The "Required" column reflects two different gates. `Deploy-CustomWatchlists` (in `Deploy-CustomContent.ps1`) only hard-requires `watchlistAlias`, `displayName` and `itemsSearchKey`; it fills in defaults for `description` (`""`) and `provider` (`Custom`) when they are missing. The `Test-WatchlistJson.Tests.ps1` Pester suite is stricter and enforces all five fields as non-empty, plus the alias pattern, `provider == "Custom"`, and alias uniqueness across the tree. Because that suite runs in the PR-validation gate, treat all five fields (with a valid, unique alias and `provider: Custom`) as mandatory in practice.
+**Deploy-time note:** the deploy script is more lenient than the schema. `Deploy-CustomWatchlists` (in `Deploy-CustomContent.ps1`) only hard-requires `watchlistAlias`, `displayName` and `itemsSearchKey`; it fills in defaults for `description` (`""`) and `provider` (`Custom`) when they are absent, and it does not reject a non-`Custom` provider. Author to the schema (all five fields, `provider: Custom`) rather than relying on these defaults.
+
+The PR-validation gate is stricter still. `Test-WatchlistJson.Tests.ps1` requires all five fields to be non-empty and additionally enforces the alias pattern `^[A-Za-z][A-Za-z0-9]*$` (start with a letter, letters and digits only, no hyphens, underscores or spaces), `provider == "Custom"`, and alias uniqueness across the tree. These are repo-specific CI constraints layered on top of the Toolkit schema, so keep aliases to that pattern and `provider` to `Custom`.
 
 ### Example
 
@@ -70,7 +74,7 @@ SigninLogs
 ## Notes
 
 - Redeploying a watchlist with the same alias replaces all existing items (idempotent). The deployer PUTs to the Sentinel API keyed by `watchlistAlias`, so a redeploy replaces in place.
-- The data file must be a CSV named `data.csv`. There is no TSV support: the deployer hard-codes the filename `data.csv` and always sends `contentType = "Text/Csv"`, so a file named `data.tsv` (or anything else) is ignored and the watchlist is skipped with a "data.csv not found" warning.
+- The data file the pipeline deploys must be a CSV named `data.csv`. Although the Toolkit accepts CSV or TSV input and its schema/template mention `data.csv`/`data.tsv`, the deployer hard-codes the filename `data.csv` and always sends `contentType = "Text/Csv"`, so a file named `data.tsv` (or anything else) is ignored and the watchlist is skipped with a "data.csv not found" warning. Ensure a `data.csv` is present for deployment.
 - Maximum CSV size for inline upload is approximately 3.5 MB. A file over that limit is skipped with a warning ("exceeds 3.5 MB inline upload limit ... Upload manually via portal"); the deployer then marks the item's state as `success` so it is not retried on the next run. Upload an oversized watchlist manually via the portal.
 - The `itemsSearchKey` value is case-sensitive and must exactly match a CSV column header
 - Deployment is handled by [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) — see [Scripts.md](../Deploy/Scripts.md#deploy-customcontentps1)
@@ -96,8 +100,10 @@ A folder named `Foo` whose JSON declares `watchlistAlias: Bar` would
 deploy and cross-validate as `Bar`.
 
 Keeping the folder name equal to the alias is a useful convention (every
-folder under `Content/Watchlists/` follows it today) but it is not
-enforced. What is enforced, by `Test-WatchlistJson.Tests.ps1` in the
+folder under `Content/Watchlists/` follows it today, and the Toolkit's
+"Create Watchlist from CSV" command scaffolds the folder and alias with
+the same name) but the deploy pipeline does not enforce it. What is
+enforced, by `Test-WatchlistJson.Tests.ps1` in the
 PR-validation gate, is:
 
 - the alias matches `^[A-Za-z][A-Za-z0-9]*$`;

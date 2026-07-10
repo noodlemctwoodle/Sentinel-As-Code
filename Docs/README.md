@@ -24,6 +24,22 @@ Schemas and conventions for every content type the repo deploys.
 | [Watchlists](Content/Watchlists.md) | Watchlist metadata schema, CSV format, KQL usage examples |
 | [Workbooks](Content/Workbooks.md) | Gallery-template JSON format, stable GUIDs, export from the Sentinel portal |
 
+## Authoring Toolkit
+
+The Sentinel as Code Toolkit is a companion VS Code extension (a separate
+repository) for authoring the content types this repo deploys. It authors
+and validates; it does not deploy.
+
+| Doc | What it covers |
+| --- | --- |
+| [Toolkit overview](Toolkit/README.md) | What the extension is, the author/deploy boundary, installation, licence, and feedback channel |
+| [Commands](Toolkit/Commands.md) | Every command the extension contributes, grouped by task, with palette titles and keybindings |
+| [Templates](Toolkit/Templates.md) | The bundled starter templates, canonical field order, and which content types convert from YAML to JSON on scaffold |
+| [Schemas and Validation](Toolkit/Schemas-and-Validation.md) | The seven bundled schemas, how validation is triggered, and MITRE ATT&CK multi-framework checking |
+| [Configuration](Toolkit/Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
+| [ARM to YAML Conversion](Toolkit/ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
+| [Defender Workflows](Toolkit/Defender-Workflows.md) | Formatting, validating, and converting Defender XDR custom detections for the repository |
+
 ## Infrastructure
 
 Azure resources that host Sentinel content — `Infra/`.
@@ -38,7 +54,15 @@ How content reaches Sentinel — pipelines and the scripts they invoke (`Deploy/
 
 | Doc | What it covers |
 | --- | --- |
-| [Pipelines](Deploy/Pipelines.md) | Pipeline stages, variable group, parameters, service connection, usage examples |
+| [Pipelines](Deploy/Pipelines.md) | Index of all seven ADO pipelines and their GitHub Actions parity, plus the full `Sentinel-Deploy.yml` stage-by-stage reference (variable group, parameters, service connection, usage examples) |
+| [PR Validation](Deploy/Pipelines/PR-Validation.md) | The five-job PR-merge gate on both CI systems: Pester, Bicep build, ARM validate, KQL validate, dependency-manifest drift |
+| [Deploy](Deploy/Pipelines/Deploy.md) | Per-pipeline mechanics for the main end-to-end deploy: infra, Content Hub, custom content, Defender XDR |
+| [Deploy Nightly](Deploy/Pipelines/Deploy-Nightly.md) | GitHub-only nightly E2E smoke test against the throwaway `Infra/test-workspace/` |
+| [Drift Detect](Deploy/Pipelines/Drift-Detect.md) | Portal-drift detection and the auto-PR that absorbs it back into the repo, on both CI systems |
+| [Documenter](Deploy/Pipelines/Documenter.md) | CI/CD wiring for the Sentinel Documenter on both CI systems (daily on GitHub, manual-trigger-only on ADO) |
+| [Dependency Update](Deploy/Pipelines/Dependency-Update.md) | Daily `dependencies.json` drift check and auto-PR |
+| [DCR Inventory](Deploy/Pipelines/DCR-Inventory.md) | CI/CD wiring for the DCR-watchlist sync automation account and runbook |
+| [Word Report](Deploy/Pipelines/Word-Report.md) | ADO-only pipeline that renders the Documenter Markdown pack into a page-numbered Word `.docx` |
 | [Scripts](Deploy/Scripts.md) | PowerShell deploy and tooling scripts — parameters, examples, known limitations |
 | [PR Validation Setup](Deploy/PR-Validation-Setup.md) | One-off GitHub Actions OIDC federated-credential setup for the `arm-validate` PR job |
 | [ADO OIDC Setup](Deploy/ADO-OIDC-Setup.md) | One-off Azure DevOps workload-identity-federation setup for `sc-sentinel-as-code` |

@@ -4,6 +4,8 @@ Custom threat hunting queries authored in YAML and deployed to Microsoft Sentine
 
 Source files live under [`Content/HuntingQueries/`](../../Content/HuntingQueries/).
 
+The [Sentinel as Code Toolkit](../Toolkit/Templates.md) VS Code extension scaffolds and validates this content type: it ships the canonical hunting-query [template](../Toolkit/Templates.md) and the [schema](../Toolkit/Schemas-and-Validation.md) used for real-time authoring validation. The field contract documented below is taken from that Toolkit schema and template (the source of truth); the Toolkit authors and validates hunting queries, and this repository's pipeline deploys them.
+
 ## How Hunting Queries Differ from Analytics Rules
 
 | | Analytics Rules | Hunting Queries |
@@ -43,13 +45,15 @@ Place new queries in whichever folder best matches their primary data source (or
 
 ## YAML Schema
 
+The Toolkit schema defines exactly seven fields (it is closed, `additionalProperties: false`). Author them in the canonical order the Toolkit template uses: `id`, `name`, `description`, `query`, `tactics`, `techniques`, `tags`. Three fields are required (`id`, `name`, `query`); the rest are optional. The Toolkit's **Fix Field Order** command reorders a file into this order for you.
+
 ### Required Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string (GUID) | Stable unique identifier used as the saved search resource name. Generate with `New-Guid`. Must not change after initial deployment, the PUT is idempotent on this value. |
-| `name` | string | Display name shown in the Sentinel Hunting blade (sentence case, max ~50 chars). |
-| `query` | string | KQL query. There is no scheduling or threshold, the query returns results directly when run by an analyst. |
+| `id` | string (GUID) | Stable unique identifier used as the saved search resource name. Must match the `8-4-4-4-12` hex GUID pattern. Generate with `New-Guid`. Must not change after initial deployment, the PUT is idempotent on this value. |
+| `name` | string | Display name shown in the Sentinel Hunting blade. 1 to 260 characters (schema `minLength` 1, `maxLength` 260). |
+| `query` | string | KQL query (at least one character). There is no scheduling or threshold, the query returns results directly when run by an analyst. |
 
 `Deploy-CustomHuntingQueries` hard-requires only `id`, `name`, and `query` (files missing any of these are skipped with a warning). The CI Pester schema gate is stricter, see the note under Optional Fields.
 
@@ -57,13 +61,14 @@ Place new queries in whichever folder best matches their primary data source (or
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `description` | string | Plain-English explanation of what the query hunts for and why it is interesting. Begins with "Identifies" or "Detects". **Enforced as required by CI** (see note below), even though the deploy script itself treats it as optional. |
-| `tactics` | string[] | MITRE ATT&CK tactic names (e.g., `InitialAccess`, `Persistence`). Joined with commas and stored as a single `tactics` tag on the saved search. |
-| `techniques` | string[] | MITRE ATT&CK technique IDs (e.g., `T1078`, `T1098.001`). Split at deploy time into parent-technique and sub-technique tags (see API Mapping). |
-| `requiredDataConnectors` | object[] | Optional metadata declaring the Sentinel data connector(s) and data types the query depends on (each entry has a `connectorId` and a `dataTypes` list). Carried on several queries in the repo (for example `Persistence/ChangesToAzureLighthouseDelegation.yaml`). The deploy script does not read this field into the saved-search body, but the CI schema test accepts its presence or absence. |
-| `tags` | object[] | Additional key-value metadata pairs. Each entry must have a `name` and `value` string. Appended after the standard tactics/techniques tags at deploy time. |
+| `description` | string | Plain-English explanation of what the query hunts for and why it is interesting. Begins with "Identifies" or "Detects". Optional in the schema, but **enforced as required by CI** (see note below), even though the deploy script itself treats it as optional. |
+| `tactics` | string[] | MITRE ATT&CK tactic names in camelCase / PascalCase (e.g., `InitialAccess`, `Persistence`); schema pattern `^[A-Z][a-zA-Z]{2,30}$`. Joined with commas and stored as a single `tactics` tag on the saved search. |
+| `techniques` | string[] | MITRE ATT&CK technique IDs (e.g., `T1078`, `T1098.001`); schema pattern `^T[0-9]{4}(\.[0-9]{3})?$`, so sub-techniques (`T####.###`) are allowed. Split at deploy time into parent-technique and sub-technique tags (see API Mapping). |
+| `tags` | object[] | Additional key-value metadata pairs. Each entry must have exactly a `name` and a `value` string (the schema is closed, no other keys per entry). Appended after the standard tactics/techniques tags at deploy time. |
 
 > **CI note:** `Tests/Test-AnalyticalRuleYaml.Tests.ps1` (the `Hunting query schema` `Describe` block) includes a `has a non-empty description` assertion, so a missing or blank `description` fails PR validation. In practice `description` is required for any query merged to `main`, even though `Deploy-CustomHuntingQueries` would deploy a query without one. This is deliberate two-layer validation: the deploy script is lenient (each optional field is individually `ContainsKey`-checked), while the CI gate is strict.
+
+> **Schema note (`requiredDataConnectors`):** The Toolkit hunting-query schema is closed (`additionalProperties: false`) and defines only the seven fields above, so the Toolkit validator flags any other key, including `requiredDataConnectors`, as unknown. A few queries in this repository (for example `Persistence/ChangesToAzureLighthouseDelegation.yaml`) still carry a `requiredDataConnectors` block. The repository's own CI schema gate only asserts `id`, `name`, `description` and `query`, so it tolerates the extra field, and `Deploy-CustomHuntingQueries` ignores it (it is never read into the saved-search body). If you author with the Toolkit, either drop the field or expect a validation warning. See [Schemas and validation](../Toolkit/Schemas-and-Validation.md).
 
 ### API Mapping
 

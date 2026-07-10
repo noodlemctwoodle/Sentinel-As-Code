@@ -1,355 +1,97 @@
 # Pipelines
 
-Azure DevOps pipelines that drive infrastructure provisioning, content
-deployment, and operational tooling.
+CI/CD that drives infrastructure provisioning, content deployment, and
+operational tooling. The repository ships **seven Azure DevOps pipelines**
+under [`Pipelines/`](../../Pipelines/) and **seven GitHub Actions workflows**
+under [`.github/workflows/`](../../.github/workflows/).
 
-| Pipeline | Purpose | Schedule |
+This page is an index: it covers the shared concepts and the GitHub <-> ADO
+mapping, then links out to a per-pipeline deep-dive for each one. Read the
+linked page for the triggers, inputs, stages, parameters, and usage of a
+specific pipeline.
+
+## Per-Pipeline Docs
+
+| Pipeline | Purpose | Deep-dive |
 | --- | --- | --- |
-| [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) | End-to-end deploy: Bicep infra + Content Hub + custom content + Defender XDR | Weekly, Mon 04:00 UTC |
-| [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) | Detect rules edited in the portal, auto-PR Custom drift back into the repo | Daily, 06:00 UTC. See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
-| [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) | Deploy the DCR-watchlist sync runbook | On change to `Infra/dcr-watchlist/**`, `Tools/Invoke-DCRWatchlistSync.ps1`, or `Deploy/permissions/Set-RunbookPermissions.ps1`. See [DCR Watchlist](../Operations/DCR-Watchlist.md) |
-| [`Pipelines/Sentinel-Dependency-Update.yml`](../../Pipelines/Sentinel-Dependency-Update.yml) | Run `Build-DependencyManifest -Mode Update` against main; auto-PR if `dependencies.json` drifts | Daily, 02:00 UTC. See [Dependency Manifest](../Tools/Dependency-Manifest.md) |
-| [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | PR-merge gate: runs every Pester suite plus the dependency-manifest drift gate | On every PR / push to main. See [Pester Tests](../Development/Pester-Tests.md) |
-| [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml) | Snapshot the live Sentinel workspace to Markdown and (optionally) open a PR with the rendered docs | Manual trigger only for now (`trigger: none`). See [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) |
-| [`Pipelines/Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml) | Render the Documenter Markdown output to a styled `.docx` via pandoc + LibreOffice (page-numbered TOC) | Manual trigger only (`trigger: none`). **ADO-only** (no GitHub equivalent) |
+| PR Validation | Merge gate for `main` - runs every Pester suite, `bicep-build`, `arm-validate`, `kql-validate`, and the dependency-manifest drift gate | [PR-Validation.md](Pipelines/PR-Validation.md) |
+| Deploy | Main end-to-end deploy: Bicep infra, Content Hub solutions, custom content, and Defender XDR custom detections | [Deploy.md](Pipelines/Deploy.md) |
+| Deploy Nightly | **GitHub-only** nightly E2E smoke test that provisions and tears down the throwaway `Infra/test-workspace/` workspace | [Deploy-Nightly.md](Pipelines/Deploy-Nightly.md) |
+| Drift-Detect | Detect rules edited in the portal and auto-PR the drift back into the repo (report-only runs never open a PR) | [Drift-Detect.md](Pipelines/Drift-Detect.md) |
+| Documenter | Snapshot the live Sentinel workspace to Markdown (requires a private repository) | [Documenter.md](Pipelines/Documenter.md) |
+| Dependency Update | Keep [`dependencies.json`](../../dependencies.json) in sync with the content tree and auto-PR any drift | [Dependency-Update.md](Pipelines/Dependency-Update.md) |
+| DCR Inventory | Deploy the DCR-watchlist sync automation account, runbook, and schedule | [DCR-Inventory.md](Pipelines/DCR-Inventory.md) |
+| Word Report | **ADO-only** render of the Documenter Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Pipelines/Word-Report.md) |
 
-That is the full set of **seven** Azure DevOps pipelines under
-[`Pipelines/`](../../Pipelines/).
+## GitHub <-> ADO Parity
 
-### GitHub Actions parity
-
-There are also **seven** GitHub workflows under
-[`.github/workflows/`](../../.github/workflows/). Six of the seven ADO
-pipelines have a GitHub mirror that shares the same schedule and
-behaviour:
+Six of the seven ADO pipelines have a GitHub workflow mirror. Two pipelines
+break the symmetry, so the two sets are **not** a clean one-to-one mapping.
 
 | ADO pipeline (`Pipelines/`) | GitHub workflow (`.github/workflows/`) |
 | --- | --- |
-| `Sentinel-Deploy.yml` | `sentinel-deploy.yml` |
 | `Sentinel-PR-Validation.yml` | `pr-validation.yml` |
+| `Sentinel-Deploy.yml` | `sentinel-deploy.yml` |
 | `Sentinel-Drift-Detect.yml` | `sentinel-drift-detect.yml` |
 | `Sentinel-DCR-Inventory.yml` | `sentinel-dcr-inventory.yml` |
 | `Sentinel-Dependency-Update.yml` | `sentinel-dependency-update.yml` |
 | `Sentinel-Documenter.yml` | `sentinel-document.yml` |
-
-Two workflows break the symmetry, so the sets are not a clean one-to-one
-mapping:
-
-> - [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml)
->   is **GitHub-only**, a nightly E2E smoke test that provisions and
->   tears down the throwaway workspace from `Infra/test-workspace/main.bicep`,
->   on a daily 03:00 UTC schedule plus `workflow_dispatch`. Its final
->   stage opens (or refreshes) a GitHub issue on any stage failure. There
->   is no ADO equivalent.
-> - [`Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml)
->   is **ADO-only**, the pandoc + LibreOffice `.docx` render of the
->   Documenter Markdown. There is no `*word*` workflow under
->   `.github/workflows/`.
-
-The **Documenter** pair is also asymmetric on schedule: the GitHub
-workflow (`sentinel-document.yml`) runs on a **daily cron (06:00 UTC)**
-plus `workflow_dispatch`, whereas the ADO pipeline
-(`Sentinel-Documenter.yml`) is **manual-trigger-only for now**.
-
-The [`pr-validation.yml`](../../.github/workflows/pr-validation.yml)
-merge gate is a five-job workflow (`validate`, `bicep-build`,
-`arm-validate`, `kql-validate`, `dependency-manifest`) that pairs with
-`Sentinel-PR-Validation.yml`. The `arm-validate` job is a
-template-validation call (`Test-AzResourceGroupDeployment` over OIDC, a
-validation cmdlet with no `-WhatIf` parameter) and `kql-validate` parses
-every query with the Microsoft.Azure.Kusto.Language parser.
-
-## Sentinel-Deploy.yml
-
-Azure DevOps pipeline for provisioning Microsoft Sentinel infrastructure via Bicep, deploying Content Hub solutions and their associated content, deploying custom Sentinel content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploying Defender XDR custom detection rules via the Graph Security API.
-
-### Pipeline Stages
-
-```
-Stage 1: Check Existing Infrastructure
-  └─ Checks if Resource Group, Log Analytics Workspace, and optional Playbook
-     Resource Group already exist
-  └─ Handles greenfield (nothing exists) through to existing environments
-  └─ If any required resource is missing, triggers Bicep deployment
-
-Stage 2: Deploy Sentinel Infrastructure (Bicep)
-  ├─ Registers required resource providers (Microsoft.OperationsManagement,
-  │   Microsoft.SecurityInsights)
-  ├─ Provisions Resource Group (and optional Playbook Resource Group),
-  │   Log Analytics Workspace, Sentinel onboarding
-  ├─ Configures Sentinel settings via REST API (Entity Analytics, UEBA,
-  │   Anomalies, EyesOn) with automatic ETag handling
-  ├─ Waits 60s for workspace indexing on new deployments
-  └─ Skipped if workspace already exists or deployInfrastructure is false
-
-Stage 3: Deploy Sentinel Content Hub
-  └─ Deploys solutions, analytics rules, workbooks, automation rules, hunting queries
-  └─ Runs regardless of whether infrastructure was deployed or already existed
-
-Stage 4: Deploy Custom Content
-  ├─ Restores the deployment-state artifact from the previous run
-  ├─ Installs powershell-yaml module
-  ├─ Verifies dependencies.json is current (Build-DependencyManifest -Mode
-  │   Verify) and fails fast if the manifest is stale
-  ├─ Loads sentinel-deployment.config for smart deployment configuration
-  ├─ Loads dependencies.json for content dependency validation
-  └─ Deploys custom content in order: KQL parsers (YAML) → watchlists (JSON+CSV)
-     → detections (YAML, custom + community; deployed disabled if dependencies
-     missing, community rules always deployed disabled) → hunting queries (YAML)
-     → playbooks (ARM, module-first ordering) → workbooks (gallery JSON or ARM
-     workbook template) → automation rules (JSON) → summary rules (JSON)
-  ├─ Uses git diff for smart deployment (skip unchanged files when enabled)
-  ├─ Tracks deployment outcomes in deployment-state.json (published as a
-  │   pipeline artifact) — automatically retries previously failed items
-  ├─ Validates dependencies before deployment (pre-flight checks)
-  ├─ Supports deploying playbooks to a separate resource group
-  └─ Runs after Content Hub stage succeeds or is skipped
-
-Stage 5: Deploy Defender XDR Custom Detections
-  ├─ Installs powershell-yaml module
-  └─ Deploys custom detection rules to Defender XDR via Microsoft Graph
-     Security API (beta) from Content/DefenderCustomDetections/ YAML files
-  └─ Acquires Graph token (separate from ARM token)
-  └─ Creates new rules or updates existing rules (matched by displayName)
-  └─ Runs after Custom Content stage succeeds or is skipped
-```
-
-The pipeline supports **greenfield deployments** — you can start from an empty subscription and the pipeline will create everything needed.
-
-### Trigger
-
-- **Manual**: Run on demand from Azure DevOps
-- **Scheduled**: Weekly on Monday at 04:00 UTC (main branch only)
-
-### Prerequisites
-
-- Azure Service Connection with the following roles:
-
-| Role | Scope | Purpose |
-|------|-------|---------|
-| **Contributor** | Subscription | Resource group, workspace, Bicep deployments, Sentinel content, and summary rules |
-| **User Access Administrator** (ABAC-conditioned) | Subscription | Playbook managed identity role assignments *(restricted to 5 roles)* |
-| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional — see note)* |
-| **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
-
-> **Note on Setup**: Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to automatically grant all required permissions. The script provides a permission summary, requests Y/N consent, and supports `-SkipEntraRole` and `-SkipGraphPermission` switches for optional steps. After running once, the pipeline is fully autonomous. See [Scripts.md](Scripts.md#setup-serviceprincipalps1).
-
-> **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
-
-> **Note on Defender XDR Detections**: Stage 5 requires the `CustomDetection.ReadWrite.All` Microsoft Graph **application permission** on the service principal's app registration. Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph > Application permissions** and provide admin consent.
-
-#### Least-Privilege Alternative
-
-If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles:
-
-| Role | Scope | Purpose |
-|------|-------|---------|
-| **Resource Group Contributor** | Resource Group | Create and manage resources within the resource group |
-| **Microsoft Sentinel Contributor** | Resource Group | Sentinel settings (Anomalies, EyesOn, analytics rules, content deployment) |
-| **Log Analytics Contributor** | Resource Group | Log Analytics workspace management and summary rule deployment *(Stage 4)* |
-| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional)* |
-| **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
-
-> **Note**: With the least-privilege approach, the resource group must be pre-created (or use a separate identity with subscription-level Contributor for the initial Bicep deployment). For greenfield deployments that create the resource group, subscription-level **Contributor** is the simplest option.
-
-- Variable group `sentinel-deployment` linked to the pipeline
-
-### Variable Group: `sentinel-deployment`
-
-Create this variable group in Azure DevOps under **Pipelines > Library**.
-
-The Bicep templates handle all resource creation — just provide your subscription ID and choose names for the resources you want deployed.
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `azureSubscriptionId` | Yes | Azure Subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `sentinelResourceGroup` | Yes | Desired Resource Group name | `rg-sentinel-prod` |
-| `sentinelWorkspaceName` | Yes | Desired Log Analytics workspace name | `law-sentinel-prod` |
-| `sentinelRegion` | Yes | Azure region to deploy into | `uksouth` |
-| `playbookResourceGroup` | No | Resource Group for playbooks (defaults to `sentinelResourceGroup`) | `rg-playbooks-prod` |
-
-### Pipeline Parameters
-
-All parameters can be overridden at queue time:
-
-#### Stage Toggles
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `deployInfrastructure` | boolean | `true` | Deploy infrastructure via Bicep (Stages 1-2) |
-| `deployContentHub` | boolean | `true` | Deploy Content Hub solutions (Stage 3) |
-| `deployCustomContent` | boolean | `true` | Deploy custom Sentinel content (Stage 4) |
-| `deployDefenderDetections` | boolean | `true` | Deploy Defender XDR custom detections (Stage 5) |
-
-#### Infrastructure (Stage 2)
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `dailyQuota` | number | `0` | Log Analytics daily ingestion quota in GB (`0` = unlimited) |
-| `retentionInDays` | number | `90` | Interactive retention period in days (30–730) |
-| `totalRetentionInDays` | number | `0` | Total retention including archive tier in days (`0` = same as interactive, no extra cost) |
-
-#### Content Hub
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `solutions` | string | 26-solution list (see below) | Comma-separated Content Hub solution names |
-| `severitiesToInclude` | string | `High,Medium,Low,Informational` | Analytics rule severities to deploy |
-| `disableRules` | boolean | `true` | Deploy analytics rules in a disabled state |
-| `protectCustomisedRules` | boolean | `true` | Skip overwriting locally modified rules |
-| `skipAnalyticsRules` | boolean | `false` | Skip analytics rule deployment |
-| `skipWorkbooks` | boolean | `false` | Skip workbook deployment |
-| `skipAutomationRules` | boolean | `false` | Skip automation rule deployment |
-| `skipHuntingQueries` | boolean | `false` | Skip hunting query deployment |
-| `forceSolutionUpdate` | boolean | `false` | Force solution update even if version matches |
-| `forceContentDeployment` | boolean | `false` | Force content redeployment even if current |
-
-> **Default `solutions` list**: the parameter defaults to a 26-solution
-> set (identical in the ADO pipeline and the GitHub `sentinel-deploy.yml`
-> workflow): Analytics Health & Audit, Azure Activity, Azure DevOps
-> Auditing, Azure Key Vault, Azure Logic Apps, Azure Network Security
-> Groups, Azure Resource Graph, Azure Storage, Common Event Format, Data
-> Collection Rule Toolkit, Microsoft 365, Microsoft Defender for Cloud,
-> Microsoft Defender for Cloud Apps, Microsoft Defender for Endpoint,
-> Microsoft Defender for Identity, Microsoft Defender Threat Intelligence,
-> Microsoft Defender XDR, Microsoft Entra ID, Microsoft Sentinel
-> Optimization Workbook, SOC Handbook, Summary Rules Workbook, Syslog,
-> Threat Intelligence (NEW), Windows Security Events, Windows Server DNS,
-> Workspace Usage Report. Override at queue time to target a narrower set.
-
-#### Custom Content (Stage 4)
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `smartDeployment` | boolean | `true` | Use git diff to detect changed files and skip unchanged content. The pipeline defaults this on and passes `-SmartDeployment`; the underlying `Deploy-CustomContent.ps1` switch is opt-in and defaults to a full deploy when the flag is not passed |
-| `skipCustomParsers` | boolean | `false` | Skip custom KQL parser deployment |
-| `skipCustomDetections` | boolean | `false` | Skip custom detection rule deployment |
-| `skipCommunityDetections` | boolean | `true` | Skip community detection rules (the Dalonso set). Defaults **on**, so community rules are excluded unless you opt in. When deployed, community rules are always created in a disabled state |
-| `skipCustomWatchlists` | boolean | `false` | Skip custom watchlist deployment |
-| `skipCustomPlaybooks` | boolean | `false` | Skip custom playbook deployment |
-| `skipCustomWorkbooks` | boolean | `false` | Skip custom workbook deployment |
-| `skipCustomHuntingQueries` | boolean | `false` | Skip custom hunting query deployment |
-| `skipCustomAutomationRules` | boolean | `false` | Skip custom automation rule deployment |
-| `skipCustomSummaryRules` | boolean | `false` | Skip custom summary rule deployment |
-
-> **ADO vs GitHub input surface**: the GitHub `sentinel-deploy.yml`
-> workflow cannot expose this many individual booleans because
-> `workflow_dispatch` caps at 25 inputs. It therefore collapses the nine
-> `skipCustom*` / `skipCommunityDetections` toggles into a single
-> comma-separated `skip_custom_content_types` input (accepted values:
-> `parsers, detections, community-detections, watchlists, playbooks,
-> workbooks, hunting-queries, automation-rules, summary-rules`), which
-> defaults to `community-detections`. The end result matches the ADO
-> defaults (community detections skipped unless opted in), but the
-> queue-time interface differs.
-
-> **Stage 1 (Check Infrastructure) divergence**: the GitHub
-> check-infrastructure job carries richer dual-onboarding logic than the
-> ADO Stage 1 probe. It inspects both the legacy
-> `Microsoft.OperationsManagement/solutions` (OMS) resource and the modern
-> `Microsoft.SecurityInsights/onboardingStates/default`, emits a
-> `deploy_sentinel` output from that truth table, and aborts with a
-> remediation message on the unrecoverable "onboarding state survived but
-> the OMS solution was deleted out of band" case. The ADO Stage 1 performs
-> the simpler existence probe described above.
-
-#### Defender XDR Custom Detections (Stage 5)
-
-No additional parameters — Stage 5 is controlled by the `deployDefenderDetections` toggle and the `whatIf` flag. Rules are read from the `Content/DefenderCustomDetections/` folder. The service principal requires `CustomDetection.ReadWrite.All` Graph application permission with admin consent.
-
-#### General
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `whatIf` | boolean | `false` | Dry run — preview changes without applying |
-
-### Service Connection
-
-The pipeline uses a service connection named `sc-sentinel-as-code` by default. To change this, update the `serviceConnection` variable in the YAML file.
-
-**Use workload identity federation, not a stored secret.** ADO has supported OIDC since 2024 and it's now the recommended default. The matching service principal in Entra ID gets a federated credential that trusts ADO's token issuer for the matching subject claim — no client secret stored anywhere, per-job tokens with ~1h TTL, parity with the GitHub Actions OIDC setup.
-
-> **Critical prerequisite**: ADO will not let you save the service connection if the SP cannot see the subscription. The SP must hold at least **Reader** on the subscription before clicking Save. `Deploy/setup/Setup-ServicePrincipal.ps1` grants Contributor at subscription scope (which implies Reader), so the standard bootstrap satisfies this. If you skip the bootstrap and try to wire up ADO first, Save fails with a generic permission error.
-
-Full step-by-step: [ADO OIDC Setup](ADO-OIDC-Setup.md).
-
-> **Workspace Name**: Must be at least 4 characters (Azure requirement). The Bicep template validates this at deployment time.
-
-### How It Works
-
-1. **Check Infrastructure**: Queries Azure for the resource group, Log Analytics Workspace, and optional playbook resource group to determine if Bicep deployment is needed. If any required resource is missing, Bicep runs. Handles greenfield (nothing exists) gracefully
-2. **Register Providers**: Ensures `Microsoft.OperationsManagement` and `Microsoft.SecurityInsights` resource providers are registered on the subscription
-3. **Deploy Bicep**: Runs a subscription-level deployment that creates:
-   - Resource Group (with tags)
-   - Playbook Resource Group (if `playbookResourceGroup` is set and differs from the main RG)
-   - Log Analytics workspace (configurable retention, daily quota)
-   - Microsoft Sentinel onboarding (via `Microsoft.OperationsManagement/solutions` for idempotent re-runs)
-   - Workspace diagnostic settings (audit logs and metrics)
-   - Sentinel Health diagnostics (SentinelHealth and SentinelAudit tables)
-4. **Configure Sentinel Settings**: Configures settings via REST API with automatic ETag handling:
-   - Entity Analytics (Entra ID provider)
-   - UEBA (AuditLogs, AzureActivity, SigninLogs, SecurityEvent)
-   - Anomalies (built-in ML anomaly detection)
-   - EyesOn (SOC incident review flag)
-5. **Wait for Workspace Indexing**: 60-second delay after infrastructure deployment to allow the workspace to become queryable for KQL validation
-6. **Deploy Content Hub**: Pipeline parameters are mapped to PowerShell switch flags at compile time, then the `Deploy-SentinelContentHub.ps1` script is invoked with splatted parameters
-7. **Deploy Custom Content**: Restores the deployment-state artifact, installs `powershell-yaml`, then runs a pre-deploy guard (`Build-DependencyManifest.ps1 -Mode Verify`) that fails the stage if `dependencies.json` is out of sync with the current content (the same drift gate the PR-validation workflow enforces on every PR to main, repeated here so a scheduled deploy cannot race a stale manifest). It then loads `sentinel-deployment.config` and `dependencies.json` and invokes `Deploy-CustomContent.ps1` with smart deployment enabled. Smart deployment uses git diff to detect changed files and a `deployment-state.json` state file (published as a pipeline artifact between runs) to automatically retry previously failed items. Playbooks can optionally deploy to a separate resource group via the `playbookResourceGroup` variable. Deploys in order: KQL parsers (YAML) → watchlists (JSON+CSV) → detections (YAML, both custom and community rules; a rule is deployed disabled if its dependencies are missing, and community rules are always deployed disabled) → hunting queries (YAML) → playbooks (ARM with module-first ordering, parameter auto-injection, template folder exclusion, name truncation) → workbooks (either a raw gallery/notebook template JSON or an ARM `Microsoft.Insights/workbooks` deployment template, from which the inner `serializedData` is extracted before PUT) → automation rules (JSON) → summary rules (JSON). The `Test-ContentDependencies` pre-flight gate and the smart-deployment skip both apply to every content type (missing dependencies deploy detections disabled and cause other content types to be skipped)
-
-   > **Deployment-state filename divergence**: the ADO pipeline publishes and consumes the state artifact as `deployment-state.json` (no leading dot), whereas the GitHub `sentinel-deploy.yml` workflow caches it as `.deployment-state.json` (with a leading dot). Neither is canonical; they simply differ per CI system.
-8. **Deploy Defender XDR Custom Detections**: Installs `powershell-yaml`, acquires a Microsoft Graph token, then invokes `Deploy-DefenderDetections.ps1` to deploy custom detection rules from `Content/DefenderCustomDetections/` YAML files via the Graph Security API. Creates new rules or updates existing ones matched by `displayName`
-
-### Usage Examples
-
-#### Full deployment (infrastructure + content)
-Queue the pipeline with default parameters — provisions infrastructure if needed, then deploys Content Hub solutions.
-
-#### Content only (skip infrastructure)
-Override at queue time:
-- `deployInfrastructure`: `false`
-
-#### Deploy specific solutions, skip workbooks
-Override at queue time:
-- `solutions`: `Microsoft 365,Threat Intelligence`
-- `skipWorkbooks`: `true`
-
-#### Dry run to preview changes
-Override at queue time:
-- `whatIf`: `true`
-
-#### Deploy only custom content (skip infrastructure and Content Hub)
-Override at queue time:
-- `deployInfrastructure`: `false`
-- `deployContentHub`: `false`
-- `deployDefenderDetections`: `false`
-
-#### Skip custom playbooks and workbooks
-Override at queue time:
-- `skipCustomPlaybooks`: `true`
-- `skipCustomWorkbooks`: `true`
-
-#### Skip hunting queries and automation rules
-Override at queue time:
-- `skipCustomHuntingQueries`: `true`
-- `skipCustomAutomationRules`: `true`
-
-#### Deploy only Defender XDR custom detections
-Override at queue time:
-- `deployInfrastructure`: `false`
-- `deployContentHub`: `false`
-- `deployCustomContent`: `false`
-
-#### Skip Defender XDR detections
-Override at queue time:
-- `deployDefenderDetections`: `false`
-
-#### Deploy playbooks to a separate resource group
-Add to the `sentinel-deployment` variable group:
-- `playbookResourceGroup`: `rg-playbooks-prod`
-
-#### Force full redeployment
-Override at queue time:
-- `forceSolutionUpdate`: `true`
-- `forceContentDeployment`: `true`
+| `Sentinel-Word-Report.yml` | *(ADO-only, no GitHub equivalent)* |
+| *(GitHub-only, no ADO equivalent)* | `sentinel-deploy-nightly.yml` |
+
+Asymmetries worth knowing:
+
+- [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml)
+  is **GitHub-only** - a nightly E2E smoke test against the throwaway
+  workspace from `Infra/test-workspace/main.bicep`. There is no ADO
+  equivalent. See [Deploy-Nightly.md](Pipelines/Deploy-Nightly.md).
+- [`Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml)
+  is **ADO-only** - the pandoc plus LibreOffice `.docx` render of the
+  Documenter Markdown. There is no `*word*` workflow under
+  `.github/workflows/`. See [Word-Report.md](Pipelines/Word-Report.md).
+- The **Documenter** pair diverges on schedule: the GitHub workflow
+  (`sentinel-document.yml`) runs on a daily cron plus `workflow_dispatch`,
+  whereas the ADO pipeline (`Sentinel-Documenter.yml`) is manual-trigger-only
+  for now. See [Documenter.md](Pipelines/Documenter.md).
+
+## Shared Concepts
+
+### OIDC Authentication
+
+Both CI systems authenticate to Azure with **workload identity federation
+(OIDC)**, not a stored secret. A single service principal in Entra ID carries
+federated credentials that trust each CI system's token issuer, so every job
+gets a short-lived per-run token and no client secret is stored anywhere.
+
+- **GitHub Actions** logs in through the
+  [`azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml)
+  composite action, which wraps `Azure/login@v3` with the standard
+  client/tenant/subscription parameter set.
+- **Azure DevOps** uses a workload-identity-federation service connection
+  (named `sc-sentinel-as-code` by default). Full step-by-step:
+  [ADO OIDC Setup](ADO-OIDC-Setup.md). GitHub-side prerequisites:
+  [PR Validation Setup](PR-Validation-Setup.md).
+
+### Variables and Secrets
+
+- **Azure DevOps** reads deployment inputs from the `sentinel-deployment`
+  variable group under **Pipelines > Library** (subscription ID, resource
+  group, workspace name, region, and optional playbook resource group). The
+  per-pipeline docs list the variables each one consumes.
+- **GitHub Actions** reads the equivalent values from repository or
+  environment secrets and variables.
+
+### Composite Actions (GitHub)
+
+To avoid duplicated step blocks across workflows, the GitHub side factors two
+shared patterns into composite actions under
+[`.github/actions/`](../../.github/actions/):
+
+- [`azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml) -
+  the one-line OIDC login described above.
+- [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml) -
+  installs the PowerShell modules the jobs need (Pester and
+  `powershell-yaml`).
 
 ---
 
@@ -360,18 +102,18 @@ or `Pipelines/`, Copilot automatically loads
 [`.github/instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md).
 The path-scoped instructions cover ADO-as-source-of-truth, the
 composite-action adoption rule, schedule alignment, and the
-ADO → GitHub Actions translation table.
+ADO -> GitHub Actions translation table.
 
 Copilot tooling for pipelines:
 
-- Agent `Sentinel-As-Code: Pipeline Engineer` — owns CI/CD
-  end-to-end. Authors / edits workflows, maintains parity between
+- Agent `Sentinel-As-Code: Pipeline Engineer` - owns CI/CD
+  end-to-end. Authors and edits workflows, maintains parity between
   ADO and GitHub, manages composite actions, diagnoses pipeline
   failures, manages cron schedules.
-- Agent `Sentinel-As-Code: Bicep Engineer` — for the
+- Agent `Sentinel-As-Code: Bicep Engineer` - for the
   `deploy-infrastructure` stage and the underlying Bicep
   templates.
-- Agent `Sentinel-As-Code: Security Reviewer` — for permissions
+- Agent `Sentinel-As-Code: Security Reviewer` - for permissions
   blocks, OIDC federated-credential scoping, secret references.
 
 See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
