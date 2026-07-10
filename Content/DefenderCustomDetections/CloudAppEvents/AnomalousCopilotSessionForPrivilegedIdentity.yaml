@@ -24,7 +24,7 @@ queryCondition:
               IPAddress, CountryCode, City, ISP, UserAgent, DeviceType, Application
     | join kind=leftanti Baseline on AccountObjectId, CountryCode
     | where isnotempty(CountryCode)
-  lastModifiedDateTime: "2026-07-07T00:00:00Z"
+lastModifiedDateTime: "2026-07-07T00:00:00Z"
 schedule:
   period: "1H"
 detectionAction:

@@ -1,7 +1,7 @@
 id: 09cded01-b045-4811-b2ec-92de27db16f3
 name: Copilot usage by an unentitled user
 description: |
-  'Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
+  Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
   generates Microsoft 365 Copilot activity in the last day. This catches
   Copilot access granted outside the normal entitlement process and Copilot
   use by accounts that should not have it, including potentially compromised
@@ -11,7 +11,7 @@ description: |
 
   REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
   Until the watchlist exists the deployer will disable the rule automatically.
-  Verify in tenant: OfficeActivity carries the CopilotInteraction operation.'
+  Verify in tenant: OfficeActivity carries the CopilotInteraction operation.
 severity: Medium
 requiredDataConnectors:
 - connectorId: Office365

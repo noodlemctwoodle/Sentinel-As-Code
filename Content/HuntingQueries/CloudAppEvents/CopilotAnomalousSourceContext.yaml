@@ -16,10 +16,12 @@ query: |
   let Baseline = CloudAppEvents
     | where TimeGenerated between (ago(31d) .. ago(1d))
     | where ActionType == "CopilotInteraction"
+    | extend ISP = column_ifexists('ISP', ''), UserAgent = column_ifexists('UserAgent', '')
     | summarize by AccountObjectId, CountryCode, ISP, UserAgent;
   CloudAppEvents
   | where TimeGenerated > ago(1d)
   | where ActionType == "CopilotInteraction"
+  | extend ISP = column_ifexists('ISP', ''), UserAgent = column_ifexists('UserAgent', '')
   | project
       TimeGenerated,
       AccountObjectId,
