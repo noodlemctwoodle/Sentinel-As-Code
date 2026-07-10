@@ -41,7 +41,6 @@ query: |
       FirstSeen = min(TimeGenerated),
       LastSeen = max(TimeGenerated)
     by UserPrincipalName
-  | where Interactions > 0
 entityMappings:
 - entityType: Account
   fieldMappings:
