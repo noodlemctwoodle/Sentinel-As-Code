@@ -14,7 +14,7 @@ The Sentinel as Code Toolkit scaffolds and validates this content type. Its bund
 
 ## Folder Structure
 
-Each automation rule is stored as a single JSON file. The Toolkit's `automation-rule` template is authored as commented YAML for readability, and the extension converts it to JSON on disk when you scaffold a rule (automation rules are one of the three content types the Toolkit stores as JSON rather than YAML). Files can be placed directly in the folder or organised into subfolders by function or environment:
+Each automation rule is stored as a single JSON file. The Toolkit's `automation-rule` template is authored as commented YAML for readability; you run its Convert Content YAML to JSON command to produce the JSON stored on disk when you are ready to deploy (automation rules are one of the three content types the pipeline stores as JSON rather than YAML). Files can be placed directly in the folder or organised into subfolders by function or environment:
 
 ```
 Content/AutomationRules/

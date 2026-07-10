@@ -101,8 +101,9 @@ deploy and cross-validate as `Bar`.
 
 Keeping the folder name equal to the alias is a useful convention (every
 folder under `Content/Watchlists/` follows it today, and the Toolkit's
-"Create Watchlist from CSV" command scaffolds the folder and alias with
-the same name) but the deploy pipeline does not enforce it. What is
+"Create Watchlist from CSV" command scaffolds a `watchlist.yaml` alongside
+its data file for you to set the alias in before converting to
+`watchlist.json`) but the deploy pipeline does not enforce it. What is
 enforced, by `Test-WatchlistJson.Tests.ps1` in the
 PR-validation gate, is:
 

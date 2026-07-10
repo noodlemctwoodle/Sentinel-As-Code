@@ -48,7 +48,7 @@ Content/SummaryRules/
 
 Each summary rule is defined as a single JSON file. The top-level keys map directly to the `ruleDefinition` block in the REST API body, with `name`, `description`, and `displayName` promoted to the top level for readability.
 
-The authoring contract below (field names, required-vs-optional, types, patterns, and allowed values) is defined by the Sentinel as Code Toolkit schema `sentinel-summary-rule-schema.json`. The Toolkit scaffolds summary rules from a commented YAML template and converts them to the JSON form stored on disk here, and validates them against the same schema in the editor. See [Toolkit Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md).
+The authoring contract below (field names, required-vs-optional, types, patterns, and allowed values) is defined by the Sentinel as Code Toolkit schema `sentinel-summary-rule-schema.json`. The Toolkit scaffolds summary rules as a commented YAML template; you author the YAML, then run its Convert Content YAML to JSON command to produce the JSON form stored on disk here, and it validates that JSON against the same schema in the editor. See [Toolkit Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md).
 
 ### Required Fields
 
