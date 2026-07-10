@@ -58,6 +58,7 @@ immutable git history). The mapping:
 | Wave 4 | `26.06.0` | PR #25 |
 | Repository restructure | `26.06.1` | first tagged release |
 | Word report + Apache-2.0 relicence | `26.07` | PR #29 |
+| Copilot activity monitoring content pack, Sentinel as Code Toolkit, PR template validation gate | `26.07.1` | PR #30, PR #31 |
 
 Tagging begins at `v26.06.1`; earlier releases are recorded here for reference
 and are not retroactively tagged.
