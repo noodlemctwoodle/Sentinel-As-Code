@@ -108,3 +108,4 @@ under those terms.
 | [Configuration](Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
 | [ARM to YAML Conversion](ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
 | [Defender Workflows](Defender-Workflows.md) | Formatting, validating, and converting Defender XDR custom detections for the repository |
+| [Graph API Migrations](Graph-API-Migrations.md) | Upcoming Microsoft Graph `security` API deprecations that affect Defender custom detections, with the migration plan and removal date |

@@ -12,7 +12,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   citations, and the pipeline docs.
 - **Toolkit documentation.** New `Docs/Toolkit/` pages for the companion Sentinel
   as Code Toolkit VS Code extension: commands, templates, schemas and validation,
-  configuration, ARM-to-YAML conversion, and Defender workflows. The Toolkit
+  configuration, ARM-to-YAML conversion, Defender workflows, and the Graph API migration notes preserved from the Toolkit repository. The Toolkit
   schemas and templates are now the authoring source of truth for the
   content-type docs, which were reconciled against them.
 - **Per-pipeline documentation.** A dedicated page for every pipeline under

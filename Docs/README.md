@@ -129,6 +129,7 @@ not deploy. Its schemas and templates are the authoring source of truth for the
 | [Configuration](Toolkit/Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
 | [ARM to YAML Conversion](Toolkit/ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
 | [Defender Workflows](Toolkit/Defender-Workflows.md) | Formatting, validating, and converting Defender XDR custom detections for the repository |
+| [Graph API Migrations](Toolkit/Graph-API-Migrations.md) | Upcoming Microsoft Graph `security` API deprecations affecting Defender custom detections (migration tracking) |
 
 ## Guides
 

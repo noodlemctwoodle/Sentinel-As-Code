@@ -235,6 +235,7 @@ The [Sentinel as Code Toolkit](Docs/Toolkit/README.md) companion VS Code extensi
 | Configuration | [Toolkit/Configuration.md](Docs/Toolkit/Configuration.md) |
 | ARM to YAML Conversion | [Toolkit/ARM-to-YAML-Conversion.md](Docs/Toolkit/ARM-to-YAML-Conversion.md) |
 | Defender Workflows | [Toolkit/Defender-Workflows.md](Docs/Toolkit/Defender-Workflows.md) |
+| Graph API Migrations | [Toolkit/Graph-API-Migrations.md](Docs/Toolkit/Graph-API-Migrations.md) |
 
 ### Deploy - `Docs/Deploy/`
 
