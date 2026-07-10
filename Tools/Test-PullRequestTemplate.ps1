@@ -228,8 +228,12 @@ function Test-PullRequestTemplateBody {
 # Not a function, so the AST-extraction test harness skips it: the Pester
 # suite dot-sources only the functions above and never triggers this block
 # (which would call exit).
-$resolvedBody = $Body
-if ([string]::IsNullOrEmpty($resolvedBody) -and $BodyPath) {
+# -Body wins whenever it was explicitly passed (even as an empty string), per
+# the parameter help. Fall back to -BodyPath only when -Body was not supplied.
+if ($PSBoundParameters.ContainsKey('Body')) {
+    $resolvedBody = $Body
+}
+elseif ($BodyPath) {
     if (Test-Path -LiteralPath $BodyPath) {
         $resolvedBody = Get-Content -LiteralPath $BodyPath -Raw
     }
@@ -237,6 +241,9 @@ if ([string]::IsNullOrEmpty($resolvedBody) -and $BodyPath) {
         Write-PipelineMessage -Level Error -Message "BodyPath not found: $BodyPath"
         exit 1
     }
+}
+else {
+    $resolvedBody = ''
 }
 if ($null -eq $resolvedBody) { $resolvedBody = '' }
 
