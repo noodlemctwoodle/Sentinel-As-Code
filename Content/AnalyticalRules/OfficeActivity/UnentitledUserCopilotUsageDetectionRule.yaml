@@ -1,0 +1,55 @@
+id: 09cded01-b045-4811-b2ec-92de27db16f3
+name: Copilot usage by an unentitled user
+description: |
+  Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
+  generates Microsoft 365 Copilot activity in the last day. This catches
+  Copilot access granted outside the normal entitlement process and Copilot
+  use by accounts that should not have it, including potentially compromised
+  identities.
+
+  Investigation question answered: is this user expected to use Copilot?
+
+  REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
+  Until the watchlist exists the deployer will disable the rule automatically.
+  Verify in tenant: OfficeActivity carries the CopilotInteraction operation.
+severity: Medium
+requiredDataConnectors:
+- connectorId: Office365
+  dataTypes:
+  - OfficeActivity
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+query: |
+  let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
+    | project UserPrincipalName = tolower(UserPrincipalName);
+  OfficeActivity
+  | where TimeGenerated > ago(1d)
+  | where Operation == "CopilotInteraction"
+  | extend UserPrincipalName = tolower(UserId)
+  | where UserPrincipalName !in (EntitledUsers)
+  | summarize
+      Interactions = count(),
+      ClientIPs = make_set(ClientIP, 20),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by UserPrincipalName
+  | where Interactions > 0
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

@@ -1,0 +1,59 @@
+id: 4df245b7-a2cc-4263-839f-76ec26728a57
+name: Copilot mass access to sensitivity-labelled resources
+description: |
+  Detects an account whose Copilot interactions referenced a high number of
+  distinct sensitivity-labelled resources within a single hour. Copilot
+  surfacing many labelled items in a short window can indicate deliberate data
+  harvesting through natural-language prompts, or a compromised account being
+  used to stage sensitive content for exfiltration.
+
+  Combines two investigation questions: did Copilot access sensitive
+  resources, and is the volume normal for this user?
+
+  An analyst should review the referenced resources and labels, confirm the
+  activity is expected for the user's role, and check for follow-on download,
+  share or mail-forwarding activity.
+
+  Verify in tenant: the RawEventData path to CopilotEventData.AccessedResources
+  and the ActionType value. Tune the threshold to the environment.
+severity: Medium
+requiredDataConnectors:
+- connectorId: MicrosoftThreatProtection
+  dataTypes:
+  - CloudAppEvents
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Collection
+relevantTechniques:
+- T1213
+- T1530
+query: |
+  CloudAppEvents
+  | where TimeGenerated > ago(1h)
+  | where ActionType == "CopilotInteraction"
+  | mv-expand Resource = RawEventData.CopilotEventData.AccessedResources
+  | extend SensitivityLabelId = tostring(Resource.SensitivityLabelId)
+  | where isnotempty(SensitivityLabelId)
+  | summarize
+      LabelledResourceCount = dcount(tostring(Resource.Id)),
+      Labels = make_set(SensitivityLabelId, 20),
+      ResourceNames = make_set(tostring(Resource.Name), 20),
+      IPs = make_set(IPAddress, 10)
+    by AccountObjectId, AccountDisplayName
+  | where LabelledResourceCount > 15
+  | order by LabelledResourceCount desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: AadUserId
+    columnName: AccountObjectId
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

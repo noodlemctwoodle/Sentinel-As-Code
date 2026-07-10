@@ -1,0 +1,35 @@
+id: 9a5b7452-784f-40d1-929a-0c3372c611a0
+name: Copilot Studio agent lifecycle and sharing changes
+description: |
+  Surfaces Copilot Studio authoring and governance events: agent creation and
+  deletion, publish, authentication changes, sharing, component changes and
+  plugin operations. Newly created or newly shared agents are a governance
+  blind spot because they can expose data connectors and actions to a wider
+  audience than intended.
+
+  Investigation question supported: establishes who is standing up and sharing
+  agents so their activity can be weighed against expected ownership.
+
+  Verify in tenant: these operations arrive through the Office 365 / Purview
+  audit connector; the agent-specific columns are read defensively.
+query: |
+  OfficeActivity
+  | where TimeGenerated > ago(7d)
+  | where Operation in~ (
+      "BotCreate", "BotDelete", "BotDeleteCleanup",
+      "BotUpdateOperation-BotNameUpdate", "BotUpdateOperation-BotAuthUpdate",
+      "BotUpdateOperation-BotPublish", "BotUpdateOperation-BotShare",
+      "BotComponentCreate", "BotComponentUpdate", "BotComponentDelete",
+      "AIPluginOperationCreate", "AIPluginOperationUpdate", "AIPluginOperationDelete")
+  | project
+      TimeGenerated,
+      Operation,
+      UserId,
+      ClientIP,
+      BotId = column_ifexists("BotId", ""),
+      BotSchemaName = column_ifexists("BotSchemaName", "")
+  | order by TimeGenerated desc
+tactics:
+  - Persistence
+techniques:
+  - T1098

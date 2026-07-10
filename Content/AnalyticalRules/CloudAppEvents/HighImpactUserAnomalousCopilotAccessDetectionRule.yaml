@@ -1,0 +1,94 @@
+id: 603ac5ba-ba08-40f6-8d0d-5162766164f2
+name: High-impact user anomalous Copilot access
+description: |
+  Detects Microsoft 365 Copilot activity by a privileged or high-impact
+  account from a country that has not been seen for that account in the
+  previous 14 days. High-impact accounts are resolved from IdentityInfo by
+  directory role and privileged group membership, so a new-country Copilot
+  session for one of these identities is treated as a priority signal for
+  credential theft or session hijack.
+
+  Combines two investigation questions: is the source country normal for this
+  user, and is the user high impact?
+
+  An analyst should confirm whether the user is travelling, review the source
+  IP against threat intelligence, and check for correlated risky sign-ins or
+  OAuth consent grants on the same account.
+
+  The CloudAppEvents ActionType for Copilot is "CopilotInteraction".
+severity: High
+requiredDataConnectors:
+- connectorId: MicrosoftThreatProtection
+  dataTypes:
+  - CloudAppEvents
+- connectorId: BehaviorAnalytics
+  dataTypes:
+  - IdentityInfo
+queryFrequency: P1D
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Collection
+relevantTechniques:
+- T1078
+- T1078.004
+query: |
+  let Privileged = IdentityInfo
+    | where TimeGenerated > ago(14d)
+    | where AssignedRoles has_any (
+        "Global Administrator", "Security Administrator",
+        "Privileged Role Administrator", "Exchange Administrator",
+        "SharePoint Administrator", "User Administrator",
+        "Application Administrator", "Cloud Application Administrator",
+        "Hybrid Identity Administrator")
+        or GroupMembership has_any (
+        "Domain Admins", "Enterprise Admins",
+        "Azure AD Joined Device Local Administrators")
+    | summarize arg_max(TimeGenerated, *) by AccountObjectId
+    | project AccountObjectId, AccountUPN, AssignedRoles, Department, JobTitle;
+  let Baseline = CloudAppEvents
+    | where TimeGenerated between (ago(14d) .. ago(1d))
+    | where ActionType == "CopilotInteraction"
+    | summarize by AccountObjectId, CountryCode;
+  CloudAppEvents
+  | where TimeGenerated > ago(1d)
+  | where ActionType == "CopilotInteraction"
+  | project TimeGenerated, AccountObjectId, IPAddress, CountryCode, City, ISP, UserAgent, DeviceType, Application
+  | join kind=inner Privileged on AccountObjectId
+  | join kind=leftanti Baseline on AccountObjectId, CountryCode
+  | where isnotempty(CountryCode)
+  | project
+      TimeGenerated,
+      AccountObjectId,
+      AccountUPN,
+      AssignedRoles,
+      Department,
+      JobTitle,
+      IPAddress,
+      CountryCode,
+      City,
+      ISP,
+      UserAgent,
+      DeviceType,
+      Application
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: AccountUPN
+  - identifier: AadUserId
+    columnName: AccountObjectId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPAddress
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

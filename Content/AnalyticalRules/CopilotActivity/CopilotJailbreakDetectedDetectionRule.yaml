@@ -1,0 +1,60 @@
+id: bf96f3f4-aa2b-46d9-a17e-9561726e9024
+name: Copilot jailbreak attempt detected (CopilotActivity)
+description: |
+  Alerts when Microsoft Copilot flags a message as a jailbreak attempt in the
+  CopilotActivity table (LLMEventData.Messages[].JailbreakDetected == true).
+  A jailbreak attempt is a deliberate effort to bypass Copilot safety controls
+  to extract data or coerce unintended behaviour, and warrants review of the
+  account and the prompts involved.
+
+  An analyst should review the flagged messages, confirm whether the activity
+  is a security test or genuine abuse, check whether the same account accessed
+  sensitive resources through Copilot, and correlate with sign-in risk.
+severity: High
+requiredDataConnectors:
+- connectorId: MicrosoftCopilot
+  dataTypes:
+  - CopilotActivity
+queryFrequency: PT1H
+queryPeriod: PT1H
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- DefenseEvasion
+relevantTechniques:
+- T1562
+query: |
+  CopilotActivity
+  | where TimeGenerated > ago(1h)
+  | where RecordType == "CopilotInteraction"
+  | extend Messages = LLMEventData.Messages
+  | mv-expand Messages
+  | where tobool(Messages.JailbreakDetected) == true
+  | project
+      TimeGenerated,
+      ActorName,
+      ActorUserId,
+      SrcIpAddr,
+      ClientRegion,
+      AppHost,
+      AgentName,
+      MessageId = tostring(Messages.Id)
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: ActorName
+  - identifier: AadUserId
+    columnName: ActorUserId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

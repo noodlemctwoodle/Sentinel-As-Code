@@ -1,0 +1,57 @@
+id: 15badc16-22eb-4028-960f-360feab01f58
+name: Copilot usage by an unentitled user (CopilotActivity)
+description: |
+  Alerts when an account that is not on the "CopilotEntitledUsers" watchlist
+  generates Copilot activity in the CopilotActivity table in the last day. This
+  catches Copilot access granted outside the normal entitlement process and
+  Copilot use by accounts that should not have it, including potentially
+  compromised identities.
+
+  Investigation question answered: is this user expected to use Copilot?
+
+  REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
+  Until the watchlist exists the deployer will disable the rule automatically.
+severity: Medium
+requiredDataConnectors:
+- connectorId: MicrosoftCopilot
+  dataTypes:
+  - CopilotActivity
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+relevantTechniques:
+- T1078
+- T1078.004
+query: |
+  let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
+    | project UserPrincipalName = tolower(UserPrincipalName);
+  CopilotActivity
+  | where TimeGenerated > ago(1d)
+  | where RecordType == "CopilotInteraction"
+  | extend UserPrincipalName = tolower(ActorName)
+  | where UserPrincipalName !in (EntitledUsers)
+  | summarize
+      Interactions = count(),
+      Surfaces = make_set(AppHost, 10),
+      SourceIPs = make_set(SrcIpAddr, 20),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by UserPrincipalName, ActorUserId
+  | where Interactions > 0
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: UserPrincipalName
+  - identifier: AadUserId
+    columnName: ActorUserId
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

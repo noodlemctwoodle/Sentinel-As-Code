@@ -1,0 +1,51 @@
+displayName: Anomalous Copilot session for a privileged identity
+isEnabled: true
+queryCondition:
+  queryText: |
+    let PrivilegedUsers =
+        IdentityInfo
+        | where Timestamp > ago(10d)
+        | where AssignedRoles has_any (
+            "Global Administrator", "Security Administrator",
+            "Privileged Role Administrator", "Exchange Administrator",
+            "SharePoint Administrator", "User Administrator",
+            "Application Administrator", "Cloud Application Administrator")
+        | distinct AccountObjectId;
+    let Baseline =
+        CloudAppEvents
+        | where Timestamp between (ago(31d) .. ago(1h))
+        | where ActionType == "CopilotInteraction"
+        | summarize by AccountObjectId, CountryCode;
+    CloudAppEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "CopilotInteraction"
+    | where AccountObjectId in (PrivilegedUsers)
+    | project Timestamp, ReportId, AccountObjectId, AccountDisplayName,
+              IPAddress, CountryCode, City, ISP, UserAgent, DeviceType, Application
+    | join kind=leftanti Baseline on AccountObjectId, CountryCode
+    | where isnotempty(CountryCode)
+lastModifiedDateTime: "2026-07-07T00:00:00Z"
+schedule:
+  period: "1H"
+detectionAction:
+  alertTemplate:
+    title: "Anomalous Copilot session for a privileged identity"
+    description: |
+      A privileged account used Copilot from a country that has not been seen
+      for that account in the previous 30 days. Privileged identities are
+      high-value targets, so a new-country Copilot session may indicate stolen
+      credentials or a hijacked session being used to explore tenant data.
+    severity: high
+    category: InitialAccess
+    mitreTechniques:
+      - T1078.004
+    recommendedActions: |
+      1. Confirm whether the account owner is travelling or using a VPN.
+      2. Review the source IP and ISP against threat intelligence.
+      3. Check the same account for risky sign-ins and OAuth consent grants.
+      4. Review what Copilot referenced during the session for sensitive data.
+      5. If unauthorised, disable the account, revoke sessions and reset credentials.
+    impactedAssets:
+      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
+        identifier: accountObjectId
+  responseActions: []

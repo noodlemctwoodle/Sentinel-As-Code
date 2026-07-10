@@ -1,0 +1,34 @@
+id: ce931ab0-bae7-457d-aaf2-70d883f909d1
+name: Copilot referenced sensitivity-labelled resources (CopilotActivity)
+description: |
+  Expands the resources Copilot referenced when answering a prompt, from the
+  LLMEventData.AccessedResources array in the CopilotActivity table, and keeps
+  only those carrying a sensitivity label. This shows which labelled files and
+  sites were surfaced to a user through Copilot, a key signal when investigating
+  oversharing or data collection.
+
+  Investigation question answered: did Copilot access sensitive resources?
+query: |
+  CopilotActivity
+  | where TimeGenerated > ago(1d)
+  | where RecordType == "CopilotInteraction"
+  | extend AccessedResources = LLMEventData.AccessedResources
+  | mv-expand Resource = AccessedResources
+  | extend SensitivityLabelId = tostring(Resource.SensitivityLabelId)
+  | where isnotempty(SensitivityLabelId)
+  | project
+      TimeGenerated,
+      ActorName,
+      ActorUserId,
+      SrcIpAddr,
+      ResourceName = tostring(Resource.Name),
+      SiteUrl = tostring(Resource.SiteUrl),
+      SensitivityLabelId,
+      ResourceAction = tostring(Resource.Action),
+      ResourceType = tostring(Resource.Type)
+  | order by TimeGenerated desc
+tactics:
+  - Collection
+techniques:
+  - T1213
+  - T1530

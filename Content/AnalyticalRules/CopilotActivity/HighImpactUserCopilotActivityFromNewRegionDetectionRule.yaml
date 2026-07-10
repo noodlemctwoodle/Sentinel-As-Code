@@ -1,0 +1,90 @@
+id: 2380ceef-4f42-4679-b9e3-d316c05a06f9
+name: High-impact user Copilot activity from a new region (CopilotActivity)
+description: |
+  Detects Copilot activity in the CopilotActivity table by a privileged or
+  high-impact account from a client region that has not been seen for that
+  account in the previous 14 days. High-impact accounts are resolved from
+  IdentityInfo by directory role and privileged group membership, so a
+  new-region Copilot session for one of these identities is a priority signal
+  for credential theft or session hijack.
+
+  Combines two investigation questions: is the source region normal for this
+  user, and is the user high impact?
+
+  An analyst should confirm whether the user is travelling, review the source
+  IP against threat intelligence, and check for correlated risky sign-ins or
+  OAuth consent grants on the same account.
+severity: High
+requiredDataConnectors:
+- connectorId: MicrosoftCopilot
+  dataTypes:
+  - CopilotActivity
+- connectorId: BehaviorAnalytics
+  dataTypes:
+  - IdentityInfo
+queryFrequency: P1D
+queryPeriod: P14D
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- InitialAccess
+- Collection
+relevantTechniques:
+- T1078
+- T1078.004
+query: |
+  let Privileged = IdentityInfo
+    | where TimeGenerated > ago(14d)
+    | where AssignedRoles has_any (
+        "Global Administrator", "Security Administrator",
+        "Privileged Role Administrator", "Exchange Administrator",
+        "SharePoint Administrator", "User Administrator",
+        "Application Administrator", "Cloud Application Administrator",
+        "Hybrid Identity Administrator")
+        or GroupMembership has_any (
+        "Domain Admins", "Enterprise Admins",
+        "Azure AD Joined Device Local Administrators")
+    | summarize arg_max(TimeGenerated, *) by AccountObjectId
+    | project AccountUpn = tolower(AccountUpn), AssignedRoles, Department, JobTitle;
+  let Baseline = CopilotActivity
+    | where TimeGenerated between (ago(14d) .. ago(1d))
+    | where RecordType == "CopilotInteraction"
+    | summarize by ActorUserId, ClientRegion;
+  CopilotActivity
+  | where TimeGenerated > ago(1d)
+  | where RecordType == "CopilotInteraction"
+  | project TimeGenerated, ActorName, ActorUserId, SrcIpAddr, ClientRegion, AppHost, AppIdentity
+  | join kind=leftanti Baseline on ActorUserId, ClientRegion
+  | where isnotempty(ClientRegion)
+  | extend AccountUpn = tolower(ActorName)
+  | join kind=inner Privileged on AccountUpn
+  | project
+      TimeGenerated,
+      ActorName,
+      ActorUserId,
+      AssignedRoles,
+      Department,
+      JobTitle,
+      SrcIpAddr,
+      ClientRegion,
+      AppHost,
+      AppIdentity
+  | order by TimeGenerated desc
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: Name
+    columnName: ActorName
+  - identifier: AadUserId
+    columnName: ActorUserId
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: SrcIpAddr
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- Copilot

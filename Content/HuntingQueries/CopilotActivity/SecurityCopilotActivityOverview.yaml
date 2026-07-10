@@ -1,0 +1,31 @@
+id: ab7862b5-5cc7-481b-a135-e9f165f6985f
+name: Security Copilot activity overview (CopilotActivity)
+description: |
+  Summarises Microsoft Security Copilot usage per account from the
+  CopilotActivity table, identified by the AppIdentity and AppHost of the
+  interaction. Because Security Copilot operates over security data,
+  unexpected users or unusual source locations warrant review.
+
+  Investigation focus: who is using Security Copilot, how much, and from where.
+
+  Verify in tenant: the AppIdentity value (Copilot.Security.SecurityCopilot)
+  and the AppHost values for the embedded and standalone experiences.
+query: |
+  CopilotActivity
+  | where TimeGenerated > ago(7d)
+  | where RecordType == "CopilotInteraction"
+  | where AppIdentity == "Copilot.Security.SecurityCopilot"
+      or AppHost in ("Defender", "Purview", "Intune", "Security Copilot Standalone")
+  | summarize
+      Interactions = count(),
+      Hosts = make_set(AppHost, 10),
+      Regions = make_set(ClientRegion, 20),
+      SourceIPs = make_set(SrcIpAddr, 30),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by ActorName, ActorUserId
+  | order by Interactions desc
+tactics:
+  - Discovery
+techniques:
+  - T1526
