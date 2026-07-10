@@ -39,7 +39,7 @@ the prompt bootstraps one file; you reason about the suite.
 - [`.github/instructions/pester-tests.instructions.md`](../instructions/pester-tests.instructions.md)
   — path-scoped instructions (loads automatically when you edit
   any `Tests/**.ps1`).
-- [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)
+- [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md)
   — full conventions, AST extraction explanation, test inventory.
 
 ## The two test patterns
@@ -58,7 +58,7 @@ For a `.psm1` module (like `Sentinel.Common`), use direct
 ### Adding coverage for an untested script
 
 1. **Identify what's missing.** Look at
-   [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)'s
+   [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md)'s
    test inventory. If a script under `Deploy/` or `Tools/` has no
    corresponding `Tests/Test-<ScriptName>.Tests.ps1`, that's the
    gap.
@@ -88,7 +88,7 @@ For a `.psm1` module (like `Sentinel.Common`), use direct
    Invoke-Pester -Path Tests/Test-<ScriptName>.Tests.ps1
    ```
 7. **Add the file to the test inventory** in
-   [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md).
+   [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md).
 
 ### Refactoring a slow / fragile suite
 

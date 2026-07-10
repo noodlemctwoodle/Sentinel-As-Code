@@ -1,5 +1,11 @@
 # 26.06 Layout Restructure — Path Migration Guide
 
+> **Status: complete, historical reference.** This restructure shipped in
+> `26.06.1` and is already applied on `main`. If your fork was created after
+> `26.06.1`, there is nothing left to migrate, this guide simply documents
+> where each old path landed for anyone still reconciling an older fork or
+> external links.
+
 Release `26.06` reorganises the repository from a flat root into a by-concern
 layout. This is a **structural change only** — no Sentinel content logic
 changed. This guide maps every old path to its new home so forks and external
@@ -72,6 +78,10 @@ pipelines. They are now grouped into `Content/`, `Infra/`, `Deploy/`, and
 
 ## For fork maintainers
 
+This section only applies if your fork still has content on the pre-`26.06.1`
+flat layout. If you forked after `26.06.1`, skip it, your fork already has
+the `Content/`, `Infra/`, `Deploy/`, and `Tools/` layout.
+
 If you maintain a fork with custom content on the old layout:
 
 1. **Merge or rebase the `26.06` restructure.** Tracked files move
@@ -95,4 +105,4 @@ If you maintain a fork with custom content on the old layout:
 Links to specific files (raw GitHub URLs, the community-rules importer, blog
 posts) that point at old paths need updating to the `Content/…`, `Infra/…`,
 `Deploy/…`, or `Tools/…` equivalents above. Versioning moved from "Wave N" to
-CalVer at the same time — see [Versioning](../Releases/Versioning.md).
+CalVer at the same time — see [Versioning](Versioning.md).

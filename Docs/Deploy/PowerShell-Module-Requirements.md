@@ -36,19 +36,24 @@ needed to validate the project.
 
 | Module | Required by | Declared via |
 | --- | --- | --- |
-| `Az.Accounts` | `Sentinel.Common` manifest; [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Export-DefenderDetections.ps1`](../../Tools/Export-DefenderDetections.ps1), [`Export-SentinelWorkbooks.ps1`](../../Tools/Export-SentinelWorkbooks.ps1), [`Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) | `#Requires` / manifest |
+| `Az.Accounts` | `Sentinel.Common` manifest; [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Export-SentinelWorkbooks.ps1`](../../Tools/Export-SentinelWorkbooks.ps1), [`Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1), [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) | `#Requires` / manifest |
 | `Az.Resources` | [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) (playbook ARM deploy via `New`/`Test-AzResourceGroupDeployment`), [`Set-PlaybookPermissions.ps1`](../../Deploy/permissions/Set-PlaybookPermissions.ps1) (`Get-AzResource`, `*-AzRoleAssignment`), [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | cmdlet usage / `Requires:` header |
-| `Az.LogicApp` | [`Set-PlaybookPermissions.ps1`](../../Deploy/permissions/Set-PlaybookPermissions.ps1) | `Requires:` header |
-| `Az.KeyVault` | Playbook permissions / Key Vault references (per [Scripts](../Deploy/Scripts.md)) | docs |
-| `Az.ManagedServiceIdentity` | Service-principal / managed-identity setup (per [Scripts](../Deploy/Scripts.md)) | docs |
+| `Az.LogicApp` | Declared in [`Set-PlaybookPermissions.ps1`](../../Deploy/permissions/Set-PlaybookPermissions.ps1)'s `Requires:` header, but the script reads Logic App resources via `Get-AzResource` (`Az.Resources`) and assigns roles via `*-AzRoleAssignment`; no `Az.LogicApp` cmdlet is actually called, so the dependency is effectively unused today | `Requires:` header |
+| `Az.KeyVault` | Playbook permissions / Key Vault references (per [Scripts](Scripts.md)) | docs |
+| `Az.ManagedServiceIdentity` | Service-principal / managed-identity setup (per [Scripts](Scripts.md)) | docs |
 | `Az.OperationalInsights` | [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) and the nightly workflow (`Get-AzOperationalInsightsWorkspace`); Documenter collector | cmdlet usage |
 | `Microsoft.Graph.Applications` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | `Install-Module` (auto) |
 | `Microsoft.Graph.Identity.DirectoryManagement` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | `Install-Module` (auto) |
-| `powershell-yaml` | [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Export-DefenderDetections.ps1`](../../Tools/Export-DefenderDetections.ps1), [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1) | `Install-Module` (auto) |
+| `powershell-yaml` | [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1), [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) | `Install-Module` (auto) |
 | `Sentinel.Common` (local) | Every deploy script plus [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1) | `Import-Module` from `Modules/` |
 
 Scripts marked **(auto)** install the module on first run if it is missing.
 Pre-installing avoids interactive prompts in non-interactive contexts.
+
+[`Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) deliberately
+avoids `Az.ResourceGraph` - it lists DCRs and their associations by calling
+`Invoke-AzRestMethod` directly against the ARM REST API, so `Az.Accounts` (for
+the authenticated context) is the only module it needs.
 
 ## Sentinel Documenter
 
@@ -80,6 +85,7 @@ is a standalone helper (not part of the deploy path) that needs:
 | `pandoc` (on PATH) | [`Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1), [`Convert-FolderToWordReport.ps1`](../../Tools/Documenter/Report/Convert-FolderToWordReport.ps1) |
 | Node.js + `@mermaid-js/mermaid-cli` | [`Convert-MermaidToImage.ps1`](../../Tools/Documenter/Convert-MermaidToImage.ps1) |
 | Azure CLI + Bicep (`az bicep build`) | PR-validation `bicep-build` job |
+| Azure CLI (`az`) | [`Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) (`az automation account show`, `az role assignment create` / `delete` / `list`) |
 
 ## Quick install
 
@@ -160,13 +166,6 @@ so this is a manual step:
 | --- | --- | --- |
 | `Monitoring Reader` | Subscription | List DCRs and their associations via ARM |
 | `Microsoft Sentinel Contributor` | Sentinel RG | Create and update the Sentinel watchlist |
-
-### Defender XDR export tool
-
-[`Export-DefenderDetections.ps1`](../../Tools/Export-DefenderDetections.ps1)
-reads from the Graph Security API and needs either
-`CustomDetection.Read.All` or `CustomDetection.ReadWrite.All` (Microsoft Graph
-application permission, with admin consent).
 
 ### Resource providers
 

@@ -37,7 +37,7 @@ by the privacy guard:
 
 | Channel | Always on | Where to find it |
 |---|---|---|
-| Pipeline / workflow artefact (`sentinel-docs.zip`) | ✓ | ADO: Build summary → Related → Published artefacts. GitHub: Actions run page → Artifacts. |
+| Pipeline / workflow artefact | ✓ | ADO: Build summary → Related → Published artefacts → `sentinel-docs`. GitHub: Actions run page → Artifacts → `sentinel-docs-<workspace>-<runId>`. |
 | Pull request from a rolling per-workspace branch | Default ON, can be disabled per-run | ADO: Repos → Pull requests. GitHub: Pull requests. |
 
 The PR is intentionally **review-only**. Merging it would commit tenant
@@ -81,7 +81,10 @@ topology that matches your setup:
 
 ## What it produces
 
-A folder per workspace under `SecurityDocs/<workspace>/`:
+A folder per workspace under `SecurityDocs/<workspace>/`. The collector
+(`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
+(`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into `index.md`
+plus **37 numbered Markdown sections**:
 
 ```
 SecurityDocs/
@@ -92,31 +95,56 @@ SecurityDocs/
     │   ├── tables-with-data.json
     │   ├── alert-rules.json
     │   ├── data-connectors-classic.json
-    │   ├── ... (≈30 files)
+    │   ├── ... (≈69 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   └── gap-analysis.json
-    ├── index.md
+    ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
-    ├── 10-data-connectors.md          classic + CCF, table mappings
+    ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
+    ├── 10-data-connectors.md          classic + CCF + synthesised effective view
+    ├── 11-sentinel-health.md          SentinelHealth events (last 7 days)
+    ├── 12-soc-optimization.md         SOC Optimization recommendations
+    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events
+    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source
+    ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
     ├── 20-analytics-rules.md          all rules by kind (Scheduled, NRT, Fusion, …)
+    ├── 21-analytics-by-volume.md      top 50 rules by alert volume (30d)
+    ├── 22-analytics-microsoft-rules.md  Microsoft-managed rules
+    ├── 23-analytics-modifications.md  recently modified rules
+    ├── 24-analytics-by-solution.md    rules grouped by Content Hub solution
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
+    ├── 26-ueba.md                     UEBA configuration
+    ├── 27-threat-intelligence.md      indicator counts by source
     ├── 30-hunting-queries.md
     ├── 35-parsers-functions.md
+    ├── 36-data-export.md              data export configuration
+    ├── 37-search-restore.md           search jobs / restore logs
+    ├── 38-summary-rules.md            summary rules
     ├── 40-workbooks.md                saved workbooks + templates available
-    ├── 50-watchlists.md               (item *contents* live in _raw/, never the report)
-    ├── 60-automation-rules-playbooks.md
+    ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
+    ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants
     ├── 70-content-hub.md              installed solutions + repos
     ├── 80-workspace.md                SKU, retention, networking, CMK, feature flags
     ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix
-    ├── 82-dedicated-cluster.md        only emitted when a cluster is linked
+    ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
     ├── 83-data-collection.md          DCRs, DCEs, transforms
     ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if
-    ├── 85-rbac.md
-    ├── 86-subscription-context.md     RPs, locks, policy assignments
+    ├── 85-rbac.md                     role assignments
+    ├── 86-subscription-context.md     subscription, tenant, RPs, locks, policy
+    ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace
+    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, migration candidates
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
-    └── 99-references.md               API versions, modules, Learn references
+    ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
+    └── 99-references.md               documenter's own API versions + modules (copied from Documenter-References.md)
 ```
+
+Sections are numbered to line up with the formal Sentinel Configuration TOC where
+one applies (`index.md` prints the mapping in its own column). `82-dedicated-cluster.md`
+and `88-sentinel-data-lake.md` render placeholder content when the feature is absent
+rather than being skipped, so the section set is stable run to run. Customer-narrative
+sections (architecture diagrams, SOC processes, the licensing inventory) are
+intentionally not auto-generated.
 
 The split between `_raw/` (JSON) and the rendered Markdown means the renderer can be
 re-run locally on a downloaded artefact without touching Azure, handy for iterating
@@ -137,6 +165,23 @@ headline. The five most important pages day-to-day are:
 | Where can we apply Microsoft's best practice? | `90-gap-analysis.md` |
 | Who has access to the workspace? | `85-rbac.md` |
 
+Beyond those headline pages the report groups into families:
+
+- **Operational health**: `11-sentinel-health.md` (SentinelHealth events, last 7
+  days), `12-soc-optimization.md` (SOC Optimization recommendations),
+  `13-data-source-hygiene.md` (CEF/Syslog hygiene, agent dual-collection, noisy
+  events) and `15-incidents.md` (MTTA/MTTR and the loudest rules).
+- **Analytics deep-dives**: `21-analytics-by-volume.md`,
+  `22-analytics-microsoft-rules.md`, `23-analytics-modifications.md` and
+  `24-analytics-by-solution.md` slice the rule estate by alert volume, ownership,
+  recent change and Content Hub solution; `26-ueba.md` and
+  `27-threat-intelligence.md` cover UEBA configuration and indicator counts.
+- **Data platform**: `36-data-export.md`, `37-search-restore.md`,
+  `38-summary-rules.md`, `87-azure-monitor-agents.md` and
+  `88-sentinel-data-lake.md` document the ingestion, retention and Data Lake surface.
+- **Coverage**: `14-coverage-breakdowns.md` attributes AzureActivity /
+  AzureDiagnostics / XDR ingestion back to its source.
+
 ---
 
 ## How to run it
@@ -156,15 +201,36 @@ the **ADO repo only**, never GitHub.
 > *Include preview API surface*. To skip the PR step and get only the
 > artefact, untick *Open / refresh an ADO PR with the rendered docs*.
 
+The run-pipeline panel exposes two further parameters:
+
+- *Pre-render Mermaid charts to PNG* (`prerenderChartsToPng`, **default ON**):
+  ADO Repos and wiki render `mermaid` fences as plain code and block inline SVG,
+  so the pipeline installs `@mermaid-js/mermaid-cli` and converts each fenced chart
+  to a PNG via `Convert-MermaidToImage.ps1`. This step is ADO-only; the GitHub
+  workflow ships the raw fences because GitHub renders Mermaid natively. Untick it
+  to skip the Node/mmdc install on a fast run.
+- *Playbook resource group* (`playbookResourceGroup`, default blank): set this when
+  Logic App playbooks live in a dedicated RG separate from the workspace RG (the
+  Sentinel-As-Code convention). It maps to the collector's `-PlaybookResourceGroup`
+  parameter; leave it blank to enumerate playbooks from the workspace RG.
+
 #### GitHub Actions: `.github/workflows/sentinel-document.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
-service principal. Privacy guard: the workflow **fails fast** if the host
-repo is public and `open-pull-request` is set, on the basis that
-`SecurityDocs/` would otherwise leak tenant config to the world.
+service principal. Privacy guard: the **Verify repository is private** step
+runs **unconditionally** at the top of the job, before any collection, and
+**fails the whole run** on a public repo regardless of the `open-pull-request`
+input, because `SecurityDocs/` (and the run artefact that carries it) would
+otherwise leak tenant config to the world. Scheduled runs are additionally
+skipped on a public repo so the upstream doesn't accrue a permanent daily red
+failure; a manual `workflow_dispatch` still starts and then hits the guard,
+so an operator who tries it is told exactly why.
 
 > Actions → **Sentinel Documenter** → Run workflow → optionally tick
-> `include-preview`. On a public repo, leave `open-pull-request` **off**
-> (artefact-only) or move the workflow to a private repo.
+> `include-preview`. There is no artefact-only path on a public repo: the guard
+> fails the run before collection whether `open-pull-request` is on or off, so
+> move the workflow to a private repo (or use the ADO pipeline against a private
+> mirror). On a private repo, untick `open-pull-request` to publish the artefact
+> without opening a PR.
 
 #### Where to find the rendered docs
 
@@ -180,10 +246,13 @@ repo is public and `open-pull-request` is set, on the basis that
 Connect-AzAccount
 
 # 2. Run the collector. Writes to ./SecurityDocs/<workspace>/_raw/.
+#    -SubscriptionId, -ResourceGroup and -WorkspaceName are all mandatory.
+#    Add -PlaybookResourceGroup when playbooks live in a separate RG.
 ./Tools/Documenter/Export-SentinelInventory.ps1 `
-    -SubscriptionId 'sub-guid' `
-    -ResourceGroup  'rg-sentinel-prod' `
-    -WorkspaceName  'law-sentinel-prod' `
+    -SubscriptionId        'sub-guid' `
+    -ResourceGroup         'rg-sentinel-prod' `
+    -WorkspaceName         'law-sentinel-prod' `
+    -PlaybookResourceGroup 'rg-sentinel-automation' `
     -IncludePreview
 
 # 3. Render. Writes ./SecurityDocs/<workspace>/*.md.
@@ -192,6 +261,18 @@ Connect-AzAccount
 ```
 
 Open `SecurityDocs/<workspace>/index.md` in your editor.
+
+At the end of a collector run the script prints a **Capture summary** table: it
+re-reads a set of files that are almost always populated on an active workspace
+(`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`) plus a
+set that should be populated *if the feature is in use* (`automation-rules`,
+`watchlists`, `playbooks`, `hunting-queries`, `workbooks-saved`, `cost-estimate`),
+flags any that came back empty or errored, and lists every capture step that raised
+an error (each GET is wrapped so one failure does not abort the run). An unexpected
+`EMPTY` almost always means an RBAC gap - the hint reminds you that **Microsoft
+Sentinel Reader at workspace scope** is required for automation rules, watchlists,
+hunting queries and incidents. Read this summary before filing a "the report says
+zero of X" bug.
 
 ---
 
@@ -227,23 +308,34 @@ Learn pages the tool depends on.
 The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
 in [`Tools/Documenter/Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1),
 dispatched by the engine in [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../../Tools/Documenter/Private/Get-SentinelGap.ps1).
-Each rule is a row in [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json):
+The rules live in [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json),
+a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
+reads `(ConvertFrom-Json).rules`. Each entry looks like:
 
 ```json
 {
-  "id": "SENT-001",
-  "title": "Daily cap not configured on the Log Analytics workspace",
-  "category": "Cost",
-  "severity": "Warning",
-  "check": "Test-DailyCapConfigured",
-  "remediation": "Set workspaceCapping.dailyQuotaGb to a sensible ceiling…",
-  "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap"
+  "$schema": "best-practices.schema.json",
+  "version": "2.0.0",
+  "rules": [
+    {
+      "id": "SENT-001",
+      "title": "Daily cap not configured on the Log Analytics workspace",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-DailyCapConfigured",
+      "remediation": "Set workspaceCapping.dailyQuotaGb to a sensible ceiling…",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap"
+    }
+  ]
 }
 ```
 
-Every check function takes a single `$Inventory` parameter (built from the JSON
-files in `_raw/`) and returns `$null` on pass or a finding object on fail. The
-engine wires the rule metadata around the result.
+`Get-SentinelGap` builds one `$Inventory` object from the JSON files in `_raw/`,
+then for each rule dot-sources `GapChecks.ps1` and dispatches the named `check`
+function. Every check function takes that single `$Inventory` parameter and
+returns `$null` on pass or an Evidence/Detail object on fail; the engine wires the
+rule metadata (id, title, category, severity, remediation, Learn link) around the
+result.
 
 ### Adding a new rule
 
@@ -278,11 +370,15 @@ In short:
    for the workspace's region (anonymous, no auth).
 4. Sentinel free-benefit-eligible tables (in
    [`Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Documenter/Private/Resources/sentinel-benefit-tables.json))
-   have their unit price reduced/zeroed when the benefit applies.
+   have their unit price set to zero **on the assumption the benefit is active** -
+   the estimator does not itself check whether the workspace actually qualifies.
+   Detecting a Defender plan that would activate the benefit is deferred to gap rule
+   SENT-019, not applied to the price here.
 5. A commitment-tier "what-if" projects the monthly delta if the workspace moved up
    one CR rung (only meaningful for `PerGB2018` workspaces).
-6. The dedicated-cluster candidate flag is set when daily ingest > 500 GB and no
-   cluster is currently linked.
+6. The dedicated-cluster candidate flag is set purely on volume, when the 30-day
+   average daily ingest exceeds 500 GB/day. It is a `($totalGb30d / 30) > 500` test;
+   it does **not** check whether a dedicated cluster is already linked.
 
 ### Caveats: explicitly NOT priced
 
@@ -311,8 +407,12 @@ The Pester suite is fully offline:
   same fixture, copies output to a temp folder and asserts that every expected
   section file is produced and contains the headings + signal phrases the report
   promises.
+- `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Invoke-SentinelRest.ps1`:
+  `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
 
-Both suites are picked up automatically by the existing PR-validation workflow.
+All three suites live under `Tests/Documenter/` and are part of the repo's 22 Pester
+files. They are picked up automatically by the existing PR-validation workflow
+(`Invoke-PRValidation.ps1` runs every suite and emits an NUnit 2.5 report).
 
 ---
 
@@ -362,14 +462,19 @@ one (precedence avoids double-counting):
 | 2 | CCF                 | `_raw/data-connector-definitions.json`  | Listed by name. Doesn't claim a table because CCF table mapping is connector-specific. |
 | 3 | DCR                 | `_raw/dcrs.json`                        | Each data-flow's `outputStream` resolves to a table (`Microsoft-` / `Custom-` prefix stripped). |
 | 4 | Diagnostic settings | `_raw/diagnostic-settings.json`         | Each enabled log category resolves to a table by name. |
-| 5 | Active-table        | `_raw/tables-with-data.json`            | Any remaining table with `BillableLast24h > 0` that no earlier source claimed. |
+| 5 | Active-table        | `_raw/tables-with-data.json`            | Any remaining table with `BillableLast24h > 0` that no earlier source claimed. The `Identifier` column carries an inferred product family rather than a blank. |
 
 The Active-table row is deliberately a visibility signal: if a workspace
 receives data into a table no captured ingestion mechanism explains, an
 operator wants to know. It usually means data arrived via a path the
 documenter doesn't yet enumerate (e.g. ingestion through a Logic App
 running outside the captured playbook resource group, or a legacy MMA
-agent still attached to the workspace).
+agent still attached to the workspace). Rather than leaving the `Identifier`
+blank, `Get-EffectiveConnectors` runs the table name through an
+`_ActiveTableFamily` helper that maps it to an inferred product family
+(for example `Microsoft Defender XDR`, `Microsoft Entra ID`, or
+`CEF / Syslog`), so the row at least hints at which source the unmapped
+ingestion belongs to.
 
 The `Last24hGB` and `LastIngested` columns come from the
 `tables-with-data` join. Empty values mean the table either receives no

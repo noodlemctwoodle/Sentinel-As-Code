@@ -54,7 +54,7 @@ the repo uses for script-level testing.
    ```
 
 7. **Add the file to the test inventory** in
-   [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md).
+   [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md).
 
 ## Reference: AST-extraction pattern (script under test)
 
@@ -130,4 +130,4 @@ Describe '<ContentType> schema' -ForEach $files {
   reference example.
 
 See the full conventions in
-[`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md).
+[`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md).

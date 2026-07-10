@@ -246,7 +246,7 @@ jobs:
                     WorkspaceName          = $env:SENTINEL_WORKSPACE_NAME
                     WatchlistAlias         = $env:WATCHLIST_ALIAS
                     WatchlistDisplayName   = $env:WATCHLIST_DISPLAY_NAME
-                    SearchKey              = "ResourceId"
+                    SearchKey              = "DCRName"
                 }
 
                 Register-AzAutomationScheduledRunbook `

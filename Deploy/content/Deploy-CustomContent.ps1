@@ -1490,8 +1490,30 @@ function Deploy-CustomWorkbooks {
 
             Write-PipelineMessage "Processing workbook: $displayName (ID: $workbookId)" -Level Info
 
-            # Serialise the workbook content as a JSON string for the serializedData property
+            # Determine the serializedData payload. Two on-disk shapes are
+            # accepted (matching Test-WorkbookJson.Tests.ps1): a gallery notebook
+            # (top-level 'items', no 'resources') is sent verbatim as the payload;
+            # an ARM deployment template (top-level 'resources' array wrapping a
+            # Microsoft.Insights/workbooks resource) has its inner
+            # resources[].properties.serializedData extracted, so the outer ARM
+            # envelope (parameters/variables/resources) is not sent.
             $serializedData = $workbookContent
+            try {
+                $parsedWorkbook = $workbookContent | ConvertFrom-Json -ErrorAction Stop
+                if ($parsedWorkbook.PSObject.Properties['resources']) {
+                    $wbResource = @($parsedWorkbook.resources) | Where-Object { $_.type -match 'workbooks$' } | Select-Object -First 1
+                    if ($wbResource -and $wbResource.properties.PSObject.Properties['serializedData'] -and $wbResource.properties.serializedData) {
+                        $serializedData = $wbResource.properties.serializedData
+                        Write-PipelineMessage "ARM-wrapped workbook detected for '$($dir.Name)'; extracted inner serializedData." -Level Info
+                    }
+                    else {
+                        Write-PipelineMessage "Workbook '$($dir.Name)' has a top-level 'resources' array but no Microsoft.Insights/workbooks serializedData; deploying file content as-is." -Level Warning
+                    }
+                }
+            }
+            catch {
+                Write-PipelineMessage "Workbook '$($dir.Name)' could not be parsed for ARM detection ($($_.Exception.Message)); deploying file content as-is." -Level Warning
+            }
 
             $body = @{
                 location   = $Region

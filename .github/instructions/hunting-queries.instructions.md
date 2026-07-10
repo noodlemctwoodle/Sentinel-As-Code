@@ -73,5 +73,5 @@ hunting query, not an analytical rule.
 ## Cross-references
 
 - Schema: [`Docs/Content/Hunting-Queries.md`](../../Docs/Content/Hunting-Queries.md)
-- KQL conventions: [`./kql-queries.instructions.md`](./kql-queries.instructions.md)
+- KQL conventions: [`./kql-queries.instructions.md`](kql-queries.instructions.md)
 - Tests: [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1)

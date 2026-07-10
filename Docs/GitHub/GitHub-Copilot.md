@@ -14,9 +14,13 @@ and [code.visualstudio.com/docs/copilot/customization](https://code.visualstudio
 | --- | --- | --- |
 | Repo-wide instructions | Conventions every chat in this workspace follows | [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) |
 | Cross-tool agent guidance | Recognised by GitHub Copilot, Claude, Gemini, Cursor | [`AGENTS.md`](../../AGENTS.md) |
-| Path-scoped instructions | Per-folder authoring rules, loaded automatically by `applyTo` glob | [`.github/instructions/`](../../.github/instructions/) |
-| Custom agents | Persona configurations recognised across github.com + every IDE | [`.github/agents/`](../../.github/agents/) |
-| Reusable prompts | Slash-command templates for repeatable tasks (VS Code / VS / JetBrains) | [`.github/prompts/`](../../.github/prompts/) |
+| Path-scoped instructions | Per-folder authoring rules, loaded automatically by `applyTo` glob | [`.github/instructions/`](../../.github/instructions) |
+| Custom agents | Persona configurations recognised across github.com + every IDE | [`.github/agents/`](../../.github/agents) |
+| Reusable prompts | Slash-command templates for repeatable tasks (VS Code / VS / JetBrains) | [`.github/prompts/`](../../.github/prompts) |
+
+Counts as shipped: **13 agents**, **6 prompts**, **9 path-scoped
+instruction files**, plus the one repo-wide `copilot-instructions.md`
+and the cross-tool `AGENTS.md`.
 
 ## Platform support matrix
 
@@ -32,10 +36,11 @@ Where each layer is recognised:
 
 **Why no `chatmodes/`?** The legacy VS Code-only `.chatmode.md`
 format has been superseded by `.agent.md` under
-[`.github/agents/`](../../.github/agents/), which works on
-github.com **and** in every IDE. We migrated the chat modes to
-agents in commit `<TBD>`. If you're working from an older clone,
-delete the legacy `.github/chatmodes/` folder; it's no longer used.
+[`.github/agents/`](../../.github/agents), which works on
+github.com **and** in every IDE. The chat modes were migrated to
+agents as part of the 26.07 restructure. If you're working from an
+older clone, delete the legacy `.github/chatmodes/` folder; it's no
+longer used (this repo does not ship one).
 
 ## File inventory
 
@@ -62,8 +67,8 @@ glob in the frontmatter.
 | `playbooks.instructions.md` | `Content/Playbooks/**/*.json` | ARM template structure, trigger-type folders, MSI tag |
 | `pester-tests.instructions.md` | `Tests/**/*.ps1` | AST-extraction pattern, mocking conventions |
 | `powershell-scripts.instructions.md` | `Deploy/**/*.ps1, Tools/**/*.ps1`, `Modules/**/*.psm1`, `Modules/**/*.psd1` | Style, Sentinel.Common usage, foot-gun list |
-| `kql-queries.instructions.md` | Any file with embedded KQL | KQL conventions, discovery-friendly patterns |
-| `workflows.instructions.md` | `.github/workflows/**`, `.github/actions/**`, `Pipelines/**/*.yml` | ADO-as-source-of-truth, composite actions, schedule alignment |
+| `kql-queries.instructions.md` | `Content/AnalyticalRules/**/*.yaml`, `Content/HuntingQueries/**/*.yaml`, `Content/Parsers/**/*.yaml`, `Content/SummaryRules/**/*.json`, `Content/DefenderCustomDetections/**/*.yaml` | KQL conventions, discovery-friendly patterns |
+| `workflows.instructions.md` | `.github/workflows/**/*.yml`, `.github/actions/**/*.yml`, `Pipelines/**/*.yml` | ADO-as-source-of-truth, composite actions, schedule alignment |
 
 ### Custom agents (`.github/agents/`)
 
@@ -71,7 +76,9 @@ Persona configurations recognised across github.com (Chat + cloud
 agent) and every supported IDE (VS Code, Visual Studio, JetBrains,
 Eclipse, Xcode), plus Copilot CLI.
 
-All thirteen agents prefix their display name with `Sentinel-As-Code:`
+There are **thirteen** agents in total (five persona-broad, eight
+engineering specialists). All thirteen prefix their display name
+with `Sentinel-As-Code:`
 so they group together in the agent picker (which mixes
 workspace-level, org-level, and marketplace agents). The short
 slug — `rule-author`, `powershell-engineer`, etc. — is what cross-
@@ -118,14 +125,19 @@ The set is organised into two tiers:
 VS Code / Visual Studio / JetBrains slash commands. Not available
 on github.com Chat.
 
-| Prompt | What it does |
-| --- | --- |
-| `/new-analytical-rule` | Bootstraps a fresh `Content/AnalyticalRules/<Source>/<Name>.yaml` |
-| `/new-hunting-query` | Bootstraps a fresh `Content/HuntingQueries/<Source>/<Name>.yaml` |
-| `/new-defender-detection` | Bootstraps a fresh `Content/DefenderCustomDetections/<Category>/<Name>.yaml` |
-| `/new-pester-test` | Bootstraps a Pester 5 test using the AST-extraction pattern |
-| `/review-rule` | Reviews a rule against schema + KQL + convention rules |
-| `/regenerate-deps` | Runs `Build-DependencyManifest -Mode Generate` and explains the diff |
+| Prompt | Agent mode | What it does |
+| --- | --- | --- |
+| `/new-analytical-rule` | `agent` | Bootstraps a fresh `Content/AnalyticalRules/<Source>/<Name>.yaml` |
+| `/new-hunting-query` | `agent` | Bootstraps a fresh `Content/HuntingQueries/<Source>/<Name>.yaml` |
+| `/new-defender-detection` | `agent` | Bootstraps a fresh `Content/DefenderCustomDetections/<Category>/<Name>.yaml` |
+| `/new-pester-test` | `agent` | Bootstraps a Pester 5 test using the AST-extraction pattern |
+| `/review-rule` | `ask` | Reviews a rule against schema + KQL + convention rules |
+| `/regenerate-deps` | `agent` | Runs `Build-DependencyManifest -Mode Generate` and explains the diff |
+
+Five of the six prompts run as `agent: agent`, meaning they can
+read, edit, and run terminal commands directly. `/review-rule` runs
+as `agent: ask`, a read-only mode: it can search the codebase and
+find usages, but produces a review rather than editing files.
 
 The same content is captured (in less interactive form) by the
 matching agents — so if you're on github.com Chat, invoke the

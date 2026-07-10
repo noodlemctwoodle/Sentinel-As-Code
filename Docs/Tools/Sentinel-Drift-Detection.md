@@ -9,10 +9,19 @@ review.
 | What | Where |
 | --- | --- |
 | Detection script | [`Tools/Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) |
-| ADO pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) |
+| GitHub Actions workflow | [`.github/workflows/sentinel-drift-detect.yml`](../../.github/workflows/sentinel-drift-detect.yml) |
+| Azure DevOps pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) |
 | Generated reports | `reports/sentinel-drift-{UTC-timestamp}.{md,json}` |
 | Auto-sync branch | `auto/sentinel-drift-sync` (rolling, force-pushed each run) |
-| Schedule | Daily at 06:00 UTC |
+| Schedule | Daily at 06:00 UTC (both CI systems) |
+
+The same detection script drives two CI implementations. GitHub Actions is the
+repo's primary CI; the Azure DevOps pipeline is a functional mirror. Both invoke
+`Test-SentinelRuleDrift.ps1` on an identical daily schedule, reset the rolling
+`auto/sentinel-drift-sync` branch from `origin/main`, force-push, and open or
+refresh a PR into `main`. They differ only in authentication and PR mechanics
+(see [GitHub Actions workflow](#github-actions-workflow) and
+[Azure DevOps pipeline](#azure-devops-pipeline)).
 
 ## Why this exists
 
@@ -75,33 +84,38 @@ Deliberately **not** compared:
 - `entityMappings`, `tactics`, `techniques`, `customDetails`,
   `alertDetailsOverride`, `incidentConfiguration` — JSON shapes differ
   between API responses, ARM templates, and YAML, producing false positives
-  on every rule. Mirrors the comment block at
-  [`Deploy-SentinelContentHub.ps1:904-907`](../../Deploy/content/Deploy-SentinelContentHub.ps1).
+  on every rule. Mirrors the reasoning in the `Test-RuleIsCustomised` function
+  of [`Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1)
+  (see its `entityMappings are NOT compared` comment block).
 - `enabled` — `Deploy-CustomContent.ps1` legitimately deploys rules as
   `enabled=false` when dependencies are missing or KQL validation fails;
   `Deploy-SentinelContentHub.ps1`'s `-DisableRules` switch does the same for
   OoB content. Comparing this field would flag every rule deployed via either
   path. Drift detection focuses on intentional content edits.
-- `[Deprecated]` rules — skipped by display-name match, mirroring
-  [`Deploy-SentinelContentHub.ps1:1153-1157`](../../Deploy/content/Deploy-SentinelContentHub.ps1).
+- `[Deprecated]` rules — skipped by display-name match, mirroring the
+  `[Deprecated]` skip guard inside the deploy loop of
+  [`Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1).
 
-## What the pipeline does
+## What each run does
+
+The steps below are identical across both CI systems; only step 1 (auth) and
+step 5 (commit/PR mechanics) differ, as noted in the per-CI sections.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────────┐
 │  Daily 06:00 UTC                                                         │
 │                                                                          │
-│  1. Auth (sc-sentinel-as-code service connection — Sentinel Reader)      │
+│  1. Auth (GitHub OIDC login / ADO sc-sentinel-as-code, Sentinel Reader)  │
 │  2. Fetch deployed rules + Content Hub templates + repo YAML index       │
 │  3. For each deployed rule:                                              │
 │       • Resolve source → Custom (YAML wins) / ContentHub / Orphan /      │
 │         Managed                                                          │
 │       • Compare fields (above)                                           │
-│       • Custom drift   → rewrite the matched YAML in place, bump patch  │
-│       • ContentHub drift → write a new YAML to                          │
-│         Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/        │
-│       • Orphan drift   → write a new YAML to                            │
-│         Content/AnalyticalRules/AbsorbedFromPortal/Orphans/                      │
+│       • Custom drift   → rewrite the matched YAML in place, bump patch   │
+│       • ContentHub drift → write a new YAML to                           │
+│         Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/│
+│       • Orphan drift   → write a new YAML to                             │
+│         Content/AnalyticalRules/AbsorbedFromPortal/Orphans/              │
 │  4. If any drift detected:                                               │
 │       • Write reports/sentinel-drift-{timestamp}.md  (full diffs)        │
 │       • Write reports/sentinel-drift-{timestamp}.json (machine-readable) │
@@ -110,7 +124,7 @@ Deliberately **not** compared:
 │         conflicts)                                                       │
 │       • Commit + force-push to auto/sentinel-drift-sync                  │
 │       • Open or refresh PR to main                                       │
-└─────────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 If no drift is detected the script writes nothing — the working tree stays
@@ -141,13 +155,96 @@ deployed/expected values is included (no truncation).
 
 ### PR description
 
-ADO truncates `--description` at ~4000 chars, so the PR description is
-**deliberately short**: header + link to the full report file + summary
-table + bullet list of every drifted rule. The Files Changed tab carries the
-full report. The PR description is rebuilt and refreshed on every run via
-`az repos pr update`.
+Both CI systems build a **deliberately short** PR description rather than
+dumping the whole report body: a header, a link to the full report file, the
+report's `## Summary` block (extracted with `sed`), and a bullet list of every
+drifted rule (the report's `### ` headings). The Files Changed tab carries the
+full report with diff blocks and complete KQL bodies.
 
-## Configuration
+The concise body matters more on Azure DevOps, where `az repos pr` truncates
+`--description` at roughly 4000 characters (a full report with embedded KQL
+would silently lose the second-onwards drifted rule). GitHub's PR body limit is
+65,536 characters, so truncation is not a concern there, but the same focused
+description is used for readability. On refresh, ADO rebuilds the body via
+`az repos pr update` and GitHub via `gh pr edit --body-file`.
+
+## GitHub Actions workflow
+
+[`.github/workflows/sentinel-drift-detect.yml`](../../.github/workflows/sentinel-drift-detect.yml)
+is the repo's primary CI implementation. The single `detect-drift` job runs on
+`ubuntu-latest` with a 30-minute timeout.
+
+### Authentication (OIDC)
+
+The workflow authenticates to Azure with OpenID Connect via the composite action
+[`.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc),
+the same service principal used by `sentinel-deploy.yml`. No client secret is
+stored; the action federates a short-lived token from the three secrets below.
+The SP needs at least **Microsoft Sentinel Reader** on the workspace.
+
+### Secrets and variables
+
+| Kind | Name | Purpose |
+| --- | --- | --- |
+| Secret | `AZURE_CLIENT_ID` | Service principal application (client) ID for OIDC |
+| Secret | `AZURE_TENANT_ID` | Entra ID tenant ID |
+| Secret | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID (also passed to the script as `-SubscriptionId`) |
+| Variable | `SENTINEL_RESOURCE_GROUP` | Resource group holding the workspace (`-ResourceGroup`) |
+| Variable | `SENTINEL_WORKSPACE_NAME` | Log Analytics workspace name (`-Workspace`) |
+| Variable | `SENTINEL_REGION` | Azure region, e.g. `uksouth` (`-Region`) |
+
+Secrets and variables live under **Settings -> Secrets and variables ->
+Actions**. `RepoPath` is set to `${{ github.workspace }}` so the script writes
+YAML and reports into the checked-out tree.
+
+### Permissions block
+
+The workflow declares a least-privilege token at the top level:
+
+| Scope | Value | Why |
+| --- | --- | --- |
+| `id-token` | `write` | Federate the OIDC token for Azure login |
+| `contents` | `write` | `git push` the rolling `auto/sentinel-drift-sync` branch |
+| `pull-requests` | `write` | `gh pr create` / `gh pr edit` |
+
+The commit and PR steps authenticate with the default `GITHUB_TOKEN` (exposed
+to `gh` as `GH_TOKEN`); no PAT is required.
+
+### Pinned `powershell-yaml`
+
+The workflow pins `powershell-yaml` to `0.4.12` via the `YAML_VERSION` env var,
+installed through the composite action
+[`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
+with `install-pester: 'false'`. Pinning stops a PSGallery release that tightens
+parser behaviour from silently breaking a scheduled drift run; bumping the
+version is a one-line PR that re-runs the gate against the new release.
+
+### Commit and PR flow
+
+The `Commit, push, and open / refresh PR` step is guarded by
+`if: ${{ inputs.reportOnly != true }}`, so a Report Only run never reaches it
+(see [Report Only](#running-it)). When it does run it: checks the working tree
+with `git status --porcelain` (exits early and cleanly if empty), stashes the
+script's changes, resets `auto/sentinel-drift-sync` from `origin/main`, pops the
+stash, stages only `Content/AnalyticalRules` and `reports`, commits, and
+`git push --force-with-lease`. It then uses `gh pr list` to find an existing
+open PR from the sync branch: if found it refreshes the body with
+`gh pr edit --body-file`, otherwise it opens one with `gh pr create`.
+
+### Report artefact upload
+
+A final `Upload drift report artefact` step runs with `if: always()` and uploads
+the whole `reports/` folder via `actions/upload-artifact@v6` as
+`sentinel-drift-report-{run_id}`, with **30-day** retention and
+`if-no-files-found: ignore`. This means a Report Only run still surfaces its
+timestamped report as a downloadable artefact even though nothing is committed.
+
+## Azure DevOps pipeline
+
+[`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml)
+is the functional mirror for teams running on Azure DevOps. It authenticates via
+a service connection instead of OIDC and drives PRs with `az repos pr` instead
+of `gh`.
 
 ### Required ADO assets
 
@@ -180,50 +277,89 @@ This is the single most common cause of pipeline failure — symptoms include
 
 ## Running it
 
-### Pipeline (scheduled)
+### Scheduled
 
-Runs automatically every day at 06:00 UTC. No action needed.
+Both CI systems run automatically every day at 06:00 UTC. No action needed.
 
-### Pipeline (manual)
+### Manual (with toggles)
 
-**Pipelines → Sentinel-Drift-Detect → Run pipeline** exposes five toggles:
+On GitHub, **Actions -> Sentinel Drift Detection -> Run workflow** exposes the
+same five toggles as ADO's **Pipelines -> Sentinel-Drift-Detect -> Run
+pipeline**. The GitHub inputs map straight onto script switches; the ADO
+parameters map to `-Flag` strings at compile time and then onto the switches:
 
-| Toggle | Default | Effect |
-| --- | --- | --- |
-| Fail Pipeline When Drift Detected | off | Exits non-zero if anything drifted (use to gate downstream pipelines) |
-| Report Only | off | Writes the report but does not absorb drift (no YAML edits, no new YAMLs, no PR) |
-| Drift › Skip Content Hub Bucket | off | Suppresses ContentHub comparison and absorption entirely |
-| Drift › Skip Custom (Repo YAML) Bucket | off | Suppresses Custom comparison and absorption entirely |
-| Drift › Skip Orphan (Ungoverned) Bucket | off | Suppresses orphan reporting and absorption entirely |
+| Toggle | Script switch | Default | Effect |
+| --- | --- | :---: | --- |
+| Fail (Pipeline / Workflow) When Drift Detected | `-FailOnDrift` | off | Exits non-zero if anything drifted (use to gate downstream jobs) |
+| Report Only | `-ReportOnly` | off | Suppresses drift absorption (no YAML edits, no new YAMLs) and opens **no PR** on either CI system. The timestamped report is still written to `reports/` and, on GitHub, uploaded as the run artefact |
+| Drift › Skip Content Hub Bucket | `-SkipContentHub` | off | Suppresses ContentHub comparison and absorption entirely |
+| Drift › Skip Custom (Repo YAML) Bucket | `-SkipCustom` | off | Suppresses Custom comparison and absorption entirely |
+| Drift › Skip Orphan (Ungoverned) Bucket | `-SkipOrphans` | off | Suppresses orphan reporting and absorption entirely |
 
 The Content Hub solution catalogue is **not** exposed as a parameter — every
 solution in the workspace is scanned every run. The report groups results by
 solution so per-solution filtering on input is unnecessary. For ad-hoc
 single-solution runs, invoke the script locally (next section).
 
+> **Report Only still writes to disk.** `-ReportOnly` only skips the YAML
+> mutations; the script still writes `reports/sentinel-drift-{timestamp}.{md,json}`
+> whenever drift exists (the report gate is `$hasDrift -and -not $WhatIf`, not
+> `-ReportOnly`). The working tree is therefore **not** clean after a Report Only
+> run with drift. Both CI systems guard their commit/push/PR step so this report
+> is never committed or turned into a PR: GitHub via `if: inputs.reportOnly != true`,
+> and the ADO pipeline via the matching guard on its commit step. To suppress the
+> report write itself as well, use `-WhatIf`.
+
 ### Local invocation
 
 ```powershell
 ./Tools/Test-SentinelRuleDrift.ps1 `
-    -ResourceGroup "rg-sentinel-prod" `
-    -Workspace    "law-sentinel-prod" `
-    -Region       "uksouth" `
-    -ReportOnly                            # don't edit YAML
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -ResourceGroup  "rg-sentinel-prod" `
+    -Workspace      "law-sentinel-prod" `
+    -Region         "uksouth" `
+    -ReportOnly                            # don't edit YAML (report still written)
 
-# Filter to one solution (script only — not exposed in the pipeline)
+# Filter to one solution (script only, not exposed in either CI toggle set)
 ./Tools/Test-SentinelRuleDrift.ps1 `
     -ResourceGroup "rg-sentinel-prod" `
-    -Workspace    "law-sentinel-prod" `
-    -Region       "uksouth" `
-    -Solutions    "Microsoft Defender XDR" `
+    -Workspace     "law-sentinel-prod" `
+    -Region        "uksouth" `
+    -Solutions     "Microsoft Defender XDR" `
     -ReportOnly
 
-# Fail the pipeline if anything drifted (CI gating)
+# Fail the run if anything drifted (CI gating)
 ./Tools/Test-SentinelRuleDrift.ps1 ... -FailOnDrift
 ```
 
-The script auto-installs `powershell-yaml` if missing. Az authentication
-falls back to `Connect-AzAccount` when no current Azure context exists.
+`-SubscriptionId` is optional locally; when omitted the script falls back to the
+current Azure context (and both CI systems pass it explicitly). `-RepoPath`
+defaults to the parent of the `Tools/` folder the script lives in, so a checkout
+resolves `Content/AnalyticalRules/` and `reports/` automatically; the CI runs set
+it explicitly to the workspace root. Az authentication falls back to
+`Connect-AzAccount` when no current context exists.
+
+### All script parameters
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `-SubscriptionId` | string | current Az context | Subscription holding the workspace |
+| `-ResourceGroup` | string | (required) | Resource group of the workspace |
+| `-Workspace` | string | (required) | Log Analytics workspace name |
+| `-Region` | string | (required) | Azure region, e.g. `uksouth` |
+| `-Solutions` | string[] | all | Scope OoB (ContentHub) drift to named solutions; does not affect Custom/Orphan |
+| `-SeveritiesToInclude` | string[] | High, Medium, Low, Informational | Severity filter applied across all three buckets |
+| `-RepoPath` | string | parent of `Tools/` | Repository root containing `Content/AnalyticalRules/` |
+| `-SkipContentHub` | switch | off | Skip the ContentHub bucket |
+| `-SkipCustom` | switch | off | Skip the Custom bucket |
+| `-SkipOrphans` | switch | off | Skip the Orphan bucket |
+| `-ReportOnly` | switch | off | Skip YAML mutations; still writes the report |
+| `-FailOnDrift` | switch | off | Exit 1 when any drift or orphan is detected |
+| `-IsGov` | switch | off | Target Azure Government (`AzureUSGovernment` in `Connect-AzureEnvironment`) |
+| `-WhatIf` | switch | off | Skip report/artefact writes entirely; summary is still emitted |
+
+The script auto-installs `powershell-yaml` if missing (the CI runs pin it to
+`0.4.12`).
 
 ## How drift gets absorbed
 
@@ -297,16 +433,19 @@ from the curated category folders. Reviewers can:
    on the next run and the rule is re-exported as an orphan; that is the
    signal to delete the rule from the portal as well.
 
-The slug used in the filename comes from the rule's `displayName` (non-word
-characters collapsed to single hyphens, capped at 80 characters). The
-solution slug uses the same rules with a 60-character cap. When no solution
-attribution is available the rule lands under `ContentHub/Unattributed/`.
+The slug used in the filename comes from the rule's `displayName` via
+`ConvertTo-FileSlug`: every run of non-alphanumeric characters (the regex
+`[^A-Za-z0-9]+`, which also collapses underscores) is replaced with a single
+hyphen, the result is trimmed of leading/trailing hyphens, and it is capped at
+80 characters. The solution slug uses the same function with a 60-character cap.
+An empty slug falls back to `rule`, and when no solution attribution is
+available the rule lands under `ContentHub/Unattributed/`.
 
 ## Limitations
 
 - **YAML formatting requirements.** The query block must use `query: |`
-  block-scalar style with 2-space body indent (the repo style enforced by
-  `Tools/normalise_sentinel_rules.py`). Non-standard layouts may cause
+  block-scalar style with 2-space body indent (the repo style produced by
+  `.development/normalise_sentinel_rules.py`). Non-standard layouts may cause
   the query rewrite to be skipped — the report flags this.
 - **Single-select solution filter at the pipeline level was deliberately
   removed.** ADO parameter `values:` lists are evaluated at compile time and
@@ -325,7 +464,8 @@ attribution is available the rule lands under `ContentHub/Unattributed/`.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `TF401027: You need the Git 'GenericContribute' permission` | Build identity not granted Contribute on the repo | [Grant the permission](#granting-git-permissions-to-the-build-identity) |
+| `TF401027: You need the Git 'GenericContribute' permission` (ADO) | Build identity not granted Contribute on the repo | [Grant the permission](#granting-git-permissions-to-the-build-identity) |
+| `remote: Permission ... denied` on push or `gh pr create` fails 403 (GitHub) | Workflow token lacks scope, or the repo/org blocks Actions from creating PRs | Confirm the `permissions:` block grants `contents: write` and `pull-requests: write`, and that **Settings -> Actions -> General -> Allow GitHub Actions to create and approve pull requests** is enabled |
 | PR description shows only the first drifted rule | Pre-fix: full report was being passed as `--description` and ADO truncated at ~4000 chars | Already fixed — description is now built deliberately from summary + rule list |
 | `Added in both` merge conflict on second PR | Pre-fix: report filename was `sentinel-drift-latest.md` and the auto-branch was based on stale local HEAD | Already fixed — filenames are timestamped and the branch is reset from `origin/main` |
 | 20+ Custom drifts all on `enabled` only | Pre-fix: `enabled` was compared, but `Deploy-CustomContent.ps1` legitimately deploys disabled when deps missing | Already fixed — `enabled` excluded from comparison |
@@ -354,7 +494,7 @@ Pester 5 tests covering the four substantive pure functions
 (`Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`,
 `Resolve-RuleSource`) live at
 [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1).
-See [Pester Tests](../Development/Pester-Tests.md) for prerequisites, the AST-extraction
+See [Pester Tests](../Tests/Pester-Tests.md) for prerequisites, the AST-extraction
 pattern this repo uses, and how to add new test files.
 
 ```powershell
@@ -377,14 +517,14 @@ Manual integration smoke test against a live workspace (read-only):
 ## Related scripts
 
 - [`Deploy/content/Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1) —
-  deploys OoB content. Function `Test-RuleIsCustomised` (line 826) is the
+  deploys OoB content. Its `Test-RuleIsCustomised` function is the
   comparison-logic ancestor of `Compare-SentinelRule`. The deploy script
   uses it at deploy-time to skip overwriting customised rules; the drift
   script uses an extended version of it at detection-time to surface them.
 - [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) —
-  deploys Custom YAML rules. Function `Deploy-CustomDetections` (line 1077)
-  is the source of the `triggerOperator` mapping table the drift script
-  reuses.
+  deploys Custom YAML rules. Its `Deploy-CustomDetections` function holds the
+  `operatorMap` (`gt` -> `GreaterThan`, etc.) that the drift script's
+  `triggerOperator` normalisation mirrors.
 
 ## Authoring with GitHub Copilot
 
@@ -400,7 +540,7 @@ Copilot tooling for the drift sub-system:
 - Agent `Sentinel-As-Code: Pipeline Engineer` — for changes to
   the workflow / pipeline YAML.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## TODO
 

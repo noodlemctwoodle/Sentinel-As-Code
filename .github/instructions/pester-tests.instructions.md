@@ -8,7 +8,7 @@ applyTo: "Tests/**/*.ps1"
 
 Pester 5 tests live under `Tests/`. The full conventions, AST-extraction
 pattern, and test inventory are in
-[`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md).
+[`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md).
 Read that doc before adding tests to an existing area or creating a
 new test file.
 
@@ -159,6 +159,6 @@ Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1 -FullName 'Get-Prio
 
 ## Cross-references
 
-- Full conventions: [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)
+- Full conventions: [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md)
 - AST helper: [`Tests/_helpers/Import-ScriptFunctions.psm1`](../../Tests/_helpers/Import-ScriptFunctions.psm1)
 - PR-validation entrypoint: [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1)

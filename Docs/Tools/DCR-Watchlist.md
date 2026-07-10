@@ -2,15 +2,21 @@
 
 Automatically inventories all Data Collection Rule (DCR) associations in a subscription and syncs them to a Microsoft Sentinel watchlist. Designed for billing, audit, and operational visibility.
 
-The Bicep stack lives under [`Infra/dcr-watchlist/`](../../Infra/dcr-watchlist/); the runbook is [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) and the permissions helper [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1).
+The Bicep stack lives under [`Infra/dcr-watchlist/`](../../Infra/dcr-watchlist); the runbook is [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) and the permissions helper [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1).
+
+Deployment is driven by CI from either side of the mirror: the GitHub Actions workflow [`.github/workflows/sentinel-dcr-inventory.yml`](../../.github/workflows/sentinel-dcr-inventory.yml) (the primary path for this repo) or the Azure DevOps pipeline [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml). Both provision the same Automation Account and register the same runbook.
 
 ## What It Does
 
-1. **Lists all DCRs** in the subscription via the ARM REST API
-2. **Enumerates associations** for each DCR (the servers/resources sending data through it)
-3. **Groups by DCR** — one watchlist row per DCR with the associated resource names as a delimited list
-4. **Upserts to a Sentinel watchlist** — creates new entries, merges into existing ones, never deletes mid-billing-period
-5. **Tracks billing history** — maintains `AllResourceNames` (cumulative), `RemovedResourceNames`, `PeakResourceCount`, and `FirstSeenUtc` so removed servers are still billable for the period they were active
+1. **Lists all DCRs** in the subscription via the ARM REST API (`Get-DCRList`, with `nextLink` pagination)
+2. **Enumerates associations** for each DCR (`Get-DCRAssociations`) - the servers/resources sending data through it. The built-in `configurationAccessEndpoint` association is skipped, and each associated resource name, type, and resource group is derived from the association resource ID via regular-expression matching
+3. **Groups by DCR** - one watchlist row per DCR (keyed by DCR name) with the associated resource names as a delimited list
+4. **Upserts to a Sentinel watchlist** - creates the watchlist with data if it is missing (404), otherwise merges into existing items, and never deletes mid-billing-period
+5. **Tracks billing history** - maintains `AllResourceNames` (cumulative union, case-insensitive), `RemovedResourceNames`, `PeakResourceCount`, and `FirstSeenUtc` so removed servers are still billable for the period they were active
+
+**Billing-safe guards.** The runbook exits early (exit code 0) without touching the watchlist in two cases: when the subscription contains zero DCRs, and when no associations are found across any DCR. This prevents an empty enumeration (for example a transient ARM error) from wiping active billing history via an accidental empty replace.
+
+> **Note on the script header.** The runbook's own `.SYNOPSIS`/`.DESCRIPTION` still describe a legacy "delete and recreate / full replace" model. That header is stale - the implemented body performs the billing-safe merge/upsert described above. Trust this document over the script comment block.
 
 ## Architecture
 
@@ -48,6 +54,10 @@ Each row represents a single DCR:
 | `FirstSeenUtc` | When this DCR first appeared in the watchlist |
 | `LastUpdatedUtc` | Last sync timestamp |
 | `Status` | `Active` or `Inactive` (DCR no longer has associations) |
+
+**Search key.** The watchlist search key is `DCRName`. There is one row per DCR, so `DCRName` is the only column that carries a stable per-row identifier. The runbook exposes this as the `-SearchKey` parameter, which defaults to `DCRName`, and both CI paths register the scheduled runbook with `SearchKey=DCRName` to match the row shape. (Do not set it to `ResourceId`: the grouped row objects have no `ResourceId` property, so under `Set-StrictMode -Version Latest` the sync would fault.)
+
+**Alias vs display name.** The watchlist is addressed by its alias `CustomerResources` (no spaces, used in the ARM path and in `_GetWatchlist(...)` queries) and shown in the Sentinel portal under its display name `Customer DCR Resources`. Both are configurable (`watchlistAlias` / `watchlistDisplayName`).
 
 For general watchlist authoring conventions, see [Watchlists](../Content/Watchlists.md).
 
@@ -91,24 +101,40 @@ _GetWatchlist('CustomerResources')
 |---|---|
 | **Azure subscription** | Target subscription containing DCRs |
 | **Sentinel workspace** | Log Analytics workspace with Sentinel enabled |
-| **Azure DevOps** | Service connection with **Contributor** on the subscription |
-| **Variable group** | `sentinel-deployment` with `sentinelResourceGroup` and `sentinelWorkspaceName` (shared with the main deploy pipeline — see [Pipelines](../Deploy/Pipelines.md)) |
+| **GitHub (OIDC)** | An Entra app federated for OIDC with **Contributor** on the subscription. Secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Variables: `SENTINEL_RESOURCE_GROUP`, `SENTINEL_WORKSPACE_NAME` |
+| **Azure DevOps** | Service connection `sc-sentinel-as-code` with **Contributor** on the subscription |
+| **Variable group (ADO)** | `sentinel-deployment` with `azureSubscriptionId`, `sentinelResourceGroup`, and `sentinelWorkspaceName` (shared with the main deploy pipeline, see [Pipelines](../Pipelines/README.md)) |
 | **Manual RBAC** | One-time post-deployment (see below) |
 
 ## Deployment
 
-### 1. Run the Pipeline
+### 1. Run the Deployment (CI)
 
-The pipeline is at [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) and triggers on changes to `Infra/dcr-watchlist/**`, `Tools/Invoke-DCRWatchlistSync.ps1`, or `Deploy/permissions/Set-RunbookPermissions.ps1`.
+Two equivalent CI definitions provision the same infrastructure and register the same runbook. Use whichever matches your platform.
 
-It has two stages:
+#### GitHub Actions (primary)
+
+The workflow is at [`.github/workflows/sentinel-dcr-inventory.yml`](../../.github/workflows/sentinel-dcr-inventory.yml). It triggers on:
+
+- **push to `main`** touching `Infra/dcr-watchlist/**`, `Tools/Invoke-DCRWatchlistSync.ps1`, `Deploy/permissions/Set-RunbookPermissions.ps1`, or the workflow file itself (push runs resolve every input to its default); and
+- **`workflow_dispatch`** (manual), which exposes the input parameters below.
+
+It authenticates with the composite `azure-login-oidc` action using the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` secrets, and reads `SENTINEL_RESOURCE_GROUP` and `SENTINEL_WORKSPACE_NAME` from repository variables.
+
+#### Azure DevOps (mirror)
+
+The pipeline is at [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) and triggers on changes to `Infra/dcr-watchlist/**`, `Tools/Invoke-DCRWatchlistSync.ps1`, or `Deploy/permissions/Set-RunbookPermissions.ps1`. It authenticates with the `sc-sentinel-as-code` service connection and reads `azureSubscriptionId`, `sentinelResourceGroup`, and `sentinelWorkspaceName` from the `sentinel-deployment` variable group.
+
+#### Stages (both CI systems)
 
 | Stage | What it does |
 |---|---|
-| **Deploy Infrastructure** | Deploys the Automation Account, schedule, and empty runbook via Bicep |
-| **Update Runbook** | Imports and publishes `Invoke-DCRWatchlistSync.ps1`, links the job schedule |
+| **Deploy Infrastructure** | Deploys the Automation Account, schedule, and empty runbook via Bicep (`az deployment sub create` against `main.bicep`) |
+| **Update Runbook** | Imports and publishes `Invoke-DCRWatchlistSync.ps1`, then registers the job schedule with runbook parameters if it is not already linked |
 
-Pipeline parameters:
+The Update Runbook stage runs after Deploy Infrastructure (even if that stage was skipped), so the runbook body can be updated independently. When linking the schedule it passes the runbook parameters, including `SearchKey=DCRName` (see [Search key](#watchlist-schema) above).
+
+#### Parameters (identical across both definitions)
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -116,18 +142,25 @@ Pipeline parameters:
 | `updateRunbook` | `false` | Update runbook only (skip Bicep) |
 | `automationResourceGroup` | `rg-dcr-watchlist-sync` | Resource group for the Automation Account |
 | `automationAccountName` | `aa-dcr-watchlist-sync` | Automation Account name |
-| `watchlistAlias` | `CustomerResources` | Sentinel watchlist alias |
+| `watchlistAlias` | `CustomerResources` | Sentinel watchlist alias (no spaces) |
+| `watchlistDisplayName` | `Customer DCR Resources` | Human-readable name shown in the Sentinel portal |
 | `scheduleFrequencyHours` | `24` | Run every 24h (daily) or 168h (weekly) |
 | `location` | `uksouth` | Azure region |
 | `whatIf` | `false` | Preview changes without applying |
 
 ### 2. Apply RBAC (One-Time, Manual)
 
-The pipeline service principal does not have `roleAssignments/write`. After the first deployment, run [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1):
+The CI service principal does not have `roleAssignments/write`. After the first deployment, run [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) as a user with **Owner** or **User Access Administrator** on the subscription. All four parameters are mandatory:
 
 ```powershell
-./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>'
+./Deploy/permissions/Set-RunbookPermissions.ps1 `
+    -SubscriptionId '<your-subscription-id>' `
+    -AutomationAccountName 'aa-dcr-watchlist-sync' `
+    -AutomationResourceGroup 'rg-dcr-watchlist-sync' `
+    -SentinelResourceGroup '<sentinel-resource-group>'
 ```
+
+The script resolves the Automation Account's managed-identity principal ID, prints a permission summary and disclaimer, then prompts interactively (`Y/N`) before making any change. It supports `-WhatIf` (via `SupportsShouldProcess`) to preview the assignments without applying them.
 
 This assigns:
 
@@ -136,10 +169,15 @@ This assigns:
 | **Monitoring Reader** | Subscription | List DCRs and associations via ARM |
 | **Microsoft Sentinel Contributor** | Sentinel resource group | Create/update the watchlist |
 
-To remove the permissions:
+To remove the permissions, pass the same four parameters plus `-Remove`:
 
 ```powershell
-./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '<your-subscription-id>' -Remove
+./Deploy/permissions/Set-RunbookPermissions.ps1 `
+    -SubscriptionId '<your-subscription-id>' `
+    -AutomationAccountName 'aa-dcr-watchlist-sync' `
+    -AutomationResourceGroup 'rg-dcr-watchlist-sync' `
+    -SentinelResourceGroup '<sentinel-resource-group>' `
+    -Remove
 ```
 
 ### 3. Verify
@@ -161,8 +199,8 @@ Infra/dcr-watchlist/
 Tools/Invoke-DCRWatchlistSync.ps1      # Runbook — DCR enumeration and watchlist sync
 Deploy/permissions/Set-RunbookPermissions.ps1      # Post-deployment RBAC assignment script
 
-Pipelines/
-└── Sentinel-DCR-Inventory.yml           # Azure DevOps pipeline
+.github/workflows/sentinel-dcr-inventory.yml       # GitHub Actions workflow (primary CI path)
+Pipelines/Sentinel-DCR-Inventory.yml               # Azure DevOps pipeline (mirror)
 ```
 
 ## API Versions

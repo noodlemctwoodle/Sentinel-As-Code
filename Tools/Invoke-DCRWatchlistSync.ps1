@@ -2,14 +2,17 @@
 
 <#
 .SYNOPSIS
-    Enumerates DCR associations via the ARM REST API and performs a full replace
-    of the Sentinel CustomerResources watchlist.
+    Enumerates DCR associations via the ARM REST API and syncs them into a
+    Sentinel watchlist as an incremental upsert (one row per DCR).
 
 .DESCRIPTION
     Authenticates via system-assigned managed identity, lists all Data Collection
     Rules in the subscription using Invoke-AzRestMethod, retrieves associations
-    for each DCR, builds an in-memory CSV, then calls the Sentinel Watchlist REST
-    API to delete and recreate the watchlist in a single operation.
+    for each DCR, builds one aggregated row per DCR, then reconciles those rows
+    against the existing Sentinel watchlist items via the Watchlist REST API:
+    new DCRs are added, changed rows are updated, and rows for DCRs that no
+    longer have associations are deactivated. This is an incremental merge, not
+    a destructive delete-and-recreate.
 
     No Az.ResourceGraph dependency — uses the same ARM API pattern as
     Invoke-DCRAudit.ps1 (DCR api-version 2024-03-11, watchlist api-version 2025-09-01).
@@ -30,7 +33,8 @@
     Human-readable display name shown in Sentinel.
 
 .PARAMETER SearchKey
-    Column used as the watchlist search key. Defaults to ResourceId.
+    Column used as the watchlist search key. Defaults to DCRName (the watchlist
+    holds one aggregated row per DCR, so DCRName is the unique key).
 
 .NOTES
     Author:         noodlemctwoodle

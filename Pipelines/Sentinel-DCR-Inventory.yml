@@ -237,7 +237,7 @@ stages:
                         WorkspaceName          = "$(sentinelWorkspaceName)"
                         WatchlistAlias         = "${{ parameters.watchlistAlias }}"
                         WatchlistDisplayName   = "${{ parameters.watchlistDisplayName }}"
-                        SearchKey              = "ResourceId"
+                        SearchKey              = "DCRName"
                     }
 
                     Register-AzAutomationScheduledRunbook `

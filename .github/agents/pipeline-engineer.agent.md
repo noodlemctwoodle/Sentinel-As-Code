@@ -63,7 +63,7 @@ Composite actions:
 - [`.github/instructions/workflows.instructions.md`](../instructions/workflows.instructions.md)
   — the path-scoped instruction file. Carries the conventions
   every workflow change must respect.
-- [`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md)
+- [`Docs/Pipelines/README.md`](../../Docs/Pipelines/README.md)
   — full reference for the deploy pipeline.
 - [`Docs/Deploy/PR-Validation-Setup.md`](../../Docs/Deploy/PR-Validation-Setup.md)
   — OIDC federated-credential setup, composite-action usage notes,

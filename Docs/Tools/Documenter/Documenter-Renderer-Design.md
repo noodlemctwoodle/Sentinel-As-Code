@@ -8,34 +8,52 @@ by, where every helper lives, the Mermaid-safety conventions that govern
 chart emission, and how to extend any of it without regressing.
 
 If you've never touched the renderer before, read this once before
-opening the PowerShell file. The renderer is ~2700 lines; this doc is
-the map.
+opening the PowerShell file. The renderer is ~4,240 lines; this doc is
+the map. It has grown substantially over successive waves, so this spec
+cites **function and variable names** rather than hard line numbers,
+which rot on every edit.
 
 ## Architecture overview
 
-The Documenter is a two-stage pipeline:
+The Documenter is a two-stage renderer, with an optional third
+ADO-only image pre-render pass:
 
 ```
-Live workspace → Export-SentinelInventory.ps1 → _raw/*.json
-_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 37 .md files
+Live workspace → Export-SentinelInventory.ps1     → _raw/*.json
+_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 38 .md files
+*.md (ADO only)→ Convert-MermaidToImage.ps1        → assets/*.png + rewritten fences
 ```
 
-This spec covers stage 2, the renderer. The renderer is a single
-PowerShell script organised as:
+Stage 2 (this spec's subject) emits **38 output files**: 37 numbered
+section files (`00-overview.md` through `99-references.md`) plus
+`index.md`. Of the 37 numbered files, 36 are written by `Write-Section`
+blocks; `99-references.md` is copied verbatim from the resource
+catalogue (`Copy-Item`) rather than generated. Stage 3
+(`Convert-MermaidToImage.ps1`) is described in
+[Mermaid PNG pre-render (ADO only)](#mermaid-png-pre-render-ado-only)
+below.
 
-1. **Param block + module bootstrap** (lines 1, 93): `-WorkspaceName`,
-   `-InputRoot`, `-OutputRoot`, `-ResourcesRoot` parameters; dot-sources
+The renderer is a single PowerShell script organised as:
+
+1. **Param block + module bootstrap**: the `param()` block declares
+   `-WorkspaceName` (mandatory), `-InputRoot`, `-OutputRoot`,
+   `-ResourcesRoot` (defaults to `Private/Resources`); it then dot-sources
    `Private/Get-EffectiveConnectors.ps1`.
-2. **Helpers** (lines 95, 243): the toolbox. Documented in detail below.
-3. **Inventory loading + cross-section hoisting** (lines 174, 296): every
-   `_raw/*.json` is read once into a typed PSObject; the few globals that
-   multiple sections share (`$gapBySeverity`, `$gapByCategory`,
-   `$mitreRowsRich`, `$populatedTableNames`) are computed here.
-4. **Section emit blocks** (lines 286, 2713): one block per `.md` file. Each
-   block builds its data, optionally builds a Mermaid chart, then calls
+2. **Helpers**: the toolbox. Documented in detail below. Note these are
+   **not** collected in one block, they are interleaved with the section
+   code (from `Read-Raw` near the top down to `Format-MinutesScalar` well
+   past the two-thirds mark).
+3. **Inventory loading + cross-section hoisting**: every `_raw/*.json` is
+   read once into a typed PSObject via `Read-Raw` / `Read-RawArray`; the
+   few globals that multiple sections share (`$gapBySeverity`,
+   `$gapByCategory`, `$populatedTableNames`) are computed here, and
+   `$mitreRowsRich` is built later inside the section-25 block.
+4. **Section emit blocks**: one block per `.md` file. Each block builds
+   its data, optionally builds a Mermaid chart, then calls
    `Write-Section <filename> <body>` which writes to disk + applies the
    `SENT-NNN` auto-link pass.
-5. **Index page** (lines 2715+): the navigation TOC.
+5. **Index page**: the final `Write-Section 'index.md'` call emits the
+   navigation TOC.
 
 Every section emit block follows the same shape:
 
@@ -57,10 +75,13 @@ hoisted globals).
 
 ## Chart system
 
-**25+ Mermaid chart blocks across 25 of 37 sections.** Every chart is
-driven by data from the captured `_raw/*.json` (no static decoration).
-Every chart guards against empty data, sections with nothing to chart
-emit the table only.
+**39 Mermaid chart blocks across 32 of the 37 numbered sections.** Every
+chart is driven by data from the captured `_raw/*.json` (no static
+decoration) except for a handful of deliberately static, instructional
+diagrams (the SOC-analyst `journey`, the alert-to-response
+`sequenceDiagram`, the Lake-architecture `flowchart`). Every data-driven
+chart guards against empty data, sections with nothing to chart emit the
+table only.
 
 ### Charts by section
 
@@ -101,46 +122,59 @@ emit the table only.
 | `85-rbac.md` | flowchart (LR, 2 subgraphs) | `$rbacWs` aggregated by type × role | `$rbacWs.Count -gt 0` |
 | `86-subscription-context.md` | pie | resource-providers grouped by State | `$rpRows.Count -gt 0` |
 | `87-azure-monitor-agents.md` | xychart-beta bar (conditional) | AMA vs MMA per machine type | `$totalAgents -ge 3` (else sentence) |
+| `88-sentinel-data-lake.md` | pie | `$tierPieRows` (tables by tier configuration) | `$tierPieRows.Count -ge 2` |
+| `88-sentinel-data-lake.md` | xychart-beta bar (width 1400, height 480) | `$topRetention` Lake-only retention days | inside the same `$tierPieRows.Count -ge 2` branch |
+| `88-sentinel-data-lake.md` | flowchart (LR, three tiers) | static Lake ingest / mirror / promote / query paths | `$hasDataLake` |
 | `90-gap-analysis.md` | xychart-beta grouped bar | `$gapByCategory` × Warning/Info | `$gapFindings.Count -gt 0` |
 
 ### Sections intentionally chart-less
 
-7 sections do not emit charts because the data shape doesn't support
-one or the page is pure-reference:
+5 of the 37 numbered sections do not emit a chart because the data shape
+doesn't support one or the page is pure-reference:
 
 - `36-data-export.md`, `37-search-restore.md`, `82-dedicated-cluster.md`, 
   typically empty on most workspaces.
-- `96-references-microsoft.md`, `99-references.md`, Microsoft-link
-  reference pages.
-- `index.md`, navigation TOC.
+- `96-references-microsoft.md` (curated Microsoft Learn links) and
+  `99-references.md` (the Documenter's own API-version / module list,
+  copied verbatim from the resource catalogue).
+
+Two further pages carry no chart but are not counted in the 32 above:
+
+- `index.md`, the navigation TOC (not a numbered section).
 - `87-azure-monitor-agents.md` when agent count < 3, renders a sentence
-  instead because a 1-vs-0 pie is visually meaningless.
+  instead because a 1-vs-0 pie is visually meaningless (it is otherwise
+  a chart-bearing section, hence its place in the 32).
 
 The rule: **chart only when data shape justifies it; never as decoration.**
 
 ## Helper toolbox
 
-| Helper | Lines (~) | Purpose | Called from |
-|---|---|---|---|
-| `Read-Raw` | 95, 101 | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
-| `Read-RawArray` | 103, 114 | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
-| `Write-Section` | 116, 148 | Writes a body to `<OutputRoot>/<FileName>` AND runs the two-pass SENT-NNN auto-link regex on the body before writing. | Every section block |
-| `Format-DateUtc` | 150, 166 | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
-| `Format-Gb` | 168, 182 | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
-| `Format-Banner` | 184, 193 | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
-| `Format-Table` | 195, 221 | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
-| `Format-Severity-Badge` | 223, 230 | Severity string → coloured emoji (`🔴 Critical`, `🟠 Warning`, `🔵 Info`). | Top-recommendations bullets in 00 / 01, gap-analysis findings table |
-| `Format-FeatureFlag` | 236, 243 | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
-| `Format-MinutesScalar` | ~2487 | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
-| `Format-MitreTechniqueCell` | ~672 | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
-| `_SocOptRow` | ~2267 | Internal, builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
-| `_CostSourceFor` | ~1746 | Inline (within 84 emit block). Table name regex → cost source category for Sankey aggregation. | Cost Sankey (84) |
-| `_DaysUntilFromToday` | ~2094 | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
-| `Get-ConnectorFriendlyTitle` | ~368 | Connector `kind` → user-readable name (e.g. "MicrosoftThreatProtection" → "Microsoft Defender XDR"). Knows the CCF lookup via `$ccfTitleByName`. | 10-data-connectors classic + CCF tables |
-| `Get-ConnectorAggregateState` | ~398 | Per-data-type state → single aggregate (enabled / partial / disabled). | 10-data-connectors State column |
-| `Get-ConnectorDataTypes` | ~425 | Connector → data-type list (classic) or single dataType string (RestApiPoller/Push). | 10-data-connectors DataTypes column |
-| `Get-ConnectorTargetTable` | ~439 | Connector + data type → target workspace table. | Connector-health join + Get-EffectiveConnectors |
-| `Get-ConnectorData7d` | ~481 | Connector + tables-with-data → "Yes/No" for 7-day activity. | 10-data-connectors Data7d column |
+Line numbers are deliberately omitted (they rot on every edit); grep the
+function name to locate each definition. The helpers appear in the file
+in roughly the order below, interleaved with the section code rather than
+grouped in one block.
+
+| Helper | Purpose | Called from |
+|---|---|---|
+| `Read-Raw` | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
+| `Read-RawArray` | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
+| `Write-Section` | Writes a body to `<OutputRoot>/<FileName>` AND runs the fence-aware, two-pass SENT-NNN auto-link regex on the body before writing. | Every section block |
+| `Format-DateUtc` | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
+| `Format-Gb` | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
+| `Format-Banner` | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
+| `Format-Table` | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
+| `Format-Severity-Badge` | Severity string → coloured emoji (`🔴 Critical`, `🟠 Warning`, `🔵 Info`). | Top-recommendations bullets in 00 / 01, gap-analysis findings table |
+| `Format-FeatureFlag` | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
+| `Format-MinutesScalar` | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
+| `Format-MitreTechniqueCell` | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
+| `_SocOptRow` | Internal, builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
+| `_CostSourceFor` | Inline (within the 84 emit block). Table name regex → cost source category for Sankey aggregation. | Cost Sankey (84) |
+| `_DaysUntilFromToday` | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
+| `Get-ConnectorFriendlyTitle` | Connector `kind` → user-readable name (e.g. "MicrosoftThreatProtection" → "Microsoft Defender XDR"). Knows the CCF lookup via `$ccfTitleByName`. | 10-data-connectors classic + CCF tables |
+| `Get-ConnectorAggregateState` | Per-data-type state → single aggregate (enabled / partial / disabled). | 10-data-connectors State column |
+| `Get-ConnectorDataTypes` | Connector → data-type list (classic) or single dataType string (RestApiPoller/Push). | 10-data-connectors DataTypes column |
+| `Get-ConnectorTargetTable` | Connector + data type → target workspace table. | Connector-health join + Get-EffectiveConnectors |
+| `Get-ConnectorData7d` | Connector + tables-with-data → "Yes/No" for 7-day activity. | 10-data-connectors Data7d column |
 
 External helpers used by the renderer:
 
@@ -153,9 +187,11 @@ External helpers used by the renderer:
 
 ## Cross-section hoisted globals
 
-These are computed once near the top of the renderer (around line 285)
-and consumed by multiple section blocks. Hoisting prevents drift between
-sections that all need the same numbers.
+These are computed once just after inventory loading (before the section
+emit blocks begin) and consumed by multiple section blocks. Hoisting
+prevents drift between sections that all need the same numbers.
+`$mitreRowsRich` is the exception, it is built inside the section-25
+block and read back by the section-01 headline.
 
 - **`$gapBySeverity`**, `@{ Critical = N; Warning = N; Info = N }`. Consumed by
   00-overview pie + 01-live-snapshot pie + 01 KPI table + 01 top-five
@@ -192,8 +228,12 @@ must respect these:
   switch to a flowchart.
 - **Long category labels** truncate at ~10 chars on the X axis. Always
   pair the chart with a table that carries full names.
-- **Width: 1400** on charts with 12+ categorical labels (MITRE bar uses
-  this).
+- **Per-chart width/height config.** Wide charts set an explicit
+  `xyChart` config block (`---config: xyChart: width/height---`).
+  `width: 1400` is used on charts with 12+ categorical labels (the MITRE
+  bar, the XDR coverage bar) and on the cost-estimate bar; the
+  data-lake Lake-only-retention bar sets both `width: 1400` and
+  `height: 480`.
 
 ### flowchart
 - **Wrap labels in double quotes** when they contain parens, brackets,
@@ -211,9 +251,13 @@ must respect these:
 ### Sankey
 - Sources are aggregated into named buckets via `_CostSourceFor` so the
   diagram has ~8 lanes on the left, not 10 individual tables.
-- Config: `nodeAlignment: justify`, `nodePadding: 28`, `height: 720`,
+- Config: `showValues: true`, `nodeAlignment: justify`, `nodePadding: 28`,
   `width: 1200`, `useMaxWidth: true`, `linkColor: gradient`. Earlier
   defaults clipped long-tail flows badly.
+- **Height is dynamic, not fixed.** `$sankeyHeight =
+  [Math]::Max(720, 24 * $tallestColumn + 200)`, so 720 is the floor and
+  the diagram grows with the tallest column's node count. A fixed height
+  crammed labels together once a column exceeded ~20 nodes.
 - Three-column layout: `Source,Table,Value` rows then `Table,Tier,Value`
   rows.
 
@@ -241,14 +285,19 @@ must respect these:
 
 ## Auto-link rewriting
 
-`Write-Section` runs every section's body through a two-pass regex
-before writing to disk (lines 132, 145):
+`Write-Section` runs every section's body through two regex passes
+before writing to disk. It walks the body line-by-line tracking
+fenced-code state (any line matching `^\s*```` toggles the fence flag),
+and rewrites **only outside fences**, so `SENT-NNN` mentions inside
+`mermaid` / `kusto` blocks (for example the `click` tooltips in 85-rbac)
+render literally rather than being turned into broken links:
 
 1. **Pass 1**: `\[(SENT-\d{3,})\](?!\()`, bracketed-but-unlinked IDs.
    Catches the existing `[SENT-NNN]` bullet shape in 00-overview's
    "Top recommendations" lists and turns them into Markdown links.
 2. **Pass 2**: `(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])`, bare IDs not
-   already inside a Markdown link. Catches mentions in prose.
+   already inside a Markdown link. Catches mentions in prose. The leading
+   `-` exclusion reserves room for future composite IDs (`SENT-AUTH-001`).
 
 Both rewrite to `[SENT-NNN](90-gap-analysis.md#sent-nnn)`. Within
 90-gap-analysis.md itself the relative path collapses to just the
@@ -260,12 +309,58 @@ each `### SENT-NNN, Title` H3 heading. HTML anchors render to nothing
 on every Markdown host but provide stable link targets that don't shift
 when titles change.
 
+## Mermaid PNG pre-render (ADO only)
+
+The renderer always ships raw ` ```mermaid ` fences. GitHub renders those
+natively in its web UI, so the GitHub `sentinel-document.yml` workflow
+does nothing further. Azure DevOps does not: ADO Repos' markdown preview
+and "publish code as wiki" treat ` ```mermaid ` as plain code, ADO Wiki
+proper lags the Mermaid spec and drops the experimental types the
+renderer emits (`xychart-beta`, `sankey-beta`), and ADO blocks inline SVG
+for security so an SVG `<img>` shows as a broken image.
+
+[`Tools/Documenter/Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1)
+is the ADO-only third stage that closes that gap. In the ADO pipeline
+([`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml))
+it runs immediately after the renderer, gated behind the pipeline's
+`prerenderChartsToPng` parameter (default on, so it can be switched off
+per-run). When enabled the pipeline installs Node 20 and
+`@mermaid-js/mermaid-cli@11` (`mmdc`) before invoking it. There is **no
+GitHub equivalent** (the ADO Documenter is manual-trigger-only; the
+GitHub Documenter runs on a daily schedule plus `workflow_dispatch`).
+
+What the pass does, per workspace folder under `-Root` (the pipeline
+passes `SecurityDocs`):
+
+1. Creates an `assets/` sidecar directory (`-AssetsDir`, default
+   `assets`).
+2. Walks every `*.md` file and extracts each fenced ` ```mermaid ` block
+   with the regex `(?ms)```mermaid\s*\r?\n(.*?)\r?\n````.
+3. Hashes the block body (SHA-256, first 12 hex chars, lower-case) to
+   name the image. Identical diagrams across files therefore share one
+   image, and re-runs are **idempotent**, an already-rendered hash is
+   reused rather than re-rendered.
+4. Runs the block through `mmdc` (`-t` theme `default`, `-b` background
+   `white`, `-w` width `1400`, `-p` a puppeteer config that adds
+   `--no-sandbox` for root CI agents; `-s` scale `2` is added for PNG
+   only) to produce `assets/<hash>.<ext>`.
+5. Rewrites the fenced block in-place as `![Diagram](assets/<hash>.png)`.
+
+`-Format` defaults to `png` (the only format ADO renders reliably) but
+accepts `svg`. `mmdc` failures are **warnings, not errors**, the
+offending fence is left untouched and the summary counts it under
+`Failures`, so one bad chart never breaks the whole doc set. The script
+prints a per-run summary (charts seen / images emitted / failures /
+assets root).
+
 ## Critical files referenced
 
 | Path | Role |
 |---|---|
 | [`Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1) | The renderer this spec describes |
 | [`Tools/Documenter/Export-SentinelInventory.ps1`](../../../Tools/Documenter/Export-SentinelInventory.ps1) | Stage 1, produces `_raw/*.json` |
+| [`Tools/Documenter/Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
+| [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Tools/Documenter/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Documenter/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../../Tools/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json) | 45-rule catalogue driving the gap engine |
@@ -315,8 +410,13 @@ when titles change.
    asserting the section renders (at least its title) cleanly.
 
 ### Adding a new helper
-1. Place the function in the helpers block at the top of the renderer
-   (lines 95, 243), in alphabetical order by name.
+1. Place the function ahead of its first caller. Helpers are not gathered
+   in one block, nor kept in alphabetical order, they sit next to (or
+   just above) the section code that uses them. Generic formatters
+   (`Format-*`) live near the top with the inventory loaders; section-
+   specific helpers (`_CostSourceFor`, `_SocOptRow`) sit inline with
+   their section. Keep new generic helpers with the other `Format-*`
+   functions.
 2. Add a row to the "Helper toolbox" table in this spec when the next
    maintainer updates the doc.
 3. Helpers must be **single-purpose, side-effect-free, and accept any
@@ -389,9 +489,11 @@ Items deferred for future passes:
   rules; future v2.x batches can extend per-vendor connector checks,
   detection engineering depth, identity & access depth, and XDR
   migration readiness.
-- **CI integration**, a dedicated GitHub Action for the Documenter
-  running on PR + nightly would tighten the regenerate-on-every-trigger
-  story.
+- **CI integration** is already in place, the GitHub `sentinel-document.yml`
+  workflow runs the renderer on a daily schedule (plus `workflow_dispatch`),
+  and the ADO `Sentinel-Documenter.yml` pipeline runs it manually with the
+  optional PNG pre-render. A future refinement would trigger regeneration
+  on content-affecting PRs as well as the daily cadence.
 - **Renderer-output → vault sync**, a `-EmitTo <path>` parameter on
   the renderer (or a small `Sync-DocsTo.ps1` helper) would remove the
   manual-copy drift class.

@@ -23,7 +23,7 @@ queryCondition:
     | where ProcessCommandLine has_any (1, 2)
     | project Timestamp, DeviceId, AccountName, ProcessCommandLine
 schedule:
-  period: "0"        # "0" = NRT; otherwise ISO 8601 duration
+  period: "0"        # "0" = NRT; otherwise "1H", "3H", "12H", or "24H"
 detectionAction:
   alertTemplate:
     title: <alert title>
@@ -48,8 +48,9 @@ detectionAction:
    `CloudAppEvents`, `AlertInfo`, etc. **Not** Sentinel tables like
    `SecurityAlert` or `SigninLogs` — those don't exist in Defender's
    Advanced Hunting.
-2. **`schedule.period`**: use `"0"` for near-real-time. Otherwise an
-   ISO 8601 duration (`"PT1H"`, `"P1D"`).
+2. **`schedule.period`**: use `"0"` for near-real-time. Otherwise one of
+   `"1H"`, `"3H"`, `"12H"`, or `"24H"`. The deploy script rejects any other
+   value (including ISO 8601 durations like `"PT1H"` or `"P1D"`).
 3. **`severity` is lowercase** here (`high`, `medium`, `low`,
    `informational`) — different convention from analytical rules
    where it's PascalCase.
