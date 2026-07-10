@@ -311,6 +311,10 @@ stages:
 
               rm -f "$PR_BODY_FILE"
             displayName: "Commit, Push, and Open PR (when drift detected)"
-            condition: succeeded()
+            # Guarded so a -ReportOnly run never commits/pushes/opens a PR, even
+            # though the run still writes a report file into reports/ (which would
+            # otherwise make the working tree dirty and trigger the commit below).
+            # Mirrors the GitHub workflow's 'if: inputs.reportOnly != true' guard.
+            condition: and(succeeded(), ${{ ne(parameters.reportOnly, true) }})
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
