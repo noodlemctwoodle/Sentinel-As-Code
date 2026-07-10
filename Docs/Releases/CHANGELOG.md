@@ -4,6 +4,28 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.07.2
+
+- **Documentation overhaul.** Every doc audited against the code, pipelines, and
+  scripts and corrected for accuracy: the `Setup-ServicePrincipal` parameters,
+  the Smart Deployment default, stale API versions and PowerShell line-number
+  citations, and the pipeline docs.
+- **Toolkit documentation.** New `Docs/Toolkit/` pages for the companion Sentinel
+  as Code Toolkit VS Code extension: commands, templates, schemas and validation,
+  configuration, ARM-to-YAML conversion, and Defender workflows. The Toolkit
+  schemas and templates are now the authoring source of truth for the
+  content-type docs, which were reconciled against them.
+- **Per-pipeline documentation.** A dedicated page for every pipeline under
+  `Docs/Pipelines/`, with the GitHub and Azure DevOps mechanics side by side.
+- **Docs restructure.** `Docs/` now mirrors the repository layout, one docs folder
+  per code folder, with a consistent naming convention.
+- **Build and Test guide.** A new `Docs/Guides/` walkthrough for building and
+  validating the repository without a local PowerShell install.
+- **Fixes.** ARM-template-wrapped workbooks now deploy correctly (the inner
+  workbook is extracted rather than the ARM envelope); the DCR-watchlist runbook
+  is registered with the correct `DCRName` search key; and a `-ReportOnly` drift
+  run no longer opens a pull request on either CI system.
+
 ## 26.07.1
 
 - **Copilot activity monitoring content pack** — detection and hunting content

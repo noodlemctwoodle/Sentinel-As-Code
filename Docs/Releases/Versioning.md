@@ -67,6 +67,7 @@ immutable git history). The mapping:
 | Repository restructure | `26.06.1` | PR #27 |
 | Word report + Apache-2.0 relicence | `26.07` | PR #29 |
 | Copilot content pack, authoring toolkit, PR-template scaffolding | `26.07.1` | PRs #30, #31 |
+| Documentation overhaul, Toolkit and pipeline docs, Docs restructure, deploy fixes | `26.07.2` | PR #33 |
 
 None of these releases were git-tagged; each shipped as a `release/<CalVer>`
 branch merged to `main` and, where published, a GitHub Release. The
