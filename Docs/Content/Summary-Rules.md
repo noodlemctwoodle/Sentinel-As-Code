@@ -81,6 +81,8 @@ Each summary rule is defined as a single JSON file. The top-level keys map direc
 }
 ```
 
+Note that this example includes `binStartTime` for completeness, but neither of the two live samples shipped in `Content/SummaryRules/` (`SignInSummaryByCountry.json`, `SecurityAlertSummary.json`) sets it: both let the first bin start immediately, which is the usual choice unless you need bins to align to a specific hour boundary.
+
 ---
 
 ## Allowed binSize Values
@@ -157,6 +159,20 @@ The following columns are automatically appended to every row written to the des
 ## Prerequisites
 
 The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](../Deploy/Pipelines.md) for end-to-end pipeline RBAC.
+
+---
+
+## Dependency Checks and Smart Deployment
+
+Summary rules go through the same two shared gates that every other content type in `Deploy-CustomContent.ps1` passes through - there is nothing special about summary rules here, but it's easy to miss if you're only reading this page.
+
+**Dependency graph gate** - before a rule is built and PUT to the API, `Deploy-CustomSummaryRules` runs it through `Test-ContentDependencies`, the same dependency-graph pre-flight check used for detections, watchlists, and parsers. If the rule's entry in `dependencies.json` declares required source tables that don't exist in the target workspace, the rule is **silently skipped** (not deployed and not deployed-disabled, unlike a detection with missing dependencies). The skip is logged with the missing dependency names, but authors adding a summary rule that reads from a table another PR hasn't deployed yet should be aware the rule simply won't appear rather than appearing in a disabled state.
+
+**Smart deployment** - when the deployment is run with `-SmartDeployment`, `Test-ShouldDeployFile` skips any summary rule JSON file that is unchanged since the last successful deployment, and retries any file that previously failed. `-SmartDeployment` is an opt-in switch that defaults to off, so a full deploy (the default) processes every file in `Content/SummaryRules/` regardless of change state. Deployment outcomes (success/failed) are recorded per file via `Set-DeploymentItemState`, the same state tracking used by every other content type.
+
+**Skipping the stage entirely** - pass `-SkipSummaryRules` to `Deploy-CustomContent.ps1` to omit the Summary Rules stage from the run altogether (stage 8 of 8; see [Content Deployment Order](../Deploy/Pipelines.md) for the full stage list).
+
+**`-WhatIf`** - with `-WhatIf`, each rule that passes validation and the dependency gate is logged as `[WhatIf] Would deploy summary rule: <name> (bin: <n>min -> <table>)` and counted as deployed, but no API call is made and no deployment state is written.
 
 ---
 

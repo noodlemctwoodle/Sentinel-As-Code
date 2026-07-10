@@ -10,8 +10,13 @@ The manifest is **auto-generated from content discovery**, not
 hand-maintained. Three checks keep it correct:
 
 1. The build script ([`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1))
-   walks `Content/AnalyticalRules/` and `Content/HuntingQueries/`, parses the embedded
-   KQL, and emits the manifest.
+   walks `Content/AnalyticalRules/` and `Content/HuntingQueries/` (the
+   script's `$contentRoots` array), parses the embedded KQL, and emits
+   the manifest. `SummaryRules` and `DefenderCustomDetections` are
+   named in the script's SYNOPSIS as future candidates but are not yet
+   walked, so their KQL dependencies (including the untracked
+   `Content/DefenderCustomDetections/custom_detection.yaml`) do not
+   enter the manifest today.
 2. The PR-validation gate (`dependency-manifest` job) runs the build
    script in `Verify` mode and refuses to merge if the on-disk
    manifest doesn't match what discovery produces.
@@ -19,8 +24,13 @@ hand-maintained. Three checks keep it correct:
    step and refuses to deploy with a stale manifest.
 
 Plus a daily auto-PR workflow ([`sentinel-dependency-update.yml`](../../.github/workflows/sentinel-dependency-update.yml))
-catches the long-tail edge cases where merges bypassed the gate's path
-filter.
+catches the long-tail edge cases where a stale manifest lands on `main`
+despite the gate: admin-override merges, direct pushes to `main`,
+squash-merges that hide a rebase-time drift, and fork PRs merged
+through the UI without a fresh gate run. The PR-validation workflow
+itself has no path filter, every job (including `dependency-manifest`)
+runs on every pull request and every push to `main`, so this is a
+safety net for how PRs get merged, not a gap in what triggers the gate.
 
 ## Repo-driven classification model
 
@@ -80,17 +90,34 @@ and is correctly modelled as either a function or a table.
 
 ## Operating modes
 
-`Build-DependencyManifest.ps1 -Mode <Mode>`:
+`Build-DependencyManifest.ps1 -Mode <Mode> [-RepoPath <path>] [-ManifestPath <path>]`:
 
 - **Generate** — Walk content, build the manifest, write
   `dependencies.json`. Authors run this locally after editing rules
   and commit the regenerated file alongside the rule changes.
 - **Verify** — Walk content, build the manifest in-memory, compare
-  against the on-disk file. Exits 0 on match, 1 on drift. Used by the
-  PR-validation gate and the pre-deploy step.
+  against the on-disk file (read via `ConvertFrom-Json -AsHashtable`).
+  Exits 0 on match, 1 on drift. Used by the PR-validation gate and the
+  pre-deploy step in `sentinel-deploy.yml`, `sentinel-deploy-nightly.yml`
+  and `Pipelines/Sentinel-Deploy.yml`.
 - **Update** — Like Verify, but on detected drift writes the
   regenerated manifest to disk and exits 0. The calling pipeline owns
-  the commit + branch + PR step. Used by the daily auto-PR workflow.
+  the commit + branch + PR step. Used by the daily auto-PR workflow. If
+  `dependencies.json` doesn't exist yet, `Update` bootstraps it from an
+  empty manifest and still exits 0, so a first-run in a fresh clone (or
+  after the file is deleted) self-heals rather than failing.
+
+`-Mode` is mandatory (a `[ValidateSet('Generate', 'Verify', 'Update')]`
+parameter). `-RepoPath` defaults to the parent of the script's own
+folder (i.e. the repo root when run from a checkout) and is the root
+under which `Content/AnalyticalRules`, `Content/HuntingQueries`,
+`Content/Parsers`, `Content/Watchlists` and `Content/Playbooks` are
+resolved; the deploy and PR-validation workflows pass it explicitly
+(`-RepoPath "${{ github.workspace }}"` on GitHub, `-RepoPath
+"$(Build.SourcesDirectory)"` on ADO) so the script walks the checkout
+rather than relying on its own location. `-ManifestPath` defaults to
+`<RepoPath>/dependencies.json` and can be overridden to point at a
+manifest anywhere else.
 
 ## Author workflow
 
@@ -104,9 +131,11 @@ git commit
 ```
 
 If you forget, the PR-validation `dependency-manifest` job will fail
-and tell you exactly what to do. If you forget AND the gate's path
-filter misses the change (rare — happens for doc-only commits that
-adjust an inline query body), the daily auto-PR workflow will open a
+and tell you exactly what to do (the job runs on every PR and every
+push to `main`; there is no path filter to slip past). If a stale
+manifest reaches `main` anyway (admin-override merge, direct push, a
+squash-merge that hid the drift, or a fork PR merged through the UI
+without a fresh gate run), the daily auto-PR workflow will open a
 chore PR titled `chore(deps): refresh dependency manifest <date>`
 within 24 hours; review and squash-merge.
 
@@ -150,11 +179,19 @@ file walk order, which is deterministic across runs).
 
 ## Test coverage
 
-`Tests/Test-DependencyManifest.Tests.ps1` runs ~1000 per-entry
-assertions, one for every `dependencies` entry, validating:
+`Tests/Test-DependencyManifest.Tests.ps1` generates its `It` blocks
+via `-ForEach` over the manifest's 240 entries, so the suite scales
+with the manifest rather than being a fixed-size test file. Each
+entry produces roughly four assertions (one for path resolution, plus
+three under an `Entry shape` context), on top of one `Describe` per
+watchlist alias, one per function alias, and 5 fixed top-level-shape
+tests, which together run out at roughly 1,000 total assertions.
+Validated per entry:
 
 - Top-level shape (`version`, `description`, `dependencies` keys)
 - Path resolution: every key resolves to a real file on disk
+- Entry shape: the entry is a JSON object (not scalar/list), uses only
+  recognised dependency keys, and every dependency value is an array
 - Watchlist resolution: every `watchlists[]` alias maps to a real
   `Content/Watchlists/<alias>/watchlist.json`
 - Function resolution: every `functions[]` alias maps to a real

@@ -8,7 +8,7 @@ YAML files are converted to REST API JSON at deploy time by
 | Concern | Where |
 | --- | --- |
 | Rule files | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) |
-| Deploy logic | [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) (function `Deploy-CustomDetections`, ~line 1077) |
+| Deploy logic | [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) (function `Deploy-CustomDetections`) |
 | Drift detection | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 | Community contributions | See [Community Rules](Community-Rules.md) |
 
@@ -59,20 +59,34 @@ tactics:                 # MITRE ATT&CK tactics (camelCase, no spaces)
 relevantTechniques:      # MITRE technique IDs (T####, T####.###)
 query: |                 # KQL, block style, max 10000 chars
 entityMappings:          # Optional: 1-10 mappings, 1-3 identifiers each
+sentinelEntitiesMappings:# Optional: alternate/legacy entity-mapping shape, forwarded as-is
 alertDetailsOverride:    # Optional: max 3 {{column}} placeholders per field
 customDetails:           # Optional: key max 20 chars
 eventGroupingSettings:   # Optional
 incidentConfiguration:   # Optional
+suppressionEnabled:      # Optional: bool, defaults false at deploy
+suppressionDuration:     # Optional: ISO 8601 duration, defaults PT5H at deploy
 version:                 # Semver (a.b.c)
 kind:                    # Scheduled | NRT
 tags:                    # Optional: freeform labels
 ```
 
+Only five fields are hard-required by the deploy script itself (`id`, `name`,
+`kind`, `severity`, `query`); everything else is optional at the
+`Deploy-CustomDetections` level. `Scheduled` rules additionally require
+`queryFrequency`, `queryPeriod`, `triggerOperator`, and `triggerThreshold`, or
+the rule is skipped. Note, however, that the Pester schema test enforces a
+stricter contract before a PR can merge - see [CI schema
+enforcement](#ci-schema-enforcement) below.
+
 ### Style rules
 
-- **`triggerOperator`** must use short form (`gt`, `lt`, `eq`, `ne`). The
-  deploy script maps these to API form (`GreaterThan`, etc.) at deploy time
-  — see the table at [`Deploy-CustomContent.ps1:1185-1192`](../../Deploy/content/Deploy-CustomContent.ps1).
+- **`triggerOperator`** should use short form (`gt`, `lt`, `eq`, `ne`). The
+  `$operatorMap` hashtable inside `Deploy-CustomDetections` maps these to
+  API form (`GreaterThan`, `LessThan`, `Equal`, `NotEqual`) at deploy time.
+  The map also accepts the long forms (`greaterthan`, `lessthan`, `equal`,
+  `notequal`), and the lookup is case-insensitive; an unrecognised value is
+  passed through to the API verbatim.
 - **`relevantTechniques`** — use this name, not `techniques`. Both are
   accepted by the deploy script for compatibility, but `relevantTechniques`
   is canonical.
@@ -84,19 +98,24 @@ tags:                    # Optional: freeform labels
   Sentinel portal. The deploy script overrides the YAML value to `false` in
   three cases regardless of what's authored:
 
-  | Case | Reference |
+  | Case | Where in `Deploy-CustomDetections` |
   | --- | --- |
-  | Rule lives under `Content/AnalyticalRules/Community/**` | [`Deploy-CustomContent.ps1:1155`](../../Deploy/content/Deploy-CustomContent.ps1) |
-  | A required data type / watchlist / parser dependency is missing at deploy time | [`Deploy-CustomContent.ps1:1146`](../../Deploy/content/Deploy-CustomContent.ps1) |
-  | KQL validation fails at deploy (e.g. a freshly deployed watchlist isn't queryable yet) | [`Deploy-CustomContent.ps1:1259`](../../Deploy/content/Deploy-CustomContent.ps1) |
+  | Rule lives under `Content/AnalyticalRules/Community/**` | The `$isCommunityRule` path (matched from the file path) forces `$ruleEnabled = $false` |
+  | A required data type / watchlist / function dependency is missing at deploy time | `Test-ContentDependencies` returns `Passed = $false`, setting `$missingDeps` and forcing `$ruleEnabled = $false` |
+  | KQL validation fails at deploy (e.g. a freshly deployed watchlist isn't queryable yet) | The `catch` block re-PUTs the rule with `enabled = $false` when the error looks like a KQL resolution failure |
 
   Because `enabled` is routinely overridden at deploy time, the [drift
   detector](../Tools/Sentinel-Drift-Detection.md) deliberately excludes it from
   comparison — flipping a rule on/off in the portal is not treated as drift.
 
-- **Deprecated rules** — rules with `[Deprecated]` in the display name are
-  skipped at deploy time
-  ([`Deploy-SentinelContentHub.ps1:1153-1157`](../../Deploy/content/Deploy-SentinelContentHub.ps1)).
+- **`[Deprecated]` display names** — note that hand-authored rules under
+  `Content/AnalyticalRules/**` are **never** skipped for having `[Deprecated]`
+  in the name. `Deploy-CustomDetections` has no such filter. The `[Deprecated]`
+  skip exists only in the separate
+  [`Deploy-SentinelContentHub.ps1`](../../Deploy/content/Deploy-SentinelContentHub.ps1)
+  (its `Deploy-*` loop over Microsoft Content-Hub packaged ARM-template
+  solutions), which is a different deploy path. If you want a custom rule gone,
+  delete or disable the YAML file rather than renaming it.
 - **Tactics casing** — camelCase, no spaces: `InitialAccess`,
   `LateralMovement`, `PrivilegeEscalation`, `CredentialAccess`, etc.
 - **`alertDetailsOverride`** — max 3 `{{columnName}}` placeholders per
@@ -111,7 +130,7 @@ tags:                    # Optional: freeform labels
 | --- | --- | --- |
 | `id` | GUID | Generate with `New-Guid` (PowerShell) or `uuidgen` (bash) |
 | `name` | string | Sentence case, max ~50 chars, no trailing period |
-| `description` | string | Block style (`\|`). Starts with "Detects" or "Identifies" |
+| `description` | string | Block style (`\|`). By convention starts with "Detects" or "Identifies", but this wording is a house style aspiration only - it is not enforced by the deploy script or the Pester tests, and several in-repo rules do not follow it. The Pester test only requires the description to be present and non-empty. |
 | `severity` | string | `Informational`, `Low`, `Medium`, or `High` |
 | `enabled` | boolean | `true` (default) or `false`. Force-disabled by the deploy script for community rules, missing dependencies, and KQL validation failures (see Style rules above) |
 | `kind` | string | `Scheduled` (requires queryFrequency, queryPeriod, triggerOperator, triggerThreshold) or `NRT` |
@@ -120,14 +139,17 @@ tags:                    # Optional: freeform labels
 | `triggerOperator` | string | Short form: `gt`, `lt`, `eq`, or `ne`. Scheduled only. |
 | `triggerThreshold` | integer | 0–10000. Scheduled only. |
 | `tactics` | string[] | MITRE ATT&CK tactic names (camelCase, e.g., `CredentialAccess`, `Persistence`) |
-| `relevantTechniques` | string[] | MITRE IDs (e.g., `T1110`, `T1078.004`). Use `relevantTechniques`, not `techniques`. |
+| `relevantTechniques` | string[] | MITRE IDs (e.g., `T1110`, `T1078.004`). Use `relevantTechniques`, not `techniques`. At deploy the list is split: parent IDs (`T####`) go to the API `techniques` property, and any sub-technique IDs (`T####.###`) are additionally sent to the preview `subTechniques` property. This is why the portal may display parent and sub-techniques in separate fields. |
 | `requiredDataConnectors` | array | Array of `{connectorId, dataTypes}` objects |
 | `query` | string | Block style (`\|`). KQL query, max 10,000 chars. |
 | `entityMappings` | array | Optional. 1-10 entity mappings (see reference below) |
+| `sentinelEntitiesMappings` | array | Optional. Alternate/legacy entity-mapping shape. If present it is forwarded to the API verbatim (in addition to any `entityMappings`). |
 | `customDetails` | object | Optional. Max 20 key-value pairs; key max 20 chars. |
 | `alertDetailsOverride` | object | Optional. Override alert title/description with query columns (max 3 placeholders per field) |
 | `eventGroupingSettings` | object | Optional. `SingleAlert` (default) or `AlertPerResult`. |
 | `incidentConfiguration` | object | Optional. Incident grouping and lookup behaviour. |
+| `suppressionEnabled` | boolean | Optional. Defaults to `false` at deploy. When `true`, alerting is suppressed for `suppressionDuration` after a rule fires. |
+| `suppressionDuration` | string | Optional. ISO 8601 duration. Defaults to `PT5H` at deploy. Only meaningful when `suppressionEnabled` is `true`. |
 | `version` | string | Semver (e.g., `1.0.0`). The drift sync bumps the patch component when it absorbs portal edits — see [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md#how-custom-drift-gets-absorbed). |
 | `tags` | string[] | Optional. Freeform labels (e.g., `DEV-0537`, `Solorigate`) |
 
@@ -280,13 +302,44 @@ The deploy logic lives in [`Deploy/content/Deploy-CustomContent.ps1`](../../Depl
 (function `Deploy-CustomDetections`). Notable behaviours that affect how
 you should author rules:
 
-| Behaviour | Reference |
+| Behaviour | Where |
 | --- | --- |
-| Rules deploy `enabled: true` by default. Override with `enabled: false` in the YAML. | [`Deploy-CustomContent.ps1:1155`](../../Deploy/content/Deploy-CustomContent.ps1) |
-| Rules under `Content/AnalyticalRules/Community/**` always deploy disabled. | [`Deploy-CustomContent.ps1:1155`](../../Deploy/content/Deploy-CustomContent.ps1) — see [Community Rules](Community-Rules.md) |
-| If `requiredDataConnectors` reference data types that aren't present yet, the rule deploys disabled and waits. | [`Deploy-CustomContent.ps1:1146`](../../Deploy/content/Deploy-CustomContent.ps1) |
-| If KQL validation fails at deploy time (e.g. a freshly deployed watchlist column isn't queryable yet), the rule retries deployment with `enabled: false`. | [`Deploy-CustomContent.ps1:1259`](../../Deploy/content/Deploy-CustomContent.ps1) |
-| Smart-deploy mode (`-SmartDeployment`) only redeploys files changed since the last successful run. Bumping `version` is not required but the drift sync bumps it automatically when absorbing portal edits. | [`Deploy-CustomContent.ps1:292`](../../Deploy/content/Deploy-CustomContent.ps1) |
+| Rules deploy `enabled: true` by default. Override with `enabled: false` in the YAML. | The `$ruleEnabled` resolution in `Deploy-CustomDetections` |
+| Rules under `Content/AnalyticalRules/Community/**` always deploy disabled. | The `$isCommunityRule` path in `Deploy-CustomDetections` - see [Community Rules](Community-Rules.md) |
+| If a dependency (required table / watchlist / function) is missing, the rule deploys disabled and waits. | `Test-ContentDependencies` sets `$missingDeps` in `Deploy-CustomDetections` |
+| If KQL validation fails at deploy time (e.g. a freshly deployed watchlist column isn't queryable yet), the rule retries deployment with `enabled: false`. | The KQL-error `catch` block in `Deploy-CustomDetections` |
+| Smart deployment is opt-in (`-SmartDeployment`) and **off by default** - a normal run deploys all content. When enabled, only files changed since the last successful run are redeployed, via the `Test-ShouldDeployFile` helper. Bumping `version` is not required, but the drift sync bumps it automatically when absorbing portal edits. | The `$SmartDeployment` switch and `Initialize-SmartDeployment` / `Test-ShouldDeployFile` in `Deploy-CustomContent.ps1` |
+
+### Dependency gating
+
+The "missing dependency deploys disabled" behaviour is implemented by
+`Test-ContentDependencies`, which checks a rule's declared prerequisites
+(tables, watchlists, and KQL functions/parsers) against the dependency manifest
+loaded into `$script:DependencyGraph`. If no manifest is loaded, or a rule has
+no manifest entry, the rule deploys unconditionally. Only rules with an entry
+whose prerequisites are not yet present are forced to `enabled: false`. This is
+the same manifest that the `dependency-manifest` PR-validation job verifies for
+drift.
+
+## CI schema enforcement
+
+`Deploy-CustomDetections` only hard-requires five fields, but a PR will not pass
+CI unless the rule also satisfies the stricter Pester contract in
+[`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1),
+which runs in the `validate` job of `pr-validation.yml`. On top of the deploy
+script's checks it requires:
+
+- a non-empty `description`;
+- a SemVer `version` (matching `X.Y.Z`, no pre-release/build metadata);
+- a GUID-format `id` (8-4-4-4-12 hex). This check is **skipped** for rules
+  under `Content/AnalyticalRules/Community/**`, which are imported from
+  third-party repos that use non-GUID identifiers;
+- valid `severity` and `kind` values, and, for `Scheduled` rules, ISO 8601
+  `queryFrequency`/`queryPeriod`, a valid `triggerOperator`, and an integer
+  `triggerThreshold`.
+
+Treat these as effectively required for any rule you author, even though the
+deploy script alone would not reject their absence.
 
 ## Authoring with GitHub Copilot
 

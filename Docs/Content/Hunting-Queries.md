@@ -1,6 +1,6 @@
 # Hunting Queries
 
-Custom threat hunting queries authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. Unlike analytics rules, hunting queries do not generate alerts or incidents — they are executed manually or on-demand by analysts conducting proactive threat hunts.
+Custom threat hunting queries authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. Unlike analytics rules, hunting queries do not generate alerts or incidents; they are executed manually or on-demand by analysts conducting proactive threat hunts.
 
 Source files live under [`Content/HuntingQueries/`](../../Content/HuntingQueries/).
 
@@ -19,19 +19,27 @@ Hunting queries appear in **Microsoft Sentinel > Hunting** and can be run direct
 
 ## Folder Structure
 
-Organise queries by MITRE ATT&CK tactic using subfolders:
+`Deploy-CustomHuntingQueries` walks `Content/HuntingQueries/` recursively (`Get-ChildItem -Recurse`), so the subfolder layout is purely organisational and has no bearing on how a query is deployed. The convention in this repository is to group queries by **log-source table**, with a couple of tactic-named folders retained for identity- and persistence-focused queries.
+
+The tree currently holds twelve subfolders. Ten are named after the primary table the queries read from, and two (`Identity/`, `Persistence/`) follow a MITRE-tactic naming:
 
 ```
 Content/HuntingQueries/
-  Identity/
-    SuspiciousSignInFromNewCountry.yaml
-  Persistence/
-    NewServicePrincipalCredential.yaml
-  LateralMovement/
-    AdminShareAccess.yaml
-  Exfiltration/
-    LargeOutboundTransfer.yaml
+  AzureActivity/               # table-sourced
+  DeviceProcessEvents/         # table-sourced
+  Identity/                    # tactic-named
+  MicrosoftGraphActivityLogs/  # table-sourced
+  Persistence/                 # tactic-named
+  SecurityAlert/               # table-sourced
+  SecurityEvent/               # table-sourced
+  SecurityIncident/            # table-sourced
+  SigninLogs/                  # table-sourced
+  UnifiedSignInLogs/           # table-sourced
+  Usage/                       # table-sourced
+  pfSense/                     # table-sourced
 ```
+
+Place new queries in whichever folder best matches their primary data source (or reuse one of the tactic folders if that reads more naturally). Create a new folder if none fits.
 
 ## YAML Schema
 
@@ -39,30 +47,37 @@ Content/HuntingQueries/
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string (GUID) | Stable unique identifier used as the saved search resource name. Generate with `New-Guid`. Must not change after initial deployment — the PUT is idempotent on this value. |
+| `id` | string (GUID) | Stable unique identifier used as the saved search resource name. Generate with `New-Guid`. Must not change after initial deployment, the PUT is idempotent on this value. |
 | `name` | string | Display name shown in the Sentinel Hunting blade (sentence case, max ~50 chars). |
-| `query` | string | KQL query. There is no scheduling or threshold — the query returns results directly when run by an analyst. |
+| `query` | string | KQL query. There is no scheduling or threshold, the query returns results directly when run by an analyst. |
+
+`Deploy-CustomHuntingQueries` hard-requires only `id`, `name`, and `query` (files missing any of these are skipped with a warning). The CI Pester schema gate is stricter, see the note under Optional Fields.
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `description` | string | Plain-English explanation of what the query hunts for and why it is interesting. Begins with "Identifies" or "Detects". |
-| `tactics` | string[] | MITRE ATT&CK tactic names (e.g., `InitialAccess`, `Persistence`). Stored as a tag on the saved search. |
-| `techniques` | string[] | MITRE ATT&CK technique IDs (e.g., `T1078`, `T1098.001`). Stored as a tag on the saved search. |
-| `tags` | object[] | Additional key-value metadata pairs. Each entry must have a `name` and `value` string. Appended to the tactics/techniques tags at deploy time. |
+| `description` | string | Plain-English explanation of what the query hunts for and why it is interesting. Begins with "Identifies" or "Detects". **Enforced as required by CI** (see note below), even though the deploy script itself treats it as optional. |
+| `tactics` | string[] | MITRE ATT&CK tactic names (e.g., `InitialAccess`, `Persistence`). Joined with commas and stored as a single `tactics` tag on the saved search. |
+| `techniques` | string[] | MITRE ATT&CK technique IDs (e.g., `T1078`, `T1098.001`). Split at deploy time into parent-technique and sub-technique tags (see API Mapping). |
+| `requiredDataConnectors` | object[] | Optional metadata declaring the Sentinel data connector(s) and data types the query depends on (each entry has a `connectorId` and a `dataTypes` list). Carried on several queries in the repo (for example `Persistence/ChangesToAzureLighthouseDelegation.yaml`). The deploy script does not read this field into the saved-search body, but the CI schema test accepts its presence or absence. |
+| `tags` | object[] | Additional key-value metadata pairs. Each entry must have a `name` and `value` string. Appended after the standard tactics/techniques tags at deploy time. |
+
+> **CI note:** `Tests/Test-AnalyticalRuleYaml.Tests.ps1` (the `Hunting query schema` `Describe` block) includes a `has a non-empty description` assertion, so a missing or blank `description` fails PR validation. In practice `description` is required for any query merged to `main`, even though `Deploy-CustomHuntingQueries` would deploy a query without one. This is deliberate two-layer validation: the deploy script is lenient (each optional field is individually `ContainsKey`-checked), while the CI gate is strict.
 
 ### API Mapping
 
-The pipeline converts each YAML file to a PUT request against the Log Analytics Saved Searches API:
+The pipeline converts each YAML file to a PUT request against the Log Analytics Saved Searches API. The api-version comes from the `$script:SavedSearchApiVersion` variable in `Deploy/content/Deploy-CustomContent.ps1` (currently `2025-07-01`, the same version used for parsers), so it is defined in one place rather than hard-coded per call:
 
 ```
 PUT /subscriptions/{sub}/resourceGroups/{rg}/providers/
     Microsoft.OperationalInsights/workspaces/{workspace}/
-    savedSearches/{id}?api-version=2020-08-01
+    savedSearches/{id}?api-version=2025-07-01
 ```
 
-The request body is constructed as follows:
+The request body is built by `Deploy-CustomHuntingQueries`. The tags array is assembled in a fixed order: `description` (if present), then `tactics` (the YAML array joined with commas into one tag), then the technique tags, then any custom `tags` entries.
+
+Techniques are **split into two tags**. Every entry is reduced to its parent ID by stripping any `.###` sub-suffix; the deduped parent IDs form the `techniques` tag. Any entries that carried a sub-suffix are deduped into a separate `subTechniques` tag, which is only emitted when at least one sub-technique is present. So `techniques: [T1078, T1098.001]` produces:
 
 ```json
 {
@@ -71,15 +86,16 @@ The request body is constructed as follows:
     "displayName": "<name>",
     "query": "<query>",
     "tags": [
-      { "name": "description", "value": "<description>" },
-      { "name": "tactics",     "value": "InitialAccess,Persistence" },
-      { "name": "techniques",  "value": "T1078,T1098.001" }
+      { "name": "description",   "value": "<description>" },
+      { "name": "tactics",       "value": "InitialAccess,Persistence" },
+      { "name": "techniques",    "value": "T1078,T1098" },
+      { "name": "subTechniques", "value": "T1098.001" }
     ]
   }
 }
 ```
 
-Custom `tags` entries from the YAML are appended to the tags array after the standard fields.
+The `tags` property is only set when at least one tag was produced. Custom `tags` entries from the YAML are appended to the array after the standard fields.
 
 ## Example YAML
 
@@ -134,6 +150,16 @@ tags:
     value: "IdentityBaseline"
 ```
 
+## Deployment Behaviour
+
+Hunting queries are stage 4 of the eight-stage `Deploy-CustomContent.ps1` run (Parsers, Watchlists, Detections, **Hunting Queries**, Playbooks, Workbooks, Automation Rules, Summary Rules). Each query file passes through the same shared gates as every other content type before it is PUT:
+
+- **Dependency pre-flight (`Test-ContentDependencies`).** Before deploy, each query is checked against the dependency graph (`dependencies.json`). If a required table, watchlist, or function is missing, the query is **skipped entirely** with a warning listing the missing items. Note the difference from analytics rules: a rule with unmet dependencies deploys in a **disabled** state, whereas a hunting query (like the other non-detection content types) is simply skipped.
+- **Smart deployment / deployment state (`Test-ShouldDeployFile`).** When smart deployment is enabled, a query whose content is unchanged since the last successful run (tracked in the deployment-state file) is skipped with an "Unchanged ... (smart deployment)" message. Smart deployment is an opt-in `-SmartDeployment` switch that **defaults to off**; with it off, every query is (re)deployed on each run. On a successful PUT the file's state is recorded via `Set-DeploymentItemState`.
+- **`-SkipHuntingQueries` switch.** Passing `-SkipHuntingQueries` to `Deploy-CustomContent.ps1` skips stage 4 wholesale (the run log shows `Hunting: SKIP`), leaving existing saved searches untouched. Use this to deploy other content types without touching hunting queries.
+
+`ConvertTo-Json` serialises the body at a depth of 10, and `-WhatIf` performs a dry run that logs the intended deploy without calling the API.
+
 ## Prerequisites
 
 The identity used by the pipeline (service principal or managed identity) requires one of the following roles on the Log Analytics workspace:
@@ -149,8 +175,8 @@ The `Microsoft.OperationalInsights/workspaces/savedSearches/write` permission is
 
 1. Generate a stable GUID: `New-Guid` (PowerShell) or `uuidgen` (bash/macOS).
 2. Author the KQL query in the Sentinel **Logs** blade to validate results before committing.
-3. Create a YAML file following the schema above and place it in the appropriate tactic subfolder.
-4. Open a pull request — the pipeline will deploy the query on merge to `main`.
+3. Create a YAML file following the schema above and place it in the folder that matches its primary log source (or one of the tactic folders, see Folder Structure).
+4. Open a pull request; the pipeline will deploy the query on merge to `main`.
 
 ### Exporting Existing Queries from the Sentinel Portal
 
@@ -159,7 +185,7 @@ The `Microsoft.OperationalInsights/workspaces/savedSearches/write` permission is
 3. Click the query name to open the details panel, then click **View query results** to confirm it runs.
 4. From the query row, select **...** (ellipsis menu) > **Clone query** or note the KQL from the details panel.
 5. Create a new YAML file using the schema above, pasting the KQL into the `query` field.
-6. Generate a fresh GUID for `id` with `New-Guid` — do not reuse an existing ID unless you intend to overwrite the saved search in place.
+6. Generate a fresh GUID for `id` with `New-Guid`; do not reuse an existing ID unless you intend to overwrite the saved search in place.
 7. Commit the file to this repository so it is source-controlled and deployed idempotently going forward.
 
 ### From the Azure-Sentinel GitHub
@@ -180,8 +206,8 @@ plus the cross-cutting
 
 Copilot tooling for hunting queries:
 
-- Slash command `/new-hunting-query` (VS Code) — bootstrap a fresh query
-- Agent `Sentinel-As-Code: Rule Author` — author end-to-end
-- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
+- Slash command `/new-hunting-query` (VS Code), bootstrap a fresh query
+- Agent `Sentinel-As-Code: Rule Author`, author end-to-end
+- Agent `Sentinel-As-Code: KQL Engineer`, optimise the query body
 
 See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.

@@ -40,11 +40,21 @@ For a Sentinel-As-Code repo that already runs on GitHub Actions: use
 
   | Role | Scope | Why |
   | --- | --- | --- |
-  | **Contributor** | Subscription | Bicep + Sentinel content + summary rules |
-  | **User Access Administrator** (ABAC-conditioned) | Subscription | Playbook MSI role assignments (restricted to 5 roles) |
-  | **Microsoft Sentinel Reader** | Workspace | Drift detect (read-only) |
-  | **Security Administrator** (Entra ID) | Tenant | UEBA / Entity Analytics — optional |
-  | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR detections |
+  | **Contributor** | Subscription | Bicep + Sentinel content + summary rules. Also covers the SP's own read access to the workspace (Contributor implies Reader), including what drift detect needs |
+  | **User Access Administrator** (ABAC-conditioned) | Subscription | Lets the SP assign five named roles (Sentinel Responder, Sentinel Reader, Log Analytics Reader, Logic App Contributor, Managed Identity Operator) to OTHER principals, e.g. playbook MSIs, not to itself |
+  | **Security Administrator** (Entra ID) | Tenant | UEBA / Entity Analytics, optional, skippable via `-SkipEntraRole` |
+  | **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR detections, optional, skippable via `-SkipGraphPermission` |
+
+  Note: "Microsoft Sentinel Reader" is one of the five roles the SP can
+  *grant to others* through the ABAC-conditioned User Access
+  Administrator assignment above - it is not a role assigned to the SP
+  itself. The SP's own Sentinel/workspace read access comes from the
+  Contributor grant.
+
+  The script requires `-SubscriptionId` and `-ServicePrincipalAppId`
+  (both mandatory, no defaults) and prompts for explicit Y/N consent
+  before making any changes. There is no `-TenantId` parameter; the
+  tenant is inferred from the current `az` login context.
 
   See [Scripts.md → Setup-ServicePrincipal.ps1](Scripts.md#setup-serviceprincipalps1)
   for the full bootstrap walkthrough.
@@ -149,14 +159,30 @@ working end-to-end. Red error = check that:
 
 ## Step 5: register the pipelines
 
-Once Verify passes, register the five ADO pipelines (in this order
-to keep the blast radius growing gradually):
+There are seven ADO pipeline YAMLs under `Pipelines/`. Not all of
+them need the `sc-sentinel-as-code` service connection:
+
+- `Sentinel-PR-Validation.yml` and `Sentinel-Dependency-Update.yml`
+  run fully offline (no `azureSubscription` step), so no OIDC wiring
+  is required, but they still need registering as pipelines.
+- `Sentinel-DCR-Inventory.yml`, `Sentinel-Drift-Detect.yml`,
+  `Sentinel-Deploy.yml`, and `Sentinel-Documenter.yml` all
+  authenticate via `azureSubscription: $(serviceConnection)` and
+  depend on the federation set up in Steps 1-4.
+- `Sentinel-Word-Report.yml` does no Azure authentication at all
+  (pure document conversion) but is still worth registering so the
+  full pipeline set is visible under Pipelines → All.
+
+Once Verify passes, register all seven (in this order to keep the
+blast radius growing gradually):
 
 1. `Pipelines/Sentinel-PR-Validation.yml` (offline; safest test)
 2. `Pipelines/Sentinel-Dependency-Update.yml` (offline + Build Service git permissions)
-3. `Pipelines/Sentinel-DCR-Inventory.yml`
-4. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
-5. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
+3. `Pipelines/Sentinel-Word-Report.yml` (no Azure auth; document conversion only)
+4. `Pipelines/Sentinel-DCR-Inventory.yml`
+5. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
+6. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow)
+7. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
 
 For each:
 
@@ -244,11 +270,14 @@ and re-queue the pipeline.
 
 ### Verifying without waiting for the cron schedule
 
-Both auto-PR pipelines have manual triggers — pick **Run pipeline**
-from the pipeline page in ADO. The drift-detect pipeline accepts a
-`reportOnly: true` parameter that runs the discovery without
-attempting to commit, so you can split verification into two
-phases:
+Both auto-PR pipelines (`Sentinel-Drift-Detect.yml` and
+`Sentinel-Dependency-Update.yml`) have manual triggers and expose
+an identical `reportOnly` boolean parameter (default `false`). Pick
+**Run pipeline** from the pipeline page in ADO. With `reportOnly:
+true`, the pipeline writes its report artefact only and never opens
+a PR on either pipeline, so you can split verification into two
+phases (the procedure below is written for drift detect but applies
+equally to dependency update):
 
 1. First run with `reportOnly: true` to confirm the read path
    (Sentinel API auth, drift detection logic).
@@ -263,7 +292,7 @@ After the steps above, confirm:
 - [ ] `sc-sentinel-as-code` service connection exists with **Workload identity federation** as the credential type
 - [ ] ADO Verify reports green
 - [ ] Federated credential exists in Entra under the SP, pointing at the ADO subject
-- [ ] All five pipelines appear under Pipelines → All
+- [ ] All seven pipelines appear under Pipelines → All
 - [ ] Build-validation policy on `main` references `Sentinel-PR-Validation`
 - [ ] Build Service identity has Contribute + Create branch + Contribute to pull requests
 - [ ] Manual `Sentinel-PR-Validation` run completes (offline; should pass without auth)

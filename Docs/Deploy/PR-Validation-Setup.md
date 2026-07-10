@@ -1,7 +1,9 @@
 # PR Validation Gate Setup
 
 The PR-validation gate ([`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml))
-runs four jobs on every pull request to `main`:
+runs five jobs on every pull request to `main` (`opened`, `synchronize`,
+`reopened`, `ready_for_review`), on every push to `main`, and on
+`workflow_dispatch`:
 
 | Job | Auth needed | What it catches |
 | --- | --- | --- |
@@ -9,11 +11,14 @@ runs four jobs on every pull request to `main`:
 | `bicep-build` | None | Bicep syntax errors and parameter type mismatches in `Infra/*.bicep` |
 | `arm-validate` | **OIDC** | Malformed playbook ARM templates, missing required parameters |
 | `kql-validate` | None | KQL syntax errors across analytical rules / hunting queries / parsers / summary rules |
+| `dependency-manifest` | None | `dependencies.json` drift against auto-discovered content dependencies |
 
-The first two and the last work offline. **`arm-validate` needs Azure
-authentication** because `Test-AzResourceGroupDeployment -WhatIf` calls the
-ARM deployment-validation API against a real resource group with a real
-workspace. This page is the one-off setup runbook for that.
+Four of the five work offline. **`arm-validate` needs Azure
+authentication** because it calls `Test-AzResourceGroupDeployment` (a
+template-validation call against the ARM deployment-validation API - the
+cmdlet has no `-WhatIf` parameter) against a real resource group with a
+real workspace, once for every `Content/Playbooks/**/*.json` template.
+This page is the one-off setup runbook for that.
 
 ## Overview
 
@@ -28,9 +33,14 @@ End-to-end this is about 15 minutes of manual work, paid once.
 
 ## Step 1: deploy the test workspace
 
-The ARM What-If job validates each playbook against an empty Sentinel-enabled
-workspace. The workspace is the only Azure resource this gate needs, and it
-ingests no data by design — it exists only as a deployment target.
+The `arm-validate` job validates each playbook against an empty
+Sentinel-enabled workspace. `Infra/test-workspace/main.bicep` deploys a
+Log Analytics workspace (`Microsoft.OperationalInsights/workspaces`, SKU
+`PerGB2018`) plus a `Microsoft.SecurityInsights/onboardingStates` resource
+scoped to it, which is what actually turns the workspace into a modern
+Sentinel workspace (there is no separate "enable Sentinel" step). The
+workspace is the only Azure resource this gate needs, and it ingests no
+data by design — it exists only as a deployment target.
 
 ```bash
 # Pick names. The defaults below are reasonable; substitute as you wish.
@@ -49,9 +59,11 @@ az deployment group create \
   --parameters workspaceName="$WORKSPACE_NAME"
 ```
 
-Expected cost: ~£0/month. Free-tier Log Analytics caps daily ingestion at
-1 GB, the workspace ingests nothing, and Sentinel onboarding has no
-standalone cost.
+Expected cost: ~£0/month. There is no distinct "Free" Log Analytics SKU
+any more (Azure retired it); the template uses the standard `PerGB2018`
+SKU with `workspaceCapping.dailyQuotaGb` set to `1` to bound ingestion,
+and since the workspace ingests nothing, the effective cost is nil.
+Sentinel onboarding via `onboardingStates` has no standalone cost either.
 
 ## Step 2: create the federated credential
 
@@ -80,12 +92,40 @@ restricts the federation to PR events on this repo only. PRs on forks
 authenticate against the fork repo's subject, not this one, and so they
 will not get a token — fork PRs run the offline jobs only.
 
+`pr-validation.yml` also runs `arm-validate` on **push to `main`** and on
+**`workflow_dispatch`**, not only on `pull_request`. A token minted for a
+push-to-main run carries a different subject claim
+(`repo:{owner}/{repo}:ref:refs/heads/main`), which does not match the
+`:pull_request` federated credential created above. If your deploy SP
+already has a `ref:refs/heads/main` federated credential from setting up
+`Sentinel-Deploy.yml`, push-triggered `arm-validate` runs authenticate
+against that existing credential and you don't need to add another one.
+If not, add a second federated credential with
+`"subject": "repo:noodlemctwoodle/Sentinel-As-Code:ref:refs/heads/main"`
+so push and `workflow_dispatch` runs can authenticate too.
+
 The deploy SP needs **Reader** on the test RG (which the validation job
-uses) plus **Contributor** to actually exercise the `-WhatIf` deploy. The
-existing Sentinel-Deploy SP is usually already a Contributor on this
-subscription, in which case there is nothing more to grant. If you are
-using a least-privilege model, add Reader + Test ARM Deployment Validator
-on the test RG specifically.
+uses) plus **Contributor** to actually exercise the template-validation
+call. The existing Sentinel-Deploy SP is usually already a Contributor on
+this subscription, in which case there is nothing more to grant. If you
+are using a least-privilege model, add Reader + Test ARM Deployment
+Validator on the test RG specifically.
+
+Before logging in, the job separately checks (a) whether the PR is from a
+fork, and (b) whether `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` /
+`AZURE_SUBSCRIPTION_ID` are set on the repo. Either condition causes the
+job to skip with a `##[warning]` annotation rather than fail the gate -
+useful while you're part-way through this setup, since `arm-validate`
+won't turn the whole PR red just because the secrets aren't wired up yet.
+
+The validation step also builds a stub parameter object per playbook, but
+only fills in the parameters that template actually declares (it inspects
+the ARM template's `parameters` block and filters the stub set down to
+that). This avoids `New-AzResourceGroupDeployment` rejecting an "unexpected
+extra parameter". If you add a new playbook with a parameter name the
+stub set doesn't recognise, `arm-validate` will still run but that
+parameter is left unset - extend the `$stubParams` hashtable in
+`pr-validation.yml`'s `arm-validate` job if the template requires it.
 
 ## Step 3: add secrets to the repo
 
@@ -126,7 +166,7 @@ every workflow that needs them. Use them in new workflows instead of
 inlining the patterns again:
 
 - `./.github/actions/azure-login-oidc` — federated OIDC login wrapper.
-  Replaces the six-line `Azure/login@v2` block at every call site with
+  Replaces the six-line `Azure/login@v3` block at every call site with
   a four-line invocation. Defaults `enable-AzPSSession: true` because
   most call sites use both the `az` CLI and Az PowerShell. Pass
   `enable-azps-session: 'false'` for CLI-only jobs to slightly reduce
@@ -140,7 +180,7 @@ inlining the patterns again:
   the existing workflows define.
 
 When wiring up a new workflow that needs Azure auth or PowerShell
-modules, use these. Don't inline `Azure/login@v2` or `Install-Module`
+modules, use these. Don't inline `Azure/login@v3` or `Install-Module`
 in fresh code — the composite actions are the single source of truth
 for both patterns.
 
@@ -167,7 +207,7 @@ If you want to run `arm-validate` against a fork PR, either:
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `arm-validate` step fails with `AADSTS70021: No matching federated identity record found` | Federated credential subject doesn't match the PR's repo | Recheck step 2's `subject` value matches `repo:{owner}/{repo}:pull_request` exactly |
+| `arm-validate` step fails with `AADSTS70021: No matching federated identity record found` | Federated credential subject doesn't match the triggering event. `:pull_request` covers PR runs; push-to-`main` and `workflow_dispatch` runs need a `:ref:refs/heads/main` credential too | Recheck step 2's `subject` value matches `repo:{owner}/{repo}:pull_request` for PR runs, and add the `ref:refs/heads/main` variant if push/dispatch runs are failing |
 | `arm-validate` step fails with `Resource group 'rg-sentinel-pr-validation' not found` | Test RG hasn't been deployed yet (step 1) | Run the `az group create` + `az deployment group create` from step 1 |
 | `bicep-build` fails for an unchanged Bicep file | A `bicep` minor-version bump shipped a new lint rule | Pin a specific Bicep version in the workflow's `setup-bicep` step |
 | `kql-validate` fails on a query that runs fine in the portal | The Microsoft.Azure.Kusto.Language parser is stricter than the runtime engine in some edge cases | If the query is genuinely valid, raise an issue and we'll exempt the rule via a comment-driven opt-out |

@@ -20,11 +20,26 @@ Content/AutomationRules/
 ├── AddTaskOnHighSeverity.json
 ├── Triage/
 │   └── AssignOwnerByProvider.json
-└── Content/Playbooks/
+└── Playbooks/
     └── RunEnrichmentPlaybook.json
 ```
 
-The deployment script ([`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1)) discovers all `*.json` files recursively under this directory and deploys each one via the REST API.
+The two rules that ship in this repository, `AddTaskOnHighSeverity.json` and `AutoCloseInformational.json`, both sit flat in `Content/AutomationRules/`; subfolders are optional and purely organisational.
+
+The `Deploy-CustomAutomationRules` function in [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) discovers all `*.json` files recursively under this directory (automation rules are stage 7 of the 8-stage deploy order, after Workbooks and before Summary Rules) and deploys each one via the REST API.
+
+---
+
+## Deployment Behaviour
+
+`Deploy-CustomAutomationRules` applies two pre-deployment checks to every rule file before it PUTs anything to Sentinel:
+
+- **Smart (incremental) deployment.** Each file is passed through `Test-ShouldDeployFile`, which skips it if it is unchanged since the last successful deployment run. A skipped file is logged as `Unchanged: <file> - skipping (smart deployment)` and counted as skipped, not deployed. This applies whether or not `-SmartDeployment` is enabled for the overall run.
+- **Dependency-graph gating.** Each file also goes through `Test-ContentDependencies`, the same generic pre-flight gate used for every content type. It checks the rule's entry in the dependency manifest for `tables`/`watchlists`/`functions` it references and skips the rule (logging the missing dependencies) if any are absent from the workspace or the repo's internal watchlists. This check does **not** understand `RunPlaybook`'s `logicAppResourceId`, so a rule that triggers a playbook will deploy successfully even if the referenced Logic App was never deployed; treat the RBAC note under [`RunPlaybook`](#runplaybook) as the only real guardrail for that action type.
+
+Only the presence of `automationRuleId`, `displayName`, `order`, `triggeringLogic`, and `actions` is validated by the deploy script itself; a file missing any of these is skipped with a warning. The deploy script does not validate the `actionType`/`conditionType` enum values described below - that validation, plus a cross-file check that every `automationRuleId` is unique across `Content/AutomationRules/` (Sentinel uses the GUID as the resource name, so a collision would silently overwrite an existing rule), is enforced by the Pester suite `Tests/Test-AutomationRuleJson.Tests.ps1`, which runs in the PR-validation gate.
+
+When deploying, the script re-wraps each file into a PUT body containing only `{displayName, order, triggeringLogic, actions}` under a `properties` object; `automationRuleId` is used solely as the URL resource name and is never sent in the request body. A successful deployment records the file's state via `Set-DeploymentItemState`, which is what the next run's smart-deployment check reads.
 
 ---
 
@@ -34,7 +49,7 @@ The deployment script ([`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `automationRuleId` | string (GUID) | Yes | Stable unique identifier for the rule. Generate once with `New-Guid` and do not change it — this is the resource name used in the PUT URL. |
+| `automationRuleId` | string (GUID) | Yes | Stable unique identifier for the rule. Generate once with `New-Guid` and do not change it, this is the resource name used in the PUT URL. Must be unique across `Content/AutomationRules/`; CI fails the build on a duplicate. |
 | `displayName` | string | Yes | Human-readable name shown in the Sentinel portal. |
 | `order` | integer | Yes | Execution priority. Lower numbers run first. Valid range: 1–1000. |
 | `triggeringLogic` | object | Yes | Defines when the rule fires. See below. |
@@ -318,10 +333,12 @@ Existing automation rules can be exported for use in this repository:
 
 ```powershell
 $rule = Invoke-AzRestMethod -Method GET `
-    -Path "/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>/providers/Microsoft.SecurityInsights/automationRules/<ruleId>?api-version=2024-09-01"
+    -Path "/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>/providers/Microsoft.SecurityInsights/automationRules/<ruleId>?api-version=2025-09-01"
 
 ($rule.Content | ConvertFrom-Json).properties | ConvertTo-Json -Depth 10
 ```
+
+This matches the `$script:SentinelApiVersion` value the deploy script itself uses for the PUT; if that variable is bumped in `Deploy-CustomContent.ps1`, update the api-version here too.
 
 5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`Content/AutomationRules/`](../../Content/AutomationRules/).
 

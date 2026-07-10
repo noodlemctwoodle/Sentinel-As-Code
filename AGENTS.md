@@ -28,7 +28,7 @@ canonical instructions in
 5. **Custom agents** under [`.github/agents/`](./.github/agents/)
    are persona configurations recognised by GitHub Copilot Chat
    (github.com), Copilot cloud agent, Copilot CLI, VS Code,
-   JetBrains, Eclipse, and Xcode. Twelve agents in two tiers:
+   JetBrains, Eclipse, and Xcode. Thirteen agents in two tiers:
 
    **Persona-broad (5)** — `repo-explorer`, `rule-author`,
    `content-editor`, `rule-tuner`, `code-explainer`. Pick one
@@ -89,7 +89,7 @@ Five-job CI gate on every PR to `main`:
 
 - `validate` — Pester suites
 - `bicep-build` — `az bicep build`
-- `arm-validate` — Test-AzResourceGroupDeployment -WhatIf (OIDC)
+- `arm-validate` — `Test-AzResourceGroupDeployment` template validation (OIDC)
 - `kql-validate` — Microsoft.Azure.Kusto.Language parser
 - `dependency-manifest` — `dependencies.json` drift gate
 

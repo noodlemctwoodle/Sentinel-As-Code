@@ -21,9 +21,13 @@ Content/Watchlists/
     └── data.csv         # the actual data
 ```
 
-The folder name `<alias>` must match `watchlistAlias` inside
-`watchlist.json` exactly. The Pester test enforces this and aborts
-the deploy on mismatch.
+By convention the folder name matches the `watchlistAlias` inside
+`watchlist.json`. Deployment and `_GetWatchlist()` resolution both key off
+the `watchlistAlias` value in the JSON (not the folder name), so keep the
+two identical to avoid confusion. Note: no test compares the folder name to
+the alias. What IS enforced is that a `_GetWatchlist('alias')` reference
+resolves to a `watchlist.json` whose `watchlistAlias` matches (see
+Cross-validation below).
 
 ## watchlist.json
 
@@ -39,8 +43,10 @@ the deploy on mismatch.
 
 ### Hard rules
 
-1. **`watchlistAlias` must equal the folder name.** Cross-validation
-   test enforces this.
+1. **Keep `watchlistAlias` equal to the folder name (convention).** Not
+   enforced by a test, but every `_GetWatchlist()` call and the dependency
+   manifest key off the `watchlistAlias` value, so a divergent folder name
+   is confusing. See Cross-validation below for what IS enforced.
 2. **`watchlistAlias` is also the value used in
    `_GetWatchlist('alias')` calls.** Renaming the folder breaks every
    rule that references it.

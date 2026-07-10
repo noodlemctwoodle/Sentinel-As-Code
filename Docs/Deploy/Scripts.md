@@ -11,9 +11,12 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
 | `Import-CommunityRules.ps1` | Imports community rule sources (Dalonso) | [#import-communityrulesps1](#import-communityrulesps1) |
 | `Set-PlaybookPermissions.ps1` | Post-deploy: grants managed-identity roles based on each playbook's actual workflow content | [#set-playbookpermissionsps1](#set-playbookpermissionsps1) |
+| `Set-RunbookPermissions.ps1` | Post-deploy: grants the DCR-watchlist Automation Account managed identity the roles its runbook needs | [#set-runbookpermissionsps1](#set-runbookpermissionsps1) |
 | `Build-DependencyManifest.ps1` | Auto-derives `dependencies.json` from KQL discovery (Generate / Verify / Update modes) | [#build-dependencymanifestps1](#build-dependencymanifestps1) |
 | `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Content/Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
-| `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint — runs every Pester suite under `Tests/` and emits a JUnit XML report | See [Pester Tests](../Development/Pester-Tests.md) |
+| `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
+| `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
+| `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Development/Pester-Tests.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1
@@ -26,52 +29,65 @@ One-time bootstrap script that grants the service principal all required Azure, 
 - **Permission Summary**: Displays full summary of permissions before requesting consent
 - **User Consent**: Y/N prompt with disclaimer before applying changes
 - **Selective Steps**: Skip optional Entra ID or Graph permissions with `-SkipEntraRole` and `-SkipGraphPermission` switches
-- **ABAC-Conditioned UAA**: User Access Administrator is condition-restricted to 5 specific roles (reader, contributor, owner, user access administrator, logic app contributor)
+- **ABAC-Conditioned UAA**: User Access Administrator is condition-restricted so the SP can only assign 5 specific roles to other identities (such as playbook managed identities): Microsoft Sentinel Responder, Microsoft Sentinel Reader, Log Analytics Reader, Logic App Contributor, and Managed Identity Operator. Note this is what the SP may hand out, not what it holds itself: the SP's own workspace read access comes from its Contributor grant, and "Microsoft Sentinel Reader" is one of the assignable roles rather than a role granted to the SP directly
 - **One-Time Setup**: After running once, the pipeline is fully autonomous and requires no manual intervention
 
 ### Prerequisites
 
 - Service Principal (app registration) already created
-- User with Global Administrator (Entra ID) and Owner (Azure subscription) roles to grant permissions
-- `Az.Accounts`, `Az.Resources`, `Az.ManagedServiceIdentity`, and `Az.KeyVault` PowerShell modules
+- The user running the script needs Owner on the target subscription and at least Privileged Role Administrator in Entra ID to grant these permissions
+- Authenticated Azure context (`Connect-AzAccount`)
+- `Az.Accounts`, `Az.Resources`, and `Microsoft.Graph` PowerShell modules
 
 ### Parameter Reference
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `SubscriptionId` | string | No | Current context | Azure Subscription ID |
-| `ServicePrincipalId` | string | No | Detected from context | Service Principal client/app ID |
-| `TenantId` | string | No | Detected from context | Entra ID tenant ID |
-| `SkipEntraRole` | switch | No | `$false` | Skip granting Security Administrator (Entra ID) role |
-| `SkipGraphPermission` | switch | No | `$false` | Skip granting CustomDetection.ReadWrite.All (Graph) permission |
+| `SubscriptionId` | string | Yes | - | Target Azure subscription ID |
+| `ServicePrincipalAppId` | string | Yes | - | Application (client) ID of the deployment service principal |
+| `SkipEntraRole` | switch | No | `$false` | Skip granting the Security Administrator (Entra ID) directory role |
+| `SkipGraphPermission` | switch | No | `$false` | Skip granting the CustomDetection.ReadWrite.All (Graph) permission |
+
+Both `SubscriptionId` and `ServicePrincipalAppId` are mandatory, so every invocation must pass them (there is no `TenantId` parameter; the tenant is taken from the authenticated context).
 
 ### Usage Examples
 
 #### Full setup (all permissions)
 ```powershell
-.\Setup-ServicePrincipal.ps1
+.\Setup-ServicePrincipal.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -ServicePrincipalAppId "your-app-id-here"
 ```
 
-#### Skip Entra ID role (if not needed)
+#### Skip Entra ID role (UEBA/Entity Analytics enabled separately)
 ```powershell
-.\Setup-ServicePrincipal.ps1 -SkipEntraRole
+.\Setup-ServicePrincipal.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -ServicePrincipalAppId "your-app-id-here" `
+    -SkipEntraRole
 ```
 
 #### Skip Graph permission (for environments without Defender XDR)
 ```powershell
-.\Setup-ServicePrincipal.ps1 -SkipGraphPermission
+.\Setup-ServicePrincipal.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -ServicePrincipalAppId "your-app-id-here" `
+    -SkipGraphPermission
 ```
 
 #### Skip both optional permissions
 ```powershell
-.\Setup-ServicePrincipal.ps1 -SkipEntraRole -SkipGraphPermission
+.\Setup-ServicePrincipal.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -ServicePrincipalAppId "your-app-id-here" `
+    -SkipEntraRole -SkipGraphPermission
 ```
 
 ### How It Works
 
 1. **Prompt for Confirmation**: Displays a comprehensive permission summary and requests Y/N consent before proceeding
 2. **Grant Contributor**: Grants subscription-level Contributor role for resource group, workspace, Bicep, and content deployment. (Contributor implies Reader at the same scope, which is what ADO needs to save a workload-identity-federation service connection — see [ADO OIDC Setup](ADO-OIDC-Setup.md) for context.)
-3. **Grant UAA (ABAC-Conditioned)**: Grants User Access Administrator at resource group scope with ABAC conditions restricting assignment to 5 specific roles
+3. **Grant UAA (ABAC-Conditioned)**: Grants User Access Administrator at subscription scope with ABAC conditions restricting assignment to 5 specific roles (Microsoft Sentinel Responder, Microsoft Sentinel Reader, Log Analytics Reader, Logic App Contributor, Managed Identity Operator)
 4. **Grant Security Administrator** (optional): Grants Entra ID Security Administrator role for UEBA and Entity Analytics settings
 5. **Grant Graph Permission** (optional): Grants CustomDetection.ReadWrite.All Graph application permission for Defender XDR custom detection rules
 6. **Completion**: Prints confirmation that setup is complete and the pipeline is ready to run autonomously
@@ -209,13 +225,13 @@ Deploys custom content from the repository to a Microsoft Sentinel workspace: KQ
 
 ### Key Features
 
-- **Smart Deployment**: Use git diff to detect changed files and skip unchanged content — `.deployment-state.json` tracks deployment outcomes across runs to automatically retry previously failed items
+- **Smart Deployment**: Opt-in via `-SmartDeployment` (defaults to OFF, i.e. a full deploy). When enabled, uses git diff to detect changed files and skip unchanged content; `deployment-state.json` tracks deployment outcomes across runs to automatically retry previously failed items
 - **Dependency Graph System**: Validates prerequisites per content item (tables, watchlists, functions); detections with missing dependencies deploy disabled, other content types skip
 - **KQL Parser Deployment**: Deploy workspace saved searches as reusable KQL functions from YAML
 - **YAML Detection Rules**: Author detections in YAML (Azure-Sentinel repo format), converted to REST API JSON at deploy time
 - **Watchlist Management**: Deploy watchlists with inline CSV upload via REST API
 - **Playbook Deployment**: Deploy Logic App playbooks via ARM template deployments with module-first ordering, ARM parameter auto-injection, optional separate resource group, template folder exclusion, and 64-character name truncation
-- **Workbook Deployment**: Deploy workbooks with stable GUIDs for idempotent updates
+- **Workbook Deployment**: Deploy workbooks with stable GUIDs for idempotent updates; accepts both raw gallery/notebook template JSON and ARM deployment templates that wrap a `Microsoft.Insights/workbooks` resource (the inner `serializedData` is extracted automatically)
 - **Hunting Query Deployment**: Deploy YAML-based saved searches to the workspace
 - **Automation Rule Deployment**: Deploy JSON automation rules for incident auto-response
 - **Summary Rule Deployment**: Deploy JSON summary rules to aggregate verbose logs into cost-effective custom tables via the Log Analytics API
@@ -240,7 +256,7 @@ Deploys custom content from the repository to a Microsoft Sentinel workspace: KQ
 | `Workspace` | string | Yes | - | Log Analytics workspace name |
 | `Region` | string | Yes | - | Azure region (e.g., `uksouth`, `eastus`) |
 | `BasePath` | string | No | `$env:BUILD_SOURCESDIRECTORY` or `.` | Repo root path |
-| `SmartDeployment` | switch | No | `$true` | Use git diff to detect changed files and skip unchanged content |
+| `SmartDeployment` | switch | No | `$false` | Opt-in switch; when passed, uses git diff to detect changed files and skip unchanged content. Omitted (the default) means a full deploy of all content |
 | `SkipParsers` | switch | No | `$false` | Skip custom KQL parser deployment |
 | `SkipDetections` | switch | No | `$false` | Skip custom detection deployment |
 | `SkipCommunityDetections` | switch | No | `$false` | Skip rules under `Content/AnalyticalRules/Community/**` only — non-community detections still deploy. Used by the pipeline's "Skip Community Detections" toggle |
@@ -306,14 +322,14 @@ Deploys custom content from the repository to a Microsoft Sentinel workspace: KQ
 ### How It Works
 
 1. **Authentication and Setup**: Validates Azure context, resolves subscription ID, and configures API endpoints
-2. **Smart Deployment Check**: If enabled (default), uses git diff to detect changed files; unchanged files are skipped unless they were not previously deployed successfully (tracked in `.deployment-state.json`). Failed items are automatically retried on subsequent runs
+2. **Smart Deployment Check**: Smart deployment is off unless `-SmartDeployment` is passed; the default is a full deploy of every content type (the log records "Smart deployment disabled, all content will be deployed"). When enabled, uses git diff to detect changed files; unchanged files are skipped unless they were not previously deployed successfully (tracked in `deployment-state.json`). Failed items are automatically retried on subsequent runs. The smart-deployment skip applies to every content type, not just detections
 3. **Dependency Graph Validation**: Loads `dependencies.json` and performs pre-flight checks to bulk-fetch workspace state (tables, watchlists, functions); runs `Test-ContentDependencies` before each content type
 4. **Parser Deployment** (Stage 1): Scans `Content/Parsers/` for YAML files, validates required fields including `functionAlias`, converts to saved search body, and deploys via `PUT` to the `savedSearches` endpoint
 5. **Watchlist Deployment** (Stage 2): Scans `Content/Watchlists/` for subdirectories with `watchlist.json` + `data.csv`, validates metadata, and deploys via `PUT` with inline CSV content
 6. **Detection Deployment** (Stage 3): Scans `Content/AnalyticalRules/` for YAML files, validates required fields, converts to REST API JSON; if dependencies are missing, deploys as disabled (not skipped) — if API rejects disabled state, gracefully skipped
 7. **Hunting Query Deployment** (Stage 4): Scans `Content/HuntingQueries/` for YAML files, validates required fields, builds saved search body with tactics/techniques tags, and deploys via `PUT` to the `savedSearches` endpoint
 8. **Playbook Deployment** (Stage 5): Scans `Content/Playbooks/` for subdirectories with `azuredeploy.json` (excludes `Template/` directory), orders Module/ playbooks first with leaf modules deployed before dependent modules, auto-injects known ARM parameters (ResourceGroup, Workspace, SubscriptionId, WorkspaceId, PlaybookResourceGroup), truncates names to 64 characters, and deploys via `New-AzResourceGroupDeployment` to the playbook resource group (uses `Test-AzResourceGroupDeployment` for WhatIf)
-9. **Workbook Deployment** (Stage 6): Scans `Content/Workbooks/` for subdirectories with `workbook.json`, reads optional `metadata.json` for stable GUIDs, and deploys via `PUT` to the `Microsoft.Insights/workbooks` endpoint
+9. **Workbook Deployment** (Stage 6): Scans `Content/Workbooks/` for subdirectories with `workbook.json`, reads optional `metadata.json` for stable GUIDs, and deploys via `PUT` to the `Microsoft.Insights/workbooks` endpoint. The `workbook.json` may be either the raw gallery/notebook template JSON, or an ARM deployment template that wraps a `Microsoft.Insights/workbooks` resource (for example `UnifiNetworkOverview`); the deployer detects the ARM shape (a `$schema` matching a deployment template) and extracts the inner workbook `serializedData` before the PUT, so both formats deploy correctly
 10. **Automation Rule Deployment** (Stage 7): Scans `Content/AutomationRules/` for JSON files, validates required fields (automationRuleId, displayName, order, triggeringLogic, actions), and deploys via `PUT` to the `automationRules` endpoint
 11. **Summary Rule Deployment** (Stage 8): Scans `Content/SummaryRules/` for JSON files, validates required fields (name, query, binSize, destinationTable), validates binSize against allowed values and `_CL` suffix, and deploys via `PUT` to the `summarylogs` endpoint using the `Microsoft.OperationalInsights` provider
 12. **Status Reporting**: Prints a summary table with deployed/skipped/failed counts per content type
@@ -367,7 +383,7 @@ Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `BasePath` | string | No | Parent of Scripts folder | Repo root path containing `Content/DefenderCustomDetections/` |
+| `BasePath` | string | No | Repo root (two levels above `Deploy/content/`) | Repo root path containing `Content/DefenderCustomDetections/` |
 | `IsGov` | switch | No | `$false` | Target Azure Government cloud (`graph.microsoft.us`) |
 | `WhatIf` | switch | No | `$false` | Dry run (no changes applied) |
 
@@ -495,7 +511,7 @@ Content/AnalyticalRules/Community/
     └── import-manifest.json      # Content-hash manifest
 
 Docs/Community/
-└── Dalonso.md                    # Auto-generated summary, governance doc lives at Docs/Community-Rules.md
+└── Dalonso.md                    # Auto-generated summary, governance doc lives at Docs/Content/Community-Rules.md
 ```
 
 Each imported rule includes:
@@ -586,6 +602,71 @@ default — `Setup-ServicePrincipal.ps1` only grants it under an ABAC
 condition that doesn't permit Sentinel-tier role assignments. Run this
 script under a separate elevated identity (typically a one-off run by
 an admin user, not the pipeline SPN).
+
+---
+
+## Set-RunbookPermissions.ps1
+
+Post-deployment RBAC bootstrap for the DCR-watchlist Automation Account.
+It is the Automation-runbook sibling of `Set-PlaybookPermissions.ps1`:
+after the `Infra/dcr-watchlist/` stack deploys the Automation Account and
+its system-assigned managed identity, this script grants that identity
+the two roles the sync runbook ([`Invoke-DCRWatchlistSync.ps1`](#invoke-dcrwatchlistsyncps1))
+needs to operate.
+
+### Why this script exists
+
+The pipeline service principal does not hold
+`Microsoft.Authorization/roleAssignments/write`, so it cannot assign
+these roles itself. RBAC for the Automation Account managed identity is
+therefore applied out of band by a user with Owner or User Access
+Administrator on the subscription. Run it once after the DCR-watchlist
+infrastructure is first deployed.
+
+### Roles granted
+
+- **Monitoring Reader** (subscription scope) - lets the runbook list
+  Data Collection Rules and their associations via the ARM API.
+- **Microsoft Sentinel Contributor** (Sentinel resource group scope) -
+  lets the runbook create and update the Sentinel watchlist.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `SubscriptionId` | string | Yes | - | Target subscription ID |
+| `AutomationAccountName` | string | Yes | - | Name of the DCR-watchlist Automation Account (conventionally `aa-dcr-watchlist-sync`) |
+| `AutomationResourceGroup` | string | Yes | - | Resource group containing the Automation Account (conventionally `rg-dcr-watchlist-sync`) |
+| `SentinelResourceGroup` | string | Yes | - | Resource group containing the Sentinel workspace (scope for the Sentinel Contributor grant) |
+| `Remove` | switch | No | `$false` | Remove the role assignments instead of creating them |
+
+The script uses `[CmdletBinding(SupportsShouldProcess)]`, so `-WhatIf`
+previews every assignment before applying.
+
+### Usage
+
+```powershell
+# Apply permissions
+.\Set-RunbookPermissions.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -AutomationAccountName "aa-dcr-watchlist-sync" `
+    -AutomationResourceGroup "rg-dcr-watchlist-sync" `
+    -SentinelResourceGroup "rg-sentinel-prod"
+
+# Remove permissions
+.\Set-RunbookPermissions.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -AutomationAccountName "aa-dcr-watchlist-sync" `
+    -AutomationResourceGroup "rg-dcr-watchlist-sync" `
+    -SentinelResourceGroup "rg-sentinel-prod" `
+    -Remove
+```
+
+### Prerequisites for the executing principal
+
+Owner or User Access Administrator on the subscription. As with
+`Set-PlaybookPermissions.ps1`, the deployment SPN cannot run this because
+it lacks role-assignment write.
 
 ---
 
@@ -916,3 +997,106 @@ resource rather than spawning duplicates.
 - Only workbooks where `category == sentinel` are exported. Application Insights / general-purpose workbooks living under the same workspace are filtered out by design.
 - Content Hub-managed workbooks are excluded by default (see step 2 of How it works). If the workspace has many Content Hub solutions installed, you may see a long list of "Skipping ... — Content Hub-managed workbook" messages. This is intentional; pass `-IncludeContentHub` only if you have a specific reason.
 - Templates that haven't been customised in the workspace don't appear at all — they're served from the Content Hub catalogue, not the workspace's resource list, so there's nothing to export.
+
+---
+
+## Invoke-DCRWatchlistSync.ps1
+
+Rebuilds the Sentinel "Customer DCR Resources" watchlist from the live
+inventory of Data Collection Rules and their associations. This is the
+runbook that runs on the schedule set up by the `Infra/dcr-watchlist/`
+stack (Automation Account plus runbook), authenticating as the Automation
+Account's system-assigned managed identity. `Set-RunbookPermissions.ps1`
+grants that identity the roles this script needs.
+
+### What it does
+
+1. Authenticates via the system-assigned managed identity.
+2. Lists every Data Collection Rule in the subscription with
+   `Invoke-AzRestMethod` (DCR api-version `2024-03-11`) and retrieves the
+   associations for each DCR. There is no `Az.ResourceGraph` dependency;
+   it uses the same ARM REST pattern as `Invoke-DCRAudit.ps1`.
+3. Builds an in-memory CSV (one row per DCR).
+4. Calls the Sentinel watchlist REST API (api-version `2025-09-01`) to
+   delete and recreate the watchlist in a single full-replace operation.
+
+Because there is one row per DCR, the watchlist's search key is
+`DCRName` (the script's default). The DCR-inventory pipelines register
+the runbook with `SearchKey=DCRName` to match the per-DCR rows.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `SubscriptionId` | string | Yes | - | Subscription to enumerate DCRs from |
+| `WorkspaceResourceGroup` | string | Yes | - | Resource group containing the Sentinel Log Analytics workspace |
+| `WorkspaceName` | string | Yes | - | Log Analytics workspace name (Sentinel) |
+| `WatchlistAlias` | string | Yes | - | Alias (unique identifier) for the Sentinel watchlist |
+| `WatchlistDisplayName` | string | No | `Customer DCR Resources` | Human-readable display name shown in Sentinel |
+| `SearchKey` | string | No | `DCRName` | Column used as the watchlist search key |
+
+### Required RBAC on the managed identity
+
+- **Monitoring Reader** on the subscription (to list DCRs and their
+  associations via ARM).
+- **Microsoft Sentinel Contributor** on the Sentinel resource group
+  (watchlist write).
+
+Both are granted by [`Set-RunbookPermissions.ps1`](#set-runbookpermissionsps1).
+
+---
+
+## Migrate-ForkLayout.ps1
+
+One-shot helper for fork maintainers. The 26.06 restructure moved the
+repository from a flat root into grouped folders (`Content/`, `Infra/`,
+`Deploy/`, `Tools/`). Tracked files move automatically when you merge or
+rebase the restructure (git rename detection reconciles your
+customisations). This helper catches stragglers - untracked custom
+content or conflict leftovers still sitting at an old path - and moves
+them to their new home.
+
+### What it does
+
+- Moves files at the filesystem level (`Move-Item`), which works for both
+  tracked and untracked files; git detects the renames for tracked
+  content on your next commit.
+- Is idempotent: paths already at the new location are skipped. When both
+  the old and new path exist (a partial migration), the old folder's
+  contents are merged into the new folder and a warning is emitted for
+  anything that would collide.
+- Does NOT rewrite file contents, regenerate `dependencies.json`, or
+  commit. After running it, review `git status`, run
+  `./Tools/Build-DependencyManifest.ps1 -Mode Generate`, then commit.
+
+### Parameter reference
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `RepoPath` | string | No | Parent of the `Tools/` folder this script lives in | Repository root |
+| `AllowDirty` | switch | No | `$false` | Proceed even if the working tree has uncommitted changes. By default the script refuses to run on a dirty tree so the moves are easy to review and revert |
+
+The script uses `[CmdletBinding(SupportsShouldProcess)]`, so `-WhatIf`
+previews every move without touching the tree.
+
+### Usage
+
+```powershell
+# Preview every move without touching the tree
+./Tools/Migrate-ForkLayout.ps1 -WhatIf
+
+# Apply the moves
+./Tools/Migrate-ForkLayout.ps1
+```
+
+---
+
+## Documenter scripts
+
+The repository documentation generator lives under `Tools/Documenter/`
+(`Export-SentinelInventory.ps1`, `Convert-SentinelInventoryToMarkdown.ps1`,
+`Convert-MermaidToImage.ps1`, plus the `Report/` and `Private/` helpers)
+and is documented separately. See
+[Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) for the
+inventory export model, Markdown/Word report generation, and diagram
+rendering.

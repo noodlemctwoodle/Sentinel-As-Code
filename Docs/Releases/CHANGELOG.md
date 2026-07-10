@@ -17,8 +17,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   validation, IntelliSense, canonical formatting, and templates for analytics
   rules and hunting queries; ARM-template-to-YAML decompilation; and repository
   formatting for Defender XDR custom detections, automation rules, summary
-  rules, watchlists, workbooks, and playbooks. Publishing to the Visual Studio
-  Marketplace later this week.
+  rules, watchlists, workbooks, and playbooks. Publication to the Visual Studio
+  Marketplace is planned.
 - **PR template validation gate** — an enriched pull-request template plus a
   GitHub Actions check that fails any PR whose description is not filled in
   (Summary, why the change is needed, what it does, and testing, with a ticked
@@ -44,6 +44,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Deploy/`, `Tools/`. No Sentinel content logic changed.
 - **Adopted monthly CalVer versioning** (`YY.0M`); the "Wave N" naming is retired.
 - Added a layout migration guide and a one-shot fork-rebase helper.
+- Fixed an include-preview expression-quoting error in the Documenter workflow
+  (`.github/workflows/sentinel-document.yml`) that had shipped with Wave 4 and
+  caused every scheduled run and manual dispatch to fail to compile (erroring in
+  0s before any step ran); the daily Documenter now runs as intended (#26).
 - Forks and anyone referencing repo paths should review the
   [26.06 Layout Restructure guide](../Migration/26.06-Layout-Restructure.md).
 

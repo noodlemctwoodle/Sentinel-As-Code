@@ -40,18 +40,21 @@ Each YAML file defines a single custom detection rule. The schema maps directly 
 | `schedule.period` | string | Run frequency: `0` (NRT), `1H`, `3H`, `12H`, `24H` |
 | `detectionAction.alertTemplate.title` | string | Alert title |
 | `detectionAction.alertTemplate.severity` | string | `informational`, `low`, `medium`, `high` |
-| `detectionAction.alertTemplate.category` | string | Alert category (e.g. `Execution`, `Persistence`) |
+| `detectionAction.alertTemplate.category` | string | Alert category, one of the MITRE-tactic-shaped values (see [Alert Categories](#alert-categories)) |
 | `detectionAction.alertTemplate.mitreTechniques` | array | MITRE ATT&CK technique IDs |
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `isEnabled` | boolean | Whether the rule is active (default: `true`) |
+| `isEnabled` | boolean | Whether the rule is active (default: `true` when the YAML omits it) |
+| `queryCondition.lastModifiedDateTime` | string | ISO 8601 timestamp recording when the query body was last touched (e.g. `"2026-03-23T00:00:00Z"`). Passed through verbatim by `ConvertTo-GraphDetectionBody` and present in nearly every rule in the tree |
 | `detectionAction.alertTemplate.description` | string | Alert description |
 | `detectionAction.alertTemplate.recommendedActions` | string | Recommended investigation steps |
 | `detectionAction.alertTemplate.impactedAssets` | array | Entity mappings for alerts |
-| `detectionAction.responseActions` | array | Automated response actions |
+| `detectionAction.responseActions` | array | Automated response actions (defaults to an empty array when omitted) |
+
+> **Not settable via YAML**: `detectionAction.organizationalScope` is always sent as `null` by the deploy script regardless of YAML content, so there is no way to scope a rule to specific device groups or tenants from the repository. Any `organizationalScope` you add to the YAML is silently discarded.
 
 ### Required Query Output Columns
 
@@ -77,6 +80,16 @@ Depending on the source table, your query **must** return certain columns or the
 | `12H` | Every 12 hours |
 | `24H` | Every 24 hours |
 
+The deploy script (`Deploy-DefenderDetections.ps1`) validates `schedule.period` against exactly this literal token set (`0`, `1H`, `3H`, `12H`, `24H`); any other value, including ISO 8601 durations such as `PT1H` or `P1D`, is rejected and the file skipped with an `invalid schedule period` warning. Every rule shipped in the tree uses `1H`. Note that `0` (NRT) is accepted because the Graph schema permits it, but Microsoft only documents NRT configuration through the portal UI, so the script emits a warning and NRT rules may not behave as expected when deployed via the API.
+
+### Alert Categories
+
+`detectionAction.alertTemplate.category` takes a single MITRE-tactic-shaped value. The rules currently in the tree use the following set:
+
+`InitialAccess`, `Execution`, `Persistence`, `PrivilegeEscalation`, `DefenseEvasion`, `CredentialAccess`, `LateralMovement`, `Collection`, `CommandAndControl`, `Exfiltration`, `Impact`
+
+Pick the tactic that best matches the behaviour the query detects. The value is not validated by the deploy script, so a typo will be sent to the Graph API as-is.
+
 ### Impacted Assets (Entity Mappings)
 
 Map query columns to alert entities using the `impactedAssets` array:
@@ -97,7 +110,7 @@ impactedAssets:
 
 Automated actions taken when the rule triggers. Each action requires `@odata.type` and `identifier`. Some actions require additional fields.
 
-> **Important**: The `identifier` field is an enum value that tells Defender which query column to read — it is NOT a free-form column name. Each action type has its own set of valid identifier values.
+> **Important**: The `identifier` field is an enum value that tells Defender which query column to read, not a free-form column name. Each action type has its own set of valid identifier values.
 
 #### Device Actions
 
@@ -155,9 +168,13 @@ responseActions:
     identifier: sha1
   - "@odata.type": "#microsoft.graph.security.blockFileResponseAction"
     identifier: sha256
+    deviceGroupNames: []       # optional: scope the block to named device groups
   - "@odata.type": "#microsoft.graph.security.allowFileResponseAction"
     identifier: sha256
+    deviceGroupNames: []       # optional: scope the allow to named device groups
 ```
+
+`blockFileResponseAction` and `allowFileResponseAction` accept an optional `deviceGroupNames` array. Leave it empty (`[]`) to apply the action tenant-wide, or list device group names to limit the action to those groups.
 
 #### Complete Action Reference
 
@@ -236,14 +253,16 @@ detectionAction:
 
 ## Sentinel Data Limitations
 
-If your Sentinel workspace is onboarded to the unified Defender portal, you can query Sentinel tables in custom detections, but with restrictions:
+If your Sentinel workspace is onboarded to the unified Defender portal, you can query Sentinel tables in custom detections, but the Defender platform imposes restrictions:
 
 - **No response actions** on detections based purely on Sentinel data
 - **No NRT frequency** for Sentinel-only queries
 - **No device scoping** for Sentinel data
-- **Custom frequency** (5min–14 days) is portal-only and not available via the Graph API
+- **Custom frequency** (5min to 14 days) is portal-only and not available via the Graph API
 
 For full feature support (response actions, NRT, device scoping), use Defender XDR native Advanced Hunting tables.
+
+> **The deploy script does not enforce these limits.** `Deploy-DefenderDetections.ps1` performs no source-table analysis: it does not detect a Sentinel-only query or strip a `responseActions` block attached to one. The repository even contains such a sample (`Sentinel/VpnConnectionFromTorExitNode.yaml` queries `SigninLogs` and attaches `markUserAsCompromisedResponseAction`). If the Defender platform rejects or silently ignores the response action for a Sentinel-only rule, that happens server-side at or after deploy time, not in the pipeline. Treat the list above as a Defender-platform constraint you are responsible for honouring, not a validated guardrail.
 
 ## Prerequisites
 
@@ -255,7 +274,7 @@ The service principal used by the pipeline requires:
 |------------|------|-------------|
 | `CustomDetection.ReadWrite.All` | Application | Create, read, update, and delete custom detections |
 
-Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Deploy/setup/Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) handles this — see [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1).
+Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph**. The bootstrap script [`Deploy/setup/Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) handles this; see [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1).
 
 ### Authentication
 
@@ -264,6 +283,24 @@ The pipeline acquires a Graph API token separately from the ARM token used for S
 ## Deployment
 
 Handled by [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deploy/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Deploy/Pipelines.md).
+
+### How rules are matched (upsert by displayName)
+
+The deploy script targets the Microsoft Graph beta endpoint `security/rules/detectionRules` (or `graph.microsoft.us` with `-IsGov`). It reads every `*.yaml`/`*.yml` file under `Content/DefenderCustomDetections/` recursively (including subfolders), parses each with `powershell-yaml`, and validates the required fields (`displayName`, `queryCondition.queryText`, `schedule.period`, and `detectionAction.alertTemplate` with `title`, `severity`, `category`) before building the Graph request body. Any file missing one of these, or carrying an out-of-range `schedule.period`, is skipped with a warning rather than failing the run.
+
+Rules are upserted by **`displayName`**:
+
+1. Before deploying, the script pages through all existing detection rules (following `@odata.nextLink`) and builds a `displayName → id` map.
+2. If a YAML file's `displayName` matches an existing rule, the rule is updated in place with a **PATCH** to `.../detectionRules/{id}`.
+3. If there is no match, a new rule is created with a **POST**.
+
+> **Renaming a rule creates a duplicate.** Because matching is by `displayName` and not by file path, changing a rule's `displayName` makes the script treat it as a brand-new rule (POST) while the old rule keeps running in Defender under its previous name. Rename in the portal, or delete the stale rule, to avoid two live copies.
+
+`displayName` must therefore be **unique across the entire content tree**. This is enforced in CI by [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1), which fails the build if two files (in any category) share a `displayName`, since a collision would cause the two rules to overwrite each other on deploy.
+
+### Retry and throttling
+
+Graph calls go through an `Invoke-GraphApi` wrapper that retries up to **3 attempts** on the retryable status codes `429`, `500`, `502`, `503` and `504`. On a `429` it honours the `Retry-After` response header where present, otherwise it backs off linearly. Persistent failures surface as a `Graph API call failed` error and mark that rule as failed in the deployment summary; the run exits non-zero if any rule fails.
 
 ## API Reference
 
@@ -284,10 +321,10 @@ also loads.
 
 Copilot tooling for Defender XDR detections:
 
-- Slash command `/new-defender-detection` (VS Code) — bootstrap a fresh detection
-- Agent `Sentinel-As-Code: Rule Author` — author end-to-end
-- Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
-- Agent `Sentinel-As-Code: Security Reviewer` — required when adding response actions
+- Slash command `/new-defender-detection` (VS Code) - bootstrap a fresh detection
+- Agent `Sentinel-As-Code: Rule Author` - author end-to-end
+- Agent `Sentinel-As-Code: KQL Engineer` - optimise the query body
+- Agent `Sentinel-As-Code: Security Reviewer` - required when adding response actions
   (isolateDevice, forceUserPasswordReset, etc.)
 
 See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
