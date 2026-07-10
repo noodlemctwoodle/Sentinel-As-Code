@@ -31,11 +31,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 - **Copilot activity monitoring content pack** — detection and hunting content
   for Microsoft 365 Copilot and Security Copilot usage across the
   `CloudAppEvents`, `CopilotActivity`, and `OfficeActivity` tables: six
-  analytics rules, one Defender XDR custom detection, thirteen hunting queries,
+  analytics rules, one Defender XDR custom detection, fourteen hunting queries,
   and the `CopilotEntitledUsers` watchlist backing the unentitled-usage
   detections.
 - **Sentinel as Code Toolkit** — a companion VS Code extension for authoring
-  Sentinel-as-Code content without leaving the editor: real-time schema
+  Sentinel-As-Code content without leaving the editor: real-time schema
   validation, IntelliSense, canonical formatting, and templates for analytics
   rules and hunting queries; ARM-template-to-YAML decompilation; and repository
   formatting for Defender XDR custom detections, automation rules, summary
