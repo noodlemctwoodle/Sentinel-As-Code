@@ -2,10 +2,8 @@
 
 **Running and validating without a local PowerShell install**
 
-| | |
-|------------------|---------------------------------------------------|
 | **Prepared for** | Any organisation adopting Sentinel-As-Code |
-| **Prepared by**  | Toby Goulden, Microsoft Cloud Solution Architect |
+|------------------|---------------------------------------------------|
 | **Version**      | 1.0 |
 | **Applies to**   | The Sentinel-As-Code repository |
 
@@ -13,27 +11,57 @@
 
 ## Contents
 
-- [Executive summary](#executive-summary)
-- [1 Purpose and audience](#1-purpose-and-audience)
-  - [1.1 The constraint](#11-the-constraint)
-  - [1.2 What this guide gives you](#12-what-this-guide-gives-you)
-- [2 What you are building and testing](#2-what-you-are-building-and-testing)
-- [3 Requirements](#3-requirements)
-  - [3.1 Baseline runtime](#31-baseline-runtime)
-  - [3.2 Modules required to validate the project](#32-modules-required-to-validate-the-project)
-  - [3.3 Modules required to use (deploy) the project](#33-modules-required-to-use-deploy-the-project)
-  - [3.4 Sentinel Documenter modules](#34-sentinel-documenter-modules)
-  - [3.5 External (non-module) dependencies](#35-external-non-module-dependencies)
-  - [3.6 Permissions](#36-permissions)
-- [4 Choosing a no-local-install execution method](#4-choosing-a-no-local-install-execution-method)
-  - [4.1 Recommendation](#41-recommendation)
-- [5 Recommended primary: Windows 365 Cloud PC](#5-recommended-primary-windows-365-cloud-pc)
-- [6 Alternative: Azure Cloud Shell](#6-alternative-azure-cloud-shell)
-- [7 Alternative: GitHub Codespaces / dev container](#7-alternative-github-codespaces--dev-container)
-- [8 Alternative: CI/CD only (no interactive PowerShell)](#8-alternative-cicd-only-no-interactive-powershell)
-- [9 Alternative: container image](#9-alternative-container-image)
-- [10 Quick reference: install commands](#10-quick-reference-install-commands)
-- [11 Microsoft Learn references](#11-microsoft-learn-references)
+- [Sentinel-As-Code - Build and Test Guide](#sentinel-as-code---build-and-test-guide)
+  - [Contents](#contents)
+  - [Executive summary](#executive-summary)
+  - [1 Purpose and audience](#1-purpose-and-audience)
+    - [1.1 The constraint](#11-the-constraint)
+    - [1.2 What this guide gives you](#12-what-this-guide-gives-you)
+  - [2 What you are building and testing](#2-what-you-are-building-and-testing)
+  - [3 Requirements](#3-requirements)
+    - [3.1 Baseline runtime](#31-baseline-runtime)
+    - [3.2 Modules required to validate the project](#32-modules-required-to-validate-the-project)
+    - [3.3 Modules required to use (deploy) the project](#33-modules-required-to-use-deploy-the-project)
+    - [3.4 Sentinel Documenter modules](#34-sentinel-documenter-modules)
+    - [3.5 External (non-module) dependencies](#35-external-non-module-dependencies)
+    - [3.6 Permissions](#36-permissions)
+      - [3.6.1 Pipeline service principal (deploy + content)](#361-pipeline-service-principal-deploy--content)
+      - [3.6.2 Playbook managed identities](#362-playbook-managed-identities)
+      - [3.6.3 DCR Watchlist Sync automation account](#363-dcr-watchlist-sync-automation-account)
+      - [3.6.4 Defender XDR export tool](#364-defender-xdr-export-tool)
+      - [3.6.5 Resource providers](#365-resource-providers)
+  - [4 Choosing a no-local-install execution method](#4-choosing-a-no-local-install-execution-method)
+    - [4.1 Recommendation](#41-recommendation)
+  - [5 Recommended primary: Windows 365 Cloud PC](#5-recommended-primary-windows-365-cloud-pc)
+    - [5.1 What IT installs on the Cloud PC image](#51-what-it-installs-on-the-cloud-pc-image)
+    - [5.2 Provision and connect](#52-provision-and-connect)
+    - [5.3 Get the code and run the tests](#53-get-the-code-and-run-the-tests)
+    - [5.4 Deploy interactively (optional)](#54-deploy-interactively-optional)
+    - [5.5 Other managed-desktop variants](#55-other-managed-desktop-variants)
+  - [6 Alternative: Azure Cloud Shell](#6-alternative-azure-cloud-shell)
+    - [6.1 One-time setup](#61-one-time-setup)
+    - [6.2 Get the code and validation modules](#62-get-the-code-and-validation-modules)
+    - [6.3 Run the tests](#63-run-the-tests)
+    - [6.4 Deploy interactively (optional)](#64-deploy-interactively-optional)
+  - [7 Alternative: GitHub Codespaces / dev container](#7-alternative-github-codespaces--dev-container)
+    - [7.1 When to use it](#71-when-to-use-it)
+    - [7.2 Setup outline](#72-setup-outline)
+  - [8 Alternative: CI/CD only (no interactive PowerShell)](#8-alternative-cicd-only-no-interactive-powershell)
+    - [8.1 How validation runs](#81-how-validation-runs)
+    - [8.2 How deployment runs](#82-how-deployment-runs)
+  - [9 Alternative: container image](#9-alternative-container-image)
+    - [9.1 Setup outline](#91-setup-outline)
+  - [10 Quick reference: install commands](#10-quick-reference-install-commands)
+    - [10.1 Minimum to validate (run the test suite)](#101-minimum-to-validate-run-the-test-suite)
+    - [10.2 Full runtime (deploy content + run the tooling)](#102-full-runtime-deploy-content--run-the-tooling)
+    - [10.3 Only for the standalone SDL workbook export](#103-only-for-the-standalone-sdl-workbook-export)
+    - [10.4 Run the validation gate](#104-run-the-validation-gate)
+  - [11 Microsoft Learn references](#11-microsoft-learn-references)
+    - [11.1 Runtime, modules and testing](#111-runtime-modules-and-testing)
+    - [11.2 Local developer tooling](#112-local-developer-tooling)
+    - [11.3 Execution environments](#113-execution-environments)
+    - [11.4 Permissions, roles and identity](#114-permissions-roles-and-identity)
+    - [11.5 API schemas and resource definitions](#115-api-schemas-and-resource-definitions)
 
 ---
 
