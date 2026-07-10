@@ -1,0 +1,35 @@
+id: bf721b59-df8a-4c29-bead-c0025c020e40
+name: Copilot referenced sensitivity-labelled resources
+description: |
+  Expands the resources that Copilot referenced when answering a prompt and
+  keeps only those carrying a sensitivity label. This shows which labelled
+  files, sites and items were surfaced to a user through Copilot, which is a
+  key signal when investigating potential oversharing or data collection.
+
+  Investigation question answered: did Copilot access sensitive resources?
+
+  Verify in tenant: the RawEventData path to CopilotEventData.AccessedResources
+  and the ActionType value. The Microsoft 365 audit record exposes the same
+  data via OfficeActivity if CloudAppEvents is not available.
+query: |
+  CloudAppEvents
+  | where TimeGenerated > ago(1d)
+  | where ActionType == "CopilotInteraction"
+  | mv-expand Resource = RawEventData.CopilotEventData.AccessedResources
+  | extend SensitivityLabelId = tostring(Resource.SensitivityLabelId)
+  | where isnotempty(SensitivityLabelId)
+  | project
+      TimeGenerated,
+      AccountObjectId,
+      AccountDisplayName,
+      IPAddress,
+      ResourceName = tostring(Resource.Name),
+      SiteUrl = tostring(Resource.SiteUrl),
+      SensitivityLabelId,
+      ResourceAction = tostring(Resource.Action)
+  | order by TimeGenerated desc
+tactics:
+  - Collection
+techniques:
+  - T1213
+  - T1530
