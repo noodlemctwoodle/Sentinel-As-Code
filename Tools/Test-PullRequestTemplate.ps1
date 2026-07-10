@@ -188,7 +188,7 @@ function Test-PullRequestTemplateBody {
     $minContentChars = 10
 
     if ([string]::IsNullOrWhiteSpace($Body)) {
-        $errors.Add('The pull request description is empty. Fill in the PR template (why the change is needed, what it does, what it fixes, and how it was tested).')
+        $errors.Add('The pull request description is empty. Fill in the PR template (the summary, why the change is needed, what it does, and how it was tested).')
         return [pscustomobject]@{ IsValid = $false; Errors = $errors.ToArray() }
     }
 

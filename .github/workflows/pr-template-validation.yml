@@ -79,10 +79,14 @@ jobs:
               echo "::notice::Bot or auto-sync PR ('$HEAD_REF') - PR template validation skipped."
           fi
 
-      - name: Checkout PR branch
+      # Check out the BASE ref (trusted), not the PR head, so the validator
+      # script always runs from main. Otherwise a PR could neuter its own gate
+      # by editing Tools/Test-PullRequestTemplate.ps1 in the same change.
+      - name: Checkout base ref (trusted validator)
         if: steps.skip.outputs.should_skip != 'true'
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 1
 
       # The PR body is untrusted input. It is passed through an environment
@@ -94,4 +98,10 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
+          # Bootstrap guard: on the PR that first introduces the validator the
+          # base ref does not have it yet, so there is nothing trusted to run.
+          if (-not (Test-Path ./Tools/Test-PullRequestTemplate.ps1)) {
+              Write-Host "::notice::Validator not present on the base ref yet (bootstrap PR); skipping."
+              exit 0
+          }
           ./Tools/Test-PullRequestTemplate.ps1 -Body $env:PR_BODY
