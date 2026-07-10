@@ -1,3 +1,5 @@
+# Sentinel As Code
+
 <p align="center">
   <img src="./.images/Sentinel-As-Code.png" alt="Sentinel-As-Code" width="512" />
 </p>
@@ -22,175 +24,54 @@ It ships with a five-job PR validation gate, a nightly end-to-end smoke test aga
 
 The [Sentinel as Code Toolkit](https://marketplace.visualstudio.com/items?itemName=noodlemctwoodle.sentinelcodeguard) is a companion VS Code extension for authoring content in this repo, covering schema validation, IntelliSense, field-order formatting, ARM-to-YAML conversion, and Defender XDR authoring helpers. It authors and validates; it does not deploy, so it pairs with (rather than replaces) the pipelines documented here. See [Docs/Toolkit/README.md](Docs/Toolkit/README.md).
 
-## Repository Structure
+## Repository structure
 
 ```
-.archive/                  # Deprecated legacy files
-.github/                   # GitHub Actions workflows + composite actions + Copilot customisations (instructions / agents / prompts)
-AGENTS.md                  # Cross-tool agent guidance (Copilot, Claude, Gemini, Cursor)
-Blog/                      # Source posts for sentinel.blog
-Content/                   # All Sentinel content, grouped by type (see Docs/Content/)
-  AnalyticalRules/         #   Custom Sentinel analytics rules (YAML)
-  AutomationRules/         #   Custom automation rules (JSON)
-  DefenderCustomDetections/ #  Defender XDR custom detection rules (YAML)
-  HuntingQueries/          #   Custom hunting queries (YAML)
-  Parsers/                 #   KQL parsers/functions (YAML)
-  Playbooks/               #   Custom playbooks (ARM templates)
-  SummaryRules/            #   Custom summary rules (JSON)
-  Watchlists/              #   Custom watchlists (JSON + CSV)
-  Workbooks/               #   Custom workbooks (gallery JSON)
-Infra/                     # Infrastructure-as-code - three Bicep stacks (see Docs/Infra/Bicep.md)
-  sentinel/                #   production Sentinel deployment, subscription-scoped (main.bicep + sentinel.bicep)
-  test-workspace/          #   PR-validation / E2E test workspace (main.bicep)
-  dcr-watchlist/           #   DCR-watchlist automation account + runbook (main.bicep + modules/automationAccount.bicep)
-Deploy/                    # Deployment scripts + sentinel-deployment.config (see Docs/Deploy/Scripts.md)
-Tools/                     # CI / maintenance / reporting: dependency manifest, drift, PR validation, workbook export, community import, Documenter
-Pipelines/                 # Azure DevOps pipeline definitions (see Docs/Pipelines/README.md)
-Docs/                      # All documentation, mirroring this repo's folders (start at Docs/README.md)
-Modules/                   # In-repo PowerShell modules (Sentinel.Common - shared deployer + KQL discovery helpers)
-Tests/                     # Pester test suite (see Docs/Tests/Pester-Tests.md)
-dependencies.json          # Auto-derived content dependency graph (see Docs/Tools/Dependency-Manifest.md)
-README.md                  # This file
+.github/            GitHub Actions workflows, composite actions, and Copilot customisations
+AGENTS.md           Cross-tool agent guidance (Copilot, Claude, Gemini, Cursor)
+Blog/               Source posts for sentinel.blog
+Content/            All Sentinel content, grouped by type (analytical/hunting/summary rules,
+                    watchlists, playbooks, workbooks, parsers, automation rules, Defender detections)
+Infra/              Three subscription-scoped Bicep stacks (production Sentinel, test workspace,
+                    DCR-watchlist automation)
+Deploy/             Deployment scripts and sentinel-deployment.config
+Tools/              CI and maintenance tooling (dependency manifest, drift, PR validation,
+                    workbook export, community import, Documenter)
+Pipelines/          Azure DevOps pipeline definitions
+Modules/            In-repo PowerShell modules (Sentinel.Common shared deployer + KQL helpers)
+Tests/              Pester test suite
+Docs/               All documentation, mirroring the repo layout (start at Docs/README.md)
+dependencies.json   Auto-derived content dependency graph
 ```
 
-For details on what's inside each folder and how content is authored, see the
-[Documentation](#documentation) section below.
+For what lives inside each folder and how content is authored, see the
+[Documentation](#documentation) section below, starting at
+[`Docs/README.md`](Docs/README.md).
 
 ## Features
 
-- **End-to-End Deployment**: Single pipeline provisions infrastructure via Bicep, deploys Content Hub content, custom Sentinel content, and Defender XDR custom detections
-- **Smart Infrastructure Checks**: Detects existing resources and skips Bicep deployment if infrastructure is already in place
-- **Smart Deployment**: The deploy pipeline runs incrementally by default (the `smart_deployment` pipeline input defaults **on**): git diff detects changed files and the state file tracks outcomes across runs to auto-retry previously failed items. Set the input to `false` for a full deploy of every item. The underlying `-SmartDeployment` script switch itself defaults **off**, so a direct script call is a full deploy unless you pass it
-- **Auto-derived Dependency Graph**: `dependencies.json` is generated from KQL content discovery, not hand-maintained. PR-validation gate refuses to merge on drift; daily auto-PR keeps the manifest fresh. See [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md)
-- **Content Hub Automation**: Deploy solutions, analytics rules, workbooks, automation rules, and hunting queries via REST API
-- **KQL Content/Parsers/Functions**: Deploy workspace saved searches as reusable KQL parser functions from YAML
-- **Custom Content Deployment**: Deploy custom analytical rules (YAML), watchlists (JSON+CSV), playbooks (ARM), workbooks (gallery JSON), hunting queries (YAML), automation rules (JSON), parsers (YAML), and summary rules (JSON) from the repo
-- **Playbook Enhancements**: Module-first ordering, ARM parameter auto-injection, optional separate resource group, template folder exclusion, 64-character name truncation
-- **Custom Hunting Queries**: Deploy YAML-based saved searches for proactive threat hunting
-- **Custom Automation Rules**: Deploy JSON-based automation rules for incident auto-response
-- **Summary Rules**: Deploy JSON-based summary rules to aggregate verbose log data into cost-effective summary tables
-- **Defender XDR Custom Detections**: Deploy Advanced Hunting-based custom detection rules to Defender XDR via the Graph Security API
-- **Customisation Protection**: Detect and skip locally modified analytics rules to preserve manual tuning
-- **Drift Detection and Absorption**: Daily drift detector compares every deployed rule against its source-of-truth and absorbs all three buckets back into the repo as Custom YAML - Custom edits update matching files, ContentHub edits become new YAMLs under `Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/{Solution}/`, Orphans land at `Content/AnalyticalRules/AbsorbedFromPortal/Orphans/`. The next deploy round-trips every absorbed rule through governance. See [Docs/Tools/Sentinel-Drift-Detection.md](Docs/Tools/Sentinel-Drift-Detection.md)
-- **Workbook Round-Trip Export**: `Tools/Export-SentinelWorkbooks.ps1` pulls every user-authored workbook from a workspace into `Content/Workbooks/<DisplayName>/{workbook.json, metadata.json}`. Filters out Content Hub workbooks, replaces workspace ARM IDs with placeholders, restores PascalCase folder naming, and preserves author-curated metadata on re-export. Portal authoring becomes a first-class repo workflow
-- **Granular Content Control**: Toggle deployment of individual content types via pipeline parameters
-- **Dry Run Support**: Preview changes with `-WhatIf` before applying
-- **Azure Government Support**: Target both commercial and government cloud environments
-- **PR Validation Gate**: Five-job merge gate (Pester · Bicep build · ARM template validation · KQL syntax · dependency-manifest drift) on every PR or push to `main`. The ARM job calls `Test-AzResourceGroupDeployment` (a validation call, not a `-WhatIf`). See [Docs/Tests/Pester-Tests.md](Docs/Tests/Pester-Tests.md)
-- **Nightly E2E Smoke Test**: Validates every deploy code path against a test workspace each night so production-deploy regressions are caught six days before the Monday cron runs
-- **Shared PowerShell Module**: `Modules/Sentinel.Common` exports the deployer helpers every script depends on (`Write-PipelineMessage`, `Invoke-SentinelApi`, `Connect-AzureEnvironment`) plus six KQL discovery functions used by the dependency-manifest builder. Single source of truth eliminates the bug-fix-in-one-copy class of regression
-- **Reusable GitHub Actions Composites**: `azure-login-oidc` and `setup-pwsh-modules` under `.github/actions/`. Replace inlined `Azure/login@v2` and `Install-Module` patterns at every call site; pin every PSGallery dependency by version
-- **GitHub Copilot Integration**: Thirteen cross-platform Copilot agents in two tiers - five persona-broad (Build / Edit / Tune / Explain / Understand) plus eight engineering specialists (Pipelines, PowerShell, Bicep, KQL, Tests, Drift, Dependencies, Security) - nine path-scoped instruction files, and six reusable prompts. Works on github.com Chat, github.com cloud agent, VS Code, Visual Studio, JetBrains, and Copilot CLI without configuration. See [Docs/GitHub/GitHub-Copilot.md](Docs/GitHub/GitHub-Copilot.md)
+- **End-to-end deployment**: a single pipeline provisions infrastructure via Bicep, then deploys Content Hub solutions, custom Sentinel content (analytical rules, hunting queries, watchlists, playbooks, workbooks, parsers, automation rules, summary rules), and Defender XDR custom detections.
+- **Smart, incremental deployment**: the deploy pipeline runs incrementally by default, using a git diff and a state file to skip unchanged items and auto-retry previously failed ones. See [Deploy](Docs/Pipelines/Deploy.md) and [Scripts](Docs/Deploy/Scripts.md).
+- **Auto-derived dependency graph**: `dependencies.json` is generated from KQL content discovery, gated in CI, and refreshed by a daily auto-PR. See [Dependency Manifest](Docs/Tools/Dependency-Manifest.md).
+- **Drift detection and absorption**: a daily detector compares every deployed rule against its source of truth and absorbs portal edits back into the repo as PRs. See [Sentinel Drift Detection](Docs/Tools/Sentinel-Drift-Detection.md).
+- **Workbook round-trip export**: pull user-authored workbooks from a workspace into the repo with placeholders and curated metadata, making portal authoring a first-class repo workflow. See [Workbooks](Docs/Content/Workbooks.md).
+- **PR validation and nightly E2E**: a five-job merge gate (Pester, Bicep build, ARM validation, KQL syntax, dependency-manifest drift) runs on every PR, and a nightly smoke test exercises every deploy path against a throwaway test workspace. See [PR Validation](Docs/Pipelines/PR-Validation.md) and [Deploy Nightly](Docs/Pipelines/Deploy-Nightly.md).
+- **Customisation protection and dry runs**: locally tuned rules are detected and skipped, and `-WhatIf` previews changes before applying.
+- **Azure Government support**: target both commercial and government cloud environments.
+- **Shared tooling**: the `Sentinel.Common` PowerShell module is the single source of truth for the deployer helpers and KQL discovery, and reusable GitHub Actions composites (`azure-login-oidc`, `setup-pwsh-modules`) pin every dependency. See [Sentinel.Common module](Docs/Modules/Sentinel-Common-Module.md).
+- **Repo-aware AI assistance**: thirteen cross-platform GitHub Copilot agents plus path-scoped instructions and reusable prompts. See [GitHub Copilot](Docs/GitHub/GitHub-Copilot.md).
 
-## Quick Start
+## Quick start
 
-### Prerequisites
+1. **Grant permissions.** Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to grant the service principal every required role (Contributor, ABAC-conditioned User Access Administrator, plus the optional Security Administrator and `CustomDetection.ReadWrite.All` grants) with a Y/N consent prompt. After that the pipeline is autonomous. Full role list: [Deploy](Docs/Pipelines/Deploy.md); bootstrap detail: [Scripts](Docs/Deploy/Scripts.md).
+2. **Wire up CI.** On Azure DevOps, create the `sc-sentinel-as-code` service connection and the `sentinel-deployment` variable group, then point a pipeline at `Pipelines/Sentinel-Deploy.yml`. See [ADO OIDC Setup](Docs/Deploy/ADO-OIDC-Setup.md) and [Deploy](Docs/Pipelines/Deploy.md). On GitHub, the workflows under `.github/workflows/` authenticate via OIDC; see [PR Validation Setup](Docs/Deploy/PR-Validation-Setup.md).
+3. **Run it.** The deploy checks for existing infrastructure, deploys Bicep if needed, configures Sentinel settings, then deploys Content Hub and custom content in ordered stages followed by Defender XDR detections.
 
-- Azure subscription
-- Azure DevOps organisation and project
-- Service Principal with the following roles:
-
-| Role | Scope | Purpose |
-|------|-------|---------|
-| **Contributor** | Subscription | Resource group, workspace, Bicep deployments, Sentinel content, and summary rules |
-| **User Access Administrator** (ABAC-conditioned) | Subscription | Playbook managed identity role assignments *(restricted to 5 roles)* |
-| **Security Administrator** (Entra ID) | Tenant | UEBA and Entity Analytics settings *(optional)* |
-| **CustomDetection.ReadWrite.All** (Graph) | Tenant | Defender XDR custom detection rules *(Stage 5)* |
-
-> **Least-privilege alternative**: If your organisation requires tighter RBAC, you can replace **Contributor** with more granular roles. See the [Pipelines doc](Docs/Pipelines/README.md#prerequisites) for the least-privilege role assignment table.
-
-> **Note on Setup**: Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to automatically grant all required permissions. The script provides a permission summary, requests Y/N consent, and supports `-SkipEntraRole` and `-SkipGraphPermission` switches for optional steps. After running once, the pipeline is fully autonomous.
-
-> **Note on UEBA/Entity Analytics**: These Sentinel settings require the **Security Administrator** Entra ID directory role on the service principal. If your organisation cannot assign this role to a service principal, UEBA and Entity Analytics can be enabled manually via the Azure portal by a user who holds Security Administrator. All other Bicep resources deploy without it.
-
-> **Note on Defender XDR Detections**: Stage 5 requires the `CustomDetection.ReadWrite.All` Microsoft Graph **application permission** on the service principal's app registration. Grant this in **Entra ID > App Registrations > API Permissions > Microsoft Graph > Application permissions** and provide admin consent.
-
-> **Note**: Required resource providers (`Microsoft.OperationsManagement`, `Microsoft.SecurityInsights`) are registered automatically by the pipeline during infrastructure deployment.
-
-### Setup
-
-1. **Import** this repository into your Azure DevOps project
-
-2. **Create a service connection** named `sc-sentinel-as-code` - see the [Pipelines doc](Docs/Pipelines/README.md) for role requirements
-
-3. **Run the bootstrap script** once: `Deploy/setup/Setup-ServicePrincipal.ps1` grants all required roles (Contributor, User Access Administrator, Security Administrator, CustomDetection.ReadWrite.All) with your Y/N consent. Optional steps can be skipped with `-SkipEntraRole` or `-SkipGraphPermission` switches.
-
-4. **Create a variable group** named `sentinel-deployment` in **Pipelines > Library** with your desired resource names - the pipeline will create them if they don't exist. Optionally add `playbookResourceGroup` to deploy playbooks to a separate resource group. See the [Pipelines doc](Docs/Pipelines/README.md) for details
-
-5. **Create a pipeline** in Azure DevOps pointing to `Pipelines/Sentinel-Deploy.yml`
-
-6. **Run the pipeline** - the pipeline will:
-   - Check if infrastructure already exists
-   - Deploy Bicep templates if needed (resource group, Log Analytics, Sentinel)
-   - Configure Sentinel settings (Entity Analytics, UEBA, Anomalies, EyesOn)
-   - Wait for workspace indexing (60s on new deployments)
-   - Deploy Content Hub solutions and content
-   - Deploy custom content in eight ordered stages (parsers, watchlists, detections/analytical rules, hunting queries, playbooks, workbooks, automation rules, summary rules)
-   - Deploy Defender XDR custom detection rules via Graph API
-
-### Optional: standalone pipelines
-
-The repo ships **seven Azure DevOps pipelines** under `Pipelines/` and **seven GitHub Actions workflows** under `.github/workflows/`. Most map one-to-one across the two CI systems, but the coverage is not fully symmetric (see the asymmetry notes below). Per-pipeline detail lives under [Docs/Pipelines/](Docs/Pipelines). Alongside the main deploy, these run on their own schedule:
-
-- **`Pipelines/Sentinel-Drift-Detect.yml`** (daily 06:00 UTC): detects rules edited directly in the Sentinel portal, absorbs Custom drift back into the repo via PR. A `-ReportOnly` run writes the drift report artefact only and never opens a PR. See [Docs/Tools/Sentinel-Drift-Detection.md](Docs/Tools/Sentinel-Drift-Detection.md).
-- **`Pipelines/Sentinel-DCR-Inventory.yml`** (on-change): deploys the Azure Automation runbook that inventories Data Collection Rule associations into a Sentinel watchlist for billing reporting. The runbook syncs one watchlist row per DCR, keyed on `DCRName`. See [Docs/Tools/DCR-Watchlist.md](Docs/Tools/DCR-Watchlist.md).
-- **`Pipelines/Sentinel-Dependency-Update.yml`** (daily 02:00 UTC): runs `Build-DependencyManifest -Mode Update` and opens a PR if `dependencies.json` drifts from discovery. See [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md).
-- **`Pipelines/Sentinel-PR-Validation.yml`** (on PR): runs every Pester suite plus the dependency-manifest drift gate. See [Docs/Tests/Pester-Tests.md](Docs/Tests/Pester-Tests.md).
-- **`Pipelines/Sentinel-Documenter.yml`** (manual trigger only on ADO): runs the two-stage Documenter (collector then renderer) over a live workspace and publishes the `SecurityDocs/<workspace>/` inventory + gap-analysis tree as a pipeline artefact. The Documenter requires a **private** repository. See [Docs/Tools/Documenter/Sentinel-Documenter.md](Docs/Tools/Documenter/Sentinel-Documenter.md).
-- **`Pipelines/Sentinel-Word-Report.yml`** (manual, **ADO-only**, no GitHub equivalent): renders the Documenter Markdown into a single formatted Word document with a real page-numbered table of contents. See [Docs/Tools/Documenter/Sentinel-Word-Report.md](Docs/Tools/Documenter/Sentinel-Word-Report.md).
-
-CI asymmetries to be aware of:
-
-- **`.github/workflows/sentinel-deploy-nightly.yml`** (daily 03:00 UTC) is **GitHub-only**: an E2E smoke test against the test workspace, catching deploy-pipeline regressions before the weekly Monday production cron. There is no ADO equivalent.
-- **`Pipelines/Sentinel-Word-Report.yml`** is **ADO-only**: there is no GitHub Word-report workflow.
-- The **Documenter runs daily** on GitHub (`.github/workflows/sentinel-document.yml`, cron `0 6 * * *` plus `workflow_dispatch`) but is **manual-trigger-only** on ADO (`Pipelines/Sentinel-Documenter.yml`).
-- The deployment-state file differs by CI: GitHub writes `.deployment-state.json` (leading dot), ADO writes `deployment-state.json` (no dot). Neither is canonical.
-
-### Schedule alignment
-
-```
-02:00 UTC daily    sentinel-dependency-update    Refresh dependencies.json + auto-PR
-03:00 UTC daily    sentinel-deploy-nightly       E2E smoke test (GitHub-only)
-04:00 UTC Monday   sentinel-deploy               Production deploy
-06:00 UTC daily    sentinel-drift-detect         Portal-drift detection + auto-PR
-06:00 UTC daily    sentinel-document             Documenter snapshot (GitHub cron; ADO is manual-only)
-on every PR        sentinel-pr-validation        5-job merge gate
-on change          sentinel-dcr-inventory        DCR runbook deploy
-manual only        sentinel-word-report          Word report render (ADO-only)
-```
+New to the project? The [Build and Test Guide](Docs/Guides/Sentinel-As-Code-Build-and-Test-Guide.md) walks through requirements, permissions, and a no-local-install path end to end. For the standalone pipelines, the GitHub-to-ADO parity map, and each pipeline's schedule, see [Docs/Pipelines/README.md](Docs/Pipelines/README.md).
 
 ## GitHub Copilot agents
 
-The repo ships with a complete GitHub Copilot customisation set so authors get repo-aware AI help out of the box. No VS Code settings or feature toggles required - open the workspace in any IDE with Copilot Chat enabled, or pick the agent from the dropdown on github.com.
-
-Thirteen agents in two tiers:
-
-**Persona-broad** - pick by what kind of help you want.
-
-| Agent | Purpose |
-|---|---|
-| `Sentinel-As-Code: Repo Explorer` | **Understand.** Explains repo architecture, content flow, where things live. Read-only. |
-| `Sentinel-As-Code: Rule Author` | **Build.** Authors new analytical rules, hunting queries, Defender detections end-to-end. |
-| `Sentinel-As-Code: Content Editor` | **Edit.** General-purpose edits across any content type with the right post-edit Pester suite. |
-| `Sentinel-As-Code: Rule Tuner` | **Adjust.** Tunes thresholds, severity, query filters on existing rules without changing detection intent. |
-| `Sentinel-As-Code: Code Explainer` | **Explain.** Walks through PowerShell, KQL, ARM, workflows in plain prose. Read-only. |
-
-**Engineering specialists** - pick by area of expertise.
-
-| Agent | Purpose |
-|---|---|
-| `Sentinel-As-Code: Pipeline Engineer` | GitHub Actions + ADO pipelines, parity, composite actions, schedules, failure diagnosis. |
-| `Sentinel-As-Code: PowerShell Engineer` | `Sentinel.Common` module, scripts, AST extraction, the repo's foot-gun list. |
-| `Sentinel-As-Code: Bicep Engineer` | Bicep templates, parameter design, Sentinel onboarding, test-workspace template. |
-| `Sentinel-As-Code: KQL Engineer` | Query optimisation, parser extraction, watchlist promotion, ASIM compatibility. |
-| `Sentinel-As-Code: Test Engineer` | Pester suite engineering, coverage analysis, mocking strategy. |
-| `Sentinel-As-Code: Security Reviewer` | Reviews playbooks, scripts, role assignments, federated credentials. Read-only. |
-| `Sentinel-As-Code: Drift Engineer` | Rule drift sub-system, daily auto-PR triage, Custom / ContentHub / Orphan absorption. |
-| `Sentinel-As-Code: Dependencies Engineer` | Dependency-discovery extractor, `Build-DependencyManifest`, the drift gate, the daily refresh workflow. |
-
-Plus nine path-scoped instruction files under [`.github/instructions/`](.github/instructions) that load automatically when you edit a matching file (analytical rules, Defender detections, hunting queries, KQL queries, Pester tests, playbooks, PowerShell scripts, watchlists, workflows), and six reusable prompts under [`.github/prompts/`](.github/prompts) (`/new-analytical-rule`, `/new-hunting-query`, `/new-defender-detection`, `/new-pester-test`, `/review-rule`, `/regenerate-deps`).
-
-Repo-wide guidance lives in [`.github/copilot-instructions.md`](.github/copilot-instructions.md). Cross-tool agent guidance (Claude, Gemini, Cursor) lives in [`AGENTS.md`](AGENTS.md). Full reference: [Docs/GitHub/GitHub-Copilot.md](Docs/GitHub/GitHub-Copilot.md).
+The repo ships a complete GitHub Copilot customisation set so authors get repo-aware AI help out of the box, with no VS Code settings or feature toggles required. It comprises thirteen custom agents (five persona-broad, eight engineering specialists), nine path-scoped instruction files that load automatically when you edit a matching file, and six reusable slash-command prompts, plus repo-wide guidance in [`.github/copilot-instructions.md`](.github/copilot-instructions.md) and cross-tool guidance in [`AGENTS.md`](AGENTS.md). It works on github.com Chat, the github.com cloud agent, VS Code, Visual Studio, JetBrains, and Copilot CLI without configuration. Full roster and usage: [Docs/GitHub/GitHub-Copilot.md](Docs/GitHub/GitHub-Copilot.md).
 
 ## Documentation
 
@@ -301,21 +182,9 @@ End-to-end walkthroughs.
 | Changelog | [Releases/CHANGELOG.md](Docs/Releases/CHANGELOG.md) |
 | Layout Restructure 26.06 | [Releases/Layout-Restructure-26.06.md](Docs/Releases/Layout-Restructure-26.06.md) |
 
-## Infrastructure (Bicep)
-
-Subscription-scoped Bicep templates in `Infra/` provision the resource group, Log Analytics workspace, Sentinel onboarding (both legacy `OperationsManagement/solutions` and modern `SecurityInsights/onboardingStates`), diagnostic settings, and an optional separate playbook resource group. Sentinel feature settings (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in the same pipeline stage.
-
-For the full parameter reference, resource list, API versions, and limitations, see [Docs/Infra/Bicep.md](Docs/Infra/Bicep.md).
-
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome. See the [Contributing guide](Docs/Contributing.md) for how to report bugs, suggest enhancements, author content, run the checks, and open a pull request. In short: fork the repository, branch from `main`, fill in the [pull request template](.github/PULL_REQUEST_TEMPLATE.md), and make sure the `template` check and the five-job validation gate pass before requesting a merge.
 
 ## Support the Project
 
