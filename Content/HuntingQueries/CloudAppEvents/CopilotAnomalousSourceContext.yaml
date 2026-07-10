@@ -1,0 +1,42 @@
+id: c7292339-6762-4aa1-8ceb-ec2c86ee16dc
+name: Copilot activity from anomalous source context
+description: |
+  Flags Copilot activity where the combination of country, ISP and user agent
+  has not been seen for that account in the prior 30 days. New source context
+  for an account that otherwise has an established Copilot footprint can
+  indicate session theft, token replay from an attacker host, or use from an
+  unmanaged device.
+
+  Investigation question answered: is the source IP, ISP, country, device or
+  user agent normal for this user?
+
+  The CloudAppEvents ActionType for Copilot is "CopilotInteraction"; verify the
+  enrichment column names (ISP, UserAgent) in tenant.
+query: |
+  let Baseline = CloudAppEvents
+    | where TimeGenerated between (ago(31d) .. ago(1d))
+    | where ActionType == "CopilotInteraction"
+    | extend ISP = column_ifexists('ISP', ''), UserAgent = column_ifexists('UserAgent', '')
+    | summarize by AccountObjectId, CountryCode, ISP, UserAgent;
+  CloudAppEvents
+  | where TimeGenerated > ago(1d)
+  | where ActionType == "CopilotInteraction"
+  | extend ISP = column_ifexists('ISP', ''), UserAgent = column_ifexists('UserAgent', '')
+  | project
+      TimeGenerated,
+      AccountObjectId,
+      AccountDisplayName,
+      IPAddress,
+      CountryCode,
+      City,
+      ISP,
+      UserAgent,
+      DeviceType,
+      Application
+  | join kind=leftanti Baseline on AccountObjectId, CountryCode, ISP, UserAgent
+  | order by TimeGenerated desc
+tactics:
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004

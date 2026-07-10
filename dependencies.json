@@ -50,6 +50,17 @@
         "https://raw.githubusercontent.com/microsoft/mstic/master/PublicFeeds/MSFTIPRanges/ServiceTags_Public.json"
       ]
     },
+    "Content/AnalyticalRules/CloudAppEvents/CopilotMassSensitiveResourceAccessDetectionRule.yaml": {
+      "tables": [
+        "CloudAppEvents"
+      ]
+    },
+    "Content/AnalyticalRules/CloudAppEvents/HighImpactUserAnomalousCopilotAccessDetectionRule.yaml": {
+      "tables": [
+        "CloudAppEvents",
+        "IdentityInfo"
+      ]
+    },
     "Content/AnalyticalRules/Community/Dalonso/AzureActivity/AzureAutomationRunbookCreatedOrPublishedByFirstTimeCaller.yaml": {
       "tables": [
         "AzureActivity"
@@ -637,6 +648,25 @@
         "SigninLogs"
       ]
     },
+    "Content/AnalyticalRules/CopilotActivity/CopilotJailbreakDetectedDetectionRule.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/AnalyticalRules/CopilotActivity/HighImpactUserCopilotActivityFromNewRegionDetectionRule.yaml": {
+      "tables": [
+        "CopilotActivity",
+        "IdentityInfo"
+      ]
+    },
+    "Content/AnalyticalRules/CopilotActivity/UnentitledUserCopilotActivityDetectionRule.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ],
+      "watchlists": [
+        "CopilotEntitledUsers"
+      ]
+    },
     "Content/AnalyticalRules/Custom/ChangeWasMadeToTailscale.yaml": {
       "tables": [
         "TailscaleAudit_CL"
@@ -969,6 +999,14 @@
         "MicrosoftGraphActivityLogs"
       ]
     },
+    "Content/AnalyticalRules/OfficeActivity/UnentitledUserCopilotUsageDetectionRule.yaml": {
+      "tables": [
+        "OfficeActivity"
+      ],
+      "watchlists": [
+        "CopilotEntitledUsers"
+      ]
+    },
     "Content/AnalyticalRules/PrivilegeEscalation/UserAddedToPrivilegedGroupDetectionRule.yaml": {
       "tables": [
         "AuditLogs"
@@ -1057,6 +1095,64 @@
     "Content/HuntingQueries/AzureActivity/AzureResourceChangesRiskDetection1kSample.yaml": {
       "tables": [
         "AzureActivity"
+      ]
+    },
+    "Content/HuntingQueries/CloudAppEvents/CopilotAnomalousSourceContext.yaml": {
+      "tables": [
+        "CloudAppEvents"
+      ]
+    },
+    "Content/HuntingQueries/CloudAppEvents/CopilotInteractionVolumeSpike.yaml": {
+      "tables": [
+        "CloudAppEvents"
+      ]
+    },
+    "Content/HuntingQueries/CloudAppEvents/CopilotSensitiveResourceAccess.yaml": {
+      "tables": [
+        "CloudAppEvents"
+      ]
+    },
+    "Content/HuntingQueries/CloudAppEvents/SecurityCopilotInteractionOverview.yaml": {
+      "tables": [
+        "CloudAppEvents"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotActivityFromNewLocation.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotActivitySensitiveResourceAccess.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotActivityUsageByUnentitledUser.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ],
+      "watchlists": [
+        "CopilotEntitledUsers"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotActivityVolumeSpike.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotJailbreakAttempts.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/CopilotPluginAndPromptBookManagement.yaml": {
+      "tables": [
+        "CopilotActivity"
+      ]
+    },
+    "Content/HuntingQueries/CopilotActivity/SecurityCopilotActivityOverview.yaml": {
+      "tables": [
+        "CopilotActivity"
       ]
     },
     "Content/HuntingQueries/DeviceProcessEvents/MaliciousPowershellPatternAnalysis.yaml": {
@@ -1152,6 +1248,27 @@
         "AuditLogs",
         "IdentityInfo",
         "MicrosoftGraphActivityLogs"
+      ]
+    },
+    "Content/HuntingQueries/OfficeActivity/CopilotStudioAgentGovernanceChanges.yaml": {
+      "tables": [
+        "OfficeActivity"
+      ]
+    },
+    "Content/HuntingQueries/OfficeActivity/CopilotUsageByUnentitledUser.yaml": {
+      "tables": [
+        "OfficeActivity"
+      ],
+      "watchlists": [
+        "CopilotEntitledUsers"
+      ]
+    },
+    "Content/HuntingQueries/OfficeActivity/CopilotUserWithCorrelatedRisk.yaml": {
+      "tables": [
+        "AuditLogs",
+        "OfficeActivity",
+        "SecurityAlert",
+        "SigninLogs"
       ]
     },
     "Content/HuntingQueries/Persistence/AzureVmRunCommandExecution.yaml": {

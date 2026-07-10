@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "CopilotEntitledUsers",
+  "displayName": "Copilot Entitled Users",
+  "description": "Users expected to have Microsoft 365 Copilot entitlement. Detection rules use this list to flag Copilot activity by accounts that are not entitled. Populate with the UPNs of licensed or approved Copilot users.",
+  "provider": "Custom",
+  "itemsSearchKey": "UserPrincipalName"
+}

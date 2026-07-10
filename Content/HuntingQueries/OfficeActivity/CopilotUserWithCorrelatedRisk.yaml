@@ -1,0 +1,51 @@
+id: cc833d84-d024-4496-ad4d-d59072382b6b
+name: Copilot user with correlated risk signals
+description: |
+  Joins accounts that used Copilot in the last day against three independent
+  risk signals in the same window: a risky sign-in, an OAuth application
+  consent grant, and a Microsoft Defender alert. An account that is both
+  active in Copilot and lit up by another control deserves priority triage.
+
+  Investigation question answered: did the same account also show suspicious
+  sign-in, OAuth, mailbox, SharePoint, Teams or Defender activity?
+
+  Verify in tenant: OfficeActivity carries the CopilotInteraction operation;
+  SecurityAlert entity parsing assumes the standard account entity shape.
+query: |
+  let Window = 1d;
+  let CopilotUsers = OfficeActivity
+    | where TimeGenerated > ago(Window)
+    | where Operation == "CopilotInteraction"
+    | summarize CopilotInteractions = count() by UserPrincipalName = tolower(UserId);
+  let RiskySignins = SigninLogs
+    | where TimeGenerated > ago(Window)
+    | where RiskLevelDuringSignIn in ("high", "medium")
+    | summarize Value = count() by UserPrincipalName = tolower(UserPrincipalName)
+    | extend Signal = "RiskySignin";
+  let OAuthConsents = AuditLogs
+    | where TimeGenerated > ago(Window)
+    | where OperationName has "Consent to application"
+    | summarize Value = count() by UserPrincipalName = tolower(tostring(InitiatedBy.user.userPrincipalName))
+    | extend Signal = "OAuthConsent";
+  let DefenderAlerts = SecurityAlert
+    | where TimeGenerated > ago(Window)
+    | mv-expand Entity = todynamic(Entities)
+    | where tostring(Entity.Type) == "account"
+    | extend UserPrincipalName = tolower(strcat(tostring(Entity.Name), "@", tostring(Entity.UPNSuffix)))
+    | where UserPrincipalName != "@"
+    | summarize Value = dcount(SystemAlertId) by UserPrincipalName
+    | extend Signal = "DefenderAlert";
+  let RiskSignals = union RiskySignins, OAuthConsents, DefenderAlerts;
+  CopilotUsers
+  | join kind=inner RiskSignals on UserPrincipalName
+  | summarize
+      CopilotInteractions = any(CopilotInteractions),
+      RiskSignals = make_bag(pack(Signal, Value))
+    by UserPrincipalName
+  | order by UserPrincipalName asc
+tactics:
+  - InitialAccess
+  - CredentialAccess
+techniques:
+  - T1078
+  - T1528

@@ -1,0 +1,40 @@
+id: acf89a4b-94ee-4177-8cf9-1e5fbdc7a310
+name: Copilot jailbreak or prompt-injection attempts (CopilotActivity)
+description: |
+  Surfaces Copilot interactions where the platform flagged a message as a
+  jailbreak attempt (LLMEventData.Messages[].JailbreakDetected == true in the
+  CopilotActivity table). Repeated jailbreak attempts by an account indicate a
+  user, or a compromised identity, trying to bypass Copilot guardrails to
+  extract data or coerce unintended behaviour.
+
+  Investigation focus: which accounts are probing Copilot safety controls, from
+  where, and against which surfaces or agents.
+query: |
+  CopilotActivity
+  | where TimeGenerated > ago(7d)
+  | where RecordType == "CopilotInteraction"
+  | extend Messages = LLMEventData.Messages
+  | mv-expand Messages
+  | where tobool(Messages.JailbreakDetected) == true
+  | project
+      TimeGenerated,
+      ActorName,
+      ActorUserId,
+      SrcIpAddr,
+      ClientRegion,
+      AppHost,
+      AgentName,
+      MessageId = tostring(Messages.Id)
+  | summarize
+      JailbreakAttempts = count(),
+      Surfaces = make_set(AppHost, 10),
+      Agents = make_set(AgentName, 10),
+      SourceIPs = make_set(SrcIpAddr, 20),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by ActorName, ActorUserId
+  | order by JailbreakAttempts desc
+tactics:
+  - DefenseEvasion
+techniques:
+  - T1562
