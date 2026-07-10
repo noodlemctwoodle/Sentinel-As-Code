@@ -1,6 +1,6 @@
 # Toolkit Commands
 
-The Sentinel as Code Toolkit contributes 25 commands to VS Code. Every command is a Command Palette entry, grouped under one of two categories: **Sentinel-As-Code** (Sentinel content) or **Defender-As-Code** (Microsoft Defender XDR custom detections). A handful also appear on right-click menus or carry a keyboard shortcut.
+The Sentinel as Code Toolkit contributes 26 commands to VS Code. Every command is a Command Palette entry, grouped under one of two categories: **Sentinel-As-Code** (Sentinel content) or **Defender-As-Code** (Microsoft Defender XDR custom detections). A handful also appear on right-click menus or carry a keyboard shortcut.
 
 The Toolkit authors and validates content; it does not deploy. Scaffolding, formatting, conversion and validation all happen locally in your editor, and the [Sentinel-As-Code pipeline](../../README.md) does the deployment.
 
@@ -18,7 +18,7 @@ Palette entries are shown with their category prefix, exactly as they read in th
 | Group | Commands |
 |-------|----------|
 | [Rule and content authoring](#rule-and-content-authoring) | Create Sentinel Rule Template, Generate Rule Template, Generate Standard Rule Template, Generate NRT Rule Template, Generate New Rule ID, Generate New IDs for All Rules |
-| [Content scaffolding](#content-scaffolding) | New Sentinel-as-Code Content, New Hunting Query, New Parser, New Summary Rule, New Automation Rule, Create Watchlist from CSV, Populate Required Data Connectors from Query |
+| [Content scaffolding](#content-scaffolding) | New Sentinel-as-Code Content, New Hunting Query, New Parser, New Summary Rule, New Automation Rule, Create Watchlist from CSV, Convert Content YAML to JSON, Populate Required Data Connectors from Query |
 | [ARM conversion](#arm-conversion) | Decompile ARM to YAML |
 | [Validation and formatting](#validation-and-formatting) | Fix Field Order, Format Sentinel Rule, Format Sentinel Content, Validate Rule, Validate as Sentinel Analytics Rule, Bulk Maintenance and Validation |
 | [Defender custom detections](#defender-custom-detections) | Generate Custom Detection Template, Format Custom Detection for Repo, Convert Custom Detection YAML to JSON, Convert Custom Detection JSON to YAML, Validate as Custom Detection |
@@ -38,16 +38,17 @@ Commands for creating a new analytics rule and for managing rule IDs. See [Templ
 
 ## Content Scaffolding
 
-Commands for creating each non-analytics content type. The Toolkit writes the correct on-disk format for you: analytics rules, hunting queries and parsers are stored as YAML, while summary rules, automation rules and watchlists are converted to JSON on disk automatically when scaffolded. See [Templates](Templates.md) for details.
+Commands for creating each non-analytics content type. Every content type is scaffolded as commented YAML, and the scaffolder asks where to save it rather than prompting for each field. Analytics rules, hunting queries and parsers deploy as that YAML, while summary rules, automation rules and watchlists are authored as YAML and then converted with **Convert Content YAML to JSON**, which writes the JSON the pipeline stores beside the source, keeping its base name (a summary or automation rule becomes `<name>.json`; a watchlist's `watchlist.yaml` becomes `watchlist.json`). See [Templates](Templates.md) for details.
 
 | Palette title | What it does | Keybinding | Menus |
 |---------------|--------------|------------|-------|
-| `Sentinel-As-Code: New Sentinel-as-Code Content...` | Single entry point that prompts for the content type (hunting query, parser, summary rule, automation rule, and so on), then scaffolds it in the right folder and format. | - | Palette |
+| `Sentinel-As-Code: New Sentinel-as-Code Content...` | Single entry point for scaffolding any content type. Pick a type, then choose where to save it. The two types with more than one source add a second step: Analytics Rule offers Standard, NRT or Decompile from an ARM template; Watchlist offers a blank template or one built from the active CSV/TSV. | - | Palette and Explorer (right-click a folder) |
 | `Sentinel-As-Code: New Hunting Query` | Scaffolds a hunting-query YAML file from the template. See [Hunting Queries](../Content/Hunting-Queries.md). | - | Palette |
 | `Sentinel-As-Code: New Parser` | Scaffolds a parser (KQL function) YAML file from the template. See [Parsers](../Content/Parsers.md). | - | Palette |
-| `Sentinel-As-Code: New Summary Rule` | Scaffolds a summary rule. The template is authored as YAML and written to disk as JSON. See [Summary Rules](../Content/Summary-Rules.md). | - | Palette |
-| `Sentinel-As-Code: New Automation Rule` | Scaffolds an automation rule. The template is authored as YAML and written to disk as JSON. See [Automation Rules](../Content/Automation-Rules.md). | - | Palette |
-| `Sentinel-As-Code: Create Watchlist from CSV` | Turns a `.csv` or `.tsv` file into a watchlist under `Content/Watchlists/<alias>/`, writing both `watchlist.json` and the data file. See [Watchlists](../Content/Watchlists.md). | - | Editor (`.csv`/`.tsv`) and Palette (with a `.csv`/`.tsv` open) |
+| `Sentinel-As-Code: New Summary Rule` | Scaffolds a summary rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Summary Rules](../Content/Summary-Rules.md). | - | Palette |
+| `Sentinel-As-Code: New Automation Rule` | Scaffolds an automation rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Automation Rules](../Content/Automation-Rules.md). | - | Palette |
+| `Sentinel-As-Code: Create Watchlist from CSV` | Turns a `.csv` or `.tsv` file into a watchlist under `Content/Watchlists/<alias>/`, writing a `watchlist.yaml` template plus the data file. Set `watchlistAlias` and `itemsSearchKey` in the YAML, then run **Convert Content YAML to JSON** to produce the `watchlist.json` the pipeline deploys. See [Watchlists](../Content/Watchlists.md). | - | Editor (`.csv`/`.tsv`) and Palette (with a `.csv`/`.tsv` open) |
+| `Sentinel-As-Code: Convert Content YAML to JSON` | Converts an authored summary rule, automation rule or watchlist YAML into the JSON the pipeline stores, writing a `.json` beside the source with the same base name (a rule becomes `<name>.json`; a `watchlist.yaml` becomes `watchlist.json`). See [Templates](Templates.md). | - | Editor and Explorer (`.yaml`/`.yml`), and Palette |
 | `Sentinel-As-Code: Populate Required Data Connectors from Query` | Reads the KQL tables referenced by the rule's query and fills in `requiredDataConnectors` from the bundled Content Hub mapping. Unknown `_CL` tables are registered into a workspace-local `.sentinel-connectors.json`. | - | Editor (`.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
 
 ## ARM Conversion
@@ -98,6 +99,8 @@ For quick reference, the commands that appear on right-click menus and the file 
 | Decompile ARM to YAML | `.json` (conversion enabled) | `.json` (conversion enabled) |
 | Create Watchlist from CSV | `.csv` / `.tsv` | - |
 | Populate Required Data Connectors from Query | `.yaml` / `.yml` | - |
+| Convert Content YAML to JSON | `.yaml` / `.yml` | `.yaml` / `.yml` |
+| New Sentinel-as-Code Content... | - | Folders |
 | Create Sentinel Rule Template... | - | Folders |
 
 ## Related Documentation

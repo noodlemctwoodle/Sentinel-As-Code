@@ -36,7 +36,8 @@ authoring doc. All seven are JSON Schema draft-07 files under the extension's
 
 Analytics rules, hunting queries, parsers and Defender detections are authored as
 YAML. Summary rules, automation rules and watchlists are stored as JSON on disk,
-and the Toolkit converts them from YAML to JSON when it scaffolds them (see
+and the Toolkit authors them as commented YAML, then converts them to JSON with its
+Convert Content YAML to JSON command (see
 [Templates](Templates.md)). The schema for each type validates the on-disk
 format shown above.
 
