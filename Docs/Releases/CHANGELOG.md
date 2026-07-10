@@ -26,21 +26,6 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   is registered with the correct `DCRName` search key; and a `-ReportOnly` drift
   run no longer opens a pull request on either CI system.
 
-## 26.07.1
-
-- **Copilot activity monitoring content pack** — detection and hunting content
-  for Microsoft 365 Copilot and Security Copilot usage across the
-  `CloudAppEvents`, `CopilotActivity`, and `OfficeActivity` tables: six
-  analytics rules, one Defender XDR custom detection, fourteen hunting queries,
-  and the `CopilotEntitledUsers` watchlist backing the unentitled-usage
-  detections.
-- **Sentinel as Code Toolkit** — a companion VS Code extension for authoring
-  Sentinel-As-Code content without leaving the editor: real-time schema
-  validation, IntelliSense, canonical formatting, and templates for analytics
-  rules and hunting queries; ARM-template-to-YAML decompilation; and repository
-  formatting for Defender XDR custom detections, automation rules, summary
-  rules, watchlists, workbooks, and playbooks. Publication to the Visual Studio
-  Marketplace is planned.
 - **PR template validation gate** — an enriched pull-request template plus a
   GitHub Actions check that fails any PR whose description is not filled in
   (Summary, why the change is needed, what it does, and testing, with a ticked

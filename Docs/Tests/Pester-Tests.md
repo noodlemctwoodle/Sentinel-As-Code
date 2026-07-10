@@ -143,6 +143,7 @@ workbook-export suites.
 | Workbooks | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection; cross-directory GUID uniqueness for ARM workbooks |
 | Playbooks (structural) | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence |
 | Helper module self-test | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip |
+| PR template validator | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | `Remove-MarkdownComment`, `Get-PullRequestSection`, `Test-PullRequestTemplateBody` (required-section + tick-box rules for the PR description) |
 | Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching · KQL extractors (`Remove-KqlComments`, `Get-KqlWatchlistReferences`, `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers` incl. `materialize()`/`table('X')` patterns) · `Get-ContentDependencies` orchestrator |
 | Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
 | Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised` |
@@ -540,6 +541,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip | 6 |
 | [`Tests/Test-ParserYaml.Tests.ps1`](../../Tests/Test-ParserYaml.Tests.ps1) | Required fields + KQL identifier validation; functionAlias uniqueness | 4 |
 | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence | 10 |
+| [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | PR-description parsing + required-section / tick-box validation | 16 |
 | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | Pipeline logging + REST wrapper + Az context bootstrap + KQL discovery extractors | 57 |
 | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` | 58 |
 | [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` | 14 |

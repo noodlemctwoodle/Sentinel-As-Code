@@ -76,6 +76,7 @@ the index for the GitHub/ADO parity map, then the per-pipeline pages.
 | --- | --- |
 | [Pipelines index](Pipelines/README.md) | GitHub/ADO parity map, shared concepts (OIDC, variable group, composite actions), and links to every per-pipeline page |
 | [PR Validation](Pipelines/PR-Validation.md) | The five-job PR-merge gate on both CI systems: Pester, Bicep build, ARM validate, KQL validate, dependency-manifest drift |
+| [PR Template Validation](Pipelines/PR-Template-Validation.md) | GitHub-only check that fails a PR whose description leaves the required template sections empty |
 | [Deploy](Pipelines/Deploy.md) | The main end-to-end deploy: infra, Content Hub, custom content, Defender XDR (stages, variable group, parameters, service connection, usage) |
 | [Deploy Nightly](Pipelines/Deploy-Nightly.md) | GitHub-only nightly E2E smoke test against the throwaway `Infra/test-workspace/` |
 | [Drift Detect](Pipelines/Drift-Detect.md) | Portal-drift detection and the auto-PR that absorbs it back into the repo, on both CI systems |

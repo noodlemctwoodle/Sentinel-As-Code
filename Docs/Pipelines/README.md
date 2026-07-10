@@ -2,7 +2,7 @@
 
 CI/CD that drives infrastructure provisioning, content deployment, and
 operational tooling. The repository ships **seven Azure DevOps pipelines**
-under [`Pipelines/`](../../Pipelines) and **seven GitHub Actions workflows**
+under [`Pipelines/`](../../Pipelines) and **eight GitHub Actions workflows**
 under [`.github/workflows/`](../../.github/workflows).
 
 This page is an index: it covers the shared concepts and the GitHub <-> ADO
@@ -15,6 +15,7 @@ specific pipeline.
 | Pipeline | Purpose | Deep-dive |
 | --- | --- | --- |
 | PR Validation | Merge gate for `main` - runs every Pester suite, `bicep-build`, `arm-validate`, `kql-validate`, and the dependency-manifest drift gate | [PR-Validation.md](PR-Validation.md) |
+| PR Template Validation | **GitHub-only** check that fails a PR whose description leaves the required template sections empty | [PR-Template-Validation.md](PR-Template-Validation.md) |
 | Deploy | Main end-to-end deploy: Bicep infra, Content Hub solutions, custom content, and Defender XDR custom detections | [Deploy.md](Deploy.md) |
 | Deploy Nightly | **GitHub-only** nightly E2E smoke test that provisions and tears down the throwaway `Infra/test-workspace/` workspace | [Deploy-Nightly.md](Deploy-Nightly.md) |
 | Drift-Detect | Detect rules edited in the portal and auto-PR the drift back into the repo (report-only runs never open a PR) | [Drift-Detect.md](Drift-Detect.md) |
@@ -25,8 +26,9 @@ specific pipeline.
 
 ## GitHub <-> ADO Parity
 
-Six of the seven ADO pipelines have a GitHub workflow mirror. Two pipelines
-break the symmetry, so the two sets are **not** a clean one-to-one mapping.
+Six of the seven ADO pipelines have a GitHub workflow mirror. Three workflows
+break the symmetry (one ADO-only, two GitHub-only), so the two sets are **not**
+a clean one-to-one mapping.
 
 | ADO pipeline (`Pipelines/`) | GitHub workflow (`.github/workflows/`) |
 | --- | --- |
@@ -38,6 +40,7 @@ break the symmetry, so the two sets are **not** a clean one-to-one mapping.
 | `Sentinel-Documenter.yml` | `sentinel-document.yml` |
 | `Sentinel-Word-Report.yml` | *(ADO-only, no GitHub equivalent)* |
 | *(GitHub-only, no ADO equivalent)* | `sentinel-deploy-nightly.yml` |
+| *(GitHub-only, no ADO equivalent)* | `pr-template-validation.yml` |
 
 Asymmetries worth knowing:
 
@@ -45,6 +48,12 @@ Asymmetries worth knowing:
   is **GitHub-only** - a nightly E2E smoke test against the throwaway
   workspace from `Infra/test-workspace/main.bicep`. There is no ADO
   equivalent. See [Deploy-Nightly.md](Deploy-Nightly.md).
+- [`pr-template-validation.yml`](../../.github/workflows/pr-template-validation.yml)
+  is **GitHub-only** - it fails a PR whose description does not fill in
+  [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md)
+  (the `template` status check). The PR body arrives in the Actions event
+  payload, which has no ADO build-validation equivalent. See
+  [PR-Template-Validation.md](PR-Template-Validation.md).
 - [`Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml)
   is **ADO-only** - the pandoc plus LibreOffice `.docx` render of the
   Documenter Markdown. There is no `*word*` workflow under

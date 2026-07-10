@@ -1,0 +1,34 @@
+id: 7b94bb12-9047-4a2c-9578-ada9130a7292
+name: Copilot usage by a user without entitlement
+description: |
+  Surfaces Microsoft 365 Copilot interactions performed by accounts that are
+  not on the "CopilotEntitledUsers" watchlist. An account generating Copilot
+  activity without a recorded entitlement can indicate a licensing gap, an
+  account that has been granted access outside the normal process, or a
+  compromised identity exercising Copilot for reconnaissance.
+
+  Investigation question answered: is this user expected to use Copilot?
+
+  REQUIRES WATCHLIST = "CopilotEntitledUsers" with a "UserPrincipalName" column.
+  Verify in tenant: OfficeActivity carries the CopilotInteraction operation for
+  Microsoft 365 Copilot; adjust if your estate routes it differently.
+query: |
+  let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
+    | project UserPrincipalName = tolower(UserPrincipalName);
+  OfficeActivity
+  | where TimeGenerated > ago(7d)
+  | where Operation == "CopilotInteraction"
+  | extend UserPrincipalName = tolower(UserId)
+  | where UserPrincipalName !in (EntitledUsers)
+  | summarize
+      Interactions = count(),
+      ClientIPs = make_set(ClientIP, 20),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by UserPrincipalName
+  | order by Interactions desc
+tactics:
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004

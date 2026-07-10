@@ -1,0 +1,35 @@
+id: 67d058ab-13c7-46cc-9931-88265c59c9c5
+name: Security Copilot interaction overview
+description: |
+  Summarises Microsoft Security Copilot usage per account across both the
+  embedded experiences (Defender, Purview, Intune) and the standalone portal.
+  Because Security Copilot operates over security data, unexpected users or
+  unusual source locations warrant review.
+
+  Investigation questions supported: who is using Security Copilot, how much,
+  and from where.
+
+  Verify in tenant: the AppIdentity value (Copilot.Security.SecurityCopilot),
+  the RawEventData path, and the ActionType value used for Copilot activity.
+query: |
+  CloudAppEvents
+  | where TimeGenerated > ago(7d)
+  | where ActionType == "CopilotInteraction"
+  | extend
+      AppIdentity = tostring(RawEventData.AppIdentity),
+      AppHost = tostring(RawEventData.CopilotEventData.AppHost)
+  | where AppIdentity == "Copilot.Security.SecurityCopilot"
+      or AppHost in ("Defender", "Purview", "Intune", "Security Copilot Standalone")
+  | summarize
+      Interactions = count(),
+      Hosts = make_set(AppHost, 10),
+      Countries = make_set(CountryCode, 20),
+      IPs = make_set(IPAddress, 30),
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated)
+    by AccountObjectId, AccountDisplayName
+  | order by Interactions desc
+tactics:
+  - Discovery
+techniques:
+  - T1526

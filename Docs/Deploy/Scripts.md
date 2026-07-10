@@ -17,6 +17,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
 | `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Tests/Pester-Tests.md) |
+| `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](../Pipelines/README.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1

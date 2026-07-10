@@ -66,7 +66,7 @@ immutable git history). The mapping:
 | Wave 4 | `26.06.0` | PR #25 |
 | Repository restructure | `26.06.1` | PR #27 |
 | Word report + Apache-2.0 relicence | `26.07` | PR #29 |
-| Copilot content pack, authoring toolkit, PR-template scaffolding | `26.07.1` | PRs #30, #31 |
+| Copilot activity monitoring content pack, Sentinel as Code Toolkit, PR template validation gate | `26.07.1` | PR #30, PR #31 |
 | Documentation overhaul, Toolkit and pipeline docs, Docs restructure, deploy fixes | `26.07.2` | PR #33 |
 
 None of these releases were git-tagged; each shipped as a `release/<CalVer>`
