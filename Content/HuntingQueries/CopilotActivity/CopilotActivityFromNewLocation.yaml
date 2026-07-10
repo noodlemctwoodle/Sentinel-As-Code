@@ -1,0 +1,28 @@
+id: 421d5182-3528-4ee3-9169-278b80c915d1
+name: Copilot activity from a new source location (CopilotActivity)
+description: |
+  Flags Copilot interactions where the combination of source IP and client
+  region has not been seen for that account in the prior 30 days. The
+  CopilotActivity table exposes SrcIpAddr and ClientRegion directly, so this
+  catches Copilot use from a new network location which can indicate session
+  theft or token replay from an attacker host.
+
+  Investigation question answered: is the source IP or region normal for this
+  user? (CopilotActivity does not carry ISP or user agent; correlate with
+  SigninLogs for those dimensions.)
+query: |
+  let Baseline = CopilotActivity
+    | where TimeGenerated between (ago(31d) .. ago(1d))
+    | where RecordType == "CopilotInteraction"
+    | summarize by ActorUserId, SrcIpAddr, ClientRegion;
+  CopilotActivity
+  | where TimeGenerated > ago(1d)
+  | where RecordType == "CopilotInteraction"
+  | project TimeGenerated, ActorName, ActorUserId, SrcIpAddr, ClientRegion, AppHost, AppIdentity
+  | join kind=leftanti Baseline on ActorUserId, SrcIpAddr, ClientRegion
+  | order by TimeGenerated desc
+tactics:
+  - InitialAccess
+techniques:
+  - T1078
+  - T1078.004

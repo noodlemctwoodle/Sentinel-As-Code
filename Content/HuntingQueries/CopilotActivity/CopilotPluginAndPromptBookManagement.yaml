@@ -1,0 +1,33 @@
+id: fd07ce13-2d58-4a50-a6b3-ca14b226716f
+name: Copilot plugin, PromptBook and settings changes (CopilotActivity)
+description: |
+  Surfaces Copilot governance events in the CopilotActivity table: plugin
+  creation, updates and enable/disable, PromptBook creation, updates and
+  deletion, and Copilot settings changes. New plugins and PromptBooks change
+  what Copilot can reach and how it behaves, so these authoring events are a
+  governance blind spot worth reviewing against expected ownership.
+
+  Investigation focus: who is changing Copilot plugins, PromptBooks and
+  settings, and from where.
+query: |
+  CopilotActivity
+  | where TimeGenerated > ago(7d)
+  | where RecordType in (
+      "CreateCopilotPlugin", "UpdateCopilotPlugin",
+      "EnableCopilotPlugin", "DisableCopilotPlugin",
+      "CreateCopilotPromptBook", "UpdateCopilotPromptBook", "DeleteCopilotPromptBook",
+      "UpdateCopilotSettings")
+  | project
+      TimeGenerated,
+      RecordType,
+      ActorName,
+      ActorUserId,
+      AgentName,
+      AppHost,
+      SrcIpAddr,
+      ClientRegion
+  | order by TimeGenerated desc
+tactics:
+  - Persistence
+techniques:
+  - T1098
