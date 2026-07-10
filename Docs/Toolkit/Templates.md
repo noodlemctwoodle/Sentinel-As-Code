@@ -4,7 +4,7 @@
 
 The Sentinel as Code Toolkit ships eight bundled starter templates, one for each content type the Sentinel-As-Code pipeline deploys. When you scaffold a new piece of content the toolkit copies the matching template into your repository, replaces its placeholder tokens, and writes it to the folder the pipeline expects.
 
-Every template is authored as **commented YAML**, so each field is documented inline as you edit it. That is the authoring format only. The toolkit writes most content to disk as YAML, but three content types (Summary Rule, Automation Rule, and Watchlist) are stored as JSON in the repository, so the toolkit converts those from YAML to JSON automatically at the point it scaffolds them. See [YAML on disk versus JSON on disk](#yaml-on-disk-versus-json-on-disk) below.
+Every template is authored as **commented YAML**, so each field is documented inline as you edit it. The scaffolders write the commented YAML template and ask where to save it. Most content deploys as YAML, but three content types (Summary Rule, Automation Rule, and Watchlist) are stored as JSON in the repository. Those are authored as YAML too, then converted with the explicit **Convert Content YAML to JSON** command, which writes the `.json` file beside the YAML. See [YAML on disk versus JSON on disk](#yaml-on-disk-versus-json-on-disk) below.
 
 The toolkit **authors and validates** content. It does **not** deploy. Deployment is the job of the Sentinel-As-Code pipeline. A template is a correct starting point for the pipeline's on-disk contract, not a deployment step.
 
@@ -24,18 +24,18 @@ Each content type has a dedicated schema and authoring guide. The templates are 
 
 ## The bundled templates
 
-There are eight templates. Each scaffolds one content type, targets a fixed folder under `Content/`, and is written in the format the pipeline reads from that folder.
+There are eight templates. Each scaffolds one content type, targets a fixed folder under `Content/`, and is authored as commented YAML. The scaffolder asks where to save it.
 
-| Template | Content type and repository folder | On-disk format | Conversion on scaffold |
+| Template | Content type and repository folder | Authored as | Deployed as |
 | --- | --- | --- | --- |
-| Standard Rule | Scheduled analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | Not required |
-| NRT Rule | Near-Real-Time analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | Not required |
-| Custom Detection | Defender XDR detection, [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections) | YAML | Not required |
-| Hunting Query | Hunting query, [`Content/HuntingQueries/`](../../Content/HuntingQueries) | YAML | Not required |
-| Parser | KQL parser / saved function, [`Content/Parsers/`](../../Content/Parsers) | YAML | Not required |
-| Summary Rule | Summary rule, [`Content/SummaryRules/`](../../Content/SummaryRules) | **JSON** | **Converted to JSON** |
-| Automation Rule | Automation rule, [`Content/AutomationRules/`](../../Content/AutomationRules) | **JSON** | **Converted to JSON** |
-| Watchlist | Watchlist metadata, `Content/Watchlists/<alias>/watchlist.json` | **JSON** | **Converted to JSON** |
+| Standard Rule | Scheduled analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | YAML |
+| NRT Rule | Near-Real-Time analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | YAML |
+| Custom Detection | Defender XDR detection, [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections) | YAML | YAML |
+| Hunting Query | Hunting query, [`Content/HuntingQueries/`](../../Content/HuntingQueries) | YAML | YAML |
+| Parser | KQL parser / saved function, [`Content/Parsers/`](../../Content/Parsers) | YAML | YAML |
+| Summary Rule | Summary rule, [`Content/SummaryRules/`](../../Content/SummaryRules) | YAML | **JSON** (via Convert Content YAML to JSON) |
+| Automation Rule | Automation rule, [`Content/AutomationRules/`](../../Content/AutomationRules) | YAML | **JSON** (via Convert Content YAML to JSON) |
+| Watchlist | Watchlist metadata, `Content/Watchlists/<alias>/watchlist.yaml` | YAML | **JSON** (`watchlist.json`, via Convert Content YAML to JSON) |
 
 ### What each template scaffolds
 
@@ -62,9 +62,9 @@ Three content types must be **JSON on disk** for the pipeline to read them:
 - **Automation Rule** goes to `Content/AutomationRules/<name>.json`
 - **Watchlist** goes to `Content/Watchlists/<alias>/watchlist.json` (plus its `data.csv` or `data.tsv`)
 
-For these three, the template is still authored as commented YAML, purely so the fields can be documented inline. When you scaffold one, the toolkit converts the YAML to JSON automatically and writes the JSON file. You commit the generated JSON, not the YAML. The comments do not survive the conversion, which is expected, because JSON has no comment syntax.
+For these three, the template is still authored as commented YAML, purely so the fields can be documented inline. There is no automatic conversion on scaffold. You author the YAML (guided by its inline comments), then run **Convert Content YAML to JSON** on the file, which writes the `.json` beside it. You commit the generated JSON, not the YAML. The comments do not survive the conversion, which is expected, because JSON has no comment syntax.
 
-Every other template (Standard Rule, NRT Rule, Custom Detection, Hunting Query, and Parser) is written as YAML and needs no conversion.
+Every other template (Standard Rule, NRT Rule, Custom Detection, Hunting Query, and Parser) is written as YAML and deploys as YAML, so no conversion is needed.
 
 This split is also reflected in the toolkit's schema binding: the Summary Rule, Automation Rule, and Watchlist schemas validate `*.json` files under their folders, while the analytics-rule, hunting-query, parser, and Defender schemas validate `*.yaml` / `*.yml` files.
 

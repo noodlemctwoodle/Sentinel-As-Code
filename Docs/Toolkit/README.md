@@ -103,7 +103,7 @@ under those terms.
 | Doc | What it covers |
 | --- | --- |
 | [Commands](Commands.md) | Every command the extension contributes, grouped by task, with palette titles and keybindings |
-| [Templates](Templates.md) | The bundled starter templates, canonical field order, and which content types are converted from YAML to JSON on scaffold |
+| [Templates](Templates.md) | The bundled starter templates, canonical field order, and which content types are authored as YAML and converted to JSON with **Convert Content YAML to JSON** |
 | [Schemas and Validation](Schemas-and-Validation.md) | The seven bundled schemas, how validation is triggered, and MITRE ATT&CK multi-framework checking |
 | [Configuration](Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
 | [ARM to YAML Conversion](ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
