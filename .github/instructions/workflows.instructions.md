@@ -22,6 +22,7 @@ Reference doc:
 | `.github/workflows/sentinel-dcr-inventory.yml` | `Pipelines/Sentinel-DCR-Inventory.yml` | On change: deploy DCR inventory runbook |
 | `.github/workflows/sentinel-dependency-update.yml` | `Pipelines/Sentinel-Dependency-Update.yml` | Daily 02:00 UTC: refresh `dependencies.json` + auto-PR |
 | `.github/workflows/pr-validation.yml` | `Pipelines/Sentinel-PR-Validation.yml` | On every PR: 5-job merge gate |
+| `.github/workflows/pr-template-validation.yml` | *(GitHub-only)* | On every PR: fail if the PR description does not fill in `.github/PULL_REQUEST_TEMPLATE.md` |
 | `.github/workflows/sentinel-deploy-nightly.yml` | *(GitHub-only)* | Daily 03:00 UTC: E2E smoke test against test workspace |
 
 ## Composite actions

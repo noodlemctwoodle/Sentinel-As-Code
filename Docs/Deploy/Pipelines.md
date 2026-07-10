@@ -13,12 +13,17 @@ deployment, and operational tooling.
 
 > **GitHub Actions equivalents** of every pipeline live under
 > [`.github/workflows/`](../../.github/workflows/). They share the same
-> schedules and behaviour. Plus two GitHub-only workflows that have no
+> schedules and behaviour. Plus three GitHub-only workflows that have no
 > ADO equivalent:
 >
 > - [`pr-validation.yml`](../../.github/workflows/pr-validation.yml) —
 >   five-job merge gate (validate, bicep-build, arm-validate,
 >   kql-validate, dependency-manifest)
+> - [`pr-template-validation.yml`](../../.github/workflows/pr-template-validation.yml) —
+>   fails a PR whose description does not fill in
+>   [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md)
+>   (the `template` status check). GitHub-only: the PR body arrives in the
+>   Actions event payload, which has no ADO build-validation equivalent.
 > - [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml) —
 >   nightly E2E smoke test against the test workspace, daily 03:00 UTC
 

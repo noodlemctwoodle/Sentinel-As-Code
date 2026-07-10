@@ -14,6 +14,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Build-DependencyManifest.ps1` | Auto-derives `dependencies.json` from KQL discovery (Generate / Verify / Update modes) | [#build-dependencymanifestps1](#build-dependencymanifestps1) |
 | `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Content/Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint — runs every Pester suite under `Tests/` and emits a JUnit XML report | See [Pester Tests](../Development/Pester-Tests.md) |
+| `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](Pipelines.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1

@@ -1,11 +1,20 @@
 <!--
-Thanks for contributing to Sentinel-As-Code. Fill the sections below.
-Empty sections / unchecked boxes are fine — replace placeholder text
-with your own. Remove sections that don't apply.
+Thanks for contributing to Sentinel-As-Code. This template is checked
+automatically by the "PR Template Validation" status check. Sections
+marked (required) MUST contain real content or the check fails and the
+PR cannot merge. Replace the guidance in each comment with your own
+words; do not delete the required headings. Optional sections can be
+removed if they do not apply.
+
+What the automated check enforces:
+  - Summary, Why, What does this change do?, and Testing each hold a
+    real description (not just the placeholder comment).
+  - At least one "Type of change" box is ticked with [x].
+  - The required headings are still present.
 
 Convention notes (per .github/copilot-instructions.md and AGENTS.md):
   - en-GB spelling (analyse, behaviour, customise, prioritise)
-  - No em-dashes (—) in new prose; hyphens or parenthetical phrasing instead
+  - No em-dashes (—) in new prose; hyphens (-) or parenthetical phrasing instead
   - No AI / LLM references in commit messages or PR descriptions
   - No Co-Authored-By trailers for AI tools
 -->
@@ -13,37 +22,64 @@ Convention notes (per .github/copilot-instructions.md and AGENTS.md):
 ## Summary
 
 <!--
-One or two paragraphs. What does this PR do, and why?
+(required) One or two sentences: what does this PR deliver, in plain
+terms? Keep it short - the detail goes in the sections below.
+-->
 
-If it adds new content (rule, hunting query, watchlist, playbook,
-etc.), name the threat scenario / use case. If it changes pipeline
-behaviour, mention which platforms (GitHub / ADO / both).
+## Why is this change needed?
+
+<!--
+(required) The motivation. What problem, gap, risk, or request drove
+this change? What was wrong, missing, or painful before it?
+
+For new detection content, name the threat scenario / use case and why
+it matters. For a pipeline change, say what was failing or fragile.
+Link the issue / incident / request if there is one.
+-->
+
+## What does this change do?
+
+<!--
+(required) Describe the change itself. What did you actually add or
+alter, and how does it work? Mention the approach or design decision
+if it is not obvious from the diff.
+
+For content, name the table(s) / data source the query drives off. For
+pipeline changes, say which platforms are touched (GitHub / ADO / both).
+-->
+
+## What does this fix or affect?
+
+<!--
+Optional. Bugs fixed, issues closed (use "Fixes #123"), behaviour that
+changes, and anything downstream that is impacted. Call out breaking
+changes loudly. Write "No behavioural change" if that is the case.
 -->
 
 ## Type of change
 
-<!-- Check all that apply -->
+<!-- (required) Tick at least one box with [x]. -->
 
-- [ ] feat — new capability
-- [ ] fix — bug fix
-- [ ] refactor — restructure without behavioural change
-- [ ] perf — measurable performance improvement
-- [ ] docs — documentation only
-- [ ] test — Pester / schema test changes
-- [ ] chore — dependency bump, version pin, file rename
-- [ ] ci — workflow / pipeline change
-- [ ] tune — analytical-rule threshold / severity / filter change
+- [ ] feat - new capability
+- [ ] fix - bug fix
+- [ ] refactor - restructure without behavioural change
+- [ ] perf - measurable performance improvement
+- [ ] docs - documentation only
+- [ ] test - Pester / schema test changes
+- [ ] chore - dependency bump, version pin, file rename
+- [ ] ci - workflow / pipeline change
+- [ ] tune - analytical-rule threshold / severity / filter change
 
 ## Files changed (high level)
 
 <!--
-Bullet list of the meaningful changes, grouped logically.
+Optional. Bullet list of the meaningful changes, grouped logically.
 Don't paste a `git diff --stat`; describe intent.
 
 Example:
-- AnalyticalRules/AzureActivity/<Name>.yaml — new rule for <scenario>
-- dependencies.json — regenerated to include the new rule
-- Tests/Test-X.Tests.ps1 — added one assertion for <case>
+- AnalyticalRules/AzureActivity/<Name>.yaml - new rule for <scenario>
+- dependencies.json - regenerated to include the new rule
+- Tests/Test-X.Tests.ps1 - added one assertion for <case>
 -->
 
 ## Pre-merge checklist
@@ -65,7 +101,7 @@ them when you've confirmed locally so reviewers know what was run.
 ## Testing
 
 <!--
-What did you do to confirm the change works?
+(required) What did you do to confirm the change works?
 
 For schema changes: which Pester suite did you run?
 For pipeline changes: did you `workflow_dispatch` smoke test before
@@ -77,16 +113,17 @@ workspace? Which one?
 ## Required PR-validation status checks
 
 <!--
-The Main Branch Protection ruleset requires these five checks. They
-run automatically when you open the PR. None should be skipped without
+The Main Branch Protection ruleset requires these checks. They run
+automatically when you open the PR. None should be skipped without
 explicit reviewer agreement.
 -->
 
-- `validate` — Pester suite under Tests/
-- `bicep-build` — `az bicep build` against Infra/**/*.bicep
-- `arm-validate` — Test-AzResourceGroupDeployment -WhatIf for playbooks (OIDC)
-- `kql-validate` — Microsoft.Azure.Kusto.Language parser across all queries
-- `dependency-manifest` — dependencies.json drift gate
+- `template` - PR description matches the template (this file)
+- `validate` - Pester suite under Tests/
+- `bicep-build` - `az bicep build` against Infra/**/*.bicep
+- `arm-validate` - Test-AzResourceGroupDeployment -WhatIf for playbooks (OIDC)
+- `kql-validate` - Microsoft.Azure.Kusto.Language parser across all queries
+- `dependency-manifest` - dependencies.json drift gate
 
 ## Related
 

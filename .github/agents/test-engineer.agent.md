@@ -146,7 +146,7 @@ The repo's tricky cases:
 | `Sentinel.Common` exports | Every public function has unit tests |
 | Critical scripts (deploy, drift, dep-manifest) | Higher bar — every branch in core orchestration |
 
-Existing total: ~6,000 assertions across 17 files. Run-time
+Existing total: ~6,000 assertions across 18 files. Run-time
 under 30s on a clean clone.
 
 ## Hand-offs

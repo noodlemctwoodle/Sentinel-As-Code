@@ -1,0 +1,107 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: PR Template Validation
+# ---------------------------------------------------------------------------
+# Fails a pull request when its description does not follow
+# .github/PULL_REQUEST_TEMPLATE.md - i.e. when the author left a required
+# section empty (Summary / Why is this change needed? / What does this
+# change do? / Testing) or ticked no "Type of change" box. Reviewers rely
+# on that context, so an empty or copy-paste body should not merge.
+#
+# The check re-runs on the 'edited' event, so a contributor can fix the
+# description in the GitHub UI and watch the check go green without pushing
+# a new commit.
+#
+# The parsing / rules live in Tools/Test-PullRequestTemplate.ps1 (unit
+# tested by Tests/Test-PullRequestTemplate.Tests.ps1). This workflow only
+# hands the PR body to that script.
+#
+# Platform note (GitHub-only, platform-forced divergence per
+# .github/instructions/workflows.instructions.md Hard rule 1): the PR body
+# arrives in the Actions event payload. The Azure DevOps equivalent would
+# have to fetch the PR description over the REST API from a build-validation
+# policy, a fundamentally different shape, so there is intentionally no
+# Pipelines/ mirror of this workflow.
+#
+# Wiring as a required merge gate (one-off, after it has run once):
+#
+#   Repo Settings -> Rules -> Rulesets -> Main Branch Protection -> Edit
+#     Require status checks to pass -> Add checks:
+#       - template
+#
+# Bot-authored PRs (the drift-sync and dependency-manifest auto-PRs are opened
+# with GITHUB_TOKEN, so their author is github-actions[bot], type "Bot") do not
+# use the human template, so the job short-circuits to success for them rather
+# than blocking their auto-merge flow. The head branch name is deliberately NOT
+# trusted as a skip condition - a human could name a branch 'auto/foo' to dodge
+# this required check.
+# ---------------------------------------------------------------------------
+
+name: PR Template Validation
+
+on:
+  pull_request:
+    branches: [main]
+    # 'edited' is what makes a description fix re-trigger the check without a
+    # new commit. 'synchronize' keeps the check present on each new head sha
+    # so a required-check ruleset always has a result to gate on.
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+# Cancel any in-flight run for the same PR when a new event arrives; keeps
+# the latest status check fresh and saves CI minutes.
+concurrency:
+  group: pr-template-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template:
+    name: template
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      # Short-circuit for bot / auto-sync PRs. Done as a step (not a job-level
+      # 'if') so the job still reports success and a required-check ruleset is
+      # not left waiting for a status that never arrives.
+      - name: Skip bot-authored PRs
+        id: skip
+        env:
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: |
+          # Skip only genuinely bot-authored PRs. The branch name is NOT a
+          # trusted skip condition: a human could name a branch 'auto/foo' to
+          # bypass this required check.
+          should_skip=false
+          if [ "$PR_AUTHOR_TYPE" = "Bot" ]; then
+              should_skip=true
+              echo "::notice::Bot-authored PR (author type '$PR_AUTHOR_TYPE') - PR template validation skipped."
+          fi
+          echo "should_skip=$should_skip" >> "$GITHUB_OUTPUT"
+
+      # Check out the BASE ref (trusted), not the PR head, so the validator
+      # script always runs from main. Otherwise a PR could neuter its own gate
+      # by editing Tools/Test-PullRequestTemplate.ps1 in the same change.
+      - name: Checkout base ref (trusted validator)
+        if: steps.skip.outputs.should_skip != 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+
+      # The PR body is untrusted input. It is passed through an environment
+      # variable and never interpolated into the command line, so a body
+      # containing shell metacharacters cannot inject anything.
+      - name: Validate PR description against the template
+        if: steps.skip.outputs.should_skip != 'true'
+        shell: pwsh
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Bootstrap guard: on the PR that first introduces the validator the
+          # base ref does not have it yet, so there is nothing trusted to run.
+          if (-not (Test-Path ./Tools/Test-PullRequestTemplate.ps1)) {
+              Write-Host "::notice::Validator not present on the base ref yet (bootstrap PR); skipping."
+              exit 0
+          }
+          ./Tools/Test-PullRequestTemplate.ps1 -Body $env:PR_BODY
