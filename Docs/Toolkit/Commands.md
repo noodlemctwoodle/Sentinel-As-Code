@@ -38,7 +38,7 @@ Commands for creating a new analytics rule and for managing rule IDs. See [Templ
 
 ## Content Scaffolding
 
-Commands for creating each non-analytics content type. Every content type is scaffolded as commented YAML, and the scaffolder asks where to save it rather than prompting for each field. Analytics rules, hunting queries and parsers deploy as that YAML, while summary rules, automation rules and watchlists are authored as YAML and then converted with **Convert Content YAML to JSON**, which writes the `<name>.json` the pipeline stores. See [Templates](Templates.md) for details.
+Commands for creating each non-analytics content type. Every content type is scaffolded as commented YAML, and the scaffolder asks where to save it rather than prompting for each field. Analytics rules, hunting queries and parsers deploy as that YAML, while summary rules, automation rules and watchlists are authored as YAML and then converted with **Convert Content YAML to JSON**, which writes the JSON the pipeline stores beside the source, keeping its base name (a summary or automation rule becomes `<name>.json`; a watchlist's `watchlist.yaml` becomes `watchlist.json`). See [Templates](Templates.md) for details.
 
 | Palette title | What it does | Keybinding | Menus |
 |---------------|--------------|------------|-------|
@@ -48,7 +48,7 @@ Commands for creating each non-analytics content type. Every content type is sca
 | `Sentinel-As-Code: New Summary Rule` | Scaffolds a summary rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Summary Rules](../Content/Summary-Rules.md). | - | Palette |
 | `Sentinel-As-Code: New Automation Rule` | Scaffolds an automation rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Automation Rules](../Content/Automation-Rules.md). | - | Palette |
 | `Sentinel-As-Code: Create Watchlist from CSV` | Turns a `.csv` or `.tsv` file into a watchlist under `Content/Watchlists/<alias>/`, writing a `watchlist.yaml` template plus the data file. Set `watchlistAlias` and `itemsSearchKey` in the YAML, then run **Convert Content YAML to JSON** to produce the `watchlist.json` the pipeline deploys. See [Watchlists](../Content/Watchlists.md). | - | Editor (`.csv`/`.tsv`) and Palette (with a `.csv`/`.tsv` open) |
-| `Sentinel-As-Code: Convert Content YAML to JSON` | Converts an authored summary rule, automation rule or watchlist YAML into the JSON the pipeline stores, writing `<name>.json` beside the source. See [Templates](Templates.md). | - | Editor and Explorer (`.yaml`/`.yml`), and Palette |
+| `Sentinel-As-Code: Convert Content YAML to JSON` | Converts an authored summary rule, automation rule or watchlist YAML into the JSON the pipeline stores, writing a `.json` beside the source with the same base name (a rule becomes `<name>.json`; a `watchlist.yaml` becomes `watchlist.json`). See [Templates](Templates.md). | - | Editor and Explorer (`.yaml`/`.yml`), and Palette |
 | `Sentinel-As-Code: Populate Required Data Connectors from Query` | Reads the KQL tables referenced by the rule's query and fills in `requiredDataConnectors` from the bundled Content Hub mapping. Unknown `_CL` tables are registered into a workspace-local `.sentinel-connectors.json`. | - | Editor (`.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
 
 ## ARM Conversion
