@@ -72,7 +72,8 @@ workspace table is auto-mirrored to Lake at the same retention by default.
 ## What section 88 renders
 
 [`88-sentinel-data-lake.md`](../../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1)
-(emitted by the renderer at line ~3825) is the user-facing surface. It
+(emitted by `Write-Section '88-sentinel-data-lake.md' $lakeBody`, the block
+build-up starts a few hundred lines earlier) is the user-facing surface. It
 composes the following blocks; each is rendered conditionally on captured
 state.
 
@@ -130,16 +131,22 @@ the prose explains how to switch a table's tier in the Defender portal.
 Detects asset-family system tables that Lake auto-creates on tenant
 onboarding:
 
-| Pattern | Family |
-|---|---|
-| `IdentityInfo` | Microsoft Entra (identity) |
-| `BehaviorAnalytics` | Microsoft Sentinel UEBA (asset enrichment) |
-| `OfficeSharePoint` / `Exchange` / `Teams` | Microsoft 365 (activity) |
-| `EntityGraph*` | Microsoft Sentinel graph (entities) |
-| `Asset*` | Azure Resource Graph (assets) |
+The patterns live in the `$assetTableNames` array inside
+`Convert-SentinelInventoryToMarkdown.ps1`:
 
-Each row carries the table name + ingest-state (*Receiving data* / *Defined,
-no data*).
+| Pattern (regex) | Family |
+|---|---|
+| `^IdentityInfo$` | Microsoft Entra (identity) |
+| `^Behavior(Analytics)?$` | Microsoft Sentinel UEBA (asset enrichment) |
+| `^Office(SharePoint\|Exchange\|Teams)` | Microsoft 365 (activity) |
+| `^EntityGraph` | Microsoft Sentinel graph (entities) |
+| `^Asset` | Azure Resource Graph (assets) |
+
+The Microsoft 365 pattern requires the literal `Office` prefix, only
+`OfficeSharePoint*`, `OfficeExchange*` and `OfficeTeams*` table names match;
+a table named plain `Exchange...` or `Teams...` (without the `Office`
+prefix) is not picked up. Each row carries the table name + ingest-state
+(*Receiving data* / *Defined, no data*).
 
 ### 9. Cost split (Analytics vs Lake)
 
@@ -181,6 +188,16 @@ Top 10 Analytics-plan tables ≥0.5 GB / 30d (typical Lake-tier candidates:
 verbose Defender XDR advanced hunting, raw firewall, EDR telemetry). Each
 row carries a "Consider DataLake plan if rule queries are infrequent"
 recommendation.
+
+This block uses an ingest-volume heuristic. A second, independent
+Lake-candidate signal exists in the gap checker: `Test-DataLakeMirroringCandidate`
+(`SENT-023`, "Data Lake mirroring candidate") in
+[`Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1)
+flags Analytics-plan tables with `totalRetentionInDays > 365`, a retention
+heuristic, and surfaces via the report's Findings/Gaps section rather than
+Section 88. The two lists can disagree (a table can be high-volume but
+short-retention, or vice versa); if both appear in a report they are
+answering different questions, not duplicating one another.
 
 ### 13. When to enroll / 14. When to stay on legacy
 
@@ -243,17 +260,35 @@ purposes of the Sentinel-rate vs LA-rate split).
 No new captures were required to add Section 88, it composes from existing
 inventory.
 
+`$operationalTables` (the population behind the tier-distribution pie) is
+computed once, early in `Convert-SentinelInventoryToMarkdown.ps1`, as every
+`workspace-tables.json` row that is either `tableType = CustomLog` (custom
+logs are always treated as intentional, so they surface even when silent)
+or present in the populated-table index built from `tables-with-data.json`.
+This deliberately excludes the roughly 750 Microsoft pre-defined table
+schemas the workspace has never received data for, those are catalogue
+entries, not deployed tables, and would otherwise swamp the pie and the
+retention chart.
+
 ---
 
 ## Known gaps and forward work
 
-- **Per-Lake-meter cost attribution.** The Documenter currently shows
-  Analytics vs DataLake plan-level cost. It does not break out the 5
-  individual Lake meters (ingestion / processing / storage / query /
-  advanced data insights) because the Retail Prices API names them at the
-  catalogue level, not per-workspace-usage. Reading Microsoft Cost
-  Management's per-meter usage detail would require a separate exporter
-  capture against the Cost Management API.
+- **Per-Lake-meter cost attribution in the Documenter itself.** Section 88
+  currently shows Analytics vs DataLake plan-level cost only, it does not
+  break out the 5 individual Lake meters (ingestion / processing / storage /
+  query / advanced data insights) per table, because the Retail Prices API
+  names meters at the catalogue level, not per-workspace-usage. A sibling
+  tool already closes most of this gap outside the Documenter pipeline:
+  [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1)
+  computes distinct per-table `LakeIngestCost`, `LakeProcCost` and
+  `LakeStorageCost` fields (3 of the 5 Lake meters) via KQL mirrored
+  against the workspace. It is not integrated into the Documenter's
+  capture/render pipeline, so its output does not appear in Section 88,
+  wiring it in (or at minimum reusing its cost KQL) would remove most of
+  this gap without a new Cost Management API capture. Query-meter and
+  advanced-data-insights (compute-hour) attribution are not covered by
+  either tool today.
 - **Lake-resident asset detection breadth.** The asset-data block detects
   five known families. As Lake expands its auto-ingested system tables
   (Defender threat intelligence, Microsoft Purview signals, etc.) the
@@ -285,7 +320,17 @@ inventory.
 | [`Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
 | [`Tools/Documenter/Private/Get-SentinelCostEstimate.ps1`](../../../Tools/Documenter/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
 | [`Tools/Documenter/Private/Resources/cost-meters.json`](../../../Tools/Documenter/Private/Resources/cost-meters.json) | Lake meter → category mapping |
-| [`Tools/Documenter/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Documenter/Private/Get-EffectiveConnectors.ps1) | Asset-table family inference (`_ActiveTableFamily`) |
+| [`Tools/Documenter/Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SENT-023`), the retention-based Lake-candidate gap finding |
+| [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Documenter tool, per-table Lake ingestion/processing/storage cost modelling |
+
+Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
+/ Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`
+array defined locally inside `Convert-SentinelInventoryToMarkdown.ps1`, not
+by `Get-EffectiveConnectors.ps1`. `Get-EffectiveConnectors.ps1` does define
+its own `_ActiveTableFamily` helper, but that is a separate
+connector-classification function (active-table / UEBA detection for
+connector coverage elsewhere in the report) and is unrelated to Section
+88's rendering.
 
 ---
 

@@ -31,7 +31,7 @@
 
 .PARAMETER DocsPath
     Destination file for the auto-generated README markdown summary.
-    Defaults to Docs/Community/{ContributorName}.md where {ContributorName}
+    Defaults to Docs/Content/Community/{ContributorName}.md where {ContributorName}
     is derived from the leaf folder name of $OutputPath. The parent directory
     is auto-created if missing.
 
@@ -67,9 +67,9 @@
 .EXAMPLE
     .\Import-CommunityRules.ps1 `
         -OutputPath /repo/Content/AnalyticalRules/Community/NewContributor `
-        -DocsPath   /repo/Docs/Community/NewContributor.md
+        -DocsPath   /repo/Docs/Content/Community/NewContributor.md
 
-    Onboards a new contributor — both paths can be set explicitly when the
+    Onboards a new contributor - both paths can be set explicitly when the
     auto-derived defaults don't suit (e.g. for a one-off import into a
     sandbox folder).
 
@@ -107,12 +107,13 @@ $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
 # Derive the README destination from the output folder's leaf name when not
-# provided explicitly. Default lands at <repoRoot>/Docs/Community/<Contributor>.md
-# so the human-readable summary lives alongside the other governance docs.
+# provided explicitly. Default lands at <repoRoot>/Docs/Content/Community/<Contributor>.md
+# so the human-readable summary sits alongside the Content-authoring docs it
+# describes.
 if (-not $DocsPath) {
     $contributorName = Split-Path -Path $OutputPath -Leaf
     $repoRoot        = Split-Path -Path $PSScriptRoot -Parent
-    $DocsPath        = Join-Path $repoRoot 'Docs' (Join-Path 'Community' "$contributorName.md")
+    $DocsPath        = Join-Path $repoRoot 'Docs' (Join-Path 'Content' (Join-Path 'Community' "$contributorName.md"))
 }
 
 # ---------------------------------------------------------------------------
