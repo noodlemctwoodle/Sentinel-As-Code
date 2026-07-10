@@ -315,6 +315,8 @@ stages:
             # though the run still writes a report file into reports/ (which would
             # otherwise make the working tree dirty and trigger the commit below).
             # Mirrors the GitHub workflow's 'if: inputs.reportOnly != true' guard.
-            condition: and(succeeded(), ${{ ne(parameters.reportOnly, true) }})
+            # Gate on the runtime flagReportOnly variable (set to "-ReportOnly"
+            # only when reportOnly is true) rather than a compile-time expression.
+            condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'))
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)

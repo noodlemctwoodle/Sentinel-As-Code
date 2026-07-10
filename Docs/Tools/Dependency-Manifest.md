@@ -14,8 +14,7 @@ hand-maintained. Three checks keep it correct:
    script's `$contentRoots` array), parses the embedded KQL, and emits
    the manifest. `SummaryRules` and `DefenderCustomDetections` are
    named in the script's SYNOPSIS as future candidates but are not yet
-   walked, so their KQL dependencies (including the untracked
-   `Content/DefenderCustomDetections/custom_detection.yaml`) do not
+   walked, so their KQL dependencies do not
    enter the manifest today.
 2. The PR-validation gate (`dependency-manifest` job) runs the build
    script in `Verify` mode and refuses to merge if the on-disk

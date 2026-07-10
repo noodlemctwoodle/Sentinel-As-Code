@@ -48,8 +48,7 @@ Cross-validation below).
    manifest key off the `watchlistAlias` value, so a divergent folder name
    is confusing. See Cross-validation below for what IS enforced.
 2. **`watchlistAlias` is also the value used in
-   `_GetWatchlist('alias')` calls.** Renaming the folder breaks every
-   rule that references it.
+   `_GetWatchlist('alias')` calls.** Renaming the alias breaks every rule that references it; renaming the folder alone does not, because resolution keys off the `watchlistAlias` value in `watchlist.json`, not the folder name (though divergent names are confusing).
 3. **`itemsSearchKey` must be a column in `data.csv`.** Otherwise
    the watchlist deploys but `_GetWatchlist()` lookups don't resolve.
 4. **`provider`** is almost always `"Custom"`. Use `"Microsoft"` only
