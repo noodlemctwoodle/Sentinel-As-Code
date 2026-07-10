@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./.images/Sentinel-As-Code.png" alt="Sentinel-As-Code" />
+  <img src="./.images/Sentinel-As-Code.png" alt="Sentinel-As-Code" width="512" />
 </p>
 
 ## Overview
