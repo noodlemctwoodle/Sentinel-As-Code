@@ -119,7 +119,7 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
 ## Testing
 
 Every public function gets a Pester unit test. See
-[`./pester-tests.instructions.md`](./pester-tests.instructions.md)
+[`./pester-tests.instructions.md`](pester-tests.instructions.md)
 for the AST-extraction pattern used to test functions defined in
 scripts (rather than modules).
 

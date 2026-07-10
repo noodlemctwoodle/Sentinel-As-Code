@@ -14,9 +14,9 @@ and [code.visualstudio.com/docs/copilot/customization](https://code.visualstudio
 | --- | --- | --- |
 | Repo-wide instructions | Conventions every chat in this workspace follows | [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) |
 | Cross-tool agent guidance | Recognised by GitHub Copilot, Claude, Gemini, Cursor | [`AGENTS.md`](../../AGENTS.md) |
-| Path-scoped instructions | Per-folder authoring rules, loaded automatically by `applyTo` glob | [`.github/instructions/`](../../.github/instructions/) |
-| Custom agents | Persona configurations recognised across github.com + every IDE | [`.github/agents/`](../../.github/agents/) |
-| Reusable prompts | Slash-command templates for repeatable tasks (VS Code / VS / JetBrains) | [`.github/prompts/`](../../.github/prompts/) |
+| Path-scoped instructions | Per-folder authoring rules, loaded automatically by `applyTo` glob | [`.github/instructions/`](../../.github/instructions) |
+| Custom agents | Persona configurations recognised across github.com + every IDE | [`.github/agents/`](../../.github/agents) |
+| Reusable prompts | Slash-command templates for repeatable tasks (VS Code / VS / JetBrains) | [`.github/prompts/`](../../.github/prompts) |
 
 Counts as shipped: **13 agents**, **6 prompts**, **9 path-scoped
 instruction files**, plus the one repo-wide `copilot-instructions.md`
@@ -36,7 +36,7 @@ Where each layer is recognised:
 
 **Why no `chatmodes/`?** The legacy VS Code-only `.chatmode.md`
 format has been superseded by `.agent.md` under
-[`.github/agents/`](../../.github/agents/), which works on
+[`.github/agents/`](../../.github/agents), which works on
 github.com **and** in every IDE. The chat modes were migrated to
 agents as part of the 26.07 restructure. If you're working from an
 older clone, delete the legacy `.github/chatmodes/` folder; it's no

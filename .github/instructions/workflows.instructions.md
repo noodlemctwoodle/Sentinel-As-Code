@@ -11,7 +11,7 @@ pipelines live under `Pipelines/`. The ADO version is the default
 source of truth — GitHub workflows mirror ADO behaviour except in
 the narrow documented cases covered under Hard rule 1 below.
 Reference doc:
-[`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md).
+[`Docs/Pipelines/README.md`](../../Docs/Pipelines/README.md).
 
 ## File inventory
 
@@ -120,6 +120,6 @@ places:
 
 ## Cross-references
 
-- Pipeline reference: [`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md)
+- Pipeline reference: [`Docs/Pipelines/README.md`](../../Docs/Pipelines/README.md)
 - Composite actions: [`Docs/Deploy/PR-Validation-Setup.md`](../../Docs/Deploy/PR-Validation-Setup.md)
-- PR-validation gate reference: [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md)
+- PR-validation gate reference: [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md)

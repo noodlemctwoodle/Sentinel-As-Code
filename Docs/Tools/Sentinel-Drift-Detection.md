@@ -494,7 +494,7 @@ Pester 5 tests covering the four substantive pure functions
 (`Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`,
 `Resolve-RuleSource`) live at
 [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1).
-See [Pester Tests](../Development/Pester-Tests.md) for prerequisites, the AST-extraction
+See [Pester Tests](../Tests/Pester-Tests.md) for prerequisites, the AST-extraction
 pattern this repo uses, and how to add new test files.
 
 ```powershell
@@ -540,7 +540,7 @@ Copilot tooling for the drift sub-system:
 - Agent `Sentinel-As-Code: Pipeline Engineer` — for changes to
   the workflow / pipeline YAML.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## TODO
 

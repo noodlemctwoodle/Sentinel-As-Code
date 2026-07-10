@@ -1,6 +1,6 @@
 # Workbooks
 
-Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Content/Workbooks/`](../../Content/Workbooks/) containing a `workbook.json` (the workbook content) and an optional metadata file.
+Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Content/Workbooks/`](../../Content/Workbooks) containing a `workbook.json` (the workbook content) and an optional metadata file.
 
 The `workbook.json` may take either of two accepted shapes (both are valid and both deploy correctly, see [Accepted workbook.json formats](#accepted-workbookjson-formats)):
 
@@ -163,7 +163,7 @@ Copilot tooling for workbooks:
 
 `Test-WorkbookJson.Tests.ps1` validates every `Content/Workbooks/<Name>/workbook.json`: it confirms each file parses to a JSON mapping, detects and validates whichever of the two accepted formats it uses (ARM template resources or gallery notebook `version`+`items`), checks that ARM `serializedData` itself decodes to a notebook with `version` and `items`, validates any sibling `metadata.json` for `displayName`+`sourceId`, and enforces that every ARM workbook resource GUID is unique across the tree.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## Notes
 

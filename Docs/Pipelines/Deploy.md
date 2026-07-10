@@ -8,8 +8,8 @@ summary rules), and deploys Defender XDR custom detections via the Graph
 Security API.
 
 This page documents the CI/CD wiring. For what the invoked scripts
-actually do, see [Scripts.md](../Scripts.md); for the Bicep templates the
-infrastructure stage deploys, see [Bicep.md](../../Infra/Bicep.md).
+actually do, see [Scripts.md](../Deploy/Scripts.md); for the Bicep templates the
+infrastructure stage deploys, see [Bicep.md](../Infra/Bicep.md).
 
 Both CI systems run the same five ordered stages against the same
 deployment scripts:
@@ -27,8 +27,8 @@ empty subscription and it will create everything needed.
 
 ## Files
 
-- GitHub workflow: [`.github/workflows/sentinel-deploy.yml`](../../../.github/workflows/sentinel-deploy.yml)
-- ADO pipeline: [`Pipelines/Sentinel-Deploy.yml`](../../../Pipelines/Sentinel-Deploy.yml)
+- GitHub workflow: [`.github/workflows/sentinel-deploy.yml`](../../.github/workflows/sentinel-deploy.yml)
+- ADO pipeline: [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml)
 
 ## Triggers
 
@@ -53,7 +53,7 @@ Both systems authenticate with **workload identity federation (OIDC)** -
 no stored client secret. Per-job tokens are minted with a short TTL.
 
 **GitHub** uses the local composite action
-[`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc/action.yml),
+[`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml),
 which wraps `Azure/login@v3`. Every job that touches Azure re-runs it as
 its own step (composite actions run inside a job's step list, so the
 login does not persist across jobs). The parent workflow declares the
@@ -73,14 +73,14 @@ action from disk.
 **ADO** uses an ARM service connection named `sc-sentinel-as-code` (the
 `serviceConnection` pipeline variable). Configure it for workload
 identity federation rather than a stored secret. Full setup:
-[ADO OIDC Setup](../ADO-OIDC-Setup.md).
+[ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md).
 
 > **Critical ADO prerequisite**: ADO will not save the service connection
 > unless the service principal can already see the subscription (at least
 > **Reader**). `Deploy/setup/Setup-ServicePrincipal.ps1` grants
 > Contributor at subscription scope (which implies Reader), so the
 > standard bootstrap satisfies this. See
-> [Scripts.md](../Scripts.md#setup-serviceprincipalps1).
+> [Scripts.md](../Deploy/Scripts.md#setup-serviceprincipalps1).
 
 ## Secrets, variables, and the variable group
 
@@ -138,7 +138,7 @@ splat onto the script call.
 
 Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to grant these; after
 that the pipeline is autonomous. See
-[Scripts.md](../Scripts.md#setup-serviceprincipalps1) for the exact
+[Scripts.md](../Deploy/Scripts.md#setup-serviceprincipalps1) for the exact
 parameters and grant semantics.
 
 ## Inputs / parameters
@@ -229,7 +229,7 @@ by default.
 > `-SmartDeployment`. The underlying `Deploy-CustomContent.ps1` switch is
 > **opt-in** and defaults to a full deploy when the flag is not passed;
 > the pipeline is what turns it on. See
-> [Scripts.md](../Scripts.md) for what smart deployment actually skips.
+> [Scripts.md](../Deploy/Scripts.md) for what smart deployment actually skips.
 
 ### Defender detections (Stage 5)
 
@@ -267,7 +267,7 @@ job outputs and carries richer dual-onboarding logic:
   re-running the Sentinel module, whereas the inverse "state survived, OMS
   deleted out of band" case is **unrecoverable** and the job aborts with a
   remediation message. Background:
-  [Bicep.md](../../Infra/Bicep.md) "Why two onboarding mechanisms?".
+  [Bicep.md](../Infra/Bicep.md) "Why two onboarding mechanisms?".
 
 **ADO** (`CheckResources`, `AzurePowerShell@5`) performs the simpler
 existence probe: RG, workspace, and optional playbook RG. It sets a single
@@ -291,7 +291,7 @@ Steps, in order:
    and the optional `playbookRgName`. GitHub additionally passes
    `deploySentinel` from the Stage 1 `deploy_sentinel` output. Both
    systems defensively strip whitespace from the optional playbook RG
-   variable before the ARM call. See [Bicep.md](../../Infra/Bicep.md) for
+   variable before the ARM call. See [Bicep.md](../Infra/Bicep.md) for
    what the template provisions.
 5. **Wait for workspace indexing** - a 60-second sleep so a freshly
    created workspace becomes queryable.
@@ -316,7 +316,7 @@ hashtable. `SubscriptionId`, `ResourceGroup`, `Workspace`, `Region`,
 `Solutions`, and `SeveritiesToInclude` are always passed; the boolean
 toggles (`DisableRules`, `ProtectCustomisedRules`, the `Skip*` switches,
 `ForceSolutionUpdate`, `ForceContentDeployment`, `WhatIf`) are added only
-when their input/parameter is set. See [Scripts.md](../Scripts.md) for
+when their input/parameter is set. See [Scripts.md](../Deploy/Scripts.md) for
 what the script does.
 
 ### Stage 4 - Deploy custom content
@@ -331,7 +331,7 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
    uses `DownloadPipelineArtifact@2` (`latestFromBranch`). Both are
    `continue-on-error`, so a first run with no prior state proceeds.
 3. **Set up PowerShell modules** - installs `powershell-yaml` only
-   (GitHub uses the [`setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules/action.yml)
+   (GitHub uses the [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml)
    composite with `install-pester: 'false'` and the pinned
    `YAML_VERSION`; ADO installs it inline).
 4. **Verify dependency manifest is current** - runs
@@ -340,7 +340,7 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
    same drift gate the PR-validation workflow enforces on every PR to main,
    repeated here so a scheduled deploy from `main` cannot race a
    non-deploy commit that bypassed the PR gate. See
-   [Dependency Manifest](../../Tools/Dependency-Manifest.md).
+   [Dependency Manifest](../Tools/Dependency-Manifest.md).
 5. **Azure login (OIDC)**.
 6. **Deploy custom content** - invokes
    `Deploy/content/Deploy-CustomContent.ps1` with the base parameters
@@ -358,7 +358,7 @@ parsers -> watchlists -> detections -> hunting queries -> playbooks ->
 workbooks -> automation rules -> summary rules. The `Test-ContentDependencies`
 pre-flight gate and the smart-deployment skip apply to every content type
 (missing dependencies deploy detections disabled and skip other types).
-See [Scripts.md](../Scripts.md) for the full ordering and gate behaviour.
+See [Scripts.md](../Deploy/Scripts.md) for the full ordering and gate behaviour.
 
 > **Deployment-state filename divergence**: GitHub caches the state file
 > as `.deployment-state.json` (leading dot); ADO publishes it as
@@ -376,7 +376,7 @@ optional `-WhatIf` are passed). The script reads YAML from
 Microsoft Graph Security API (`beta`), creating or updating rules matched
 by `displayName`. This stage needs the `CustomDetection.ReadWrite.All`
 Graph application permission with admin consent. See
-[Scripts.md](../Scripts.md) for details.
+[Scripts.md](../Deploy/Scripts.md) for details.
 
 ## Artefacts and outputs
 
@@ -412,7 +412,7 @@ and the same weekly cron. The differences are:
 This Deploy pipeline is one of the paired pipelines: it has both a GitHub
 workflow and an ADO pipeline. For the full inventory of pipelines and
 which ones are single-platform, see the
-[Pipelines index](../Pipelines.md).
+[Pipelines index](README.md).
 
 ## Usage
 
@@ -437,12 +437,12 @@ queue time for narrower runs.
 
 ## Related
 
-- [Scripts.md](../Scripts.md) - what the invoked deployment scripts do.
-- [Bicep.md](../../Infra/Bicep.md) - the infrastructure templates and the
+- [Scripts.md](../Deploy/Scripts.md) - what the invoked deployment scripts do.
+- [Bicep.md](../Infra/Bicep.md) - the infrastructure templates and the
   dual-onboarding design.
-- [ADO OIDC Setup](../ADO-OIDC-Setup.md) - wiring the service connection
+- [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md) - wiring the service connection
   for workload identity federation.
-- [Dependency Manifest](../../Tools/Dependency-Manifest.md) - the
+- [Dependency Manifest](../Tools/Dependency-Manifest.md) - the
   `dependencies.json` drift gate reused in Stage 4.
-- [Pipelines index](../Pipelines.md) - the full pipeline inventory and
+- [Pipelines index](README.md) - the full pipeline inventory and
   GitHub/ADO parity map.

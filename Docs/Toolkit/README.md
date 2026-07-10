@@ -34,7 +34,7 @@ Deployment is the job of the Sentinel-As-Code pipeline. The boundary is:
   ARM into YAML, convert Defender detections between formats.
 - **Pipeline (in CI/CD):** authenticate, validate at deploy time, and push the
   committed content into Microsoft Sentinel and Defender XDR. See
-  [Pipelines](../Deploy/Pipelines.md) and [Scripts](../Deploy/Scripts.md).
+  [Pipelines](../Pipelines/README.md) and [Scripts](../Deploy/Scripts.md).
 
 ## Requirements
 
@@ -59,17 +59,17 @@ repository deploys maps to a bundled schema and template:
 
 | Content type | Repository folder | Toolkit schema |
 | --- | --- | --- |
-| Analytics rule | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) | `sentinel-analytics-rule-schema.json` |
-| Hunting query | [`Content/HuntingQueries/`](../../Content/HuntingQueries/) | `sentinel-hunting-query-schema.json` |
-| Parser | [`Content/Parsers/`](../../Content/Parsers/) | `sentinel-parser-schema.json` |
-| Summary rule | [`Content/SummaryRules/`](../../Content/SummaryRules/) | `sentinel-summary-rule-schema.json` |
-| Automation rule | [`Content/AutomationRules/`](../../Content/AutomationRules/) | `sentinel-automation-rule-schema.json` |
-| Watchlist | [`Content/Watchlists/`](../../Content/Watchlists/) | `sentinel-watchlist-schema.json` |
-| Defender custom detection | [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/) | `defender-custom-detection-schema.json` |
+| Analytics rule | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | `sentinel-analytics-rule-schema.json` |
+| Hunting query | [`Content/HuntingQueries/`](../../Content/HuntingQueries) | `sentinel-hunting-query-schema.json` |
+| Parser | [`Content/Parsers/`](../../Content/Parsers) | `sentinel-parser-schema.json` |
+| Summary rule | [`Content/SummaryRules/`](../../Content/SummaryRules) | `sentinel-summary-rule-schema.json` |
+| Automation rule | [`Content/AutomationRules/`](../../Content/AutomationRules) | `sentinel-automation-rule-schema.json` |
+| Watchlist | [`Content/Watchlists/`](../../Content/Watchlists) | `sentinel-watchlist-schema.json` |
+| Defender custom detection | [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections) | `defender-custom-detection-schema.json` |
 
 When a content authoring doc in this repository disagrees with the Toolkit schema
 or template, the Toolkit is the source of truth and the doc is corrected to
-match. See the per-type docs under [Content authoring](../Content/) and the
+match. See the per-type docs under [Content authoring](../Content) and the
 [schemas and validation](Schemas-and-Validation.md) reference.
 
 ## Language mode and file conventions

@@ -2,7 +2,7 @@
 
 Automatically inventories all Data Collection Rule (DCR) associations in a subscription and syncs them to a Microsoft Sentinel watchlist. Designed for billing, audit, and operational visibility.
 
-The Bicep stack lives under [`Infra/dcr-watchlist/`](../../Infra/dcr-watchlist/); the runbook is [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) and the permissions helper [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1).
+The Bicep stack lives under [`Infra/dcr-watchlist/`](../../Infra/dcr-watchlist); the runbook is [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1) and the permissions helper [`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1).
 
 Deployment is driven by CI from either side of the mirror: the GitHub Actions workflow [`.github/workflows/sentinel-dcr-inventory.yml`](../../.github/workflows/sentinel-dcr-inventory.yml) (the primary path for this repo) or the Azure DevOps pipeline [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml). Both provision the same Automation Account and register the same runbook.
 
@@ -103,7 +103,7 @@ _GetWatchlist('CustomerResources')
 | **Sentinel workspace** | Log Analytics workspace with Sentinel enabled |
 | **GitHub (OIDC)** | An Entra app federated for OIDC with **Contributor** on the subscription. Secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Variables: `SENTINEL_RESOURCE_GROUP`, `SENTINEL_WORKSPACE_NAME` |
 | **Azure DevOps** | Service connection `sc-sentinel-as-code` with **Contributor** on the subscription |
-| **Variable group (ADO)** | `sentinel-deployment` with `azureSubscriptionId`, `sentinelResourceGroup`, and `sentinelWorkspaceName` (shared with the main deploy pipeline, see [Pipelines](../Deploy/Pipelines.md)) |
+| **Variable group (ADO)** | `sentinel-deployment` with `azureSubscriptionId`, `sentinelResourceGroup`, and `sentinelWorkspaceName` (shared with the main deploy pipeline, see [Pipelines](../Pipelines/README.md)) |
 | **Manual RBAC** | One-time post-deployment (see below) |
 
 ## Deployment

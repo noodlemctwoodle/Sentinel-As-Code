@@ -1,7 +1,7 @@
 # Community Rules
 
 Community-contributed analytics rules live under
-[`Content/AnalyticalRules/Community/`](../../Content/AnalyticalRules/Community/), organised by
+[`Content/AnalyticalRules/Community/`](../../Content/AnalyticalRules/Community), organised by
 contributor. They follow the same YAML schema as in-house Custom rules
 (see [Analytical Rules](Analytical-Rules.md)) but ship with deliberately
 restrictive deployment defaults so manual review precedes any production
@@ -47,7 +47,7 @@ the import is self-organising.
 - **Repository:** [Dalonso-Security-Repo](https://github.com/davidalonsod/Dalonso-Security-Repo)
 - **Author:** [@davidalonsod](https://github.com/davidalonsod)
 - **License:** [The Unlicense](https://unlicense.org/) (public domain)
-- **Path:** [`Content/AnalyticalRules/Community/Dalonso/`](../../Content/AnalyticalRules/Community/Dalonso/)
+- **Path:** [`Content/AnalyticalRules/Community/Dalonso/`](../../Content/AnalyticalRules/Community/Dalonso)
 - **Import script:** [`Tools/Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1)
 
 Full credit for the detection logic, KQL queries, and rule design belongs
@@ -59,11 +59,11 @@ the upstream repo, normalises every rule, and writes:
 | Output | Path | Purpose |
 | --- | --- | --- |
 | Rule YAMLs | `Content/AnalyticalRules/Community/Dalonso/{Category}/*.yaml` | Deployable detections |
-| Auto-generated summary | [`Docs/Community/Dalonso.md`](../Community/Dalonso.md) | Per-category rule listings, last-sync date, source commit. **Not hand-edited** (regenerated each run alongside this governance doc) |
+| Auto-generated summary | [`Docs/Content/Community/Dalonso.md`](Community/Dalonso.md) | Per-category rule listings, last-sync date, source commit. **Not hand-edited** (regenerated each run alongside this governance doc) |
 | Manifest | `Content/AnalyticalRules/Community/Dalonso/import-manifest.json` | Content-hash per file for drift-vs-upstream detection (operational artifact, stays next to the rules) |
 
 Latest counts (regenerated on each import; the auto-generated
-[`Docs/Community/Dalonso.md`](../Community/Dalonso.md) README is the live
+[`Docs/Content/Community/Dalonso.md`](Community/Dalonso.md) README is the live
 source of truth):
 
 | Category | Rule count | Source path |
@@ -158,7 +158,7 @@ in `Build-RuleYaml` (forces `enabled: false`, prepends the Dalonso
 attribution paragraph to descriptions, merges the required tags, expands
 short trigger operators such as `gt`/`lt` to `GreaterThan`/`LessThan`),
 and rewrites every YAML in the target folder. It also regenerates
-[`Docs/Community/Dalonso.md`](../Community/Dalonso.md) (the auto-generated
+[`Docs/Content/Community/Dalonso.md`](Community/Dalonso.md) (the auto-generated
 rule listing, written to `-DocsPath`) and `import-manifest.json` (the
 content-hash manifest, kept next to the rules under `-OutputPath`) so all
 metadata always matches what was just imported.
@@ -200,12 +200,12 @@ diff at all, so only genuinely new or modified detections surface in
 `-OutputPath` and `-DocsPath` override the auto-derived destinations. When
 `-DocsPath` is omitted, the script derives it from the leaf folder name of
 `-OutputPath` (for example `.../Community/Dalonso` becomes
-`Docs/Community/Dalonso.md`):
+`Docs/Content/Community/Dalonso.md`):
 
 ```powershell
 ./Tools/Import-CommunityRules.ps1 `
     -OutputPath ./Content/AnalyticalRules/Community/NewContributor `
-    -DocsPath   ./Docs/Community/NewContributor.md
+    -DocsPath   ./Docs/Content/Community/NewContributor.md
 ```
 
 **This importer is Dalonso-specific, not a generic tool.** Overriding the
@@ -286,7 +286,7 @@ Copilot tooling for community rules:
 - Agent `Sentinel-As-Code: KQL Engineer`: optimise community-imported
   query bodies
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## Related docs
 

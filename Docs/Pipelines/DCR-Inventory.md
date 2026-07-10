@@ -11,18 +11,18 @@ Two mirrored definitions drive it:
 
 | CI system | File | Auth |
 | --- | --- | --- |
-| GitHub Actions | [`.github/workflows/sentinel-dcr-inventory.yml`](../../../.github/workflows/sentinel-dcr-inventory.yml) | OIDC federated credential (composite action) |
-| Azure DevOps | [`Pipelines/Sentinel-DCR-Inventory.yml`](../../../Pipelines/Sentinel-DCR-Inventory.yml) | Service connection `sc-sentinel-as-code` (workload identity federation) |
+| GitHub Actions | [`.github/workflows/sentinel-dcr-inventory.yml`](../../.github/workflows/sentinel-dcr-inventory.yml) | OIDC federated credential (composite action) |
+| Azure DevOps | [`Pipelines/Sentinel-DCR-Inventory.yml`](../../Pipelines/Sentinel-DCR-Inventory.yml) | Service connection `sc-sentinel-as-code` (workload identity federation) |
 
 For what the deployed runbook actually does (the DCR enumeration, the
 watchlist schema, the billing-safe merge/upsert, and the `DCRName` search
-key), see [DCR Watchlist Sync](../../Operations/DCR-Watchlist.md). This
+key), see [DCR Watchlist Sync](../Tools/DCR-Watchlist.md). This
 document covers only the pipeline mechanics.
 
 ## What it provisions
 
 Both definitions run the same subscription-scoped Bicep deployment
-([`Infra/dcr-watchlist/main.bicep`](../../../Infra/dcr-watchlist/main.bicep))
+([`Infra/dcr-watchlist/main.bicep`](../../Infra/dcr-watchlist/main.bicep))
 and the same runbook-update logic:
 
 - Resource group for the Automation Account (default
@@ -30,7 +30,7 @@ and the same runbook-update logic:
 - Automation Account (default `aa-dcr-watchlist-sync`) with a
   system-assigned managed identity
 - The `Invoke-DCRWatchlistSync` PowerShell 7.2 runbook, imported from
-  [`Tools/Invoke-DCRWatchlistSync.ps1`](../../../Tools/Invoke-DCRWatchlistSync.ps1)
+  [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1)
 - A recurring Automation schedule (daily by default, 03:00 UTC start) and
   the job schedule that links the runbook to it with its runtime
   parameters, including `SearchKey=DCRName`
@@ -139,7 +139,7 @@ followed by a runbook-update stage that depends on it.
 
 `SearchKey` is hard-coded to `DCRName` in both definitions. The watchlist
 holds one row per DCR, so `DCRName` is the only stable per-row key; see
-[DCR Watchlist Sync](../../Operations/DCR-Watchlist.md) for why passing
+[DCR Watchlist Sync](../Tools/DCR-Watchlist.md) for why passing
 `ResourceId` here would fault the sync.
 
 ## Variables, secrets, and repo variables
@@ -169,7 +169,7 @@ Sentinel resource group, Sentinel workspace) from different places.
 ## Authentication
 
 - **GitHub** logs in through the local composite action
-  [`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc/action.yml),
+  [`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml),
   which wraps `Azure/login@v3` with the OIDC parameter set
   (`client-id`, `tenant-id`, `subscription-id`). It requests a federated
   token, so no client secret is stored. Both jobs declare the required
@@ -179,7 +179,7 @@ Sentinel resource group, Sentinel workspace) from different places.
 - **Azure DevOps** uses the `sc-sentinel-as-code` service connection,
   which should itself be configured for workload identity federation
   (OIDC) rather than a stored secret. See
-  [ADO OIDC Setup](../ADO-OIDC-Setup.md).
+  [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md).
 
 ## Post-deployment RBAC (manual, one-time)
 
@@ -188,7 +188,7 @@ runtime roles: the deploying service principal does not hold
 `Microsoft.Authorization/roleAssignments/write`. After the first
 successful deployment, assign the following to the Automation Account's
 system-assigned identity (helper:
-[`Deploy/permissions/Set-RunbookPermissions.ps1`](../../../Deploy/permissions/Set-RunbookPermissions.ps1)):
+[`Deploy/permissions/Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1)):
 
 - **Monitoring Reader** on the subscription (to enumerate DCRs and
   associations).
@@ -234,10 +234,10 @@ the trigger.
 
 When editing this pipeline pair (or any file under
 `.github/workflows/`, `.github/actions/`, or `Pipelines/`), Copilot loads
-[`.github/instructions/workflows.instructions.md`](../../../.github/instructions/workflows.instructions.md),
+[`.github/instructions/workflows.instructions.md`](../../.github/instructions/workflows.instructions.md),
 which codifies ADO-as-source-of-truth, the composite-action adoption rule,
 and the ADO to GitHub Actions translation table. The
 `Sentinel-As-Code: Pipeline Engineer` agent owns parity between the two
 definitions; the `Sentinel-As-Code: Bicep Engineer` agent owns the
 `Infra/dcr-watchlist/` stack. See
-[GitHub Copilot setup](../../Development/GitHub-Copilot.md).
+[GitHub Copilot setup](../GitHub/GitHub-Copilot.md).

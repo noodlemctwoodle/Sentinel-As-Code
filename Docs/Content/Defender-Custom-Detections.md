@@ -1,6 +1,6 @@
 # Defender XDR Custom Detection Rules
 
-Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/).
+Custom detection rules for Microsoft Defender XDR, deployed via the Microsoft Graph Security API. Source files live under [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections).
 
 ## Overview
 
@@ -303,7 +303,7 @@ The pipeline acquires a Graph API token separately from the ARM token used for S
 
 ## Deployment
 
-Handled by [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deploy/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Deploy/Pipelines.md).
+Handled by [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1) and Stage 5 of the deploy pipeline. See [Scripts](../Deploy/Scripts.md#deploy-defenderdetectionsps1) and [Pipelines](../Pipelines/README.md).
 
 ### How rules are matched (upsert by displayName)
 
@@ -348,4 +348,4 @@ Copilot tooling for Defender XDR detections:
 - Agent `Sentinel-As-Code: Security Reviewer` - required when adding response actions
   (isolateDevice, forceUserPasswordReset, etc.)
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

@@ -1,8 +1,8 @@
 # Dependency Update Pipeline
 
-Daily automation that keeps [`dependencies.json`](../../../dependencies.json)
+Daily automation that keeps [`dependencies.json`](../../dependencies.json)
 in sync with the content tree. It runs
-[`Tools/Build-DependencyManifest.ps1`](../../../Tools/Build-DependencyManifest.ps1)
+[`Tools/Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1)
 `-Mode Update` against `main`, and if the regenerated manifest diverges from
 the on-disk copy it pushes the refreshed file to a rolling bot branch and
 opens (or refreshes) a pull request for review.
@@ -10,14 +10,14 @@ opens (or refreshes) a pull request for review.
 This page documents the CI/CD wiring only. For what the invoked script
 actually does (discovery walk, KQL scanning, classification, the `Generate`
 / `Verify` / `Update` modes), see
-[Dependency Manifest](../../Tools/Dependency-Manifest.md).
+[Dependency Manifest](../Tools/Dependency-Manifest.md).
 
 There are two implementations that stay behaviourally identical:
 
 | CI system | File |
 | --- | --- |
-| Azure DevOps | [`Pipelines/Sentinel-Dependency-Update.yml`](../../../Pipelines/Sentinel-Dependency-Update.yml) |
-| GitHub Actions | [`.github/workflows/sentinel-dependency-update.yml`](../../../.github/workflows/sentinel-dependency-update.yml) |
+| Azure DevOps | [`Pipelines/Sentinel-Dependency-Update.yml`](../../Pipelines/Sentinel-Dependency-Update.yml) |
+| GitHub Actions | [`.github/workflows/sentinel-dependency-update.yml`](../../.github/workflows/sentinel-dependency-update.yml) |
 
 Unlike the deploy and drift-detect pipelines, this one needs **no Azure
 authentication**. Discovery is fully offline (it parses YAML on disk only),
@@ -121,7 +121,7 @@ Only `powershell-yaml` is needed; Pester is not installed here (no tests
 run).
 
 - **GitHub** uses the shared composite action
-  [`.github/actions/setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules/action.yml)
+  [`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml)
   with `yaml-version: 0.4.12` and `install-pester: 'false'`. The composite
   caches and pin-installs the module, and fails fast on cache drift.
 - **ADO** inlines the equivalent logic in a `PowerShell@2` task: it installs
@@ -142,7 +142,7 @@ Invokes the script in `Update` mode:
 `Update` mode rewrites `dependencies.json` on disk when it detects drift and
 exits `0`; on no drift it leaves the file untouched and also exits `0`. The
 pipeline, not the script, owns the commit / push / PR. See
-[Dependency Manifest](../../Tools/Dependency-Manifest.md) for the discovery
+[Dependency Manifest](../Tools/Dependency-Manifest.md) for the discovery
 detail.
 
 ### 4. Commit, push, and open / refresh PR
@@ -228,10 +228,10 @@ title, same guards). The mechanical differences are:
 
 ## Related documentation
 
-- [Dependency Manifest](../../Tools/Dependency-Manifest.md) - what the
+- [Dependency Manifest](../Tools/Dependency-Manifest.md) - what the
   invoked script does (discovery, classification, the `Generate` / `Verify`
   / `Update` modes).
-- [Pipelines](../Pipelines.md) - the full pipeline set and the ADO / GitHub
+- [Pipelines](README.md) - the full pipeline set and the ADO / GitHub
   parity overview.
-- [Sentinel Drift Detection](../../Tools/Sentinel-Drift-Detection.md) - the
+- [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) - the
   sibling auto-PR pipeline that shares the branch-reset pattern.

@@ -16,7 +16,7 @@ does not deploy - deployment is this repository's pipeline.
 
 | Concern | Where |
 | --- | --- |
-| Rule files | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) |
+| Rule files | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) |
 | Deploy logic | [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) (function `Deploy-CustomDetections`) |
 | Drift detection | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 | Community contributions | See [Community Rules](Community-Rules.md) |
@@ -46,7 +46,7 @@ Content/AnalyticalRules/
 ```
 
 Categories that exist today are visible in
-[`Content/AnalyticalRules/`](../../Content/AnalyticalRules/). Add new ones as needed; the deploy
+[`Content/AnalyticalRules/`](../../Content/AnalyticalRules). Add new ones as needed; the deploy
 script walks all `*.yaml` and `*.yml` recursively.
 
 ## YAML schema
@@ -392,7 +392,7 @@ Copilot tooling for analytical rules:
 - Agent `Sentinel-As-Code: Rule Tuner` — adjust threshold / severity / filters
 - Agent `Sentinel-As-Code: KQL Engineer` — optimise the query body
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## Related docs
 
@@ -405,5 +405,5 @@ See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout
   portal-edited rules, with auto-PR back into the repo for Custom drift
 - [Community Rules](Community-Rules.md) — opt-in third-party contributions
   under `Content/AnalyticalRules/Community/`
-- [Pester Tests](../Development/Pester-Tests.md) — running and extending the test suite for
+- [Pester Tests](../Tests/Pester-Tests.md) — running and extending the test suite for
   the drift-detection logic

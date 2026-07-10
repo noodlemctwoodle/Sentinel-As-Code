@@ -1,6 +1,6 @@
 # Sentinel Word Report Pipeline
 
-CI/CD wiring for [`Pipelines/Sentinel-Word-Report.yml`](../../../Pipelines/Sentinel-Word-Report.yml),
+CI/CD wiring for [`Pipelines/Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml),
 the Azure DevOps pipeline that renders the Sentinel Documenter Markdown pack
 into a single, styled Word (`.docx`) report and publishes it as a build
 artefact.
@@ -9,14 +9,14 @@ This page documents the **pipeline mechanics** (triggers, parameters, agent,
 steps, outputs, and the GitHub parity story). For what the invoked converter
 actually does to the Markdown (pandoc styling, the LibreOffice page-numbered
 table of contents, the reference template, and how to run it locally), see the
-tool page: [Sentinel Word Report](../../Tools/Documenter/Sentinel-Word-Report.md).
+tool page: [Sentinel Word Report](../Tools/Documenter/Sentinel-Word-Report.md).
 This page does not repeat that detail.
 
 ## At a glance
 
 | Property | Value |
 | --- | --- |
-| File | [`Pipelines/Sentinel-Word-Report.yml`](../../../Pipelines/Sentinel-Word-Report.yml) |
+| File | [`Pipelines/Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml) |
 | Trigger | Manual only (`trigger: none`, `pr: none`) |
 | Agent pool | `ubuntu-latest` (Microsoft-hosted) |
 | Azure auth | **None** (never contacts Azure or Graph) |
@@ -27,7 +27,7 @@ This page does not repeat that detail.
 
 ## Purpose
 
-The [Sentinel Documenter](../../Tools/Documenter/Sentinel-Documenter.md) writes a
+The [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) writes a
 folder of numbered Markdown section files plus an `assets/` image store to
 `SecurityDocs/<workspace>/`. That is good for browsing in the repo but awkward to
 hand to a stakeholder. This pipeline closes the gap: it checks out that committed
@@ -35,7 +35,7 @@ folder, renders it into one styled, page-numbered `.docx`, and publishes the
 document as a build artefact you can download from the run summary.
 
 The render itself is done by
-[`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
+[`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
 in its default `-Toc Baked` mode. See the tool page for how that works.
 
 ## Trigger and schedule
@@ -52,7 +52,7 @@ any parameters that differ from their defaults, then download the artefact from
 the build **Summary -> Published artefacts -> `sentinel-word-report`**.
 
 This matches the manual posture of the Documenter pipeline
-([`Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml), also
+([`Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml), also
 `trigger: none`); the Word Report deliberately runs after you have a fresh
 `SecurityDocs/<workspace>/` in the branch.
 
@@ -76,7 +76,7 @@ and set `title` / `outputName` to match.
 The pipeline does not generate the Markdown. It expects
 `SecurityDocs/<workspace>/` to already exist in the checked-out branch. That
 folder is produced and committed by the Documenter pipeline
-([`Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml)) to the
+([`Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml)) to the
 private ADO mirror. This pipeline runs `checkout: self`, which brings that folder
 in with the rest of the repo, then renders it.
 
@@ -119,7 +119,7 @@ only external network dependency in the pipeline.
 - Builds the output path under `$(Build.ArtifactStagingDirectory)` using
   `outputName`.
 - Runs
-  [`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
+  [`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
   with `-Source`, `-OutputPath`, `-Title`, and `-Toc Baked`.
 - Fails the build if the script returns non-zero or the `.docx` was not written.
 - **TOC verification:** opens the produced `.docx` as a zip, reads
@@ -141,8 +141,8 @@ queue-time parameters and the tools it installs at runtime.
 
 ## Authentication
 
-**None.** Unlike [`Sentinel-Deploy.yml`](../../../Pipelines/Sentinel-Deploy.yml),
-[`Sentinel-Drift-Detect.yml`](../../../Pipelines/Sentinel-Drift-Detect.yml), and
+**None.** Unlike [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml),
+[`Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml), and
 the other content pipelines, this pipeline never contacts Azure Resource Manager
 or Microsoft Graph. It only reads Markdown that is already committed to the repo
 and renders it locally on the agent. Consequently:
@@ -156,7 +156,7 @@ This is the key CI asymmetry to note: the deploy and drift pipelines authenticat
 to Azure via the ADO service connection (or, on GitHub, via the `azure-login-oidc`
 composite action's federated credential); the Word Report needs neither because
 its input is committed content, not live workspace state. For the OIDC setup those
-other pipelines use, see [ADO OIDC Setup](../ADO-OIDC-Setup.md).
+other pipelines use, see [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md).
 
 ## Outputs
 
@@ -178,7 +178,7 @@ The build fails (non-zero exit, logged via `##vso[task.logissue type=error]`) if
 ## GitHub Actions parity
 
 **This pipeline is ADO-only.** There is no `*word*` workflow under
-[`.github/workflows/`](../../../.github/workflows/) and no GitHub mirror.
+[`.github/workflows/`](../../.github/workflows) and no GitHub mirror.
 
 This is one of the two documented asymmetries between the seven ADO pipelines and
 the seven GitHub workflows (the other being the GitHub-only
@@ -196,6 +196,6 @@ tool page for that. Only the CI wiring is ADO-specific.
 
 ## Related
 
-- [Sentinel Word Report (tool / renderer)](../../Tools/Documenter/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
-- [Sentinel Documenter](../../Tools/Documenter/Sentinel-Documenter.md) - the tool that produces the Markdown this pipeline renders.
-- [Pipelines overview](../Pipelines.md) - the full set of seven ADO pipelines and their GitHub parity table.
+- [Sentinel Word Report (tool / renderer)](../Tools/Documenter/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
+- [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) - the tool that produces the Markdown this pipeline renders.
+- [Pipelines overview](README.md) - the full set of seven ADO pipelines and their GitHub parity table.

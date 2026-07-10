@@ -4,7 +4,7 @@
 
 Summary rules are an Azure Monitor (Log Analytics) feature that execute scheduled batch KQL queries and write aggregated results into a custom `_CL` destination table. They run automatically on a fixed time cadence called a **bin**, processing all data that arrived within each bin's time window.
 
-Source files live under [`Content/SummaryRules/`](../../Content/SummaryRules/).
+Source files live under [`Content/SummaryRules/`](../../Content/SummaryRules).
 
 ### Why Use Summary Rules?
 
@@ -166,7 +166,7 @@ The following columns are automatically appended to every row written to the des
 
 ## Prerequisites
 
-The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](../Deploy/Pipelines.md) for end-to-end pipeline RBAC.
+The identity running the deployment (service principal, managed identity, or user) requires the **Log Analytics Contributor** role on the target Log Analytics workspace. This is distinct from any Microsoft Sentinel roles, which operate at the workspace level via `Microsoft.SecurityInsights`. See [Pipelines](../Pipelines/README.md) for end-to-end pipeline RBAC.
 
 ---
 
@@ -178,7 +178,7 @@ Summary rules go through the same two shared gates that every other content type
 
 **Smart deployment** - when the deployment is run with `-SmartDeployment`, `Test-ShouldDeployFile` skips any summary rule JSON file that is unchanged since the last successful deployment, and retries any file that previously failed. `-SmartDeployment` is an opt-in switch that defaults to off, so a full deploy (the default) processes every file in `Content/SummaryRules/` regardless of change state. Deployment outcomes (success/failed) are recorded per file via `Set-DeploymentItemState`, the same state tracking used by every other content type.
 
-**Skipping the stage entirely** - pass `-SkipSummaryRules` to `Deploy-CustomContent.ps1` to omit the Summary Rules stage from the run altogether (stage 8 of 8; see [Content Deployment Order](../Deploy/Pipelines.md) for the full stage list).
+**Skipping the stage entirely** - pass `-SkipSummaryRules` to `Deploy-CustomContent.ps1` to omit the Summary Rules stage from the run altogether (stage 8 of 8; see [Content Deployment Order](../Pipelines/README.md) for the full stage list).
 
 **`-WhatIf`** - with `-WhatIf`, each rule that passes validation and the dependency gate is logged as `[WhatIf] Would deploy summary rule: <name> (bin: <n>min -> <table>)` and counted as deployed, but no API call is made and no deployment state is written.
 
@@ -209,4 +209,4 @@ Copilot tooling for summary rules:
   the right post-edit Pester suite (`Test-SummaryRuleJson.Tests.ps1`)
 - Agent `Sentinel-As-Code: KQL Engineer` - optimise the query body
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

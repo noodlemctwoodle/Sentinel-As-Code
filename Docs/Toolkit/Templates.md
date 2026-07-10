@@ -28,13 +28,13 @@ There are eight templates. Each scaffolds one content type, targets a fixed fold
 
 | Template | Content type and repository folder | On-disk format | Conversion on scaffold |
 | --- | --- | --- | --- |
-| Standard Rule | Scheduled analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) | YAML | Not required |
-| NRT Rule | Near-Real-Time analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) | YAML | Not required |
-| Custom Detection | Defender XDR detection, [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/) | YAML | Not required |
-| Hunting Query | Hunting query, [`Content/HuntingQueries/`](../../Content/HuntingQueries/) | YAML | Not required |
-| Parser | KQL parser / saved function, [`Content/Parsers/`](../../Content/Parsers/) | YAML | Not required |
-| Summary Rule | Summary rule, [`Content/SummaryRules/`](../../Content/SummaryRules/) | **JSON** | **Converted to JSON** |
-| Automation Rule | Automation rule, [`Content/AutomationRules/`](../../Content/AutomationRules/) | **JSON** | **Converted to JSON** |
+| Standard Rule | Scheduled analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | Not required |
+| NRT Rule | Near-Real-Time analytics rule, [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | YAML | Not required |
+| Custom Detection | Defender XDR detection, [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections) | YAML | Not required |
+| Hunting Query | Hunting query, [`Content/HuntingQueries/`](../../Content/HuntingQueries) | YAML | Not required |
+| Parser | KQL parser / saved function, [`Content/Parsers/`](../../Content/Parsers) | YAML | Not required |
+| Summary Rule | Summary rule, [`Content/SummaryRules/`](../../Content/SummaryRules) | **JSON** | **Converted to JSON** |
+| Automation Rule | Automation rule, [`Content/AutomationRules/`](../../Content/AutomationRules) | **JSON** | **Converted to JSON** |
 | Watchlist | Watchlist metadata, `Content/Watchlists/<alias>/watchlist.json` | **JSON** | **Converted to JSON** |
 
 ### What each template scaffolds

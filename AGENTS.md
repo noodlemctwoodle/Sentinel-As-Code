@@ -6,26 +6,26 @@ look for `AGENTS.md` at the repo root.
 
 This file is a thin pointer — every agent / tool should follow the
 canonical instructions in
-[`.github/copilot-instructions.md`](./.github/copilot-instructions.md).
+[`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
 ## TL;DR for agents
 
-1. **Read [`.github/copilot-instructions.md`](./.github/copilot-instructions.md) first.**
+1. **Read [`.github/copilot-instructions.md`](.github/copilot-instructions.md) first.**
    It carries the conventions (en-GB spelling, no em-dashes,
    commit-message format, no AI co-author trailers, etc.) that the rest
    of the docs assume.
-2. **Read [`Docs/README.md`](./Docs/README.md) second.** It is the
+2. **Read [`Docs/README.md`](Docs/README.md) second.** It is the
    table of contents for every concern in the repo.
 3. **Path-scoped instructions** under
-   [`.github/instructions/`](./.github/instructions/) carry per-folder
+   [`.github/instructions/`](.github/instructions) carry per-folder
    schema rules and conventions. Copilot loads them automatically based
    on the file you're editing; other agents should read the matching
    `<area>.instructions.md` before editing files in that area.
-4. **Reusable prompts** under [`.github/prompts/`](./.github/prompts/)
+4. **Reusable prompts** under [`.github/prompts/`](.github/prompts)
    are slash commands for repeatable tasks (new rule, new test,
    review-a-rule, regenerate-deps). Copilot exposes them in chat;
    other agents can read them as task templates.
-5. **Custom agents** under [`.github/agents/`](./.github/agents/)
+5. **Custom agents** under [`.github/agents/`](.github/agents)
    are persona configurations recognised by GitHub Copilot Chat
    (github.com), Copilot cloud agent, Copilot CLI, VS Code,
    JetBrains, Eclipse, and Xcode. Thirteen agents in two tiers:
@@ -60,22 +60,22 @@ canonical instructions in
 
 | You want to... | Read | Use |
 | --- | --- | --- |
-| Add a Sentinel analytical rule | [Docs/Content/Analytical-Rules.md](./Docs/Content/Analytical-Rules.md) | Agent `rule-author` (works on github.com + VS Code) or prompt `/new-analytical-rule` (VS Code) |
-| Add a hunting query | [Docs/Content/Hunting-Queries.md](./Docs/Content/Hunting-Queries.md) | Agent `rule-author` or prompt `/new-hunting-query` |
-| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](./Docs/Content/Defender-Custom-Detections.md) | Agent `rule-author` or prompt `/new-defender-detection` |
-| Add a Pester test | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
+| Add a Sentinel analytical rule | [Docs/Content/Analytical-Rules.md](Docs/Content/Analytical-Rules.md) | Agent `rule-author` (works on github.com + VS Code) or prompt `/new-analytical-rule` (VS Code) |
+| Add a hunting query | [Docs/Content/Hunting-Queries.md](Docs/Content/Hunting-Queries.md) | Agent `rule-author` or prompt `/new-hunting-query` |
+| Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](Docs/Content/Defender-Custom-Detections.md) | Agent `rule-author` or prompt `/new-defender-detection` |
+| Add a Pester test | [Docs/Tests/Pester-Tests.md](Docs/Tests/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
 | Tune an existing rule's threshold / severity | The rule file itself | Agent `rule-tuner` |
-| Understand how a piece of the repo works | [Docs/README.md](./Docs/README.md) | Agent `repo-explorer` |
+| Understand how a piece of the repo works | [Docs/README.md](Docs/README.md) | Agent `repo-explorer` |
 | Explain a rule's KQL | The rule file | Agent `code-explainer` |
-| Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Deploy/Pipelines.md](./Docs/Deploy/Pipelines.md) | Agent `pipeline-engineer` |
-| Add a function to `Sentinel.Common` or refactor a script | [Docs/Deploy/Scripts.md](./Docs/Deploy/Scripts.md) | Agent `powershell-engineer` |
-| Edit a Bicep template | [Docs/Infra/Bicep.md](./Docs/Infra/Bicep.md) | Agent `bicep-engineer` |
-| Optimise a KQL query (performance, parser extraction, watchlist promotion) | [`.github/instructions/kql-queries.instructions.md`](./.github/instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
-| Add coverage / refactor a Pester suite | [Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
+| Edit a workflow / pipeline, port an ADO change to GH, or diagnose a CI/CD failure | [Docs/Pipelines/README.md](Docs/Pipelines/README.md) | Agent `pipeline-engineer` |
+| Add a function to `Sentinel.Common` or refactor a script | [Docs/Deploy/Scripts.md](Docs/Deploy/Scripts.md) | Agent `powershell-engineer` |
+| Edit a Bicep template | [Docs/Infra/Bicep.md](Docs/Infra/Bicep.md) | Agent `bicep-engineer` |
+| Optimise a KQL query (performance, parser extraction, watchlist promotion) | [`.github/instructions/kql-queries.instructions.md`](.github/instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
+| Add coverage / refactor a Pester suite | [Docs/Tests/Pester-Tests.md](Docs/Tests/Pester-Tests.md) | Agent `test-engineer` |
 | Security-review a playbook / script / workflow | The file in question | Agent `security-reviewer` |
-| Triage a drift auto-PR or fix the drift detector | [Docs/Tools/Sentinel-Drift-Detection.md](./Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
-| Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Tools/Dependency-Manifest.md](./Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
-| Refresh `dependencies.json` (routine regeneration) | [Docs/Tools/Dependency-Manifest.md](./Docs/Tools/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
+| Triage a drift auto-PR or fix the drift detector | [Docs/Tools/Sentinel-Drift-Detection.md](Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
+| Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Refresh `dependencies.json` (routine regeneration) | [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Test before you ship
 
@@ -94,4 +94,4 @@ Five-job CI gate on every PR to `main`:
 - `dependency-manifest` — `dependencies.json` drift gate
 
 A failing gate blocks merge. See
-[Docs/Development/Pester-Tests.md](./Docs/Development/Pester-Tests.md).
+[Docs/Tests/Pester-Tests.md](Docs/Tests/Pester-Tests.md).

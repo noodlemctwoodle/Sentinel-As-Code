@@ -1,6 +1,6 @@
 # Watchlists
 
-Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Content/Watchlists/`](../../Content/Watchlists/) containing a JSON metadata file and a CSV data file.
+Custom watchlists for enriching analytics rules and hunting queries. Each watchlist is a subfolder under [`Content/Watchlists/`](../../Content/Watchlists) containing a JSON metadata file and a CSV data file.
 
 ## Folder Structure
 
@@ -78,7 +78,7 @@ SigninLogs
 - Maximum CSV size for inline upload is approximately 3.5 MB. A file over that limit is skipped with a warning ("exceeds 3.5 MB inline upload limit ... Upload manually via portal"); the deployer then marks the item's state as `success` so it is not retried on the next run. Upload an oversized watchlist manually via the portal.
 - The `itemsSearchKey` value is case-sensitive and must exactly match a CSV column header
 - Deployment is handled by [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) — see [Scripts.md](../Deploy/Scripts.md#deploy-customcontentps1)
-- For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](../Operations/DCR-Watchlist.md)
+- For a watchlist that's auto-populated by an Azure Automation runbook (DCR inventory), see [DCR Watchlist](../Tools/DCR-Watchlist.md)
 
 ## Deployment behaviour
 
@@ -136,4 +136,4 @@ Copilot tooling for watchlists:
   rename or new alias affects rules that reference it via
   `_GetWatchlist('...')`
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

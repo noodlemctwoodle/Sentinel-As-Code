@@ -6,7 +6,7 @@ Automation rules run automatically when incidents or alerts are created or updat
 
 Rules are evaluated in order (ascending by the `order` field). The first matching rule runs; subsequent rules may also run unless a terminal action (such as closing the incident) stops further evaluation.
 
-Source files live under [`Content/AutomationRules/`](../../Content/AutomationRules/).
+Source files live under [`Content/AutomationRules/`](../../Content/AutomationRules).
 
 The Sentinel as Code Toolkit scaffolds and validates this content type. Its bundled `automation-rule` template and `sentinel-automation-rule-schema.json` are the authoring contract this page documents; the fields, required-vs-optional flags, types, enums and field order below all come from that schema and template. See [Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md). The Toolkit authors and validates only; deployment to Sentinel is handled by the pipeline described under [Deployment Behaviour](#deployment-behaviour).
 
@@ -346,7 +346,7 @@ $rule = Invoke-AzRestMethod -Method GET `
 
 This matches the `$script:SentinelApiVersion` value the deploy script itself uses for the PUT; if that variable is bumped in `Deploy-CustomContent.ps1`, update the api-version here too.
 
-5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`Content/AutomationRules/`](../../Content/AutomationRules/).
+5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`Content/AutomationRules/`](../../Content/AutomationRules).
 
 ---
 
@@ -359,7 +359,7 @@ The identity running the deployment pipeline requires the following role assignm
 | **Microsoft Sentinel Contributor** | Resource group or workspace | Create and update automation rules |
 | **Microsoft Sentinel Playbook Operator** | Logic App resource(s) | Required only for `RunPlaybook` actions |
 
-These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](../Deploy/Pipelines.md) for pipeline configuration details and [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
+These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](../Pipelines/README.md) for pipeline configuration details and [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
 
 ## Authoring with GitHub Copilot
 
@@ -374,4 +374,4 @@ Copilot tooling for automation rules:
 - Agent `Sentinel-As-Code: Content Editor` - general edits with
   the right post-edit Pester suite (`Test-AutomationRuleJson.Tests.ps1`)
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

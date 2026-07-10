@@ -263,7 +263,7 @@ Copilot tooling for the dependency-manifest sub-system:
   sub-system: extending the discovery extractor, debugging wrong
   manifest output, triaging the daily auto-PR refresh
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ## Related
 
@@ -273,4 +273,4 @@ See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout
 - [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) — discovery helper unit tests
 - [`.github/workflows/sentinel-dependency-update.yml`](../../.github/workflows/sentinel-dependency-update.yml) — daily auto-PR workflow (GitHub)
 - [`Pipelines/Sentinel-Dependency-Update.yml`](../../Pipelines/Sentinel-Dependency-Update.yml) — daily auto-PR pipeline (Azure DevOps)
-- [Pester Tests](../Development/Pester-Tests.md) — full test inventory and the gate model
+- [Pester Tests](../Tests/Pester-Tests.md) — full test inventory and the gate model

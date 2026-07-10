@@ -8,8 +8,8 @@ Two implementations exist and share the same underlying scripts:
 
 | CI system | File | Shape |
 | --- | --- | --- |
-| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../../.github/workflows/pr-validation.yml) | Five independent jobs, each its own required status check |
-| Azure DevOps | [`Pipelines/Sentinel-PR-Validation.yml`](../../../Pipelines/Sentinel-PR-Validation.yml) | One stage, one job, two gates (Pester + dependency manifest) |
+| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) | Five independent jobs, each its own required status check |
+| Azure DevOps | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | One stage, one job, two gates (Pester + dependency manifest) |
 
 The two are deliberately asymmetric. The GitHub workflow is the richer of
 the pair; the ADO pipeline covers the two gates that need no Azure
@@ -17,10 +17,10 @@ authentication. The [GitHub vs Azure DevOps](#github-vs-azure-devops) section
 below spells out exactly what each covers.
 
 This page documents pipeline mechanics only. For what the invoked scripts
-actually do, see [Pester Tests](../../Development/Pester-Tests.md) (the test
-suite `validate` runs) and [Dependency Manifest](../../Tools/Dependency-Manifest.md)
+actually do, see [Pester Tests](../Tests/Pester-Tests.md) (the test
+suite `validate` runs) and [Dependency Manifest](../Tools/Dependency-Manifest.md)
 (the drift gate). The one-off setup for the OIDC-authenticated `arm-validate`
-job is in [PR Validation Gate Setup](../PR-Validation-Setup.md).
+job is in [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md).
 
 ---
 
@@ -77,7 +77,7 @@ status check that the branch-protection ruleset can require independently.
   marks the job red even on a clean test run.
 - **Steps:**
   1. Checkout (`fetch-depth: 1`).
-  2. [`./.github/actions/setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules)
+  2. [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
      with the pinned Pester + powershell-yaml versions.
   3. Run `Tools/Invoke-PRValidation.ps1` with `-InstallModules:$false` (the
      composite action already installed the modules). This is the single
@@ -108,7 +108,7 @@ status check that the branch-protection ruleset can require independently.
 
 - **Auth:** **federated OIDC** against the deploy service principal (the
   only job that needs Azure). One-off setup:
-  [PR Validation Gate Setup](../PR-Validation-Setup.md).
+  [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md).
 - **Timeout:** 20 minutes.
 - **Permissions:** `id-token: write` (for OIDC), `contents: read`.
 - **Skip conditions** (evaluated in the first step, which sets a
@@ -122,7 +122,7 @@ status check that the branch-protection ruleset can require independently.
     populated the next run exercises the job.
 - **Steps (when not skipped):**
   1. Checkout.
-  2. [`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc)
+  2. [`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc)
      with the three OIDC secrets.
   3. For every `Content/Playbooks/**/*.json` template, call
      `Test-AzResourceGroupDeployment` against the resource group named in the
@@ -170,14 +170,14 @@ status check that the branch-protection ruleset can require independently.
 - **Author fix for drift:** run
   `./Tools/Build-DependencyManifest.ps1 -Mode Generate` locally and commit
   the regenerated manifest, or wait for the daily dependency-update workflow
-  to open an auto-PR. See [Dependency Manifest](../../Tools/Dependency-Manifest.md).
+  to open an auto-PR. See [Dependency Manifest](../Tools/Dependency-Manifest.md).
 
 ### Composite actions consumed
 
 | Action | Purpose |
 | --- | --- |
-| [`.github/actions/setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules) | Cache + pin-install Pester and powershell-yaml (exact versions); `install-pester: 'false'` skips Pester for YAML-only jobs |
-| [`.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc) | Federated Azure login via `Azure/login@v3`; used only by `arm-validate` |
+| [`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules) | Cache + pin-install Pester and powershell-yaml (exact versions); `install-pester: 'false'` skips Pester for YAML-only jobs |
+| [`.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc) | Federated Azure login via `Azure/login@v3`; used only by `arm-validate` |
 
 ### Secrets and repository variables
 
@@ -203,7 +203,7 @@ After each job has run at least once, add the checks under
 **Repo Settings -> Rules -> Rulesets -> Main Branch Protection -> Require
 status checks to pass**: `validate`, `bicep-build`, `kql-validate`,
 `dependency-manifest`, and `arm-validate` (the last only after the OIDC
-setup in [PR Validation Gate Setup](../PR-Validation-Setup.md) is complete).
+setup in [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md) is complete).
 Once required, the merge button stays disabled until every required check
 reports success against the PR's latest commit.
 
@@ -303,7 +303,7 @@ gates behave identically across the two.
 
 ## Related documentation
 
-- [Pipelines overview](../Pipelines.md) - the full set of pipelines and their GitHub parity.
-- [PR Validation Gate Setup](../PR-Validation-Setup.md) - one-off OIDC + required-check setup for `arm-validate`.
-- [Pester Tests](../../Development/Pester-Tests.md) - the test suite the `validate` gate runs.
-- [Dependency Manifest](../../Tools/Dependency-Manifest.md) - what the dependency-manifest drift gate checks.
+- [Pipelines overview](README.md) - the full set of pipelines and their GitHub parity.
+- [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md) - one-off OIDC + required-check setup for `arm-validate`.
+- [Pester Tests](../Tests/Pester-Tests.md) - the test suite the `validate` gate runs.
+- [Dependency Manifest](../Tools/Dependency-Manifest.md) - what the dependency-manifest drift gate checks.

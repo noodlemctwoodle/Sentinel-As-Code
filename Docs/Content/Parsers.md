@@ -2,7 +2,7 @@
 
 KQL parsers (workspace saved functions) authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. A parser is a reusable, named KQL function that normalises or unions one or more source tables into a single view, so that analytics rules, hunting queries, and summary rules can reference the function by name instead of repeating the same union/normalisation logic in every query.
 
-Source files live under [`Content/Parsers/`](../../Content/Parsers/).
+Source files live under [`Content/Parsers/`](../../Content/Parsers).
 
 ## What a Parser Is
 
@@ -207,4 +207,4 @@ Copilot tooling useful for parsers:
 - Agent `Sentinel-As-Code: KQL Engineer`, optimise the function body
 - Agent `Sentinel-As-Code: Rule Author`, author a parser and the rules that consume it end-to-end
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

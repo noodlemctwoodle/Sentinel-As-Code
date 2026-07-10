@@ -2,15 +2,15 @@
 
 CI/CD wiring for the Sentinel Documenter across both CI systems:
 
-- GitHub Actions: [`.github/workflows/sentinel-document.yml`](../../../.github/workflows/sentinel-document.yml)
-- Azure DevOps: [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml)
+- GitHub Actions: [`.github/workflows/sentinel-document.yml`](../../.github/workflows/sentinel-document.yml)
+- Azure DevOps: [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml)
 
 This page covers **pipeline mechanics** only: triggers, inputs, jobs and
 steps, the secrets and variables consumed, authentication, artefacts, and
 the GitHub / ADO mapping. For what the invoked collector and renderer
 scripts actually do (the inventory it gathers, the sections it renders,
 the gap analysis, the topology guidance), see
-[Sentinel Documenter](../../Tools/Documenter/Sentinel-Documenter.md). This
+[Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md). This
 page does not duplicate that.
 
 > **Both pipelines require a private repository.** The Documenter produces
@@ -18,7 +18,7 @@ page does not duplicate that.
 > names, rule details, RBAC principals, cost figures). On GitHub this is
 > enforced by an unconditional privacy guard step (below); on ADO it
 > relies on ADO repos being private by default within a project. See the
-> [tool doc's topology options](../../Tools/Documenter/Sentinel-Documenter.md#topology-options).
+> [tool doc's topology options](../Tools/Documenter/Sentinel-Documenter.md#topology-options).
 
 ---
 
@@ -81,12 +81,12 @@ Steps, in order:
    `open-pull-request` input. This is the security guard; there is no
    public-repo path that collects or uploads tenant config.
 3. **Set up PowerShell modules** (composite
-   [`./.github/actions/setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules/action.yml))
+   [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml))
    with `yaml-version: ${{ env.YAML_VERSION }}` and
    `install-pester: 'false'`. Caches and pin-installs `powershell-yaml`
    only.
 4. **Azure login (OIDC)** (composite
-   [`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc/action.yml))
+   [`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml))
    with `client-id: secrets.AZURE_DOCUMENTER_CLIENT_ID`,
    `tenant-id: secrets.AZURE_TENANT_ID`,
    `subscription-id: secrets.AZURE_SUBSCRIPTION_ID`.
@@ -135,7 +135,7 @@ Authentication is **OIDC** via the `azure-login-oidc` composite action
 (no stored client secret). The documenter SP needs a federated credential
 trusting subject `repo:<owner>/<repo>:ref:refs/heads/main` with audience
 `api://AzureADTokenExchange`, and the read-only role set documented in the
-[tool doc](../../Tools/Documenter/Sentinel-Documenter.md): Microsoft
+[tool doc](../Tools/Documenter/Sentinel-Documenter.md): Microsoft
 Sentinel Reader and Log Analytics Reader (workspace scope), Reader
 (resource-group scope), Monitoring Reader and Reader (subscription scope).
 
@@ -260,12 +260,12 @@ permanently).
 
 ## See also
 
-- [Sentinel Documenter](../../Tools/Documenter/Sentinel-Documenter.md) -
+- [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) -
   operating guide: what the collector gathers, the rendered sections, the
   gap analysis, and full topology options.
-- [Documenter Renderer Design](../../Tools/Documenter/Documenter-Renderer-Design.md) -
+- [Documenter Renderer Design](../Tools/Documenter/Documenter-Renderer-Design.md) -
   renderer internals and the chart / Mermaid-safety system.
-- [Pipelines overview](../Pipelines.md) - the full set of seven ADO
+- [Pipelines overview](README.md) - the full set of seven ADO
   pipelines and seven GitHub workflows, and where this one sits.
-- [Sentinel Word Report](../../Tools/Documenter/Sentinel-Word-Report.md) -
+- [Sentinel Word Report](../Tools/Documenter/Sentinel-Word-Report.md) -
   the ADO-only pipeline that renders the Documenter Markdown to `.docx`.

@@ -313,7 +313,7 @@ After the steps above, confirm:
 
 ## Related docs
 
-- [Pipelines](Pipelines.md) — pipeline reference, variable group spec, service connection roles
+- [Pipelines](../Pipelines/README.md) — pipeline reference, variable group spec, service connection roles
 - [Scripts → Setup-ServicePrincipal.ps1](Scripts.md#setup-serviceprincipalps1) — the one-shot SP role bootstrap (works regardless of credential type — secret-based, certificate, or OIDC federation)
 - [PR-Validation-Setup.md](PR-Validation-Setup.md) — GitHub-side equivalent; mirror this one for the GitHub OIDC federated credential
-- [GitHub Copilot setup](../Development/GitHub-Copilot.md) — `pipeline-engineer` agent owns CI/CD parity work
+- [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) — `pipeline-engineer` agent owns CI/CD parity work

@@ -2,7 +2,7 @@
 
 Custom threat hunting queries authored in YAML and deployed to Microsoft Sentinel as saved searches via the Log Analytics REST API. Unlike analytics rules, hunting queries do not generate alerts or incidents; they are executed manually or on-demand by analysts conducting proactive threat hunts.
 
-Source files live under [`Content/HuntingQueries/`](../../Content/HuntingQueries/).
+Source files live under [`Content/HuntingQueries/`](../../Content/HuntingQueries).
 
 The [Sentinel as Code Toolkit](../Toolkit/Templates.md) VS Code extension scaffolds and validates this content type: it ships the canonical hunting-query [template](../Toolkit/Templates.md) and the [schema](../Toolkit/Schemas-and-Validation.md) used for real-time authoring validation. The field contract documented below is taken from that Toolkit schema and template (the source of truth); the Toolkit authors and validates hunting queries, and this repository's pipeline deploys them.
 
@@ -215,4 +215,4 @@ Copilot tooling for hunting queries:
 - Agent `Sentinel-As-Code: Rule Author`, author end-to-end
 - Agent `Sentinel-As-Code: KQL Engineer`, optimise the query body
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

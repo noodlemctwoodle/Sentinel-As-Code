@@ -1,6 +1,6 @@
 # Playbooks
 
-Custom playbooks (Azure Logic Apps) for automated incident response, entity enrichment, and scheduled automation. Each playbook is an ARM JSON template under [`Content/Playbooks/`](../../Content/Playbooks/) organised by trigger category.
+Custom playbooks (Azure Logic Apps) for automated incident response, entity enrichment, and scheduled automation. Each playbook is an ARM JSON template under [`Content/Playbooks/`](../../Content/Playbooks) organised by trigger category.
 
 ## Folder Structure
 
@@ -161,7 +161,7 @@ committing:
   ARM expressions (`[subscription().subscriptionId]`,
   `[resourceGroup().name]`).
 - Add a `metadata` block with `title`, `description`, and `author`
-  (see existing files in [`Content/Playbooks/Module/`](../../Content/Playbooks/Module/)
+  (see existing files in [`Content/Playbooks/Module/`](../../Content/Playbooks/Module)
   for the convention).
 - Tag the workflow resource with `"Source": "Sentinel-As-Code"` so
   [`Set-PlaybookPermissions.ps1`](../Deploy/Scripts.md#set-playbookpermissionsps1)
@@ -192,4 +192,4 @@ Copilot tooling for playbooks:
   for any playbook touching Key Vault, Graph, Defender, or
   high-privilege endpoints
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

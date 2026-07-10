@@ -2,13 +2,13 @@
 
 Unit tests for PowerShell scripts in this repo use [Pester 5](https://pester.dev),
 the standard PowerShell testing framework. Tests live alongside the scripts
-they cover under [`Tests/`](../../Tests/) and exercise pure functions in
+they cover under [`Tests/`](../../Tests) and exercise pure functions in
 isolation — no Azure connectivity, no live workspaces, no side effects on
 the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests/) — 22 suites total: 19 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 3 under [`Tests/Documenter/`](../../Tests/Documenter/) |
+| Test files | [`Tests/`](../../Tests) — 22 suites total: 19 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 3 under [`Tests/Documenter/`](../../Tests/Documenter) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -344,7 +344,7 @@ using Pester `Mock` to stub Az PowerShell calls.
 
 ### The Documenter suites source differently
 
-The three suites under [`Tests/Documenter/`](../../Tests/Documenter/) do not
+The three suites under [`Tests/Documenter/`](../../Tests/Documenter) do not
 go through the AST-extraction helper. They dot-source specific Documenter
 files directly (including files under `Tools/Documenter/Private/`) and drive
 them against a fixed JSON fixture corpus rather than mocking Azure:
@@ -573,4 +573,4 @@ Copilot tooling for tests:
   mocking strategies for tricky dependencies (Az SDK, time-of-day,
   `Invoke-WebRequest` failures)
 
-See [GitHub Copilot setup](GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

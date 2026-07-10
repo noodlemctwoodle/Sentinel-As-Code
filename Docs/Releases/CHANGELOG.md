@@ -36,7 +36,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   forward; earlier tagged releases remain under MIT.
 - Added a GitHub Sponsors button (`.github/FUNDING.yml`) and documented the
   external tool dependencies in
-  `Docs/Development/PowerShell-Module-Requirements.md`.
+  `Docs/Deploy/PowerShell-Module-Requirements.md`.
 
 ## 26.06.1
 
@@ -49,7 +49,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   caused every scheduled run and manual dispatch to fail to compile (erroring in
   0s before any step ran); the daily Documenter now runs as intended (#26).
 - Forks and anyone referencing repo paths should review the
-  [26.06 Layout Restructure guide](../Migration/26.06-Layout-Restructure.md).
+  [26.06 Layout Restructure guide](Layout-Restructure-26.06.md).
 
 ## 26.06.0 — Wave 4 · June 2026
 

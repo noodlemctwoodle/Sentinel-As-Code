@@ -8,7 +8,7 @@ auto-complete as you type, and MITRE ATT&CK tactics and techniques are checked
 against the framework data bundled with the extension.
 
 These schemas are the source of truth for the field-level authoring contracts
-documented under [`Docs/Content/`](../Content/). Where a content doc describes a
+documented under [`Docs/Content/`](../Content). Where a content doc describes a
 field, its type, whether it is required, its allowed values or its position in
 the canonical order, that description comes from the schema on this page. The
 Toolkit authors and validates content; it does not deploy it. Deployment is this
@@ -26,13 +26,13 @@ authoring doc. All seven are JSON Schema draft-07 files under the extension's
 
 | Schema file | Content type | Repository folder | Authoring doc |
 | --- | --- | --- | --- |
-| `sentinel-analytics-rule-schema.json` | Analytics rules (Scheduled, NRT) | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules/) | [Analytical Rules](../Content/Analytical-Rules.md) |
-| `sentinel-hunting-query-schema.json` | Hunting queries | [`Content/HuntingQueries/`](../../Content/HuntingQueries/) | [Hunting Queries](../Content/Hunting-Queries.md) |
-| `sentinel-automation-rule-schema.json` | Automation rules | [`Content/AutomationRules/`](../../Content/AutomationRules/) | [Automation Rules](../Content/Automation-Rules.md) |
-| `sentinel-parser-schema.json` | Parsers (saved KQL functions) | [`Content/Parsers/`](../../Content/Parsers/) | [Parsers](../Content/Parsers.md) |
-| `sentinel-summary-rule-schema.json` | Summary rules | [`Content/SummaryRules/`](../../Content/SummaryRules/) | [Summary Rules](../Content/Summary-Rules.md) |
-| `sentinel-watchlist-schema.json` | Watchlist metadata (`watchlist.json`) | [`Content/Watchlists/`](../../Content/Watchlists/) | [Watchlists](../Content/Watchlists.md) |
-| `defender-custom-detection-schema.json` | Defender XDR custom detections | [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/) | [Defender Custom Detections](../Content/Defender-Custom-Detections.md) |
+| `sentinel-analytics-rule-schema.json` | Analytics rules (Scheduled, NRT) | [`Content/AnalyticalRules/`](../../Content/AnalyticalRules) | [Analytical Rules](../Content/Analytical-Rules.md) |
+| `sentinel-hunting-query-schema.json` | Hunting queries | [`Content/HuntingQueries/`](../../Content/HuntingQueries) | [Hunting Queries](../Content/Hunting-Queries.md) |
+| `sentinel-automation-rule-schema.json` | Automation rules | [`Content/AutomationRules/`](../../Content/AutomationRules) | [Automation Rules](../Content/Automation-Rules.md) |
+| `sentinel-parser-schema.json` | Parsers (saved KQL functions) | [`Content/Parsers/`](../../Content/Parsers) | [Parsers](../Content/Parsers.md) |
+| `sentinel-summary-rule-schema.json` | Summary rules | [`Content/SummaryRules/`](../../Content/SummaryRules) | [Summary Rules](../Content/Summary-Rules.md) |
+| `sentinel-watchlist-schema.json` | Watchlist metadata (`watchlist.json`) | [`Content/Watchlists/`](../../Content/Watchlists) | [Watchlists](../Content/Watchlists.md) |
+| `defender-custom-detection-schema.json` | Defender XDR custom detections | [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections) | [Defender Custom Detections](../Content/Defender-Custom-Detections.md) |
 
 Analytics rules, hunting queries, parsers and Defender detections are authored as
 YAML. Summary rules, automation rules and watchlists are stored as JSON on disk,

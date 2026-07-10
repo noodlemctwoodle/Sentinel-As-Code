@@ -10,7 +10,7 @@ resource group for playbooks.
 | [`Infra/sentinel/main.bicep`](../../Infra/sentinel/main.bicep) | Subscription | Orchestrator — creates resource groups and invokes the Sentinel module |
 | [`Infra/sentinel/sentinel.bicep`](../../Infra/sentinel/sentinel.bicep) | Resource group | Workspace, Sentinel onboarding, diagnostic settings |
 
-These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](../Deploy/Pipelines.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
+These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](../Pipelines/README.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
 
 ## main.bicep
 
@@ -142,7 +142,7 @@ The setting targets a `Microsoft.SecurityInsights/settings` resource named `Sent
 
 The pipeline can deploy playbooks (Logic Apps) to a separate resource group. To enable:
 
-1. Add `playbookResourceGroup` to the [`sentinel-deployment` variable group](../Deploy/Pipelines.md#variable-group-sentinel-deployment) with the desired RG name.
+1. Add `playbookResourceGroup` to the [`sentinel-deployment` variable group](../Pipelines/README.md#variable-group-sentinel-deployment) with the desired RG name.
 2. The pipeline passes it through to `main.bicep` as the `playbookRgName` parameter.
 3. Bicep creates the separate RG only when:
    - `playbookRgName` is non-empty, AND
@@ -174,7 +174,7 @@ az deployment sub create \
 
 `deploySentinel` is intentionally omitted from this ADO invocation — see the paragraph below for the asymmetric handling between platforms.
 
-Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](../Deploy/Pipelines.md) for the conditional logic. The two pipelines differ in probe granularity:
+Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](../Pipelines/README.md) for the conditional logic. The two pipelines differ in probe granularity:
 
 - **ADO** checks the resource group and workspace only.
 - **GitHub Actions** additionally probes both Sentinel onboarding resources (`Microsoft.OperationsManagement/solutions` *and* `Microsoft.SecurityInsights/onboardingStates/default`) and the optional separate playbook RG. When Sentinel is fully onboarded but the playbook RG is missing, GH passes `deploySentinel=false` to Bicep so the Sentinel module is skipped and only the playbook RG is provisioned.
@@ -204,10 +204,10 @@ The pipeline GETs the current setting (to capture the ETag) and PUTs the new sta
 
 ## Related docs
 
-- [Pipelines](../Deploy/Pipelines.md) — how Stage 2 runs Bicep and the post-Bicep settings step
+- [Pipelines](../Pipelines/README.md) — how Stage 2 runs Bicep and the post-Bicep settings step
 - [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) — service principal RBAC bootstrap
 - [Playbooks](../Content/Playbooks.md) — how the optional playbook RG is consumed
-- [DCR Watchlist](../Operations/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (Bicep lives under `Infra/dcr-watchlist/` (runbook + permissions scripts under `Tools/` and `Deploy/`), not this folder)
+- [DCR Watchlist](../Tools/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (Bicep lives under `Infra/dcr-watchlist/` (runbook + permissions scripts under `Tools/` and `Deploy/`), not this folder)
 
 ## Authoring with GitHub Copilot
 
@@ -230,4 +230,4 @@ Copilot tooling for Bicep:
 - Agent `Sentinel-As-Code: Security Reviewer` — for RBAC, Key
   Vault, network rules, and any high-privilege resource additions.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

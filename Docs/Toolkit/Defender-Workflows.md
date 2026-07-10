@@ -50,7 +50,7 @@ bring it into the repository.
 3. The Toolkit rewrites the content as YAML in the clean authoring schema,
    dropping the portal and Graph runtime/read-only fields that must not be
    committed (for example server-assigned identifiers and last-run metadata).
-4. Save the result under [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/)
+4. Save the result under [`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections)
    using the suggested PascalCase filename.
 
 The output uses the canonical field order (see
@@ -116,7 +116,7 @@ filename and target folder as well.
 ## Where the files live
 
 Formatted and scaffolded detections belong under
-[`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections/),
+[`Content/DefenderCustomDetections/`](../../Content/DefenderCustomDetections),
 one YAML file per rule, optionally organised into category subfolders. The
 `displayName` must be unique across the whole tree, because the pipeline upserts
 rules by `displayName`. The folder layout, schema, response-action catalogue, and

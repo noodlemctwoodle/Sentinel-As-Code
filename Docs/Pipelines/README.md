@@ -2,8 +2,8 @@
 
 CI/CD that drives infrastructure provisioning, content deployment, and
 operational tooling. The repository ships **seven Azure DevOps pipelines**
-under [`Pipelines/`](../../Pipelines/) and **seven GitHub Actions workflows**
-under [`.github/workflows/`](../../.github/workflows/).
+under [`Pipelines/`](../../Pipelines) and **seven GitHub Actions workflows**
+under [`.github/workflows/`](../../.github/workflows).
 
 This page is an index: it covers the shared concepts and the GitHub <-> ADO
 mapping, then links out to a per-pipeline deep-dive for each one. Read the
@@ -14,14 +14,14 @@ specific pipeline.
 
 | Pipeline | Purpose | Deep-dive |
 | --- | --- | --- |
-| PR Validation | Merge gate for `main` - runs every Pester suite, `bicep-build`, `arm-validate`, `kql-validate`, and the dependency-manifest drift gate | [PR-Validation.md](Pipelines/PR-Validation.md) |
-| Deploy | Main end-to-end deploy: Bicep infra, Content Hub solutions, custom content, and Defender XDR custom detections | [Deploy.md](Pipelines/Deploy.md) |
-| Deploy Nightly | **GitHub-only** nightly E2E smoke test that provisions and tears down the throwaway `Infra/test-workspace/` workspace | [Deploy-Nightly.md](Pipelines/Deploy-Nightly.md) |
-| Drift-Detect | Detect rules edited in the portal and auto-PR the drift back into the repo (report-only runs never open a PR) | [Drift-Detect.md](Pipelines/Drift-Detect.md) |
-| Documenter | Snapshot the live Sentinel workspace to Markdown (requires a private repository) | [Documenter.md](Pipelines/Documenter.md) |
-| Dependency Update | Keep [`dependencies.json`](../../dependencies.json) in sync with the content tree and auto-PR any drift | [Dependency-Update.md](Pipelines/Dependency-Update.md) |
-| DCR Inventory | Deploy the DCR-watchlist sync automation account, runbook, and schedule | [DCR-Inventory.md](Pipelines/DCR-Inventory.md) |
-| Word Report | **ADO-only** render of the Documenter Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Pipelines/Word-Report.md) |
+| PR Validation | Merge gate for `main` - runs every Pester suite, `bicep-build`, `arm-validate`, `kql-validate`, and the dependency-manifest drift gate | [PR-Validation.md](PR-Validation.md) |
+| Deploy | Main end-to-end deploy: Bicep infra, Content Hub solutions, custom content, and Defender XDR custom detections | [Deploy.md](Deploy.md) |
+| Deploy Nightly | **GitHub-only** nightly E2E smoke test that provisions and tears down the throwaway `Infra/test-workspace/` workspace | [Deploy-Nightly.md](Deploy-Nightly.md) |
+| Drift-Detect | Detect rules edited in the portal and auto-PR the drift back into the repo (report-only runs never open a PR) | [Drift-Detect.md](Drift-Detect.md) |
+| Documenter | Snapshot the live Sentinel workspace to Markdown (requires a private repository) | [Documenter.md](Documenter.md) |
+| Dependency Update | Keep [`dependencies.json`](../../dependencies.json) in sync with the content tree and auto-PR any drift | [Dependency-Update.md](Dependency-Update.md) |
+| DCR Inventory | Deploy the DCR-watchlist sync automation account, runbook, and schedule | [DCR-Inventory.md](DCR-Inventory.md) |
+| Word Report | **ADO-only** render of the Documenter Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Word-Report.md) |
 
 ## GitHub <-> ADO Parity
 
@@ -44,15 +44,15 @@ Asymmetries worth knowing:
 - [`sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml)
   is **GitHub-only** - a nightly E2E smoke test against the throwaway
   workspace from `Infra/test-workspace/main.bicep`. There is no ADO
-  equivalent. See [Deploy-Nightly.md](Pipelines/Deploy-Nightly.md).
+  equivalent. See [Deploy-Nightly.md](Deploy-Nightly.md).
 - [`Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml)
   is **ADO-only** - the pandoc plus LibreOffice `.docx` render of the
   Documenter Markdown. There is no `*word*` workflow under
-  `.github/workflows/`. See [Word-Report.md](Pipelines/Word-Report.md).
+  `.github/workflows/`. See [Word-Report.md](Word-Report.md).
 - The **Documenter** pair diverges on schedule: the GitHub workflow
   (`sentinel-document.yml`) runs on a daily cron plus `workflow_dispatch`,
   whereas the ADO pipeline (`Sentinel-Documenter.yml`) is manual-trigger-only
-  for now. See [Documenter.md](Pipelines/Documenter.md).
+  for now. See [Documenter.md](Documenter.md).
 
 ## Shared Concepts
 
@@ -69,8 +69,8 @@ gets a short-lived per-run token and no client secret is stored anywhere.
   client/tenant/subscription parameter set.
 - **Azure DevOps** uses a workload-identity-federation service connection
   (named `sc-sentinel-as-code` by default). Full step-by-step:
-  [ADO OIDC Setup](ADO-OIDC-Setup.md). GitHub-side prerequisites:
-  [PR Validation Setup](PR-Validation-Setup.md).
+  [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md). GitHub-side prerequisites:
+  [PR Validation Setup](../Deploy/PR-Validation-Setup.md).
 
 ### Variables and Secrets
 
@@ -85,7 +85,7 @@ gets a short-lived per-run token and no client secret is stored anywhere.
 
 To avoid duplicated step blocks across workflows, the GitHub side factors two
 shared patterns into composite actions under
-[`.github/actions/`](../../.github/actions/):
+[`.github/actions/`](../../.github/actions):
 
 - [`azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml) -
   the one-line OIDC login described above.
@@ -116,4 +116,4 @@ Copilot tooling for pipelines:
 - Agent `Sentinel-As-Code: Security Reviewer` - for permissions
   blocks, OIDC federated-credential scoping, secret references.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

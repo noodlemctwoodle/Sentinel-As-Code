@@ -105,4 +105,4 @@ If you maintain a fork with custom content on the old layout:
 Links to specific files (raw GitHub URLs, the community-rules importer, blog
 posts) that point at old paths need updating to the `Content/…`, `Infra/…`,
 `Deploy/…`, or `Tools/…` equivalents above. Versioning moved from "Wave N" to
-CalVer at the same time — see [Versioning](../Releases/Versioning.md).
+CalVer at the same time — see [Versioning](Versioning.md).

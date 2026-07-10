@@ -87,7 +87,7 @@ defaults to Scheduled.
 
 ## KQL query body conventions
 
-See [`.github/instructions/kql-queries.instructions.md`](./kql-queries.instructions.md)
+See [`.github/instructions/kql-queries.instructions.md`](kql-queries.instructions.md)
 for KQL conventions. Key points:
 
 - Avoid `search *` and `union *` — they're slow and expensive.
@@ -107,6 +107,6 @@ that does this is
 ## Cross-references
 
 - Full schema: [`Docs/Content/Analytical-Rules.md`](../../Docs/Content/Analytical-Rules.md)
-- KQL conventions: [`./kql-queries.instructions.md`](./kql-queries.instructions.md)
+- KQL conventions: [`./kql-queries.instructions.md`](kql-queries.instructions.md)
 - Test suite: [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1)
 - Discovery model: [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)

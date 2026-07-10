@@ -16,7 +16,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Content/Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
 | `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
 | `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
-| `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Development/Pester-Tests.md) |
+| `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Tests/Pester-Tests.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
 ## Setup-ServicePrincipal.ps1
@@ -430,7 +430,7 @@ Imports community analytical rules from external repositories into the local cod
 - **Attribution Tracking**: Automatically adds source attribution and creation metadata to imported rules
 - **Disabled by Default**: All imported rules deploy with `enabled: false` for review before activation
 - **Manifest Generation**: Creates `import-manifest.json` (next to the rules) with content hashes for upstream-drift detection
-- **Auto-Generated Summary**: Writes a Markdown summary to `Docs/Community/{ContributorName}.md` with rule counts and per-category listings
+- **Auto-Generated Summary**: Writes a Markdown summary to `Docs/Content/Community/{ContributorName}.md` with rule counts and per-category listings
 - **Change Detection**: Uses SHA-256 checksums to track which rules have changed between runs; only updates modified content
 - **Idempotent**: Fully re-runnable — unchanged rules are skipped, failed rules are retried on next execution
 - **Dry Run Mode**: `DryRun` parameter previews all changes without writing to disk
@@ -447,7 +447,7 @@ Imports community analytical rules from external repositories into the local cod
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `OutputPath` | string | No | `Content/AnalyticalRules/Community/Dalonso` | Target folder for imported rule YAMLs and `import-manifest.json` |
-| `DocsPath` | string | No | `Docs/Community/{ContributorName}.md` (auto-derived from `OutputPath` leaf) | Destination for the auto-generated Markdown summary |
+| `DocsPath` | string | No | `Docs/Content/Community/{ContributorName}.md` (auto-derived from `OutputPath` leaf) | Destination for the auto-generated Markdown summary |
 | `SourceRepo` | string | No | `https://github.com/davidalonsod/Dalonso-Security-Repo.git` | Git URL of source repository |
 | `SourceBranch` | string | No | `main` | Branch name to clone from |
 | `IncludeKqlConversion` | switch | No | `$false` | Also convert KQL+ARM rules to YAML format |
@@ -474,7 +474,7 @@ Imports community analytical rules from external repositories into the local cod
 ```powershell
 .\Import-CommunityRules.ps1 `
     -OutputPath ./Content/AnalyticalRules/Community/NewContributor `
-    -DocsPath   ./Docs/Community/NewContributor.md `
+    -DocsPath   ./Docs/Content/Community/NewContributor.md `
     -SourceRepo "https://github.com/example/threat-rules.git"
 ```
 
@@ -489,7 +489,7 @@ Imports community analytical rules from external repositories into the local cod
 7. **Change Detection**: Compares SHA-256 checksums of each rule against the `import-manifest.json` manifest to detect changes
 8. **File Writing**: Writes new and updated rules to `OutputPath`, skips unchanged rules
 9. **Manifest Creation**: Updates `import-manifest.json` with metadata for all imported rules including source, rule count, and import timestamp
-10. **Summary Generation**: Writes the human-readable summary to `DocsPath` (under `Docs/Community/`) with import source, total rule count, organisation, and instructions for enabling rules
+10. **Summary Generation**: Writes the human-readable summary to `DocsPath` (under `Docs/Content/Community/`) with import source, total rule count, organisation, and instructions for enabling rules
 11. **Cleanup**: Removes temporary clone directory
 
 ### Import State Tracking
@@ -510,7 +510,7 @@ Content/AnalyticalRules/Community/
     ├── *.yaml                    # Imported community detection rules (per category subfolder)
     └── import-manifest.json      # Content-hash manifest
 
-Docs/Community/
+Docs/Content/Community/
 └── Dalonso.md                    # Auto-generated summary, governance doc lives at Docs/Content/Community-Rules.md
 ```
 
@@ -801,7 +801,7 @@ Copilot tooling for scripts and modules:
 - Slash command `/regenerate-deps` (VS Code) — runs
   `Build-DependencyManifest -Mode Generate`.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 
 ---
 

@@ -7,14 +7,14 @@ consume, and the GitHub <-> ADO mapping.
 
 For what the invoked script actually does (the drift buckets, the absorb
 logic, the YAML it writes, the report format), see
-[Sentinel Analytics Rule Drift Detection](../../Tools/Sentinel-Drift-Detection.md).
+[Sentinel Analytics Rule Drift Detection](../Tools/Sentinel-Drift-Detection.md).
 This page does not repeat that; it stays on the CI wiring around it.
 
 | Item | Where |
 | --- | --- |
-| GitHub Actions workflow | [`.github/workflows/sentinel-drift-detect.yml`](../../../.github/workflows/sentinel-drift-detect.yml) |
-| Azure DevOps pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../../../Pipelines/Sentinel-Drift-Detect.yml) |
-| Invoked script | [`Tools/Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1) |
+| GitHub Actions workflow | [`.github/workflows/sentinel-drift-detect.yml`](../../.github/workflows/sentinel-drift-detect.yml) |
+| Azure DevOps pipeline | [`Pipelines/Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml) |
+| Invoked script | [`Tools/Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) |
 | Schedule | Daily at 06:00 UTC (both CI systems) |
 | Auto-sync branch | `auto/sentinel-drift-sync` (rolling, force-pushed each run) |
 | PR target | `main` |
@@ -75,7 +75,7 @@ populated from the live workspace catalogue, and hardcoding solution names
 would couple the pipeline to one workspace. The script always scans every
 Content Hub rule it finds and groups the report per-solution. For an ad-hoc
 per-solution run, invoke the script directly with `-Solutions` (see the
-[tool doc](../../Tools/Sentinel-Drift-Detection.md)).
+[tool doc](../Tools/Sentinel-Drift-Detection.md)).
 
 ### Compile-time flag mapping (ADO only)
 
@@ -145,7 +145,7 @@ should not be tweaked per-run.
 ### GitHub - OIDC federated credential
 
 Auth is a single step using the repo's composite action
-[`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc/action.yml),
+[`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc/action.yml),
 which wraps `Azure/login@v3` with `enable-AzPSSession` on by default (the
 drift step runs under `Azure/powershell@v3`, so it needs the Az PowerShell
 session, not just `az` CLI):
@@ -179,7 +179,7 @@ Two distinct identities are in play:
 
 - **Azure auth** uses the `sc-sentinel-as-code` service connection (workload
   identity federation, matching the GitHub OIDC setup - see
-  [ADO OIDC Setup](../ADO-OIDC-Setup.md)). The connection needs **Microsoft
+  [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md)). The connection needs **Microsoft
   Sentinel Reader** on the workspace.
 - **Git push + PR** uses `System.AccessToken`, exposed to the git CLI via
   `checkout: self` with `persistCredentials: true`. The
@@ -198,7 +198,7 @@ Two distinct identities are in play:
    the sync branch is reset.
 2. **Azure login (OIDC)** - the `azure-login-oidc` composite action above.
 3. **Set up PowerShell modules** - the
-   [`setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules/action.yml)
+   [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml)
    composite action with `yaml-version: ${{ env.YAML_VERSION }}` and
    `install-pester: 'false'` (drift detection needs `powershell-yaml` but
    no Pester). Installs the pinned version from cache and fails fast on
@@ -305,9 +305,9 @@ built from the report, and the create-or-refresh PR logic - is identical.
 
 ## Related documentation
 
-- [Sentinel Analytics Rule Drift Detection](../../Tools/Sentinel-Drift-Detection.md)
+- [Sentinel Analytics Rule Drift Detection](../Tools/Sentinel-Drift-Detection.md)
   - what the invoked script does (drift buckets, absorb logic, report format).
-- [Pipelines](../Pipelines.md) - the full set of seven ADO pipelines and
+- [Pipelines](README.md) - the full set of seven ADO pipelines and
   their GitHub mirrors.
-- [ADO OIDC Setup](../ADO-OIDC-Setup.md) - wiring the `sc-sentinel-as-code`
+- [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md) - wiring the `sc-sentinel-as-code`
   service connection with workload identity federation.

@@ -1,13 +1,13 @@
 # Deploy Nightly (E2E Smoke Test)
 
 GitHub workflow
-[`.github/workflows/sentinel-deploy-nightly.yml`](../../../.github/workflows/sentinel-deploy-nightly.yml)
+[`.github/workflows/sentinel-deploy-nightly.yml`](../../.github/workflows/sentinel-deploy-nightly.yml)
 (`name: Sentinel Nightly E2E Deploy Validation`).
 
 A nightly end-to-end smoke test that exercises the real deploy code
 paths against the throwaway test workspace provisioned by
-[`Infra/test-workspace/main.bicep`](../../../Infra/test-workspace/main.bicep).
-The PR-merge gate ([`pr-validation.yml`](../../../.github/workflows/pr-validation.yml))
+[`Infra/test-workspace/main.bicep`](../../Infra/test-workspace/main.bicep).
+The PR-merge gate ([`pr-validation.yml`](../../.github/workflows/pr-validation.yml))
 catches schema and pure-function regressions but deliberately does not
 run the deploy scripts against a live workspace, so a class of
 deploy-time bugs (Sentinel API contract drift, deploy-script branching
@@ -17,12 +17,12 @@ the weekly Monday production deploy. This workflow runs those paths
 every night, six days ahead of the production deploy.
 
 This workflow is **GitHub-only**. There is no Azure DevOps equivalent
-under [`Pipelines/`](../../../Pipelines/); see
+under [`Pipelines/`](../../Pipelines); see
 [GitHub <-> ADO mapping](#github---ado-mapping) below.
 
 This page documents the pipeline mechanics. For what the invoked scripts
-actually do, see [Scripts](../Scripts.md); for the test-workspace Bicep
-stack, see [Bicep](../../Infra/Bicep.md).
+actually do, see [Scripts](../Deploy/Scripts.md); for the test-workspace Bicep
+stack, see [Bicep](../Infra/Bicep.md).
 
 ## Triggers
 
@@ -149,13 +149,13 @@ az deployment group create \
 The deploy is idempotent, so on a normal night the probe reports the
 workspace already exists and this job is skipped. It only runs when the
 workspace is genuinely absent (first run, or after a manual teardown).
-See [Bicep](../../Infra/Bicep.md) for what the template provisions.
+See [Bicep](../Infra/Bicep.md) for what the template provisions.
 
 ### 3. `deploy-content-hub`
 
 `needs: [check-infrastructure, deploy-infrastructure]`. Runs when the
 Bicep deploy succeeded or was skipped. Invokes
-[`Deploy-SentinelContentHub.ps1`](../Scripts.md#deploy-sentinelcontenthubps1)
+[`Deploy-SentinelContentHub.ps1`](../Deploy/Scripts.md#deploy-sentinelcontenthubps1)
 via `Azure/powershell@v3` with a single solution:
 
 ```
@@ -183,11 +183,11 @@ Steps, in order:
 2. [`setup-pwsh-modules`](#composite-actions) with `install-pester: 'false'`
    (installs `powershell-yaml` only, pinned to `YAML_VERSION`).
 3. Verify the dependency manifest is current: runs
-   [`Tools/Build-DependencyManifest.ps1 -Mode Verify`](../../Tools/Dependency-Manifest.md)
+   [`Tools/Build-DependencyManifest.ps1 -Mode Verify`](../Tools/Dependency-Manifest.md)
    and fails the job if `dependencies.json` is stale, refusing to run E2E
    against a drifted manifest.
 4. Azure login (OIDC).
-5. Run [`Deploy-CustomContent.ps1`](../Scripts.md#deploy-customcontentps1)
+5. Run [`Deploy-CustomContent.ps1`](../Deploy/Scripts.md#deploy-customcontentps1)
    with `-WhatIf`:
 
 ```
@@ -209,7 +209,7 @@ the real workspace state, but no resources are mutated.
 `needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub, deploy-custom-content]`.
 Runs when custom content succeeded or was skipped. Checks out, runs
 `setup-pwsh-modules` (`install-pester: 'false'`), logs in, then runs
-[`Deploy-DefenderDetections.ps1`](../Scripts.md#deploy-defenderdetectionsps1)
+[`Deploy-DefenderDetections.ps1`](../Deploy/Scripts.md#deploy-defenderdetectionsps1)
 with `-WhatIf`:
 
 ```
@@ -246,7 +246,7 @@ one issue instead of spamming new ones.
 
 Azure access is federated OIDC, not a stored secret credential. Every
 Azure-touching job calls the local composite action
-[`./.github/actions/azure-login-oidc`](../../../.github/actions/azure-login-oidc):
+[`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc):
 
 ```
 - name: Azure Login (OIDC)
@@ -263,16 +263,16 @@ call works for the `Azure/cli@v3` Bicep step and the `Azure/powershell@v3`
 content steps. It depends on the workflow-level `id-token: write`
 permission declared above. Issuing the token requires a federated
 credential on the deploy service principal that trusts this repository;
-see [ADO OIDC Setup](../ADO-OIDC-Setup.md) and
-[PR Validation Setup](../PR-Validation-Setup.md) for how that trust and
+see [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md) and
+[PR Validation Setup](../Deploy/PR-Validation-Setup.md) for how that trust and
 the test workspace are provisioned.
 
 ### Composite actions
 
 | Action | Role in this workflow |
 | --- | --- |
-| [`azure-login-oidc`](../../../.github/actions/azure-login-oidc) | Federated Azure login (`az` CLI + Az PowerShell) |
-| [`setup-pwsh-modules`](../../../.github/actions/setup-pwsh-modules) | Cache + pin-install `powershell-yaml` (`install-pester: 'false'` here) for the two `-WhatIf` content jobs |
+| [`azure-login-oidc`](../../.github/actions/azure-login-oidc) | Federated Azure login (`az` CLI + Az PowerShell) |
+| [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules) | Cache + pin-install `powershell-yaml` (`install-pester: 'false'` here) for the two `-WhatIf` content jobs |
 
 ## Outputs and artefacts
 
@@ -294,18 +294,18 @@ This workflow publishes no build artefacts. Its outputs are:
 This nightly E2E smoke test has **no Azure DevOps counterpart**. It is one
 of the two documented asymmetries between the CI systems: it is
 GitHub-only, and `Sentinel-Word-Report.yml` is ADO-only. See
-[Pipelines](../Pipelines.md#github-actions-parity) for the full mapping.
+[Pipelines](README.md#github-actions-parity) for the full mapping.
 
 Note it is distinct from the weekly production deploy
-([`sentinel-deploy.yml`](../../../.github/workflows/sentinel-deploy.yml) /
-[`Sentinel-Deploy.yml`](../../../Pipelines/Sentinel-Deploy.yml)), which
+([`sentinel-deploy.yml`](../../.github/workflows/sentinel-deploy.yml) /
+[`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml)), which
 does deploy for real and does have an ADO mirror. This nightly workflow
 runs the same class of code against a throwaway workspace, in `-WhatIf`
 mode for the mutating stages, purely as an early-warning smoke test.
 
 ## See also
 
-- [Pipelines](../Pipelines.md) - full pipeline / workflow inventory and parity table
-- [Scripts](../Scripts.md) - what the invoked deploy scripts do
-- [Bicep](../../Infra/Bicep.md) - the `Infra/test-workspace` stack
-- [Dependency Manifest](../../Tools/Dependency-Manifest.md) - the `Build-DependencyManifest -Mode Verify` gate
+- [Pipelines](README.md) - full pipeline / workflow inventory and parity table
+- [Scripts](../Deploy/Scripts.md) - what the invoked deploy scripts do
+- [Bicep](../Infra/Bicep.md) - the `Infra/test-workspace` stack
+- [Dependency Manifest](../Tools/Dependency-Manifest.md) - the `Build-DependencyManifest -Mode Verify` gate

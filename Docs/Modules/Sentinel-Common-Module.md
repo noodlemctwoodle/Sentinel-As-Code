@@ -313,19 +313,19 @@ the ADO / local branching in `Write-PipelineMessage`, the failure and
 retry handling in `Invoke-SentinelApi`, the returned-state contract and
 government-cloud branching of `Connect-AzureEnvironment`, and the KQL extractors
 (including the `materialize()` and `table('X')` patterns). See
-[Pester Tests](Pester-Tests.md) for the mocking conventions and the full suite
+[Pester Tests](../Tests/Pester-Tests.md) for the mocking conventions and the full suite
 inventory.
 
 ## Related documentation
 
-- [PowerShell Module Requirements](PowerShell-Module-Requirements.md) - the
+- [PowerShell Module Requirements](../Deploy/PowerShell-Module-Requirements.md) - the
   runtime and permission dependencies, including `Az.Accounts` as the module's
   one hard requirement.
 - [Dependency Manifest](../Tools/Dependency-Manifest.md) - how
   `Build-DependencyManifest.ps1` consumes the KQL discovery helpers.
 - [Versioning](../Releases/Versioning.md) - how the module's SemVer relates to
   the repository CalVer.
-- [GitHub Copilot](GitHub-Copilot.md) - the `powershell-engineer` and
+- [GitHub Copilot](../GitHub/GitHub-Copilot.md) - the `powershell-engineer` and
   `dependencies-engineer` agents own this module and its extractors.
 </content>
 </invoke>
