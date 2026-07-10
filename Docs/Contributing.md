@@ -35,7 +35,7 @@ fragile or missing today. Suggest an implementation approach if you have one.
 
 Fork the repository, branch from `main`, and open a pull request (see
 [Pull requests](#pull-requests) below). New detection content is authored as YAML
-or JSON against the schemas described under [Docs/Content/](README.md).
+or JSON against the schemas described under [Docs/README.md](README.md) (see the Content section).
 
 ## Development environment
 
