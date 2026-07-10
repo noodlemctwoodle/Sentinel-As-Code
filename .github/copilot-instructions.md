@@ -3,10 +3,10 @@
 Repo-wide guidance for GitHub Copilot. Loaded automatically by Copilot
 (VS Code, GitHub.com cloud agent, code review) on every chat request
 in this workspace. Path-scoped instructions live under
-[`.github/instructions/`](./instructions/) and stack on top of this file.
+[`.github/instructions/`](instructions) and stack on top of this file.
 
 For the full Copilot setup map (agents, prompts, instructions),
-see [`Docs/Development/GitHub-Copilot.md`](../Docs/Development/GitHub-Copilot.md).
+see [`Docs/GitHub/GitHub-Copilot.md`](../Docs/GitHub/GitHub-Copilot.md).
 
 ---
 
@@ -46,7 +46,7 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 | `Modules/Sentinel.Common/` | Shared deployer + KQL discovery helpers (PowerShell module) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
 | `Deploy/` | Content + infra deployment scripts and `sentinel-deployment.config` | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
 | `Tools/` | CI / maintenance / reporting scripts (manifest, drift, PR validation, Documenter) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
-| `Tests/` | Pester suites (schema + module unit tests) | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) |
+| `Tests/` | Pester suites (schema + module unit tests) | [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md) |
 | `dependencies.json` | Auto-derived content dependency graph | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) |
 
 ## Conventions you must follow
@@ -109,7 +109,7 @@ Conventional commit format: `type(scope): brief description`.
   messages.
 - The five-job PR-validation gate must pass: `validate`, `bicep-build`,
   `arm-validate`, `kql-validate`, `dependency-manifest`. See
-  [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md).
+  [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md).
 
 ## Hard rules (do not break)
 
@@ -137,14 +137,14 @@ Conventional commit format: `type(scope): brief description`.
 | Add a new analytical rule | [Docs/Content/Analytical-Rules.md](../Docs/Content/Analytical-Rules.md) | Agent `rule-author` (cross-platform) or prompt `/new-analytical-rule` (VS Code) |
 | Add a hunting query | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) | Agent `rule-author` or prompt `/new-hunting-query` |
 | Add a Defender XDR detection | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) | Agent `rule-author` or prompt `/new-defender-detection` |
-| Add a Pester test | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
+| Add a Pester test | [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md) | Prompt `/new-pester-test` (VS Code) |
 | Tune an existing rule | n/a | Agent `rule-tuner` |
 | Understand the repo | [Docs/README.md](../Docs/README.md) | Agent `repo-explorer` |
-| Edit / diagnose a pipeline | [Docs/Deploy/Pipelines.md](../Docs/Deploy/Pipelines.md) | Agent `pipeline-engineer` |
+| Edit / diagnose a pipeline | [Docs/Pipelines/README.md](../Docs/Pipelines/README.md) | Agent `pipeline-engineer` |
 | Add or refactor a function in `Sentinel.Common` | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) | Agent `powershell-engineer` |
 | Edit a Bicep template | [Docs/Infra/Bicep.md](../Docs/Infra/Bicep.md) | Agent `bicep-engineer` |
-| Optimise a KQL query | [`.github/instructions/kql-queries.instructions.md`](./instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
-| Add coverage for an untested script / refactor a Pester suite | [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md) | Agent `test-engineer` |
+| Optimise a KQL query | [`.github/instructions/kql-queries.instructions.md`](instructions/kql-queries.instructions.md) | Agent `kql-engineer` |
+| Add coverage for an untested script / refactor a Pester suite | [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md) | Agent `test-engineer` |
 | Security-review a playbook / script / workflow | n/a | Agent `security-reviewer` |
 | Triage a drift auto-PR | [Docs/Tools/Sentinel-Drift-Detection.md](../Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
 | Investigate why dependencies.json is wrong / extend the discovery extractor | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
@@ -152,8 +152,10 @@ Conventional commit format: `type(scope): brief description`.
 
 ## Testing
 
-Every PR runs the full Pester suite (~6,000 assertions across 18
-files) plus the schema gates. To run locally before pushing:
+Every PR runs the full Pester suite (22 files: 19 under `Tests/*.Tests.ps1`
+plus 3 under `Tests/Documenter/`) plus the schema gates. `Invoke-PRValidation.ps1`
+runs every suite and emits an NUnit 2.5 XML report. To run locally before
+pushing:
 
 ```powershell
 ./Tools/Invoke-PRValidation.ps1 -RepoPath .
@@ -166,7 +168,7 @@ Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1
 ```
 
 Test-authoring conventions live in
-[Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md).
+[Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md).
 The repo uses an AST-extraction pattern (functions are extracted from
 scripts and dot-sourced into the test scope) rather than running scripts
 end-to-end. Read that doc before adding tests.
@@ -174,8 +176,8 @@ end-to-end. Read that doc before adding tests.
 ## When you're unsure
 
 - For schema questions: read the relevant `Docs/Content/<Type>.md` first.
-- For deploy-pipeline questions: read [Docs/Deploy/Pipelines.md](../Docs/Deploy/Pipelines.md).
-- For test-authoring questions: read [Docs/Development/Pester-Tests.md](../Docs/Development/Pester-Tests.md).
+- For deploy-pipeline questions: read [Docs/Pipelines/README.md](../Docs/Pipelines/README.md).
+- For test-authoring questions: read [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md).
 - For dependency / discovery questions: read [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md).
 
 If the docs disagree with the code, **the code is the source of

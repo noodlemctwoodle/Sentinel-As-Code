@@ -2,13 +2,13 @@
 
 Unit tests for PowerShell scripts in this repo use [Pester 5](https://pester.dev),
 the standard PowerShell testing framework. Tests live alongside the scripts
-they cover under [`Tests/`](../../Tests/) and exercise pure functions in
+they cover under [`Tests/`](../../Tests) and exercise pure functions in
 isolation — no Azure connectivity, no live workspaces, no side effects on
 the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests/) — one `<ScriptName>.Tests.ps1` per source script, plus content-validation suites |
+| Test files | [`Tests/`](../../Tests) — 22 suites total: 19 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 3 under [`Tests/Documenter/`](../../Tests/Documenter) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -22,6 +22,13 @@ the repo working tree.
 | PowerShell | 7.2+ | [pwsh download](https://github.com/PowerShell/PowerShell/releases) |
 | Pester | 5.0+ | `Install-Module -Name Pester -Force -SkipPublisherCheck` |
 | `powershell-yaml` | any | Auto-installed by tests when needed |
+
+CI does not rely on "latest" for either module. The GitHub `validate` job
+installs both through the composite action
+[`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml),
+which pins the exact versions the workflow declares in its top-level `env`
+block: `PESTER_VERSION: 5.7.1` and `YAML_VERSION: 0.4.12`. Match those pins
+locally if you are chasing a "passes locally, fails in CI" discrepancy.
 
 Verify Pester is available:
 
@@ -95,7 +102,7 @@ The gate is enforced on both platforms:
 
 | Platform | Workflow / pipeline | Triggered by |
 | --- | --- | --- |
-| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) | `pull_request` events on `main`, plus path-scoped pushes to feature branches |
+| GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) | `pull_request` events on `main`, `push` to `main` (CI baseline), and `workflow_dispatch`. There is no `paths` / `paths-ignore` filter, so every job runs on every trigger |
 | Azure DevOps | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) | The `pr:` trigger inside the YAML; required as a build-validation policy on `main` |
 
 Both call the same [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1)
@@ -112,18 +119,23 @@ ruleset can require independently:
 | --- | --- | --- | --- |
 | `validate` | Every Pester suite under `Tests/` (~6,000 assertions; grows with content) | None | Already wired |
 | `bicep-build` | `az bicep build` against every `Infra/**/*.bicep` | None | Already wired |
-| `arm-validate` | `Test-AzResourceGroupDeployment -WhatIf` against every `Content/Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) |
+| `arm-validate` | `Test-AzResourceGroupDeployment` (a template-validation call, not a What-If) against every `Content/Playbooks/**/*.json` | OIDC | One-off — see [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) |
 | `kql-validate` | KQL syntax check via the Microsoft.Azure.Kusto.Language parser across all rule queries | None | Already wired |
 | `dependency-manifest` | `Build-DependencyManifest -Mode Verify` — fails if `dependencies.json` drifts from discovery | None | Already wired. See [Dependency Manifest](../Tools/Dependency-Manifest.md) |
 
 #### Pester suites covered by `validate`
+
+The `validate` job points Pester at the whole `Tests/` tree (`Run.Path` is
+set to the folder, not an explicit file list), so every suite below runs in
+the gate, including the `Tests/Documenter/` suites and the Copilot /
+workbook-export suites.
 
 | Suite | File | Coverage |
 | --- | --- | --- |
 | Drift detector | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` |
 | Analytical rule YAML schema | [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1) | 193 analytical rules + 51 hunting queries × per-file schema; cross-file `id` uniqueness |
 | Dependency manifest | [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) | `dependencies.json` shape; per-entry path resolution; watchlist + function alias resolution |
-| Defender custom detections | [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) | 32 Defender YAMLs × required + alertTemplate fields; response-action enum validation |
+| Defender custom detections | [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) | 33 Defender YAMLs × required + alertTemplate fields; response-action enum validation (the `-ForEach` count tracks the file tree under `Content/DefenderCustomDetections/`) |
 | Watchlists | [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; cross-directory alias uniqueness |
 | Automation rules | [`Tests/Test-AutomationRuleJson.Tests.ps1`](../../Tests/Test-AutomationRuleJson.Tests.ps1) | Action types, trigger logic, propertyValues array shape; cross-file id uniqueness |
 | Summary rules | [`Tests/Test-SummaryRuleJson.Tests.ps1`](../../Tests/Test-SummaryRuleJson.Tests.ps1) | binSize enum, destinationTable suffix, KQL restriction patterns |
@@ -138,6 +150,11 @@ ruleset can require independently:
 | Deploy-DefenderDetections | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) |
 | Set-PlaybookPermissions | [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` |
 | Import-CommunityRules | [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) |
+| Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
+| Export-SentinelWorkbooks | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation, parity against existing `Content/Workbooks/<Folder>/` names, `Format-WorkbookJson` round-trip |
+| Documenter renderer | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Documenter Markdown from the `Tests/Documenter/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
+| Documenter gap engine | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
+| Documenter REST wrapper | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -158,7 +175,7 @@ build policy. Configure the gate once per platform:
   - `bicep-build` (Bicep build)
   - `kql-validate` (KQL syntax)
   - `dependency-manifest` (`dependencies.json` drift gate)
-  - `arm-validate` (ARM What-If — only after [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) is complete)
+  - `arm-validate` (ARM template validation — only after [PR-Validation-Setup.md](../Deploy/PR-Validation-Setup.md) is complete)
 
 **Azure DevOps** — Project Settings → Repos → Repositories → `<repo>` →
 Policies → Branch policies for `main`:
@@ -201,8 +218,11 @@ for the full real example):
 <# .SYNOPSIS / .DESCRIPTION / .NOTES #>
 
 BeforeAll {
-    # 1. Resolve the source script path
-    $scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Deploy/<ScriptName>.ps1'
+    # 1. Resolve the source script path. Scripts do NOT live directly under
+    #    Deploy/ — they are foldered by concern: Deploy/content/, Deploy/permissions/,
+    #    Deploy/setup/, and the drift/documenter tooling under Tools/. Point at
+    #    the real location, e.g. 'Deploy/content/Deploy-CustomContent.ps1'.
+    $scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Deploy/content/<ScriptName>.ps1'
 
     # 2. AST-extract just the function definitions — see "AST extraction" below
     $tokens = $null; $errors = $null
@@ -322,6 +342,40 @@ Two equivalent options for the test scope:
 The Phase B suites use option 1 (real module). The new
 `Tests/Test-SentinelCommon.Tests.ps1` covers `Sentinel.Common` itself
 using Pester `Mock` to stub Az PowerShell calls.
+
+### The Documenter suites source differently
+
+The three suites under [`Tests/Documenter/`](../../Tests/Documenter) do not
+go through the AST-extraction helper. They dot-source specific Documenter
+files directly (including files under `Tools/Documenter/Private/`) and drive
+them against a fixed JSON fixture corpus rather than mocking Azure:
+
+- [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1)
+  reshapes `Tests/Documenter/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
+  layout the renderer [`Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1)
+  expects, runs it, and asserts the rendered Markdown (plus an empty-state /
+  busy-workspace safety pass).
+- [`Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1)
+  dot-sources [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../Tools/Documenter/Private/Get-SentinelGap.ps1)
+  and feeds it a deliberately-broken fixture so each gap-analysis rule fires.
+- [`Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1)
+  dot-sources [`Tools/Documenter/Private/Invoke-SentinelRest.ps1`](../../Tools/Documenter/Private/Invoke-SentinelRest.ps1)
+  and asserts URL construction (how `-ApiVersion` is appended when the path
+  already carries a query string or its own `api-version`).
+
+Because `Invoke-PRValidation.ps1` sets `Run.Path` to the whole `Tests/`
+folder, these run in the PR gate alongside the root suites.
+
+### The cross-reference link checker
+
+The repo's link-checking mechanism lives inside
+[`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1).
+Its "Cross-references resolve" `Describe` block walks the Copilot
+customisation files under `.github/` (agents, instructions, prompts,
+`copilot-instructions.md`) plus `AGENTS.md`, extracts each relative link, and
+asserts the target resolves to a real on-disk path. A renamed or deleted file
+that leaves a dangling reference in any of those files fails the `validate`
+job.
 
 ## Mock builders
 
@@ -469,9 +523,10 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-Counts are approximate (some suites use `-ForEach` to generate per-file
-`It` blocks at discovery time, so the count grows with the content
-tree). Run `Invoke-Pester -Path Tests` for a current total.
+All 22 suites are listed below: 19 root-level `Tests/*.Tests.ps1` plus the 3
+under `Tests/Documenter/`. Counts are approximate (some suites use `-ForEach`
+to generate per-file `It` blocks at discovery time, so the count grows with
+the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 
 | File | Coverage | Approx. tests |
 | --- | --- | --- |
@@ -495,6 +550,9 @@ tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
+| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus + empty-state safety | ~117 |
+| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture | ~36 |
+| [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
 
 Add new entries to this table as you cover more scripts.
 
@@ -517,4 +575,4 @@ Copilot tooling for tests:
   mocking strategies for tricky dependencies (Az SDK, time-of-day,
   `Invoke-WebRequest` failures)
 
-See [GitHub Copilot setup](GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

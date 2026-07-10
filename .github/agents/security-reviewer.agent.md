@@ -32,7 +32,7 @@ the user can act on (typically via hand-off to `content-editor`,
 
 ## Read first
 
-- [`Docs/Deploy/Pipelines.md#prerequisites`](../../Docs/Deploy/Pipelines.md) —
+- [`Docs/Pipelines/README.md#prerequisites`](../../Docs/Pipelines/README.md) —
   the role table the deploy SP carries.
 - [`Docs/Deploy/Scripts.md#setup-serviceprincipalps1`](../../Docs/Deploy/Scripts.md) —
   what `Setup-ServicePrincipal.ps1` actually grants (Contributor +

@@ -75,9 +75,9 @@ explain, and direct.
 
 | User asks | Start at |
 | --- | --- |
-| "How does the deploy work?" | [`Docs/Deploy/Pipelines.md`](../../Docs/Deploy/Pipelines.md) |
+| "How does the deploy work?" | [`Docs/Pipelines/README.md`](../../Docs/Pipelines/README.md) |
 | "How are dependencies managed?" | [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md) |
-| "How is X tested?" | [`Docs/Development/Pester-Tests.md`](../../Docs/Development/Pester-Tests.md) |
+| "How is X tested?" | [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md) |
 | "What's the YAML schema for Y?" | `Docs/Content/<ContentType>.md` |
 | "Where's the script for Z?" | [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md) |
 | "How does drift detection work?" | [`Docs/Tools/Sentinel-Drift-Detection.md`](../../Docs/Tools/Sentinel-Drift-Detection.md) |

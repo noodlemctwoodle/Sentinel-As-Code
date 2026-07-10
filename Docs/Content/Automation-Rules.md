@@ -2,17 +2,19 @@
 
 ## Overview
 
-Automation rules run automatically when incidents or alerts are created or updated in Microsoft Sentinel. They allow you to triage incidents at scale — closing false positives, adjusting severity, assigning owners, triggering playbooks, and adding investigation tasks — without manual intervention.
+Automation rules run automatically when incidents or alerts are created or updated in Microsoft Sentinel. They allow you to triage incidents at scale (closing false positives, adjusting severity, assigning owners, triggering playbooks, and adding investigation tasks) without manual intervention.
 
 Rules are evaluated in order (ascending by the `order` field). The first matching rule runs; subsequent rules may also run unless a terminal action (such as closing the incident) stops further evaluation.
 
-Source files live under [`Content/AutomationRules/`](../../Content/AutomationRules/).
+Source files live under [`Content/AutomationRules/`](../../Content/AutomationRules).
+
+The Sentinel as Code Toolkit scaffolds and validates this content type. Its bundled `automation-rule` template and `sentinel-automation-rule-schema.json` are the authoring contract this page documents; the fields, required-vs-optional flags, types, enums and field order below all come from that schema and template. See [Templates](../Toolkit/Templates.md) and [Schemas and Validation](../Toolkit/Schemas-and-Validation.md). The Toolkit authors and validates only; deployment to Sentinel is handled by the pipeline described under [Deployment Behaviour](#deployment-behaviour).
 
 ---
 
 ## Folder Structure
 
-Each automation rule is stored as a single JSON file. Files can be placed directly in the folder or organised into subfolders by function or environment:
+Each automation rule is stored as a single JSON file. The Toolkit's `automation-rule` template is authored as commented YAML for readability, and the extension converts it to JSON on disk when you scaffold a rule (automation rules are one of the three content types the Toolkit stores as JSON rather than YAML). Files can be placed directly in the folder or organised into subfolders by function or environment:
 
 ```
 Content/AutomationRules/
@@ -20,25 +22,44 @@ Content/AutomationRules/
 ├── AddTaskOnHighSeverity.json
 ├── Triage/
 │   └── AssignOwnerByProvider.json
-└── Content/Playbooks/
+└── Playbooks/
     └── RunEnrichmentPlaybook.json
 ```
 
-The deployment script ([`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1)) discovers all `*.json` files recursively under this directory and deploys each one via the REST API.
+The two rules that ship in this repository, `AddTaskOnHighSeverity.json` and `AutoCloseInformational.json`, both sit flat in `Content/AutomationRules/`; subfolders are optional and purely organisational.
+
+The `Deploy-CustomAutomationRules` function in [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1) discovers all `*.json` files recursively under this directory (automation rules are stage 7 of the 8-stage deploy order, after Workbooks and before Summary Rules) and deploys each one via the REST API.
+
+---
+
+## Deployment Behaviour
+
+`Deploy-CustomAutomationRules` applies two pre-deployment checks to every rule file before it PUTs anything to Sentinel:
+
+- **Smart (incremental) deployment.** Each file is passed through `Test-ShouldDeployFile`, which skips it if it is unchanged since the last successful deployment run. A skipped file is logged as `Unchanged: <file> - skipping (smart deployment)` and counted as skipped, not deployed. This skip only happens when smart deployment is active (`-SmartDeployment`, which is off by default); a normal run deploys every file regardless of whether it changed.
+- **Dependency-graph gating.** Each file also goes through `Test-ContentDependencies`, the same generic pre-flight gate used for every content type. It checks the rule's entry in the dependency manifest for `tables`/`watchlists`/`functions` it references and skips the rule (logging the missing dependencies) if any are absent from the workspace or the repo's internal watchlists. This check does **not** understand `RunPlaybook`'s `logicAppResourceId`, so a rule that triggers a playbook will deploy successfully even if the referenced Logic App was never deployed; treat the RBAC note under [`RunPlaybook`](#runplaybook) as the only real guardrail for that action type.
+
+Only the presence of `automationRuleId`, `displayName`, `order`, `triggeringLogic`, and `actions` is validated by the deploy script itself; a file missing any of these is skipped with a warning. The deploy script does not validate the `actionType`/`conditionType` enum values described below - that validation, plus a cross-file check that every `automationRuleId` is unique across `Content/AutomationRules/` (Sentinel uses the GUID as the resource name, so a collision would silently overwrite an existing rule), is enforced by the Pester suite `Tests/Test-AutomationRuleJson.Tests.ps1`, which runs in the PR-validation gate.
+
+When deploying, the script re-wraps each file into a PUT body containing only `{displayName, order, triggeringLogic, actions}` under a `properties` object; `automationRuleId` is used solely as the URL resource name and is never sent in the request body. A successful deployment records the file's state via `Set-DeploymentItemState`, which is what the next run's smart-deployment check reads.
 
 ---
 
 ## JSON Schema
 
+The Toolkit schema validates the outer envelope: the five top-level fields, the `triggeringLogic` sub-fields, and each action's `actionType` and `order`. It treats `conditions` and `actionConfiguration` as free-form (an array and an object respectively), so the condition, property and action-configuration values documented further down reflect what Sentinel accepts at runtime, not values the Toolkit enforces. The schema also sets `additionalProperties: false` at the top level, so no fields other than the five below are permitted.
+
 ### Top-Level Fields
+
+Fields appear in the canonical order the Toolkit template lays them out and its Fix Field Order command enforces: `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `automationRuleId` | string (GUID) | Yes | Stable unique identifier for the rule. Generate once with `New-Guid` and do not change it — this is the resource name used in the PUT URL. |
-| `displayName` | string | Yes | Human-readable name shown in the Sentinel portal. |
+| `automationRuleId` | string (GUID) | Yes | Stable unique identifier for the rule. Generate once with `New-Guid` and do not change it, this is the resource name used in the PUT URL. Must match the GUID pattern `^[0-9a-fA-F]{8}-...-[0-9a-fA-F]{12}$`. Must be unique across `Content/AutomationRules/`; CI fails the build on a duplicate. |
+| `displayName` | string | Yes | Human-readable name shown in the Sentinel portal. Must be non-empty. |
 | `order` | integer | Yes | Execution priority. Lower numbers run first. Valid range: 1–1000. |
 | `triggeringLogic` | object | Yes | Defines when the rule fires. See below. |
-| `actions` | array | Yes | One or more actions to perform when the rule matches. See below. |
+| `actions` | array | Yes | One or more actions to perform when the rule matches (at least one is required). See below. |
 
 ---
 
@@ -157,11 +178,11 @@ Fires on `triggersWhen: "Updated"` when a scalar property changes to a specific 
 
 ### Action Types
 
-Each action in the `actions` array has an `actionType`, an `order` (execution order within the rule, starting at 1), and an `actionConfiguration` object.
+Each action in the `actions` array has an `actionType` and an `order` (both required; `order` is the execution order within the rule and must be at least 1). The `actionConfiguration` object is optional in the schema, but in practice every action type below needs it to carry its settings. `actionType` must be one of `ModifyProperties`, `RunPlaybook`, or `AddIncidentTask`.
 
 #### `ModifyProperties`
 
-Modifies one or more properties of the incident. All fields within `actionConfiguration` are optional — only include the properties you want to change.
+Modifies one or more properties of the incident. All fields within `actionConfiguration` are optional; only include the properties you want to change.
 
 ```json
 {
@@ -318,12 +339,14 @@ Existing automation rules can be exported for use in this repository:
 
 ```powershell
 $rule = Invoke-AzRestMethod -Method GET `
-    -Path "/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>/providers/Microsoft.SecurityInsights/automationRules/<ruleId>?api-version=2024-09-01"
+    -Path "/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>/providers/Microsoft.SecurityInsights/automationRules/<ruleId>?api-version=2025-09-01"
 
 ($rule.Content | ConvertFrom-Json).properties | ConvertTo-Json -Depth 10
 ```
 
-5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`Content/AutomationRules/`](../../Content/AutomationRules/).
+This matches the `$script:SentinelApiVersion` value the deploy script itself uses for the PUT; if that variable is bumped in `Deploy-CustomContent.ps1`, update the api-version here too.
+
+5. Restructure the output into the schema above (top-level `automationRuleId`, `displayName`, `order`, `triggeringLogic`, `actions`) and save as a `.json` file in [`Content/AutomationRules/`](../../Content/AutomationRules).
 
 ---
 
@@ -336,7 +359,7 @@ The identity running the deployment pipeline requires the following role assignm
 | **Microsoft Sentinel Contributor** | Resource group or workspace | Create and update automation rules |
 | **Microsoft Sentinel Playbook Operator** | Logic App resource(s) | Required only for `RunPlaybook` actions |
 
-These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](../Deploy/Pipelines.md) for pipeline configuration details and [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
+These roles should be assigned to the service principal or managed identity configured in the pipeline. See [Pipelines](../Pipelines/README.md) for pipeline configuration details and [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) for the bootstrap script.
 
 ## Authoring with GitHub Copilot
 
@@ -348,7 +371,7 @@ covers the conventions.
 
 Copilot tooling for automation rules:
 
-- Agent `Sentinel-As-Code: Content Editor` — general edits with
+- Agent `Sentinel-As-Code: Content Editor` - general edits with
   the right post-edit Pester suite (`Test-AutomationRuleJson.Tests.ps1`)
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.

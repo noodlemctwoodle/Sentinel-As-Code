@@ -4,6 +4,33 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.07.2
+
+- **Documentation overhaul.** Every doc audited against the code, pipelines, and
+  scripts and corrected for accuracy: the `Setup-ServicePrincipal` parameters,
+  the Smart Deployment default, stale API versions and PowerShell line-number
+  citations, and the pipeline docs.
+- **Toolkit documentation.** New `Docs/Toolkit/` pages for the companion Sentinel
+  as Code Toolkit VS Code extension: commands, templates, schemas and validation,
+  configuration, ARM-to-YAML conversion, Defender workflows, and the Graph API migration notes preserved from the Toolkit repository. The Toolkit
+  schemas and templates are now the authoring source of truth for the
+  content-type docs, which were reconciled against them.
+- **Per-pipeline documentation.** A dedicated page for every pipeline under
+  `Docs/Pipelines/`, with the GitHub and Azure DevOps mechanics side by side.
+- **Docs restructure.** `Docs/` now mirrors the repository layout, one docs folder
+  per code folder, with a consistent naming convention.
+- **Build and Test guide.** A new `Docs/Guides/` walkthrough for building and
+  validating the repository without a local PowerShell install.
+- **Fixes.** ARM-template-wrapped workbooks now deploy correctly (the inner
+  workbook is extracted rather than the ARM envelope); the DCR-watchlist runbook
+  is registered with the correct `DCRName` search key; and a `-ReportOnly` drift
+  run no longer opens a pull request on either CI system.
+
+- **PR template validation gate** — an enriched pull-request template plus a
+  GitHub Actions check that fails any PR whose description is not filled in
+  (Summary, why the change is needed, what it does, and testing, with a ticked
+  change type), so reviewers get the context up front.
+
 ## 26.07
 
 - **Word report generation** — a pandoc-based converter renders the Sentinel
@@ -16,7 +43,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   forward; earlier tagged releases remain under MIT.
 - Added a GitHub Sponsors button (`.github/FUNDING.yml`) and documented the
   external tool dependencies in
-  `Docs/Development/PowerShell-Module-Requirements.md`.
+  `Docs/Deploy/PowerShell-Module-Requirements.md`.
 
 ## 26.06.1
 
@@ -24,8 +51,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Deploy/`, `Tools/`. No Sentinel content logic changed.
 - **Adopted monthly CalVer versioning** (`YY.0M`); the "Wave N" naming is retired.
 - Added a layout migration guide and a one-shot fork-rebase helper.
+- Fixed an include-preview expression-quoting error in the Documenter workflow
+  (`.github/workflows/sentinel-document.yml`) that had shipped with Wave 4 and
+  caused every scheduled run and manual dispatch to fail to compile (erroring in
+  0s before any step ran); the daily Documenter now runs as intended (#26).
 - Forks and anyone referencing repo paths should review the
-  [26.06 Layout Restructure guide](../Migration/26.06-Layout-Restructure.md).
+  [26.06 Layout Restructure guide](Layout-Restructure-26.06.md).
 
 ## 26.06.0 — Wave 4 · June 2026
 

@@ -10,7 +10,7 @@ resource group for playbooks.
 | [`Infra/sentinel/main.bicep`](../../Infra/sentinel/main.bicep) | Subscription | Orchestrator — creates resource groups and invokes the Sentinel module |
 | [`Infra/sentinel/sentinel.bicep`](../../Infra/sentinel/sentinel.bicep) | Resource group | Workspace, Sentinel onboarding, diagnostic settings |
 
-These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](../Deploy/Pipelines.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
+These are invoked by Stage 2 of [`Pipelines/Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) — see [Pipelines](../Pipelines/README.md). Sentinel feature settings that are not exposed by Bicep (Entity Analytics, UEBA, Anomalies, EyesOn) are configured via REST in a follow-on pipeline step in the same stage.
 
 ## main.bicep
 
@@ -78,13 +78,42 @@ Resource-group-scoped module. Creates the workspace, both onboarding mechanisms,
 | `sentinelResourceId` | string | Resource ID of the OMS solution resource |
 | `logAnalyticsWorkspace` | object | `{ name, id, location, retentionInDays }` |
 
+## Infra/test-workspace/main.bicep
+
+A third, separate Bicep stack used only by PR validation, not by Stage 2 of `Sentinel-Deploy.yml`. [`Infra/test-workspace/main.bicep`](../../Infra/test-workspace/main.bicep) is a resource-group-scoped template that provisions a minimal Free-tier Sentinel-enabled workspace, deployed once by hand and then reused as the target for the `arm-validate` job's `Test-AzResourceGroupDeployment` calls in `pr-validation.yml` (see [PR Validation Setup](../Deploy/PR-Validation-Setup.md)). `Test-AzResourceGroupDeployment` is a template-validation cmdlet, not a `-WhatIf` execution; it validates every changed Playbook ARM template against this real workspace without deploying anything.
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `location` | string | `resourceGroup().location` | Azure region for the test workspace |
+| `workspaceName` | string | `law-sentinel-pr-test` | 4-63 chars. Name of the test Log Analytics workspace |
+| `tags` | object | `{ Purpose: 'PR-Validation-Test', ManagedBy: 'Sentinel-As-Code' }` | Resource tags |
+
+Retention (`30` days) and the daily ingestion cap (`1` GB) are not parameterised: they are hardcoded literals on the workspace resource, kept deliberately small since the workspace never ingests real data.
+
+### Resources created
+
+| Resource | API version | Notes |
+| --- | --- | --- |
+| `Microsoft.OperationalInsights/workspaces` | `2023-09-01` | PerGB2018 SKU, `retentionInDays: 30`, `workspaceCapping.dailyQuotaGb: 1`, public network access enabled for both ingestion and query |
+| `Microsoft.SecurityInsights/onboardingStates` | `2024-09-01` | `default` onboarding state, scoped to the workspace (the same modern onboarding mechanism used by `sentinel.bicep`) |
+
+### Outputs
+
+| Output | Type | Description |
+| --- | --- | --- |
+| `workspaceId` | string | Resource ID of the workspace (same value as `workspaceResourceId`) |
+| `workspaceName` | string | Name of the workspace |
+| `workspaceResourceId` | string | Resource ID of the workspace |
+
 ## Why two onboarding mechanisms?
 
 Sentinel onboarding has historically used `Microsoft.OperationsManagement/solutions` with a `SecurityInsights({workspace})` solution name. This is the canonical Bicep/ARM idiom and remains idempotent on re-runs.
 
 Newer API versions (`2024-09-01+`) of the SecurityInsights provider also expect a `Microsoft.SecurityInsights/onboardingStates/default` resource to be present on the workspace before downstream operations (some content templates, some metadata reads) will recognise the workspace as fully onboarded. Both resources can co-exist; the onboardingState declares the workspace's onboarding intent in the modern model, while the solution provides the legacy bootstrap.
 
-The `dependsOn: [sentinel]` on the onboardingState ensures it deploys after the OMS solution so the workspace is in a consistent state at all times.
+The `dependsOn: [sentinel]` on the onboardingState ensures it deploys after the OMS solution so the workspace is in a consistent state at all times. The same `dependsOn: [sentinel]` is also declared on both diagnostic-settings resources (`law-diagnostics` and `sentinel-health-diagnostics`), so the full deploy order within `sentinel.bicep` is: workspace, then OMS solution, then (in parallel, once the solution exists) the onboardingState and both diagnostic settings.
 
 ## Diagnostic settings
 
@@ -113,7 +142,7 @@ The setting targets a `Microsoft.SecurityInsights/settings` resource named `Sent
 
 The pipeline can deploy playbooks (Logic Apps) to a separate resource group. To enable:
 
-1. Add `playbookResourceGroup` to the [`sentinel-deployment` variable group](../Deploy/Pipelines.md#variable-group-sentinel-deployment) with the desired RG name.
+1. Add `playbookResourceGroup` to the [`sentinel-deployment` variable group](../Pipelines/README.md#variable-group-sentinel-deployment) with the desired RG name.
 2. The pipeline passes it through to `main.bicep` as the `playbookRgName` parameter.
 3. Bicep creates the separate RG only when:
    - `playbookRgName` is non-empty, AND
@@ -137,13 +166,15 @@ az deployment sub create \
         lawName=$(sentinelWorkspaceName) \
         dailyQuota=${{ parameters.dailyQuota }} \
         retentionInDays=${{ parameters.retentionInDays }} \
-        totalRetentionInDays=${{ parameters.totalRetentionInDays }} \
-        playbookRgName=$(playbookResourceGroup)
+        totalRetentionInDays=${{ parameters.totalRetentionInDays }}
+        # playbookRgName=... is appended only when the guard below is met
 ```
+
+`playbookRgName` is **not** an unconditional part of the parameter list: the pipeline task builds the `--parameters` string incrementally and only appends `playbookRgName=$PLAYBOOK_RG` when `$PLAYBOOK_RG` is non-empty and differs from `$(sentinelResourceGroup)`. Before that check, the task also treats ADO's unexpanded literal `$(playbookResourceGroup)` (the placeholder text itself, when the variable was never set) as empty, so an unset variable group value does not accidentally pass a literal `$(playbookResourceGroup)` string through to Bicep.
 
 `deploySentinel` is intentionally omitted from this ADO invocation — see the paragraph below for the asymmetric handling between platforms.
 
-Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](../Deploy/Pipelines.md) for the conditional logic. The two pipelines differ in probe granularity:
+Stage 1 first checks for existing infrastructure and skips Stage 2 entirely when everything required is already present — see [Pipelines](../Pipelines/README.md) for the conditional logic. The two pipelines differ in probe granularity:
 
 - **ADO** checks the resource group and workspace only.
 - **GitHub Actions** additionally probes both Sentinel onboarding resources (`Microsoft.OperationsManagement/solutions` *and* `Microsoft.SecurityInsights/onboardingStates/default`) and the optional separate playbook RG. When Sentinel is fully onboarded but the playbook RG is missing, GH passes `deploySentinel=false` to Bicep so the Sentinel module is skipped and only the playbook RG is provisioned.
@@ -173,10 +204,10 @@ The pipeline GETs the current setting (to capture the ETag) and PUTs the new sta
 
 ## Related docs
 
-- [Pipelines](../Deploy/Pipelines.md) — how Stage 2 runs Bicep and the post-Bicep settings step
+- [Pipelines](../Pipelines/README.md) — how Stage 2 runs Bicep and the post-Bicep settings step
 - [Scripts](../Deploy/Scripts.md#setup-serviceprincipalps1) — service principal RBAC bootstrap
 - [Playbooks](../Content/Playbooks.md) — how the optional playbook RG is consumed
-- [DCR Watchlist](../Operations/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (Bicep lives under `Infra/dcr-watchlist/` (runbook + permissions scripts under `Tools/` and `Deploy/`), not this folder)
+- [DCR Watchlist](../Tools/DCR-Watchlist.md) — separate Bicep stack for the DCR-watchlist runbook (Bicep lives under `Infra/dcr-watchlist/` (runbook + permissions scripts under `Tools/` and `Deploy/`), not this folder)
 
 ## Authoring with GitHub Copilot
 
@@ -199,4 +230,4 @@ Copilot tooling for Bicep:
 - Agent `Sentinel-As-Code: Security Reviewer` — for RBAC, Key
   Vault, network rules, and any high-privilege resource additions.
 
-See [GitHub Copilot setup](../Development/GitHub-Copilot.md) for the full layout.
+See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
