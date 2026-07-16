@@ -1047,14 +1047,19 @@ function Deploy-AnalyticsRules {
             }
         }
 
-        # Set enabled state based on DisableRules switch
+        # Set enabled state. Solution packages ship every rule template with
+        # enabled=false, so the template value is never taken as-is:
+        # -DisableRules forces rules off, updates preserve the operator's
+        # current enabled state in the workspace, and new rules deploy enabled.
         if ($DisableRules) {
             $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $false -Force
         }
+        elseif ($needsUpdate -and $existingRule -and
+                ($existingRule.properties.PSObject.Properties.Name -contains "enabled")) {
+            $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $existingRule.properties.enabled -Force
+        }
         else {
-            if (-not ($deployProperties.PSObject.Properties.Name -contains "enabled")) {
-                $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $true -Force
-            }
+            $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $true -Force
         }
 
         # Link to template
@@ -1182,31 +1187,63 @@ function Deploy-AnalyticsRules {
 
             $combinedError = "$errorMessage $errorDetail"
 
-            if ($combinedError -match "One of the tables does not exist") {
-                Write-PipelineMessage "  Skipping $displayName - missing tables in the environment." -Level Warning
-                $counters.Skipped++
+            # KQL validation only runs against enabled rules. Instead of dropping
+            # a rule whose query fails validation (typically because its data
+            # connector is not wired up yet), retry once as disabled so the rule
+            # exists in the workspace and can be enabled when data arrives.
+            $isKqlValidationError = $combinedError -match "One of the tables does not exist|The given column|FailedToResolveColumn|FailedToResolveScalarExpression|SemanticError|Failed to run the analytics rule query"
+            $intendedEnabled = ($deployProperties.PSObject.Properties.Name -contains "enabled") -and $deployProperties.enabled
+            $retrySucceeded = $false
+
+            if ($isKqlValidationError -and $intendedEnabled) {
+                try {
+                    $deployProperties | Add-Member -NotePropertyName "enabled" -NotePropertyValue $false -Force
+                    $retryBody = @{ kind = $kind; properties = $deployProperties } | ConvertTo-Json -Depth 50 -Compress
+                    Invoke-SentinelApi -Uri $alertUri -Method Put -Headers $script:AuthHeader -Body $retryBody | Out-Null
+                    Write-PipelineMessage "  Deployed disabled (KQL validation failed): $displayName ($severity)" -Level Warning
+                    if ($needsUpdate) { $counters.Updated++ } else { $counters.Deployed++ }
+                    $retrySucceeded = $true
+
+                    try {
+                        Write-RuleMetadata -Template $template -RuleId "${baseAlertUri}${ruleId}" -RuleName $ruleId `
+                            -TemplateName $templateName -TemplateVersion $templateVersion `
+                            -AvailableSolutions $AvailableSolutions -SolutionIdLookup $solutionIdLookup -SolutionDetailLookup $solutionDetailLookup `
+                            -DisplayName $displayName
+                    }
+                    catch { }
+
+                    Start-Sleep -Milliseconds 500
+                }
+                catch { }
             }
-            elseif ($combinedError -match "The given column") {
-                Write-PipelineMessage "  Skipping $displayName - missing column in the query." -Level Warning
-                $counters.Skipped++
-            }
-            elseif ($combinedError -match "FailedToResolveScalarExpression|SemanticError") {
-                Write-PipelineMessage "  Skipping $displayName - invalid expression in the query." -Level Warning
-                $counters.Skipped++
-            }
-            elseif ($combinedError -match "InvalidTemplate|DeploymentFailed") {
-                Write-PipelineMessage "  Skipping $displayName - template validation error." -Level Warning
-                $counters.Skipped++
-            }
-            elseif ($combinedError -match "BadRequest|400") {
-                $nrtHint = if ($kind -eq "NRT") { " NRT rules must not include queryFrequency/queryPeriod." } else { "" }
-                $detail = $combinedError.Substring(0, [Math]::Min(300, $combinedError.Length))
-                Write-PipelineMessage "  Skipping $displayName ($kind) - bad request.$nrtHint Detail: $detail" -Level Warning
-                $counters.Skipped++
-            }
-            else {
-                Write-PipelineMessage "  Failed to deploy rule: $displayName - $combinedError" -Level Error
-                $counters.Failed++
+
+            if (-not $retrySucceeded) {
+                if ($combinedError -match "One of the tables does not exist") {
+                    Write-PipelineMessage "  Skipping $displayName - missing tables in the environment." -Level Warning
+                    $counters.Skipped++
+                }
+                elseif ($combinedError -match "The given column") {
+                    Write-PipelineMessage "  Skipping $displayName - missing column in the query." -Level Warning
+                    $counters.Skipped++
+                }
+                elseif ($combinedError -match "FailedToResolveScalarExpression|SemanticError") {
+                    Write-PipelineMessage "  Skipping $displayName - invalid expression in the query." -Level Warning
+                    $counters.Skipped++
+                }
+                elseif ($combinedError -match "InvalidTemplate|DeploymentFailed") {
+                    Write-PipelineMessage "  Skipping $displayName - template validation error." -Level Warning
+                    $counters.Skipped++
+                }
+                elseif ($combinedError -match "BadRequest|400") {
+                    $nrtHint = if ($kind -eq "NRT") { " NRT rules must not include queryFrequency/queryPeriod." } else { "" }
+                    $detail = $combinedError.Substring(0, [Math]::Min(300, $combinedError.Length))
+                    Write-PipelineMessage "  Skipping $displayName ($kind) - bad request.$nrtHint Detail: $detail" -Level Warning
+                    $counters.Skipped++
+                }
+                else {
+                    Write-PipelineMessage "  Failed to deploy rule: $displayName - $combinedError" -Level Error
+                    $counters.Failed++
+                }
             }
         }
     }
