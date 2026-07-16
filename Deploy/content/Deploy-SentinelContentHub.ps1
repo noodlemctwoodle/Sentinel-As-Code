@@ -184,6 +184,11 @@ $script:SentinelApiVersion    = "2025-09-01"
 $script:DeploymentApiVersion  = "2024-11-01"
 $script:MetadataApiVersion    = "2025-09-01"
 
+# The NRT alert-rule kind exists only in preview API contracts — no stable
+# version (including 2025-09-01) defines it, and NRT PUT/DELETE against a GA
+# version fails with "Unsupported api-version ... for kind: NRT".
+$script:NrtApiVersion         = "2025-07-01-preview"
+
 # ---------------------------------------------------------------------------
 # Shared helpers from Sentinel.Common
 # ---------------------------------------------------------------------------
@@ -1086,7 +1091,7 @@ function Deploy-AnalyticsRules {
             # api-version which may not support NRT kind
             if ($needsUpdate -and $existingRule) {
                 try {
-                    $deleteUri = "${baseAlertUri}$($existingRule.name)?api-version=$($script:SentinelApiVersion)"
+                    $deleteUri = "${baseAlertUri}$($existingRule.name)?api-version=$($script:NrtApiVersion)"
                     Invoke-SentinelApi -Uri $deleteUri -Method Delete -Headers $script:AuthHeader | Out-Null
                 }
                 catch {
@@ -1145,7 +1150,8 @@ function Deploy-AnalyticsRules {
         }
 
         $ruleId = if ($needsUpdate -and $existingRule) { $existingRule.name } else { (New-Guid).Guid }
-        $alertUri = "${baseAlertUri}${ruleId}?api-version=$($script:SentinelApiVersion)"
+        $ruleApiVersion = if ($kind -eq "NRT") { $script:NrtApiVersion } else { $script:SentinelApiVersion }
+        $alertUri = "${baseAlertUri}${ruleId}?api-version=${ruleApiVersion}"
 
         try {
             $jsonBody = $ruleBody | ConvertTo-Json -Depth 50 -Compress

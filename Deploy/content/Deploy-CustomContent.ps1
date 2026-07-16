@@ -195,6 +195,11 @@ $script:WorkbookApiVersion  = "2022-04-01"
 $script:SavedSearchApiVersion = "2025-07-01"
 $script:SummaryRuleApiVersion = "2025-07-01"
 
+# The NRT alert-rule kind exists only in preview API contracts — no stable
+# version (including 2025-09-01) defines it, and NRT PUT/DELETE against a GA
+# version fails with "Unsupported api-version ... for kind: NRT".
+$script:NrtApiVersion       = "2025-07-01-preview"
+
 # ---------------------------------------------------------------------------
 # Resolve BasePath
 # ---------------------------------------------------------------------------
@@ -995,7 +1000,8 @@ function Deploy-CustomDetections {
                 properties = $properties
             } | ConvertTo-Json -Depth 20
 
-            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=$($script:SentinelApiVersion)"
+            $ruleApiVersion = if ($ruleKind -eq "NRT") { $script:NrtApiVersion } else { $script:SentinelApiVersion }
+            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=${ruleApiVersion}"
 
             if ($WhatIf) {
                 Write-PipelineMessage "[WhatIf] Would deploy detection: $ruleName ($ruleKind, $($rule['severity']))" -Level Info
