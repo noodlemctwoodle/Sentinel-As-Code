@@ -194,8 +194,17 @@ jobs:
               if [ -n "$FULL_REPORT" ] && [ -f "$FULL_REPORT" ]; then
                   echo "**Full report:** [\`$FULL_REPORT\`](../blob/$SYNC_BRANCH/$FULL_REPORT) — see the **Files Changed** tab for diff blocks and full KQL bodies."
                   echo ""
-                  sed -n '/^## Summary/,/^## /p' "$FULL_REPORT" | sed '$d'
+                  # awk rather than 'sed -n RANGE | sed $d': when Summary is the
+                  # LAST section (clean workspace: no drift, no orphans) the sed
+                  # range runs to EOF and '$d' chops a real table row instead of
+                  # the trailing heading.
+                  awk '/^## Summary/{f=1;print;next} f&&/^## /{exit} f' "$FULL_REPORT"
                   echo ""
+                  # '|| true' is load-bearing: only DRIFTED rules get '### '
+                  # sub-headings (orphans render as a table under '## Orphan
+                  # Rules'), so an orphans-only report has zero matches and grep
+                  # exits 1. 'pipefail' is what surfaces that (sed exits 0 and
+                  # would otherwise mask it), and '-e' then aborts the step.
                   DRIFTED_HEADINGS=$(grep -E '^### ' "$FULL_REPORT" | sed 's/^### //' || true)
                   if [ -n "$DRIFTED_HEADINGS" ]; then
                       echo "## Rules with drift"
