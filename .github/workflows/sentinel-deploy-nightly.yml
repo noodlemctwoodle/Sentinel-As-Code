@@ -42,6 +42,12 @@
 #   the workflow before the issue is closed updates the existing issue
 #   rather than spamming new ones.
 #
+#   When a stage goes green again, report-recovery closes that stage's
+#   issue and comments with the passing run. Recovery is tracked per
+#   stage, so one stage can recover in the same run where another
+#   fails. Without this an already-fixed failure stays open forever and
+#   the nightly-failure label stops meaning "currently broken".
+#
 # Concurrency:
 #   cancel-in-progress: false so multiple consecutive failures each
 #   keep their own context — useful for diagnosing intermittent vs
@@ -371,3 +377,93 @@ jobs:
           fi
 
           rm -f "$ISSUE_BODY_FILE"
+
+  # ===========================================================================
+  # Stage 7: Recovery reporting
+  # ===========================================================================
+  # The mirror of report-failure. When a stage that previously failed goes
+  # green again, close its tracking issue.
+  #
+  # Without this there is no recovery path at all: report-failure opens and
+  # refreshes an issue on every failure, but nothing ever closes one. A fixed
+  # failure therefore stays open indefinitely and the nightly-failure label
+  # stops meaning "currently broken". Issue #28 sat open for 16 days after the
+  # restructure in #27 had already fixed it, which is exactly the confusion
+  # this job removes.
+  #
+  # Runs on always() because recovery is per-stage: one stage can go green in
+  # the same run where another fails. This job closes the recovered stage's
+  # issue while report-failure opens or refreshes the still-broken one.
+  report-recovery:
+    name: "Close recovered failure issues"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure, deploy-content-hub, deploy-custom-content, deploy-defender-detections]
+    if: always()
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Close issues for stages that are now green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Space-separated 'stage:result' entries. Deliberately a plain list
+          # rather than an associative array: 'declare -A' needs bash 4, which
+          # the runner has but a local shell may not, and this form stays
+          # testable anywhere. Neither stage names nor result values contain
+          # spaces or colons, so the splitting below is safe.
+          STAGES=""
+          STAGES="$STAGES check-infrastructure:${{ needs.check-infrastructure.result }}"
+          STAGES="$STAGES deploy-infrastructure:${{ needs.deploy-infrastructure.result }}"
+          STAGES="$STAGES deploy-content-hub:${{ needs.deploy-content-hub.result }}"
+          STAGES="$STAGES deploy-custom-content:${{ needs.deploy-custom-content.result }}"
+          STAGES="$STAGES deploy-defender-detections:${{ needs.deploy-defender-detections.result }}"
+
+          # Unquoted on purpose: word splitting is how the list is iterated.
+          for ENTRY in $STAGES; do
+              STAGE="${ENTRY%%:*}"
+              RESULT="${ENTRY##*:}"
+
+              # Only 'success' counts as recovery. A skipped stage is not
+              # evidence that anything was fixed (deploy-infrastructure skips
+              # routinely), so it leaves any open issue alone.
+              if [ "$RESULT" != "success" ]; then
+                  echo "$STAGE: $RESULT (no action)"
+                  continue
+              fi
+
+              TITLE="Nightly E2E deploy validation failed: $STAGE"
+
+              # Exact title match against label-filtered issues, rather than
+              # the fuzzy 'in:title' search the failure path uses. Closing the
+              # wrong issue is far worse than opening a duplicate, so this must
+              # not match a human-filed issue with a similar title.
+              NUM=$(gh issue list \
+                      --state open \
+                      --label nightly-failure \
+                      --limit 100 \
+                      --json number,title \
+                  | jq -r --arg t "$TITLE" '[.[] | select(.title == $t) | .number] | first // empty')
+
+              if [ -z "$NUM" ]; then
+                  echo "$STAGE: green, no open issue to close"
+                  continue
+              fi
+
+              echo "$STAGE: green, closing issue #$NUM"
+
+              # printf rather than a literal multi-line string: an unindented
+              # continuation line would dedent out of this 'run: |' block and
+              # break the workflow YAML. Single-quoted format so the backticks
+              # stay literal instead of becoming command substitution.
+              BODY=$(printf 'Recovered: `%s` passed in %s\n\nClosing automatically. If this stage breaks again the nightly will open a fresh issue rather than reopening this one.' \
+                     "$STAGE" "$RUN_URL")
+
+              gh issue comment "$NUM" --body "$BODY"
+              gh issue close "$NUM" --reason completed
+          done
