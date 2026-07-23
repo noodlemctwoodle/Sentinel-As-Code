@@ -202,8 +202,9 @@ jobs:
                   echo ""
                   # '|| true' is load-bearing: only DRIFTED rules get '### '
                   # sub-headings (orphans render as a table under '## Orphan
-                  # Rules'), so an orphans-only report has zero matches and
-                  # grep's exit 1 would abort the step under 'set -e'.
+                  # Rules'), so an orphans-only report has zero matches and grep
+                  # exits 1. 'pipefail' is what surfaces that (sed exits 0 and
+                  # would otherwise mask it), and '-e' then aborts the step.
                   DRIFTED_HEADINGS=$(grep -E '^### ' "$FULL_REPORT" | sed 's/^### //' || true)
                   if [ -n "$DRIFTED_HEADINGS" ]; then
                       echo "## Rules with drift"
