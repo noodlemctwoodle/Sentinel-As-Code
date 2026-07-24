@@ -1,0 +1,28 @@
+{
+  "workspace": "PRT-UKS-SIEM-LAW",
+  "resourceGroup": "prt-uks-siem-rg",
+  "subscriptionId": "5acfcf7c-694f-4a7b-8805-2635116fcb66",
+  "drifted": [],
+  "generatedAt": "2026-07-24T06:49:27Z",
+  "orphans": [
+    {
+      "ruleId": "/subscriptions/5acfcf7c-694f-4a7b-8805-2635116fcb66/resourceGroups/prt-uks-siem-rg/providers/Microsoft.OperationalInsights/workspaces/PRT-UKS-SIEM-LAW/providers/Microsoft.SecurityInsights/alertRules/18a8e88e-f1fb-4dc3-9ea7-985637bcaebd",
+      "ruleName": "18a8e88e-f1fb-4dc3-9ea7-985637bcaebd",
+      "displayName": "A new Lighthouse service provider was added",
+      "kind": "Scheduled",
+      "enabled": true,
+      "absorbedPath": "/home/runner/work/Sentinel-As-Code/Sentinel-As-Code/Content/AnalyticalRules/AbsorbedFromPortal/Orphans/A-new-Lighthouse-service-provider-was-added.yaml",
+      "absorbedAction": "created"
+    }
+  ],
+  "summary": {
+    "skipped": 0,
+    "managed": 1,
+    "contentHubClean": 236,
+    "contentHubDrift": 0,
+    "orphan": 1,
+    "totalDeployed": 316,
+    "customDrift": 0,
+    "customClean": 78
+  }
+}
