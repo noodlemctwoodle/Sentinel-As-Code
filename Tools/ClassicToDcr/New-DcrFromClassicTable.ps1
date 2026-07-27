@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Tools/New-DcrFromClassicTable.ps1
+# Sentinel-As-Code/Tools/ClassicToDcr/New-DcrFromClassicTable.ps1
 #
 # Created by noodlemctwoodle on 20/07/2026.
 #

@@ -99,6 +99,17 @@ Describe 'Test-DcrIngestion: script-level contract' {
         $script:sourceText | Should -Not -Match 'Sentinel\.Common\.psd1'
         $script:sourceText | Should -Match 'function Write-PipelineMessage'
     }
+
+    It 'has the correct repo-relative header path' {
+        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Test-DcrIngestion\.ps1'
+    }
+
+    It 'resolves the -Follow workspace defensively, not by direct index' {
+        # A DCR need not have a logAnalytics destination; a direct index
+        # would throw under strict mode. Resolve via PSObject.Properties.
+        $script:sourceText | Should -Not -Match 'destinations\.logAnalytics\[0\]\.workspaceResourceId'
+        $script:sourceText | Should -Match "PSObject\.Properties\['logAnalytics'\]"
+    }
 }
 
 Describe 'Get-DcrIngestionTarget' {

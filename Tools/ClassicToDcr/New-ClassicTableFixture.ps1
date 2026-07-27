@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Tools/New-ClassicTableFixture.ps1
+# Sentinel-As-Code/Tools/ClassicToDcr/New-ClassicTableFixture.ps1
 #
 # Created by noodlemctwoodle on 23/07/2026.
 #

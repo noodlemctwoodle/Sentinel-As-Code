@@ -155,6 +155,10 @@ Describe 'New-DcrFromClassicTable: script-level contract' {
         $script:sourceText | Should -Not -Match ([char]0x2014)
     }
 
+    It 'has the correct repo-relative header path' {
+        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/New-DcrFromClassicTable\.ps1'
+    }
+
     It 'is standalone: does not import the Sentinel.Common module' {
         # The ClassicToDcr kit must run on a jump box where the repo module
         # is absent. It defines its own Write-PipelineMessage instead.

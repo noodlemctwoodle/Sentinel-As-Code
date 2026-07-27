@@ -84,6 +84,10 @@ Describe 'New-ClassicTableFixture: script-level contract' {
         $script:sourceText | Should -Not -Match ([char]0x2014)
     }
 
+    It 'has the correct repo-relative header path' {
+        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/New-ClassicTableFixture\.ps1'
+    }
+
     It 'is standalone: does not import the Sentinel.Common module' {
         $script:sourceText | Should -Not -Match 'Import-Module[^\r\n]*Sentinel\.Common'
         $script:sourceText | Should -Not -Match 'Sentinel\.Common\.psd1'

@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Tools/Test-DcrIngestion.ps1
+# Sentinel-As-Code/Tools/ClassicToDcr/Test-DcrIngestion.ps1
 #
 # Created by noodlemctwoodle on 23/07/2026.
 #
@@ -756,8 +756,25 @@ $followWorkspaceId = $null
 $followColumn      = $null
 
 if ($Follow) {
-    $wsResourceId = $dcr.properties.destinations.logAnalytics[0].workspaceResourceId
-    if ($wsResourceId -match '/resourceGroups/(?<rg>[^/]+)/.*/workspaces/(?<name>[^/]+)$') {
+    # Resolve the destination workspace defensively: a DCR need not have a
+    # logAnalytics destination (it might send only to metrics or a custom
+    # table shape), and under strict mode a direct index would throw. If it
+    # cannot be read, leave $followWorkspaceId null and the warning below
+    # skips the arrival counts.
+    $wsResourceId = $null
+    $destProp = $dcr.properties.PSObject.Properties['destinations']
+    if ($destProp -and $destProp.Value) {
+        $laProp = $destProp.Value.PSObject.Properties['logAnalytics']
+        if ($laProp -and $laProp.Value) {
+            $firstLa = @($laProp.Value)[0]
+            if ($firstLa) {
+                $wsProp = $firstLa.PSObject.Properties['workspaceResourceId']
+                if ($wsProp -and $wsProp.Value) { $wsResourceId = [string]$wsProp.Value }
+            }
+        }
+    }
+
+    if ($wsResourceId -and $wsResourceId -match '/resourceGroups/(?<rg>[^/]+)/.*/workspaces/(?<name>[^/]+)$') {
         $followWorkspace   = Get-AzOperationalInsightsWorkspace -ResourceGroupName $matches['rg'] -Name $matches['name']
         $followWorkspaceId = $followWorkspace.CustomerId
     }
