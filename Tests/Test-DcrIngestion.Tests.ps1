@@ -110,6 +110,15 @@ Describe 'Test-DcrIngestion: script-level contract' {
         $script:sourceText | Should -Not -Match 'destinations\.logAnalytics\[0\]\.workspaceResourceId'
         $script:sourceText | Should -Match "PSObject\.Properties\['logAnalytics'\]"
     }
+
+    It 'acquires the SP token only after the ShouldProcess gate' {
+        # -WhatIf must not perform a real OAuth token request or touch the
+        # secret, so the initial token acquisition sits after the gate.
+        $gate  = $script:sourceText.IndexOf('ShouldProcess($ingestUri')
+        $token = $script:sourceText.IndexOf('$token = Get-ServicePrincipalToken')
+        $gate  | Should -BeGreaterThan 0
+        $token | Should -BeGreaterThan $gate
+    }
 }
 
 Describe 'Get-DcrIngestionTarget' {

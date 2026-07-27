@@ -386,7 +386,7 @@
       "category": "Foundation",
       "severity": "Critical",
       "check": "Test-CustomLogsV1Migration",
-      "remediation": "Microsoft retires the HTTP Data Collector API on 14 September 2026; after that date, CLv1 endpoints stop accepting data and ingestion fails silently. For each affected _CL table either issue the table-level migrate API (POST .../tables/{name}/migrate) to convert the schema, then wire ingestion through a DCR pointing at the table; or recreate the source via a fresh DCR-based Logs Ingestion API path. Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 does both steps: it migrates the table and generates the matching DCR ARM template (run it with -WhatIf first, migration is irreversible). Migrate every affected table before the cutoff to avoid data loss.",
+      "remediation": "Microsoft retires the HTTP Data Collector API on 14 September 2026; after that date, CLv1 endpoints stop accepting data and ingestion fails silently. For each affected _CL table either issue the table-level migrate API (POST .../tables/{name}/migrate?api-version=2021-12-01-preview) to convert the schema, then wire ingestion through a DCR pointing at the table; or recreate the source via a fresh DCR-based Logs Ingestion API path. Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 does both steps: it migrates the table and generates the matching DCR ARM template (run it with -WhatIf first, migration is irreversible). Migrate every affected table before the cutoff to avoid data loss.",
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate"
     },
     {

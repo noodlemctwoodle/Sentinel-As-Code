@@ -804,10 +804,6 @@ if ($BatchCount)      { $limitText += "$BatchCount batches" }
 if ($limitText.Count -eq 0) { $limitText = @('until Ctrl-C') }
 Write-PipelineMessage "Runs for     : $($limitText -join ', ')"
 
-$token       = Get-ServicePrincipalToken -AuthorityHost $AuthorityHost -TenantId $TenantId `
-                                         -ClientId $ClientId -Audience $IngestionAudience `
-                                         -ClientSecret $ClientSecret
-
 $sentRecords = 0
 $okBatches   = 0
 $failBatches = 0
@@ -818,6 +814,12 @@ if (-not $PSCmdlet.ShouldProcess($ingestUri, "Stream records ($($limitText -join
     Write-PipelineMessage 'WhatIf: no data sent.' -Level Warning
     return
 }
+
+# Acquire the token only after the ShouldProcess gate, so -WhatIf performs
+# no OAuth token request and touches no secret.
+$token = Get-ServicePrincipalToken -AuthorityHost $AuthorityHost -TenantId $TenantId `
+                                   -ClientId $ClientId -Audience $IngestionAudience `
+                                   -ClientSecret $ClientSecret
 
 try {
     while ($true) {
