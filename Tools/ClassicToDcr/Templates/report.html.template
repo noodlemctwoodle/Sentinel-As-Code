@@ -311,18 +311,24 @@
   .badge.ccf { background: var(--ok-dim); color: var(--ok); }
   .badge.purple { background: var(--purple-dim); color: var(--purple); }
   /* Chained (via-parser) dependency. Cyan ties it to the Parsers rows in the
-     same card, which dotColor() already paints cyan. inline-block rather than
-     the inherited inline-flex so text-overflow applies to a long chain. */
+     same card, which dotColor() already paints cyan.
+
+     The chain is the whole point of an indirect row: it is the answer to "why
+     does this break?". Truncating it to an ellipsis hides exactly the parser an
+     operator has to go and look at, and a title tooltip does not help when
+     scanning or printing. So it wraps instead of clipping, and the arrows are
+     given wrap opportunities so a long chain breaks between hops rather than
+     mid-name. */
   .badge.via {
     background: var(--cyan-dim);
     color: var(--cyan);
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-weight: 500;
     display: inline-block;
-    max-width: 42ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-align: left;
+    line-height: 1.5;
   }
 
   /* ── Detail body ── */
@@ -353,6 +359,10 @@
   .item {
     display: flex;
     align-items: center;
+    /* A long parser chain gets its own line rather than squeezing the name or
+       spilling out of the card. Short chains still sit inline. */
+    flex-wrap: wrap;
+    row-gap: 6px;
     gap: 10px;
     padding: 10px 14px;
     background: var(--code-bg);
@@ -1208,7 +1218,6 @@ function renderConnectorCallout(match) {
   if (hasCCF || hasPlatform || hasAMA) {
     var connType = hasPlatform ? 'Platform-native' : hasCCF ? 'Codeless Connector Framework (CCF)' : 'Azure Monitor Agent (AMA)';
     return '<div class="callout success">' +
-      '<div class="callout-icon">&#10003;</div>' +
       '<div class="callout-body">' +
         '<div class="callout-title">Modern Connector Available</div>' +
         '<div class="callout-text">' +
@@ -1420,11 +1429,10 @@ function renderTable(t) {
       : '';
     sections.unshift('<div class="detail-section">' +
       '<div class="callout info">' +
-        '<div class="callout-icon">&#8599;</div>' +
         '<div class="callout-body">' +
           '<div class="callout-title">' + indirectTotal + ' dependenc' + (indirectTotal === 1 ? 'y reaches' : 'ies reach') + ' this table through a parser</div>' +
           '<div class="callout-text">' +
-            'Rows tagged <span class="badge via">via</span> never mention <code>' + escapeHtml(t.Name) + '</code> in their own query. ' +
+            'These never mention <code>' + escapeHtml(t.Name) + '</code> in their own query. ' +
             'They call a parser function that reads it, so searching the workspace for the table name will not find them. ' +
             'Migrating the table breaks them exactly as if they named it directly.' + truncNote +
           '</div>' +
