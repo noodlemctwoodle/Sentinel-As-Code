@@ -591,6 +591,8 @@ Terminal A. Legacy goes quiet; the DCR path carries on.
 | Legacy rows keep appearing after migration | Expected: the Data Collector API keeps writing to existing columns. Stop the sender to finish the cutover. |
 | A `-Stream` fixture recreates a deleted table | Stop the stream first, then delete. |
 | Cannot delete a classic table | The Tables API forbids deleting a `Classic` table. See Cleanup. |
+| A deleted `_CL` name will not come back | Once a classic table has been migrated and deleted, re-posting to the Data Collector API under the same `Log-Type` is accepted (HTTP 200) but the table never reappears, so anything depending on it fails to validate. Redeploy a fixture under a fresh `-NamePrefix` rather than reusing the old one. |
+| Fixture rules fail with the tables missing | The rules are created last on purpose, because Sentinel validates rule KQL against the workspace schema on write. If the tables never materialised, every rule 400s. Check the tables exist before blaming the rules. |
 | Dependency fixture refuses to run: alias collision | An alias would shadow a real table for every query in the workspace. Choose a different `-NamePrefix`. Nothing was written. |
 | Dependency fixture refuses to run: name collision | A target name exists and does not carry the fixture marker. Nothing is ever overwritten. Choose a different `-NamePrefix`. |
 | Fixture rule PUT fails with `Failed to resolve table or column expression named` | Sentinel validates rule KQL server side and the table or parser has not propagated yet. The script retries this case for a bounded window; if it gives up, re-run once the table is queryable. |
