@@ -10,6 +10,18 @@ licences and are NOT covered by the Apache License above:
     each retains its upstream licence and attribution.
   * Microsoft-published Content Hub content referenced, deployed, or exported by
     this repository remains subject to Microsoft's own terms.
+  * Tools/ClassicToDcr/data/solution-mapping.json is generated from the
+    Azure-Sentinel Solutions Analyzer (Microsoft, MIT-licensed) by
+    Tools/ClassicToDcr/data/update-solution-mapping.mjs, and remains subject to
+    Microsoft's terms for that upstream data.
+
+The following was originally published as a separate project by the same author
+and is folded into this repository under the Apache License 2.0:
+
+  * Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1 and
+    Tools/ClassicToDcr/Templates/report.html.template originated as the
+    Sentinel-CLv1-Analyzer project (https://github.com/noodlemctwoodle/Sentinel-CLv1-Analyzer,
+    previously MIT-licensed).
 
 Releases up to and including 26.06.1 were published under the MIT License and
 remain available under those terms; the Apache License 2.0 applies from 26.07

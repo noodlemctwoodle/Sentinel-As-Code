@@ -1444,10 +1444,10 @@ if ($DcrKind -eq 'Direct' -and $deployedResults.Count -gt 0) {
     }
 
     Write-PipelineMessage ''
-    Write-PipelineMessage 'For a test stream, Test-DcrIngestion.ps1 builds and sends that POST for you:'
+    Write-PipelineMessage 'For a test stream, Rehearsal/Test-DcrIngestion.ps1 builds and sends that POST for you:'
     foreach ($r in $deployedResults) {
         if ($r.DcrName) {
-            Write-PipelineMessage "  ./Test-DcrIngestion.ps1 -DcrName $($r.DcrName) -DcrResourceGroupName $DcrResourceGroupName -Follow"
+            Write-PipelineMessage "  ./Rehearsal/Test-DcrIngestion.ps1 -DcrName $($r.DcrName) -DcrResourceGroupName $DcrResourceGroupName -Follow"
         }
     }
 }

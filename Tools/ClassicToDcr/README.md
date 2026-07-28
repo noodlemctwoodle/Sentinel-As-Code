@@ -1,8 +1,24 @@
-# DCR migration toolkit
+# Classic-to-DCR migration toolkit
 
-Migrate classic (MMA / Data Collector API) custom log tables to Data
-Collection Rule based tables, deploy the matching DCR, and rehearse the
-whole thing end to end with live data before you do it for real.
+Assess which classic (MMA / Data Collector API) custom log tables you have and
+what depends on them, migrate them to Data Collection Rule based tables, deploy
+the matching DCR, and rehearse the whole thing end to end with live data before
+you do it for real.
+
+The workflow runs in three stages, and there is a script for each:
+
+1. **Assess** - `Invoke-TableMigrationReview.ps1` inventories your classic
+   tables and scores their blast radius (which rules, workbooks, playbooks and
+   parsers break) before you change anything.
+2. **Migrate** - `New-DcrFromClassicTable.ps1` migrates the table, deploys the
+   DCR and optionally grants the ingestion role.
+3. **Rehearse** - the two aids under `Rehearsal/` -
+   `Rehearsal/New-ClassicTableFixture.ps1` and `Rehearsal/Test-DcrIngestion.ps1` -
+   let you practise the whole thing against a throwaway table with live data.
+
+The two production tools sit at the top of this folder; the rehearsal aids
+live in the `Rehearsal/` subfolder so the "safe against prod" tools and the
+"scratch workspace only" tools never get confused for each other.
 
 The scripts are **fully standalone**: copy this folder to a jump box or an
 automation account and they run with only the Az modules installed. They do
@@ -11,17 +27,28 @@ logging), so nothing else from this repository needs to travel with them.
 
 | Script | Purpose | API it uses | Auth |
 |---|---|---|---|
+| `Invoke-TableMigrationReview.ps1` | The assessment tool: discover classic tables, score dependency impact, map each to a Content Hub solution and flag connectors with no CCF replacement. Read-only | ARM control plane + Tables/Sentinel APIs | Your Az identity |
 | `New-DcrFromClassicTable.ps1` | The migration tool: discover classic tables, migrate them, deploy a DCR, optionally grant the ingestion role | ARM control plane + Tables API | Your Az identity |
-| `New-ClassicTableFixture.ps1` | Rehearsal aid: create a throwaway classic `_CL` table with synthetic data, or stream it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
-| `Test-DcrIngestion.ps1` | Rehearsal aid: stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (new) | Service principal bearer |
+| `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid: create a throwaway classic `_CL` table with synthetic data, or stream it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
+| `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid: stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (new) | Service principal bearer |
 
-Only `New-DcrFromClassicTable.ps1` runs against real tables. The other two
-generate synthetic data to rehearse against a throwaway table; use them in
-a scratch workspace, never production. Fuller reference is in
+`Invoke-TableMigrationReview.ps1` is read-only and safe to run against
+production. `New-DcrFromClassicTable.ps1` also runs against real tables but
+makes irreversible changes. The other two generate synthetic data to rehearse
+against a throwaway table; use them in a scratch workspace, never production.
+Fuller reference is in
 [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md).
+
+`Invoke-TableMigrationReview.ps1` originated as the standalone
+[Sentinel-CLv1-Analyzer](https://github.com/noodlemctwoodle/Sentinel-CLv1-Analyzer)
+project (MIT); it is folded in here under this repository's Apache-2.0 licence.
+Its `data/solution-mapping.json` is refreshed weekly from the upstream
+Azure-Sentinel Solutions Analyzer by
+[`.github/workflows/update-solution-mapping.yml`](../../.github/workflows/update-solution-mapping.yml).
 
 ## Contents
 
+- [Assess before you migrate](#assess-before-you-migrate)
 - [The three APIs, and which one touches a DCR](#the-three-apis-and-which-one-touches-a-dcr)
 - [What a real migration actually requires](#what-a-real-migration-actually-requires)
 - [Prerequisites and RBAC](#prerequisites-and-rbac)
@@ -35,6 +62,48 @@ a scratch workspace, never production. Fuller reference is in
 - [Cleanup](#cleanup)
 - [Retirement timeline](#retirement-timeline)
 - [Tests](#tests)
+
+## Assess before you migrate
+
+Before touching a table, find out what you have and what leans on it.
+`Invoke-TableMigrationReview.ps1` is read-only: it inventories classic V1
+custom log tables in a workspace and, for each one, scores the blast radius so
+a migration is a decision rather than a surprise.
+
+```powershell
+# Interactive - prompts for subscription, resource group, workspace
+./Invoke-TableMigrationReview.ps1
+
+# Scripted - write the report bundle to a dated folder
+./Invoke-TableMigrationReview.ps1 `
+    -SubscriptionId '00000000-0000-0000-0000-000000000000' `
+    -ResourceGroupName 'rg-sentinel' `
+    -WorkspaceName 'ws-sentinel' `
+    -OutputPath './migration-report/2026-07'
+```
+
+It runs three steps:
+
+1. **Discover** the classic `_CL` tables (AzureDiagnostics and other
+   Microsoft-managed tables are filtered out - they are never candidates).
+2. **Assess** each table's dependencies across Analytics Rules, Workbooks,
+   Hunting Queries, Parsers, Saved Searches, SOAR Playbooks and Data
+   Collection Rules, using a word-boundary KQL match so `MyApp_CL` does not
+   falsely match `MyApp_CL_v2`.
+3. **Map** each table to its Content Hub solution and classify the connector
+   as CCF (Codeless Connector Framework), Azure Functions, AMA, Platform,
+   Agent or Legacy. Legacy Azure Functions connectors with no CCF equivalent
+   are flagged: those are the ones that need rebuilding, not just repointing.
+
+Output is a set of pipeline objects plus a report bundle (CSV per step, a
+combined JSON, and a self-contained HTML report) written to
+`./migration-report/` by default. That folder is git-ignored - the report can
+contain workspace-specific table and connector detail, so treat it as private.
+
+The connector classification is only as current as the bundled
+`data/solution-mapping.json`. The weekly workflow keeps it fresh; to refresh it
+by hand, run `node Tools/ClassicToDcr/data/update-solution-mapping.mjs` (Node
+18+, standard library only).
 
 ## The three APIs, and which one touches a DCR
 
@@ -73,8 +142,8 @@ Three things change in the sending code:
 
 The payload JSON stays essentially the same (it matches the stream
 schema), and the DCR's transform reconciles any type differences.
-`Test-DcrIngestion.ps1` is a working reference implementation of this new
-sender.
+`Rehearsal/Test-DcrIngestion.ps1` is a working reference implementation of
+this new sender.
 
 **No gap in this case:** the Data Collector API keeps writing to
 **existing columns** after migration, so you migrate, update the app at
@@ -122,8 +191,10 @@ may return 403.
 
 ## `.env` for the ingestion tester
 
-`Test-DcrIngestion.ps1` reads its service principal from the environment.
-Copy `.env.example` to `.env` (the real `.env` is gitignored) and fill in:
+`Rehearsal/Test-DcrIngestion.ps1` reads its service principal from the
+environment. The `.env` and its template live in the `Rehearsal/` folder next
+to the tester. Copy `Rehearsal/.env.example` to `Rehearsal/.env` (the real
+`.env` is gitignored) and fill in:
 
 ```
 DCR_INGEST_TENANT_ID=<tenant guid>
@@ -131,8 +202,10 @@ DCR_INGEST_CLIENT_ID=<app id>
 DCR_INGEST_CLIENT_SECRET=<secret>
 ```
 
-Run the tester from this folder and the `.env` is picked up automatically
-(resolution order: current directory, then next to the script). The secret
+The tester loads the `.env` sitting beside it automatically, so it works
+whether you run it from `Rehearsal/` or from this folder as
+`./Rehearsal/Test-DcrIngestion.ps1` (resolution order: current directory, then
+next to the script). The secret
 is held in memory only and never printed. The same `DCR_INGEST_CLIENT_ID`
 is what you pass to `New-DcrFromClassicTable.ps1 -GrantIngestionRoleTo`.
 
@@ -193,7 +266,7 @@ table name each run**.
 
 ```bash
 # 1. Seed a classic table (100 rows via the Data Collector API)
-./New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -RecordCount 100
+./Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -RecordCount 100
 ```
 
 ```bash
@@ -213,7 +286,7 @@ table name each run**.
 
 ```bash
 # 5. Stream through the DCR. batch N OK = HTTP 204; the post-run poll reports arrived 30/30
-./Test-DcrIngestion.ps1 -DcrName dcr-mytest01 -DcrResourceGroupName rg-scratch -BatchCount 3 -Follow
+./Rehearsal/Test-DcrIngestion.ps1 -DcrName dcr-mytest01 -DcrResourceGroupName rg-scratch -BatchCount 3 -Follow
 ```
 
 ## Rehearsing a cutover (data flowing during migration)
@@ -224,7 +297,7 @@ migrate and bring up the new path. Use a throwaway workspace.
 **Terminal A, legacy source, leave running the whole time:**
 
 ```bash
-./New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Stream -IntervalSeconds 15
+./Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Stream -IntervalSeconds 15
 ```
 
 **Terminal B:** run the migration steps above while A keeps streaming. The
@@ -233,7 +306,7 @@ because the Data Collector API keeps writing to existing columns. Then add
 the new path:
 
 ```bash
-./Test-DcrIngestion.ps1 -DcrName dcr-mytest01 -DcrResourceGroupName rg-scratch -BatchCount 3 -Follow
+./Rehearsal/Test-DcrIngestion.ps1 -DcrName dcr-mytest01 -DcrResourceGroupName rg-scratch -BatchCount 3 -Follow
 ```
 
 **Confirm both sources landed** (in Logs):
@@ -296,7 +369,7 @@ For a table that has been **migrated** (the normal end state), the fixture
 removes it cleanly:
 
 ```bash
-./New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Remove
+./Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Remove
 ```
 
 If the table is **still Classic** (an aborted run), the Tables API cannot
@@ -305,7 +378,7 @@ error. Add `-MigrateBeforeRemove` to migrate it (one-way) and then delete,
 or delete it in the Azure portal:
 
 ```bash
-./New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Remove -MigrateBeforeRemove
+./Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01 -Remove -MigrateBeforeRemove
 ```
 
 Remove the DCR:
@@ -328,6 +401,7 @@ Unit tests live in the repo's `Tests/` folder (run by
 `Tools/Invoke-PRValidation.ps1`), not here, so the standalone kit stays
 runtime-only:
 
+- `Tests/Test-InvokeTableMigrationReview.Tests.ps1`
 - `Tests/Test-NewDcrFromClassicTable.Tests.ps1`
 - `Tests/Test-NewClassicTableFixture.Tests.ps1`
 - `Tests/Test-DcrIngestion.Tests.ps1`

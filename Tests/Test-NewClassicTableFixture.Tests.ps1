@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Unit tests for the pure helpers in Tools/ClassicToDcr/New-ClassicTableFixture.ps1.
+    Unit tests for the pure helpers in Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1.
 
 .DESCRIPTION
     Covers the two functions whose correctness a live post depends on:
@@ -20,7 +20,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Tools/ClassicToDcr/New-ClassicTableFixture.ps1'
+    $scriptPath = Join-Path $repoRoot 'Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
 
@@ -32,7 +32,7 @@ BeforeAll {
 
 Describe 'New-ClassicTableFixture: script-level contract' {
     BeforeAll {
-        $script:sourcePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/New-ClassicTableFixture.ps1'
+        $script:sourcePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1'
         $script:sourceText = Get-Content -Path $script:sourcePath -Raw
     }
 
@@ -85,7 +85,7 @@ Describe 'New-ClassicTableFixture: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/New-ClassicTableFixture\.ps1'
+        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture\.ps1'
     }
 
     It 'is standalone: does not import the Sentinel.Common module' {

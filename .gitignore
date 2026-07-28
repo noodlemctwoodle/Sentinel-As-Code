@@ -33,6 +33,10 @@ Tools/Export-Playbooks.ps1
 # Delivered via the workflow's private GitHub Actions artefact instead.
 SecurityDocs/
 
+# Invoke-TableMigrationReview.ps1 writes its report bundle (html/json/csv)
+# to a migration-report/ folder in the working directory by default.
+migration-report/
+
 # Generated DCR templates land here when the migration tool runs from its
 # own folder (its default output is the working directory). Transient
 # artefacts; the ones you want tracked go to Infra/dcr via -OutputDirectory.

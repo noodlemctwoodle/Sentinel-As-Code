@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Tools/ClassicToDcr/New-ClassicTableFixture.ps1
+# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
 #
 # Created by noodlemctwoodle on 23/07/2026.
 #
@@ -99,14 +99,14 @@
     already been migrated deletes without this switch.
 
 .EXAMPLE
-    ./Tools/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
+    ./Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
         -WorkspaceName law-scratch -TableName SacMigrationTest
 
     Creates SacMigrationTest_CL with 50 synthetic records and waits for the
     table to appear, reporting its subtype.
 
 .EXAMPLE
-    ./Tools/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
+    ./Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
         -WorkspaceName law-scratch -TableName SacMigrationTest -Stream `
         -RecordCount 5 -IntervalSeconds 15
 
@@ -115,7 +115,7 @@
     migrate the table and start the new DCR path with Test-DcrIngestion.ps1.
 
 .EXAMPLE
-    ./Tools/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
+    ./Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -ResourceGroupName rg-scratch `
         -WorkspaceName law-scratch -TableName SacMigrationTest -Remove
 
     Deletes the fixture table.

@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Tools/ClassicToDcr/Test-DcrIngestion.ps1
+# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1
 #
 # Created by noodlemctwoodle on 23/07/2026.
 #
@@ -110,7 +110,7 @@
 
 .EXAMPLE
     $env:DCR_INGEST_CLIENT_SECRET = '<secret>'
-    ./Tools/Test-DcrIngestion.ps1 -DcrName dcr-myapp -DcrResourceGroupName rg-scratch `
+    ./Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1 -DcrName dcr-myapp -DcrResourceGroupName rg-scratch `
         -TenantId <tid> -ClientId <appid> -Follow
 
     Streams 10 records every 5 seconds into the DCR's single stream, as the
@@ -118,7 +118,7 @@
     you press Ctrl-C.
 
 .EXAMPLE
-    ./Tools/Test-DcrIngestion.ps1 -DcrName dcr-myapp -DcrResourceGroupName rg-scratch `
+    ./Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1 -DcrName dcr-myapp -DcrResourceGroupName rg-scratch `
         -TenantId <tid> -ClientId <appid> -ClientSecret (Read-Host -AsSecureString) `
         -BatchCount 3 -BatchSize 5
 
