@@ -29,7 +29,7 @@ logging), so nothing else from this repository needs to travel with them.
 
 | Script | Purpose | API it uses | Auth |
 |---|---|---|---|
-| `Invoke-TableMigrationReview.ps1` | The assessment tool: discover classic tables, score dependency impact, map each to a Content Hub solution and flag connectors with no CCF replacement. Read-only | ARM control plane + Tables/Sentinel APIs | Your Az identity |
+| `Invoke-TableMigrationReview.ps1` | The assessment tool: discover classic tables, score dependency impact including chains that reach a table only through a parser, map each to a Content Hub solution and flag connectors with no CCF replacement. Read-only | ARM control plane + Tables/Sentinel APIs | Your Az identity |
 | `Invoke-ClassicTableMigration.ps1` | The migration tool: discover classic tables, migrate them, deploy a DCR, optionally grant the ingestion role | ARM control plane + Tables API | Your Az identity |
 | `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid: create a throwaway classic `_CL` table with synthetic data, or stream it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
 | `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid: stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (new) | Service principal bearer |
