@@ -2058,11 +2058,20 @@ if ($tableToWaitFor.Count -gt 0) {
     Write-PipelineMessage 'Waiting for the tables to become queryable' -Level Section
     Write-PipelineMessage 'A table resource usually appears within a few minutes. Becoming resolvable by the query engine is separate and slower, and it is what the analytics rule validator needs.'
 
-    $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $tableIndex = 0
 
     foreach ($table in $tableToWaitFor) {
+        $tableIndex++
+
+        # Each table gets its own budget. A single shared deadline computed
+        # before the loop meant a slow first table could consume the whole
+        # allowance and leave every later table without even one attempt.
+        $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
+        $started  = [datetime]::UtcNow
+
         $tableUri = "$($paths.WorkspaceBase)/tables/$($table.TableName)?api-version=$script:TablesApiVersion"
         $subType  = $null
+        $poll     = 0
 
         while ([datetime]::UtcNow -lt $deadline) {
             try {
@@ -2072,6 +2081,16 @@ if ($tableToWaitFor.Count -gt 0) {
             }
             catch {
                 Write-Verbose "Table $($table.TableName) not present yet: $($_.Exception.Message.Split([char]10)[0])"
+            }
+
+            $poll++
+            # A silent wait of up to $TimeoutSeconds reads as a hang, and a tool
+            # that looks hung gets killed halfway, leaving a partial fixture to
+            # clean up. Report every fourth poll, so about once a minute.
+            if ($poll % 4 -eq 0) {
+                $waited = [int]([datetime]::UtcNow - $started).TotalSeconds
+                Write-PipelineMessage ("  still waiting for {0} ({1} of {2}), {3}s elapsed of {4}s allowed" -f `
+                    $table.TableName, $tableIndex, $tableToWaitFor.Count, $waited, $TimeoutSeconds)
             }
 
             Start-Sleep -Seconds 15
