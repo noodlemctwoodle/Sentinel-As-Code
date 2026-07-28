@@ -32,6 +32,8 @@ Tools/Export-Playbooks.ps1
 # Sentinel documenter output — contains tenant configuration; never commit.
 # Delivered via the workflow's private GitHub Actions artefact instead.
 SecurityDocs/
+.sentinel-connectors.json
+Demo
 
 # Invoke-TableMigrationReview.ps1 writes its report bundle (html/json/csv)
 # to a migration-report/ folder in the working directory by default.
@@ -42,7 +44,7 @@ migration-report/
 # artefacts; the ones you want tracked go to Infra/dcr via -OutputDirectory.
 Tools/ClassicToDcr/dcr-*.json
 
-# Local secrets for live DCR ingestion testing (Test-DcrIngestion.ps1).
+# Local secrets for live DCR ingestion testing (Rehearsal/Test-DcrIngestion.ps1).
 # Never commit the real .env (service-principal client secrets); the
 # .env.example template is committed so adopters know what to fill in.
 .env
