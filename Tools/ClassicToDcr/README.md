@@ -138,13 +138,18 @@ is what you pass to `New-DcrFromClassicTable.ps1 -GrantIngestionRoleTo`.
 
 ## Do you need a Data Collection Endpoint?
 
-Usually **no**. The DCRs this toolkit deploys are `kind: Direct` authored at
-api-version `2023-03-11`, so they carry their own built-in `logsIngestion`
-endpoint. The live proof is that a successful deploy prints a real endpoint
-URL.
+Usually **no**. Two things give a DCR its own ingestion endpoint: it must
+be `kind: Direct`, and it must be created on or after 2024-03-31, when the
+service began populating the `endpoints` property. This toolkit deploys
+fresh Direct DCRs, so they qualify. It authors them at api-version
+`2023-03-11` (or later) because that is the minimum schema version that can
+carry the `endpoints` property, not because that date grants the endpoint.
+The live proof is that a successful deploy prints a real endpoint URL.
 
 You only need a DCE when:
 
+- the DCR was created before 2024-03-31 (older DCRs have no built-in
+  endpoint, and one cannot be added, so the DCR must be replaced), or
 - the workspace is behind **Private Link (AMPLS)**, or a sender shares DNS
   with AMPLS resources, or
 - (AMA text-log path only) you collect Windows Firewall Logs or Prometheus

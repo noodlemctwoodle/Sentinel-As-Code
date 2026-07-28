@@ -1235,10 +1235,14 @@ Usually no, which is why `-DataCollectionEndpointResourceId` is optional.
 | AMA, private link or a network sharing DNS with AMPLS | Yes |
 | AMA, Windows Firewall Logs or Prometheus Metrics | Yes. These two data sources still require one |
 
-The script authors DCRs at api-version `2023-03-11`, the version that
-added the `endpoints` property. Authoring at anything older produces a
-DCR with no built-in ingestion endpoint, and endpoints **cannot be added
-to an existing DCR**, so you would have to replace it.
+Two separate things give a DCR its own ingestion endpoint: it must be
+`kind: Direct`, and it must be created on or after 2024-03-31, the date
+the service began populating the `endpoints` property. This tool creates
+fresh Direct DCRs, so they qualify. It authors them at api-version
+`2023-03-11` (or later) because that is the minimum schema version that
+can carry the `endpoints` property; an older api-version cannot express
+or return it. Endpoints **cannot be added to an existing DCR**, so a DCR
+created before 2024-03-31 has to be replaced to gain one.
 
 Note the portal's custom-log wizard forces you to pick a DCE. That is a
 limitation of the wizard, not the platform; the ARM path used here does
