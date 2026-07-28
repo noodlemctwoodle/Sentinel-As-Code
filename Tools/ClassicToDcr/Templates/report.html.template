@@ -929,7 +929,7 @@
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
           <span class="version-badge">
             <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            v0.1.0 · PowerShell
+            v0.2.0 · PowerShell
           </span>
         </div>
       </div>

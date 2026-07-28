@@ -1429,6 +1429,20 @@ Describe 'report.html.template: migration-command contract' {
         # to readers too, so hold it to the same rule.
         $script:tplText | Should -Not -Match ([char]0x2014)
     }
+
+    It 'shows a version badge matching the script version' {
+        # The badge is the only version an operator reading report.html ever
+        # sees. If it drifts from the script's own .NOTES version, a report can
+        # no longer be tied back to the tool that produced it.
+        $scriptText = Get-Content -Path (Join-Path (Split-Path -Parent $PSScriptRoot) `
+                        'Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1') -Raw
+        $scriptVersion = [regex]::Match($scriptText, 'Version:\s*([0-9]+\.[0-9]+\.[0-9]+)').Groups[1].Value
+        $badgeVersion  = [regex]::Match($script:tplText, 'v([0-9]+\.[0-9]+\.[0-9]+)').Groups[1].Value
+
+        $scriptVersion | Should -Not -BeNullOrEmpty
+        $badgeVersion  | Should -Not -BeNullOrEmpty
+        $badgeVersion  | Should -BeExactly $scriptVersion
+    }
 }
 
 Describe 'report.html.template: chained-dependency contract' {

@@ -63,7 +63,7 @@
     Scripted mode - outputs all reports to ./reports/2026-04.
 
 .NOTES
-    Version: 0.1.0
+    Version: 0.2.0
 
     Author:       noodlemctwoodle
                   https://github.com/noodlemctwoodle
