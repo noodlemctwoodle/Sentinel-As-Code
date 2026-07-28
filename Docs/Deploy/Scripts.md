@@ -16,10 +16,11 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Content/Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
 | `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
 | `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
-| `Invoke-TableMigrationReview.ps1` | Read-only assessment: inventories classic `_CL` tables, scores dependency impact across rules/workbooks/playbooks/parsers, maps each to a Content Hub solution and flags connectors with no CCF replacement | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
+| `Invoke-TableMigrationReview.ps1` | Read-only assessment: inventories classic `_CL` tables and scores dependency impact across rules/workbooks/playbooks/parsers, including dependencies that reach a table only through a parser function and so never name it. Maps each table to a Content Hub solution, flags connectors with no CCF replacement, and emits an HTML report carrying a ready-to-run migration command per table | See [Table Migration Review](../Tools/ClassicToDcr/Table-Migration-Review.md) |
 | `Invoke-ClassicTableMigration.ps1` | Discovers classic (MMA / Data Collector API) `_CL` tables, migrates them to DCR-based tables, and exports a Data Collection Rule for each | [#invoke-classictablemigrationps1](#invoke-classictablemigrationps1) |
-| `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): creates a throwaway classic `_CL` table with synthetic data via the Data Collector API (and can stream it) | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
-| `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): streams synthetic data into a migrated DCR via the Logs Ingestion API to confirm it ingests | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
+| `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): creates a throwaway classic `_CL` table with synthetic data via the Data Collector API (and can stream it) | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#creating-a-throwaway-classic-table) |
+| `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): streams synthetic data into a migrated DCR via the Logs Ingestion API to confirm it ingests | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#proving-the-new-ingestion-path) |
+| `Rehearsal/New-DependencyFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): builds known direct and indirect dependency chains (table, parser, analytics rule) so the assessment tool's detection can be proved against real resources. Analytics rules are created disabled | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#proving-the-dependency-scan) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Tests/Pester-Tests.md) |
 | `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](../Pipelines/README.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
@@ -1120,6 +1121,11 @@ The script runs standalone: nothing from this repository needs to sit
 alongside it, so it can be handed to a customer or dropped onto a jump
 box. It does not import the shared `Sentinel.Common` module; it defines
 its own logging so it works unchanged where that module is absent.
+
+This section is the parameter and behaviour reference for the migrate
+tool specifically. For the toolkit it belongs to, including the read-only
+assessment you should run first, see
+[Classic to DCR Migration Toolkit](../Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md).
 
 ### What it does
 

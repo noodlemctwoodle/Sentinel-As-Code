@@ -102,6 +102,17 @@ CI, maintenance, and reporting that runs *around* deployment.
 | [DCR Watchlist Sync](Tools/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
 | [SDL Migration Workbook Export](Tools/SDL-Migration-Workbook-Export.md) | Read-only `Export-SdlMigrationWorkbook.ps1` that mirrors every Sentinel Data Lake Migration workbook dataset into one multi-sheet `.xlsx` |
 
+### Classic to DCR - `Tools/ClassicToDcr/`
+
+The standalone toolkit that assesses, migrates and rehearses the move from classic
+(MMA / HTTP Data Collector API) `_CL` tables to Data Collection Rule based tables.
+
+| Doc | What it covers |
+| --- | --- |
+| [Classic to DCR Migration Toolkit](Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md) | Overview and entry point: the three stages, the retirement timeline, prerequisites and RBAC, what migration does not do, and how these pages relate to the kit's own READMEs |
+| [Table Migration Review](Tools/ClassicToDcr/Table-Migration-Review.md) | Full reference for the read-only assess tool: impact scoring, indirect parser-chain resolution and every guard, the CSV/JSON/HTML outputs, the migration command the report generates, and the known limits |
+| [Rehearsal Aids](Tools/ClassicToDcr/Rehearsal-Aids.md) | The three rehearsal scripts: dependency-chain scenarios, the safety design that lets one of them face a live workspace, and the Azure behaviours that catch people out |
+
 ### Documenter - `Tools/Documenter/`
 
 The read-only documentation generator.

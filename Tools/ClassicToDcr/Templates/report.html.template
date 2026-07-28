@@ -1385,9 +1385,28 @@ function renderTable(t) {
       '</div>');
   });
 
+  if (indirectTotal > 0) {
+    var truncNote = impact.ChainTruncated
+      ? ' Some chains are deeper than the resolver walks, so this may still understate the blast radius.'
+      : '';
+    sections.unshift('<div class="detail-section">' +
+      '<div class="callout info">' +
+        '<div class="callout-body">' +
+          '<div class="callout-title">' + indirectTotal + ' dependenc' + (indirectTotal === 1 ? 'y reaches' : 'ies reach') + ' this table through a parser</div>' +
+          '<div class="callout-text">' +
+            'These never mention <code>' + escapeHtml(t.Name) + '</code> in their own query. ' +
+            'They call a parser function that reads it, so searching the workspace for the table name will not find them. ' +
+            'Migrating the table breaks them exactly as if they named it directly.' + truncNote +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>');
+  }
+
   // An unresolved bridge is a KNOWN gap in the list above, so it goes first:
   // reading a dependency list without knowing where it stops is worse than
-  // reading no list at all.
+  // reading no list at all. This block is unshifted AFTER the indirect
+  // callout on purpose, because the last unshift takes the front slot.
   var bridges = ensureArray(impact.UnresolvedBridges);
   if (bridges.length > 0) {
     sections.unshift('<div class="detail-section">' +
@@ -1423,23 +1442,6 @@ function renderTable(t) {
     '</div>');
   }
 
-  if (indirectTotal > 0) {
-    var truncNote = impact.ChainTruncated
-      ? ' Some chains are deeper than the resolver walks, so this may still understate the blast radius.'
-      : '';
-    sections.unshift('<div class="detail-section">' +
-      '<div class="callout info">' +
-        '<div class="callout-body">' +
-          '<div class="callout-title">' + indirectTotal + ' dependenc' + (indirectTotal === 1 ? 'y reaches' : 'ies reach') + ' this table through a parser</div>' +
-          '<div class="callout-text">' +
-            'These never mention <code>' + escapeHtml(t.Name) + '</code> in their own query. ' +
-            'They call a parser function that reads it, so searching the workspace for the table name will not find them. ' +
-            'Migrating the table breaks them exactly as if they named it directly.' + truncNote +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>');
-  }
 
   // Solutions
   if (match.Solutions && match.Solutions.length > 0) {
