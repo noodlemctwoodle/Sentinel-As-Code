@@ -1303,7 +1303,7 @@ gated, which keeps the script usable non-interactively.
 - **Ingestion needs a role.** Grant the sending identity Monitoring
   Metrics Publisher on the DCR before posting to the endpoint.
 
-Unit tests: `Tests/Test-NewDcrFromClassicTable.Tests.ps1`.
+Unit tests: `Tests/Test-InvokeClassicTableMigration.Tests.ps1`.
 
 ---
 

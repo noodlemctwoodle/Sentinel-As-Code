@@ -402,6 +402,6 @@ Unit tests live in the repo's `Tests/` folder (run by
 runtime-only:
 
 - `Tests/Test-InvokeTableMigrationReview.Tests.ps1`
-- `Tests/Test-NewDcrFromClassicTable.Tests.ps1`
+- `Tests/Test-InvokeClassicTableMigration.Tests.ps1`
 - `Tests/Test-NewClassicTableFixture.Tests.ps1`
 - `Tests/Test-DcrIngestion.Tests.ps1`
