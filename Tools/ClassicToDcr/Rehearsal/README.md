@@ -4,6 +4,12 @@ Three scripts that manufacture test data so you can practise a classic-to-DCR
 migration, and prove the assessment tool detects what it claims to, before you
 touch anything you care about.
 
+> **Fuller reference:** [`Docs/Tools/ClassicToDcr/Rehearsal-Aids.md`](../../../Docs/Tools/ClassicToDcr/Rehearsal-Aids.md)
+> is the authoritative documentation for these three scripts, with the full parameter tables, the
+> api-versions and the troubleshooting matrix. This README stays because the kit is designed to be
+> copied standalone to a jump box or an automation account, where the `Docs/` tree will not travel
+> with it.
+
 **Scratch workspace only.** Every script here creates real, billable Azure
 resources. They exist to be pointed at a throwaway or dedicated test workspace,
 never at production. The production tools live one level up in

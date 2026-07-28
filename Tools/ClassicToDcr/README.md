@@ -5,6 +5,12 @@ what depends on them, migrate them to Data Collection Rule based tables, deploy
 the matching DCR, and rehearse the whole thing end to end with live data before
 you do it for real.
 
+> **Fuller reference:** [`Docs/Tools/ClassicToDcr/`](../../Docs/Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md)
+> is the authoritative documentation for this kit: api-versions, design rationale, every guard and
+> why it exists, failure modes and troubleshooting. This README stays because the kit is designed
+> to be copied standalone to a jump box or an automation account, where the `Docs/` tree will not
+> travel with it, so it is the quick reference guaranteed to be on the box beside the script.
+
 The workflow runs in three stages, and there is a script for each:
 
 1. **Assess** - `Invoke-TableMigrationReview.ps1` inventories your classic
@@ -45,7 +51,9 @@ built to be survivable against a live security workspace, because that is where
 the dependency chains are worth proving. It still creates real objects, so read
 [Proving the dependency scan](Rehearsal/README.md#proving-the-dependency-scan) before you run it.
 Fuller reference is in
-[`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md).
+[`Docs/Tools/ClassicToDcr/`](../../Docs/Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md), with the
+migrate tool's parameter table in
+[`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md#invoke-classictablemigrationps1).
 
 `Invoke-TableMigrationReview.ps1` originated as the standalone
 [Sentinel-CLv1-Analyzer](https://github.com/noodlemctwoodle/Sentinel-CLv1-Analyzer)
