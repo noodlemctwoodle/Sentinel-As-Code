@@ -82,6 +82,11 @@ Before touching a table, find out what you have and what leans on it.
 custom log tables in a workspace and, for each one, scores the blast radius so
 a migration is a decision rather than a surprise.
 
+<p align="center">
+  <img src="../../.images/sentinel-table-migration-review.png"
+       alt="The report's summary tiles and the classic table list, each row badged with its dependency count" />
+</p>
+
 ```powershell
 # Interactive - prompts for subscription, resource group, workspace
 ./Invoke-TableMigrationReview.ps1

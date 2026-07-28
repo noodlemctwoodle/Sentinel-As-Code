@@ -362,6 +362,16 @@ a special case.
 
 ### HTML report sections
 
+<p align="center">
+  <img src="../../../.images/sentinel-table-migration-review.png"
+       alt="The report's summary tiles and the classic table list, each row badged with its dependency count" />
+</p>
+
+The tiles across the top summarise the workspace; the list below is one expandable card per
+classic table, badged with its dependency count and how many of those reach it only through a
+parser. The filter row narrows the list to the tables worth attention first.
+
+
 | Section | Contents |
 | --- | --- |
 | Header and meta bar | Workspace context and generation timestamp. The tool version badge sits in the About modal, not here |
