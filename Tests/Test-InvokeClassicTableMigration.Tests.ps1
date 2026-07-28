@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Unit tests for the helper functions in
-    Tools/ClassicToDcr/New-DcrFromClassicTable.ps1.
+    Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1.
 
 .DESCRIPTION
     Covers the two pure functions the script's correctness rests on:
@@ -23,7 +23,7 @@
 
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Tools/ClassicToDcr/New-DcrFromClassicTable.ps1'
+    $scriptPath = Join-Path $repoRoot 'Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
 
@@ -58,9 +58,9 @@ BeforeAll {
     Import-ScriptFunctions -Path $scriptPath
 }
 
-Describe 'New-DcrFromClassicTable: script-level contract' {
+Describe 'Invoke-ClassicTableMigration: script-level contract' {
     BeforeAll {
-        $script:sourcePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/New-DcrFromClassicTable.ps1'
+        $script:sourcePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1'
         $script:sourceText = Get-Content -Path $script:sourcePath -Raw
     }
 
@@ -156,7 +156,7 @@ Describe 'New-DcrFromClassicTable: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/New-DcrFromClassicTable\.ps1'
+        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Invoke-ClassicTableMigration\.ps1'
     }
 
     It 'is standalone: does not import the Sentinel.Common module' {
@@ -567,7 +567,7 @@ Describe 'Get-DefaultTransform' {
     It 'surfaces the deployment error detail instead of the generic summary' {
         # Regression guard for the opaque failure: the deploy path must pull
         # the operation StatusMessage, not just the first line of the throw.
-        $src = Get-Content -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/New-DcrFromClassicTable.ps1') -Raw
+        $src = Get-Content -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1') -Raw
         $src | Should -Match 'Get-AzResourceGroupDeploymentOperation'
         $src | Should -Match 'throw "Deployment failed:'
     }

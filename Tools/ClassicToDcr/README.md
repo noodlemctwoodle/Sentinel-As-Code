@@ -10,7 +10,7 @@ The workflow runs in three stages, and there is a script for each:
 1. **Assess** - `Invoke-TableMigrationReview.ps1` inventories your classic
    tables and scores their blast radius (which rules, workbooks, playbooks and
    parsers break) before you change anything.
-2. **Migrate** - `New-DcrFromClassicTable.ps1` migrates the table, deploys the
+2. **Migrate** - `Invoke-ClassicTableMigration.ps1` migrates the table, deploys the
    DCR and optionally grants the ingestion role.
 3. **Rehearse** - the two aids under `Rehearsal/` -
    `Rehearsal/New-ClassicTableFixture.ps1` and `Rehearsal/Test-DcrIngestion.ps1` -
@@ -28,12 +28,12 @@ logging), so nothing else from this repository needs to travel with them.
 | Script | Purpose | API it uses | Auth |
 |---|---|---|---|
 | `Invoke-TableMigrationReview.ps1` | The assessment tool: discover classic tables, score dependency impact, map each to a Content Hub solution and flag connectors with no CCF replacement. Read-only | ARM control plane + Tables/Sentinel APIs | Your Az identity |
-| `New-DcrFromClassicTable.ps1` | The migration tool: discover classic tables, migrate them, deploy a DCR, optionally grant the ingestion role | ARM control plane + Tables API | Your Az identity |
+| `Invoke-ClassicTableMigration.ps1` | The migration tool: discover classic tables, migrate them, deploy a DCR, optionally grant the ingestion role | ARM control plane + Tables API | Your Az identity |
 | `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid: create a throwaway classic `_CL` table with synthetic data, or stream it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
 | `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid: stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (new) | Service principal bearer |
 
 `Invoke-TableMigrationReview.ps1` is read-only and safe to run against
-production. `New-DcrFromClassicTable.ps1` also runs against real tables but
+production. `Invoke-ClassicTableMigration.ps1` also runs against real tables but
 makes irreversible changes. The other two generate synthetic data to rehearse
 against a throwaway table; use them in a scratch workspace, never production.
 Fuller reference is in
@@ -163,7 +163,7 @@ mandatory regardless.
 ### The sequence for a real table
 
 1. Identify the source (Case A or Case B).
-2. Migrate and deploy the DCR (`New-DcrFromClassicTable.ps1 -Deploy`).
+2. Migrate and deploy the DCR (`Invoke-ClassicTableMigration.ps1 -Deploy`).
 3. Grant the sender's identity Monitoring Metrics Publisher on the DCR
    (`-GrantIngestionRoleTo <identity>`).
 4. Repoint the sender: update the app to the Logs Ingestion API (Case A),
@@ -207,7 +207,7 @@ whether you run it from `Rehearsal/` or from this folder as
 `./Rehearsal/Test-DcrIngestion.ps1` (resolution order: current directory, then
 next to the script). The secret
 is held in memory only and never printed. The same `DCR_INGEST_CLIENT_ID`
-is what you pass to `New-DcrFromClassicTable.ps1 -GrantIngestionRoleTo`.
+is what you pass to `Invoke-ClassicTableMigration.ps1 -GrantIngestionRoleTo`.
 
 ## Do you need a Data Collection Endpoint?
 
@@ -240,17 +240,17 @@ throwaway you seeded to rehearse). Use a **fresh table name each run**
 ```bash
 # 1. Baseline, read-only. SubType = Classic, ROWS = the row count
 #    (a brand-new table takes ~10-15 min to become queryable)
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -ListOnly
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -ListOnly
 ```
 
 ```bash
 # 2. Migrate + deploy + grant (irreversible). Grant value = the sender's app/client ID
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -Deploy -Force -GrantIngestionRoleTo <sender-client-id>
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -Deploy -Force -GrantIngestionRoleTo <sender-client-id>
 ```
 
 ```bash
 # 3. Verify no data loss: SubType now DataCollectionRuleBased, ROWS not lower
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -ListOnly
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTable_CL -ListOnly
 ```
 
 Discover everything first with `-AllClassicTables -ListOnly`. Step 2 prints
@@ -271,17 +271,17 @@ table name each run**.
 
 ```bash
 # 2. Baseline (wait ~10-15 min for a new table to become queryable)
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -ListOnly
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -ListOnly
 ```
 
 ```bash
 # 3. Migrate + deploy + grant. Grant value = DCR_INGEST_CLIENT_ID from .env
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -Deploy -Force -GrantIngestionRoleTo <DCR_INGEST_CLIENT_ID>
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -Deploy -Force -GrantIngestionRoleTo <DCR_INGEST_CLIENT_ID>
 ```
 
 ```bash
 # 4. Verify no data loss: SubType DataCollectionRuleBased, ROWS still >= 100
-./New-DcrFromClassicTable.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -ListOnly
+./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-scratch -WorkspaceName law-scratch -TableName MyTest01_CL -ListOnly
 ```
 
 ```bash

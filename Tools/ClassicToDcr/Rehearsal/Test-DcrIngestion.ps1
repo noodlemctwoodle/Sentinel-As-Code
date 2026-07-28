@@ -22,7 +22,7 @@
 
       - New-ClassicTableFixture.ps1 -> HTTP Data Collector API (SharedKey),
         creates the classic table.
-      - New-DcrFromClassicTable.ps1 -> migrates the table, deploys the DCR.
+      - Invoke-ClassicTableMigration.ps1 -> migrates the table, deploys the DCR.
       - THIS script -> Logs Ingestion API (AAD bearer), streams data into
         the migrated table through the DCR.
 

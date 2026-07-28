@@ -10,7 +10,7 @@
 <#
 .SYNOPSIS
     Creates a classic (MMA / Data Collector API) custom log table with
-    synthetic data, for testing New-DcrFromClassicTable.ps1 end to end.
+    synthetic data, for testing Invoke-ClassicTableMigration.ps1 end to end.
 
 .DESCRIPTION
     A DCR-based migration is one-way, so it must never be rehearsed on a
@@ -18,7 +18,7 @@
     table is the HTTP Data Collector API: posting to it auto-creates a table
     whose tableSubType is 'Classic', with the '_s' / '_d' / '_b' / '_g'
     column-name suffixes that the API infers from each field's type. That is
-    exactly the shape New-DcrFromClassicTable.ps1 has to cope with.
+    exactly the shape Invoke-ClassicTableMigration.ps1 has to cope with.
 
     This script:
 
@@ -393,7 +393,7 @@ function Invoke-ArmRequest {
     .SYNOPSIS
         Invoke-AzRestMethod wrapper that routes relative paths to -Path and
         absolute URLs to -Uri, so sovereign clouds work without a hardcoded
-        host. Matches New-DcrFromClassicTable.ps1.
+        host. Matches Invoke-ClassicTableMigration.ps1.
     #>
     [CmdletBinding()]
     param (
@@ -618,11 +618,11 @@ if ($subType) {
         Write-PipelineMessage "Expected 'Classic' but got '$subType'. The Data Collector API should have produced a classic table." -Level Warning
     }
     else {
-        Write-PipelineMessage 'Ready. Point New-DcrFromClassicTable.ps1 at this table to test the migration.' -Level Success
+        Write-PipelineMessage 'Ready. Point Invoke-ClassicTableMigration.ps1 at this table to test the migration.' -Level Success
     }
 }
 else {
-    Write-PipelineMessage "Table did not appear within $TimeoutSeconds seconds. First-time creation can be slow; re-check with New-DcrFromClassicTable.ps1 -ListOnly shortly." -Level Warning
+    Write-PipelineMessage "Table did not appear within $TimeoutSeconds seconds. First-time creation can be slow; re-check with Invoke-ClassicTableMigration.ps1 -ListOnly shortly." -Level Warning
 }
 
 [pscustomobject] @{

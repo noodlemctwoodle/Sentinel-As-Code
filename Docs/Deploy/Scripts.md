@@ -17,7 +17,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
 | `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
 | `Invoke-TableMigrationReview.ps1` | Read-only assessment: inventories classic `_CL` tables, scores dependency impact across rules/workbooks/playbooks/parsers, maps each to a Content Hub solution and flags connectors with no CCF replacement | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
-| `New-DcrFromClassicTable.ps1` | Discovers classic (MMA / Data Collector API) `_CL` tables, migrates them to DCR-based tables, and exports a Data Collection Rule for each | [#new-dcrfromclassictableps1](#new-dcrfromclassictableps1) |
+| `Invoke-ClassicTableMigration.ps1` | Discovers classic (MMA / Data Collector API) `_CL` tables, migrates them to DCR-based tables, and exports a Data Collection Rule for each | [#invoke-classictablemigrationps1](#invoke-classictablemigrationps1) |
 | `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): creates a throwaway classic `_CL` table with synthetic data via the Data Collector API (and can stream it) | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
 | `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): streams synthetic data into a migrated DCR via the Logs Ingestion API to confirm it ingests | See [Tools/ClassicToDcr/README.md](../../Tools/ClassicToDcr/README.md) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Tests/Pester-Tests.md) |
@@ -1096,7 +1096,7 @@ previews every move without touching the tree.
 
 ---
 
-## New-DcrFromClassicTable.ps1
+## Invoke-ClassicTableMigration.ps1
 
 Discovers classic custom log tables, migrates them to DCR-based tables,
 and exports a Data Collection Rule for each.
@@ -1142,7 +1142,7 @@ its own logging so it works unchanged where that module is absent.
 ### Start with a discovery run
 
 ```bash
-./Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
 ```
 
 ```text
@@ -1267,15 +1267,15 @@ gated, which keeps the script usable non-interactively.
 ### Usage
 
 ```bash
-./Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
 ```
 
 ```bash
-./Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -TableName MyApp_CL -SkipTableMigration
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -TableName MyApp_CL -SkipTableMigration
 ```
 
 ```bash
-./Tools/ClassicToDcr/New-DcrFromClassicTable.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -Deploy -Force
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -Deploy -Force
 ```
 
 ### Caveats
