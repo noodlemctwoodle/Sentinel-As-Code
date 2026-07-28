@@ -310,6 +310,20 @@
   .badge.platform { background: var(--cyan-dim); color: var(--cyan); }
   .badge.ccf { background: var(--ok-dim); color: var(--ok); }
   .badge.purple { background: var(--purple-dim); color: var(--purple); }
+  /* Chained (via-parser) dependency. Cyan ties it to the Parsers rows in the
+     same card, which dotColor() already paints cyan. inline-block rather than
+     the inherited inline-flex so text-overflow applies to a long chain. */
+  .badge.via {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 500;
+    display: inline-block;
+    max-width: 42ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   /* ── Detail body ── */
   .detail-body { border-top: 1px solid var(--border); }
@@ -353,6 +367,28 @@
     height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+  /* Indirect rows: hollow dot and a cyan left edge. padding-left compensates
+     the pixel the thicker border takes, so both kinds stay optically aligned. */
+  .item .dot.indirect { background: transparent; }
+  .item.indirect {
+    border-left-width: 2px;
+    border-left-color: rgba(6, 182, 212, 0.45);
+    padding-left: 13px;
+  }
+  .detail-section h3 .count-split {
+    background: none;
+    padding: 0;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .callout .callout-text code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--text);
   }
   .item .item-name { flex: 1; font-weight: 500; }
   .item .item-meta {
@@ -452,6 +488,19 @@
   .callout.success .callout-icon { background: var(--ok-dim); color: var(--ok); }
   .callout.success .callout-title { color: var(--ok); }
   .callout.success .callout-text { color: var(--text-secondary); }
+
+  /* Severed-chain lists. A skipped alias is a KNOWN gap in the dependency
+     list, so it needs to read as an inventory of work, not a footnote. */
+  .callout .bridge-list { margin: 8px 0 0 0; padding-left: 18px; }
+  .callout .bridge-list > li { margin-bottom: 8px; line-height: 1.6; }
+  .callout .bridge-list ul { margin: 4px 0 0 0; padding-left: 16px; }
+  .callout .bridge-list ul li { margin-bottom: 2px; }
+  .callout .bridge-type {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-tertiary, var(--text-secondary)); margin-right: 6px;
+  }
+  .callout .bridge-none { margin-top: 4px; font-style: italic; opacity: 0.8; }
 
   .callout.info {
     background: rgba(59, 130, 246, 0.06);
@@ -782,11 +831,15 @@
   <div class="filter-bar">
     <button class="filter-btn active" data-filter="all">All</button>
     <button class="filter-btn" data-filter="impacted">With Impact</button>
+    <button class="filter-btn" data-filter="indirect">Via Parser</button>
     <button class="filter-btn" data-filter="unmatched">No Solution Match</button>
     <button class="filter-btn" data-filter="noconnector">No Data Connector</button>
     <button class="filter-btn" data-filter="azurefunctions">Azure Functions</button>
   </div>
   <div id="tables"></div>
+
+  <!-- Resolver coverage: where the chained-dependency analysis stops. -->
+  <div id="resolver-coverage"></div>
 
   <!-- Key Concepts -->
   <div class="section-header" style="margin-top: 56px;">
@@ -847,7 +900,7 @@
 
   <!-- CSAM/SSP callout banner -->
   <div class="callout action-required" style="margin-top: 24px;">
-    <div class="callout-icon">&#9888;</div>
+    
     <div class="callout-body">
       <div class="callout-title">No Data Connector Available?</div>
       <div class="callout-text">
@@ -922,15 +975,27 @@ function ensureArray(v) { return Array.isArray(v) ? v : v == null ? [] : [v]; }
 DATA.Impacts = ensureArray(DATA.Impacts);
 DATA.Tables = ensureArray(DATA.Tables);
 DATA.SolutionMatches = ensureArray(DATA.SolutionMatches);
+var IMPACT_TYPE_KEYS = ['AnalyticsRules', 'HuntingQueries', 'Parsers', 'SavedSearches', 'Workbooks', 'Playbooks', 'Dcrs'];
 DATA.Impacts.forEach(i => {
-  i.AnalyticsRules = ensureArray(i.AnalyticsRules);
-  i.HuntingQueries = ensureArray(i.HuntingQueries);
-  i.Parsers = ensureArray(i.Parsers);
-  i.SavedSearches = ensureArray(i.SavedSearches);
-  i.Workbooks = ensureArray(i.Workbooks);
-  i.Playbooks = ensureArray(i.Playbooks);
-  i.Dcrs = ensureArray(i.Dcrs);
+  IMPACT_TYPE_KEYS.forEach(function(k) {
+    i[k] = ensureArray(i[k]);
+    // Indirect dependents reach the table only through a parser function.
+    i['Indirect' + k] = ensureArray(i['Indirect' + k]);
+  });
+  // Parsers this table reaches whose own alias could not be resolved. The
+  // content calling them is NOT in the lists above, so the report has to say
+  // so - a silent gap here is the failure the chained resolver exists to stop.
+  i.UnresolvedBridges = ensureArray(i.UnresolvedBridges);
+  i.UnresolvedBridges.forEach(function(b) { b.Dependents = ensureArray(b.Dependents); });
 });
+// Resolver coverage: which parser aliases were not resolved and why, plus any
+// fan-out warnings. These reached the console only until now, which left a
+// reader of report.html with no idea where the dependency list stops.
+DATA.AliasResolution = DATA.AliasResolution || {};
+var RESOLVED_ALIASES = ensureArray(DATA.AliasResolution.resolvedAliases);
+var SKIPPED_ALIASES = ensureArray(DATA.AliasResolution.skippedAliases);
+SKIPPED_ALIASES.forEach(function(s) { s.Dependents = ensureArray(s.Dependents); });
+var ALIAS_WARNINGS = ensureArray(DATA.AliasResolution.warnings);
 DATA.SolutionMatches.forEach(m => {
   m.Solutions = ensureArray(m.Solutions);
   m.ConnectorClassification = ensureArray(m.ConnectorClassification);
@@ -948,7 +1013,9 @@ document.getElementById('meta').innerHTML = metaItems
   .join('');
 
 // ── Stats ──
-const impactedCount = DATA.Impacts.filter(i => i.TotalImpacted > 0).length;
+// A table with 0 direct and 5 indirect dependents is not clean. Count both, or
+// the header contradicts the cards and calls it "Ready to migrate immediately".
+const impactedCount = DATA.Impacts.filter(i => ((i.TotalImpacted || 0) + (i.TotalIndirect || 0)) > 0).length;
 const cleanCount = DATA.Tables.length - impactedCount;
 const matchedCount = DATA.SolutionMatches.filter(m => m.MatchCount > 0).length;
 const unmatchedCount = DATA.SolutionMatches.length - matchedCount;
@@ -975,8 +1042,8 @@ document.getElementById('stats').innerHTML =
   '<div class="stat">' +
     '<div class="icon-bg" style="background: var(--warn-dim);"></div>' +
     '<div class="label">Total Dependencies</div>' +
-    '<div class="value" style="color: var(--warn);">' + (DATA.TotalImpacted || 0) + '</div>' +
-    '<div class="desc">Rules, queries, workbooks, etc.</div>' +
+    '<div class="value" style="color: var(--warn);">' + ((DATA.TotalImpacted || 0) + (DATA.TotalIndirect || 0)) + '</div>' +
+    '<div class="desc">' + (DATA.TotalImpacted || 0) + ' direct, ' + (DATA.TotalIndirect || 0) + ' via parser</div>' +
   '</div>' +
   '<div class="stat">' +
     '<div class="icon-bg" style="background: var(--cyan-dim);"></div>' +
@@ -1036,14 +1103,33 @@ function dotColor(type) {
 }
 
 // ── Render items ──
-function renderImpactItem(item, type) {
+// An indirect item never names the table in its own query, so it carries a
+// "via" chip naming the parser it does call. Three signals mark it: the chip,
+// a hollow dot, and a cyan left edge on the row.
+function renderImpactItem(item, type, tableName) {
   var meta = item.ResourceId ? '<span class="item-meta">' + escapeHtml(shortId(item.ResourceId)) + '</span>' : '';
   var severity = item.Severity ? '<span class="severity ' + severityClass(item.Severity) + '">' + escapeHtml(item.Severity) + '</span>' : '';
   var enabled = item.Enabled === false ? '<span class="badge warn">Disabled</span>' : '';
-  return '<div class="item">' +
-    '<span class="dot" style="background: ' + dotColor(type) + ';"></span>' +
+
+  var isIndirect = item.DependencyKind === 'Indirect';
+  var via = '';
+  var dotStyle = 'background: ' + dotColor(type) + ';';
+
+  if (isIndirect) {
+    var hops = ensureArray(item.ViaChain);
+    if (hops.length === 0 && item.Via) { hops = [item.Via]; }
+    var chain = [item.Name].concat(hops);
+    if (tableName) { chain = chain.concat([tableName]); }
+    via = '<span class="badge via" title="' + escapeHtml('Reaches the table through a parser function: ' + chain.join(' -> ')) + '">' +
+          'via ' + hops.map(function(h) { return escapeHtml(h); }).join(' &#8594; ') +
+          '</span>';
+    dotStyle = 'box-shadow: inset 0 0 0 2px ' + dotColor(type) + ';';
+  }
+
+  return '<div class="item' + (isIndirect ? ' indirect' : '') + '">' +
+    '<span class="dot' + (isIndirect ? ' indirect' : '') + '" style="' + dotStyle + '"></span>' +
     '<span class="item-name">' + escapeHtml(item.Name) + '</span>' +
-    severity + enabled + meta +
+    via + severity + enabled + meta +
   '</div>';
 }
 
@@ -1058,7 +1144,7 @@ function renderSolution(s, connectorKind) {
   var kindBadge = connectorKind && connectorKind !== 'Unknown'
     ? '<span class="badge ' + connectorKind.toLowerCase() + '">' + escapeHtml(connectorKind) + '</span>'
     : '';
-  var icon = s.IsInstalled ? '&#10003;' : '&#11045;';
+  var icon = s.IsInstalled ? '&#10003;' : '';
   var iconBg = s.IsInstalled ? 'background:var(--ok-dim);color:var(--ok);' : 'background:var(--warn-dim);color:var(--warn);';
 
   return '<div class="solution-item">' +
@@ -1082,7 +1168,7 @@ function renderConnectorCallout(match) {
 
   if (match.MatchCount === 0) {
     return '<div class="callout action-required">' +
-      '<div class="callout-icon">&#9888;</div>' +
+      '' +
       '<div class="callout-body">' +
         '<div class="callout-title">No Content Hub Solution Available</div>' +
         '<div class="callout-text">' +
@@ -1095,7 +1181,7 @@ function renderConnectorCallout(match) {
 
   if (hasUnknown && !hasCCF && !hasPlatform && !hasAMA) {
     return '<div class="callout attention">' +
-      '<div class="callout-icon">&#9889;</div>' +
+      '' +
       '<div class="callout-body">' +
         '<div class="callout-title">Data Connector Not Identified</div>' +
         '<div class="callout-text">' +
@@ -1108,7 +1194,7 @@ function renderConnectorCallout(match) {
 
   if (hasAzureFunc && !hasCCF) {
     return '<div class="callout attention">' +
-      '<div class="callout-icon">&#9889;</div>' +
+      '' +
       '<div class="callout-body">' +
         '<div class="callout-title">Legacy Azure Functions Connector</div>' +
         '<div class="callout-text">' +
@@ -1200,7 +1286,7 @@ function migrationCommands(t) {
 }
 
 function renderMigrationSection(t) {
-  var heading = '<h3>&#9654; Migration Command</h3>';
+  var heading = '<h3>Migration Command</h3>';
   var cmds = migrationCommands(t);
 
   if (!cmds) {
@@ -1236,7 +1322,7 @@ function renderMigrationSection(t) {
     '<div class="cmd-note cmd-intro">Run from <code>Tools/ClassicToDcr</code> in a signed-in PowerShell 7 session. Nothing on this page executes; the commands are here to copy.</div>' +
     steps +
     '<div class="callout attention" style="margin-top:16px;">' +
-      '<div class="callout-icon">&#9888;</div>' +
+      '' +
       '<div class="callout-body">' +
         '<div class="callout-title">Migration is one-way</div>' +
         '<div class="callout-text">' +
@@ -1250,30 +1336,102 @@ function renderMigrationSection(t) {
 
 // ── Render table card ──
 function renderTable(t) {
-  var impact = impactByName[t.Name] || { TotalImpacted: 0, AnalyticsRules: [], HuntingQueries: [], Parsers: [], SavedSearches: [], Workbooks: [], Playbooks: [], Dcrs: [] };
+  var impact = impactByName[t.Name];
+  if (!impact) {
+    impact = { TotalImpacted: 0, TotalIndirect: 0, TotalAffected: 0, ChainTruncated: false };
+    IMPACT_TYPE_KEYS.forEach(function(k) { impact[k] = []; impact['Indirect' + k] = []; });
+  }
   var match = matchByName[t.Name] || { MatchCount: 0, Solutions: [], ConnectorClassification: [] };
 
   var sections = [];
 
   var impactTypes = [
-    { key: 'AnalyticsRules', label: 'Analytics Rules', icon: '&#9889;' },
-    { key: 'HuntingQueries', label: 'Hunting Queries', icon: '&#127919;' },
-    { key: 'Parsers', label: 'Parsers', icon: '&#9881;' },
-    { key: 'SavedSearches', label: 'Saved Searches', icon: '&#128269;' },
-    { key: 'Workbooks', label: 'Workbooks', icon: '&#128202;' },
-    { key: 'Playbooks', label: 'Playbooks', icon: '&#128260;' },
-    { key: 'Dcrs', label: 'Data Collection Rules', icon: '&#128225;' }
+    { key: 'AnalyticsRules', label: 'Analytics Rules' },
+    { key: 'HuntingQueries', label: 'Hunting Queries' },
+    { key: 'Parsers', label: 'Parsers' },
+    { key: 'SavedSearches', label: 'Saved Searches' },
+    { key: 'Workbooks', label: 'Workbooks' },
+    { key: 'Playbooks', label: 'Playbooks' },
+    { key: 'Dcrs', label: 'Data Collection Rules' }
   ];
 
+  // Indirect items sit inside the content type they belong to, not in a section
+  // of their own. The number beside "Analytics Rules" has to be the number of
+  // analytics rules that break, or the heading lies by omission.
+  var indirectTotal = 0;
+
   impactTypes.forEach(function(it) {
-    var items = impact[it.key];
-    if (!items || items.length === 0) return;
+    var directItems = ensureArray(impact[it.key]);
+    var indirectItems = ensureArray(impact['Indirect' + it.key]);
+    if (directItems.length === 0 && indirectItems.length === 0) return;
+    indirectTotal += indirectItems.length;
+    var items = directItems.concat(indirectItems);
+    var split = indirectItems.length
+      ? ' <span class="count-split">' + directItems.length + ' direct &#183; ' + indirectItems.length + ' via parser</span>'
+      : '';
     sections.push(
       '<div class="detail-section">' +
-        '<h3>' + it.icon + ' ' + it.label + ' <span class="count">' + items.length + '</span></h3>' +
-        '<div class="item-list">' + items.map(function(item) { return renderImpactItem(item, it.key); }).join('') + '</div>' +
+        '<h3>' + it.label + ' <span class="count">' + items.length + '</span>' + split + '</h3>' +
+        '<div class="item-list">' + items.map(function(item) { return renderImpactItem(item, it.key, t.Name); }).join('') + '</div>' +
       '</div>');
   });
+
+  // An unresolved bridge is a KNOWN gap in the list above, so it goes first:
+  // reading a dependency list without knowing where it stops is worse than
+  // reading no list at all.
+  var bridges = ensureArray(impact.UnresolvedBridges);
+  if (bridges.length > 0) {
+    sections.unshift('<div class="detail-section">' +
+      '<div class="callout attention">' +
+        '' +
+        '<div class="callout-body">' +
+          '<div class="callout-title">' + bridges.length + ' parser chain' + (bridges.length === 1 ? '' : 's') + ' could not be followed</div>' +
+          '<div class="callout-text">' +
+            'These parsers read <code>' + escapeHtml(t.Name) + '</code>, but their function alias could not be resolved by name, ' +
+            'so anything calling them is <strong>not listed above</strong>. Check each one by hand before migrating.' +
+            '<ul class="bridge-list">' +
+            bridges.map(function(b) {
+              var deps = ensureArray(b.Dependents);
+              var route = ensureArray(b.ViaChain);
+              var routeText = route.length
+                ? ' reached via ' + route.map(function(h) { return escapeHtml(h); }).join(' &#8594; ') + ','
+                : '';
+              var depList = deps.length
+                ? '<ul>' + deps.map(function(d) {
+                    return '<li><span class="bridge-type">' + escapeHtml(d.Type) + '</span> ' + escapeHtml(d.Name) + '</li>';
+                  }).join('') + '</ul>'
+                : '<div class="bridge-none">Nothing else in the workspace names that alias.</div>';
+              var n = b.ReferenceCount || 0;
+              return '<li><code>' + escapeHtml(b.Alias) + '</code>' + routeText +
+                     ' ' + escapeHtml(b.Reason) + '. ' +
+                     '<strong>' + n + '</strong> item' + (n === 1 ? ' names' : 's name') +
+                     ' that alias and ' + (n === 1 ? 'was' : 'were') + ' not resolved:' + depList + '</li>';
+            }).join('') +
+            '</ul>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>');
+  }
+
+  if (indirectTotal > 0) {
+    var truncNote = impact.ChainTruncated
+      ? ' Some chains are deeper than the resolver walks, so this may still understate the blast radius.'
+      : '';
+    sections.unshift('<div class="detail-section">' +
+      '<div class="callout info">' +
+        '<div class="callout-icon">&#8599;</div>' +
+        '<div class="callout-body">' +
+          '<div class="callout-title">' + indirectTotal + ' dependenc' + (indirectTotal === 1 ? 'y reaches' : 'ies reach') + ' this table through a parser</div>' +
+          '<div class="callout-text">' +
+            'Rows tagged <span class="badge via">via</span> never mention <code>' + escapeHtml(t.Name) + '</code> in their own query. ' +
+            'They call a parser function that reads it, so searching the workspace for the table name will not find them. ' +
+            'Migrating the table breaks them exactly as if they named it directly.' + truncNote +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>');
+  }
 
   // Solutions
   if (match.Solutions && match.Solutions.length > 0) {
@@ -1281,7 +1439,7 @@ function renderTable(t) {
     (match.ConnectorClassification || []).forEach(function(c) { connMap[c.SolutionName] = c.ConnectorKind; });
     sections.push(
       '<div class="detail-section">' +
-        '<h3>&#128230; Content Hub Solutions <span class="count">' + match.Solutions.length + '</span></h3>' +
+        '<h3>Content Hub Solutions <span class="count">' + match.Solutions.length + '</span></h3>' +
         '<div class="item-list">' + match.Solutions.map(function(s) { return renderSolution(s, connMap[s.SolutionName]); }).join('') + '</div>' +
       '</div>');
   }
@@ -1303,7 +1461,7 @@ function renderTable(t) {
   // Table metadata
   sections.push(
     '<div class="detail-section" style="background: rgba(255,255,255,0.015);">' +
-      '<h3>&#128203; Table Properties</h3>' +
+      '<h3>Table Properties</h3>' +
       '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">' +
         '<div><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600;">Plan</span><div style="font-size:13px;font-weight:600;margin-top:2px;">' + escapeHtml(t.Plan) + '</div></div>' +
         '<div><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600;">Retention</span><div style="font-size:13px;font-weight:600;margin-top:2px;">' + t.RetentionInDays + ' days</div></div>' +
@@ -1312,10 +1470,18 @@ function renderTable(t) {
       '</div>' +
     '</div>');
 
-  // Badges
+  // Badges. The headline count covers direct AND via-parser dependents: a table
+  // with only chained dependents must never read "No dependencies".
   var badges = [];
-  if (impact.TotalImpacted > 0) {
-    badges.push('<span class="badge impacted">' + impact.TotalImpacted + ' dependenc' + (impact.TotalImpacted === 1 ? 'y' : 'ies') + '</span>');
+  var directCount = impact.TotalImpacted || 0;
+  var indirectCount = impact.TotalIndirect || 0;
+  var affectedCount = directCount + indirectCount;
+
+  if (affectedCount > 0) {
+    badges.push('<span class="badge impacted">' + affectedCount + ' dependenc' + (affectedCount === 1 ? 'y' : 'ies') + '</span>');
+    if (indirectCount > 0) {
+      badges.push('<span class="badge via" title="Reached through a parser function, not by table name">' + indirectCount + ' via parser</span>');
+    }
   } else {
     badges.push('<span class="badge clean">No dependencies</span>');
   }
@@ -1344,7 +1510,7 @@ function renderTable(t) {
   var azureFuncCount = classifications.filter(function(c) { return c.ConnectorKind === 'AzureFunctions'; }).length;
   var noConnector = (match.MatchCount === 0 || allUnknown) ? 1 : 0;
 
-  return '<details class="table-card" data-impact="' + impact.TotalImpacted + '" data-match="' + match.MatchCount + '" data-azurefunc="' + azureFuncCount + '" data-noconnector="' + noConnector + '">' +
+  return '<details class="table-card" data-impact="' + affectedCount + '" data-indirect="' + indirectCount + '" data-match="' + match.MatchCount + '" data-azurefunc="' + azureFuncCount + '" data-noconnector="' + noConnector + '">' +
       '<summary>' +
         '<span class="chevron">&#9656;</span>' +
         '<span class="table-name">' + escapeHtml(t.Name) + '</span>' +
@@ -1357,6 +1523,84 @@ function renderTable(t) {
 }
 
 document.getElementById('tables').innerHTML = DATA.Tables.map(renderTable).join('');
+
+// ── Render resolver coverage ──
+// The chained-dependency lists above are only as complete as the parser-alias
+// resolver, and the resolver deliberately refuses to follow some aliases. That
+// refusal used to be a console line nobody kept. Stating it here, in the file
+// that actually gets shared, is the difference between "there are no more
+// dependencies" and "the tool stopped looking, here is exactly where".
+
+function renderResolverCoverage() {
+  var host = document.getElementById('resolver-coverage');
+  if (!host) { return; }
+  if (SKIPPED_ALIASES.length === 0 && ALIAS_WARNINGS.length === 0) { host.innerHTML = ''; return; }
+
+  var blocks = [];
+
+  if (SKIPPED_ALIASES.length > 0) {
+    blocks.push(
+      '<div class="callout attention">' +
+        '' +
+        '<div class="callout-body">' +
+          '<div class="callout-title">' + SKIPPED_ALIASES.length + ' parser alias' +
+            (SKIPPED_ALIASES.length === 1 ? ' was' : 'es were') + ' not followed</div>' +
+          '<div class="callout-text">' +
+            'Chained dependencies are found by treating a parser function alias as if it were a table name. ' +
+            'An alias that is a KQL keyword, or that collides with a real table in this workspace, would match ' +
+            'unrelated queries, so it is left out. Anything calling these parsers is <strong>not</strong> in the ' +
+            'lists above and needs checking by hand.' +
+            '<ul class="bridge-list">' +
+            SKIPPED_ALIASES.map(function(s) {
+              var deps = ensureArray(s.Dependents);
+              var depList = deps.length
+                ? '<ul>' + deps.map(function(d) {
+                    return '<li><span class="bridge-type">' + escapeHtml(d.Type) + '</span> ' + escapeHtml(d.Name) + '</li>';
+                  }).join('') + '</ul>'
+                : '<div class="bridge-none">Nothing else in the workspace names that alias.</div>';
+              var n = s.ReferenceCount || 0;
+              return '<li><code>' + escapeHtml(s.Alias) + '</code> (parser <em>' + escapeHtml(s.Parser) + '</em>) - ' +
+                     escapeHtml(s.Reason) + '. <strong>' + n + '</strong> item' + (n === 1 ? ' names' : 's name') +
+                     ' that alias and ' + (n === 1 ? 'was' : 'were') + ' not resolved:' + depList + '</li>';
+            }).join('') +
+            '</ul>' +
+          '</div>' +
+        '</div>' +
+      '</div>');
+  }
+
+  if (ALIAS_WARNINGS.length > 0) {
+    blocks.push(
+      '<div class="callout attention">' +
+        '' +
+        '<div class="callout-body">' +
+          '<div class="callout-title">' + ALIAS_WARNINGS.length + ' alias' +
+            (ALIAS_WARNINGS.length === 1 ? '' : 'es') + ' referenced by an implausible share of the workspace</div>' +
+          '<div class="callout-text">' +
+            'These chains are still reported in full (suppressing them would hide a real dependency), but an ' +
+            'alias named by most of the workspace is more likely a name collision than a genuine shared parser.' +
+            '<ul class="bridge-list">' +
+            ALIAS_WARNINGS.map(function(w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('') +
+            '</ul>' +
+          '</div>' +
+        '</div>' +
+      '</div>');
+  }
+
+  host.innerHTML =
+    '<div class="section-header" style="margin-top: 56px;">' +
+      '<div class="section-icon" style="background: var(--warn-dim); color: var(--warn);">' +
+        '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<circle cx="12" cy="12" r="10"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>' +
+      '</div>' +
+      '<h2>Resolver Coverage</h2>' +
+      '<span class="section-count">' + RESOLVED_ALIASES.length + ' alias' +
+        (RESOLVED_ALIASES.length === 1 ? '' : 'es') + ' followed</span>' +
+    '</div>' +
+    blocks.join('');
+}
+
+renderResolverCoverage();
 
 // ── Copy to clipboard ──
 // This report is normally opened from disk. Every current engine treats the
@@ -1486,11 +1730,13 @@ document.querySelectorAll('.filter-btn').forEach(function(btn) {
     var visible = 0;
     document.querySelectorAll('.table-card').forEach(function(el) {
       var impact = Number(el.dataset.impact);
+      var ind = Number(el.dataset.indirect);
       var match = Number(el.dataset.match);
       var af = Number(el.dataset.azurefunc);
       var nc = Number(el.dataset.noconnector);
       var show = true;
       if (f === 'impacted') show = impact > 0;
+      else if (f === 'indirect') show = ind > 0;
       else if (f === 'unmatched') show = match === 0;
       else if (f === 'azurefunctions') show = af > 0;
       else if (f === 'noconnector') show = nc > 0;

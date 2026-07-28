@@ -104,6 +104,104 @@ It runs three steps:
    Agent or Legacy. Legacy Azure Functions connectors with no CCF equivalent
    are flagged: those are the ones that need rebuilding, not just repointing.
 
+### Dependencies that never name the table
+
+A parser is a saved search with a `functionAlias`, and everything else invokes
+it by that alias exactly as if it were a table. A rule that reads
+`OfficeActivityParser | where ...` never mentions `OfficeActivity_CL` anywhere
+in its query, so searching the workspace for the table name will not find it.
+Migrate the table and the rule breaks just as hard as one that named it
+directly.
+
+Step 2 therefore walks the alias graph outward from each classic table and
+reports those items too. They are marked **via parser** in the HTML report,
+carry the chain that explains them (`rule -> parser -> table`), and appear in
+`impact.csv` with `DependencyKind`, `Via`, `ViaChain` and `Depth` columns.
+Chains of any length are followed, cycles terminate, and a chain deeper than
+`-MaxParserChainDepth` (default 10 hops) is flagged rather than silently
+truncated.
+
+#### What counts as a reference
+
+The alias is matched by name, so the question is which occurrences of that name
+are real. Before matching, each query is reduced to the text KQL would actually
+resolve names in:
+
+| Removed | Why |
+| --- | --- |
+| `// line comments` | KQL has no block-comment form, so `//` to end of line is the whole story. A parser named in a `// TODO` is not a dependency. |
+| String literals: `'...'`, `"..."`, verbatim `@'...'` / `@"..."`, multi-line ``` ``` ```, obfuscated `h'...'` | A name inside a string is data. Escaping is handled per form, so a `//` inside a string does not open a comment and an apostrophe inside a comment does not open a string. |
+| `cluster(...)`, `database(...)`, `workspace(...)`, `app(...)` qualified references | `cluster("x").database("y").MyParser` is a function in another cluster, not this workspace's parser. |
+| Assignment targets (`Name = ...`) | That is a new column or variable being named, not a function being called. `==` and `=~` are comparisons and are kept. |
+| Member access (`Something.Name`) | A workspace function is referenced bare, never dotted. |
+| `let`-bound names | A `let` shadows a stored function of the same name for the rest of the query, so those occurrences are locals. |
+
+Matching is **case-sensitive**, because KQL entity names are: `officeparser`
+does not resolve to a parser aliased `OfficeParser`, so it is not reported as
+one. Two parsers whose aliases differ only in case are two different functions
+and both are followed. The direct table matcher stays case-insensitive - that
+behaviour is inherited, and a case variant of a table name is nearly always a
+typo aimed at the real table, so reporting it errs safe. Indirect resolution
+chains off its own matches, where one wrong hit multiplies at every later hop,
+so it errs precise instead.
+
+**Playbooks** are matched indirectly only on string values inside the workflow
+definition that look like KQL (a pipe followed by a KQL tabular operator, or a
+query opening with one). Scanning the whole definition JSON - which is what the
+direct pass does - made an object key or a word in an action name into a
+dependency. The trade is that a playbook building its query by string
+concatenation, or passing it in a shape this test does not recognise, is not
+matched indirectly. Direct table matching over playbooks is unchanged and still
+reads the whole definition.
+
+**Data Collection Rules** are never followed indirectly at all: an
+ingestion-time `transformKql` runs before data reaches the workspace and cannot
+invoke a workspace function, so a match there would always be a coincidence.
+DCRs are still scanned for direct table references.
+
+#### Aliases that are not followed, and what that costs
+
+An alias is left out of the chain walk when it is not a plain identifier, is
+shorter than four characters, is a KQL keyword or scoping function, is a column
+Log Analytics puts on every table, or **collides with the name of a real table
+in this workspace**. That last one matters most: a parser aliased `Update` or
+`SecurityEvent` would otherwise make every query against the genuine built-in
+table an indirect dependent of whatever classic table that parser reads. The
+workspace's full table list is fetched during discovery anyway, so the guard
+costs nothing.
+
+Leaving an alias out is not free either. A parser that reads a classic table but
+whose alias cannot be resolved is a chain that stops dead, and everything
+calling that parser breaks on migration without appearing anywhere in the
+results. So every skip is reported, with its reason **and the content that named
+that alias and was therefore not resolved**, in three places: the console, the
+`parserAliasResolution` block in `report.json`, and a **Resolver Coverage**
+section in the HTML report. Per-table, the parsers that sever a chain for that
+specific table appear as `UnresolvedBridges` in the JSON and as a callout above
+the dependency list in the HTML.
+
+An alias referenced by an implausible share of the whole workspace gets a
+fan-out warning. It never suppresses the chain - hiding a finding to reduce
+noise is the wrong trade here - it just tells you to treat those chains as
+suspect. It fires only above both an absolute floor (20 referencing items) and a
+share of the workspace measured against a minimum scale, so a legitimately
+shared parser in a small workspace does not trip it and a large workspace can
+still trip it.
+
+**Residual over-reporting.** A bare column reference cannot be told apart from a
+function reference without a full KQL parser, which this standalone script does
+not carry. So a parser aliased identically to a column name that appears in
+unrelated queries - `SigninLogs | project MyParser` - will still be counted. The
+table-name guard, the case-sensitivity rule and the fan-out warning cover the
+cases that actually occur; this one is stated rather than silently absorbed.
+
+In the JSON report this is purely additive. `TotalImpacted` and the seven
+per-type arrays still hold direct hits only, so anything written against the old
+shape reads the same numbers. Chained dependents live in parallel
+`Indirect<Type>` arrays, `TotalAffected` is the honest sum of both, and
+`UnresolvedBridges` lists the chains the resolver could not follow for that
+table.
+
 Output is a set of pipeline objects plus a report bundle (CSV per step, a
 combined JSON, and a self-contained HTML report) written to
 `./migration-report/` by default. That folder is git-ignored - the report can
