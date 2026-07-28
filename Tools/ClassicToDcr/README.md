@@ -100,6 +100,19 @@ combined JSON, and a self-contained HTML report) written to
 `./migration-report/` by default. That folder is git-ignored - the report can
 contain workspace-specific table and connector detail, so treat it as private.
 
+Each table in the HTML report carries its own **Migration Command** section:
+the exact `Invoke-ClassicTableMigration.ps1` invocation for that table, with the
+resource group, workspace, table name and subscription already filled in, and a
+copy button. Two commands are offered per table, a read-only `-ListOnly`
+preview and the one-way `-Deploy` migration, so you can check before you commit.
+Run them from `Tools/ClassicToDcr` in a signed-in PowerShell 7 session.
+
+The report itself executes nothing. It is a static file with no network access,
+and deliberately has no button that performs a migration: the migration is
+irreversible and the report is something you might email to a colleague. It
+hands you the command; you decide when to run it. Tables whose names the
+migrate tool cannot accept get an explanatory note instead of a command.
+
 The connector classification is only as current as the bundled
 `data/solution-mapping.json`. The weekly workflow keeps it fresh; to refresh it
 by hand, run `node Tools/ClassicToDcr/data/update-solution-mapping.mjs` (Node

@@ -197,3 +197,92 @@ Describe 'Resolve-ConnectorKind' {
         Resolve-ConnectorKind -ConnectorId '' | Should -Be 'Unknown'
     }
 }
+
+Describe 'report.html.template: migration-command contract' {
+    # The report renders a per-table, copyable migration command. That logic is
+    # client-side JavaScript, so the Pester suite cannot execute it. What it CAN
+    # do is pin the invariants that make a shareable HTML file safe to hand
+    # around, so none of them regress unnoticed.
+
+    BeforeAll {
+        $script:tplPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/ClassicToDcr/Templates/report.html.template'
+        $script:tplText = Get-Content -Path $script:tplPath -Raw
+    }
+
+    It 'exists' {
+        Test-Path -Path $script:tplPath | Should -BeTrue
+    }
+
+    It 'emits the current migration script name' {
+        # A rename that misses the template would ship a report whose copy
+        # button hands the operator a command that cannot run.
+        $script:tplText | Should -Match ([regex]::Escape('./Invoke-ClassicTableMigration.ps1'))
+        $script:tplText | Should -Not -Match 'New-DcrFromClassicTable'
+    }
+
+    It 'escapes every character that closes a PowerShell single-quoted string' {
+        # PowerShell ends a '-quoted string on U+0027 and the curved quotes
+        # U+2018, U+2019, U+201A and U+201B. Escaping only the ASCII apostrophe
+        # lets a resource group name close the string early and append its own
+        # statements to the command the operator pastes.
+        $script:tplText | Should -Match 'CMD_PS_QUOTES'
+        foreach ($cp in '2018', '2019', '201a', '201b') {
+            $script:tplText | Should -Match ('\\u' + $cp)
+        }
+    }
+
+    It 'never emits -Force in a generated command' {
+        # -Force skips the confirmation prompt, which is the last human check
+        # before an irreversible migration. It must not appear in copyable text.
+        $script:tplText | Should -Not -Match '-Force'
+    }
+
+    It 'gates command generation on the table-name pattern the migrate script accepts' {
+        $script:tplText | Should -Match 'CMD_TABLE_NAME'
+        $script:tplText | Should -Match '\^\[A-Za-z0-9_\]\+\$'
+        $script:tplText | Should -Match '_CL'
+    }
+
+    It 'pins the subscription only when it is a GUID' {
+        $script:tplText | Should -Match 'CMD_GUID'
+    }
+
+    It 'wires the copy button by delegation, not an inline handler' {
+        # Table cards are injected via innerHTML, so an inline onclick carrying
+        # an interpolated table name or command would be an injection vector.
+        # (The About modal's three static onclick handlers predate this and
+        # interpolate nothing, so the assertion is scoped to the copy button.)
+        $copyMarkup = [regex]::Match($script:tplText, '<button[^>]*cmd-copy[^>]*>').Value
+        $copyMarkup | Should -Not -BeNullOrEmpty
+        $copyMarkup | Should -Not -Match 'onclick'
+        $script:tplText | Should -Match 'closest'
+        $script:tplText | Should -Match 'addEventListener'
+    }
+
+    It 'reads the command from the rendered text, not a data attribute' {
+        # Holding the command in a data-* attribute would add a second escaping
+        # context to get right. The handler reads textContent instead.
+        $script:tplText | Should -Not -Match 'data-command'
+        $script:tplText | Should -Match 'textContent'
+    }
+
+    It 'stays self-contained: no external scripts, styles or fetches' {
+        $script:tplText | Should -Not -Match '<script[^>]+src='
+        $script:tplText | Should -Not -Match '<link[^>]+href="https?:'
+        $script:tplText | Should -Not -Match 'fetch\('
+        $script:tplText | Should -Not -Match 'XMLHttpRequest'
+    }
+
+    It 'keeps a clipboard fallback for pages opened from disk' {
+        # navigator.clipboard is not guaranteed on a file:// page, which is the
+        # primary way this report is opened.
+        $script:tplText | Should -Match 'navigator\.clipboard'
+        $script:tplText | Should -Match 'execCommand'
+    }
+
+    It 'uses no em-dashes in prose' {
+        # The suite enforces this on the toolkit's .ps1 files; the template ships
+        # to readers too, so hold it to the same rule.
+        $script:tplText | Should -Not -Match ([char]0x2014)
+    }
+}

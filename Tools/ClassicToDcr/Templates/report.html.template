@@ -557,6 +557,8 @@
     .header-top { flex-direction: column; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     .about-grid { grid-template-columns: 1fr; }
+    .cmd-block { flex-direction: column; }
+    .cmd-copy { align-self: flex-start; }
   }
 
   /* ── SVG icons ── */
@@ -669,6 +671,78 @@
   }
   .modal-app-info .app-name { font-weight: 700; font-size: 14px; }
   .modal-app-info .app-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Migration command ── */
+  .cmd-note { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .cmd-note code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .cmd-intro { margin-bottom: 14px; }
+  .cmd-step { margin-bottom: 14px; }
+  .cmd-step:last-of-type { margin-bottom: 0; }
+  .cmd-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .cmd-tag {
+    padding: 1px 8px;
+    border-radius: var(--radius-xs);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .cmd-tag.safe { background: var(--ok-dim); color: var(--ok); }
+  .cmd-tag.oneway { background: var(--warn-dim); color: var(--warn); }
+  .cmd-block {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--code-bg);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s;
+  }
+  .cmd-block:hover { border-color: var(--border); }
+  .cmd-text {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .cmd-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .cmd-copy:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .cmd-copy.is-ok { background: var(--ok-dim); color: var(--ok); border-color: rgba(16,185,129,0.3); }
+  .cmd-copy.is-warn { background: var(--warn-dim); color: var(--warn); border-color: rgba(245,158,11,0.3); }
+  .cmd-desc { margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -1061,6 +1135,119 @@ function renderConnectorCallout(match) {
   return '';
 }
 
+// ── Migration command ──
+// This report is a static artefact. It never runs anything and never talks to
+// Azure; it only shows the exact command an operator can paste into their own
+// shell, so the assess step hands over to the migrate step without anyone
+// retyping resource names.
+
+// Invoke-ClassicTableMigration.ps1 puts [ValidatePattern('^[A-Za-z0-9_]+$')]
+// on -TableName, and only migrates names ending in _CL. Anything else cannot
+// be expressed as a valid command, so no command is offered for it.
+var CMD_TABLE_NAME = /^[A-Za-z0-9_]+$/;
+var CMD_GUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+// PowerShell closes a single-quoted string on any of FIVE characters, not just
+// the ASCII apostrophe: U+0027 and the curved quotes U+2018, U+2019, U+201A and
+// U+201B are interchangeable as both delimiter and escape. Escaping only U+0027
+// would leave a resource group named with a curved quote able to close the
+// string early and append further statements to the copied command, and Azure
+// resource group names do permit Unicode. Doubling any of the five yields that
+// literal character, so doubling all five is the complete encoding.
+var CMD_PS_QUOTES = /['\u2018\u2019\u201a\u201b]/g;
+
+function psQuote(value) {
+  // Inside a single-quoted string PowerShell performs no variable
+  // interpolation, no subexpression evaluation and no backtick escapes, so the
+  // closing quote is the only character with meaning. Double every one of them.
+  if (value === null || value === undefined) return "''";
+  return "'" + String(value).replace(CMD_PS_QUOTES, function (m) { return m + m; }) + "'";
+}
+
+function migrationCommands(t) {
+  var name = (t && t.Name !== null && t.Name !== undefined) ? String(t.Name) : '';
+  if (!name || !CMD_TABLE_NAME.test(name) || name.slice(-3) !== '_CL') return null;
+  if (!DATA.ResourceGroup || !DATA.Workspace) return null;
+
+  var base = './Invoke-ClassicTableMigration.ps1' +
+    ' -ResourceGroupName ' + psQuote(DATA.ResourceGroup) +
+    ' -WorkspaceName ' + psQuote(DATA.Workspace) +
+    ' -TableName ' + psQuote(name);
+
+  // Pin the subscription only when the captured value really is a GUID.
+  // Anything else would bind and then fail at Set-AzContext after the paste.
+  var sub = DATA.Subscription ? String(DATA.Subscription).replace(/^\s+|\s+$/g, '') : '';
+  if (sub && CMD_GUID.test(sub)) {
+    base += ' -SubscriptionId ' + psQuote(sub);
+  }
+
+  return [
+    {
+      label: 'Preview',
+      tag: 'Read-only',
+      tagClass: 'safe',
+      cmd: base + ' -ListOnly',
+      desc: 'Lists the table, its size and its current sub type. Changes nothing. Run it again after migrating to confirm the sub type flipped to DataCollectionRuleBased.'
+    },
+    {
+      label: 'Migrate and deploy',
+      tag: 'One-way',
+      tagClass: 'oneway',
+      cmd: base + ' -Deploy',
+      desc: 'Converts the table to DCR-based, then deploys the generated data collection rule. Prompts for confirmation before it commits.'
+    }
+  ];
+}
+
+function renderMigrationSection(t) {
+  var heading = '<h3>&#9654; Migration Command</h3>';
+  var cmds = migrationCommands(t);
+
+  if (!cmds) {
+    // Two distinct causes, so say which one applies rather than blaming the
+    // table name for a workspace the report failed to capture.
+    var why;
+    if (!DATA.ResourceGroup || !DATA.Workspace) {
+      why = 'This report did not capture a resource group and workspace, so the command cannot be filled in. Supply them yourself when you run ' +
+            '<code>Invoke-ClassicTableMigration.ps1</code>.';
+    } else {
+      why = '<code>Invoke-ClassicTableMigration.ps1</code> accepts only table names made of letters, digits and underscores, and migrates only names ending in <code>_CL</code>. Handle ' +
+            '<code>' + escapeHtml(t.Name) + '</code> manually.';
+    }
+    return '<div class="detail-section">' + heading +
+      '<div class="cmd-note">No command is offered for this table. ' + why + '</div>' +
+    '</div>';
+  }
+
+  var steps = cmds.map(function(c) {
+    return '<div class="cmd-step">' +
+      '<div class="cmd-label">' + escapeHtml(c.label) +
+        '<span class="cmd-tag ' + c.tagClass + '">' + escapeHtml(c.tag) + '</span>' +
+      '</div>' +
+      '<div class="cmd-block">' +
+        '<code class="cmd-text">' + escapeHtml(c.cmd) + '</code>' +
+        '<button type="button" class="cmd-copy">Copy</button>' +
+      '</div>' +
+      '<div class="cmd-note cmd-desc">' + escapeHtml(c.desc) + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="detail-section">' + heading +
+    '<div class="cmd-note cmd-intro">Run from <code>Tools/ClassicToDcr</code> in a signed-in PowerShell 7 session. Nothing on this page executes; the commands are here to copy.</div>' +
+    steps +
+    '<div class="callout attention" style="margin-top:16px;">' +
+      '<div class="callout-icon">&#9888;</div>' +
+      '<div class="callout-body">' +
+        '<div class="callout-title">Migration is one-way</div>' +
+        '<div class="callout-text">' +
+          'A DCR-based table cannot be converted back to a classic table. Work through the dependencies listed above first, and rehearse in a non-production workspace. ' +
+          'The migrate command asks for confirmation before it commits, and passing <code>-SubscriptionId</code> changes the subscription on the Az context of the session you run it in.' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 // ── Render table card ──
 function renderTable(t) {
   var impact = impactByName[t.Name] || { TotalImpacted: 0, AnalyticsRules: [], HuntingQueries: [], Parsers: [], SavedSearches: [], Workbooks: [], Playbooks: [], Dcrs: [] };
@@ -1103,6 +1290,14 @@ function renderTable(t) {
   var callout = renderConnectorCallout(match);
   if (callout) {
     sections.push('<div class="detail-section">' + callout + '</div>');
+  }
+
+  // Migration command. Deliberately sits after the connector callout: the
+  // reader should see whether a replacement connector exists before they see
+  // the command that removes the classic table.
+  var migration = renderMigrationSection(t);
+  if (migration) {
+    sections.push(migration);
   }
 
   // Table metadata
@@ -1162,6 +1357,125 @@ function renderTable(t) {
 }
 
 document.getElementById('tables').innerHTML = DATA.Tables.map(renderTable).join('');
+
+// ── Copy to clipboard ──
+// This report is normally opened from disk. Every current engine treats the
+// "file" scheme as a potentially trustworthy origin, so navigator.clipboard is
+// present here. The fallbacks still matter: the async API rejects when the
+// document is not focused, and the report may also be served over plain http
+// from a file share. All three paths are local; nothing here touches a network.
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  // readonly suppresses the mobile keyboard; contentEditable keeps iOS Safari
+  // willing to select the contents.
+  ta.setAttribute('readonly', '');
+  ta.contentEditable = 'true';
+  // A 16px font stops iOS zooming on focus. opacity:0 rather than
+  // display:none, because a non-rendered textarea cannot be selected.
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
+    'padding:0;border:none;outline:none;box-shadow:none;' +
+    'background:transparent;opacity:0;font-size:16px';
+  document.body.appendChild(ta);
+
+  var ok = false;
+  try {
+    // Range selection is what iOS Safari honours; select() alone is ignored.
+    var range = document.createRange();
+    range.selectNodeContents(ta);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    ta.setSelectionRange(0, text.length);
+    ta.readOnly = true;
+    ta.focus();
+    ok = document.execCommand('copy');
+  } catch (e) {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function selectForManualCopy(el) {
+  if (!el) return false;
+  try {
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function flashCopyState(btn, label, cls) {
+  if (!btn) return;
+  if (!btn.getAttribute('data-label')) {
+    btn.setAttribute('data-label', btn.textContent);
+  }
+  btn.textContent = label;
+  btn.classList.remove('is-ok', 'is-warn');
+  if (cls) btn.classList.add(cls);
+  // Per-button timer, so copying from two cards in quick succession does not
+  // leave one of them stuck on its feedback label.
+  if (btn.resetTimer) clearTimeout(btn.resetTimer);
+  btn.resetTimer = setTimeout(function() {
+    btn.textContent = btn.getAttribute('data-label') || 'Copy';
+    btn.classList.remove('is-ok', 'is-warn');
+  }, 2400);
+}
+
+function copyText(text, btn, codeEl) {
+  function settle(ok) {
+    if (ok) {
+      flashCopyState(btn, 'Copied', 'is-ok');
+    } else if (selectForManualCopy(codeEl)) {
+      flashCopyState(btn, 'Press Ctrl+C', 'is-warn');
+    } else {
+      flashCopyState(btn, 'Copy failed', 'is-warn');
+    }
+  }
+
+  // Branch 1: the async Clipboard API, called synchronously inside the click
+  // handler so the user activation is not treated as spent.
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    var p = null;
+    try {
+      p = navigator.clipboard.writeText(text);
+    } catch (e) {
+      p = null;
+    }
+    if (p && typeof p.then === 'function') {
+      p.then(
+        function() { settle(true); },
+        // Branch 2: transient activation outlives the promise turn, so the
+        // synchronous fallback is still valid from the rejection handler.
+        function() { settle(legacyCopy(text)); }
+      );
+      return;
+    }
+  }
+
+  settle(legacyCopy(text));
+}
+
+// One delegated listener rather than one per button: the cards are built with
+// innerHTML, and an inline onclick carrying an interpolated table name would
+// be unescapable in the general case.
+document.getElementById('tables').addEventListener('click', function(ev) {
+  var btn = (ev.target && ev.target.closest) ? ev.target.closest('.cmd-copy') : null;
+  if (!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  var block = btn.closest('.cmd-block');
+  var codeEl = block ? block.querySelector('.cmd-text') : null;
+  if (!codeEl) return;
+  copyText(codeEl.textContent, btn, codeEl);
+});
 
 // ── Filters ──
 document.querySelectorAll('.filter-btn').forEach(function(btn) {

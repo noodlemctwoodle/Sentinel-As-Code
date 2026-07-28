@@ -160,27 +160,27 @@
     Required when running non-interactively.
 
 .EXAMPLE
-    ./Tools/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
+    ./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
         -WorkspaceName law-sentinel -AllClassicTables -ListOnly
 
     Reports every classic table in the workspace with its column count and
     90-day volume, and flags the empty ones. Changes nothing. Start here.
 
 .EXAMPLE
-    ./Tools/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
+    ./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
         -WorkspaceName law-sentinel -TableName MyApp_CL -SkipTableMigration
 
     Exports the DCR template for one table without touching the workspace.
 
 .EXAMPLE
-    ./Tools/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
+    ./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
         -WorkspaceName law-sentinel -AllClassicTables -Deploy -Force
 
     Migrates every non-empty classic table and deploys a DCR for each.
     Irreversible. Run the -ListOnly form first.
 
 .EXAMPLE
-    ./Tools/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
+    ./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
         -WorkspaceName law-sentinel -TableName MyApp_CL -Deploy -Force `
         -GrantIngestionRoleTo 11111111-1111-1111-1111-111111111111
 
@@ -189,7 +189,7 @@
     ingestion endpoint.
 
 .EXAMPLE
-    ./Tools/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
+    ./Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel `
         -WorkspaceName law-sentinel -TableName IisCustom_CL `
         -DcrKind TextLog -FilePattern 'C:\inetpub\logs\*.log'
 
