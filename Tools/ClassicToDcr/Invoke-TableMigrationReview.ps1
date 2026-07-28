@@ -58,11 +58,8 @@
 .NOTES
     Version: 0.1.0
 
-    Contributors:
-        Toby G      - Developer, Co-Designer, Tester
-                       https://github.com/noodlemctwoodle
-        Sreedhar A  - Co-Designer, Tester
-                       https://github.com/sreedharande
+    Author:       noodlemctwoodle
+                  https://github.com/noodlemctwoodle
 
     Data source:
         Azure-Sentinel Solutions Analyzer
@@ -689,6 +686,34 @@ function Export-ReportJson {
     $combined | ConvertTo-Json -Depth 20 | Out-File -FilePath (Join-Path $OutDir 'report.json') -Encoding utf8
 }
 
+function ConvertTo-JsStringLiteral {
+    <#
+        Escapes text for embedding inside a double-quoted JavaScript string
+        literal, without System.Web. [System.Web.HttpUtility] is not loaded on
+        PowerShell 7, so calling it here would throw rather than fall back.
+
+        ConvertTo-Json on a plain string returns that string already escaped
+        and wrapped in quotes, which handles backslash, double quote and the
+        control characters. Trim the wrapping quotes, then escape the few
+        remaining characters that are legal in JSON but would break out of a
+        <script> element or terminate a JS line.
+    #>
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
+
+    $quoted  = $Value | ConvertTo-Json
+    $literal = $quoted.Substring(1, $quoted.Length - 2)
+
+    # '</script>' would close the element early; U+2028/U+2029 are line
+    # terminators in JavaScript. Escape them as \uXXXX, built from char codes
+    # so the sequences survive any encoding round-trip.
+    $u = [char]0x5C  # backslash
+    $literal = $literal.Replace('<', "${u}u003c").Replace('>', "${u}u003e")
+    $literal = $literal.Replace([string][char]0x2028, "${u}u2028")
+    $literal = $literal.Replace([string][char]0x2029, "${u}u2029")
+
+    return $literal
+}
+
 function Export-ReportHtml {
     param($Tables, $Impacts, $SolutionMatches, $Context, [string]$OutDir)
 
@@ -712,15 +737,7 @@ function Export-ReportHtml {
     }
 
     $dataJson = ($data | ConvertTo-Json -Depth 20 -Compress)
-    $html = $template.Replace('{{DATA_JSON}}', [System.Web.HttpUtility]::JavaScriptStringEncode($dataJson))
-
-    # Fallback for systems without System.Web
-    if ($html -eq $template) {
-        Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
-        $escaped = $dataJson -replace '\\','\\\\' -replace "'","\'" -replace '"','\"' `
-                             -replace "`n",'\n' -replace "`r",'\r' -replace "`t",'\t'
-        $html = $template.Replace('{{DATA_JSON}}', $escaped)
-    }
+    $html     = $template.Replace('{{DATA_JSON}}', (ConvertTo-JsStringLiteral -Value $dataJson))
 
     $outFile = Join-Path $OutDir 'report.html'
     $html | Out-File -FilePath $outFile -Encoding utf8

@@ -75,6 +75,71 @@ Describe 'Invoke-TableMigrationReview: script-level contract' {
         $script:sourceText | Should -Not -Match 'Import-Module[^\r\n]*Sentinel\.Common'
         $script:sourceText | Should -Not -Match 'Sentinel\.Common\.psd1'
     }
+
+    It 'never calls into System.Web for HTML/JS encoding' {
+        # System.Web is not loaded on PowerShell 7, so a call to
+        # [System.Web.HttpUtility]::JavaScriptStringEncode throws outright
+        # rather than falling back. Assert on executable code only: strip block
+        # comments and line comments first, since the helper's own doc comment
+        # legitimately names the API it avoids.
+        $code = [regex]::Replace($script:sourceText, '(?s)<#.*?#>', '')
+        $code = ($code -split "`n" | ForEach-Object { $_ -replace '#.*$', '' }) -join "`n"
+        $code | Should -Not -Match 'HttpUtility'
+        $code | Should -Not -Match 'JavaScriptStringEncode'
+        $code | Should -Not -Match 'Add-Type\s+-AssemblyName\s+System\.Web'
+    }
+}
+
+Describe 'ConvertTo-JsStringLiteral' {
+    # The HTML template embeds the payload as JSON.parse("{{DATA_JSON}}"), so
+    # this must produce a valid double-quoted JS string literal on PS7 without
+    # System.Web.
+
+    It 'round-trips text unchanged through a JSON string decode' {
+        $original = 'plain text'
+        $literal  = ConvertTo-JsStringLiteral -Value $original
+        # Re-wrapping in quotes and decoding as JSON is what JS parsing does.
+        ('"' + $literal + '"' | ConvertFrom-Json) | Should -BeExactly $original
+    }
+
+    It 'escapes double quotes and backslashes so the literal cannot terminate early' {
+        $original = 'he said "hi" C:\temp\new'
+        $literal  = ConvertTo-JsStringLiteral -Value $original
+        ('"' + $literal + '"' | ConvertFrom-Json) | Should -BeExactly $original
+    }
+
+    It 'neutralises a closing script tag so it cannot close the script element' {
+        $payload = '</script><img onerror=alert(1)>'
+        $literal = ConvertTo-JsStringLiteral -Value $payload
+        $literal | Should -Not -Match ([regex]::Escape($payload))
+        $literal | Should -Match 'u003c'
+        # Still decodes back to the original text: escaped, not corrupted.
+        ('"' + $literal + '"' | ConvertFrom-Json) | Should -BeExactly $payload
+    }
+
+    It 'escapes the U+2028 / U+2029 JavaScript line terminators' {
+        $original = "a$([char]0x2028)b$([char]0x2029)c"
+        $literal  = ConvertTo-JsStringLiteral -Value $original
+        $literal | Should -Match 'u2028'
+        $literal | Should -Match 'u2029'
+        ('"' + $literal + '"' | ConvertFrom-Json) | Should -BeExactly $original
+    }
+
+    It 'escapes newlines and tabs rather than emitting raw control characters' {
+        $original = "line1`nline2`tend"
+        $literal  = ConvertTo-JsStringLiteral -Value $original
+        $literal | Should -Not -Match "`n"
+        ('"' + $literal + '"' | ConvertFrom-Json) | Should -BeExactly $original
+    }
+
+    It 'round-trips a full compressed JSON payload' {
+        $json    = ([ordered]@{ a = 'x"y'; b = 'C:\p'; c = '</script>' } | ConvertTo-Json -Compress)
+        $literal = ConvertTo-JsStringLiteral -Value $json
+        $decoded = ('"' + $literal + '"' | ConvertFrom-Json)
+        $decoded | Should -BeExactly $json
+        # And the decoded text is still parseable JSON, as JSON.parse expects.
+        ($decoded | ConvertFrom-Json).c | Should -BeExactly '</script>'
+    }
 }
 
 Describe 'Test-KqlReferencesTable' {
