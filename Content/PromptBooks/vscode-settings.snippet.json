@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "Merge this into .vscode/settings.json so VS Code discovers the prompt files in this",
+    "folder. Without it, Copilot only looks in .github/prompts and the /slash-commands",
+    "below will not appear. Every prompt file also contains the literal prompt text, so",
+    "you can always fall back to copy-paste if this setting misbehaves.",
+    "",
+    "If settings.json IntelliSense flags the shape below, open the setting in the Settings",
+    "UI to confirm what your VS Code build expects - the key name is stable, the value",
+    "shape has changed across releases."
+  ],
+  "chat.promptFilesLocations": {
+    ".github/prompts": true,
+    "Content/PromptBooks/DataExploration": true,
+    "Content/PromptBooks/Triage": true,
+    "Content/PromptBooks/AgentCreation": true,
+    "Content/PromptBooks/SentinelAsCode": true
+  }
+}
