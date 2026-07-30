@@ -4,6 +4,57 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.07.3
+
+Data-lake tooling release: two migration toolkits for moving off classic custom
+log tables, and two new content types for the Microsoft Sentinel data lake.
+
+- **Classic-to-DCR migration toolkit** — three PowerShell scripts under
+  `Tools/ClassicToDcr/` that take a classic (MMA / HTTP Data Collector API)
+  custom log table from "we do not know what depends on this" to migrated, with
+  a Data Collection Rule deployed and the new sender ingesting. A read-only
+  assessment pass scores impact and resolves indirect parser chains before
+  anything changes; the migration itself is one-way and says so; and a rehearsal
+  harness lets you prove the ingestion path before you commit. It does not
+  repoint your sending application for you.
+- **DCR-from-schema wizard** — `Tools/DcrFromSchema/New-DcrFromSchema.ps1` turns
+  a JSON table schema into a Log Analytics custom table and a Direct Data
+  Collection Rule for the Logs Ingestion API, then leaves the ARM templates
+  behind so the result is reviewable and committable rather than clicked into
+  existence.
+- **Spark notebooks for the data lake** — 18 runnable PySpark notebooks under
+  `Content/SparkNotebooks/`, covering foundation and scheduled-job patterns,
+  visual analytics (peer-group clustering, impossible travel, volume
+  forecasting, lateral-movement graphs, command-line entropy), and
+  hypothesis-driven threat hunting (full-history IOC retro-hunt, stack counting,
+  first-seen hunts, LOLBin abuse, entity timelines, ATT&CK coverage). Every code
+  cell carries a plain-English description, and the statistical techniques are
+  explained rather than just named. `apply_config.py` keeps your workspace name
+  in a git-ignored `.env` and out of commits.
+- **Sentinel MCP prompt books** — 18 prompt books under `Content/PromptBooks/`
+  for the Microsoft Sentinel MCP server in VS Code with GitHub Copilot, grouped
+  by tool collection (data exploration, triage, agent creation) plus a set that
+  ties MCP findings back into this repository: turn a lake finding into a
+  committed analytics rule, validate a committed rule against real data, and
+  analyse detection gaps across the rule and hunting-query library. Ships with
+  drop-in MCP server configuration and documents the non-obvious tool
+  constraints (seven-day entity-analyser windows, SHA-1-only Defender file
+  endpoints, graph scoping).
+- **Data-lake notebook cost model documented.** `Docs/Content/Spark-Notebooks.md`
+  now explains the Advanced data insights meter: compute hours are vCores
+  multiplied by *session-active* time, so an idle session with a warm kernel
+  bills exactly like a running one. Includes worked examples and the related
+  lake meters a notebook can trigger.
+- **Fixes.** Drift auto-sync no longer aborts when a drift report contains no
+  rule sub-headings, on both CI systems, and the related PR-description summary
+  table no longer truncates. A redundant no-op filter was removed from the two
+  unentitled-user Copilot analytics rules.
+- **Housekeeping.** The root README now points at the `Docs/` tree and ships a
+  Contributing guide; Toolkit docs were reconciled with YAML-first authoring;
+  and the superseded `.archive/` directory (a monolithic deploy script and a
+  root-level Azure DevOps pipeline, both long replaced by `Deploy/` and
+  `Pipelines/`) has been removed.
+
 ## 26.07.2
 
 - **Documentation overhaul.** Every doc audited against the code, pipelines, and
