@@ -22,25 +22,25 @@ beyond VS Code + the extension.
 
 | Path | What it is |
 | --- | --- |
-| `demos/demo1_lake_exploration.ipynb` | Connect, list, read and shape lake tables |
-| `demos/demo2_identity_anomaly_detection.ipynb` | ML anomaly detection over an identity baseline (Isolation Forest) + write-back |
-| `demos/demo3_network_beacon_detection.ipynb` | C2 beacon + lateral-movement detection over `DeviceNetworkEvents` |
-| `demos/demo4_scheduled_job_enrichment.ipynb` | Parameterised, schedulable enrichment job |
+| `demos/demo01_lake_exploration.ipynb` | Connect, list, read and shape lake tables |
+| `demos/demo02_identity_anomaly_detection.ipynb` | ML anomaly detection over an identity baseline (Isolation Forest) + write-back |
+| `demos/demo03_network_beacon_detection.ipynb` | C2 beacon + lateral-movement detection over `DeviceNetworkEvents` |
+| `demos/demo04_scheduled_job_enrichment.ipynb` | Parameterised, schedulable enrichment job |
 
 **Visual demos - fast, graph-heavy, "why notebooks beat KQL"**
 
 Each is tuned to run quickly (aggregate in Spark, then a rich chart) and ends with a
 *Why a notebook beats KQL here* note. They rely on the Synapse Spark 3.4 library set, which
-cannot be extended (`%pip install` is unsupported on data lake pools) - run the demo1
+cannot be extended (`%pip install` is unsupported on data lake pools) - run the demo01
 preflight cell first to confirm what your pool actually has.
 
 | Path | Technique | Visual | Pool |
 | --- | --- | --- | --- |
-| `demos/demo5_signin_activity_heatmap.ipynb` | Hour × weekday aggregation | Seaborn heatmap | Small |
-| `demos/demo6_ueba_peer_clustering.ipynb` | K-Means + PCA (UEBA) | Cluster scatter, outliers starred | Medium |
-| `demos/demo7_impossible_travel.ipynb` | `geopy` geodesic speed between sign-ins | Speed bars + timeline | Medium |
-| `demos/demo8_signin_volume_forecast.ipynb` | Holt-Winters (`statsmodels`) | Actual vs forecast + band | Small |
-| `demos/demo9_lateral_movement_graph.ipynb` | `networkx` degree centrality | Directed network graph | Medium |
+| `demos/demo05_signin_activity_heatmap.ipynb` | Hour × weekday aggregation | Seaborn heatmap | Small |
+| `demos/demo06_ueba_peer_clustering.ipynb` | K-Means + PCA (UEBA) | Cluster scatter, outliers starred | Medium |
+| `demos/demo07_impossible_travel.ipynb` | `geopy` geodesic speed between sign-ins | Speed bars + timeline | Medium |
+| `demos/demo08_signin_volume_forecast.ipynb` | Holt-Winters (`statsmodels`) | Actual vs forecast + band | Small |
+| `demos/demo09_lateral_movement_graph.ipynb` | `networkx` degree centrality | Directed network graph | Medium |
 | `demos/demo10_commandline_entropy.ipynb` | Shannon entropy + rarity | Entropy histogram + top-N bar | Medium |
 | `demos/demo11_cross_signal_correlation.ipynb` | 3-table feature matrix | Correlation clustermap | Medium |
 | `demos/demo12_failed_logon_zscore.ipynb` | Rolling z-score (3σ) | Time series + control band | Small |
@@ -102,7 +102,7 @@ python3 apply_config.py check            # exits 1 if a real name is still prese
 ## Prerequisites
 
 - Workspace onboarded to the **Microsoft Sentinel data lake** (Defender portal).
-- Role for read: **Security Reader** (or equivalent). For write/schedule (demo4):
+- Role for read: **Security Reader** (or equivalent). For write/schedule (demo04):
   **Security Operator**. Analytics-tier custom tables need the data-lake managed identity
   (`msg-resources-<guid>`) to have **Log Analytics Contributor** on the workspace.
 - VS Code + the **Microsoft Sentinel** extension.
@@ -120,8 +120,8 @@ python3 apply_config.py check            # exits 1 if a real name is still prese
   Charts use matplotlib / seaborn / networkx; models use scikit-learn / statsmodels / scipy;
   geo uses geopy. **`%pip install` and custom libraries are not supported** on the data-lake
   pools, so if a library is absent the only option is to drop that notebook from the running
-  order. **Run the preflight cell in demo1 (section 1b) once before a demo** to find out
-  which. Demo 7 is the only notebook that degrades gracefully, falling back to a built-in
+  order. **Run the preflight cell in demo01 (section 1b) once before a demo** to find out
+  which. Demo 07 is the only notebook that degrades gracefully, falling back to a built-in
   haversine when `geopy` is missing.
 - **Cost:** notebook compute bills against the **Advanced data insights** meter at
   `vCores x session hours`, and the clock runs on the whole session, not just cell
@@ -133,7 +133,7 @@ python3 apply_config.py check            # exits 1 if a real name is still prese
   off each entry (the class reference still documents `list[str]`).
 - Device tables in the Sentinel schema use **`TimeGenerated`**, not the Defender advanced
   hunting `Timestamp` column. Some Microsoft samples use `Timestamp` and will not resolve here.
-- For a live demo, keep `LOOKBACK_DAYS` small (each notebook defaults to 7–14 days; demo8
+- For a live demo, keep `LOOKBACK_DAYS` small (each notebook defaults to 7–14 days; demo08
   uses 60 daily points) and start on a **Small/Medium** pool - first Spark session takes
   3–6 minutes, subsequent runs are fast.
 - Facilitation guides (agenda, labs, slides, cost governance, cheat sheet) are maintained
