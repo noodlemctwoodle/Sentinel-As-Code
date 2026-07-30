@@ -26,6 +26,7 @@ cross-links the matching [Toolkit](#toolkit--companion-vs-code-extension) pages.
 | [Hunting Queries](Content/Hunting-Queries.md) | YAML schema for hunting queries: required fields, tactics/techniques tags, export guide |
 | [Parsers](Content/Parsers.md) | YAML schema for KQL parsers/functions deployed as workspace saved functions (stage 1 of the content deploy order) via the `savedSearches` API |
 | [Playbooks](Content/Playbooks.md) | ARM template requirements, MSI vs standard connections, auto-injected parameters |
+| [Spark Notebooks](Content/Spark-Notebooks.md) | Catalogue of the 18 Sentinel data lake advanced-analytics notebooks (F16): technique, tables, visual and why-not-KQL for each, workspace configuration via `apply_config.py`, the threat-hunting running order, and the Advanced data insights cost model |
 | [Summary Rules](Content/Summary-Rules.md) | Summary-rule JSON schema, allowed bin sizes, KQL restrictions, system columns |
 | [Watchlists](Content/Watchlists.md) | Watchlist metadata schema, CSV format, KQL usage examples |
 | [Workbooks](Content/Workbooks.md) | Gallery-template JSON format, stable GUIDs, export from the Sentinel portal |
