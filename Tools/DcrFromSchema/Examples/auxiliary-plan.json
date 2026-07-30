@@ -1,0 +1,51 @@
+{
+  "tableName": "NetFlowArchive_CL",
+  "description": "Verbose network flow records kept for compliance. Auxiliary plan: cheapest ingestion, 30-day fixed interactive retention, low-fidelity query only. TimeGenerated must be sent as ISO 8601 with six decimal places.",
+  "dcrName": "dcr-netflow-archive",
+  "plan": "Auxiliary",
+  "totalRetentionInDays": 365,
+  "columns": [
+    {
+      "name": "TimeGenerated",
+      "type": "datetime",
+      "description": "Flow timestamp. An Auxiliary table only accepts ISO 8601 with six decimal places, for example 2026-07-30T09:15:22.123456Z."
+    },
+    {
+      "name": "SourceIp",
+      "type": "string",
+      "dataTypeHint": "ip",
+      "description": "Flow source address."
+    },
+    {
+      "name": "DestinationIp",
+      "type": "string",
+      "dataTypeHint": "ip",
+      "description": "Flow destination address."
+    },
+    {
+      "name": "DestinationPort",
+      "type": "int",
+      "description": "Destination port."
+    },
+    {
+      "name": "Protocol",
+      "type": "string",
+      "description": "Transport protocol."
+    },
+    {
+      "name": "BytesSent",
+      "type": "long",
+      "description": "Bytes sent. Long rather than int, because a flow archive overflows a 32-bit counter."
+    },
+    {
+      "name": "BytesReceived",
+      "type": "long",
+      "description": "Bytes received."
+    },
+    {
+      "name": "Action",
+      "type": "string",
+      "description": "Whether the flow was allowed or denied."
+    }
+  ]
+}

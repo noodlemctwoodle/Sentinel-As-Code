@@ -1,0 +1,39 @@
+{
+  "tableName": "AppTrace_CL",
+  "description": "High-volume application traces. Basic plan: cheap to ingest, 30-day fixed interactive retention, no alerting.",
+  "dcrName": "dcr-app-trace",
+  "plan": "Basic",
+  "totalRetentionInDays": 365,
+  "columns": [
+    {
+      "name": "TimeGenerated",
+      "type": "datetime",
+      "description": "When the application emitted the trace."
+    },
+    {
+      "name": "Component",
+      "type": "string",
+      "description": "Emitting component. Keep the filterable fields as real columns, because Basic tables support a reduced KQL surface."
+    },
+    {
+      "name": "Level",
+      "type": "string",
+      "description": "Trace level, for example Information or Warning."
+    },
+    {
+      "name": "CorrelationId",
+      "type": "string",
+      "description": "Request correlation identifier."
+    },
+    {
+      "name": "Message",
+      "type": "string",
+      "description": "Trace message."
+    },
+    {
+      "name": "Properties",
+      "type": "dynamic",
+      "description": "Structured trace properties."
+    }
+  ]
+}
