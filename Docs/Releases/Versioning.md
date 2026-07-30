@@ -68,6 +68,7 @@ immutable git history). The mapping:
 | Word report + Apache-2.0 relicence | `26.07` | PR #29 |
 | Copilot activity monitoring content pack, Sentinel as Code Toolkit, PR template validation gate | `26.07.1` | PR #30, PR #31 |
 | Documentation overhaul, Toolkit and pipeline docs, Docs restructure, deploy fixes | `26.07.2` | PR #33 |
+| Classic-to-DCR and DCR-from-schema toolkits, Spark notebooks, MCP prompt books | `26.07.3` | PR #42, #43, #44, #45, #46 |
 
 None of these releases were git-tagged; each shipped as a `release/<CalVer>`
 branch merged to `main` and, where published, a GitHub Release. The
