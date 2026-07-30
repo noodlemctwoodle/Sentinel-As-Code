@@ -10,15 +10,15 @@ Source notebooks and the kit quick-start live under [`Content/SparkNotebooks/`](
 
 | # | Notebook | Pool | Visual | Tables |
 | --- | --- | --- | --- | --- |
-| 1 | `demo1_lake_exploration.ipynb` | Small | - | SigninLogs |
-| 2 | `demo2_identity_anomaly_detection.ipynb` | Medium | - | SigninLogs, AADNonInteractiveUserSignInLogs |
-| 3 | `demo3_network_beacon_detection.ipynb` | Medium | - | DeviceNetworkEvents |
-| 4 | `demo4_scheduled_job_enrichment.ipynb` | Medium | - | SigninLogs, AADNonInteractiveUserSignInLogs |
-| 5 | `demo5_signin_activity_heatmap.ipynb` | Small | 2-D heatmap | SigninLogs |
-| 6 | `demo6_ueba_peer_clustering.ipynb` | Medium | 2-D PCA cluster scatter | SigninLogs |
-| 7 | `demo7_impossible_travel.ipynb` | Medium | speed bars + timeline | SigninLogs |
-| 8 | `demo8_signin_volume_forecast.ipynb` | Small | actual vs forecast | SigninLogs |
-| 9 | `demo9_lateral_movement_graph.ipynb` | Medium | directed network graph | DeviceLogonEvents |
+| 1 | `demo01_lake_exploration.ipynb` | Small | - | SigninLogs |
+| 2 | `demo02_identity_anomaly_detection.ipynb` | Medium | - | SigninLogs, AADNonInteractiveUserSignInLogs |
+| 3 | `demo03_network_beacon_detection.ipynb` | Medium | - | DeviceNetworkEvents |
+| 4 | `demo04_scheduled_job_enrichment.ipynb` | Medium | - | SigninLogs, AADNonInteractiveUserSignInLogs |
+| 5 | `demo05_signin_activity_heatmap.ipynb` | Small | 2-D heatmap | SigninLogs |
+| 6 | `demo06_ueba_peer_clustering.ipynb` | Medium | 2-D PCA cluster scatter | SigninLogs |
+| 7 | `demo07_impossible_travel.ipynb` | Medium | speed bars + timeline | SigninLogs |
+| 8 | `demo08_signin_volume_forecast.ipynb` | Small | actual vs forecast | SigninLogs |
+| 9 | `demo09_lateral_movement_graph.ipynb` | Medium | directed network graph | DeviceLogonEvents |
 | 10 | `demo10_commandline_entropy.ipynb` | Medium | entropy histogram + bar | DeviceProcessEvents |
 | 11 | `demo11_cross_signal_correlation.ipynb` | Medium | correlation clustermap | DeviceProcessEvents, DeviceNetworkEvents, DeviceLogonEvents |
 | 12 | `demo12_failed_logon_zscore.ipynb` | Small | time series with control bands | SigninLogs |
@@ -98,19 +98,19 @@ git commit -m "docs(sparknotebooks): ..."
 ```text
 $ python3 apply_config.py status
 .env SENTINEL_WORKSPACE_NAME = contoso-sec-law
-  demos/demo1_lake_exploration.ipynb            placeholder
-  demos/demo2_identity_anomaly_detection.ipynb  placeholder
+  demos/demo01_lake_exploration.ipynb            placeholder
+  demos/demo02_identity_anomaly_detection.ipynb  placeholder
   ...
 
 $ python3 apply_config.py apply
 Injecting workspace 'contoso-sec-law' into 18 notebook(s)...
-  updated demos/demo1_lake_exploration.ipynb (1 occurrence(s))
+  updated demos/demo01_lake_exploration.ipynb (1 occurrence(s))
   ...
 Done. 18 notebook(s) updated. Remember: run 'reset' before you commit.
 
 $ python3 apply_config.py check
 check: FAIL - real workspace name found in:
-  - demos/demo1_lake_exploration.ipynb
+  - demos/demo01_lake_exploration.ipynb
   ...
 Run 'python3 apply_config.py reset' before committing.
 ```
@@ -156,9 +156,9 @@ python3 apply_config.py check || {
 
 ## Foundation and job notebooks
 
-### demo1 - Lake exploration
+### demo01 - Lake exploration
 
-- **File:** `demos/demo1_lake_exploration.ipynb`
+- **File:** `demos/demo01_lake_exploration.ipynb`
 - **Purpose:** **Workshop:** F16 Advanced analytics (notebooks / ML) - Microsoft Sentinel data lake
 - **Tables:** `SigninLogs`
 - **Key libraries:** pandas, matplotlib
@@ -167,9 +167,9 @@ python3 apply_config.py check || {
 - **Writes table:** - (read-only / in-notebook viz)
 - **Pool:** Small
 
-### demo2 - Identity ML anomaly detection (hero lab)
+### demo02 - Identity ML anomaly detection (hero lab)
 
-- **File:** `demos/demo2_identity_anomaly_detection.ipynb`
+- **File:** `demos/demo02_identity_anomaly_detection.ipynb`
 - **Purpose:** A KQL rule uses a fixed threshold ("> 100 failures"). Here we do what KQL **cannot**: build a behavioural **feature vector per user** from history, then use an **Isolation Forest** to rank users behaving unlike themselves and unlike their peers - the model learns the baseline.
 - **Tables:** `SigninLogs`, `AADNonInteractiveUserSignInLogs`
 - **Key libraries:** scikit-learn
@@ -178,9 +178,9 @@ python3 apply_config.py check || {
 - **Writes table:** `IdentityAnomalies_SPRK`
 - **Pool:** Medium
 
-### demo3 - Network beacon & lateral-movement detection
+### demo03 - Network beacon & lateral-movement detection
 
-- **File:** `demos/demo3_network_beacon_detection.ipynb`
+- **File:** `demos/demo03_network_beacon_detection.ipynb`
 - **Purpose:** Two analytics that are natural in Spark and awkward in KQL: - **Part A - Beaconing:** regular, low-volume outbound connections over long windows (a C2 signature). The tell is *regularity over time* - a statistical property, not a filter. - **Part B - Lateral movement:** unusual internal-to-internal fan-out (e.g. SMB/RDP).
 - **Tables:** `DeviceNetworkEvents`
 - **Key libraries:** pandas, matplotlib
@@ -189,9 +189,9 @@ python3 apply_config.py check || {
 - **Writes table:** `NetworkBeacons_SPRK`
 - **Pool:** Medium
 
-### demo4 - Scheduled enrichment job (parameterised)
+### demo04 - Scheduled enrichment job (parameterised)
 
-- **File:** `demos/demo4_scheduled_job_enrichment.ipynb`
+- **File:** `demos/demo04_scheduled_job_enrichment.ipynb`
 - **Purpose:** This notebook is designed to run **as a scheduled job**. It reads sign-ins over a lookback window, scores users by failed-sign-in pressure, and writes a compact **enrichment table** - satisfying the F16 Definition of Done: *"a notebook-based analytic runs on a schedule over lake data and produces a usable detection or enrichment output, with cost monitored."*
 - **Tables:** `SigninLogs`, `AADNonInteractiveUserSignInLogs`
 - **Key libraries:** pandas, matplotlib
@@ -202,9 +202,9 @@ python3 apply_config.py check || {
 
 ## Visual demos - fast, graph-heavy, "why notebooks beat KQL"
 
-### demo5 - Sign-in activity heatmap (hour x weekday)
+### demo05 - Sign-in activity heatmap (hour x weekday)
 
-- **File:** `demos/demo5_signin_activity_heatmap.ipynb`
+- **File:** `demos/demo05_signin_activity_heatmap.ipynb`
 - **Purpose:** One picture of *when* your organisation signs in - and where the off-hours outliers are. KQL can bucket by hour, but it cannot **render a 2-D heatmap**; you would export to another tool. Here it's three lines of Spark and one Seaborn call.
 - **Tables:** `SigninLogs`
 - **Key libraries:** seaborn
@@ -214,9 +214,9 @@ python3 apply_config.py check || {
 - **Pool:** Small
 - **Why a notebook, not KQL:** KQL renders tables, not heatmaps. Spotting the working-hours block and the lone 3 a.m. Saturday cell is instant visually, and near-impossible to eyeball in a KQL grid.
 
-### demo6 - Peer-group anomaly detection (UEBA) with clustering
+### demo06 - Peer-group anomaly detection (UEBA) with clustering
 
-- **File:** `demos/demo6_ueba_peer_clustering.ipynb`
+- **File:** `demos/demo06_ueba_peer_clustering.ipynb`
 - **Purpose:** Group users by behaviour with **K-Means**, project to 2-D with **PCA**, and spotlight the accounts that sit apart from every peer group. Unsupervised clustering and dimensionality reduction simply do not exist in KQL.
 - **Tables:** `SigninLogs`
 - **Key libraries:** scikit-learn
@@ -226,9 +226,9 @@ python3 apply_config.py check || {
 - **Pool:** Medium
 - **Why a notebook, not KQL:** K-Means, StandardScaler and PCA are core data-science, not query operators. KQL can't cluster entities or reduce five features to a 2-D map - so it can't answer *'who behaves unlike their peers?'* the way this does.
 
-### demo7 - Impossible travel (geodesic speed between sign-ins)
+### demo07 - Impossible travel (geodesic speed between sign-ins)
 
-- **File:** `demos/demo7_impossible_travel.ipynb`
+- **File:** `demos/demo07_impossible_travel.ipynb`
 - **Purpose:** Compute the real **great-circle distance** and implied **travel speed** between each user's consecutive sign-ins with `geopy`, and flag anything faster than a jet. Row-to-row window maths plus true geodesic distance is exactly what KQL is bad at - here it's natural.
 - **Tables:** `SigninLogs`
 - **Key libraries:** geopy (falls back to a built-in haversine if the pool doesn't have it)
@@ -238,9 +238,9 @@ python3 apply_config.py check || {
 - **Pool:** Medium
 - **Why a notebook, not KQL:** This needs `lag()` across ordered rows AND a geodesic (Haversine) distance between lat/long pairs, then a speed calc. In KQL that's contortion; with `geopy` + pandas it's a few readable lines - and you get a chart for free.
 
-### demo8 - Sign-in volume forecast with anomaly band
+### demo08 - Sign-in volume forecast with anomaly band
 
-- **File:** `demos/demo8_signin_volume_forecast.ipynb`
+- **File:** `demos/demo08_signin_volume_forecast.ipynb`
 - **Purpose:** Fit a **Holt-Winters** model (trend + weekly seasonality) with `statsmodels`, forecast the next week, and shade a confidence band so today's spike is obviously in- or out-of-range. KQL has a fixed forecast function; here you own the model, the seasonality and the visual.
 - **Tables:** `SigninLogs`
 - **Key libraries:** statsmodels
@@ -250,9 +250,9 @@ python3 apply_config.py check || {
 - **Pool:** Small
 - **Why a notebook, not KQL:** Holt-Winters exponential smoothing with additive trend and 7-day seasonality is a statistical model, not a query. You can tune it, extract residuals, and plot a band - control KQL's single built-in forecast verb doesn't give you.
 
-### demo9 - Lateral movement graph
+### demo09 - Lateral movement graph
 
-- **File:** `demos/demo9_lateral_movement_graph.ipynb`
+- **File:** `demos/demo09_lateral_movement_graph.ipynb`
 - **Purpose:** Turn remote logons into a **graph**, size nodes by **degree centrality**, and draw the device-to-device movement map. Highlighting hub devices that fan out across the estate is a graph problem - KQL has no graph construction, centrality, or rendering.
 - **Tables:** `DeviceLogonEvents`
 - **Key libraries:** networkx
@@ -397,8 +397,8 @@ Lead with the retro-hunt - it's the clearest "only the lake can do this" moment.
 | 5 | `demo17_entity_investigation_timeline` | "Show me everything this host did, one view" | Multi-table swimlane, not `union` rows | T1057 |
 | 6 | `demo18_mitre_attack_coverage` | "Where does our hunt library cover ATT&CK?" | Coverage heatmap from the catalogue | (meta) |
 
-**Also strongly hunt-relevant** (from the visual set): `demo3` beaconing (C2 regularity),
-`demo7` impossible travel (geodesic speed), `demo9` lateral-movement graph (centrality),
+**Also strongly hunt-relevant** (from the visual set): `demo03` beaconing (C2 regularity),
+`demo07` impossible travel (geodesic speed), `demo09` lateral-movement graph (centrality),
 `demo10` command-line entropy (obfuscation).
 
 ### The 15-minute "wow" cut
@@ -407,7 +407,7 @@ If you only have 15 minutes with the hunt team:
 
 1. **`demo13` retro-hunt** - sweep a fresh IOC set across full history (the lake's superpower).
 2. **`demo14` stack counting** - the classic LFO hunt, with the long-tail curve.
-3. **`demo9` lateral-movement graph** - a visual you simply cannot produce in KQL.
+3. **`demo09` lateral-movement graph** - a visual you simply cannot produce in KQL.
 
 ### Why notebooks change the hunt (say this)
 
@@ -424,7 +424,7 @@ If you only have 15 minutes with the hunt team:
 
 When a hunt proves out, promote it: write results to a custom table (`_SPRK` lake tier, or
 `_SPRK_CL` analytics tier for KQL hunting) and schedule the notebook as a **job** (see
-`demo4`). A one-off hunt becomes continuous coverage.
+`demo04`). A one-off hunt becomes continuous coverage.
 
 ### Data prerequisites (confirm in Zava)
 
@@ -486,7 +486,7 @@ agreement):
 | Scenario | Pool | Session | Compute hours |
 | --- | --- | --- | --- |
 | `demo18` alone | Small (12) | 15 min | 3 |
-| `demo6` with discussion | Medium (32) | 45 min | 24 |
+| `demo06` with discussion | Medium (32) | 45 min | 24 |
 | The 15-minute "wow" cut | Medium (32) | 30 min inc. warm-up | 16 |
 | Full hunt running order | Medium (32) | 90 min | 48 |
 | Same, left open over lunch | Medium (32) | 150 min | 80 |
@@ -500,7 +500,7 @@ demo that preceded it.
   of inactivity, and the VS Code extension has its own timeout defaulting to **30 minutes**
   (click the connection status in the status bar to change it). Neither helps if you keep
   the session warm by clicking about.
-- **Right-size the pool.** Small is genuinely enough for `demo5`, `demo8`, `demo12` and
+- **Right-size the pool.** Small is genuinely enough for `demo05`, `demo08`, `demo12` and
   `demo18`. Reach for Large only when a notebook is actually memory-bound.
 - **Keep `LOOKBACK_DAYS` small.** It cuts the data lake query meter as well as the time the
   session stays busy.
