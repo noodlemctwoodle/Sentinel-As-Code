@@ -1,7 +1,7 @@
 ---
 name: validate-rule-against-lake
 description: Check a committed rule against real data - do its tables and columns exist, and would it ever fire?
-argument-hint: <path to a rule YAML>
+argument-hint: <path to a rule YAML> <workspace ID>
 agent: agent
 ---
 

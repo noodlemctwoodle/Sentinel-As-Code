@@ -1,7 +1,7 @@
 ---
 name: retro-hunt-ioc-sweep
 description: Sweep an IOC set across the full lake history - the retention story that the analytics tier cannot tell.
-argument-hint: <workspace ID>
+argument-hint: <workspace ID> <hashes> <IPs> <domains>
 agent: agent
 ---
 

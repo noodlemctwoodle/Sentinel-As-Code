@@ -72,6 +72,16 @@ You can also add servers one at a time via **Ctrl+Shift+P** -> `MCP: Add Server`
 so Copilot finds these folders. Without it the `/slash-commands` will not appear and you
 will be copy-pasting instead - which still works, but is a worse demo.
 
+Both config files are deliberately plain JSON with no explanatory keys in them. A
+`_comment` key would be an unknown MCP server in `mcp.json` and an unknown setting in
+`settings.json`, and either can draw an editor warning. Everything you need to know about
+them is here instead.
+
+One shape to watch: if `settings.json` IntelliSense objects to `chat.promptFilesLocations`,
+open the setting in the Settings UI to see what your VS Code build expects. The key name is
+stable; the value shape has moved across releases, and Microsoft's own documentation
+describes the setting without ever showing its JSON.
+
 **3. Set chat to Agent mode.** MCP tools are only available in agent mode.
 
 **4. Verify.** Open Copilot Chat, click **Configure Tools**, and confirm the Sentinel
@@ -108,7 +118,7 @@ frontmatter alone and disable the collections you are not using in **Configure T
 | --- | --- | --- | --- |
 | Sentinel data lake | Required | - | - |
 | Defender portal onboarding | Graph tools only | Required | - |
-| Security Copilot | Entity analyzer only | - | Required |
+| Security Copilot | Entity analyser only | - | Required |
 | Minimum role | Security Reader | Your existing permissions | Security Copilot access |
 
 ## Writing your own
@@ -129,7 +139,7 @@ Four more that earn their place in a prompt:
 - **Name the workspace ID.** With several workspaces connected, tools will otherwise pick
   between them turn to turn.
 - **Say `in my graph`** for graph tools, or they answer from the lake instead.
-- **Say `render the results as returned exactly from the tool`** for the entity analyzer,
+- **Say `render the results as returned exactly from the tool`** for the entity analyser,
   or the client re-summarises a verdict that was already a summary.
 - **Say `Use 'default' as the workspaceId.`** to reach system tables, which have no
   workspace ID of their own.

@@ -153,9 +153,9 @@ Pass `compose_agent` the session ID from `start_agent_creation`, not the one fro
 | --- | --- | --- | --- |
 | Sentinel data lake | Required | - | - |
 | Defender portal onboarding | Graph tools only | Required | - |
-| Security Copilot | Entity analyzer only | - | Required |
+| Security Copilot | Entity analyser only | - | Required |
 | Minimum role | Security Reader | Your existing permissions | Security Copilot access |
-| Extra roles | Security Copilot Contributor for entity analyzer; Exposure Management read for graph | - | - |
+| Extra roles | Security Copilot Contributor for entity analyser; Exposure Management read for graph | - | - |
 
 ## Writing good prompts
 
@@ -176,7 +176,7 @@ Four incantations that change behaviour, all documented:
 | --- | --- |
 | The workspace ID, explicitly | With several workspaces connected, tools pick between them turn to turn |
 | `in my graph` | Scopes graph tools to the graph rather than the lake |
-| `render the results as returned exactly from the tool` | Stops the client re-summarising an entity-analyzer verdict |
+| `render the results as returned exactly from the tool` | Stops the client re-summarising an entity-analyser verdict |
 | `Use 'default' as the workspaceId.` | System tables have no workspace ID of their own |
 
 Two more that are not Microsoft's but earn their place in every prompt in this book:
@@ -235,7 +235,7 @@ the Copilot chat sidebar -> **Show Chat Debug View** -> **Export All as JSON**).
 
 ## Known limits
 
-**Entity analyzer**
+**Entity analyser**
 
 - `analyze_user_entity` caps the analysis window at **seven days**
 - Entra object IDs only. On-premises-only AD users are unsupported.

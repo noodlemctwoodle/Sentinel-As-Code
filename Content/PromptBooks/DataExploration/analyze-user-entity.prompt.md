@@ -1,6 +1,6 @@
 ---
 name: analyze-user-entity
-description: One-click user verdict from the entity analyzer - the "is this account compromised?" beat.
+description: One-click user verdict from the entity analyser - the "is this account compromised?" beat.
 argument-hint: <Entra object ID> <workspace ID>
 agent: agent
 ---
@@ -32,7 +32,7 @@ Start the analysis, then poll for the result until it completes. If the first po
 out, poll again rather than giving up.
 
 Render the results as returned exactly from the tool. Do not summarise, re-rank or
-reformat the analyzer's verdict.
+reformat the analyser's verdict.
 ```
 
 ## Follow-ups
@@ -51,7 +51,7 @@ to be wrong, would the verdict change?
 
 - A verdict with supporting insights: authentication patterns, behavioural anomalies,
   organisational activity.
-- The raw analyzer output, not a paraphrase. If the model summarises anyway, that is the
+- The raw analyser output, not a paraphrase. If the model summarises anyway, that is the
   cue to point at the `render the results as returned exactly from the tool` line.
 - The analysis takes a couple of minutes. Talk over it.
 

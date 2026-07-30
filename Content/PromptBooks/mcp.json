@@ -1,11 +1,4 @@
 {
-  "_comment": [
-    "Microsoft Sentinel MCP server collections. Copy this file to .vscode/mcp.json",
-    "(the .vscode/ folder is git-ignored in this repo, which is why the template lives here).",
-    "VS Code prompts you to sign in on first use - use an account with at least Security Reader.",
-    "The server IDs below are referenced by the 'tools' frontmatter in every .prompt.md under",
-    "Content/PromptBooks/, so keep them as-is unless you also update the prompt files."
-  ],
   "servers": {
     "sentinel-data-exploration": {
       "type": "http",
