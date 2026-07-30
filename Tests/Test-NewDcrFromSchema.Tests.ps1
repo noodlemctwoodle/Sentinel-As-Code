@@ -1030,6 +1030,77 @@ Describe 'Get-DefaultTransform' {
     }
 }
 
+Describe 'Case sensitivity across every name comparison' {
+    # PowerShell's defaults are all case insensitive: @{}, -contains,
+    # Group-Object, Sort-Object -Unique. Analytics and Basic tables treat
+    # 'Foo' and 'foo' as two real columns, so each default silently breaks a
+    # different part of this tool. These pin all of them at once.
+
+    BeforeAll {
+        $script:casePair = @(
+            (New-SchemaColumn -Name 'TimeGenerated' -Type 'dateTime')
+            (New-SchemaColumn -Name 'Ref' -Type 'guid')
+            (New-SchemaColumn -Name 'ref' -Type 'string')
+        )
+    }
+
+    It 'derives a cast for the guid column and not for its lowercase twin' {
+        # A case-insensitive stream index collapses the pair, so one column's
+        # cast gets computed from the other's type. The guid needs toguid();
+        # the string must not get one.
+        $stream = @(ConvertTo-StreamColumn -Column $script:casePair)
+        @($stream).Count | Should -Be 3
+
+        $transform = Get-DefaultTransform -Column $script:casePair -StreamColumn $stream
+
+        # -CMatch, not -Match. Pester's -Match is case insensitive, so it would
+        # report the lowercase pattern as present in 'Ref = toguid(Ref)' and
+        # this assertion would fail against correct code.
+        $transform | Should -CMatch 'Ref = toguid\(Ref\)'
+        $transform | Should -Not -CMatch 'ref = toguid\(ref\)'
+    }
+
+    It 'does not conflate case-differing columns when diffing a live table' {
+        $diff = Compare-TableSchema `
+            -DesiredColumn @(
+                (New-SchemaColumn -Name 'Alert' -Type 'string')
+                (New-SchemaColumn -Name 'alert' -Type 'string')
+            ) `
+            -ExistingColumn @((New-LiveColumn -Name 'Alert' -Type 'string'))
+
+        # 'alert' is genuinely new; 'Alert' already exists and matches.
+        $diff.Added     | Should -Be @('alert')
+        $diff.Conflicts | Should -BeNullOrEmpty
+        $diff.OnlyLive  | Should -BeNullOrEmpty
+    }
+
+    It 'reports a live-only column that differs from a desired one only by case' {
+        $diff = Compare-TableSchema `
+            -DesiredColumn @((New-SchemaColumn -Name 'alert' -Type 'string')) `
+            -ExistingColumn @((New-LiveColumn -Name 'Alert' -Type 'string'))
+
+        $diff.Added    | Should -Be @('alert')
+        $diff.OnlyLive | Should -Be @('Alert')
+    }
+
+    It 'does not raise a spurious type conflict across a case-differing pair' {
+        # 'Count' is long and 'count' is string. Conflated, one would be
+        # reported as a type change against the other.
+        $diff = Compare-TableSchema `
+            -DesiredColumn @(
+                (New-SchemaColumn -Name 'Count' -Type 'long')
+                (New-SchemaColumn -Name 'count' -Type 'string')
+            ) `
+            -ExistingColumn @(
+                (New-LiveColumn -Name 'Count' -Type 'long')
+                (New-LiveColumn -Name 'count' -Type 'string')
+            )
+
+        $diff.Conflicts | Should -BeNullOrEmpty
+        $diff.Added     | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Test-TransformKql' {
     It 'leaves a normal transform alone' {
         $result = Test-TransformKql -Transform 'source | where isnotempty(Id)'

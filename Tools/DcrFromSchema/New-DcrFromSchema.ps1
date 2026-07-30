@@ -1152,7 +1152,7 @@ function Test-TableName {
     }
 
     if (-not $Name.EndsWith('_CL')) {
-        $problems.Add("'$Name' does not end with '_CL'; custom log tables must")
+        $problems.Add("'$Name' does not end with '_CL', which every custom log table name must")
     }
 
     # ARM's own pattern for the table resource name is ^[A-Za-z0-9-_]+$, which
@@ -1306,9 +1306,17 @@ function Resolve-TableSchema {
         against the column it belongs to, and adds schema-wide findings for
         duplicates, a missing TimeGenerated and an over-long column list.
 
-        Duplicates are compared case-insensitively: Log Analytics will not
-        create two columns whose names differ only in case, so treating them
-        as distinct here would just move the failure to deployment time.
+        Duplicates are compared case-SENSITIVELY, which is what Log Analytics
+        does for Analytics and Basic tables: 'Foo' and 'foo' are two real
+        columns there, so only an exact repeat is an error. A case-only
+        difference is reported as a warning instead, and becomes fatal in step
+        5 if the plan turns out to be Auxiliary, where ingestion drops rows
+        over it.
+
+        Every name comparison in this script uses an ordinal comparer for that
+        reason. PowerShell's defaults are all case insensitive - @{},
+        -contains, Group-Object, Sort-Object -Unique - and each one silently
+        breaks this invariant in a different place.
 
     .OUTPUTS
         PSCustomObject with Columns (name / type / declared type / issues) and
@@ -1789,9 +1797,16 @@ function Get-DefaultTransform {
       , [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $StreamColumn
     )
 
-    $streamTypeByName = @{}
+    # Ordinal, not @{}. A default PowerShell hashtable is case insensitive, so
+    # a schema carrying both 'Foo' and 'foo' - which this tool deliberately
+    # permits, because Analytics and Basic tables treat them as two real
+    # columns - would collapse to one entry. The second would overwrite the
+    # first and one column's cast would be derived from the other's type,
+    # producing InvalidTransformOutput at deploy time.
+    $streamTypeByName = [System.Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
+
     foreach ($stream in $StreamColumn) {
-        if ($stream) { $streamTypeByName[$stream.name] = ([string]$stream.type).ToLowerInvariant() }
+        if ($stream) { $streamTypeByName[[string]$stream.name] = ([string]$stream.type).ToLowerInvariant() }
     }
 
     $casts = foreach ($entry in $Column) {
@@ -2024,7 +2039,11 @@ function Compare-TableSchema {
       , [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $ExistingColumn
     )
 
-    $existingByName = @{}
+    # Ordinal for the same reason as Get-DefaultTransform: a default hashtable
+    # conflates 'Foo' and 'foo', which either invents a type conflict between
+    # two unrelated columns or hides a genuinely new one.
+    $existingByName = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+
     foreach ($column in $ExistingColumn) {
         if ($column -and $column.PSObject.Properties['name']) {
             $existingByName[[string]$column.name] = $column
@@ -2049,9 +2068,13 @@ function Compare-TableSchema {
         }
     }
 
-    $desiredNames = @($DesiredColumn | ForEach-Object { $_.Name })
-    $onlyLive     = @($existingByName.Keys | Where-Object {
-        $desiredNames -notcontains $_ -and $_ -notlike '_*'
+    # -notcontains is case insensitive too, so the live-only set needs an
+    # ordinal comparison or a case-differing pair is misreported here as well.
+    $desiredNames = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]] @($DesiredColumn | ForEach-Object { [string]$_.Name }), [StringComparer]::Ordinal)
+
+    $onlyLive = @($existingByName.Keys | Where-Object {
+        -not $desiredNames.Contains($_) -and $_ -notlike '_*'
     })
 
     return [pscustomobject] @{
@@ -2707,37 +2730,54 @@ else {
     # arrives through the schema file or a prompt has not been through the
     # parameter's validation, so it is range-checked here. Azure would reject
     # it too, but later and less clearly.
+    # Validated into a local first, then assigned. A parameter's validation
+    # attribute is re-evaluated on every later assignment to that variable, so
+    # assigning an out-of-range value here throws the framework's own message:
+    #
+    #   The variable cannot be validated because the value 0 is not a valid
+    #   value for the RetentionInDays variable.
+    #
+    # A schema file carrying "retentionInDays": 0 would hit exactly that, and
+    # it names an internal variable rather than the file the operator wrote.
     if (-not $PSBoundParameters.ContainsKey('RetentionInDays')) {
         $specRetention = Get-SpecDefault -Extra $spec.Extra -Key 'retentionInDays'
+        $candidate     = 0
 
-        if ($specRetention) {
-            $RetentionInDays = [int]$specRetention
+        if ($null -ne $specRetention -and "$specRetention" -ne '') {
+            $candidate = [int]$specRetention
         }
         elseif ($TablePlan -eq 'Analytics') {
             $answer = Read-Value -Prompt 'Interactive retention in days, 4 to 730, or -1 for the workspace default (blank to omit)' -AllowEmpty
-            if ($answer) { $RetentionInDays = [int]$answer }
+            if ($answer) { $candidate = [int]$answer }
         }
+
+        if ($candidate -ne 0 -and $candidate -ne -1 -and ($candidate -lt 4 -or $candidate -gt 730)) {
+            throw "Interactive retention must be between 4 and 730 days, or -1 for the workspace default; got $candidate."
+        }
+
+        if ($candidate -ne 0) { $RetentionInDays = $candidate }
     }
 
-    if ($RetentionInDays -ne 0 -and $RetentionInDays -ne -1 -and ($RetentionInDays -lt 4 -or $RetentionInDays -gt 730)) {
-        throw "Interactive retention must be between 4 and 730 days, or -1 for the workspace default; got $RetentionInDays."
-    }
 
     if (-not $PSBoundParameters.ContainsKey('TotalRetentionInDays')) {
         $specTotal = Get-SpecDefault -Extra $spec.Extra -Key 'totalRetentionInDays'
+        $candidate = 0
 
-        if ($specTotal) {
-            $TotalRetentionInDays = [int]$specTotal
+        if ($null -ne $specTotal -and "$specTotal" -ne '') {
+            $candidate = [int]$specTotal
         }
         else {
             $answer = Read-Value -Prompt 'Total retention in days, interactive plus archive, 4 to 4383, or -1 to match interactive (blank to omit)' -AllowEmpty
-            if ($answer) { $TotalRetentionInDays = [int]$answer }
+            if ($answer) { $candidate = [int]$answer }
         }
+
+        if ($candidate -ne 0 -and $candidate -ne -1 -and ($candidate -lt 4 -or $candidate -gt 4383)) {
+            throw "Total retention must be between 4 and 4383 days, or -1 to match interactive retention; got $candidate."
+        }
+
+        if ($candidate -ne 0) { $TotalRetentionInDays = $candidate }
     }
 
-    if ($TotalRetentionInDays -ne 0 -and $TotalRetentionInDays -ne -1 -and ($TotalRetentionInDays -lt 4 -or $TotalRetentionInDays -gt 4383)) {
-        throw "Total retention must be between 4 and 4383 days, or -1 to match interactive retention; got $TotalRetentionInDays."
-    }
 
     if ($RetentionInDays -gt 0 -and $TotalRetentionInDays -gt 0 -and $TotalRetentionInDays -lt $RetentionInDays) {
         throw "Total retention ($TotalRetentionInDays days) cannot be shorter than interactive retention ($RetentionInDays days)."
