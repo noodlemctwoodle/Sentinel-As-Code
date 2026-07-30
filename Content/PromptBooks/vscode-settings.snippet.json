@@ -1,0 +1,9 @@
+{
+  "chat.promptFilesLocations": {
+    ".github/prompts": true,
+    "Content/PromptBooks/DataExploration": true,
+    "Content/PromptBooks/Triage": true,
+    "Content/PromptBooks/AgentCreation": true,
+    "Content/PromptBooks/SentinelAsCode": true
+  }
+}
