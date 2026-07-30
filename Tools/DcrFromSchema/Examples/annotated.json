@@ -1,0 +1,65 @@
+{
+  "tableName": "PaymentAudit_CL",
+  "description": "Payment gateway audit events, pushed over the Logs Ingestion API.",
+  "dcrName": "dcr-payment-audit",
+  "plan": "Analytics",
+  "retentionInDays": 30,
+  "totalRetentionInDays": 730,
+  "transformKql": "source | where isnotempty(TransactionId) | extend TransactionId = toguid(TransactionId)",
+  "columns": [
+    {
+      "name": "TimeGenerated",
+      "type": "datetime",
+      "description": "When the gateway recorded the event."
+    },
+    {
+      "name": "TransactionId",
+      "type": "guid",
+      "description": "Gateway transaction identifier. Declared string in the DCR stream and cast back by the transform, because a stream declaration cannot express guid."
+    },
+    {
+      "name": "MerchantName",
+      "type": "string",
+      "displayName": "Merchant",
+      "description": "Trading name of the merchant."
+    },
+    {
+      "name": "SourceIp",
+      "type": "string",
+      "dataTypeHint": "ip",
+      "description": "Caller address. The ip hint lets the portal and Sentinel entity mapping treat it as an address rather than text."
+    },
+    {
+      "name": "GatewayResourceId",
+      "type": "string",
+      "dataTypeHint": "armPath",
+      "description": "Resource ID of the gateway instance."
+    },
+    {
+      "name": "CallbackUrl",
+      "type": "string",
+      "dataTypeHint": "uri",
+      "description": "Merchant callback endpoint."
+    },
+    {
+      "name": "AmountMinorUnits",
+      "type": "long",
+      "description": "Amount in minor units. Integral on purpose: a real would introduce floating-point error into money."
+    },
+    {
+      "name": "Succeeded",
+      "type": "boolean",
+      "description": "Whether the gateway authorised the payment."
+    },
+    {
+      "name": "RiskScore",
+      "type": "real",
+      "description": "Fraud score between 0 and 1."
+    },
+    {
+      "name": "GatewayResponse",
+      "type": "dynamic",
+      "description": "Full gateway response body, kept as an object so it stays queryable."
+    }
+  ]
+}

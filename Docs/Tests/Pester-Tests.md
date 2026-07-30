@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) — 22 suites total: 19 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 3 under [`Tests/Documenter/`](../../Tests/Documenter) |
+| Test files | [`Tests/`](../../Tests) — 29 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 3 under [`Tests/Documenter/`](../../Tests/Documenter) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -152,6 +152,7 @@ workbook-export suites.
 | Import-CommunityRules | [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) |
 | Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
 | Export-SentinelWorkbooks | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation, parity against existing `Content/Workbooks/<Folder>/` names, `Format-WorkbookJson` round-trip |
+| New-DcrFromSchema | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../Tests/Test-NewDcrFromSchema.Tests.ps1) | The full pure surface of the DCR-from-schema wizard: `Import-TableSpec` (three schema shapes, plus the refusal when handed a data sample), `Remove-JsonNoise` / `ConvertTo-StraightPunctuation` / `ConvertTo-SafeText` (paste repair that respects string state), `Get-ColumnIssue` and `Test-TableName` (the documented Azure Monitor limits), `Resolve-TableSchema` / `Repair-TableSchema` (duplicate and case handling, what is safe to auto-fix), `ConvertTo-StreamColumn` and `Get-DefaultTransform` (the guid-to-string reconciliation), `Test-TransformKql`, `Compare-TableSchema`, `Format-DeploymentError` (nested ARM preflight errors), both ARM template builders, and an end-to-end pass over all five shipped example schemas |
 | Documenter renderer | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Documenter Markdown from the `Tests/Documenter/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
 | Documenter gap engine | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
 | Documenter REST wrapper | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
