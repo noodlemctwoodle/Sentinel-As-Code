@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-apply_config.py — populate the SparkNotebooks from a single git-ignored .env file.
+apply_config.py - populate the SparkNotebooks from a single git-ignored .env file.
 
 Why a script (and not runtime file reads): the Microsoft Sentinel notebook kernel runs on
 a cloud Spark pool, so a cell cannot read a local .env at run time. Instead we stamp the
-tenant-specific workspace name from .env into the notebooks locally, before you run them —
+tenant-specific workspace name from .env into the notebooks locally, before you run them,
 and restore the placeholder before you commit, so the real name is never checked in.
 
 Usage:
@@ -99,12 +99,12 @@ def cmd_check() -> int:
             if ws in fh.read():
                 offenders.append(os.path.relpath(nb, HERE))
     if offenders:
-        print("check: FAIL — real workspace name found in:")
+        print("check: FAIL - real workspace name found in:")
         for o in offenders:
             print("  -", o)
         print("Run 'python3 apply_config.py reset' before committing.")
         return 1
-    print("check: OK — no real workspace name present in notebooks.")
+    print("check: OK - no real workspace name present in notebooks.")
     return 0
 
 

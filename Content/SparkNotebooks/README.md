@@ -1,4 +1,4 @@
-# SparkNotebooks — Microsoft Sentinel data lake (Notebooks / ML)
+# SparkNotebooks - Microsoft Sentinel data lake (Notebooks / ML)
 
 Runnable Jupyter/PySpark notebooks for the Microsoft Sentinel **data lake** advanced
 analytics capability (F16). They read lake-tier tables via the `MicrosoftSentinelProvider`
@@ -6,12 +6,12 @@ SDK, build ML anomaly detections, write enrichment back to custom tables, and ru
 scheduled notebook jobs.
 
 Run them in **VS Code** with the **Microsoft Sentinel** extension against a data-lake–onboarded
-workspace. The kernel executes on a managed Spark pool — there is nothing to install locally
+workspace. The kernel executes on a managed Spark pool - there is nothing to install locally
 beyond VS Code + the extension.
 
 ## Documentation
 
-- **[Spark Notebooks catalogue](../../Docs/Content/Spark-Notebooks.md)** — full catalogue of
+- **[Spark Notebooks catalogue](../../Docs/Content/Spark-Notebooks.md)** - full catalogue of
   all 18 notebooks (purpose, tables, technique, visual, parameters, pool, and why-not-KQL for
   each), how to configure the workspace name with `apply_config.py`, plus the **threat-hunting
   running order** and ATT&CK mapping.
@@ -27,11 +27,12 @@ beyond VS Code + the extension.
 | `demos/demo3_network_beacon_detection.ipynb` | C2 beacon + lateral-movement detection over `DeviceNetworkEvents` |
 | `demos/demo4_scheduled_job_enrichment.ipynb` | Parameterised, schedulable enrichment job |
 
-**Visual demos — fast, graph-heavy, "why notebooks beat KQL"**
+**Visual demos - fast, graph-heavy, "why notebooks beat KQL"**
 
 Each is tuned to run quickly (aggregate in Spark, then a rich chart) and ends with a
-*Why a notebook beats KQL here* note. Every library ships in the Synapse Spark 3.4 runtime —
-no `pip install`.
+*Why a notebook beats KQL here* note. They rely on the Synapse Spark 3.4 library set, which
+cannot be extended (`%pip install` is unsupported on data lake pools) - run the demo1
+preflight cell first to confirm what your pool actually has.
 
 | Path | Technique | Visual | Pool |
 | --- | --- | --- | --- |
@@ -44,7 +45,7 @@ no `pip install`.
 | `demos/demo11_cross_signal_correlation.ipynb` | 3-table feature matrix | Correlation clustermap | Medium |
 | `demos/demo12_failed_logon_zscore.ipynb` | Rolling z-score (3σ) | Time series + control band | Small |
 
-**Threat hunting demos — hypothesis-driven, retro-hunt, ATT&CK**
+**Threat hunting demos - hypothesis-driven, retro-hunt, ATT&CK**
 
 For a hunt-team audience. Lead with retro-hunting (the lake keeps up to 12 years; the
 analytics tier is cost-capped at ~90 days). See the **threat-hunting running order** section
@@ -65,14 +66,13 @@ KQL contrast and the 15-minute "wow" cut.
 | Path | What it is |
 | --- | --- |
 | `.env.example` | Config template (committed) |
-| `.env` | Your local config — **git-ignored**, holds the real workspace name |
+| `.env` | Your local config - **git-ignored**, holds the real workspace name |
 | `apply_config.py` | Stamps the workspace name from `.env` into the notebooks |
 
 ## Configure the workspace name (single file, git-ignored)
 
 The only tenant-specific value is the Log Analytics workspace onboarded to the data lake.
-It lives in one git-ignored file (`.env`) and is stamped into the notebooks locally —
-because the cloud Spark kernel cannot read a local file at run time.
+It lives in one git-ignored file (`.env`) and is stamped into the notebooks locally - because the cloud Spark kernel cannot read a local file at run time.
 
 ```bash
 cp .env.example .env                     # first time only
@@ -84,7 +84,7 @@ Get the exact workspace name by running `data_provider.list_databases()` in any 
 
 ### Before you commit
 
-Keep the real name out of git — the committed notebooks always carry the
+Keep the real name out of git - the committed notebooks always carry the
 `your-workspace-name` placeholder:
 
 ```bash
@@ -97,7 +97,7 @@ python3 apply_config.py check            # exits 1 if a real name is still prese
 > `.env` is already ignored by the repo-root `.gitignore` (`.env` / `.env.*` rules), matching
 > the repo's existing `.env` / `.env.example` convention.
 
-**Full config reference (all commands, pre-commit hook, troubleshooting): [Spark Notebooks — Configuration](../../Docs/Content/Spark-Notebooks.md#configuration-apply_configpy).**
+**Full config reference (all commands, pre-commit hook, troubleshooting): [Spark Notebooks - Configuration](../../Docs/Content/Spark-Notebooks.md#configuration-apply_configpy).**
 
 ## Prerequisites
 
@@ -129,12 +129,12 @@ python3 apply_config.py check            # exits 1 if a real name is still prese
 - Tables used across the demos (confirm these exist in the Zava data lake, or swap for
   equivalents): `SigninLogs`, `AADNonInteractiveUserSignInLogs`, `DeviceProcessEvents`,
   `DeviceNetworkEvents`, `DeviceLogonEvents`. Run `data_provider.list_tables("<workspace>")`
-  to see what's available — note it returns `TableInfo` objects, not strings, so read `.name`
+  to see what's available - note it returns `TableInfo` objects, not strings, so read `.name`
   off each entry (the class reference still documents `list[str]`).
 - Device tables in the Sentinel schema use **`TimeGenerated`**, not the Defender advanced
   hunting `Timestamp` column. Some Microsoft samples use `Timestamp` and will not resolve here.
 - For a live demo, keep `LOOKBACK_DAYS` small (each notebook defaults to 7–14 days; demo8
-  uses 60 daily points) and start on a **Small/Medium** pool — first Spark session takes
+  uses 60 daily points) and start on a **Small/Medium** pool - first Spark session takes
   3–6 minutes, subsequent runs are fast.
 - Facilitation guides (agenda, labs, slides, cost governance, cheat sheet) are maintained
   separately as workshop material.

@@ -40,7 +40,7 @@ cannot read a local `.env` at run time (`open(".env")` would look on the pool, w
 doesn't exist), and you can't `pip install python-dotenv` (the runtime is locked to Synapse
 Spark 3.4 libraries). So instead of reading config at run time, we **stamp** the workspace
 name into the notebooks locally before you run them, and **restore the placeholder** before
-you commit — so the real name is never checked in. This mirrors the repo's existing
+you commit - so the real name is never checked in. This mirrors the repo's existing
 `.env` / `.env.example` convention.
 
 ### Files
@@ -109,7 +109,7 @@ Injecting workspace 'contoso-sec-law' into 18 notebook(s)...
 Done. 18 notebook(s) updated. Remember: run 'reset' before you commit.
 
 $ python3 apply_config.py check
-check: FAIL — real workspace name found in:
+check: FAIL - real workspace name found in:
   - demos/demo1_lake_exploration.ipynb
   ...
 Run 'python3 apply_config.py reset' before committing.
@@ -133,7 +133,7 @@ python3 apply_config.py check || {
   `demos/*.ipynb`, so the notebook JSON stays valid.
 - `check` reads `SENTINEL_WORKSPACE_NAME` from `.env`; if it's unset or still the placeholder,
   nothing could leak and it passes.
-- New notebooks are picked up automatically — the script globs `demos/*.ipynb`, so all 18 (and
+- New notebooks are picked up automatically - the script globs `demos/*.ipynb`, so all 18 (and
   any you add) are managed with no changes to the script.
 
 ### Troubleshooting
@@ -143,13 +143,13 @@ python3 apply_config.py check || {
 | `ERROR: SENTINEL_WORKSPACE_NAME not set` | You ran `apply`/`reset` before creating `.env`. `cp .env.example .env` and set the value. |
 | `apply` says "still the placeholder; nothing to inject" | `.env` still has `your-workspace-name`. Put your real workspace name in `.env`. |
 | Notebook shows the placeholder when you run it | You didn't run `apply`, or you ran `reset`. Run `apply` again. |
-| A cell errors trying to read `.env` at run time | Don't — the cloud kernel can't see local files. Use `apply` to stamp the value instead. |
+| A cell errors trying to read `.env` at run time | Don't - the cloud kernel can't see local files. Use `apply` to stamp the value instead. |
 | `check` fails in CI | A real workspace name is committed. Run `reset`, re-commit. |
 
 ### Notes
 
 - The workspace name is not a secret, but keeping it out of git avoids leaking tenant details
-  and keeps the notebooks portable across tenants — just change the
+  and keeps the notebooks portable across tenants - just change the
   one value in `.env` and re-run `apply`.
 - Notebook tunables (lookback windows, thresholds) live in each notebook's config cell as safe
   defaults; only the workspace name is centralised here.
