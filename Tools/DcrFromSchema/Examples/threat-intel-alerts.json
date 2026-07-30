@@ -1,0 +1,30 @@
+{
+  "tableName": "ThreatIntelAlert_CL",
+  "description": "Alerts pushed from a threat intelligence feed over the Logs Ingestion API.",
+  "dcrName": "dcr-threat-intel-alert",
+  "plan": "Analytics",
+  "retentionInDays": 90,
+  "totalRetentionInDays": 365,
+  "columns": [
+    {
+      "name": "TimeGenerated",
+      "type": "datetime",
+      "description": "When the record was ingested."
+    },
+    {
+      "name": "AlertCreated",
+      "type": "datetime",
+      "description": "When the feed raised the alert. Kept separate from TimeGenerated so feed latency stays measurable."
+    },
+    { "name": "AlertId",       "type": "string",  "description": "Feed identifier for the alert." },
+    { "name": "AlertType",     "type": "string",  "description": "Feed classification of the alert." },
+    { "name": "AlertName",     "type": "string",  "description": "Human-readable alert title." },
+    { "name": "AlertQuery",    "type": "string",  "description": "Query or rule the feed matched on." },
+    { "name": "AlertSource",   "type": "string",  "description": "Which feed or collection the alert came from." },
+    { "name": "Resource",      "type": "dynamic", "description": "Affected resource, as an object." },
+    { "name": "HighlightText", "type": "string",  "description": "Matched excerpt, flattened for full-text search." },
+    { "name": "Highlights",    "type": "dynamic", "description": "Matched excerpts with their offsets." },
+    { "name": "Tags",          "type": "dynamic", "description": "Feed tags. Dynamic rather than a delimited string, so tags stay individually queryable." },
+    { "name": "RawData",       "type": "dynamic", "description": "Full original payload, retained for reprocessing." }
+  ]
+}
