@@ -34,3 +34,19 @@ Tools/Export-Playbooks.ps1
 SecurityDocs/
 .sentinel-connectors.json
 Demo
+
+# Invoke-TableMigrationReview.ps1 writes its report bundle (html/json/csv)
+# to a migration-report/ folder in the working directory by default.
+migration-report/
+
+# Generated DCR templates land here when the migration tool runs from its
+# own folder (its default output is the working directory). Transient
+# artefacts; the ones you want tracked go to Infra/dcr via -OutputDirectory.
+Tools/ClassicToDcr/dcr-*.json
+
+# Local secrets for live DCR ingestion testing (Rehearsal/Test-DcrIngestion.ps1).
+# Never commit the real .env (service-principal client secrets); the
+# .env.example template is committed so adopters know what to fill in.
+.env
+.env.*
+!.env.example

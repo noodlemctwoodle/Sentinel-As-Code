@@ -16,6 +16,12 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Export-SentinelWorkbooks.ps1` | Exports every Sentinel workbook in a workspace into the `Content/Workbooks/` folder shape that `Deploy-CustomWorkbooks` reads back | [#export-sentinelworkbooksps1](#export-sentinelworkbooksps1) |
 | `Invoke-DCRWatchlistSync.ps1` | Rebuilds the DCR-resources Sentinel watchlist from live DCR associations (runs on the Automation Account schedule) | [#invoke-dcrwatchlistsyncps1](#invoke-dcrwatchlistsyncps1) |
 | `Migrate-ForkLayout.ps1` | One-shot fork helper: relocates stragglers left at the pre-26.06 flat layout onto the by-concern layout | [#migrate-forklayoutps1](#migrate-forklayoutps1) |
+| `Invoke-TableMigrationReview.ps1` | Read-only assessment: inventories classic `_CL` tables and scores dependency impact across rules/workbooks/playbooks/parsers, including dependencies that reach a table only through a parser function and so never name it. Maps each table to a Content Hub solution, flags connectors with no CCF replacement, and emits an HTML report carrying a ready-to-run migration command per table | See [Table Migration Review](../Tools/ClassicToDcr/Table-Migration-Review.md) |
+| `Invoke-ClassicTableMigration.ps1` | Discovers classic (MMA / Data Collector API) `_CL` tables, migrates them to DCR-based tables, and exports a Data Collection Rule for each | [#invoke-classictablemigrationps1](#invoke-classictablemigrationps1) |
+| `Rehearsal/New-ClassicTableFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): creates a throwaway classic `_CL` table with synthetic data via the Data Collector API (and can stream it) | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#creating-a-throwaway-classic-table) |
+| `Rehearsal/Test-DcrIngestion.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): streams synthetic data into a migrated DCR via the Logs Ingestion API to confirm it ingests | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#proving-the-new-ingestion-path) |
+| `Rehearsal/New-DependencyFixture.ps1` | Rehearsal aid (in `Tools/ClassicToDcr/Rehearsal/`): builds known direct and indirect dependency chains (table, parser, analytics rule) so the assessment tool's detection can be proved against real resources. Analytics rules are created disabled | See [Rehearsal Aids](../Tools/ClassicToDcr/Rehearsal-Aids.md#proving-the-dependency-scan) |
+| `New-DcrFromSchema.ps1` | Wizard (in `Tools/DcrFromSchema/`): turns a JSON table schema into a new Log Analytics custom table and a Direct Data Collection Rule for the Logs Ingestion API, writing an ARM template for each and optionally deploying them. Validates the schema against the documented Azure Monitor limits and repairs pasted-in JSON | See [DCR from Schema](../Tools/DcrFromSchema/Dcr-From-Schema.md) |
 | `Invoke-PRValidation.ps1` | Cross-platform PR-validation entrypoint: runs every Pester suite under `Tests/` and emits an NUnit 2.5 XML report | See [Pester Tests](../Tests/Pester-Tests.md) |
 | `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](../Pipelines/README.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
@@ -1089,6 +1095,222 @@ previews every move without touching the tree.
 # Apply the moves
 ./Tools/Migrate-ForkLayout.ps1
 ```
+
+---
+
+## Invoke-ClassicTableMigration.ps1
+
+Discovers classic custom log tables, migrates them to DCR-based tables,
+and exports a Data Collection Rule for each.
+
+Classic "`_CL` v1" tables are the ones created by the MMA Custom Log
+Wizard or fed by the HTTP Data Collector API. Their `tableSubType` is
+`Classic`, and Data Collection Rules refuse to target them:
+
+```text
+Classic (MMA-based) custom log tables for stream 'Custom-Foo_CL' with
+destination 'workspaceDestination' are not supported in Data Collection
+Rules. (Code: InvalidOutputTable)
+```
+
+Deleting and recreating the table loses the data and often collides with
+retained schema metadata. The supported fix is the one-way `migrate`
+operation, wrapped here by
+[`Invoke-AzOperationalInsightsMigrateTable`](https://learn.microsoft.com/powershell/module/az.operationalinsights/invoke-azoperationalinsightsmigratetable).
+
+The script runs standalone: nothing from this repository needs to sit
+alongside it, so it can be handed to a customer or dropped onto a jump
+box. It does not import the shared `Sentinel.Common` module; it defines
+its own logging so it works unchanged where that module is absent.
+
+This section is the parameter and behaviour reference for the migrate
+tool specifically. For the toolkit it belongs to, including the read-only
+assessment you should run first, see
+[Classic to DCR Migration Toolkit](../Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md).
+
+### What it does
+
+1. **Discover.** Lists every table whose `tableSubType` is `Classic`,
+   with column count and an actual `ROWS (90d)` count. Emptiness is judged
+   by rows, not billable GB (which lags for hours); a table whose count
+   cannot be read shows `unknown` and is treated as not empty. `-ListOnly`
+   stops here.
+2. **Migrate.** Converts each selected table. Irreversible, so it sits
+   behind `ShouldProcess` plus a confirmation that `-Force` bypasses.
+3. **Export.** Derives a stream declaration from the post-migration
+   schema and writes one ARM template per table. The transform reconciles
+   type differences, notably casting `guid` columns (declared `string` in
+   the stream) back with `toguid()`, so the deploy does not fail with
+   `InvalidTransformOutput`.
+4. **Deploy** (optional). Deploys each template, optionally grants the
+   ingestion role (`-GrantIngestionRoleTo`), and reports the DCR immutable
+   ID and logs ingestion endpoint.
+
+### Start with a discovery run
+
+```bash
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
+```
+
+```text
+TABLE                     SUBTYPE     COLS   ROWS (90d)   GB (Usage)
+AzureActivity_CL          Classic       45            0       0.0000
+OfficeActivity_CL         Classic      164            0       0.0000
+```
+
+That report is the point of the tool. It tells you which tables are
+carrying data before anything is changed, and it is safe to run against
+production at any time.
+
+`ROWS (90d)` is the authoritative presence signal: a direct row count
+against the table. `GB (Usage)` is supplementary cost context read from
+the Usage table, which is a billing rollup that **lags for hours**, so a
+freshly populated table can show `0.0000 GB` while already holding rows.
+Emptiness is decided by rows, never by GB, precisely to avoid branding a
+populated table abandoned.
+
+### Two traps it protects you from
+
+**Empty tables.** A classic table with genuinely no rows is almost always
+an abandoned forwarder. Migrating it carries legacy cruft forward instead
+of removing it, so `-AllClassicTables` skips tables with a zero row count
+by default. `-IncludeEmptyTables` overrides that. A table whose row count
+can't be read (no query permission) is treated as unknown, not empty, and
+is not skipped. Usually the right answer for a truly empty classic table
+is to delete it.
+
+**Tables that report Classic but are not custom logs.** `tableSubType`
+is `Classic` for *any* table against which Custom Fields were created,
+which includes platform tables such as `AzureDiagnostics` that are fed
+by diagnostic settings. Those must never be migrated. The `_CL` suffix
+is enforced at table creation and is the authoritative custom-table
+marker, so the script excludes anything without it and says why. This
+matches the filter used by the documenter's SENT-047 check.
+
+### Two DCR shapes
+
+| `-DcrKind` | Resource `kind` | For |
+|---|---|---|
+| `Direct` (default) | `Direct` | Data pushed over the Logs Ingestion API, the successor to the HTTP Data Collector API. The stream mirrors the table schema |
+| `TextLog` | `Windows` or `Linux` | Files collected off machines by Azure Monitor Agent. Adds a `logFiles` data source. For `-LogFormat text` the incoming stream is the fixed AMA shape (`TimeGenerated`, `RawData`, `FilePath`, `Computer`) |
+
+### Prerequisites
+
+- Authenticated Azure context (`Connect-AzAccount`)
+- `Az.Accounts`, `Az.OperationalInsights`, `Az.Resources`
+- Log Analytics Contributor on the workspace (migration)
+- Log Analytics Reader on the workspace (volume lookup; optional, the
+  run continues without it and reports volume as unknown)
+- Contributor on the DCR resource group (deployment)
+
+### Parameter Reference
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `ResourceGroupName` | string | Yes | - | Resource group containing the workspace |
+| `WorkspaceName` | string | Yes | - | Log Analytics workspace name |
+| `TableName` | string[] | One of | - | One or more tables. `_CL` appended if omitted. Excludes `-AllClassicTables` |
+| `AllClassicTables` | switch | One of | - | Every table whose subtype is `Classic`. Excludes `-TableName` |
+| `ListOnly` | switch | No | `$false` | Report and stop. Changes nothing |
+| `IncludeEmptyTables` | switch | No | `$false` | Include tables with no 90-day ingestion |
+| `SubscriptionId` | string | No | Current context | Subscription to operate in |
+| `DcrKind` | string | No | `Direct` | `Direct` or `TextLog` |
+| `Platform` | string | No | `Windows` | Agent platform for `TextLog` |
+| `FilePattern` | string[] | For `TextLog` | - | File patterns, e.g. `C:\logs\*.txt` |
+| `LogFormat` | string | No | `text` | `text` or `json` |
+| `RecordStartTimestampFormat` | string | No | `ISO 8601` | Record-start format for multi-line text logs |
+| `DcrNamePrefix` | string | No | `dcr-` | Prefix for generated DCR names |
+| `DcrResourceGroupName` | string | No | `ResourceGroupName` | Resource group for the DCRs |
+| `Location` | string | No | Workspace region | DCR region. Must match the workspace |
+| `TransformKql` | string | No | Generated | Override the transform. Single table only |
+| `DataCollectionEndpointResourceId` | string | No | - | Existing DCE. See [Do you need a Data Collection Endpoint?](#do-you-need-a-data-collection-endpoint) |
+| `OutputDirectory` | string | No | Current directory | Where templates are written. Pass `../../Infra/dcr` to land them somewhere tracked |
+| `Deploy` | switch | No | `$false` | Deploy each template after writing |
+| `GrantIngestionRoleTo` | string[] | No | - | After a successful deploy, grant Monitoring Metrics Publisher on the DCR to these identities (SP app ID or any principal object ID). Needs Owner/UAA; skipped with guidance otherwise |
+| `SkipTableMigration` | switch | No | `$false` | Export templates only, leave tables alone |
+| `Force` | switch | No | `$false` | Skip the migration prompt. Required non-interactively |
+
+### Do you need a Data Collection Endpoint?
+
+Usually no, which is why `-DataCollectionEndpointResourceId` is optional.
+
+| Scenario | DCE needed? |
+|---|---|
+| Logs Ingestion API, `kind: Direct` DCR | No. The DCR exposes its own `logsIngestion` endpoint |
+| Logs Ingestion API, workspace behind private link | Yes |
+| Logs Ingestion API, DCR created before 2024-03-31 | Yes. Those DCRs have no built-in endpoint |
+| AMA, ordinary data sources (text logs, events, syslog, performance) | No. The agent uses a public configuration endpoint |
+| AMA, private link or a network sharing DNS with AMPLS | Yes |
+| AMA, Windows Firewall Logs or Prometheus Metrics | Yes. These two data sources still require one |
+
+Two separate things give a DCR its own ingestion endpoint: it must be
+`kind: Direct`, and it must be created on or after 2024-03-31, the date
+the service began populating the `endpoints` property. This tool creates
+fresh Direct DCRs, so they qualify. It authors them at api-version
+`2023-03-11` (or later) because that is the minimum schema version that
+can carry the `endpoints` property; an older api-version cannot express
+or return it. Endpoints **cannot be added to an existing DCR**, so a DCR
+created before 2024-03-31 has to be replaced to gain one.
+
+Note the portal's custom-log wizard forces you to pick a DCE. That is a
+limitation of the wizard, not the platform; the ARM path used here does
+not need one.
+
+### Confirmation behaviour
+
+Only the migration is irreversible, so only the migration carries a
+confirmation prompt. Routine steps such as writing templates are not
+gated, which keeps the script usable non-interactively.
+
+| Invocation | Migration | Template write |
+|---|---|---|
+| default (interactive) | Prompts per table | Proceeds |
+| `-ListOnly` | Not attempted | Not attempted |
+| `-SkipTableMigration` | Not attempted | Proceeds, no prompt |
+| `-WhatIf` | Previewed | Previewed |
+| `-Force` or `-Confirm:$false` | Proceeds, no prompt | Proceeds |
+| non-interactive without `-Force` | Throws | n/a |
+
+### Usage
+
+```bash
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -ListOnly
+```
+
+```bash
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -TableName MyApp_CL -SkipTableMigration
+```
+
+```bash
+./Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1 -ResourceGroupName rg-sentinel -WorkspaceName law-sentinel -AllClassicTables -Deploy -Force
+```
+
+### Caveats
+
+- **Migration is one-way.** A table cannot be moved back, and running
+  the operation a second time is a no-op.
+- **Migrate the agents first.** After migration the Log Analytics agent
+  can no longer write to the table, and any Custom Fields defined
+  against it stop receiving data. If both agents must write during a
+  transition, give each its own table and join them at query time.
+- **Underscore-prefixed columns cannot be carried over.** Stream column
+  names must start with a letter, so classic artefacts such as
+  `_ResourceId_s` and `_table_s` are dropped. The script names each one
+  and warns that it will stop receiving data.
+- **`guid` columns become `string`.** Stream declarations have no `guid`
+  type; Azure Monitor stores and queries GUIDs as strings. This is the
+  documented behaviour, not a loss of fidelity.
+- **The text-log transform is a placeholder.** The script cannot know
+  your log format, so it emits a passthrough projecting whichever AMA
+  columns the table already has. Edit `transformKql` to parse `RawData`
+  before associating machines.
+- **Deployment needs the migration to have happened.** A DCR cannot
+  target a `Classic` table. The script refuses per table with the real
+  reason rather than letting ARM return `InvalidOutputTable`.
+- **Ingestion needs a role.** Grant the sending identity Monitoring
+  Metrics Publisher on the DCR before posting to the endpoint.
+
+Unit tests: `Tests/Test-InvokeClassicTableMigration.Tests.ps1`.
 
 ---
 

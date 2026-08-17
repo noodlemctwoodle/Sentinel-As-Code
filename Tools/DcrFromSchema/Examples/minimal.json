@@ -1,0 +1,7 @@
+{
+  "tableName": "MyApp_CL",
+  "columns": [
+    { "name": "TimeGenerated", "type": "datetime" },
+    { "name": "Message",       "type": "string" }
+  ]
+}

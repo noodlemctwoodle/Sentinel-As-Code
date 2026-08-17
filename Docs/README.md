@@ -26,6 +26,8 @@ cross-links the matching [Toolkit](#toolkit--companion-vs-code-extension) pages.
 | [Hunting Queries](Content/Hunting-Queries.md) | YAML schema for hunting queries: required fields, tactics/techniques tags, export guide |
 | [Parsers](Content/Parsers.md) | YAML schema for KQL parsers/functions deployed as workspace saved functions (stage 1 of the content deploy order) via the `savedSearches` API |
 | [Playbooks](Content/Playbooks.md) | ARM template requirements, MSI vs standard connections, auto-injected parameters |
+| [Prompt Books](Content/Prompt-Books.md) | The 18 Sentinel MCP prompt books for GitHub Copilot: setup, tool reference for all three collections, prompt-writing guidance, demo running orders and troubleshooting |
+| [Spark Notebooks](Content/Spark-Notebooks.md) | Catalogue of the 18 Sentinel data lake advanced-analytics notebooks (F16): technique, tables, visual and why-not-KQL for each, workspace configuration via `apply_config.py`, the threat-hunting running order, and the Advanced data insights cost model |
 | [Summary Rules](Content/Summary-Rules.md) | Summary-rule JSON schema, allowed bin sizes, KQL restrictions, system columns |
 | [Watchlists](Content/Watchlists.md) | Watchlist metadata schema, CSV format, KQL usage examples |
 | [Workbooks](Content/Workbooks.md) | Gallery-template JSON format, stable GUIDs, export from the Sentinel portal |
@@ -101,6 +103,27 @@ CI, maintenance, and reporting that runs *around* deployment.
 | [Sentinel Drift Detection](Tools/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
 | [DCR Watchlist Sync](Tools/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
 | [SDL Migration Workbook Export](Tools/SDL-Migration-Workbook-Export.md) | Read-only `Export-SdlMigrationWorkbook.ps1` that mirrors every Sentinel Data Lake Migration workbook dataset into one multi-sheet `.xlsx` |
+
+### Classic to DCR - `Tools/ClassicToDcr/`
+
+The standalone toolkit that assesses, migrates and rehearses the move from classic
+(MMA / HTTP Data Collector API) `_CL` tables to Data Collection Rule based tables.
+
+| Doc | What it covers |
+| --- | --- |
+| [Classic to DCR Migration Toolkit](Tools/ClassicToDcr/Classic-to-DCR-Toolkit.md) | Overview and entry point: the three stages, the retirement timeline, prerequisites and RBAC, what migration does not do, and how these pages relate to the kit's own READMEs |
+| [Table Migration Review](Tools/ClassicToDcr/Table-Migration-Review.md) | Full reference for the read-only assess tool: impact scoring, indirect parser-chain resolution and every guard, the CSV/JSON/HTML outputs, the migration command the report generates, and the known limits |
+| [Rehearsal Aids](Tools/ClassicToDcr/Rehearsal-Aids.md) | The three rehearsal scripts: dependency-chain scenarios, the safety design that lets one of them face a live workspace, and the Azure behaviours that catch people out |
+
+### DCR from Schema - `Tools/DcrFromSchema/`
+
+The standalone wizard that creates a new custom table and its Direct Data Collection
+Rule from a JSON table schema. Where ClassicToDcr migrates a table that already
+exists, this one builds a new one.
+
+| Doc | What it covers |
+| --- | --- |
+| [DCR from Schema](Tools/DcrFromSchema/Dcr-From-Schema.md) | Full reference for `New-DcrFromSchema.ps1`: the accepted schema shapes, table plans, every documented limit and the Microsoft page it came from, how pasted input is sanitised, the guid-to-string reconciliation, the two-template deployment order, and troubleshooting |
 
 ### Documenter - `Tools/Documenter/`
 
