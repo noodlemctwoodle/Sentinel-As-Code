@@ -1,0 +1,116 @@
+{
+    "name": "SophosConnectorDefinition",
+    "apiVersion": "2022-09-01-preview",
+    "type": "Microsoft.SecurityInsights/dataConnectorDefinitions",
+    "location": "{{location}}",
+    "kind": "Customizable",
+    "availability": {
+        "isPreview": true,
+        "status": 1
+    },
+    "properties": {
+        "connectorUiConfig": {
+            "id": "SophosConnectorDefinition",
+            "title": "Sophos Central (using REST API)",
+            "publisher": "CC-Engineering",
+            "logo": "",
+            "descriptionMarkdown": "The [Sophos Central](https://www.sophos.com/en-us/products/sophos-central) data connector provides the capability to ingest security events and alerts from the Sophos Central SIEM API into Microsoft Sentinel. The connector polls the `/siem/v1/events` and `/siem/v1/alerts` endpoints to bring endpoint detections, threat activity, and security alerts into your workspace for correlation, analytics, and hunting.",
+            "graphQueriesTableName": "SophosEvents_CL",
+            "graphQueries": [
+                {
+                    "metricName": "Total Sophos events received",
+                    "legend": "Sophos Events",
+                    "baseQuery": "SophosEvents_CL"
+                },
+                {
+                    "metricName": "Total Sophos alerts received",
+                    "legend": "Sophos Alerts",
+                    "baseQuery": "SophosAlerts_CL"
+                }
+            ],
+            "sampleQueries": [
+                {
+                    "description": "Top 10 Sophos event types",
+                    "query": "SophosEvents_CL\n | summarize count() by EventType\n | top 10 by count_"
+                },
+                {
+                    "description": "High severity Sophos alerts",
+                    "query": "SophosAlerts_CL\n | where Severity == \"high\"\n | sort by TimeGenerated desc"
+                }
+            ],
+            "dataTypes": [
+                {
+                    "name": "SophosEvents_CL",
+                    "lastDataReceivedQuery": "SophosEvents_CL\n | summarize Time = max(TimeGenerated)\n | where isnotempty(Time)"
+                },
+                {
+                    "name": "SophosAlerts_CL",
+                    "lastDataReceivedQuery": "SophosAlerts_CL\n | summarize Time = max(TimeGenerated)\n | where isnotempty(Time)"
+                }
+            ],
+            "connectivityCriteria": [
+                {
+                    "type": "HasDataConnectors"
+                }
+            ],
+            "availability": {
+                "isPreview": true,
+                "status": 1
+            },
+            "permissions": {
+                "resourceProvider": [
+                    {
+                        "provider": "Microsoft.OperationalInsights/workspaces",
+                        "permissionsDisplayText": "read and write permissions are required.",
+                        "providerDisplayName": "Workspace",
+                        "scope": "Workspace",
+                        "requiredPermissions": {
+                            "write": true,
+                            "read": true,
+                            "delete": true
+                        }
+                    }
+                ],
+                "customs": [
+                    {
+                        "name": "Sophos Central API credentials",
+                        "description": "A Sophos Central API Client ID and Client Secret are required. Create an API Credential from the Sophos Central admin console under **Global Settings** > **API Credentials Management**."
+                    }
+                ]
+            },
+            "instructionSteps": [
+                {
+                    "title": "Connect Sophos Central to Microsoft Sentinel",
+                    "description": "Provide the Sophos Central API Client ID and Client Secret to authenticate and begin collecting events and alerts.\n\n>**NOTE:** This connector uses the Sophos Central SIEM API. Ensure you have created an API Credential in the Sophos Central admin console (**Global Settings** > **API Credentials Management**) with access to the SIEM integration.",
+                    "instructions": [
+                        {
+                            "type": "Textbox",
+                            "parameters": {
+                                "label": "Client ID",
+                                "placeholder": "Client ID",
+                                "type": "text",
+                                "name": "clientId"
+                            }
+                        },
+                        {
+                            "type": "Textbox",
+                            "parameters": {
+                                "label": "Client Secret",
+                                "placeholder": "Client Secret",
+                                "type": "password",
+                                "name": "clientSecret"
+                            }
+                        },
+                        {
+                            "type": "ConnectionToggleButton",
+                            "parameters": {
+                                "connectLabel": "Connect",
+                                "name": "connect"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

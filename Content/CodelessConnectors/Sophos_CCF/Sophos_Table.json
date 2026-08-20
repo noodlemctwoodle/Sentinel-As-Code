@@ -1,0 +1,72 @@
+[
+    {
+        "name": "SophosEvents_CL",
+        "type": "Microsoft.OperationalInsights/workspaces/tables",
+        "apiVersion": "2025-02-01",
+        "location": "{{location}}",
+        "properties": {
+            "schema": {
+                "name": "SophosEvents_CL",
+                "columns": [
+                    { "name": "TimeGenerated", "type": "datetime", "description": "Event timestamp" },
+                    { "name": "AmsiThreatData", "type": "dynamic", "description": "AMSI Threat data associated with the threat, if available" },
+                    { "name": "AppCerts", "type": "dynamic", "description": "Certificate info of the application associated with the threat, if available" },
+                    { "name": "AppSha256", "type": "string", "description": "SHA 256 hash of the application associated with the threat, if available" },
+                    { "name": "CoreRemedyItems", "type": "dynamic", "description": "Details of the items cleaned or restored" },
+                    { "name": "CreatedAt", "type": "string", "description": "The date at which the event was created" },
+                    { "name": "CustomerId", "type": "string", "description": "The identifier of the customer for which record is created" },
+                    { "name": "Details", "type": "dynamic", "description": "Event detail properties" },
+                    { "name": "EndpointId", "type": "string", "description": "The corresponding endpoint id associated with the record" },
+                    { "name": "EndpointType", "type": "string", "description": "The corresponding endpoint type associated with the record" },
+                    { "name": "Group", "type": "string", "description": "The group associated with the event" },
+                    { "name": "Id", "type": "string", "description": "The identifier for the event" },
+                    { "name": "IpsThreatData", "type": "dynamic", "description": "IPS Threat data associated with the threat, if available" },
+                    { "name": "Location", "type": "string", "description": "The location captured for this record" },
+                    { "name": "Name", "type": "string", "description": "The name of the record created" },
+                    { "name": "Origin", "type": "string", "description": "Originating component of a detection" },
+                    { "name": "Severity", "type": "string", "description": "The severity for this event" },
+                    { "name": "Source", "type": "string", "description": "The source for this record" },
+                    { "name": "SourceInfo", "type": "dynamic", "description": "Detailed source information for this record" },
+                    { "name": "Threat", "type": "string", "description": "The threat associated with the record" },
+                    { "name": "EventType", "type": "string", "description": "The type of this record" },
+                    { "name": "UserId", "type": "string", "description": "The identifier of the user for which record is created" },
+                    { "name": "When", "type": "string", "description": "The date at which the event was created" },
+                    { "name": "WhitelistProperties", "type": "dynamic", "description": "Endpoint whitelist properties" }
+                ]
+            }
+        }
+    },
+    {
+        "name": "SophosAlerts_CL",
+        "type": "Microsoft.OperationalInsights/workspaces/tables",
+        "apiVersion": "2025-02-01",
+        "location": "{{location}}",
+        "properties": {
+            "schema": {
+                "name": "SophosAlerts_CL",
+                "columns": [
+                    { "name": "TimeGenerated", "type": "datetime", "description": "Alert timestamp" },
+                    { "name": "Actionable", "type": "boolean", "description": "The Event Services actionable" },
+                    { "name": "AllowedActions", "type": "dynamic", "description": "Allowed actions for the alert" },
+                    { "name": "Category", "type": "string", "description": "The category of the product from which this alert originated" },
+                    { "name": "CreatedAt", "type": "string", "description": "The date at which the alert was created" },
+                    { "name": "CustomerId", "type": "guid", "description": "The unique identifier of the customer linked with this record" },
+                    { "name": "Data", "type": "dynamic", "description": "Additional data associated with the alert" },
+                    { "name": "Description", "type": "string", "description": "The description of the alert that was generated" },
+                    { "name": "EventServiceEventId", "type": "guid", "description": "The Event Services event id" },
+                    { "name": "Id", "type": "guid", "description": "Identifier for the alert" },
+                    { "name": "Info", "type": "dynamic", "description": "Additional info associated with the alert" },
+                    { "name": "JavaUUID", "type": "guid", "description": "Java UUID for the record" },
+                    { "name": "Location", "type": "string", "description": "The location captured for this record" },
+                    { "name": "Product", "type": "string", "description": "The product from which this alert originated" },
+                    { "name": "Severity", "type": "string", "description": "The severity for this alert" },
+                    { "name": "Source", "type": "string", "description": "Describes the source from which alert was generated" },
+                    { "name": "Threat", "type": "string", "description": "The name of the threat responsible for the generation of alert" },
+                    { "name": "ThreatCleanable", "type": "boolean", "description": "Whether the threat is cleanable" },
+                    { "name": "DeviceType", "type": "string", "description": "Describes the type of the device on which alert was generated" },
+                    { "name": "When", "type": "string", "description": "The date at which the alert was created" }
+                ]
+            }
+        }
+    }
+]

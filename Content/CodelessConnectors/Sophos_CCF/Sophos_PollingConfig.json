@@ -1,0 +1,108 @@
+[
+  {
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "apiVersion": "2023-02-01-preview",
+    "name": "SophosEventsConnector",
+    "location": "{{location}}",
+    "kind": "RestApiPoller",
+    "properties": {
+      "connectorDefinitionName": "SophosConnectorDefinition",
+      "dataType": "SophosEvents_CL",
+      "dcrConfig": {
+        "streamName": "Custom-SophosEvents_CL",
+        "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
+        "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
+      },
+      "auth": {
+        "type": "OAuth2",
+        "GrantType": "client_credentials",
+        "ClientId": "{{clientId}}",
+        "ClientSecret": "{{clientSecret}}",
+        "TokenEndpoint": "https://id.sophos.com/api/v2/oauth2/token",
+        "Scope": "token"
+      },
+      "request": {
+        "apiEndpoint": "https://api.central.sophos.com/siem/v1/events",
+        "httpMethod": "GET",
+        "queryTimeFormat": "UnixTimestamp",
+        "rateLimitQPS": 10,
+        "queryWindowInMin": 5,
+        "retryCount": 3,
+        "timeoutInSeconds": 60,
+        "headers": {
+          "Accept": "application/json"
+        },
+        "StartTimeAttributeName": "from_date",
+        "queryParameters": {
+          "limit": "1000"
+        }
+      },
+      "paging": {
+        "pagingType": "NextPageToken",
+        "nextPageTokenJsonPath": "$.next_cursor",
+        "NextPageParaName": "cursor",
+        "hasNextFlagJsonPath": "$.has_more",
+        "pageSize": 1000
+      },
+      "response": {
+        "eventsJsonPaths": [
+          "$.items"
+        ],
+        "format": "json"
+      }
+    }
+  },
+  {
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "apiVersion": "2023-02-01-preview",
+    "name": "SophosAlertsConnector",
+    "location": "{{location}}",
+    "kind": "RestApiPoller",
+    "properties": {
+      "connectorDefinitionName": "SophosConnectorDefinition",
+      "dataType": "SophosAlerts_CL",
+      "dcrConfig": {
+        "streamName": "Custom-SophosAlerts_CL",
+        "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
+        "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
+      },
+      "auth": {
+        "type": "OAuth2",
+        "GrantType": "client_credentials",
+        "ClientId": "{{clientId}}",
+        "ClientSecret": "{{clientSecret}}",
+        "TokenEndpoint": "https://id.sophos.com/api/v2/oauth2/token",
+        "Scope": "token"
+      },
+      "request": {
+        "apiEndpoint": "https://api.central.sophos.com/siem/v1/alerts",
+        "httpMethod": "GET",
+        "queryTimeFormat": "UnixTimestamp",
+        "rateLimitQPS": 10,
+        "queryWindowInMin": 5,
+        "retryCount": 3,
+        "timeoutInSeconds": 60,
+        "headers": {
+          "Accept": "application/json"
+        },
+        "StartTimeAttributeName": "from_date",
+        "queryParameters": {
+          "limit": "1000"
+        }
+      },
+      "paging": {
+        "pagingType": "NextPageToken",
+        "nextPageTokenJsonPath": "$.next_cursor",
+        "NextPageParaName": "cursor",
+        "hasNextFlagJsonPath": "$.has_more",
+        "pageSize": 1000
+      },
+      "response": {
+        "eventsJsonPaths": [
+          "$.items"
+        ],
+        "format": "json"
+      }
+    }
+  }
+]
