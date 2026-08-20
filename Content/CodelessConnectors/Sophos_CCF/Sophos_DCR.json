@@ -1,0 +1,86 @@
+{
+    "name": "SophosDCR",
+    "apiVersion": "2023-03-11",
+    "type": "Microsoft.Insights/dataCollectionRules",
+    "kind": "Direct",
+    "location": "{{location}}",
+    "tags": {
+        "createdBy": "SentinelCodelessConnector"
+    },
+    "properties": {
+        "streamDeclarations": {
+            "Custom-SophosEvents_CL": {
+                "columns": [
+                    { "name": "amsi_threat_data", "type": "dynamic" },
+                    { "name": "appCerts", "type": "dynamic" },
+                    { "name": "appSha256", "type": "string" },
+                    { "name": "core_remedy_items", "type": "dynamic" },
+                    { "name": "created_at", "type": "string" },
+                    { "name": "customer_id", "type": "string" },
+                    { "name": "details", "type": "dynamic" },
+                    { "name": "endpoint_id", "type": "string" },
+                    { "name": "endpoint_type", "type": "string" },
+                    { "name": "group", "type": "string" },
+                    { "name": "id", "type": "string" },
+                    { "name": "ips_threat_data", "type": "dynamic" },
+                    { "name": "location", "type": "string" },
+                    { "name": "name", "type": "string" },
+                    { "name": "origin", "type": "string" },
+                    { "name": "severity", "type": "string" },
+                    { "name": "source", "type": "string" },
+                    { "name": "source_info", "type": "dynamic" },
+                    { "name": "threat", "type": "string" },
+                    { "name": "event_type", "type": "string" },
+                    { "name": "user_id", "type": "string" },
+                    { "name": "when", "type": "string" },
+                    { "name": "whitelist_properties", "type": "dynamic" }
+                ]
+            },
+            "Custom-SophosAlerts_CL": {
+                "columns": [
+                    { "name": "actionable", "type": "boolean" },
+                    { "name": "allowedActions", "type": "dynamic" },
+                    { "name": "category", "type": "string" },
+                    { "name": "created_at", "type": "string" },
+                    { "name": "customer_id", "type": "string" },
+                    { "name": "data", "type": "dynamic" },
+                    { "name": "description", "type": "string" },
+                    { "name": "event_service_event_id", "type": "string" },
+                    { "name": "id", "type": "string" },
+                    { "name": "info", "type": "dynamic" },
+                    { "name": "javaUUID", "type": "string" },
+                    { "name": "location", "type": "string" },
+                    { "name": "product", "type": "string" },
+                    { "name": "severity", "type": "string" },
+                    { "name": "source", "type": "string" },
+                    { "name": "threat", "type": "string" },
+                    { "name": "threat_cleanable", "type": "boolean" },
+                    { "name": "device_type", "type": "string" },
+                    { "name": "when", "type": "string" }
+                ]
+            }
+        },
+        "destinations": {
+            "logAnalytics": [
+                {
+                    "workspaceResourceId": "{{workspaceResourceId}}",
+                    "name": "clv2ws1"
+                }
+            ]
+        },
+        "dataFlows": [
+            {
+                "streams": ["Custom-SophosEvents_CL"],
+                "destinations": ["clv2ws1"],
+                "outputStream": "Custom-SophosEvents_CL",
+                "transformKql": "source | extend TimeGenerated = todatetime(['when']) | project TimeGenerated, AmsiThreatData = todynamic(amsi_threat_data), AppCerts = todynamic(appCerts), AppSha256 = tostring(appSha256), CoreRemedyItems = todynamic(core_remedy_items), CreatedAt = tostring(created_at), CustomerId = tostring(customer_id), Details = todynamic(details), EndpointId = tostring(endpoint_id), EndpointType = tostring(endpoint_type), Group = tostring(['group']), Id = tostring(id), IpsThreatData = todynamic(ips_threat_data), Location = tostring(location), Name = tostring(name), Origin = tostring(origin), Severity = tostring(severity), Source = tostring(source), SourceInfo = todynamic(source_info), Threat = tostring(threat), EventType = tostring(event_type), UserId = tostring(user_id), When = tostring(['when']), WhitelistProperties = todynamic(whitelist_properties)"
+            },
+            {
+                "streams": ["Custom-SophosAlerts_CL"],
+                "destinations": ["clv2ws1"],
+                "outputStream": "Custom-SophosAlerts_CL",
+                "transformKql": "source | extend TimeGenerated = todatetime(['when']) | project TimeGenerated, Actionable = tobool(actionable), AllowedActions = todynamic(allowedActions), Category = tostring(category), CreatedAt = tostring(created_at), CustomerId = toguid(customer_id), Data = todynamic(data), Description = tostring(description), EventServiceEventId = toguid(event_service_event_id), Id = toguid(id), Info = todynamic(info), JavaUUID = toguid(javaUUID), Location = tostring(location), Product = tostring(product), Severity = tostring(severity), Source = tostring(source), Threat = tostring(threat), ThreatCleanable = tobool(threat_cleanable), DeviceType = tostring(device_type), When = tostring(['when'])"
+            }
+        ]
+    }
+}
