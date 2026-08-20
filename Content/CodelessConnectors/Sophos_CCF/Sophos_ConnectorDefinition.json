@@ -4,10 +4,6 @@
     "type": "Microsoft.SecurityInsights/dataConnectorDefinitions",
     "location": "{{location}}",
     "kind": "Customizable",
-    "availability": {
-        "isPreview": true,
-        "status": 1
-    },
     "properties": {
         "connectorUiConfig": {
             "id": "SophosConnectorDefinition",
@@ -61,7 +57,7 @@
                 "resourceProvider": [
                     {
                         "provider": "Microsoft.OperationalInsights/workspaces",
-                        "permissionsDisplayText": "read and write permissions are required.",
+                        "permissionsDisplayText": "read, write, and delete permissions are required. Delete is used by the Disconnect action, which removes the data connector resource.",
                         "providerDisplayName": "Workspace",
                         "scope": "Workspace",
                         "requiredPermissions": {

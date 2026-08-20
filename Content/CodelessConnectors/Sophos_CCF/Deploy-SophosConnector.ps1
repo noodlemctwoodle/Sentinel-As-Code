@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Content/CodelessConnectors/Sophos_CCF/Deploy-SophosConnector.ps1
+#
+# Created by noodlemctwoodle on 20/08/2026.
+#
+
 <#
 .SYNOPSIS
     Deploys the Sophos Central CCF (Codeless Connector Framework) package to a Microsoft Sentinel workspace.
@@ -14,7 +20,9 @@
 
     The poller step (4) is only run when -ClientId and -ClientSecret are supplied. Otherwise the
     connector appears in Sentinel and you complete the connection from the UI (Data connectors >
-    Sophos Central > Connect). Secrets are read directly by this script and are never printed.
+    Sophos Central > Connect). The client secret is held only as a SecureString and, when the
+    pollers are deployed, is passed to the Azure CLI as an in-memory argument. It is never
+    written to disk and never printed.
 
 .PARAMETER SubscriptionId
     Target Azure subscription ID.
@@ -59,11 +67,15 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 # --- API versions --------------------------------------------------------------
-$apiTables    = '2023-01-01-preview'
-$apiDcr       = '2023-03-11'
-$apiConnDef   = '2022-09-01-preview'
-$apiConnector = '2023-02-01-preview'
-$apiWorkspace = '2023-09-01'
+# Pinned to the versions the repository standardises on, see the $apiVersions map in
+# Tools/Documenter/Export-SentinelInventory.ps1. dataConnectorDefinitions and the
+# RestApiPoller connector kind are preview-only resource types, so both use the
+# repository's SentinelPreview pin rather than the Sentinel GA pin.
+$apiTables    = '2023-09-01'         # Tables
+$apiDcr       = '2023-03-11'         # DataCollection
+$apiConnDef   = '2024-10-01-preview' # SentinelPreview
+$apiConnector = '2024-10-01-preview' # SentinelPreview
+$apiWorkspace = '2025-02-01'         # OperationalInsights
 
 # --- Paths ---------------------------------------------------------------------
 $root            = $PSScriptRoot
@@ -81,21 +93,20 @@ function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -Foreg
 function Write-Ok   { param([string]$Message) Write-Host "    [OK] $Message" -ForegroundColor Green }
 
 function Invoke-AzRestPut {
+    # The body is passed as an in-memory argument rather than via a temporary file. The
+    # poller bodies carry the Sophos client secret, and a temp file would place that secret
+    # on disk with default ACLs for the lifetime of the call. PowerShell passes native
+    # arguments without shell re-parsing, so the JSON needs no escaping here.
     param([string]$Url, [string]$BodyJson)
 
-    $tmp = New-TemporaryFile
-    try {
-        Set-Content -Path $tmp -Value $BodyJson -Encoding utf8
-        $result = az rest --method put --url $Url --headers 'Content-Type=application/json' --body "@$tmp" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "PUT $Url failed:`n$result"
-        }
-        if ([string]::IsNullOrWhiteSpace([string]$result)) { return $null }
-        return ($result | ConvertFrom-Json -Depth 100)
+    $result = az rest --method put --url $Url --headers 'Content-Type=application/json' --body $BodyJson 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        # $result can echo the request body, which may contain the client secret, so report
+        # the failing URL and status only.
+        throw "PUT $Url failed with exit code $LASTEXITCODE."
     }
-    finally {
-        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
-    }
+    if ([string]::IsNullOrWhiteSpace([string]$result)) { return $null }
+    return ($result | ConvertFrom-Json -Depth 100)
 }
 
 function Invoke-AzRestGet {
@@ -141,7 +152,9 @@ $dcrBody = @{
     location   = $Location
     kind       = $dcr.kind
     properties = $dcr.properties
-} | ConvertTo-Json -Depth 100
+}
+if ($dcr.PSObject.Properties.Name -contains 'tags' -and $dcr.tags) { $dcrBody.tags = $dcr.tags }
+$dcrBody = $dcrBody | ConvertTo-Json -Depth 100
 
 $dcrResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Insights/dataCollectionRules/$dcrName"
 $dcrResult = Invoke-AzRestPut -Url "https://management.azure.com$dcrResourceId`?api-version=$apiDcr" -BodyJson $dcrBody
@@ -171,7 +184,9 @@ $connDefBody = @{
     kind         = $connDef.kind
     location     = $Location
     properties   = $connDef.properties
-} | ConvertTo-Json -Depth 100
+}
+if ($connDef.PSObject.Properties.Name -contains 'tags' -and $connDef.tags) { $connDefBody.tags = $connDef.tags }
+$connDefBody = $connDefBody | ConvertTo-Json -Depth 100
 
 $connDefUrl = "https://management.azure.com$workspaceResourceId/providers/Microsoft.SecurityInsights/dataConnectorDefinitions/$connDefName`?api-version=$apiConnDef"
 Invoke-AzRestPut -Url $connDefUrl -BodyJson $connDefBody | Out-Null
