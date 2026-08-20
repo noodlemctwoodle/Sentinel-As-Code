@@ -2,7 +2,7 @@
     {
         "name": "SophosEvents_CL",
         "type": "Microsoft.OperationalInsights/workspaces/tables",
-        "apiVersion": "2025-02-01",
+        "apiVersion": "2023-09-01",
         "location": "{{location}}",
         "properties": {
             "schema": {
@@ -39,7 +39,7 @@
     {
         "name": "SophosAlerts_CL",
         "type": "Microsoft.OperationalInsights/workspaces/tables",
-        "apiVersion": "2025-02-01",
+        "apiVersion": "2023-09-01",
         "location": "{{location}}",
         "properties": {
             "schema": {

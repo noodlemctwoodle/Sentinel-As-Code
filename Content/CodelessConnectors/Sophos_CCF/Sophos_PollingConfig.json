@@ -1,7 +1,7 @@
 [
   {
     "type": "Microsoft.SecurityInsights/dataConnectors",
-    "apiVersion": "2023-02-01-preview",
+    "apiVersion": "2024-10-01-preview",
     "name": "SophosEventsConnector",
     "location": "{{location}}",
     "kind": "RestApiPoller",
@@ -54,7 +54,7 @@
   },
   {
     "type": "Microsoft.SecurityInsights/dataConnectors",
-    "apiVersion": "2023-02-01-preview",
+    "apiVersion": "2024-10-01-preview",
     "name": "SophosAlertsConnector",
     "location": "{{location}}",
     "kind": "RestApiPoller",

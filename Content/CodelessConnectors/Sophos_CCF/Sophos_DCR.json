@@ -1,6 +1,6 @@
 {
     "name": "SophosDCR",
-    "apiVersion": "2024-03-11",
+    "apiVersion": "2023-03-11",
     "type": "Microsoft.Insights/dataCollectionRules",
     "kind": "Direct",
     "location": "{{location}}",
