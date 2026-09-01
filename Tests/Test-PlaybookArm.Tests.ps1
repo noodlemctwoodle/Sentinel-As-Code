@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-PlaybookArm.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -27,6 +33,7 @@
     deploy logic is expected to distinguish them via tier/parent.
 
 .NOTES
+    Version:        0.1.0
     Run all tests:
         Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1
 #>

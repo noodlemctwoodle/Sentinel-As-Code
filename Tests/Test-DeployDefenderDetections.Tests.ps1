@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-DeployDefenderDetections.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,6 +25,10 @@
       - responseActions default to an empty array when the rule has none
       - mitreTechniques and impactedAssets are forced to arrays
       - lastModifiedDateTime forwards from queryCondition
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-SentinelRuleDrift.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -23,6 +29,7 @@
     Invoke-Main entry-point (which would try to authenticate to Azure).
 
 .NOTES
+    Version:        0.1.0
     Run all tests:
         Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1
 

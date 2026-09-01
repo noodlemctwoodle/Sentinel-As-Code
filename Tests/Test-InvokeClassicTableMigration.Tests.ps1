@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-InvokeClassicTableMigration.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,6 +25,10 @@
     deployment. Those need a live workspace and a table that can only be
     migrated once, so they are not unit-testable. The script gates all
     three behind ShouldProcess for that reason.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

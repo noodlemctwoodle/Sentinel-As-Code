@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/content/Deploy-CustomContent.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Deploys custom Microsoft Sentinel content from the repository to a workspace.
@@ -106,7 +112,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.1.0
+    Version:        1.1.1
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API Version:    2025-07-01-preview

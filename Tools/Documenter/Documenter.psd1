@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Documenter/Documenter.psd1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 @{
     # Pinned module versions for the Sentinel Documenter. Both the collector
     # (Export-SentinelInventory.ps1) and the renderer

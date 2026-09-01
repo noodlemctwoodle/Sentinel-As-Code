@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-InvokeTableMigrationReview.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -28,6 +34,10 @@
 
     Deliberately not covered: the ARM calls, the Content Hub package fetch, and
     the HTML/CSV/JSON writers. Those need a live workspace.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

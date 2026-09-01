@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-DefenderDetectionYaml.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -17,6 +23,7 @@
     the tree (Defender uses display name as the deduplication key on update).
 
 .NOTES
+    Version:        0.1.0
     Run all tests:
         Invoke-Pester -Path Tests/Test-DefenderDetectionYaml.Tests.ps1
 

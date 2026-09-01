@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-SummaryRuleJson.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -18,6 +24,7 @@
     (Sentinel uses `name` as the resource name in the PUT URL).
 
 .NOTES
+    Version:        0.1.0
     Run all tests:
         Invoke-Pester -Path Tests/Test-SummaryRuleJson.Tests.ps1
 #>

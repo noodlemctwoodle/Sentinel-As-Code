@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Documenter/Get-SentinelGap.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -28,6 +34,10 @@
 
     Adding new rules requires extending the fixture and adding a row in the
     expected-IDs list.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeDiscovery {

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Invoke-DCRWatchlistSync.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules Az.Accounts
 
 <#
@@ -38,7 +44,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-03-23
     Repository:     Sentinel-As-Code
     Website:        https://sentinel.blog

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-SetPlaybookPermissions.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -18,6 +24,10 @@
     $ContributorActionPatterns, $HttpMsiAudienceRoles. The AST extractor
     pulls the function bodies but NOT those top-level table definitions,
     so the BeforeAll block sets them up to mirror the source script.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

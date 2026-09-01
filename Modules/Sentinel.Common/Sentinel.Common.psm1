@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Modules/Sentinel.Common/Sentinel.Common.psm1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Shared helpers used across the Sentinel-As-Code deployer scripts and the
@@ -29,7 +35,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-04-29
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Az.Accounts

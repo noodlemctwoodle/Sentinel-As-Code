@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Test-SentinelRuleDrift.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Detects drift between Microsoft Sentinel Analytics Rules deployed in a workspace and
@@ -128,7 +134,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.1.0
+    Version:        1.1.1
     Last Updated:   2026-04-29
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)

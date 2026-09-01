@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Export-SentinelWorkbooks.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Exports Microsoft Sentinel workbooks from a workspace to disk in the
@@ -112,7 +118,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-04-30
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Az.Accounts, Sentinel.Common module

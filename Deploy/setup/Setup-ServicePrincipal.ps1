@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/setup/Setup-ServicePrincipal.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     One-time bootstrap: grants the deployment SPN all permissions needed
@@ -59,7 +65,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     Requires:       Az.Accounts, Az.Resources, Microsoft.Graph

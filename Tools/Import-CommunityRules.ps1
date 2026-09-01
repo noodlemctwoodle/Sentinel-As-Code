@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Import-CommunityRules.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Imports Microsoft Sentinel analytical rules from the David Alonso (Dalonso)
@@ -75,7 +81,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.1.0
+    Version:        1.1.1
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     Requires:       powershell-yaml (auto-installed if missing); git 2.x or later in PATH

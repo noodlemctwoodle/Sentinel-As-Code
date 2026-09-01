@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -12,6 +18,10 @@
 
     Output is written to a temp folder so repeated test runs don't pollute the
     fixture or the working tree.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

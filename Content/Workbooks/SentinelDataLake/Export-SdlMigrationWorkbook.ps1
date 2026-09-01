@@ -1,5 +1,5 @@
 #
-# Sentinel-As-Code/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
+# Sentinel-As-Code/Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
 #
 # Created by noodlemctwoodle on 18/05/2026.
 #
@@ -114,6 +114,7 @@
     absolute or relative path your environment prefers.
 
 .NOTES
+    Version:        0.1.0
     Authentication : Uses the current Az context (Connect-AzAccount).
     Requires       : PowerShell 7+, Az.Accounts, Az.OperationalInsights, ImportExcel
     Tables API     : 2023-09-01

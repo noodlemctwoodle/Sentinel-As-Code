@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/DcrFromSchema/New-DcrFromSchema.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
@@ -245,6 +251,7 @@
     paths and, when deployed, the immutable ID and ingestion endpoint.
 
 .NOTES
+    Version:        0.1.0
     Sentinel-As-Code/Tools/DcrFromSchema/New-DcrFromSchema.ps1
 
     Created by noodlemctwoodle on 30/07/2026.

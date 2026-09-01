@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-CopilotCustomisations.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -26,6 +32,7 @@
     surface directly in the PR check UI.
 
 .NOTES
+    Version:        0.1.0
     Run as part of the repo-wide Pester gate
     (Tools/Invoke-PRValidation.ps1) on every PR via the
     `validate` job in .github/workflows/pr-validation.yml.

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/permissions/Set-PlaybookPermissions.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Assigns required RBAC roles to Logic App managed identities after playbook deployment.
@@ -42,7 +48,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     Requires:       Az.Accounts, Az.Resources, Az.LogicApp

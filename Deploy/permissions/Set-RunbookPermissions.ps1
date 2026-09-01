@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/permissions/Set-RunbookPermissions.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Assigns RBAC permissions to the DCR Watchlist Sync Automation Account
@@ -29,7 +35,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-03-23
     Repository:     Sentinel-As-Code
     Website:        https://sentinel.blog

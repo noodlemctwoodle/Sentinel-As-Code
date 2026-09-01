@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/content/Deploy-SentinelContentHub.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Deploys Microsoft Sentinel Content Hub solutions and their associated content to a workspace.
@@ -109,7 +115,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        2.1.0
+    Version:        2.1.1
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)

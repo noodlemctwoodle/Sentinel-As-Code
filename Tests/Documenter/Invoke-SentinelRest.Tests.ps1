@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Documenter/Invoke-SentinelRest.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -16,6 +22,10 @@
 
     To exercise the build logic without going to Azure we mock
     Invoke-AzRestMethod and capture the URL the helper would have sent.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-ExportSentinelWorkbooks.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -20,6 +26,10 @@
     the rest of the script does is exercised at deploy-time (the matching
     Deploy-CustomWorkbooks function); a separate end-to-end test against a
     live workspace is out of scope here.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

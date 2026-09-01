@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Modules/Sentinel.Common/Sentinel.Common.psd1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 @{
     RootModule        = 'Sentinel.Common.psm1'
     ModuleVersion     = '1.1.1'

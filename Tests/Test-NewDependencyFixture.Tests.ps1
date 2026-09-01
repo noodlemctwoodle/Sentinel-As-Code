@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-NewDependencyFixture.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -26,6 +32,10 @@
     Deliberately not covered: the live POST, the shared-key fetch, the ARM
     writes and the table polls. Those need a real workspace and the retiring
     Data Collector API, so they cannot be unit tested.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

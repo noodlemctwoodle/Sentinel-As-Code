@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tools/Build-DependencyManifest.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Discovers content dependencies from KQL queries embedded in
@@ -73,7 +79,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.0
+    Version:        1.0.1
     Last Updated:   2026-04-29
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, powershell-yaml, Sentinel.Common

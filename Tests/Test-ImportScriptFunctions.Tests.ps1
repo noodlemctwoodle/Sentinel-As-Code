@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-ImportScriptFunctions.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -11,6 +17,10 @@
     written into $TestDrive, plus one real-repo round-trip against
     Tools/Test-SentinelRuleDrift.ps1 to confirm the helper works on
     the original reference suite's source.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-SentinelCommon.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -17,6 +23,10 @@
     Uses Pester 5's Mock cmdlet to stub Az PowerShell calls so the
     suite runs offline with no Azure context. Each test imports the
     module fresh (Force) to avoid cross-test state leakage.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {

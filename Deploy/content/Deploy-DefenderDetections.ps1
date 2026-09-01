@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Deploy/content/Deploy-DefenderDetections.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 <#
 .SYNOPSIS
     Deploys custom detection rules to Microsoft Defender XDR via the Graph Security API.
@@ -44,7 +50,7 @@
 
 .NOTES
     Author:         noodlemctwoodle
-    Version:        1.0.1
+    Version:        1.0.2
     Last Updated:   2026-04-28
     Repository:     Sentinel-As-Code
     API Version:    Microsoft Graph Security API (beta)

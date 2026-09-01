@@ -1,3 +1,9 @@
+#
+# Sentinel-As-Code/Tests/Test-NewDcrFromSchema.Tests.ps1
+#
+# Created by noodlemctwoodle on 01/09/2026.
+#
+
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -30,6 +36,10 @@
     Deliberately not covered: the Azure reads, the deployments and the role
     assignment. Those need a live workspace, so the script gates them behind
     ShouldProcess and they are exercised by running the tool, not by Pester.
+
+.NOTES
+    Author:         noodlemctwoodle
+    Version:        0.1.0
 #>
 
 BeforeAll {
