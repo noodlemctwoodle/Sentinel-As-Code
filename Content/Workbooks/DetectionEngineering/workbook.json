@@ -1,0 +1,1855 @@
+{
+    "version": "Notebook/1.0",
+    "items": [
+        {
+            "type": 1,
+            "content": {
+                "json": "# Detection Engineering Dashboard\nHealth, coverage, fidelity, efficiency and lifecycle of your Microsoft Sentinel detection portfolio. Built for the Microsoft Defender portal (unified SecOps). Select your **workspaces**, a **time range** and **severity**, then use the tabs to navigate. All log panels query across every selected workspace."
+            },
+            "name": "header",
+            "id": "408dcb40-c4df-447e-a57f-9bca5c94d304"
+        },
+        {
+            "type": 9,
+            "content": {
+                "version": "KqlParameterItem/1.0",
+                "parameters": [
+                    {
+                        "id": "19c75aa3-8d97-4503-9586-d0029b71af08",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "TimeRange",
+                        "label": "Time range",
+                        "type": 4,
+                        "isRequired": true,
+                        "typeSettings": {
+                            "selectableValues": [
+                                {
+                                    "durationMs": 86400000
+                                },
+                                {
+                                    "durationMs": 604800000
+                                },
+                                {
+                                    "durationMs": 1209600000
+                                },
+                                {
+                                    "durationMs": 2592000000
+                                },
+                                {
+                                    "durationMs": 5184000000
+                                },
+                                {
+                                    "durationMs": 7776000000
+                                }
+                            ],
+                            "allowCustom": true
+                        },
+                        "timeContext": {
+                            "durationMs": 2592000000
+                        },
+                        "value": {
+                            "durationMs": 7776000000
+                        }
+                    },
+                    {
+                        "id": "904c0521-d73b-466f-a9b7-0ebeccb7eb6a",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "Workspaces",
+                        "label": "Workspaces (log data)",
+                        "description": "One or more Log Analytics / Microsoft Sentinel workspaces. Every log panel queries across all selected workspaces and unions the results.",
+                        "type": 5,
+                        "isRequired": true,
+                        "multiSelect": true,
+                        "quote": "",
+                        "delimiter": ",",
+                        "typeSettings": {
+                            "resourceTypeFilter": {
+                                "microsoft.operationalinsights/workspaces": true
+                            },
+                            "additionalResourceOptions": [
+                                "value::all"
+                            ],
+                            "showDefault": false
+                        },
+                        "timeContext": {
+                            "durationMs": 86400000
+                        },
+                        "defaultValue": "value::all"
+                    },
+                    {
+                        "id": "20d0a438-9ac5-4d4f-a798-abc9961cc76a",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "Severity",
+                        "label": "Severity",
+                        "type": 2,
+                        "description": "Filter severity-aware panels",
+                        "isRequired": true,
+                        "multiSelect": true,
+                        "quote": "'",
+                        "delimiter": ",",
+                        "typeSettings": {
+                            "additionalResourceOptions": [
+                                "value::all"
+                            ],
+                            "showDefault": false
+                        },
+                        "jsonData": "[\"High\", \"Medium\", \"Low\", \"Informational\"]",
+                        "defaultValue": "value::all"
+                    },
+                    {
+                        "id": "3f1b6d64-9a2f-4a1e-8f0d-6a2b7c9e4d51",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "selectedTab",
+                        "type": 1,
+                        "isHiddenWhenLocked": true,
+                        "value": "overview"
+                    },
+                    {
+                        "id": "5c8e2a17-4d3b-4f96-9c11-8e7a3f2d6b04",
+                        "version": "KqlParameterItem/1.0",
+                        "name": "selectedRule",
+                        "type": 1,
+                        "isHiddenWhenLocked": true,
+                        "value": ""
+                    }
+                ],
+                "style": "pills"
+            },
+            "name": "parameters-global",
+            "id": "b90d33e2-b1b4-449c-b4b1-0c3434cbb233"
+        },
+        {
+            "type": 11,
+            "content": {
+                "version": "LinkItem/1.0",
+                "style": "tabs",
+                "links": [
+                    {
+                        "id": "391c94db-0117-45a7-8b74-0b7a49525c79",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Overview",
+                        "subTarget": "overview",
+                        "style": "link"
+                    },
+                    {
+                        "id": "1b514b32-7216-4889-83d5-6535de2bd290",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Detection Coverage",
+                        "subTarget": "coverage",
+                        "style": "link"
+                    },
+                    {
+                        "id": "c8aa4cba-c98e-4861-b486-907572a8b92d",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Defender & Custom Detections",
+                        "subTarget": "defender",
+                        "style": "link"
+                    },
+                    {
+                        "id": "26004b51-4820-45a8-8a79-85c4ad9d71f3",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Rule Inventory & Health",
+                        "subTarget": "rules",
+                        "style": "link"
+                    },
+                    {
+                        "id": "1a3d1a79-0c37-4408-b024-a835f3283f16",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Efficacy & Fidelity",
+                        "subTarget": "efficacy",
+                        "style": "link"
+                    },
+                    {
+                        "id": "14006e91-b29b-4efe-9c33-633221f2a9c5",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Incident Metrics",
+                        "subTarget": "incidents",
+                        "style": "link"
+                    },
+                    {
+                        "id": "cdf7292a-9979-4967-8db6-df072b801fe3",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Data & Ingestion",
+                        "subTarget": "ingestion",
+                        "style": "link"
+                    },
+                    {
+                        "id": "38dd7998-7f70-4f97-be09-0e48be0114f2",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Lifecycle & Deprecations",
+                        "subTarget": "lifecycle",
+                        "style": "link"
+                    },
+                    {
+                        "id": "e21625a7-d774-4ae9-a663-4185fbcb31ba",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "Engineering Velocity",
+                        "subTarget": "velocity",
+                        "style": "link"
+                    },
+                    {
+                        "id": "45e9a361-0d18-463c-8518-76ed484bf8d9",
+                        "cellValue": "selectedTab",
+                        "linkTarget": "parameter",
+                        "linkLabel": "About & Data Sources",
+                        "subTarget": "about",
+                        "style": "link"
+                    }
+                ]
+            },
+            "name": "tabs",
+            "id": "b14f52f3-e677-42b6-bf67-e36307bd979b"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Detection Engineering Overview\nPortfolio health at a glance: detection output, rule execution health, and SOC outcomes across the selected time range. Use the tabs above to drill into coverage, rule health, fidelity, incident metrics, ingestion and engineering velocity."
+                        },
+                        "name": "ov-text",
+                        "id": "983da67a-1baa-46a2-96c2-95740ee72416"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let alerts = SecurityAlert | where AlertSeverity in ({Severity});\nlet incidents = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber;\nlet rh = SentinelHealth | where SentinelResourceType =~ \"Analytics rule\" | where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\");\nunion isfuzzy=true\n (incidents | summarize Value = todouble(count()) | extend Metric = \"Incidents\", o = 1),\n (incidents | where Status == \"Closed\" and Classification == \"FalsePositive\" | summarize Value = todouble(count()) | extend Metric = \"False-positive incidents\", o = 2),\n (alerts | summarize Value = todouble(count()) | extend Metric = \"Alerts fired\", o = 3),\n (alerts | summarize Value = todouble(dcount(AlertName)) | extend Metric = \"Active detections\", o = 4),\n (rh | where Status == \"Failure\" | summarize Value = todouble(dcount(SentinelResourceName)) | extend Metric = \"Rules failing\", o = 5),\n (rh | summarize Value = todouble(dcount(SentinelResourceName)) | extend Metric = \"Rules executing\", o = 6)\n| project Metric, Value, o\n| sort by o asc\n| project Metric, Value",
+                            "size": 1,
+                            "title": "Key indicators",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "tiles",
+                            "tileSettings": {
+                                "titleContent": {
+                                    "columnMatch": "Metric",
+                                    "formatter": 1
+                                },
+                                "leftContent": {
+                                    "columnMatch": "Value",
+                                    "formatter": 12,
+                                    "formatOptions": {
+                                        "palette": "auto"
+                                    },
+                                    "numberFormat": {
+                                        "unit": 0,
+                                        "options": {
+                                            "style": "decimal",
+                                            "maximumFractionDigits": 1
+                                        }
+                                    }
+                                },
+                                "showBorder": true,
+                                "size": "full"
+                            }
+                        },
+                        "name": "ov-kpi",
+                        "id": "e2f86804-c6b1-412a-bb2b-0bf4f7e1ffd5",
+                        "styleSettings": {
+                            "padding": "100"
+                        }
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where CreatedTime between ({TimeRange:start} .. {TimeRange:end})\n| summarize Incidents = count() by bin(CreatedTime, 1d), Severity\n| order by CreatedTime asc",
+                            "size": 1,
+                            "title": "Incidents per day by severity",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "ov-inc",
+                        "customWidth": "50",
+                        "id": "0f3cae4e-e027-47e1-b2e2-60620ee3f8a5"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityAlert\n| where AlertSeverity in ({Severity})\n| summarize Alerts = count() by bin(TimeGenerated, 1d), AlertSeverity\n| order by TimeGenerated asc",
+                            "size": 1,
+                            "title": "Alerts per day by severity",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "ov-alert",
+                        "customWidth": "50",
+                        "id": "aad5c33f-df38-4abe-a018-7cb7f53c52a0"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| summarize Runs = count(),\n            Failures = countif(Status == \"Failure\"),\n            Rules = dcount(SentinelResourceName)\n| extend ['Failure rate %'] = iff(Runs == 0, 0.0, round(100.0 * Failures / Runs, 1))\n| extend Health = case(['Failure rate %'] >= 20, \"Unhealthy\",\n                       ['Failure rate %'] >= 5, \"Degraded\",\n                       \"Healthy\")\n| project Health, Rules, Runs, Failures, ['Failure rate %']",
+                            "size": 0,
+                            "title": "Analytics rule execution health (range)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Health",
+                                        "formatter": 18,
+                                        "formatOptions": {
+                                            "thresholdsOptions": "colors",
+                                            "thresholdsGrid": [
+                                                {
+                                                    "operator": "==",
+                                                    "thresholdValue": "Healthy",
+                                                    "representation": "green",
+                                                    "text": "Healthy"
+                                                },
+                                                {
+                                                    "operator": "==",
+                                                    "thresholdValue": "Degraded",
+                                                    "representation": "orange",
+                                                    "text": "Degraded"
+                                                },
+                                                {
+                                                    "operator": "==",
+                                                    "thresholdValue": "Unhealthy",
+                                                    "representation": "red",
+                                                    "text": "Unhealthy"
+                                                },
+                                                {
+                                                    "operator": "Default",
+                                                    "thresholdValue": null,
+                                                    "representation": "gray",
+                                                    "text": "{0}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Rules",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "Runs",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "Failures",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "Failure rate %",
+                                        "formatter": 1
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "ov-health",
+                        "id": "4876b29e-970b-4d2e-a33e-101f7471ccd6"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "overview"
+            },
+            "name": "group-overview",
+            "id": "c27c2948-ec94-444d-b3bc-8e6efd6fb181"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Detection Coverage (MITRE ATT&CK)\nCoverage derived from **firing** detections in the selected range. Tactics/techniques come from the `SecurityAlert` mappings, and **technique IDs are resolved to their MITRE names** (sub-techniques inherit their parent's name). Alerts with **no MITRE mapping** (shown as *Unknown*) are excluded from the tactic/technique views and surfaced separately in the **Unmapped detections** panel below - that's a detection-hygiene backlog, not real coverage. Pair the gap list with the *designed* coverage on the portal **MITRE ATT&CK** page (rules that exist but haven't fired)."
+                        },
+                        "name": "cov-text",
+                        "id": "03ba0986-06f3-4171-9703-c93ea34712e5"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityAlert\n| where AlertSeverity in ({Severity})\n| where isnotempty(Tactics)\n| extend TacticsArr = iff(Tactics startswith \"[\", todynamic(Tactics), split(Tactics, \",\"))\n| mv-expand T = TacticsArr to typeof(string)\n| extend Tactic = trim(\" \", tostring(T))\n| where isnotempty(Tactic) and Tactic !~ \"Unknown\"\n| summarize Alerts = count() by Tactic\n| order by Alerts desc",
+                            "size": 1,
+                            "title": "Alerts by MITRE tactic (mapped only)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "barchart"
+                        },
+                        "name": "cov-tactic",
+                        "customWidth": "50",
+                        "id": "11d22072-ef43-4178-973e-d460d4e4b3ab"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let allTactics = datatable(Tactic:string, Key:string)\n[\n \"Reconnaissance\",\"reconnaissance\",\n \"Resource Development\",\"resourcedevelopment\",\n \"Initial Access\",\"initialaccess\",\n \"Execution\",\"execution\",\n \"Persistence\",\"persistence\",\n \"Privilege Escalation\",\"privilegeescalation\",\n \"Defense Evasion\",\"defenseevasion\",\n \"Credential Access\",\"credentialaccess\",\n \"Discovery\",\"discovery\",\n \"Lateral Movement\",\"lateralmovement\",\n \"Collection\",\"collection\",\n \"Command and Control\",\"commandandcontrol\",\n \"Exfiltration\",\"exfiltration\",\n \"Impact\",\"impact\"\n];\nlet firing = SecurityAlert\n | where AlertSeverity in ({Severity})\n | where isnotempty(Tactics)\n | extend TacticsArr = iff(Tactics startswith \"[\", todynamic(Tactics), split(Tactics, \",\"))\n | mv-expand T = TacticsArr to typeof(string)\n | extend Key = tolower(replace_string(trim(\" \", tostring(T)), \" \", \"\"))\n | where isnotempty(Key)\n | summarize Alerts = count(), Detections = dcount(AlertName) by Key;\nallTactics\n| join kind=leftouter firing on Key\n| extend Alerts = coalesce(Alerts, 0), Detections = coalesce(Detections, 0)\n| extend Status = iff(Alerts == 0, \"GAP - no firing detection\", \"Covered\")\n| project Tactic, Status, Alerts, Detections\n| order by Alerts asc, Tactic asc",
+                            "size": 1,
+                            "title": "Tactic coverage status (all 14 MITRE tactics, gaps first)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "green"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Detections",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "cov-gap",
+                        "customWidth": "50",
+                        "id": "1befa0f3-69d7-436e-9ed2-b13369b0e005"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let names = datatable(TechID:string, TechniqueName:string)\n[\n    \"T1001\", \"Data Obfuscation\",\n    \"T1003\", \"OS Credential Dumping\",\n    \"T1005\", \"Data from Local System\",\n    \"T1006\", \"Direct Volume Access\",\n    \"T1007\", \"System Service Discovery\",\n    \"T1008\", \"Fallback Channels\",\n    \"T1010\", \"Application Window Discovery\",\n    \"T1011\", \"Exfiltration Over Other Network Medium\",\n    \"T1012\", \"Query Registry\",\n    \"T1014\", \"Rootkit\",\n    \"T1016\", \"System Network Configuration Discovery\",\n    \"T1018\", \"Remote System Discovery\",\n    \"T1020\", \"Automated Exfiltration\",\n    \"T1021\", \"Remote Services\",\n    \"T1025\", \"Data from Removable Media\",\n    \"T1027\", \"Obfuscated Files or Information\",\n    \"T1029\", \"Scheduled Transfer\",\n    \"T1030\", \"Data Transfer Size Limits\",\n    \"T1033\", \"System Owner/User Discovery\",\n    \"T1036\", \"Masquerading\",\n    \"T1037\", \"Boot or Logon Initialization Scripts\",\n    \"T1039\", \"Data from Network Shared Drive\",\n    \"T1040\", \"Network Sniffing\",\n    \"T1041\", \"Exfiltration Over C2 Channel\",\n    \"T1046\", \"Network Service Discovery\",\n    \"T1047\", \"Windows Management Instrumentation\",\n    \"T1048\", \"Exfiltration Over Alternative Protocol\",\n    \"T1049\", \"System Network Connections Discovery\",\n    \"T1052\", \"Exfiltration Over Physical Medium\",\n    \"T1053\", \"Scheduled Task/Job\",\n    \"T1055\", \"Process Injection\",\n    \"T1056\", \"Input Capture\",\n    \"T1057\", \"Process Discovery\",\n    \"T1059\", \"Command and Scripting Interpreter\",\n    \"T1068\", \"Exploitation for Privilege Escalation\",\n    \"T1069\", \"Permission Groups Discovery\",\n    \"T1070\", \"Indicator Removal\",\n    \"T1071\", \"Application Layer Protocol\",\n    \"T1072\", \"Software Deployment Tools\",\n    \"T1074\", \"Data Staged\",\n    \"T1078\", \"Valid Accounts\",\n    \"T1080\", \"Taint Shared Content\",\n    \"T1082\", \"System Information Discovery\",\n    \"T1083\", \"File and Directory Discovery\",\n    \"T1087\", \"Account Discovery\",\n    \"T1090\", \"Proxy\",\n    \"T1091\", \"Replication Through Removable Media\",\n    \"T1092\", \"Communication Through Removable Media\",\n    \"T1095\", \"Non-Application Layer Protocol\",\n    \"T1098\", \"Account Manipulation\",\n    \"T1102\", \"Web Service\",\n    \"T1104\", \"Multi-Stage Channels\",\n    \"T1105\", \"Ingress Tool Transfer\",\n    \"T1106\", \"Native API\",\n    \"T1110\", \"Brute Force\",\n    \"T1111\", \"Multi-Factor Authentication Interception\",\n    \"T1112\", \"Modify Registry\",\n    \"T1113\", \"Screen Capture\",\n    \"T1114\", \"Email Collection\",\n    \"T1115\", \"Clipboard Data\",\n    \"T1119\", \"Automated Collection\",\n    \"T1120\", \"Peripheral Device Discovery\",\n    \"T1123\", \"Audio Capture\",\n    \"T1124\", \"System Time Discovery\",\n    \"T1125\", \"Video Capture\",\n    \"T1127\", \"Trusted Developer Utilities Proxy Execution\",\n    \"T1129\", \"Shared Modules\",\n    \"T1132\", \"Data Encoding\",\n    \"T1133\", \"External Remote Services\",\n    \"T1134\", \"Access Token Manipulation\",\n    \"T1135\", \"Network Share Discovery\",\n    \"T1136\", \"Create Account\",\n    \"T1137\", \"Office Application Startup\",\n    \"T1140\", \"Deobfuscate/Decode Files or Information\",\n    \"T1176\", \"Software Extensions\",\n    \"T1185\", \"Browser Session Hijacking\",\n    \"T1187\", \"Forced Authentication\",\n    \"T1189\", \"Drive-by Compromise\",\n    \"T1190\", \"Exploit Public-Facing Application\",\n    \"T1195\", \"Supply Chain Compromise\",\n    \"T1197\", \"BITS Jobs\",\n    \"T1199\", \"Trusted Relationship\",\n    \"T1200\", \"Hardware Additions\",\n    \"T1201\", \"Password Policy Discovery\",\n    \"T1202\", \"Indirect Command Execution\",\n    \"T1203\", \"Exploitation for Client Execution\",\n    \"T1204\", \"User Execution\",\n    \"T1205\", \"Traffic Signaling\",\n    \"T1207\", \"Rogue Domain Controller\",\n    \"T1210\", \"Exploitation of Remote Services\",\n    \"T1211\", \"Exploitation for Stealth\",\n    \"T1212\", \"Exploitation for Credential Access\",\n    \"T1213\", \"Data from Information Repositories\",\n    \"T1216\", \"System Script Proxy Execution\",\n    \"T1217\", \"Browser Information Discovery\",\n    \"T1218\", \"System Binary Proxy Execution\",\n    \"T1219\", \"Remote Access Tools\",\n    \"T1220\", \"XSL Script Processing\",\n    \"T1221\", \"Template Injection\",\n    \"T1222\", \"File and Directory Permissions Modification\",\n    \"T1480\", \"Execution Guardrails\",\n    \"T1482\", \"Domain Trust Discovery\",\n    \"T1484\", \"Domain or Tenant Policy Modification\",\n    \"T1485\", \"Data Destruction\",\n    \"T1486\", \"Data Encrypted for Impact\",\n    \"T1489\", \"Service Stop\",\n    \"T1490\", \"Inhibit System Recovery\",\n    \"T1491\", \"Defacement\",\n    \"T1495\", \"Firmware Corruption\",\n    \"T1496\", \"Resource Hijacking\",\n    \"T1497\", \"Virtualization/Sandbox Evasion\",\n    \"T1498\", \"Network Denial of Service\",\n    \"T1499\", \"Endpoint Denial of Service\",\n    \"T1505\", \"Server Software Component\",\n    \"T1518\", \"Software Discovery\",\n    \"T1525\", \"Implant Internal Image\",\n    \"T1526\", \"Cloud Service Discovery\",\n    \"T1528\", \"Steal Application Access Token\",\n    \"T1529\", \"System Shutdown/Reboot\",\n    \"T1530\", \"Data from Cloud Storage\",\n    \"T1531\", \"Account Access Removal\",\n    \"T1534\", \"Internal Spearphishing\",\n    \"T1535\", \"Unused/Unsupported Cloud Regions\",\n    \"T1537\", \"Transfer Data to Cloud Account\",\n    \"T1538\", \"Cloud Service Dashboard\",\n    \"T1539\", \"Steal Web Session Cookie\",\n    \"T1542\", \"Pre-OS Boot\",\n    \"T1543\", \"Create or Modify System Process\",\n    \"T1546\", \"Event Triggered Execution\",\n    \"T1547\", \"Boot or Logon Autostart Execution\",\n    \"T1548\", \"Abuse Elevation Control Mechanism\",\n    \"T1550\", \"Use Alternate Authentication Material\",\n    \"T1552\", \"Unsecured Credentials\",\n    \"T1553\", \"Subvert Trust Controls\",\n    \"T1554\", \"Compromise Host Software Binary\",\n    \"T1555\", \"Credentials from Password Stores\",\n    \"T1556\", \"Modify Authentication Process\",\n    \"T1557\", \"Adversary-in-the-Middle\",\n    \"T1558\", \"Steal or Forge Kerberos Tickets\",\n    \"T1559\", \"Inter-Process Communication\",\n    \"T1560\", \"Archive Collected Data\",\n    \"T1561\", \"Disk Wipe\",\n    \"T1563\", \"Remote Service Session Hijacking\",\n    \"T1564\", \"Hide Artifacts\",\n    \"T1565\", \"Data Manipulation\",\n    \"T1566\", \"Phishing\",\n    \"T1567\", \"Exfiltration Over Web Service\",\n    \"T1568\", \"Dynamic Resolution\",\n    \"T1569\", \"System Services\",\n    \"T1570\", \"Lateral Tool Transfer\",\n    \"T1571\", \"Non-Standard Port\",\n    \"T1572\", \"Protocol Tunneling\",\n    \"T1573\", \"Encrypted Channel\",\n    \"T1574\", \"Hijack Execution Flow\",\n    \"T1578\", \"Modify Cloud Compute Infrastructure\",\n    \"T1580\", \"Cloud Infrastructure Discovery\",\n    \"T1583\", \"Acquire Infrastructure\",\n    \"T1584\", \"Compromise Infrastructure\",\n    \"T1585\", \"Establish Accounts\",\n    \"T1586\", \"Compromise Accounts\",\n    \"T1587\", \"Develop Capabilities\",\n    \"T1588\", \"Obtain Capabilities\",\n    \"T1589\", \"Gather Victim Identity Information\",\n    \"T1590\", \"Gather Victim Network Information\",\n    \"T1591\", \"Gather Victim Org Information\",\n    \"T1592\", \"Gather Victim Host Information\",\n    \"T1593\", \"Search Open Websites/Domains\",\n    \"T1594\", \"Search Victim-Owned Websites\",\n    \"T1595\", \"Active Scanning\",\n    \"T1596\", \"Search Open Technical Databases\",\n    \"T1597\", \"Search Closed Sources\",\n    \"T1598\", \"Phishing for Information\",\n    \"T1599\", \"Network Boundary Bridging\",\n    \"T1600\", \"Weaken Encryption\",\n    \"T1601\", \"Modify System Image\",\n    \"T1602\", \"Data from Configuration Repository\",\n    \"T1606\", \"Forge Web Credentials\",\n    \"T1608\", \"Stage Capabilities\",\n    \"T1609\", \"Container Administration Command\",\n    \"T1610\", \"Deploy Container\",\n    \"T1611\", \"Escape to Host\",\n    \"T1612\", \"Build Image on Host\",\n    \"T1613\", \"Container and Resource Discovery\",\n    \"T1614\", \"System Location Discovery\",\n    \"T1615\", \"Group Policy Discovery\",\n    \"T1619\", \"Cloud Storage Object Discovery\",\n    \"T1620\", \"Reflective Code Loading\",\n    \"T1621\", \"Multi-Factor Authentication Request Generation\",\n    \"T1622\", \"Debugger Evasion\",\n    \"T1647\", \"Plist File Modification\",\n    \"T1648\", \"Serverless Execution\",\n    \"T1649\", \"Steal or Forge Authentication Certificates\",\n    \"T1650\", \"Acquire Access\",\n    \"T1651\", \"Cloud Administration Command\",\n    \"T1652\", \"Device Driver Discovery\",\n    \"T1653\", \"Power Settings\",\n    \"T1654\", \"Log Enumeration\",\n    \"T1657\", \"Financial Theft\",\n    \"T1659\", \"Content Injection\",\n    \"T1665\", \"Hide Infrastructure\",\n    \"T1666\", \"Modify Cloud Resource Hierarchy\",\n    \"T1667\", \"Email Bombing\",\n    \"T1668\", \"Exclusive Control\",\n    \"T1669\", \"Wi-Fi Networks\",\n    \"T1671\", \"Cloud Application Integration\",\n    \"T1673\", \"Virtual Machine Discovery\",\n    \"T1674\", \"Input Injection\",\n    \"T1675\", \"ESXi Administration Command\",\n    \"T1677\", \"Poisoned Pipeline Execution\",\n    \"T1678\", \"Delay Execution\",\n    \"T1679\", \"Selective Exclusion\",\n    \"T1680\", \"Local Storage Discovery\",\n    \"T1681\", \"Search Threat Vendor Data\",\n    \"T1682\", \"Query Public AI Services\",\n    \"T1683\", \"Generate Content\",\n    \"T1684\", \"Social Engineering\",\n    \"T1685\", \"Disable or Modify Tools\",\n    \"T1686\", \"Disable or Modify System Firewall\",\n    \"T1687\", \"Exploitation for Defense Impairment\",\n    \"T1688\", \"Safe Mode Boot\",\n    \"T1689\", \"Downgrade Attack\",\n    \"T1690\", \"Prevent Command History Logging\"\n];\nSecurityAlert\n| where AlertSeverity in ({Severity})\n| where isnotempty(Techniques)\n| extend TechArr = iff(Techniques startswith \"[\", todynamic(Techniques), split(Techniques, \",\"))\n| mv-expand T = TechArr to typeof(string)\n| extend Technique = trim(\" \", tostring(T))\n| where isnotempty(Technique) and Technique !~ \"Unknown\"\n| extend TechID = toupper(tostring(split(Technique, \".\")[0]))\n| extend SevRank = case(AlertSeverity =~ \"High\", 4, AlertSeverity =~ \"Medium\", 3, AlertSeverity =~ \"Low\", 2, AlertSeverity =~ \"Informational\", 1, 0)\n| summarize Alerts = count(), Detections = dcount(AlertName), TopRank = max(SevRank) by Technique, TechID\n| lookup kind=leftouter names on TechID\n| extend Technique = strcat(Technique, iif(isnotempty(TechniqueName), strcat(\" - \", TechniqueName), \"\"))\n| extend ['Highest severity'] = case(TopRank == 4, \"High\", TopRank == 3, \"Medium\", TopRank == 2, \"Low\", TopRank == 1, \"Informational\", \"Unknown\")\n| project Technique, TechniqueName, Alerts, Detections, ['Highest severity']\n| order by Alerts desc\n| take 100",
+                            "size": 0,
+                            "title": "Technique activity (top 100, with MITRE names)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Detections",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "TechniqueName",
+                                        "formatter": 1
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "cov-tech",
+                        "id": "8e595548-5583-407d-909e-2d62380a8e94"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityAlert\n| where AlertSeverity in ({Severity})\n| extend NoTactic = isempty(Tactics) or Tactics has \"Unknown\"\n| extend NoTechnique = isempty(Techniques) or Techniques has \"Unknown\"\n| where NoTactic or NoTechnique\n| summarize Alerts = count(),\n            ['Missing tactic'] = countif(NoTactic),\n            ['Missing technique'] = countif(NoTechnique),\n            LastSeen = max(TimeGenerated)\n  by Detection = AlertName, Severity = AlertSeverity, Product = ProductName\n| order by Alerts desc\n| take 100",
+                            "size": 0,
+                            "title": "Unmapped detections - no MITRE tactic/technique (hygiene backlog)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "orange"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Missing tactic",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "Missing technique",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "cov-unmapped",
+                        "id": "6675afb8-c454-4cec-8d23-a252799022b0"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityAlert\n| where AlertSeverity in ({Severity})\n| where isnotempty(AlertName)\n| summarize Alerts = count(), LastSeen = max(TimeGenerated) by Detection = AlertName, Severity = AlertSeverity, Tactics, Techniques\n| order by Alerts desc\n| take 200",
+                            "size": 0,
+                            "title": "Detection to tactic / technique mapping",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "cov-map",
+                        "id": "a2e7904c-0ad9-4159-87a8-7839d63b7b39"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "coverage"
+            },
+            "name": "group-coverage",
+            "id": "5fe59dc9-f82e-4c99-9371-4c93ef47ddd2"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Defender & Custom Detections (Advanced Hunting native)\nBuilt on the **`AlertInfo`** advanced-hunting table, so it works natively in the Microsoft Defender portal and spans Defender for Endpoint / Office 365 / Identity / Cloud Apps **and your custom detections** (plus onboarded Sentinel alerts). `DetectionSource has \"Custom\"` isolates custom-detection rules - the Defender equivalent of analytics-rule authoring. Use this tab when running in Defender XDR or when `SentinelHealth`/`SentinelAudit` logging isn't enabled."
+                        },
+                        "name": "defn-text",
+                        "id": "b826d9ff-7185-4c20-a103-73383e0fc6fb"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| summarize\n    ['Defender alerts'] = todouble(count()),\n    ['Custom-detection alerts'] = todouble(countif(DetectionSource has \"Custom\")),\n    ['Custom detections (distinct)'] = todouble(dcountif(Title, DetectionSource has \"Custom\")),\n    ['Detection sources'] = todouble(dcount(DetectionSource)),\n    ['Service sources'] = todouble(dcount(ServiceSource))\n| project packed = pack_all()\n| mv-expand kind=array packed\n| project Metric = tostring(packed[0]), Value = todouble(packed[1])",
+                            "size": 1,
+                            "title": "Defender detection indicators",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "tiles",
+                            "tileSettings": {
+                                "titleContent": {
+                                    "columnMatch": "Metric",
+                                    "formatter": 1
+                                },
+                                "leftContent": {
+                                    "columnMatch": "Value",
+                                    "formatter": 12,
+                                    "formatOptions": {
+                                        "palette": "auto"
+                                    },
+                                    "numberFormat": {
+                                        "unit": 0,
+                                        "options": {
+                                            "style": "decimal",
+                                            "maximumFractionDigits": 1
+                                        }
+                                    }
+                                },
+                                "showBorder": true,
+                                "size": "auto"
+                            }
+                        },
+                        "name": "defn-kpi",
+                        "id": "eafa851c-9113-4ef4-81ae-8ce69d31275c"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| summarize Alerts = count() by DetectionSource\n| order by Alerts desc",
+                            "size": 1,
+                            "title": "Alerts by detection source (custom vs Microsoft)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "barchart"
+                        },
+                        "name": "defn-source",
+                        "customWidth": "50",
+                        "id": "6242268c-a853-4381-b9ee-62d67778d6aa"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| summarize Alerts = count() by ServiceSource\n| order by Alerts desc",
+                            "size": 1,
+                            "title": "Alerts by service source",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "barchart"
+                        },
+                        "name": "defn-service",
+                        "customWidth": "50",
+                        "id": "73fb6cb0-4ac4-46ac-9664-307c23c2815f"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| where DetectionSource has \"Custom\"\n| extend SevRank = case(Severity =~ \"High\", 4, Severity =~ \"Medium\", 3, Severity =~ \"Low\", 2, Severity =~ \"Informational\", 1, 0)\n| summarize Alerts = count(), TopRank = max(SevRank), LastSeen = max(Timestamp) by Detection = Title, ServiceSource\n| extend ['Highest severity'] = case(TopRank == 4, \"High\", TopRank == 3, \"Medium\", TopRank == 2, \"Low\", TopRank == 1, \"Informational\", \"Unknown\")\n| project Detection, ServiceSource, Alerts, ['Highest severity'], LastSeen\n| order by Alerts desc\n| take 100",
+                            "size": 1,
+                            "title": "Custom detections - volume & severity",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "defn-custom",
+                        "id": "09739c95-b5f4-4685-bade-5d3882678de8"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let names = datatable(TechID:string, TechniqueName:string)\n[\n    \"T1001\", \"Data Obfuscation\",\n    \"T1003\", \"OS Credential Dumping\",\n    \"T1005\", \"Data from Local System\",\n    \"T1006\", \"Direct Volume Access\",\n    \"T1007\", \"System Service Discovery\",\n    \"T1008\", \"Fallback Channels\",\n    \"T1010\", \"Application Window Discovery\",\n    \"T1011\", \"Exfiltration Over Other Network Medium\",\n    \"T1012\", \"Query Registry\",\n    \"T1014\", \"Rootkit\",\n    \"T1016\", \"System Network Configuration Discovery\",\n    \"T1018\", \"Remote System Discovery\",\n    \"T1020\", \"Automated Exfiltration\",\n    \"T1021\", \"Remote Services\",\n    \"T1025\", \"Data from Removable Media\",\n    \"T1027\", \"Obfuscated Files or Information\",\n    \"T1029\", \"Scheduled Transfer\",\n    \"T1030\", \"Data Transfer Size Limits\",\n    \"T1033\", \"System Owner/User Discovery\",\n    \"T1036\", \"Masquerading\",\n    \"T1037\", \"Boot or Logon Initialization Scripts\",\n    \"T1039\", \"Data from Network Shared Drive\",\n    \"T1040\", \"Network Sniffing\",\n    \"T1041\", \"Exfiltration Over C2 Channel\",\n    \"T1046\", \"Network Service Discovery\",\n    \"T1047\", \"Windows Management Instrumentation\",\n    \"T1048\", \"Exfiltration Over Alternative Protocol\",\n    \"T1049\", \"System Network Connections Discovery\",\n    \"T1052\", \"Exfiltration Over Physical Medium\",\n    \"T1053\", \"Scheduled Task/Job\",\n    \"T1055\", \"Process Injection\",\n    \"T1056\", \"Input Capture\",\n    \"T1057\", \"Process Discovery\",\n    \"T1059\", \"Command and Scripting Interpreter\",\n    \"T1068\", \"Exploitation for Privilege Escalation\",\n    \"T1069\", \"Permission Groups Discovery\",\n    \"T1070\", \"Indicator Removal\",\n    \"T1071\", \"Application Layer Protocol\",\n    \"T1072\", \"Software Deployment Tools\",\n    \"T1074\", \"Data Staged\",\n    \"T1078\", \"Valid Accounts\",\n    \"T1080\", \"Taint Shared Content\",\n    \"T1082\", \"System Information Discovery\",\n    \"T1083\", \"File and Directory Discovery\",\n    \"T1087\", \"Account Discovery\",\n    \"T1090\", \"Proxy\",\n    \"T1091\", \"Replication Through Removable Media\",\n    \"T1092\", \"Communication Through Removable Media\",\n    \"T1095\", \"Non-Application Layer Protocol\",\n    \"T1098\", \"Account Manipulation\",\n    \"T1102\", \"Web Service\",\n    \"T1104\", \"Multi-Stage Channels\",\n    \"T1105\", \"Ingress Tool Transfer\",\n    \"T1106\", \"Native API\",\n    \"T1110\", \"Brute Force\",\n    \"T1111\", \"Multi-Factor Authentication Interception\",\n    \"T1112\", \"Modify Registry\",\n    \"T1113\", \"Screen Capture\",\n    \"T1114\", \"Email Collection\",\n    \"T1115\", \"Clipboard Data\",\n    \"T1119\", \"Automated Collection\",\n    \"T1120\", \"Peripheral Device Discovery\",\n    \"T1123\", \"Audio Capture\",\n    \"T1124\", \"System Time Discovery\",\n    \"T1125\", \"Video Capture\",\n    \"T1127\", \"Trusted Developer Utilities Proxy Execution\",\n    \"T1129\", \"Shared Modules\",\n    \"T1132\", \"Data Encoding\",\n    \"T1133\", \"External Remote Services\",\n    \"T1134\", \"Access Token Manipulation\",\n    \"T1135\", \"Network Share Discovery\",\n    \"T1136\", \"Create Account\",\n    \"T1137\", \"Office Application Startup\",\n    \"T1140\", \"Deobfuscate/Decode Files or Information\",\n    \"T1176\", \"Software Extensions\",\n    \"T1185\", \"Browser Session Hijacking\",\n    \"T1187\", \"Forced Authentication\",\n    \"T1189\", \"Drive-by Compromise\",\n    \"T1190\", \"Exploit Public-Facing Application\",\n    \"T1195\", \"Supply Chain Compromise\",\n    \"T1197\", \"BITS Jobs\",\n    \"T1199\", \"Trusted Relationship\",\n    \"T1200\", \"Hardware Additions\",\n    \"T1201\", \"Password Policy Discovery\",\n    \"T1202\", \"Indirect Command Execution\",\n    \"T1203\", \"Exploitation for Client Execution\",\n    \"T1204\", \"User Execution\",\n    \"T1205\", \"Traffic Signaling\",\n    \"T1207\", \"Rogue Domain Controller\",\n    \"T1210\", \"Exploitation of Remote Services\",\n    \"T1211\", \"Exploitation for Stealth\",\n    \"T1212\", \"Exploitation for Credential Access\",\n    \"T1213\", \"Data from Information Repositories\",\n    \"T1216\", \"System Script Proxy Execution\",\n    \"T1217\", \"Browser Information Discovery\",\n    \"T1218\", \"System Binary Proxy Execution\",\n    \"T1219\", \"Remote Access Tools\",\n    \"T1220\", \"XSL Script Processing\",\n    \"T1221\", \"Template Injection\",\n    \"T1222\", \"File and Directory Permissions Modification\",\n    \"T1480\", \"Execution Guardrails\",\n    \"T1482\", \"Domain Trust Discovery\",\n    \"T1484\", \"Domain or Tenant Policy Modification\",\n    \"T1485\", \"Data Destruction\",\n    \"T1486\", \"Data Encrypted for Impact\",\n    \"T1489\", \"Service Stop\",\n    \"T1490\", \"Inhibit System Recovery\",\n    \"T1491\", \"Defacement\",\n    \"T1495\", \"Firmware Corruption\",\n    \"T1496\", \"Resource Hijacking\",\n    \"T1497\", \"Virtualization/Sandbox Evasion\",\n    \"T1498\", \"Network Denial of Service\",\n    \"T1499\", \"Endpoint Denial of Service\",\n    \"T1505\", \"Server Software Component\",\n    \"T1518\", \"Software Discovery\",\n    \"T1525\", \"Implant Internal Image\",\n    \"T1526\", \"Cloud Service Discovery\",\n    \"T1528\", \"Steal Application Access Token\",\n    \"T1529\", \"System Shutdown/Reboot\",\n    \"T1530\", \"Data from Cloud Storage\",\n    \"T1531\", \"Account Access Removal\",\n    \"T1534\", \"Internal Spearphishing\",\n    \"T1535\", \"Unused/Unsupported Cloud Regions\",\n    \"T1537\", \"Transfer Data to Cloud Account\",\n    \"T1538\", \"Cloud Service Dashboard\",\n    \"T1539\", \"Steal Web Session Cookie\",\n    \"T1542\", \"Pre-OS Boot\",\n    \"T1543\", \"Create or Modify System Process\",\n    \"T1546\", \"Event Triggered Execution\",\n    \"T1547\", \"Boot or Logon Autostart Execution\",\n    \"T1548\", \"Abuse Elevation Control Mechanism\",\n    \"T1550\", \"Use Alternate Authentication Material\",\n    \"T1552\", \"Unsecured Credentials\",\n    \"T1553\", \"Subvert Trust Controls\",\n    \"T1554\", \"Compromise Host Software Binary\",\n    \"T1555\", \"Credentials from Password Stores\",\n    \"T1556\", \"Modify Authentication Process\",\n    \"T1557\", \"Adversary-in-the-Middle\",\n    \"T1558\", \"Steal or Forge Kerberos Tickets\",\n    \"T1559\", \"Inter-Process Communication\",\n    \"T1560\", \"Archive Collected Data\",\n    \"T1561\", \"Disk Wipe\",\n    \"T1563\", \"Remote Service Session Hijacking\",\n    \"T1564\", \"Hide Artifacts\",\n    \"T1565\", \"Data Manipulation\",\n    \"T1566\", \"Phishing\",\n    \"T1567\", \"Exfiltration Over Web Service\",\n    \"T1568\", \"Dynamic Resolution\",\n    \"T1569\", \"System Services\",\n    \"T1570\", \"Lateral Tool Transfer\",\n    \"T1571\", \"Non-Standard Port\",\n    \"T1572\", \"Protocol Tunneling\",\n    \"T1573\", \"Encrypted Channel\",\n    \"T1574\", \"Hijack Execution Flow\",\n    \"T1578\", \"Modify Cloud Compute Infrastructure\",\n    \"T1580\", \"Cloud Infrastructure Discovery\",\n    \"T1583\", \"Acquire Infrastructure\",\n    \"T1584\", \"Compromise Infrastructure\",\n    \"T1585\", \"Establish Accounts\",\n    \"T1586\", \"Compromise Accounts\",\n    \"T1587\", \"Develop Capabilities\",\n    \"T1588\", \"Obtain Capabilities\",\n    \"T1589\", \"Gather Victim Identity Information\",\n    \"T1590\", \"Gather Victim Network Information\",\n    \"T1591\", \"Gather Victim Org Information\",\n    \"T1592\", \"Gather Victim Host Information\",\n    \"T1593\", \"Search Open Websites/Domains\",\n    \"T1594\", \"Search Victim-Owned Websites\",\n    \"T1595\", \"Active Scanning\",\n    \"T1596\", \"Search Open Technical Databases\",\n    \"T1597\", \"Search Closed Sources\",\n    \"T1598\", \"Phishing for Information\",\n    \"T1599\", \"Network Boundary Bridging\",\n    \"T1600\", \"Weaken Encryption\",\n    \"T1601\", \"Modify System Image\",\n    \"T1602\", \"Data from Configuration Repository\",\n    \"T1606\", \"Forge Web Credentials\",\n    \"T1608\", \"Stage Capabilities\",\n    \"T1609\", \"Container Administration Command\",\n    \"T1610\", \"Deploy Container\",\n    \"T1611\", \"Escape to Host\",\n    \"T1612\", \"Build Image on Host\",\n    \"T1613\", \"Container and Resource Discovery\",\n    \"T1614\", \"System Location Discovery\",\n    \"T1615\", \"Group Policy Discovery\",\n    \"T1619\", \"Cloud Storage Object Discovery\",\n    \"T1620\", \"Reflective Code Loading\",\n    \"T1621\", \"Multi-Factor Authentication Request Generation\",\n    \"T1622\", \"Debugger Evasion\",\n    \"T1647\", \"Plist File Modification\",\n    \"T1648\", \"Serverless Execution\",\n    \"T1649\", \"Steal or Forge Authentication Certificates\",\n    \"T1650\", \"Acquire Access\",\n    \"T1651\", \"Cloud Administration Command\",\n    \"T1652\", \"Device Driver Discovery\",\n    \"T1653\", \"Power Settings\",\n    \"T1654\", \"Log Enumeration\",\n    \"T1657\", \"Financial Theft\",\n    \"T1659\", \"Content Injection\",\n    \"T1665\", \"Hide Infrastructure\",\n    \"T1666\", \"Modify Cloud Resource Hierarchy\",\n    \"T1667\", \"Email Bombing\",\n    \"T1668\", \"Exclusive Control\",\n    \"T1669\", \"Wi-Fi Networks\",\n    \"T1671\", \"Cloud Application Integration\",\n    \"T1673\", \"Virtual Machine Discovery\",\n    \"T1674\", \"Input Injection\",\n    \"T1675\", \"ESXi Administration Command\",\n    \"T1677\", \"Poisoned Pipeline Execution\",\n    \"T1678\", \"Delay Execution\",\n    \"T1679\", \"Selective Exclusion\",\n    \"T1680\", \"Local Storage Discovery\",\n    \"T1681\", \"Search Threat Vendor Data\",\n    \"T1682\", \"Query Public AI Services\",\n    \"T1683\", \"Generate Content\",\n    \"T1684\", \"Social Engineering\",\n    \"T1685\", \"Disable or Modify Tools\",\n    \"T1686\", \"Disable or Modify System Firewall\",\n    \"T1687\", \"Exploitation for Defense Impairment\",\n    \"T1688\", \"Safe Mode Boot\",\n    \"T1689\", \"Downgrade Attack\",\n    \"T1690\", \"Prevent Command History Logging\"\n];\nAlertInfo\n| where Severity in~ ({Severity})\n| where isnotempty(AttackTechniques)\n| extend TechArr = iff(AttackTechniques startswith \"[\", todynamic(AttackTechniques), split(AttackTechniques, \",\"))\n| mv-expand T = TechArr to typeof(string)\n| extend Technique = trim(\" \", tostring(T))\n| where isnotempty(Technique) and Technique !~ \"Unknown\"\n| extend TechID = toupper(tostring(extract(\"(T[0-9]{4})\", 1, Technique)))\n| summarize Alerts = count(), Detections = dcount(Title), Sources = make_set(DetectionSource, 10) by Technique, TechID\n| lookup kind=leftouter names on TechID\n| extend Technique = iif(isnotempty(TechniqueName) and Technique !has TechniqueName, strcat(Technique, \" - \", TechniqueName), Technique)\n| project Technique, TechniqueName, Alerts, Detections, Sources\n| order by Alerts desc\n| take 100",
+                            "size": 0,
+                            "title": "MITRE technique coverage (Defender-native, with names)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Detections",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "TechniqueName",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "defn-tech",
+                        "id": "0f3ef303-e6fa-4592-abf3-6642fae63694"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| where DetectionSource has \"Custom\"\n| summarize Alerts = count() by bin(Timestamp, 1d), Severity\n| order by Timestamp asc",
+                            "size": 1,
+                            "title": "Custom-detection alerts per day",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "defn-custom-trend",
+                        "customWidth": "50",
+                        "id": "b0eb59ed-6c53-4a6d-8cc4-02eec69f3274"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "AlertInfo\n| where Severity in~ ({Severity})\n| where isnotempty(Category)\n| summarize Alerts = count(), Detections = dcount(Title) by Category\n| order by Alerts desc",
+                            "size": 1,
+                            "title": "Alerts by category",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Detections",
+                                        "formatter": 1
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "defn-cat",
+                        "customWidth": "50",
+                        "id": "9343b444-dfd5-461c-87f5-8d5b723ba025"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "defender"
+            },
+            "name": "group-defender",
+            "id": "ba79f43d-3d39-4dc4-b10c-d7a92581126f"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Rule Inventory & Health\nSourced from `SentinelHealth` analytics-rule run events (the source of truth for rule execution). `ExtendedProperties.AlertsGeneratedAmount` lets us find **silent** rules (executing but never firing) and **failing** rules without any join. Prioritise fixing high failure-rate rules and reviewing silent rules for broken logic or dead log sources.\n\n> **Interactive:** click any rule in *Per-rule execution health* to load its run history in the detail panel below (click the same row again or clear the selection to reset).\n\n> **This tab needs Sentinel *health* diagnostics.** If panels are empty, enable Microsoft Sentinel **Settings > Settings > Auditing and health monitoring** (streams `SentinelHealth`). Until then, use the **Defender & Custom Detections** tab for live detection signal. This tab covers Sentinel analytics rules; Defender custom detections are on the Defender tab."
+                        },
+                        "name": "rules-text",
+                        "id": "cf18e36b-cbaf-4c46-b75c-56cf48f83499"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let rh = SentinelHealth\n | where SentinelResourceType =~ \"Analytics rule\"\n | where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n | extend AlertsGenerated = tolong(ExtendedProperties.AlertsGeneratedAmount);\nunion isfuzzy=true\n (rh | summarize Value = todouble(dcount(SentinelResourceName)) | extend Metric = \"Rules executing\", o = 1),\n (rh | where Status == \"Failure\" | summarize Value = todouble(dcount(SentinelResourceName)) | extend Metric = \"Rules with failures\", o = 2),\n (rh | summarize gen = sum(AlertsGenerated) by SentinelResourceName | where gen == 0 | summarize Value = todouble(count()) | extend Metric = \"Silent rules (0 alerts)\", o = 3),\n (rh | summarize runs = count(), fails = countif(Status == \"Failure\") | extend Value = iff(runs == 0, 0.0, round(100.0 * fails / runs, 1)) | extend Metric = \"Run failure rate %\", o = 4)\n| project Metric, Value, o\n| sort by o asc\n| project Metric, Value",
+                            "size": 1,
+                            "title": "Rule portfolio indicators",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "tiles",
+                            "tileSettings": {
+                                "titleContent": {
+                                    "columnMatch": "Metric",
+                                    "formatter": 1
+                                },
+                                "leftContent": {
+                                    "columnMatch": "Value",
+                                    "formatter": 12,
+                                    "formatOptions": {
+                                        "palette": "auto"
+                                    },
+                                    "numberFormat": {
+                                        "unit": 0,
+                                        "options": {
+                                            "style": "decimal",
+                                            "maximumFractionDigits": 1
+                                        }
+                                    }
+                                },
+                                "showBorder": true,
+                                "size": "auto"
+                            }
+                        },
+                        "name": "rules-kpi",
+                        "id": "d63bc10c-2c73-4cf7-849b-f490510addb3"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| extend AlertsGenerated = tolong(ExtendedProperties.AlertsGeneratedAmount)\n| summarize Runs = count(),\n            Failures = countif(Status == \"Failure\"),\n            AlertsGenerated = sum(AlertsGenerated),\n            (LastRun, LastStatus) = arg_max(TimeGenerated, Status)\n  by Rule = SentinelResourceName\n| extend ['Failure rate %'] = round(100.0 * Failures / Runs, 1)\n| order by ['Failure rate %'] desc, Failures desc",
+                            "size": 0,
+                            "title": "Per-rule execution health (click a row to drill down)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Failure rate %",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "AlertsGenerated",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "green"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Failures",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "orange"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Runs",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 200
+                            },
+                            "exportFieldName": "Rule",
+                            "exportParameterName": "selectedRule",
+                            "exportDefaultValue": ""
+                        },
+                        "name": "rules-health",
+                        "id": "bf992d19-3167-421c-bbc3-251eefe44143"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| where \"{selectedRule}\" == \"\" or SentinelResourceName == \"{selectedRule}\"\n| extend ep = ExtendedProperties\n| project TimeGenerated, Rule = SentinelResourceName, Status, Reason,\n          Results = tolong(ep.QueryResultAmount),\n          AlertsGenerated = tolong(ep.AlertsGeneratedAmount),\n          Description\n| order by TimeGenerated desc\n| take 200",
+                            "size": 0,
+                            "title": "Run history - selected rule (all rules until one is clicked above)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Results",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "AlertsGenerated",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 200
+                            }
+                        },
+                        "name": "rules-drill",
+                        "id": "7573366d-6ace-44c0-aa7f-bb3ffac123d2"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| extend AlertsGenerated = tolong(ExtendedProperties.AlertsGeneratedAmount)\n| summarize Runs = count(), AlertsGenerated = sum(AlertsGenerated), LastRun = max(TimeGenerated) by Rule = SentinelResourceName\n| where AlertsGenerated == 0\n| project Rule, Runs, AlertsGenerated, LastRun\n| order by Runs desc",
+                            "size": 0,
+                            "title": "Silent rules (executing, zero alerts)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Runs",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "AlertsGenerated",
+                                        "formatter": 1
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "rules-silent",
+                        "id": "e29a8eec-77e3-4c36-ba33-5c6307004c80"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| where Status == \"Failure\"\n| project TimeGenerated, Rule = SentinelResourceName, Reason, Description\n| order by TimeGenerated desc\n| take 200",
+                            "size": 0,
+                            "title": "Recent failed rule runs (detail)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table"
+                        },
+                        "name": "rules-failures",
+                        "id": "593e2d48-4ca9-45cf-a413-e7cea94742a4"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| where Status == \"Failure\"\n| summarize Failures = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+                            "size": 1,
+                            "title": "Rule execution failures per day",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "rules-fail-trend",
+                        "id": "f455b1d3-ba30-4b91-b3a2-60d73dc7adc1"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "rules"
+            },
+            "name": "group-rules",
+            "id": "ee47ef8b-044d-4d02-b9d8-0a42c7d049e1"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Detection Efficacy & Fidelity\nSignal-to-noise and analyst outcomes. Noisiest detections are ranked by raw alert volume; fidelity uses closed-incident **classification** (`TruePositive` / `FalsePositive` / `BenignPositive`). Detections that are high-volume and 100% false positive are your top tuning candidates."
+                        },
+                        "name": "eff-text",
+                        "id": "4fc8a07e-3d36-4a0f-90ec-e7b36562b332"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityAlert\n| where AlertSeverity in ({Severity})\n| summarize Alerts = count(), Days = dcount(bin(TimeGenerated, 1d)), LastSeen = max(TimeGenerated)\n  by Detection = AlertName, Severity = AlertSeverity\n| extend ['Alerts per active day'] = round(Alerts * 1.0 / Days, 1)\n| order by Alerts desc\n| take 50",
+                            "size": 0,
+                            "title": "Noisiest detections (top 50 by volume)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Alerts",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Alerts per active day",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "orange"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Days",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 50
+                            }
+                        },
+                        "name": "eff-noise",
+                        "id": "3b74134f-23b5-4ca3-9077-a04f3df7af2e"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where Status == \"Closed\"\n| summarize Total = count(),\n            FalsePositive = countif(Classification == \"FalsePositive\"),\n            TruePositive = countif(Classification == \"TruePositive\"),\n            BenignPositive = countif(Classification == \"BenignPositive\"),\n            Undetermined = countif(isempty(Classification) or Classification == \"Undetermined\")\n  by Detection = Title\n| extend ['False positive %'] = iff(Total == 0, 0.0, round(100.0 * FalsePositive / Total, 1))\n| order by ['False positive %'] desc, Total desc\n| take 50",
+                            "size": 0,
+                            "title": "Detection fidelity by classification",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "False positive %",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Total",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "FalsePositive",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "TruePositive",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "BenignPositive",
+                                        "formatter": 1
+                                    },
+                                    {
+                                        "columnMatch": "Undetermined",
+                                        "formatter": 1
+                                    }
+                                ],
+                                "rowLimit": 50
+                            }
+                        },
+                        "name": "eff-class",
+                        "id": "b137c508-963e-4f08-902f-7f8c084b2938"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where Status == \"Closed\"\n| summarize FalsePositive = countif(Classification == \"FalsePositive\"),\n            TruePositive = countif(Classification == \"TruePositive\")\n  by Detection = Title\n| top 15 by FalsePositive + TruePositive\n| project Detection, FalsePositive, TruePositive",
+                            "size": 0,
+                            "title": "True vs false positive by detection (top 15)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "FalsePositive",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "TruePositive",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "green"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 15
+                            }
+                        },
+                        "name": "eff-fptp",
+                        "id": "4b295102-305b-4b1b-a291-5b6457d06254"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where Status == \"Closed\"\n| summarize Total = count(), FP = countif(Classification == \"FalsePositive\") by Detection = Title\n| where Total >= 5 and FP == Total\n| project Detection, Incidents = Total, ['All false positive'] = FP\n| order by Incidents desc",
+                            "size": 0,
+                            "title": "Tuning candidates (high volume, all false positive)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Incidents",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "eff-tuning",
+                        "id": "f458093c-6e17-423a-ac31-87dadc1f98dc"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "efficacy"
+            },
+            "name": "group-efficacy",
+            "id": "3eb7cd5f-8fe0-4524-a460-a7638f480a66"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Incident Metrics (SOC feedback loop)\nHow detections translate into analyst work. MTTA/MTTR are medians derived from `SecurityIncident` timestamps (triage ~ first-modified minus created; resolve ~ closed minus created). Watch aging open incidents and unassigned load."
+                        },
+                        "name": "inc-text",
+                        "id": "c95fd17b-9448-4105-8b94-3c4636c8486f"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let inc = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber;\nunion isfuzzy=true\n (inc | extend tta = datetime_diff('minute', FirstModifiedTime, CreatedTime) | where isnotnull(tta) and tta >= 0 | summarize Value = todouble(round(percentile(tta, 50), 0)) | extend Metric = \"MTTA median (min)\", o = 1),\n (inc | where Status == \"Closed\" | extend ttr = datetime_diff('hour', ClosedTime, CreatedTime) | where isnotnull(ttr) and ttr >= 0 | summarize Value = todouble(round(percentile(ttr, 50), 1)) | extend Metric = \"MTTR median (hrs)\", o = 2),\n (inc | where Status != \"Closed\" | summarize Value = todouble(count()) | extend Metric = \"Open incidents\", o = 3),\n (inc | summarize Value = iff(count() == 0, 0.0, round(100.0 * countif(Status == \"Closed\") / count(), 1)) | extend Metric = \"% closed\", o = 4)\n| project Metric, Value, o\n| sort by o asc\n| project Metric, Value",
+                            "size": 1,
+                            "title": "Response indicators",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "tiles",
+                            "tileSettings": {
+                                "titleContent": {
+                                    "columnMatch": "Metric",
+                                    "formatter": 1
+                                },
+                                "leftContent": {
+                                    "columnMatch": "Value",
+                                    "formatter": 12,
+                                    "formatOptions": {
+                                        "palette": "auto"
+                                    },
+                                    "numberFormat": {
+                                        "unit": 0,
+                                        "options": {
+                                            "style": "decimal",
+                                            "maximumFractionDigits": 1
+                                        }
+                                    }
+                                },
+                                "showBorder": true,
+                                "size": "auto"
+                            }
+                        },
+                        "name": "inc-kpi",
+                        "id": "51ba1c6a-ac99-4172-871c-3a629f6d1840"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let created = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | where CreatedTime between ({TimeRange:start} .. {TimeRange:end}) | summarize Count = count() by bin(CreatedTime, 1d) | extend Series = \"Created\" | project Day = CreatedTime, Count, Series;\nlet closed = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | where isnotempty(ClosedTime) | where ClosedTime between ({TimeRange:start} .. {TimeRange:end}) | summarize Count = count() by bin(ClosedTime, 1d) | extend Series = \"Closed\" | project Day = ClosedTime, Count, Series;\nunion created, closed\n| order by Day asc",
+                            "size": 1,
+                            "title": "Incidents created vs closed per day",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "inc-flow",
+                        "id": "d441f4db-486c-4825-b924-5516bf3a4a41"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where Status == \"Closed\"\n| summarize Count = count() by Classification = iff(isempty(Classification), \"Undetermined\", Classification)",
+                            "size": 1,
+                            "title": "Closed-incident classification",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "piechart"
+                        },
+                        "name": "inc-class",
+                        "customWidth": "50",
+                        "id": "bdc1345e-1694-474a-89e1-0ece835c7103"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| extend OwnerName = tostring(Owner.assignedTo)\n| extend OwnerName = iff(isempty(OwnerName), \"Unassigned\", OwnerName)\n| summarize Incidents = count() by OwnerName\n| order by Incidents desc\n| take 15",
+                            "size": 1,
+                            "title": "Incident load by owner (top 15)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "barchart"
+                        },
+                        "name": "inc-owner",
+                        "customWidth": "50",
+                        "id": "38a3c462-48da-4c31-8b50-d0ac4eb1919a"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where Status != \"Closed\"\n| extend ['Age (days)'] = round(datetime_diff('hour', now(), CreatedTime) / 24.0, 1)\n| project IncidentNumber, Title, Severity, Status,\n          Owner = tostring(Owner.assignedTo), ['Age (days)'], CreatedTime\n| order by ['Age (days)'] desc\n| take 100",
+                            "size": 0,
+                            "title": "Aging open incidents",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Age (days)",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "inc-aging",
+                        "id": "58b51da5-a389-4c50-a687-6168773f3bff"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "incidents"
+            },
+            "name": "group-incidents",
+            "id": "f23be812-5932-4bd1-8ee0-27fa0a2ea730"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Data & Ingestion (detection fuel & cost)\nDetections are only as good as their data. Track ingestion volume per table, spot cost drivers, and catch **stale tables** (log sources that stopped ingesting) - a silent killer of detection coverage. Values in GB from the `Usage` table."
+                        },
+                        "name": "ing-text",
+                        "id": "2ccb43dc-77b9-4b81-9ac8-61540976675c"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "union isfuzzy=true\n (Usage | summarize Value = round(sum(Quantity) / 1024.0, 1) | extend Metric = \"Total GB (range)\", o = 1),\n (Usage | where IsBillable == true | summarize Value = round(sum(Quantity) / 1024.0, 1) | extend Metric = \"Billable GB (range)\", o = 2),\n (Usage | summarize Value = todouble(dcount(DataType)) | extend Metric = \"Active tables\", o = 3)\n| project Metric, Value, o\n| sort by o asc\n| project Metric, Value",
+                            "size": 1,
+                            "title": "Ingestion indicators",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "tiles",
+                            "tileSettings": {
+                                "titleContent": {
+                                    "columnMatch": "Metric",
+                                    "formatter": 1
+                                },
+                                "leftContent": {
+                                    "columnMatch": "Value",
+                                    "formatter": 12,
+                                    "formatOptions": {
+                                        "palette": "auto"
+                                    },
+                                    "numberFormat": {
+                                        "unit": 0,
+                                        "options": {
+                                            "style": "decimal",
+                                            "maximumFractionDigits": 1
+                                        }
+                                    }
+                                },
+                                "showBorder": true,
+                                "size": "auto"
+                            }
+                        },
+                        "name": "ing-kpi",
+                        "id": "eaf2f5ae-e876-4deb-b419-6d3c445276d3"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Usage\n| where IsBillable == true\n| summarize GB = sum(Quantity) / 1024.0 by bin(TimeGenerated, 1d), DataType\n| order by TimeGenerated asc",
+                            "size": 1,
+                            "title": "Billable ingestion (GB/day) by table",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "ing-trend",
+                        "id": "29cc196a-2dfe-4908-8dfb-47ad9d49b811"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Usage\n| summarize GB = round(sum(Quantity) / 1024.0, 2),\n            ['Billable GB'] = round(sumif(Quantity, IsBillable == true) / 1024.0, 2)\n  by DataType\n| order by GB desc\n| take 30",
+                            "size": 1,
+                            "title": "Top tables by volume",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "GB",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 30
+                            }
+                        },
+                        "name": "ing-top",
+                        "customWidth": "50",
+                        "id": "4dc3f3b0-8daf-4c02-946c-bd6aa8ee1468"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Usage\n| summarize LastSeen = max(TimeGenerated), GB = round(sum(Quantity) / 1024.0, 2) by DataType\n| extend ['Days since data'] = round(datetime_diff('hour', now(), LastSeen) / 24.0, 1)\n| where ['Days since data'] >= 3\n| project DataType, LastSeen, ['Days since data'], GB\n| order by ['Days since data'] desc",
+                            "size": 1,
+                            "title": "Stale tables (no data in 3+ days)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Days since data",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "red"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "ing-stale",
+                        "customWidth": "50",
+                        "id": "d7cd6724-2c11-47f0-aea2-b4b0bd2d7f16"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "ingestion"
+            },
+            "name": "group-ingestion",
+            "id": "b0ba1b12-91ac-403a-8374-323ac4cdf2cf"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Lifecycle & Deprecations (detection-continuity risk)\nDeprecations silently break detections when an ingestion path stops. The most urgent item for a detection-engineering team right now is the **Azure Monitor HTTP Data Collector API**, whose support **ends 14 September 2026** - any custom pipeline still POSTing to it must move to the **DCR-based Logs Ingestion API** (the legacy API also doesn't support Private Link).\n\n> **Which `_CL` tables are actually *Classic*?** That flag isn't in `Usage` or the log rows - it's table *metadata* (`schema.tableSubType` = `Classic` vs `DataCollectionRuleBased`). The **Classic vs DCR-based custom tables** panel below reads it directly from the Log Analytics **Tables** API (Azure Resource Manager), so it gives you the authoritative answer. Rows showing **`Classic`** are the ones tied to the legacy ingestion path - migrate those first."
+                        },
+                        "name": "lc-text",
+                        "id": "1218f8bf-295a-4a03-816d-35bfab29e4c9"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "let items = datatable(Milestone:string, Deadline:datetime, Action:string, o:long)\n[\n \"HTTP Data Collector API - support ends\", datetime(2026-09-14), \"Migrate to the DCR-based Logs Ingestion API\", 1,\n \"Log Analytics agent (MMA/OMS) - cloud upload can stop\", datetime(2026-03-02), \"Migrate remaining agents to Azure Monitor Agent (AMA)\", 2,\n \"Microsoft Sentinel in the Azure portal - retires\", datetime(2027-03-31), \"Operate Sentinel in the Microsoft Defender portal\", 3\n];\nitems\n| extend ['Days remaining'] = datetime_diff('day', Deadline, now())\n| extend Status = case(['Days remaining'] < 0, \"PASSED\",\n                       ['Days remaining'] <= 30, \"IMMINENT\",\n                       ['Days remaining'] <= 120, \"SOON\", \"Planned\")\n| order by o asc\n| project Milestone, Deadline, ['Days remaining'], Status, Action",
+                            "size": 1,
+                            "title": "Deprecation timeline (live countdown)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table"
+                        },
+                        "name": "lc-timeline",
+                        "id": "2daf446f-3b0e-477e-b66d-25e6e5fdd2eb"
+                    },
+                    {
+                        "type": 9,
+                        "content": {
+                            "version": "KqlParameterItem/1.0",
+                            "parameters": [
+                                {
+                                    "id": "1357110b-21a4-483d-93c0-086c2587f457",
+                                    "version": "KqlParameterItem/1.0",
+                                    "name": "MetadataWorkspace",
+                                    "label": "Audit workspace",
+                                    "description": "The single workspace whose custom-table metadata (Classic vs DCR) is read via ARM below. Defaults to your first workspace; the ARM Tables API targets one workspace at a time, so switch this to audit each in turn.",
+                                    "type": 5,
+                                    "isRequired": true,
+                                    "typeSettings": {
+                                        "resourceTypeFilter": {
+                                            "microsoft.operationalinsights/workspaces": true
+                                        },
+                                        "additionalResourceOptions": [
+                                            "value::1"
+                                        ],
+                                        "showDefault": false
+                                    },
+                                    "timeContext": {
+                                        "durationMs": 86400000
+                                    },
+                                    "defaultValue": "value::1"
+                                }
+                            ],
+                            "style": "pills"
+                        },
+                        "name": "parameters-lifecycle",
+                        "id": "06d9c45e-e076-45c9-97db-b46478bb56f2"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "{\"version\": \"ARMEndpoint/1.0\", \"data\": null, \"headers\": [], \"method\": \"GET\", \"path\": \"{MetadataWorkspace}/tables\", \"urlParams\": [{\"key\": \"api-version\", \"value\": \"2023-09-01\"}], \"batchDisabled\": false, \"transformers\": [{\"type\": \"jsonpath\", \"settings\": {\"tablePath\": \"$.value[?(@.properties.schema.tableType == 'CustomLog')]\", \"columns\": [{\"path\": \"$.name\", \"columnid\": \"Custom-log table\"}, {\"path\": \"$.properties.schema.tableSubType\", \"columnid\": \"SubType (Classic vs DCR-based)\"}, {\"path\": \"$.properties.schema.tableType\", \"columnid\": \"Table type\"}, {\"path\": \"$.properties.plan\", \"columnid\": \"Plan\"}, {\"path\": \"$.properties.retentionInDays\", \"columnid\": \"Retention days\"}]}}]}",
+                            "size": 0,
+                            "title": "Classic vs DCR-based custom tables (authoritative - from ARM)",
+                            "queryType": 12,
+                            "visualization": "table",
+                            "gridSettings": {
+                                "filter": true,
+                                "formatters": [
+                                    {
+                                        "columnMatch": "SubType (Classic vs DCR-based)",
+                                        "formatter": 18,
+                                        "formatOptions": {
+                                            "thresholdsOptions": "colors",
+                                            "thresholdsGrid": [
+                                                {
+                                                    "operator": "==",
+                                                    "thresholdValue": "Classic",
+                                                    "representation": "red",
+                                                    "text": "Classic"
+                                                },
+                                                {
+                                                    "operator": "==",
+                                                    "thresholdValue": "DataCollectionRuleBased",
+                                                    "representation": "green",
+                                                    "text": "DataCollectionRuleBased"
+                                                },
+                                                {
+                                                    "operator": "Default",
+                                                    "thresholdValue": null,
+                                                    "representation": "gray",
+                                                    "text": "{0}"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "lc-classic",
+                        "id": "9e100ec5-ec10-4c9b-a8d7-837e52f9d4ad"
+                    },
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "> If the panel above is empty or errors: set the **Audit workspace** picker just above it and ensure you have **Reader** on that workspace. If your environment's JSONPath doesn't support the `CustomLog` filter, remove the `[?(...)]` filter so it returns all tables and sort/search by *Table type* = `CustomLog`. The two panels below come from `Usage` (KQL) and add volume + recency context per `_CL` table."
+                        },
+                        "name": "lc-classic-note",
+                        "id": "880b9c87-f07b-45d2-a225-912678ed0c4a"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Usage\n| where DataType endswith \"_CL\"\n| summarize GB = round(sum(Quantity) / 1024.0, 2), LastSeen = max(TimeGenerated)\n  by ['Custom-log table (_CL)'] = DataType\n| extend ['Days since data'] = round(datetime_diff('hour', now(), LastSeen) / 24.0, 1)\n| project ['Custom-log table (_CL)'], GB, ['Days since data'], LastSeen\n| order by GB desc",
+                            "size": 1,
+                            "title": "Custom-log (_CL) volume & recency (from Usage)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "GB",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    },
+                                    {
+                                        "columnMatch": "Days since data",
+                                        "formatter": 8,
+                                        "formatOptions": {
+                                            "palette": "orange"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "lc-cl-tables",
+                        "customWidth": "50",
+                        "id": "e17d209b-fa27-4521-9f59-6ea56c84ba01"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Usage\n| where DataType endswith \"_CL\"\n| summarize GB = sum(Quantity) / 1024.0 by bin(TimeGenerated, 1d), DataType\n| order by TimeGenerated asc",
+                            "size": 1,
+                            "title": "Custom-log (_CL) ingestion GB/day",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "lc-cl-trend",
+                        "customWidth": "50",
+                        "id": "514199a6-672b-4b80-bb6d-e1329f220ee8"
+                    },
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "### Agent modernisation (secondary)\nMMA/OMS retired 31 Aug 2024 and its cloud upload can stop after 2 Mar 2026 - lower priority now, but any remaining **Legacy / MMA** agents below should move to **AMA**. Empty here is normal for a workspace with no VM/agent heartbeats."
+                        },
+                        "name": "lc-agent-text",
+                        "id": "a2f5a45b-0c36-4679-9a0d-820d87256805"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "Heartbeat\n| summarize Computers = dcount(Computer), LastSeen = max(TimeGenerated)\n  by Category, OSType, Version\n| extend Agent = iff(Category has \"Azure Monitor Agent\", \"AMA (modern)\", \"Legacy / MMA (review)\")\n| project Agent, Category, OSType, Version, Computers, LastSeen\n| order by Computers desc",
+                            "size": 0,
+                            "title": "Reporting agents (AMA vs legacy)",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Computers",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    }
+                                ],
+                                "rowLimit": 100
+                            }
+                        },
+                        "name": "lc-agents",
+                        "id": "0191917d-9b9b-4c29-b96a-eedaad4e9cb7"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "lifecycle"
+            },
+            "name": "group-lifecycle",
+            "id": "dcb9fb70-e85c-4ad6-8559-4f045a1ccb41"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## Engineering Velocity & Change Audit\nDetection-as-code throughput and change governance from `SentinelAudit` (`Analytic Rule` operations). Track how many rules are created/updated over time, who is changing detections, and the mix of operations. Useful for sprint reporting and for spotting unexpected or out-of-process changes.\n\n> **This tab needs Sentinel *audit* diagnostics.** If panels are empty, enable Microsoft Sentinel **Settings > Auditing and health monitoring** (streams `SentinelAudit`). For Defender custom-detection change tracking, manage rules as code and review pipeline history."
+                        },
+                        "name": "vel-text",
+                        "id": "3956918a-3aed-4adb-970f-95cdb558f24e"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| summarize Changes = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+                            "size": 1,
+                            "title": "Analytics-rule changes per day",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "timechart"
+                        },
+                        "name": "vel-trend",
+                        "customWidth": "50",
+                        "id": "d383fa20-5665-4abc-86e4-9083421c6214"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| summarize Changes = count() by OperationName\n| order by Changes desc",
+                            "size": 1,
+                            "title": "Changes by operation type",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "barchart"
+                        },
+                        "name": "vel-ops",
+                        "customWidth": "50",
+                        "id": "e22024de-3bb8-41fb-8979-ff03d5dc5d6a"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| extend By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"Unknown\"))\n| summarize Changes = count() by By\n| order by Changes desc\n| take 20",
+                            "size": 0,
+                            "title": "Top rule editors",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table",
+                            "gridSettings": {
+                                "formatters": [
+                                    {
+                                        "columnMatch": "Changes",
+                                        "formatter": 3,
+                                        "formatOptions": {
+                                            "palette": "blue"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "name": "vel-editors",
+                        "id": "62b58a4e-6624-4c2a-8868-986f9cc2cd0d"
+                    },
+                    {
+                        "type": 3,
+                        "content": {
+                            "version": "KqlItem/1.0",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| project TimeGenerated, Operation = OperationName, Rule = SentinelResourceName, Status,\n          By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"\"))\n| order by TimeGenerated desc\n| take 200",
+                            "size": 0,
+                            "title": "Recent rule change audit trail",
+                            "timeContextFromParameter": "TimeRange",
+                            "queryType": 0,
+                            "resourceType": "microsoft.operationalinsights/workspaces",
+                            "crossComponentResources": [
+                                "{Workspaces}"
+                            ],
+                            "visualization": "table"
+                        },
+                        "name": "vel-recent",
+                        "id": "415468c2-5885-451f-badc-f5aa3b554c3f"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "velocity"
+            },
+            "name": "group-velocity",
+            "id": "c0fa664b-e72e-4320-bc89-fb136a62493c"
+        },
+        {
+            "type": 12,
+            "content": {
+                "version": "NotebookGroup/1.0",
+                "groupType": "editable",
+                "items": [
+                    {
+                        "type": 1,
+                        "content": {
+                            "json": "## About this workbook\n\n**Detection Engineering Dashboard** gives a detection-engineering team a single pane over the health, coverage, fidelity, efficiency and lifecycle of the analytics-rule portfolio.\n\n### Where to run it\n- **Microsoft Defender portal** (recommended): *Microsoft Sentinel > Threat management > Workbooks*. This is the long-term home - Microsoft Sentinel in the Azure portal retires on **31 March 2027**.\n- It also runs in the **Azure portal** Sentinel Workbooks gallery unchanged.\n\n### Data sources (tables)\n| Table | Used for |\n|---|---|\n| `SecurityAlert` | Detection output, MITRE tactic/technique coverage, noise |\n| `SecurityIncident` | Fidelity (classification), MTTA/MTTR, aging, ownership |\n| `AlertInfo` | **Defender-native** alerts incl. **custom detections** (DetectionSource), service source, techniques |\n| `SentinelHealth` | Rule execution health, silent/failing rules (via `ExtendedProperties`) |\n| `SentinelAudit` | Detection-as-code velocity and change audit |\n| `Usage` | Ingestion volume, cost drivers, stale log sources |\n\nAll of these are queryable through the **unified Advanced Hunting** data plane in the Defender portal, so every query here is Advanced-Hunting-native.\n\n> **Portal note:** the **Defender & Custom Detections** tab queries `AlertInfo`, which lives in the Defender advanced-hunting data plane - run the workbook in the **Defender portal**. The **Rule Inventory & Health** and **Engineering Velocity** tabs need Sentinel **Auditing and health monitoring** enabled (they populate `SentinelHealth` / `SentinelAudit`); until then those tabs are intentionally empty while the Defender tab still shows live detection signal.\n\n### Using the new Advanced Hunting / Sentinel data lake data source\nWorkbooks now support selecting **Sentinel data lake** as a per-step data source, letting you query advanced-hunting and lake tables directly with KQL and **longer retention** (relative time ranges up to 90 days; absolute ranges follow your retention policy).\n\nTo switch any high-volume step to the data lake in the Defender portal:\n1. Edit the workbook, then edit the query step.\n2. Select **Add > Add data source and visualization** (or the step's data-source dropdown).\n3. Choose **Sentinel data lake** and pick the workspace.\n4. Paste the same KQL and **Run query**. Note: *Set by query* visualization is not supported on the data-lake source, and results should be time-filtered and column-projected for performance.\n\nThis template ships every step on the standard **Logs (Analytics)** source so it imports cleanly; flip individual coverage/hunting steps to the data lake in-portal when you want long-retention trend analysis.\n\n### Multi-workspace\n- **Workspaces** (multi-select) at the top scopes every log/KQL panel. Select one or many Log Analytics / Microsoft Sentinel workspaces and each query fans out across all of them and unions the results (via `crossComponentResources`). Defaults to **all** workspaces you can access - narrow it for large estates or to focus on one workspace.\n- The Lifecycle tab's **Classic vs DCR-based** panel is an ARM call that can target only a *single* workspace at a time, so that tab has a local **Audit workspace** picker (it appears on the Lifecycle tab, not the global bar). It defaults to your first workspace - switch it to audit each workspace's custom tables in turn.\n\n### Interactivity\n- **Time range**, **Workspaces**, and **Severity** (multi-select) parameters at the top cross-filter every applicable panel (Overview, Coverage, Defender, Efficacy, Incidents).\n- On **Rule Inventory & Health**, click a rule row in *Per-rule execution health* to drill into that rule's run history in the panel below. Clear the selection to see all rules again.\n- All grids are sortable (click a column header) and support column search.\n\n### Notes & assumptions\n- Health/audit tabs require **Sentinel health & audit** diagnostic logging to be enabled (`SentinelHealth`, `SentinelAudit`). If a panel is empty, enable those diagnostic settings.\n- **Lifecycle tab**: the deprecation timeline is a live countdown. The **Classic vs DCR-based** panel reads table metadata (`schema.tableSubType`) from the Log Analytics **Tables API via Azure Resource Manager** - it needs the **Audit workspace (Lifecycle tab)** picker set (auto-populated from your selection) and **Reader** on that workspace; the `_CL` volume panels come from `Usage` (KQL); the agent grid needs `Heartbeat` data.\n- MTTA/MTTR are approximations from incident timestamps, not SLA-grade timers.\n- Coverage reflects **firing** detections; combine with the portal **MITRE ATT&CK** page for *designed* coverage (rules that exist but haven't fired in-range).\n- All queries honour the global **Time range**, **Workspaces**, and **Severity** parameters at the top.\n\n### How to import\n1. Defender/Azure portal > Sentinel > **Workbooks > Add workbook > Edit**.\n2. Open the **Advanced Editor** (`</>`), replace contents with this JSON, **Apply**, then **Save**.\n"
+                        },
+                        "name": "about-text",
+                        "id": "9b654d25-f42b-43f7-9d28-cd348783dd2e"
+                    }
+                ]
+            },
+            "conditionalVisibility": {
+                "parameterName": "selectedTab",
+                "comparison": "isEqualTo",
+                "value": "about"
+            },
+            "name": "group-about",
+            "id": "81e2b73e-de23-4600-9473-099d3093e16a"
+        }
+    ],
+    "styleSettings": {},
+    "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
