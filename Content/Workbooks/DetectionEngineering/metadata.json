@@ -1,0 +1,6 @@
+{
+  "displayName": "Detection Engineering Dashboard",
+  "description": "Detection engineering workbook for Microsoft Sentinel showing rule inventory and health, MITRE coverage, Defender and custom detections, efficacy and fidelity, incident metrics, ingestion, lifecycle deprecations, and engineering velocity.",
+  "category": "Sentinel",
+  "sourceId": "DetectionEngineeringDashboard"
+}
