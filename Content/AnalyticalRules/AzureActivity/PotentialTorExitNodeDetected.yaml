@@ -4,9 +4,9 @@ description: |
   'Azure Activity detected from a TOR exit node'
 severity: Medium
 requiredDataConnectors:
-- connectorId: YourConnectorId
+- connectorId: AzureActivity
   dataTypes:
-  - YourDataType
+  - AzureActivity
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt

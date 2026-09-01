@@ -4,25 +4,25 @@ description: |
   'The alert rule was disabled due to too many consecutive failures. Reason: A table referenced in the query was not found. Verify that the relevant data source is connected. A change was made to Tailscale'
 severity: Medium
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: TailscaleCCF
+    dataTypes:
+      - TailscaleAudit_CL
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
-- Impact
-- Persistence
+  - DefenseEvasion
+  - Impact
+  - Persistence
 relevantTechniques:
-- T1485
-- T1562
-- T1562.001
-- T1562.004
-- T1565
-- T1565.001
+  - T1485
+  - T1562
+  - T1562.001
+  - T1562.004
+  - T1565
+  - T1565.001
 query: |
   TailscaleAudit_CL
   | where Action has_any ("ENABLE", "DISABLE")
@@ -30,10 +30,10 @@ query: |
   , TargetProperty = tolower(replace_string(TargetProperty, '_', ' '))
   | project EventTime, ActorLoginName, Origin, TargetProperty, TargetType
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: ActorLoginName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: ActorLoginName
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -49,5 +49,5 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
+  - Sentinel-As-Code
+  - Custom

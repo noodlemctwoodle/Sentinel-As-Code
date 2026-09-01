@@ -1,22 +1,23 @@
 id: aed11b0b-c1a0-4ea5-9d33-2e02f06f5bdc
 name: Security Event Log Cleared
-description: "'Identifies when event logs are cleared on monitored systems. It queries for events with Event ID 1102, which indicates that event logs have been cleared. \nThe rule runs on a 24-hour schedule,\
-  \ scanning the past 24 hours of log data for any instances of cleared event logs. If such an event is detected, it will generate an incident for investigation and potential response actions'\n"
+description: |
+  'Identifies when event logs are cleared on monitored systems. It queries for events with Event ID 1102, which indicates that event logs have been cleared. 
+  The rule runs on a 24-hour schedule, scanning the past 24 hours of log data for any instances of cleared event logs. If such an event is detected, it will generate an incident for investigation and potential response actions'
 severity: High
 requiredDataConnectors:
-- connectorId: SecurityEvent
-  dataTypes:
-  - SecurityEvent
+  - connectorId: WindowsSecurityEvents
+    dataTypes:
+      - SecurityEvent
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
+  - DefenseEvasion
 relevantTechniques:
-- T1070
-- T1070.001
+  - T1070
+  - T1070.001
 query: |
   SecurityEvent
   | where TimeGenerated > ago(24h)
@@ -25,17 +26,17 @@ query: |
   //The EventID for Event Log Clearing is 1102
   | project TimeGenerated, Account, AccountType,Computer, EventID, TargetAccount, TargetUserName
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: Account
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: Computer
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: Account
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Computer
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Windows Security Events
+  - Sentinel-As-Code
+  - Custom
+  - Windows Security Events
