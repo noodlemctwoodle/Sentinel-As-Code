@@ -7,6 +7,11 @@ detection portfolio. It ships as a gallery notebook at
 and deploys like any other custom workbook, see
 [Workbooks](../Workbooks.md) for the format and deploy mechanics.
 
+<p align="center">
+  <img src="../../../.images/workbooks/detection-engineering-dashboard.png"
+       alt="The Overview tab: key indicator tiles, incidents and alerts per day by severity, and the analytics rule execution health banner" />
+</p>
+
 Most Sentinel workbooks answer "what is attacking us". This one answers "is our
 detection estate actually working", which is a different question and one the
 built-in content largely leaves alone. It is built for the recurring detection
