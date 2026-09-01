@@ -111,9 +111,11 @@
     Reports what would change without writing.
 
 .NOTES
+    File:           Tools/Export-SentinelWorkbooks.ps1
+    Created:        2026-05-13
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-30
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Az.Accounts, Sentinel.Common module
 

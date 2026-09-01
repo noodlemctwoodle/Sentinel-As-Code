@@ -26,6 +26,14 @@
     Deliberately not covered: the live POST, the shared-key fetch, the ARM
     writes and the table polls. Those need a real workspace and the retiring
     Data Collector API, so they cannot be unit tested.
+
+.NOTES
+    File:         Tests/Test-NewDependencyFixture.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-07-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {
@@ -75,7 +83,8 @@ Describe 'New-DependencyFixture: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-DependencyFixture\.ps1'
+        $script:sourceText | Should -Match 'File:\s+Tools/ClassicToDcr/Rehearsal/New-DependencyFixture\.ps1'
+        $script:sourceText | Should -Match 'Repository:\s+Sentinel-As-Code'
     }
 
     It 'is standalone: does not import the Sentinel.Common module' {

@@ -245,6 +245,12 @@
     paths and, when deployed, the immutable ID and ingestion endpoint.
 
 .NOTES
+    File:         Tools/DcrFromSchema/New-DcrFromSchema.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-07-30
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Sentinel-As-Code/Tools/DcrFromSchema/New-DcrFromSchema.ps1
 
     Created by noodlemctwoodle on 30/07/2026.

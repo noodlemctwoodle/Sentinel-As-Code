@@ -19,6 +19,14 @@
 
     Builds on the AST extractor in
     Tests/_helpers/Import-ScriptFunctions.psm1.
+
+.NOTES
+    File:         Tests/Test-ImportCommunityRules.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

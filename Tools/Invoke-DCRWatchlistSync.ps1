@@ -37,9 +37,11 @@
     holds one aggregated row per DCR, so DCRName is the unique key).
 
 .NOTES
+    File:           Tools/Invoke-DCRWatchlistSync.ps1
+    Created:        2026-03-23
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-03-23
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Website:        https://sentinel.blog
 

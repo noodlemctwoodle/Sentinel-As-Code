@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Migrate-ForkLayout.ps1
-#
-# Created by noodlemctwoodle on 03/06/2026.
-#
-
 <#
 .SYNOPSIS
     One-shot helper for fork maintainers: relocates files left at the pre-26.06
@@ -47,6 +41,10 @@
     Apply the moves.
 
 .NOTES
+    File:           Tools/Migrate-ForkLayout.ps1
+    Created:        2026-06-03
+    Version:        0.1.0
+    Last Updated:   2026-09-01
     Author:         noodlemctwoodle
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, git

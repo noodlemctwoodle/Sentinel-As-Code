@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/GapChecks.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
-
 <#
 .SYNOPSIS
     Gap-analysis check functions, one per row in best-practices.json.
@@ -19,6 +13,11 @@
     row to best-practices.json that references it by name. The engine wires the rest.
 
 .NOTES
+    File:           Tools/Documenter/Private/GapChecks.ps1
+    Repository:     Sentinel-As-Code
+    Created:        2026-05-06
+    Version:        0.1.0
+    Last Updated:   2026-09-01
     Author:         noodlemctwoodle
     Component:      Sentinel Documenter, Gap Engine
 #>

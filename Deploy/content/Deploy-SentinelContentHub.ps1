@@ -108,9 +108,11 @@
     Performs a dry run showing what would be deployed without making any changes.
 
 .NOTES
+    File:           Deploy/content/Deploy-SentinelContentHub.ps1
+    Created:        2026-03-20
     Author:         noodlemctwoodle
-    Version:        2.1.0
-    Last Updated:   2026-04-28
+    Version:        2.1.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts

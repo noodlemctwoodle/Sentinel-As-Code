@@ -17,6 +17,14 @@
     Uses Pester 5's Mock cmdlet to stub Az PowerShell calls so the
     suite runs offline with no Azure context. Each test imports the
     module fresh (Force) to avoid cross-test state leakage.
+
+.NOTES
+    File:         Tests/Test-SentinelCommon.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

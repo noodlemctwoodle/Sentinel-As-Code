@@ -11,6 +11,14 @@
     written into $TestDrive, plus one real-repo round-trip against
     Tools/Test-SentinelRuleDrift.ps1 to confirm the helper works on
     the original reference suite's source.
+
+.NOTES
+    File:         Tests/Test-ImportScriptFunctions.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

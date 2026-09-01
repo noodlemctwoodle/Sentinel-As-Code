@@ -21,15 +21,13 @@ the existing repo style. Reference doc:
 - **`$ErrorActionPreference = 'Stop'`** at the top of every script
   and module. Errors should fail loud, not be silently swallowed.
 
-## File header (required for new files)
+## File header (required for every file)
+
+Every `.ps1` and `.psm1` file starts with a comment-based help block
+and **nothing above it**. There is no separate `#`-comment banner -
+the repo-relative path, author and dates belong in `.NOTES`:
 
 ```powershell
-#
-# Sentinel-As-Code/Deploy/<Name>.ps1
-#
-# Created by <author> on DD/MM/YYYY.
-#
-
 <#
 .SYNOPSIS
     One-line summary.
@@ -46,13 +44,34 @@ the existing repo style. Reference doc:
     Brief description of what the example does.
 
 .NOTES
-    Author:       <author>
-    Version:      <semver>
-    Last Updated: YYYY-MM-DD
+    File:         Deploy/Foo.ps1
     Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      YYYY-MM-DD
+    Version:      0.1.0
+    Last Updated: YYYY-MM-DD
     Requires:     PowerShell 7.2+, Az.Accounts (etc.)
 #>
 ```
+
+Field rules:
+
+- **`File:`** - repo-relative path with no leading `./`. Keep it
+  accurate when a file moves.
+- **`Repository:`** - always `Sentinel-As-Code`.
+- **`Author:`** - `noodlemctwoodle` unless the file was contributed
+  by someone else, in which case credit them.
+- **`Created:`** / **`Last Updated:`** - ISO `YYYY-MM-DD`, matching the
+  format the existing `.NOTES` blocks already use.
+- **`Version:`** - semver. New files start at `0.1.0`. Bump on change.
+- **`Requires:`** - optional; list PowerShell floor and PSGallery deps.
+
+`.psd1` manifests are data files (`@{ ... }`) and carry no
+comment-based help. Their metadata lives in the manifest keys
+(`Author`, `ModuleVersion`, `Description`) instead.
+
+Pester test files under `Tests/` follow the same rule, minus
+`.PARAMETER` / `.EXAMPLE`, which rarely apply.
 
 ## Use the Sentinel.Common module
 

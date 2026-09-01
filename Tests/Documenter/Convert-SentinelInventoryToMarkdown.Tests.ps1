@@ -12,6 +12,14 @@
 
     Output is written to a temp folder so repeated test runs don't pollute the
     fixture or the working tree.
+
+.NOTES
+    File:         Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-06-03
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

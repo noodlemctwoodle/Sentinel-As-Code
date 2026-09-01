@@ -18,6 +18,12 @@
       (Sentinel rejects duplicates)
 
 .NOTES
+    File:         Tests/Test-ParserYaml.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Run all tests:
         Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1
 #>

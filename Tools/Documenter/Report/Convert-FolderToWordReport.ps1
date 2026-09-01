@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Report/Convert-FolderToWordReport.ps1
-#
-# Created by noodlemctwoodle on 25/06/2026.
-#
-
 <#
 .SYNOPSIS
     Render every file in a folder tree into a single, formatted Word
@@ -90,9 +84,11 @@
     Applies a branded reference template and a tighter per-file ceiling.
 
 .NOTES
+    File:           Tools/Documenter/Report/Convert-FolderToWordReport.ps1
+    Created:        2026-06-25
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-06-25
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, pandoc on PATH
 

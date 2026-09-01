@@ -23,6 +23,12 @@
     Invoke-Main entry-point (which would try to authenticate to Azure).
 
 .NOTES
+    File:         Tests/Test-SentinelRuleDrift.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-04-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Run all tests:
         Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1
 

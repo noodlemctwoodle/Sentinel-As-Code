@@ -13,6 +13,14 @@
       - Test-RuleIsCustomised (the customisation-protection comparator
         that decides whether to overwrite a deployed rule with its
         Content Hub template, used by -ProtectCustomisedRules)
+
+.NOTES
+    File:         Tests/Test-DeploySentinelContentHub.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

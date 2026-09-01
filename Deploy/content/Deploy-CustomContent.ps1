@@ -105,9 +105,11 @@
     Performs a dry run showing what would be deployed.
 
 .NOTES
+    File:           Deploy/content/Deploy-CustomContent.ps1
+    Created:        2026-03-20
     Author:         noodlemctwoodle
-    Version:        1.1.0
-    Last Updated:   2026-04-28
+    Version:        1.1.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     API Version:    2025-07-01-preview
     Requires:       Az.Accounts, powershell-yaml

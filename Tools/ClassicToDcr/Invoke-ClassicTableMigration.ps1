@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1
-#
-# Created by noodlemctwoodle on 20/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
@@ -198,9 +192,11 @@
     RawData into the table's columns before associating any machines.
 
 .NOTES
+    File:         Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1
+    Created:      2026-07-20
     Author:       noodlemctwoodle
-    Version:      2.0.0
-    Last Updated: 2026-07-23
+    Version:      2.0.1
+    Last Updated: 2026-09-01
     Repository:   Sentinel-As-Code
     Website:      https://sentinel.blog
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources

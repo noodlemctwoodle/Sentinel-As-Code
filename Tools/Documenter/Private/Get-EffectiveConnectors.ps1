@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/Get-EffectiveConnectors.ps1
-#
-# Created by noodlemctwoodle on 13/05/2026.
-#
-
 <#
 .SYNOPSIS
     Synthesise an "effective connectors" view from the captured inventory.
@@ -60,6 +54,14 @@
 
 .OUTPUTS
     [pscustomobject[]] with columns: Source, Identifier, Table, Last24hGB, LastIngested.
+
+.NOTES
+    File:         Tools/Documenter/Private/Get-EffectiveConnectors.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 function Get-EffectiveConnectors {
     [CmdletBinding()]
