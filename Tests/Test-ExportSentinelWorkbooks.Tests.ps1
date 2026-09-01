@@ -20,6 +20,14 @@
     the rest of the script does is exercised at deploy-time (the matching
     Deploy-CustomWorkbooks function); a separate end-to-end test against a
     live workspace is out of scope here.
+
+.NOTES
+    File:         Tests/Test-ExportSentinelWorkbooks.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

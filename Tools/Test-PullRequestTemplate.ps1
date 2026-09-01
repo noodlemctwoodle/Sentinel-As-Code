@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Test-PullRequestTemplate.ps1
-#
-# Created by noodlemctwoodle on 08/07/2026.
-#
-
 #Requires -Version 7.2
 
 <#
@@ -66,9 +60,11 @@
     Validates a description read from a file. Handy for local testing.
 
 .NOTES
+    File:           Tools/Test-PullRequestTemplate.ps1
+    Created:        2026-07-08
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-07-08
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Sentinel.Common (logging only)
 #>

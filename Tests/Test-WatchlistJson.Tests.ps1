@@ -22,6 +22,12 @@
     pairing checks live in the same test scope.
 
 .NOTES
+    File:         Tests/Test-WatchlistJson.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Run all tests:
         Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1
 

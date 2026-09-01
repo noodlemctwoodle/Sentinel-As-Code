@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/Invoke-SentinelRest.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
-
 <#
 .SYNOPSIS
     Paginating wrapper around Invoke-AzRestMethod for Sentinel and Azure Resource Manager
@@ -49,9 +43,13 @@
     Invoke-SentinelRest -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' -ApiVersion '2024-09-01'
 
 .NOTES
+    File:           Tools/Documenter/Private/Invoke-SentinelRest.ps1
+    Repository:     Sentinel-As-Code
+    Created:        2026-05-06
+    Version:        0.1.0
     Author:         noodlemctwoodle
     Component:      Sentinel Documenter
-    Last Updated:   2026-05-13
+    Last Updated:   2026-09-01
 
     Multi-cloud:
       Invoke-AzRestMethod automatically routes ARM calls to the audience of the

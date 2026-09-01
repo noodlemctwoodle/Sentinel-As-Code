@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
-#
-# Created by noodlemctwoodle on 23/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights
 
@@ -121,9 +115,11 @@
     Deletes the fixture table.
 
 .NOTES
+    File:         Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
+    Created:      2026-07-23
     Author:       noodlemctwoodle
-    Version:      1.0.0
-    Last Updated: 2026-07-23
+    Version:      1.0.1
+    Last Updated: 2026-09-01
     Repository:   Sentinel-As-Code
     Website:      https://sentinel.blog
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights

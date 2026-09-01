@@ -127,9 +127,11 @@
     inspection before letting the pipeline auto-sync.
 
 .NOTES
+    File:           Tools/Test-SentinelRuleDrift.ps1
+    Created:        2026-04-28
     Author:         noodlemctwoodle
-    Version:        1.1.0
-    Last Updated:   2026-04-29
+    Version:        1.1.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts, powershell-yaml

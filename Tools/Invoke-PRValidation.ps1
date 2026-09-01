@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Invoke-PRValidation.ps1
-#
-# Created by noodlemctwoodle on 29/04/2026.
-#
-
 <#
 .SYNOPSIS
     PR-validation entry-point. Runs every Pester suite under Tests/ against the
@@ -69,9 +63,11 @@
     file locally.
 
 .NOTES
+    File:           Tools/Invoke-PRValidation.ps1
+    Created:        2026-04-29
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-29
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Requires:       Pester 5+, powershell-yaml
 #>

@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/Get-SentinelGap.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
-
 <#
 .SYNOPSIS
     Gap-analysis engine. Loads the best-practices ruleset, builds an in-memory
@@ -30,6 +24,14 @@
         Learn        : URL from best-practices.json
         CheckName    : Name of the Test-* function
         PassedAt     : ISO-8601 timestamp of the run
+
+.NOTES
+    File:         Tools/Documenter/Private/Get-SentinelGap.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-06
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 function Get-SentinelGap {

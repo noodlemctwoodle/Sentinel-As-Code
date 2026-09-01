@@ -26,6 +26,12 @@
     surface directly in the PR check UI.
 
 .NOTES
+    File:         Tests/Test-CopilotCustomisations.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Run as part of the repo-wide Pester gate
     (Tools/Invoke-PRValidation.ps1) on every PR via the
     `validate` job in .github/workflows/pr-validation.yml.

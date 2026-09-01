@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Content/CodelessConnectors/Sophos_CCF/Deploy-SophosConnector.ps1
-#
-# Created by noodlemctwoodle on 20/08/2026.
-#
-
 <#
 .SYNOPSIS
     Deploys the Sophos Central CCF (Codeless Connector Framework) package to a Microsoft Sentinel workspace.
@@ -50,6 +44,12 @@
         -ClientId <id> -ClientSecret (Read-Host -AsSecureString "Sophos Client Secret")
 
 .NOTES
+    File:         Content/CodelessConnectors/Sophos_CCF/Deploy-SophosConnector.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-08-20
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Requires: Azure CLI (az) logged in with rights to create tables, DCRs, and Sentinel resources.
 #>
 

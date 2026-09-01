@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Convert-MermaidToImage.ps1
-#
-# Created by noodlemctwoodle on 14/05/2026.
-#
-
 #requires -Version 7.2
 <#
 .SYNOPSIS
@@ -74,6 +68,12 @@
     pwsh ./Convert-MermaidToImage.ps1 -Root ./SecurityDocs -Format svg
 
 .NOTES
+    File:         Tools/Documenter/Convert-MermaidToImage.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-14
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Requires Node.js and @mermaid-js/mermaid-cli installed globally:
         npm install -g @mermaid-js/mermaid-cli
     On Linux CI agents the script writes a puppeteer config enabling

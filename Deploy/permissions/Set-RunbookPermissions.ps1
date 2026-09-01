@@ -28,9 +28,11 @@
     Switch to remove the role assignments instead of creating them.
 
 .NOTES
+    File:           Deploy/permissions/Set-RunbookPermissions.ps1
+    Created:        2026-03-23
     Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-03-23
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Repository:     Sentinel-As-Code
     Website:        https://sentinel.blog
     Requires:       Azure CLI (az), Owner or User Access Administrator on subscription

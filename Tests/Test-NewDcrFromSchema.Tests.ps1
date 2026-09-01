@@ -30,6 +30,14 @@
     Deliberately not covered: the Azure reads, the deployments and the role
     assignment. Those need a live workspace, so the script gates them behind
     ShouldProcess and they are exercised by running the tool, not by Pester.
+
+.NOTES
+    File:         Tests/Test-NewDcrFromSchema.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-07-30
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

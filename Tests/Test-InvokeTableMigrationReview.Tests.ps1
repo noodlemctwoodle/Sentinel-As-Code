@@ -28,6 +28,14 @@
 
     Deliberately not covered: the ARM calls, the Content Hub package fetch, and
     the HTML/CSV/JSON writers. Those need a live workspace.
+
+.NOTES
+    File:         Tests/Test-InvokeTableMigrationReview.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-07-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {
@@ -52,7 +60,8 @@ Describe 'Invoke-TableMigrationReview: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Invoke-TableMigrationReview\.ps1'
+        $script:sourceText | Should -Match 'File:\s+Tools/ClassicToDcr/Invoke-TableMigrationReview\.ps1'
+        $script:sourceText | Should -Match 'Repository:\s+Sentinel-As-Code'
     }
 
     It 'records its origin as the folded-in CLv1 analyzer' {

@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
-
 <#
 .SYNOPSIS
     Render the JSON snapshot under SecurityDocs/<workspace>/_raw/ into the human-readable
@@ -50,9 +44,13 @@
     Tools/Documenter/Private/Resources.
 
 .NOTES
+    File:           Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1
+    Repository:     Sentinel-As-Code
+    Created:        2026-05-06
+    Version:        0.1.0
     Author:         noodlemctwoodle
     Component:      Sentinel Documenter — Renderer
-    Last Updated:   2026-05-06
+    Last Updated:   2026-09-01
 #>
 
 [CmdletBinding()]

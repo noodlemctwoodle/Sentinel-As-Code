@@ -66,20 +66,30 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 
 ### File headers
 
-Every new PowerShell / Bicep / YAML / JSON file should carry a header
-that includes the full repo-relative path and a creation date in
-DD/MM/YYYY format. Example:
+**PowerShell** files carry their metadata in the comment-based help
+block (`<# ... #>`) only. Do not add a separate `#`-comment banner
+above it - the path, author and dates live in `.NOTES`:
 
 ```powershell
-#
-# Sentinel-As-Code/Deploy/Foo.ps1
-#
-# Created by <author> on DD/MM/YYYY.
-#
+<#
+.SYNOPSIS
+    One-line summary.
+
+.NOTES
+    File:         Deploy/Foo.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      YYYY-MM-DD
+    Version:      0.1.0
+    Last Updated: YYYY-MM-DD
+#>
 ```
 
+Full shape (including `.DESCRIPTION`, `.PARAMETER` and `.EXAMPLE`) is
+in [`instructions/powershell-scripts.instructions.md`](instructions/powershell-scripts.instructions.md).
+
 For YAML / JSON files where a comment header isn't natural (e.g. data
-files), skip the header — but for hand-authored content like analytical
+files), skip the header - but for hand-authored content like analytical
 rules, include a brief metadata block at the top of the file.
 
 ### Commit messages

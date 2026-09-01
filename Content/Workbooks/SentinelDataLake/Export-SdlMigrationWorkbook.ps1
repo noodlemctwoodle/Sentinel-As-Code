@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
-#
-# Created by noodlemctwoodle on 18/05/2026.
-#
-
 <#
 .SYNOPSIS
     Exports every dataset behind the Sentinel Data Lake Migration workbook to a
@@ -114,6 +108,12 @@
     absolute or relative path your environment prefers.
 
 .NOTES
+    File:         Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-18
+    Version:      0.1.0
+    Last Updated: 2026-09-01
     Authentication : Uses the current Az context (Connect-AzAccount).
     Requires       : PowerShell 7+, Az.Accounts, Az.OperationalInsights, ImportExcel
     Tables API     : 2023-09-01

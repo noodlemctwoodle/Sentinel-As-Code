@@ -18,6 +18,14 @@
     $ContributorActionPatterns, $HttpMsiAudienceRoles. The AST extractor
     pulls the function bodies but NOT those top-level table definitions,
     so the BeforeAll block sets them up to mirror the source script.
+
+.NOTES
+    File:         Tests/Test-SetPlaybookPermissions.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

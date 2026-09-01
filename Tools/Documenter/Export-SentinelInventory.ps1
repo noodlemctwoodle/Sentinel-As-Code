@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Export-SentinelInventory.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
-
 <#
 .SYNOPSIS
     Export every Microsoft Sentinel artefact, the supporting Log Analytics + DCR layer,
@@ -45,10 +39,13 @@
     summary rules, pricings).
 
 .NOTES
+    File:           Tools/Documenter/Export-SentinelInventory.ps1
+    Repository:     Sentinel-As-Code
+    Created:        2026-05-06
     Author:         noodlemctwoodle
     Component:      Sentinel Documenter
-    Version:        0.1.0
-    Last Updated:   2026-05-06
+    Version:        0.1.1
+    Last Updated:   2026-09-01
     Requires:       Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 #>
 

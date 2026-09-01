@@ -19,6 +19,14 @@
       - responseActions default to an empty array when the rule has none
       - mitreTechniques and impactedAssets are forced to arrays
       - lastModifiedDateTime forwards from queryCondition
+
+.NOTES
+    File:         Tests/Test-DeployDefenderDetections.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {

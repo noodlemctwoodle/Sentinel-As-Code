@@ -63,10 +63,13 @@
     Scripted mode - outputs all reports to ./reports/2026-04.
 
 .NOTES
-    Version: 0.2.0
-
+    File:         Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1
+    Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
                   https://github.com/noodlemctwoodle
+    Created:      2026-07-28
+    Version:      0.2.1
+    Last Updated: 2026-09-01
 
     Data source:
         Azure-Sentinel Solutions Analyzer

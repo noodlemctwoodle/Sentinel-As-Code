@@ -16,6 +16,14 @@
     The harness AST-extracts those functions (via the shared
     Import-ScriptFunctions helper) and dot-sources them, so the script's
     entry-point (which calls exit) never runs.
+
+.NOTES
+    File:         Tests/Test-PullRequestTemplate.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-07-10
+    Version:      0.1.0
+    Last Updated: 2026-09-01
 #>
 
 BeforeAll {
