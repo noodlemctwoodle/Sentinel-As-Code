@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Gap-analysis check functions, one per row in best-practices.json.

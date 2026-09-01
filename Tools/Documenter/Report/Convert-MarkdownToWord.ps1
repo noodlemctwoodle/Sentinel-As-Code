@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Combine a folder of Markdown files into a single, formatted Word

@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts
 
 <#

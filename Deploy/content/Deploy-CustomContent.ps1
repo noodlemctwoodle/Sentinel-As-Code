@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, powershell-yaml
+
 <#
 .SYNOPSIS
     Deploys custom Microsoft Sentinel content from the repository to a workspace.

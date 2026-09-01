@@ -28,10 +28,30 @@ one-time bootstrap and ad-hoc maintenance tooling.
 
 ## Script header convention
 
-Every `.ps1` and `.psm1` in the repo opens with a comment-based help
-block and nothing above it except `#Requires` statements. There is no
-separate `#`-comment banner; the path, author and dates live in
-`.NOTES`.
+Every `.ps1` and `.psm1` in the repo opens with its `#Requires`
+statements, then a comment-based help block, and nothing else above
+either. There is no separate `#`-comment banner; the path, author and
+dates live in `.NOTES`.
+
+```powershell
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
+
+<#
+.SYNOPSIS
+    ...
+```
+
+`Requires:` in `.NOTES` and the `#Requires` statements must stay in
+step in both directions. `#Requires` is the functional gate, enforced
+when the file is run, dot-sourced or imported; `Requires:` is the
+human-readable summary. Neither may name something the other omits.
+
+Two things never go in `#Requires -Modules`, because it resolves
+against `PSModulePath` and fails the load when it cannot:
+`Sentinel.Common`, which is imported by path, and CLI tooling such as
+the Azure CLI or pandoc, which are not modules. Both still belong in
+`Requires:`.
 
 Keywords appear in a fixed order, with a blank line between each:
 `.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER` (one per parameter, in

@@ -1,3 +1,6 @@
+#Requires -Version 7.0
+#Requires -Modules Az.Accounts, Az.OperationalInsights, ImportExcel
+
 <#
 .SYNOPSIS
     Exports every dataset behind the Sentinel Data Lake Migration workbook to a

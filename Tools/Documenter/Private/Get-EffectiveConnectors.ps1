@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Synthesise an "effective connectors" view from the captured inventory.

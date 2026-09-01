@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     One-shot helper for fork maintainers: relocates files left at the pre-26.06

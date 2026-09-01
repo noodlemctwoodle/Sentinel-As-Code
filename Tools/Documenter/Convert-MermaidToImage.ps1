@@ -1,4 +1,5 @@
 #requires -Version 7.2
+
 <#
 .SYNOPSIS
     Pre-renders Mermaid fenced blocks in the Documenter's markdown output to

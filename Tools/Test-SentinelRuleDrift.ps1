@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, powershell-yaml
+
 <#
 .SYNOPSIS
     Detects drift between Microsoft Sentinel Analytics Rules deployed in a workspace and

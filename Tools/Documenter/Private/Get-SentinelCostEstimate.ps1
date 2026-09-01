@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Compute an estimated monthly cost for the workspace from the captured 30-day Usage,

@@ -91,16 +91,50 @@ Field rules for `.NOTES`:
 - **`Version:`** - semver. New files start at `0.1.0`. Bump on change.
 - **`Requires:`** - mandatory, always the last key, always one line.
   Name the PowerShell floor first, then modules and external tooling.
-  Where the file also carries `#Requires` statements, this line must
-  name everything they enforce. `#Requires` is the functional gate;
-  `Requires:` is the human-readable summary of it. Adding a
-  `Requires:` line does not license adding a `#Requires` statement -
-  those change whether the file will load at all.
+  It must stay in step with the file's `#Requires` statements in both
+  directions: `#Requires` is the functional gate, `Requires:` is the
+  human-readable summary, and neither may name something the other
+  omits. See "#Requires statements" below.
 - **`API Version:`** is not a key. API versions go in a prose block, see
   "API versions" below.
 - **Free-form prose** (provenance, RBAC needs, data sources) is
   allowed, but must be separated from the keys by a blank line so the
   metadata block stays scannable.
+
+### #Requires statements
+
+Every file declares its PowerShell floor and its PSGallery module
+dependencies as `#Requires` statements, above the help block and with
+nothing else before them:
+
+```powershell
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
+
+<#
+.SYNOPSIS
+    ...
+```
+
+`-Version` first, then `-Modules`, then a blank line.
+
+Two things must never appear in `#Requires -Modules`. The statement
+resolves against `PSModulePath` and fails the load outright when it
+cannot, so naming either of these breaks the file for everyone:
+
+- **`Sentinel.Common`**, which is imported by path, not installed.
+- **CLI tooling** (Azure CLI, git, pandoc, Node) which is not a
+  PowerShell module at all.
+
+Both still belong in `Requires:`, where they are documentation rather
+than a gate.
+
+Remember that `#Requires` is enforced when a file is run, dot-sourced
+or imported, not when it is parsed. Most scripts here are only
+AST-parsed by their test suite, so a module requirement never loads.
+The exceptions are the files a test dot-sources or imports directly,
+where an unavailable module fails the suite. Check before adding a
+module that CI does not install.
 
 ### API versions
 

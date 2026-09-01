@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources, Az.Monitor, Az.SecurityInsights, Az.LogicApp
+
 <#
 .SYNOPSIS
     Export every Microsoft Sentinel artefact, the supporting Log Analytics + DCR layer,
