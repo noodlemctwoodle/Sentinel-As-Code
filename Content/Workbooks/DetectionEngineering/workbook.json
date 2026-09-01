@@ -270,7 +270,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| summarize Incidents = count() by bin(CreatedTime, 1d), Severity\n| order by CreatedTime asc",
+                            "query": "SecurityIncident\n| where Severity in ({Severity})\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| where CreatedTime between ({TimeRange:start} .. {TimeRange:end})\n| summarize Incidents = count() by bin(CreatedTime, 1d), Severity\n| order by CreatedTime asc",
                             "size": 1,
                             "title": "Incidents per day by severity",
                             "timeContextFromParameter": "TimeRange",
@@ -1258,7 +1258,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "let created = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | summarize Count = count() by bin(CreatedTime, 1d) | extend Series = \"Created\" | project Day = CreatedTime, Count, Series;\nlet closed = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | where isnotempty(ClosedTime) | summarize Count = count() by bin(ClosedTime, 1d) | extend Series = \"Closed\" | project Day = ClosedTime, Count, Series;\nunion created, closed\n| order by Day asc",
+                            "query": "let created = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | where CreatedTime between ({TimeRange:start} .. {TimeRange:end}) | summarize Count = count() by bin(CreatedTime, 1d) | extend Series = \"Created\" | project Day = CreatedTime, Count, Series;\nlet closed = SecurityIncident | where Severity in ({Severity}) | summarize arg_max(TimeGenerated, *) by IncidentNumber | where isnotempty(ClosedTime) | where ClosedTime between ({TimeRange:start} .. {TimeRange:end}) | summarize Count = count() by bin(ClosedTime, 1d) | extend Series = \"Closed\" | project Day = ClosedTime, Count, Series;\nunion created, closed\n| order by Day asc",
                             "size": 1,
                             "title": "Incidents created vs closed per day",
                             "timeContextFromParameter": "TimeRange",
