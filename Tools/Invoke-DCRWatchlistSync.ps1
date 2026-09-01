@@ -69,8 +69,14 @@
       - Microsoft Sentinel Contributor on Sentinel resource group (watchlist write)
 
     API versions:
-      - DCR / associations : 2024-03-11
-      - Sentinel watchlist : 2025-09-01
+      - DCRs and associations : 2024-03-11
+      - Sentinel watchlists   : 2025-09-01
+
+.LINK
+    https://learn.microsoft.com/rest/api/monitor/data-collection-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/watchlists
 #>
 
 [CmdletBinding()]

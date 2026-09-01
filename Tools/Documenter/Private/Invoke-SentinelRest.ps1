@@ -53,6 +53,10 @@
     Component:      Sentinel Documenter
     Requires:       PowerShell 7.2+, Az.Accounts
 
+    API versions:
+      - None pinned here. Each caller supplies its own via -ApiVersion, which
+        this helper appends to the request path.
+
     Multi-cloud:
       Invoke-AzRestMethod automatically routes ARM calls to the audience of the
       active Az context. To target a sovereign cloud, connect once before

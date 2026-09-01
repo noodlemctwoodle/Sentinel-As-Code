@@ -50,9 +50,15 @@
     Created:        2026-03-20
     Version:        1.0.2
     Last Updated:   2026-09-01
-    API Version:    Microsoft Graph Security API (beta)
     Permissions:    CustomDetection.ReadWrite.All (Application)
     Requires:       Az.Accounts, powershell-yaml
+
+    API versions:
+      - Microsoft Graph Security : beta (custom detection rules are not yet
+                                   on the v1.0 endpoint)
+
+.LINK
+    https://learn.microsoft.com/graph/api/resources/security-customdetectionrule
 #>
 
 [CmdletBinding()]

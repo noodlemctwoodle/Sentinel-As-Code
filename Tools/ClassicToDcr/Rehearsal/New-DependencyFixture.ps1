@@ -189,6 +189,13 @@
     Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Saved searches       : 2020-08-01 (the parser functions the indirect
+                               dependency chains are built from)
+      - Sentinel alert rules : 2024-03-01
+      - Data Collector API   : 2016-04-01 (retires 2026-09-14)
+
     Runs standalone. Nothing from this repository needs to be alongside it. The
     bundled data/solution-mapping.json is used for the alias guard when it is
     present, and the script falls back to a static list with a warning when it

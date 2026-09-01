@@ -53,6 +53,13 @@
     Last Updated: 2026-09-01
     Requires:     Azure CLI (az), logged in with rights to create tables,
                   DCRs and Sentinel resources
+
+    API versions:
+      - Set by the bundled ARM templates rather than by this script, which
+        deploys them through az. Change a version in the template, not here.
+
+.LINK
+    https://learn.microsoft.com/azure/sentinel/create-codeless-connector
 #>
 
 [CmdletBinding()]
