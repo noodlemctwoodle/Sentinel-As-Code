@@ -4,7 +4,7 @@ description: |
   'This query detects potential attempts by non-computer accounts (non domain controllers) to retrieve/synchronize an active directory object leveraging directory replication services (DRS).'
 severity: High
 requiredDataConnectors:
-- connectorId: SecurityEvent
+- connectorId: WindowsSecurityEvents
   dataTypes:
   - SecurityEvent
 queryFrequency: P1D

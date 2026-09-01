@@ -6,7 +6,7 @@ severity: Informational
 requiredDataConnectors:
 - connectorId: AzureActivity
   dataTypes:
-  - AuditLogs
+  - AzureActivity
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt

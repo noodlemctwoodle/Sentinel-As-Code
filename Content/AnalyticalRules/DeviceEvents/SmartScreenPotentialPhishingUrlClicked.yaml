@@ -4,22 +4,24 @@ description: |
   'MDE has detected a user that has potentially clicked an email with a phishing URL.'
 severity: High
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: MicrosoftThreatProtection
+    dataTypes:
+      - EmailEvents
+      - EmailUrlInfo
+      - DeviceEvents
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- InitialAccess
+  - Execution
+  - InitialAccess
 relevantTechniques:
-- T1204
-- T1204.001
-- T1566
-- T1566.002
+  - T1204
+  - T1204.001
+  - T1566
+  - T1566.002
 query: |
   let allowedDomains = dynamic(["microsoft.com","sentinel.blog", "ipinfo.io"]);
   let pattern = @"(https:\/\/[^\/]+)\/.*";
@@ -37,22 +39,22 @@ query: |
   | project TimeGenerated, DeviceName = toupper(DeviceName), UserPrincipalName = RecipientEmailAddress, InitiatingProcessAccountSid, ThreatType
   , InitiatingProcessFileName, InitiatingProcessFolderPath, RemoteUrl, Url, SenderFromDomain, SenderIPv4
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserPrincipalName
-- entityType: URL
-  fieldMappings:
-  - identifier: Url
-    columnName: Url
-- entityType: Process
-  fieldMappings:
-  - identifier: CommandLine
-    columnName: InitiatingProcessFileName
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: DeviceName
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: URL
+    fieldMappings:
+      - identifier: Url
+        columnName: Url
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: InitiatingProcessFileName
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceName
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -68,6 +70,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Defender for Endpoint
+  - Sentinel-As-Code
+  - Custom
+  - Defender for Endpoint
