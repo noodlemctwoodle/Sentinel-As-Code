@@ -956,7 +956,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where Status == \"Failure\"\n| project TimeGenerated, Rule = SentinelResourceName, Reason, Description\n| order by TimeGenerated desc\n| take 200",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| where Status == \"Failure\"\n| project TimeGenerated, Rule = SentinelResourceName, Reason, Description\n| order by TimeGenerated desc\n| take 200",
                             "size": 0,
                             "title": "Recent failed rule runs (detail)",
                             "timeContextFromParameter": "TimeRange",
@@ -974,7 +974,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\" and Status == \"Failure\"\n| summarize Failures = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+                            "query": "SentinelHealth\n| where SentinelResourceType =~ \"Analytics rule\"\n| where OperationName in~ (\"Scheduled analytics rule run\", \"NRT analytics rule run\")\n| where Status == \"Failure\"\n| summarize Failures = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
                             "size": 1,
                             "title": "Rule execution failures per day",
                             "timeContextFromParameter": "TimeRange",
@@ -1707,7 +1707,7 @@
                     {
                         "type": 1,
                         "content": {
-                            "json": "## Engineering Velocity & Change Audit\nDetection-as-code throughput and change governance from `SentinelAudit` (`AlertRule` operations). Track how many rules are created/updated over time, who is changing detections, and the mix of operations. Useful for sprint reporting and for spotting unexpected or out-of-process changes.\n\n> **This tab needs Sentinel *audit* diagnostics.** If panels are empty, enable Microsoft Sentinel **Settings > Auditing and health monitoring** (streams `SentinelAudit`). For Defender custom-detection change tracking, manage rules as code and review pipeline history."
+                            "json": "## Engineering Velocity & Change Audit\nDetection-as-code throughput and change governance from `SentinelAudit` (`Analytic Rule` operations). Track how many rules are created/updated over time, who is changing detections, and the mix of operations. Useful for sprint reporting and for spotting unexpected or out-of-process changes.\n\n> **This tab needs Sentinel *audit* diagnostics.** If panels are empty, enable Microsoft Sentinel **Settings > Auditing and health monitoring** (streams `SentinelAudit`). For Defender custom-detection change tracking, manage rules as code and review pipeline history."
                         },
                         "name": "vel-text",
                         "id": "3956918a-3aed-4adb-970f-95cdb558f24e"
@@ -1716,7 +1716,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"AlertRule\"\n| summarize Changes = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| summarize Changes = count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
                             "size": 1,
                             "title": "Analytics-rule changes per day",
                             "timeContextFromParameter": "TimeRange",
@@ -1735,7 +1735,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"AlertRule\"\n| summarize Changes = count() by OperationName\n| order by Changes desc",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| summarize Changes = count() by OperationName\n| order by Changes desc",
                             "size": 1,
                             "title": "Changes by operation type",
                             "timeContextFromParameter": "TimeRange",
@@ -1754,7 +1754,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"AlertRule\"\n| extend By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"Unknown\"))\n| summarize Changes = count() by By\n| order by Changes desc\n| take 20",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| extend By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"Unknown\"))\n| summarize Changes = count() by By\n| order by Changes desc\n| take 20",
                             "size": 0,
                             "title": "Top rule editors",
                             "timeContextFromParameter": "TimeRange",
@@ -1783,7 +1783,7 @@
                         "type": 3,
                         "content": {
                             "version": "KqlItem/1.0",
-                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"AlertRule\"\n| project TimeGenerated, Operation = OperationName, Rule = SentinelResourceName, Status,\n          By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"\"))\n| order by TimeGenerated desc\n| take 200",
+                            "query": "SentinelAudit\n| where SentinelResourceType =~ \"Analytic Rule\"\n| project TimeGenerated, Operation = OperationName, Rule = SentinelResourceName, Status,\n          By = tostring(coalesce(tostring(ExtendedProperties.CallerName), tostring(ExtendedProperties.Caller), \"\"))\n| order by TimeGenerated desc\n| take 200",
                             "size": 0,
                             "title": "Recent rule change audit trail",
                             "timeContextFromParameter": "TimeRange",
