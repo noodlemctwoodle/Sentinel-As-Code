@@ -23,10 +23,11 @@ the existing repo style. Reference doc:
 
 ## File header (required for every file)
 
-Every `.ps1` and `.psm1` file starts with a comment-based help block
-and **nothing above it** except `#Requires` statements. There is no
-separate `#`-comment banner - the repo-relative path, author and dates
-belong in `.NOTES`.
+Every `.ps1` and `.psm1` file opens with its `#Requires` statements,
+then a comment-based help block, and nothing else above either. There
+is no separate `#`-comment banner - the repo-relative path, author and
+dates belong in `.NOTES`. See "#Requires statements" below for what may
+and may not be enforced there.
 
 Keywords always appear in this order, one blank line between each:
 

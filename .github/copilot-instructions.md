@@ -66,11 +66,15 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 
 ### File headers
 
-**PowerShell** files carry their metadata in the comment-based help
-block (`<# ... #>`) only. Do not add a separate `#`-comment banner
-above it - the path, author and dates live in `.NOTES`:
+**PowerShell** files open with their `#Requires` statements, then a
+comment-based help block, and nothing else above either. Do not add a
+separate `#`-comment banner - the path, author and dates live in
+`.NOTES`:
 
 ```powershell
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     One-line summary.
@@ -79,14 +83,18 @@ above it - the path, author and dates live in `.NOTES`:
     File:         Deploy/Foo.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
+    Requires:     PowerShell 7.2+, Az.Accounts
 #>
 ```
 
-Full shape (including `.DESCRIPTION`, `.PARAMETER` and `.EXAMPLE`) is
-in [`instructions/powershell-scripts.instructions.md`](instructions/powershell-scripts.instructions.md).
+All eight `.NOTES` keys are required, in that order, with `Requires:`
+last. Full shape (including `.DESCRIPTION`, `.PARAMETER`, `.EXAMPLE`,
+the `API versions:` block and `.LINK` references) is in
+[`instructions/powershell-scripts.instructions.md`](instructions/powershell-scripts.instructions.md).
 
 For YAML / JSON files where a comment header isn't natural (e.g. data
 files), skip the header - but for hand-authored content like analytical
