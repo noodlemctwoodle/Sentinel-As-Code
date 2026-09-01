@@ -360,9 +360,9 @@ keeps repeat deploys idempotent per workspace. If you need the same workbook
 resource ID across workspaces, add a `workbookId` as described in
 [Workbooks](../Workbooks.md#why-use-a-stable-guid).
 
-To import it by hand instead: Defender or Azure portal > Sentinel > **Workbooks
-> Add workbook > Edit**, open the **Advanced Editor** (`</>`), replace the
-contents with `workbook.json`, **Apply**, then **Save**.
+To import it by hand instead, in the **Microsoft Defender portal**: Sentinel >
+**Workbooks > Add workbook > Edit**, open the **Advanced Editor** (`</>`),
+replace the contents with `workbook.json`, **Apply**, then **Save**.
 
 ## Troubleshooting
 
