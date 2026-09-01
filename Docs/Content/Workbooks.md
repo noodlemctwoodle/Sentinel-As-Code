@@ -2,6 +2,10 @@
 
 Custom workbooks for security dashboards and visualisations. Each workbook is a subfolder under [`Content/Workbooks/`](../../Content/Workbooks) containing a `workbook.json` (the workbook content) and an optional metadata file.
 
+> This page covers the **format and deploy mechanics** common to every workbook.
+> Workbooks with their own reference page:
+> [Detection Engineering Dashboard](Workbooks/Detection-Engineering-Dashboard.md).
+
 The `workbook.json` may take either of two accepted shapes (both are valid and both deploy correctly, see [Accepted workbook.json formats](#accepted-workbookjson-formats)):
 
 - a **gallery notebook** (the raw template JSON exported from the Sentinel workbook editor), or
