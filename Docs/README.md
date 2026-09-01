@@ -31,6 +31,7 @@ cross-links the matching [Toolkit](#toolkit--companion-vs-code-extension) pages.
 | [Summary Rules](Content/Summary-Rules.md) | Summary-rule JSON schema, allowed bin sizes, KQL restrictions, system columns |
 | [Watchlists](Content/Watchlists.md) | Watchlist metadata schema, CSV format, KQL usage examples |
 | [Workbooks](Content/Workbooks.md) | Gallery-template JSON format, stable GUIDs, export from the Sentinel portal |
+| [Detection Engineering Dashboard](Content/Workbooks/Detection-Engineering-Dashboard.md) | The ten-tab detection-engineering workbook: tabs, parameters, prerequisites, data sources and limitations |
 
 Auto-generated community summaries live under `Content/Community/` (one file per
 contributor, written by [`Tools/Import-CommunityRules.ps1`](../Tools/Import-CommunityRules.ps1)
