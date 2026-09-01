@@ -124,6 +124,12 @@
     Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Data Collector API   : 2016-04-01 (the classic ingestion path this
+                               fixture deliberately exercises; it retires on
+                               2026-09-14)
+
     Runs standalone. Nothing from this repository needs to be alongside it.
 
     Required RBAC:

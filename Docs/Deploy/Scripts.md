@@ -26,6 +26,59 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](../Pipelines/README.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
+## Script header convention
+
+Every `.ps1` and `.psm1` in the repo opens with a comment-based help
+block and nothing above it except `#Requires` statements. There is no
+separate `#`-comment banner; the path, author and dates live in
+`.NOTES`.
+
+Keywords appear in a fixed order, with a blank line between each:
+`.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER` (one per parameter, in
+declaration order), `.OUTPUTS`, `.EXAMPLE`, `.NOTES`, `.LINK`.
+
+`.NOTES` carries the same eight keys everywhere, aligned to one column:
+
+```powershell
+.NOTES
+    File:         Deploy/content/Deploy-SentinelContentHub.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-03-20
+    Version:      2.1.1
+    Last Updated: 2026-09-01
+    Requires:     Az.Accounts
+
+    API versions:
+      - Sentinel  : 2025-09-01 (GA)
+      - Workbooks : 2022-04-01 (Microsoft.Insights/workbooks, used when a
+                    solution ships a workbook alongside its rules)
+```
+
+Optional extras (`Component:`, `Permissions:`) sit between
+`Last Updated:` and `Requires:`, so `Requires:` is always the last key.
+Free-form prose goes after a blank line, never welded onto the end of
+the keys.
+
+Two rules worth calling out, because they are easy to get wrong:
+
+- **Anything that calls an Azure or Graph API records every version it
+  pins**, in an `API versions:` block after the keys, one line per API
+  with colons aligned. Use the parenthetical to say why a version was
+  chosen where that is not obvious; it is the part a reader cannot
+  recover from the code. `#Requires` statements are the functional
+  gate for modules; `Requires:` is the human-readable summary and must
+  name everything they enforce.
+- **Files implementing a documented API contract carry a `.LINK` to
+  the Microsoft Learn REST reference** for that API, one URL per
+  entry. Link the reference, not a conceptual overview, and check the
+  URL resolves before committing it.
+
+Full rules, including the variants for function-library files and
+Pester suites, are in
+[`.github/instructions/powershell-scripts.instructions.md`](../../.github/instructions/powershell-scripts.instructions.md).
+
 ## Setup-ServicePrincipal.ps1
 
 One-time bootstrap script that grants the service principal all required Azure, Entra ID, and Microsoft Graph permissions needed for the pipeline to operate autonomously.

@@ -122,8 +122,15 @@
 
     API versions:
       - Log Analytics tables : 2023-09-01
-      - Alert rules          : 2025-09-01
-      - Saved searches       : 2020-08-01
+      - Sentinel alert rules : 2025-09-01
+      - Saved searches       : 2020-08-01 (parser functions, read to work out
+                               which content reaches a table indirectly)
+
+.LINK
+    https://learn.microsoft.com/rest/api/loganalytics/tables
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]

@@ -65,6 +65,9 @@ Keywords always appear in this order, one blank line between each:
     Last Updated: YYYY-MM-DD
     Requires:     PowerShell 7.2+, Az.Accounts
 
+    API versions:
+      - Sentinel : 2025-09-01 (GA)
+
     Any free-form notes go here, after a blank line, never welded
     onto the end of the metadata keys.
 
@@ -77,8 +80,7 @@ Field rules for `.NOTES`:
 
 - Every file carries the same eight keys, in the order shown, values
   aligned to a single column. Optional extras (`Component:`,
-  `API Version:`, `Permissions:`) sit between `Last Updated:` and
-  `Requires:`.
+  `Permissions:`) sit between `Last Updated:` and `Requires:`.
 - **`File:`** - repo-relative path with no leading `./` and no
   `Sentinel-As-Code/` prefix. Keep it accurate when a file moves.
 - **`Repository:`** - always `Sentinel-As-Code`.
@@ -94,9 +96,53 @@ Field rules for `.NOTES`:
   `Requires:` is the human-readable summary of it. Adding a
   `Requires:` line does not license adding a `#Requires` statement -
   those change whether the file will load at all.
-- **Free-form prose** (provenance, RBAC needs, API versions, data
-  sources) is allowed, but must be separated from the keys by a blank
-  line so the metadata block stays scannable.
+- **`API Version:`** is not a key. API versions go in a prose block, see
+  "API versions" below.
+- **Free-form prose** (provenance, RBAC needs, data sources) is
+  allowed, but must be separated from the keys by a blank line so the
+  metadata block stays scannable.
+
+### API versions
+
+Any file that calls an Azure or Graph API records every version it
+pins, in a labelled block after the metadata keys. One line per API,
+colons aligned, with a parenthetical where the choice of version is
+not obvious:
+
+```powershell
+    API versions:
+      - Log Analytics tables  : 2023-09-01
+      - Data collection rules : 2023-03-11 (the version that added
+                                'endpoints', so Direct DCRs authored here
+                                receive a built-in logsIngestion endpoint)
+```
+
+A single-line `API Version: a, b, c` key is not the convention. The
+block form leaves room to say *why* a version was chosen, which is the
+part a reader cannot recover from the code.
+
+Helpers that take their version from the caller say so rather than
+inventing one. Test files need no block: asserting on a version string
+is not calling an API.
+
+### References
+
+Any file that implements a documented Azure or Graph API contract
+carries a `.LINK` entry pointing at the Microsoft Learn reference for
+it, one URL per entry, after `.NOTES`. Link the REST reference for the
+API being called, not a conceptual overview, so a reader can check the
+request shape directly:
+
+```powershell
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/application-insights/workbooks
+```
+
+Verify a URL resolves before committing it. A dead reference is worse
+than no reference, because it implies the contract was checked.
 
 ### Variants
 

@@ -123,8 +123,19 @@
     Created:        2026-03-20
     Version:        1.1.1
     Last Updated:   2026-09-01
-    API Version:    2025-07-01-preview
     Requires:       Az.Accounts, powershell-yaml
+
+    API versions:
+      - Sentinel             : 2025-07-01-preview (preview is required for the
+                               newer rule properties this deployer sets)
+      - Log Analytics tables : 2022-10-01 (read to decide whether a rule can
+                               deploy enabled or must deploy disabled)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/watchlists
 #>
 
 [CmdletBinding()]

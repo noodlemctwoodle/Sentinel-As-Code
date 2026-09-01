@@ -254,6 +254,13 @@
     Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
+    API versions:
+      - Log Analytics tables  : 2025-07-01
+      - Data collection rules : 2023-03-11 (the version that added
+                                'endpoints', so Direct DCRs authored here
+                                receive a built-in logsIngestion endpoint)
+      - Logs Ingestion        : 2023-01-01
+
     Run Connect-AzAccount before invoking.
 
     RBAC:

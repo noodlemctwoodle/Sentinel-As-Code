@@ -134,8 +134,13 @@
     Created:        2026-04-28
     Version:        1.1.1
     Last Updated:   2026-09-01
-    API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts, powershell-yaml
+
+    API versions:
+      - Sentinel : 2025-09-01 (GA)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]

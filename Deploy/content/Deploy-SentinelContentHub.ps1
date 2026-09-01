@@ -115,8 +115,18 @@
     Created:        2026-03-20
     Version:        2.1.1
     Last Updated:   2026-09-01
-    API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts
+
+    API versions:
+      - Sentinel  : 2025-09-01 (GA)
+      - Workbooks : 2022-04-01 (Microsoft.Insights/workbooks, used when a
+                    solution ships a workbook alongside its rules)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/application-insights/workbooks
 #>
 
 [CmdletBinding()]

@@ -120,6 +120,12 @@
     Last Updated:   2026-09-01
     Requires:       PowerShell 7.2+, Az.Accounts, Sentinel.Common module
 
+    API versions:
+      - Workbooks         : 2022-04-01 (matched to the deploy script, so an
+                            export/redeploy round-trip stays symmetrical)
+      - Sentinel metadata : 2025-09-01 (read to identify Content Hub-owned
+                            workbooks so they can be skipped)
+
     Symmetry contract:
 
       - Same JSON file shape as Deploy-CustomWorkbooks reads

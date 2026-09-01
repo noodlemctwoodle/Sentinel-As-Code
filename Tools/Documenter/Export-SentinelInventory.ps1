@@ -69,6 +69,18 @@
     Last Updated:   2026-09-01
     Component:      Sentinel Documenter
     Requires:       Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
+
+    API versions:
+      - Azure Resource Graph : 2022-10-01
+      - Everything else      : passed per collector through Invoke-SentinelRest,
+                               so a provider version can be bumped in one place
+                               without touching this script
+
+.LINK
+    https://learn.microsoft.com/azure/governance/resource-graph/first-query-rest-api
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]

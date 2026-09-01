@@ -133,6 +133,11 @@
     Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
+    API versions:
+      - Data collection rules : 2023-03-11
+      - Logs Ingestion        : 2023-01-01 (the data-plane version used for
+                                the POST this script proves out)
+
     Runs standalone. Nothing from this repository needs to be alongside it.
 
     RBAC:
