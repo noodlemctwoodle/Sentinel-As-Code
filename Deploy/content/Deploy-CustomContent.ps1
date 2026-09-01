@@ -119,6 +119,7 @@
     File:           Deploy/content/Deploy-CustomContent.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-03-20
     Version:        1.1.1
     Last Updated:   2026-09-01

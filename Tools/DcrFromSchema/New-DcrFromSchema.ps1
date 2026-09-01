@@ -248,11 +248,13 @@
     File:         Tools/DcrFromSchema/New-DcrFromSchema.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      2026-07-30
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights,
-                  Az.Resources, and an active Connect-AzAccount session
+    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
+
+    Run Connect-AzAccount before invoking.
 
     RBAC:
       - Log Analytics Contributor on the workspace, to create the table

@@ -46,10 +46,10 @@
     File:           Deploy/permissions/Set-RunbookPermissions.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-03-23
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Website:        https://sentinel.blog
     Requires:       Azure CLI (az), Owner or User Access Administrator on subscription
 #>
 

@@ -59,6 +59,7 @@ Keywords always appear in this order, one blank line between each:
     File:         Deploy/Foo.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
@@ -74,15 +75,25 @@ Keywords always appear in this order, one blank line between each:
 
 Field rules for `.NOTES`:
 
-- The six metadata keys come first, in the order shown, values
-  aligned to a single column. `Requires:` follows them when present.
+- Every file carries the same eight keys, in the order shown, values
+  aligned to a single column. Optional extras (`Component:`,
+  `API Version:`, `Permissions:`) sit between `Last Updated:` and
+  `Requires:`.
 - **`File:`** - repo-relative path with no leading `./` and no
   `Sentinel-As-Code/` prefix. Keep it accurate when a file moves.
 - **`Repository:`** - always `Sentinel-As-Code`.
 - **`Author:`** - `noodlemctwoodle` unless the file was contributed
   by someone else, in which case credit them.
+- **`Website:`** - always `https://sentinel.blog`.
 - **`Created:`** / **`Last Updated:`** - ISO `YYYY-MM-DD`.
 - **`Version:`** - semver. New files start at `0.1.0`. Bump on change.
+- **`Requires:`** - mandatory, always the last key, always one line.
+  Name the PowerShell floor first, then modules and external tooling.
+  Where the file also carries `#Requires` statements, this line must
+  name everything they enforce. `#Requires` is the functional gate;
+  `Requires:` is the human-readable summary of it. Adding a
+  `Requires:` line does not license adding a `#Requires` statement -
+  those change whether the file will load at all.
 - **Free-form prose** (provenance, RBAC needs, API versions, data
   sources) is allowed, but must be separated from the keys by a blank
   line so the metadata block stays scannable.

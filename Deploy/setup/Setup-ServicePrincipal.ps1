@@ -61,14 +61,15 @@
     File:           Deploy/setup/Setup-ServicePrincipal.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-03-21
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Requires:       Az.Accounts, Az.Resources, Microsoft.Graph
     Permissions:    The user running this script needs Owner on the target
                     subscription AND at least Privileged Role Administrator
                     in Entra ID. Run ONCE; the pipeline SPN is fully
                     autonomous after.
+    Requires:       Az.Accounts, Az.Resources, Microsoft.Graph
 #>
 
 [CmdletBinding()]

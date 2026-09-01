@@ -42,6 +42,7 @@
     File:         Tests/Test-NewDependencyFixture.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      2026-07-28
     Version:      0.1.0
     Last Updated: 2026-09-01
