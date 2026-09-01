@@ -116,11 +116,11 @@
 
 .NOTES
     File:         Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
-    Created:      2026-07-23
+    Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Created:      2026-07-23
     Version:      1.0.1
     Last Updated: 2026-09-01
-    Repository:   Sentinel-As-Code
     Website:      https://sentinel.blog
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 

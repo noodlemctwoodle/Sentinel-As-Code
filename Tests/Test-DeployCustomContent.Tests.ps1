@@ -23,6 +23,18 @@
     Helper-driven: imports script functions via the AST extractor in
     Tests/_helpers/Import-ScriptFunctions.psm1.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1
+
+    Runs the deploy-time unit tests. Needs no Azure context; the script's
+    functions are lifted out by the AST extractor.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for diagnosing a dependency-graph or
+    file-ordering failure.
+
 .NOTES
     File:         Tests/Test-DeployCustomContent.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -30,8 +42,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

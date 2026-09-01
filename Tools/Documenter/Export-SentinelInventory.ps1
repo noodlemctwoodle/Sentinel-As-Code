@@ -38,6 +38,27 @@
     Use the 2024-10-01-preview API version where applicable (Content Hub product packages,
     summary rules, pricings).
 
+.PARAMETER PlaybookResourceGroup
+    Resource group holding the Logic App playbooks, when they do not live
+    alongside the workspace. Defaults to -ResourceGroup.
+
+.EXAMPLE
+    ./Tools/Documenter/Export-SentinelInventory.ps1 `
+        -ResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName 'law-sentinel-prod'
+
+    Exports the full inventory to ./SecurityDocs/law-sentinel-prod/_raw/.
+
+.EXAMPLE
+    ./Tools/Documenter/Export-SentinelInventory.ps1 `
+        -ResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName 'law-sentinel-prod' `
+        -PlaybookResourceGroup 'rg-soar-prod' `
+        -IncludePreview
+
+    Collects playbooks from a separate resource group and uses the preview
+    API version where one is available.
+
 .NOTES
     File:           Tools/Documenter/Export-SentinelInventory.ps1
     Repository:     Sentinel-As-Code

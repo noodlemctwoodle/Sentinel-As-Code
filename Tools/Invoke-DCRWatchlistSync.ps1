@@ -36,6 +36,24 @@
     Column used as the watchlist search key. Defaults to DCRName (the watchlist
     holds one aggregated row per DCR, so DCRName is the unique key).
 
+.EXAMPLE
+    ./Tools/Invoke-DCRWatchlistSync.ps1 `
+        -WorkspaceResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName          'law-sentinel-prod'
+
+    Enumerates every DCR and association visible to the identity, then
+    writes the aggregated inventory to the default watchlist alias.
+
+.EXAMPLE
+    ./Tools/Invoke-DCRWatchlistSync.ps1 `
+        -WorkspaceResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName          'law-sentinel-prod' `
+        -WatchlistAlias         'DcrInventoryTest' `
+        -WatchlistDisplayName   'DCR Inventory (test)'
+
+    Writes to a separate alias, for validating a schema change without
+    disturbing the watchlist that rules already query.
+
 .NOTES
     File:           Tools/Invoke-DCRWatchlistSync.ps1
     Created:        2026-03-23

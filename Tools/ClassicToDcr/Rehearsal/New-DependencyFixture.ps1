@@ -181,11 +181,11 @@
 
 .NOTES
     File:         Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1
-    Created:      2026-07-28
+    Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Created:      2026-07-28
     Version:      1.0.1
     Last Updated: 2026-09-01
-    Repository:   Sentinel-As-Code
     Website:      https://sentinel.blog
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 

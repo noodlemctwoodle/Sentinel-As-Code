@@ -24,6 +24,23 @@
     Also performs cross-file checks: every analytical rule's `id:` GUID
     must be unique across the entire AnalyticalRules tree.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1
+
+    Validates every analytical rule and hunting query YAML in the repo.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1 -FullName '*Analytical rule schema*'
+
+    Runs only the analytical-rule schema assertions, skipping the
+    hunting-query and cross-file checks.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for pinpointing which field of which
+    rule failed.
+
 .NOTES
     File:         Tests/Test-AnalyticalRuleYaml.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -31,18 +48,10 @@
     Created:      2026-04-29
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 
-    Run a focused subset:
-        Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1 -FullName '*Analytical rule schema*'
-
-    Verbose:
-        Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1 -Output Detailed
-
-    Prerequisites:
-        - Pester 5+ (Install-Module Pester -Force -SkipPublisherCheck)
-        - powershell-yaml (auto-installed by the harness if missing)
+    powershell-yaml is auto-installed by the harness if missing. Install
+    Pester with: Install-Module Pester -Force -SkipPublisherCheck
 #>
 
 BeforeDiscovery {

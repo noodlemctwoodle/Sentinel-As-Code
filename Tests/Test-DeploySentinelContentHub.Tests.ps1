@@ -14,6 +14,16 @@
         that decides whether to overwrite a deployed rule with its
         Content Hub template, used by -ProtectCustomisedRules)
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeploySentinelContentHub.Tests.ps1
+
+    Runs the SemVer and customisation-detector tests.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeploySentinelContentHub.Tests.ps1 -FullName '*Test-RuleIsCustomised*'
+
+    Runs only the customisation-protection comparator assertions.
+
 .NOTES
     File:         Tests/Test-DeploySentinelContentHub.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -21,6 +31,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

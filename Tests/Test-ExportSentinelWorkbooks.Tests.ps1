@@ -21,6 +21,17 @@
     Deploy-CustomWorkbooks function); a separate end-to-end test against a
     live workspace is out of scope here.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ExportSentinelWorkbooks.Tests.ps1
+
+    Runs the folder-naming and JSON-formatting tests. Needs no Azure
+    context; the Main block is never executed.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ExportSentinelWorkbooks.Tests.ps1 -FullName '*ConvertTo-FolderName*'
+
+    Runs only the PascalCase folder-name derivation assertions.
+
 .NOTES
     File:         Tests/Test-ExportSentinelWorkbooks.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -28,6 +39,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

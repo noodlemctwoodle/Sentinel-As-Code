@@ -64,11 +64,11 @@
 
 .NOTES
     File:           Tools/Invoke-PRValidation.ps1
-    Created:        2026-04-29
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-04-29
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Requires:       Pester 5+, powershell-yaml
 #>
 

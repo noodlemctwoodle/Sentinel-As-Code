@@ -84,6 +84,11 @@
     After each batch, query the destination table for rows from this run
     and report how many have arrived. Subject to ingestion latency.
 
+.PARAMETER ArrivalTimeoutSeconds
+    How long -Follow waits for rows to surface in the destination table
+    before giving up. Defaults to 300. Raise it on a workspace with slow
+    ingestion; a timeout is reported, not treated as data loss.
+
 .PARAMETER GrantIngestionRole
     Grant the service principal Monitoring Metrics Publisher on the DCR if
     it does not already have it. Off by default: the script otherwise
@@ -120,11 +125,11 @@
 
 .NOTES
     File:         Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1
-    Created:      2026-07-23
+    Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Created:      2026-07-23
     Version:      1.0.1
     Last Updated: 2026-09-01
-    Repository:   Sentinel-As-Code
     Website:      https://sentinel.blog
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 

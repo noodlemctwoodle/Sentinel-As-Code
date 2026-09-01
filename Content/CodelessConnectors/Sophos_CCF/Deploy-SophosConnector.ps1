@@ -50,7 +50,8 @@
     Created:      2026-08-20
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Requires: Azure CLI (az) logged in with rights to create tables, DCRs, and Sentinel resources.
+    Requires:     Azure CLI (az), logged in with rights to create tables,
+                  DCRs and Sentinel resources
 #>
 
 [CmdletBinding()]

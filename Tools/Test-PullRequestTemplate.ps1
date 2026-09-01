@@ -61,11 +61,11 @@
 
 .NOTES
     File:           Tools/Test-PullRequestTemplate.ps1
-    Created:        2026-07-08
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-07-08
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Sentinel.Common (logging only)
 #>
 

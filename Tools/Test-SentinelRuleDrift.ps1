@@ -128,11 +128,11 @@
 
 .NOTES
     File:           Tools/Test-SentinelRuleDrift.ps1
-    Created:        2026-04-28
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-04-28
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     API Version:    2025-09-01 (GA)
     Requires:       Az.Accounts, powershell-yaml
 #>

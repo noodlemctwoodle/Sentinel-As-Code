@@ -29,12 +29,17 @@
 
 .NOTES
     File:           Modules/Sentinel.Common/Sentinel.Common.psm1
-    Created:        2026-05-13
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-05-13
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Requires:       PowerShell 7.2+, Az.Accounts
+
+    This file defines functions rather than running. Per-parameter and
+    per-example detail lives on each exported function's own help block.
+    The module's shipped version is ModuleVersion in Sentinel.Common.psd1,
+    which is what Import-Module reads.
 #>
 
 Set-StrictMode -Version Latest
