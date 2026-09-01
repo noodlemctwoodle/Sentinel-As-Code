@@ -46,12 +46,13 @@
     File:           Deploy/content/Deploy-DefenderDetections.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-03-20
     Version:        1.0.2
     Last Updated:   2026-09-01
     API Version:    Microsoft Graph Security API (beta)
-    Requires:       Az.Accounts, powershell-yaml
     Permissions:    CustomDetection.ReadWrite.All (Application)
+    Requires:       Az.Accounts, powershell-yaml
 #>
 
 [CmdletBinding()]

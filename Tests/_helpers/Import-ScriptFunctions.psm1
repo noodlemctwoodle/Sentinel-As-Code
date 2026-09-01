@@ -25,6 +25,7 @@
     File:         Tests/_helpers/Import-ScriptFunctions.psm1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      2026-04-29
     Version:      1.0.1
     Last Updated: 2026-09-01

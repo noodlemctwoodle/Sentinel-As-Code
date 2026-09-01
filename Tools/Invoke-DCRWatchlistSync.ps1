@@ -56,12 +56,13 @@
 
 .NOTES
     File:           Tools/Invoke-DCRWatchlistSync.ps1
-    Created:        2026-03-23
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-03-23
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
-    Website:        https://sentinel.blog
+    Requires:       PowerShell 7.2+, Az.Accounts
 
     Required RBAC on managed identity:
       - Monitoring Reader on subscription (to list DCRs and associations via ARM)

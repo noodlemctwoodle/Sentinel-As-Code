@@ -116,6 +116,7 @@
     File:           Tools/Documenter/Report/Convert-MarkdownToWord.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-06-25
     Version:        1.0.1
     Last Updated:   2026-09-01

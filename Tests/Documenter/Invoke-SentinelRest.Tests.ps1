@@ -33,6 +33,7 @@
     File:         Tests/Documenter/Invoke-SentinelRest.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      2026-06-03
     Version:      0.1.0
     Last Updated: 2026-09-01

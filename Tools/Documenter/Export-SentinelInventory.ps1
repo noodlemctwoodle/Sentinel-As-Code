@@ -62,11 +62,12 @@
 .NOTES
     File:           Tools/Documenter/Export-SentinelInventory.ps1
     Repository:     Sentinel-As-Code
-    Created:        2026-05-06
     Author:         noodlemctwoodle
-    Component:      Sentinel Documenter
+    Website:        https://sentinel.blog
+    Created:        2026-05-06
     Version:        0.1.1
     Last Updated:   2026-09-01
+    Component:      Sentinel Documenter
     Requires:       Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 #>
 

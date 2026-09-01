@@ -77,6 +77,7 @@
     File:           Tools/Import-CommunityRules.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
     Created:        2026-04-28
     Version:        1.1.1
     Last Updated:   2026-09-01

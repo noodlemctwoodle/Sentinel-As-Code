@@ -33,6 +33,7 @@
     File:         Tests/Test-ParserYaml.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
