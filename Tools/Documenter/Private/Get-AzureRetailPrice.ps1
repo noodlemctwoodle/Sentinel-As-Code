@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Anonymous client for the Azure Retail Prices API with on-disk caching.

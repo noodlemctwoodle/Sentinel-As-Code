@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules powershell-yaml
+
 <#
 .SYNOPSIS
     Render the JSON snapshot under SecurityDocs/<workspace>/_raw/ into the human-readable

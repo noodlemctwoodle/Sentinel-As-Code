@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Paginating wrapper around Invoke-AzRestMethod for Sentinel and Azure Resource Manager

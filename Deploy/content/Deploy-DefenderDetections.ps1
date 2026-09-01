@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, powershell-yaml
+
 <#
 .SYNOPSIS
     Deploys custom detection rules to Microsoft Defender XDR via the Graph Security API.

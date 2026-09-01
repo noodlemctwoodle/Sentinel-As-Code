@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Render every file in a folder tree into a single, formatted Word

@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Deploys Microsoft Sentinel Content Hub solutions and their associated content to a workspace.

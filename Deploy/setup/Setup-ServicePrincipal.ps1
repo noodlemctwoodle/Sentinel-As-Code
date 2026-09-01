@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, Az.Resources
+
 <#
 .SYNOPSIS
     One-time bootstrap: grants the deployment SPN all permissions needed

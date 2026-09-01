@@ -1,3 +1,5 @@
+#Requires -Modules Pester, powershell-yaml
+
 <#
 .SYNOPSIS
     PR-validation entry-point. Runs every Pester suite under Tests/ against the

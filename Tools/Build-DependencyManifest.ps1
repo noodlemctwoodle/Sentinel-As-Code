@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules powershell-yaml
+
 <#
 .SYNOPSIS
     Discovers content dependencies from KQL queries embedded in

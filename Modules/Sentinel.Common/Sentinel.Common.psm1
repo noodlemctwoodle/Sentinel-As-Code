@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Shared helpers used across the Sentinel-As-Code deployer scripts and the

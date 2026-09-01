@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Test-suite helper that AST-extracts every top-level function from a

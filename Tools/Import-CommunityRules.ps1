@@ -1,3 +1,5 @@
+#Requires -Modules powershell-yaml
+
 <#
 .SYNOPSIS
     Imports Microsoft Sentinel analytical rules from the David Alonso (Dalonso)

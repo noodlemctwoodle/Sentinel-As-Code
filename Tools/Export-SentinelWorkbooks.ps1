@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Exports Microsoft Sentinel workbooks from a workspace to disk in the

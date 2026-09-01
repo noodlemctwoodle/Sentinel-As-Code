@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Gap-analysis engine. Loads the best-practices ruleset, builds an in-memory

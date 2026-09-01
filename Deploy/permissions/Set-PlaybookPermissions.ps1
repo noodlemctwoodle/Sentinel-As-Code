@@ -1,3 +1,5 @@
+#Requires -Modules Az.Accounts, Az.Resources, Az.LogicApp
+
 <#
 .SYNOPSIS
     Assigns required RBAC roles to Logic App managed identities after playbook deployment.
