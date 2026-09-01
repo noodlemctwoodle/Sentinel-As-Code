@@ -20,6 +20,17 @@
     and the role assignment. Those need a real service principal and a
     deployed DCR, so they are verified live, not here.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DcrIngestion.Tests.ps1
+
+    Runs the helper unit tests. Needs no Azure auth.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DcrIngestion.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for diagnosing a stream-resolution
+    or record-shape failure.
+
 .NOTES
     File:         Tests/Test-DcrIngestion.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -27,6 +38,7 @@
     Created:      2026-07-28
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

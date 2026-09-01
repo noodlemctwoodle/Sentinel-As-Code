@@ -25,6 +25,17 @@
     Generates per-file It blocks via -ForEach so per-file failures
     surface directly in the PR check UI.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-CopilotCustomisations.Tests.ps1
+
+    Validates the whole Copilot customisation set.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-CopilotCustomisations.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for identifying which agent or
+    instruction file broke a convention.
+
 .NOTES
     File:         Tests/Test-CopilotCustomisations.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -32,9 +43,11 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Run as part of the repo-wide Pester gate
-    (Tools/Invoke-PRValidation.ps1) on every PR via the
-    `validate` job in .github/workflows/pr-validation.yml.
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
+
+    Also runs as part of the repo-wide Pester gate
+    (Tools/Invoke-PRValidation.ps1) on every PR, via the `validate` job
+    in .github/workflows/pr-validation.yml.
 #>
 
 BeforeDiscovery {

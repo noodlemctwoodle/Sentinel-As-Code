@@ -75,11 +75,11 @@
 
 .NOTES
     File:           Tools/Import-CommunityRules.ps1
-    Created:        2026-04-28
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-04-28
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Requires:       powershell-yaml (auto-installed if missing); git 2.x or later in PATH
 #>
 

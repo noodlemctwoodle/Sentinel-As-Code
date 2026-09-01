@@ -20,6 +20,16 @@
     Builds on the AST extractor in
     Tests/_helpers/Import-ScriptFunctions.psm1.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ImportCommunityRules.Tests.ps1
+
+    Runs the normalisation-pipeline tests.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ImportCommunityRules.Tests.ps1 -FullName '*ConvertTo-Iso8601Duration*'
+
+    Runs only the duration-shorthand expansion assertions.
+
 .NOTES
     File:         Tests/Test-ImportCommunityRules.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -27,6 +37,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
 BeforeAll {

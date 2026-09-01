@@ -21,6 +21,18 @@
     Test cases generated per directory rather than per file so JSON-vs-CSV
     pairing checks live in the same test scope.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1
+
+    Validates every watchlist.json and its sibling data.csv, including the
+    itemsSearchKey-to-CSV-header invariant.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for identifying which watchlist
+    declares a search key its CSV does not carry.
+
 .NOTES
     File:         Tests/Test-WatchlistJson.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -28,14 +40,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1
-
-    Verbose:
-        Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1 -Output Detailed
-
-    Prerequisites:
-        - Pester 5+
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {

@@ -74,8 +74,11 @@
     Created:      2026-05-14
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Requires Node.js and @mermaid-js/mermaid-cli installed globally:
+    Requires:     PowerShell 7.2+, Node.js, @mermaid-js/mermaid-cli
+
+    Install the renderer globally with:
         npm install -g @mermaid-js/mermaid-cli
+
     On Linux CI agents the script writes a puppeteer config enabling
     --no-sandbox automatically.
 #>

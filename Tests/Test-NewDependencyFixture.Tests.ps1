@@ -27,6 +27,17 @@
     writes and the table polls. Those need a real workspace and the retiring
     Data Collector API, so they cannot be unit tested.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewDependencyFixture.Tests.ps1
+
+    Runs the naming-plan and ownership-gate tests. Needs no workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewDependencyFixture.Tests.ps1 -FullName '*Test-FixtureOwned*'
+
+    Runs only the ownership gates that authorise a delete, the assertions
+    protecting real workspace content from the teardown path.
+
 .NOTES
     File:         Tests/Test-NewDependencyFixture.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -34,6 +45,7 @@
     Created:      2026-07-28
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

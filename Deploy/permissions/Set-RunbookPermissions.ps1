@@ -27,23 +27,30 @@
 .PARAMETER Remove
     Switch to remove the role assignments instead of creating them.
 
+.PARAMETER SentinelResourceGroup
+    Resource group containing the Sentinel workspace. Scopes the
+    watchlist-write role assignment to that resource group rather than the
+    whole subscription.
+
+.EXAMPLE
+    ./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '00000000-0000-0000-0000-000000000000'
+
+    Applies the runbook role assignments to the subscription.
+
+.EXAMPLE
+    ./Deploy/permissions/Set-RunbookPermissions.ps1 -SubscriptionId '00000000-0000-0000-0000-000000000000' -Remove
+
+    Removes the role assignments this script previously applied.
+
 .NOTES
     File:           Deploy/permissions/Set-RunbookPermissions.ps1
-    Created:        2026-03-23
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-03-23
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Website:        https://sentinel.blog
     Requires:       Azure CLI (az), Owner or User Access Administrator on subscription
-
-.EXAMPLE
-    # Apply permissions
-    .\Set-RunbookPermissions.ps1 -SubscriptionId '00000000-0000-0000-0000-000000000000'
-
-.EXAMPLE
-    # Remove permissions
-    .\Set-RunbookPermissions.ps1 -SubscriptionId '00000000-0000-0000-0000-000000000000' -Remove
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

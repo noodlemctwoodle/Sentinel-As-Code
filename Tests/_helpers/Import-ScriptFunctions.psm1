@@ -22,18 +22,18 @@
     test suite stops carrying its own copy.
 
 .NOTES
-    File:           Tests/_helpers/Import-ScriptFunctions.psm1
-    Created:        2026-04-29
+    File:         Tests/_helpers/Import-ScriptFunctions.psm1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Created:      2026-04-29
+    Version:      1.0.1
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+
+
     Used by every Tests/Test-{Script}.Tests.ps1 file. A regression in
     Import-ScriptFunctions affects all of them at once, so the helper
     itself ships with its own self-test in
     Tests/Test-ImportScriptFunctions.Tests.ps1.
-
-    Author:         noodlemctwoodle
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
-    Requires:       PowerShell 7.2+
 #>
 
 Set-StrictMode -Version Latest

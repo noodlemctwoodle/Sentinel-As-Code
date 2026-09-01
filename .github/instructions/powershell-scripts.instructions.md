@@ -24,24 +24,36 @@ the existing repo style. Reference doc:
 ## File header (required for every file)
 
 Every `.ps1` and `.psm1` file starts with a comment-based help block
-and **nothing above it**. There is no separate `#`-comment banner -
-the repo-relative path, author and dates belong in `.NOTES`:
+and **nothing above it** except `#Requires` statements. There is no
+separate `#`-comment banner - the repo-relative path, author and dates
+belong in `.NOTES`.
+
+Keywords always appear in this order, one blank line between each:
 
 ```powershell
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
-    One-line summary.
+    One sentence, no full stop needed. What the file does, not how.
 
 .DESCRIPTION
-    Multi-paragraph description: what does this script do, when
-    should I run it, what does it produce?
+    Multi-paragraph prose: what it does, when to run it, what it
+    produces, and any behaviour a reader would otherwise have to
+    infer from the code. Wrap at roughly 75 characters.
 
 .PARAMETER ParamName
-    Per-parameter description.
+    One entry per parameter in the param block, in declaration order.
+    Say what it controls and what happens when it is omitted.
+
+.OUTPUTS
+    Optional. The type emitted to the pipeline, and what it carries.
 
 .EXAMPLE
     ./Deploy/Foo.ps1 -ParamName Value
-    Brief description of what the example does.
+
+    A blank line, then prose explaining what this invocation does and
+    when you would reach for it.
 
 .NOTES
     File:         Deploy/Foo.ps1
@@ -50,28 +62,47 @@ the repo-relative path, author and dates belong in `.NOTES`:
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Az.Accounts (etc.)
+    Requires:     PowerShell 7.2+, Az.Accounts
+
+    Any free-form notes go here, after a blank line, never welded
+    onto the end of the metadata keys.
+
+.LINK
+    Optional. One URL per entry.
 #>
 ```
 
-Field rules:
+Field rules for `.NOTES`:
 
-- **`File:`** - repo-relative path with no leading `./`. Keep it
-  accurate when a file moves.
+- The six metadata keys come first, in the order shown, values
+  aligned to a single column. `Requires:` follows them when present.
+- **`File:`** - repo-relative path with no leading `./` and no
+  `Sentinel-As-Code/` prefix. Keep it accurate when a file moves.
 - **`Repository:`** - always `Sentinel-As-Code`.
 - **`Author:`** - `noodlemctwoodle` unless the file was contributed
   by someone else, in which case credit them.
-- **`Created:`** / **`Last Updated:`** - ISO `YYYY-MM-DD`, matching the
-  format the existing `.NOTES` blocks already use.
+- **`Created:`** / **`Last Updated:`** - ISO `YYYY-MM-DD`.
 - **`Version:`** - semver. New files start at `0.1.0`. Bump on change.
-- **`Requires:`** - optional; list PowerShell floor and PSGallery deps.
+- **Free-form prose** (provenance, RBAC needs, API versions, data
+  sources) is allowed, but must be separated from the keys by a blank
+  line so the metadata block stays scannable.
 
-`.psd1` manifests are data files (`@{ ... }`) and carry no
+### Variants
+
+**Files that define functions rather than run** (`Modules/**/*.psm1`,
+`Tools/Documenter/Private/*.ps1`): the file-level block describes the
+file and carries `.NOTES`. Per-parameter and per-example detail lives
+on each function's own help block, not the file's.
+
+**Pester test files** (`Tests/**/*.Tests.ps1`): no `.PARAMETER`, since
+they take none. `.EXAMPLE` carries the `Invoke-Pester` invocations a
+reader would actually run - the full file, a focused `-FullName`
+subset, and detailed output where useful. Prerequisites go in
+`.NOTES` prose.
+
+**`.psd1` manifests** are data files (`@{ ... }`) and carry no
 comment-based help. Their metadata lives in the manifest keys
 (`Author`, `ModuleVersion`, `Description`) instead.
-
-Pester test files under `Tests/` follow the same rule, minus
-`.PARAMETER` / `.EXAMPLE`, which rarely apply.
 
 ## Use the Sentinel.Common module
 

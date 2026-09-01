@@ -251,14 +251,8 @@
     Created:      2026-07-30
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Sentinel-As-Code/Tools/DcrFromSchema/New-DcrFromSchema.ps1
-
-    Created by noodlemctwoodle on 30/07/2026.
-
-    Prerequisites:
-      - PowerShell 7.2+
-      - Az.Accounts, Az.OperationalInsights, Az.Resources
-      - Connect-AzAccount
+    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights,
+                  Az.Resources, and an active Connect-AzAccount session
 
     RBAC:
       - Log Analytics Contributor on the workspace, to create the table

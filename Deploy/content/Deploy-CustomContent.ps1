@@ -52,6 +52,12 @@
 .PARAMETER SkipDetections
     When specified, skips deploying custom analytics rules.
 
+.PARAMETER SkipCommunityDetections
+    When specified, skips deploying analytics rules imported from the
+    community (those carrying import attribution). Repo-authored rules
+    still deploy. Use it to hold community content back while keeping
+    your own detections flowing.
+
 .PARAMETER SkipWatchlists
     When specified, skips deploying custom watchlists.
 
@@ -72,6 +78,11 @@
 
 .PARAMETER IsGov
     When specified, targets the Azure Government cloud environment.
+
+.PARAMETER SmartDeployment
+    When specified, deploys only content that changed since the last
+    successful run, ordered by the priority list in
+    sentinel-deployment.config. Omit it to deploy the whole content tree.
 
 .PARAMETER WhatIf
     When specified, performs a dry run showing what actions would be taken without
@@ -106,11 +117,11 @@
 
 .NOTES
     File:           Deploy/content/Deploy-CustomContent.ps1
-    Created:        2026-03-20
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-03-20
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     API Version:    2025-07-01-preview
     Requires:       Az.Accounts, powershell-yaml
 #>

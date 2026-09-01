@@ -20,6 +20,16 @@
     migrated once, so they are not unit-testable. The script gates all
     three behind ShouldProcess for that reason.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeClassicTableMigration.Tests.ps1
+
+    Runs the column-mapping and ARM-shape tests. Needs no workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeClassicTableMigration.Tests.ps1 -FullName '*ConvertTo-StreamColumn*'
+
+    Runs only the stream-declaration assertions.
+
 .NOTES
     File:         Tests/Test-InvokeClassicTableMigration.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -27,6 +37,7 @@
     Created:      2026-07-28
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

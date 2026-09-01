@@ -29,6 +29,18 @@
     Adding new rules requires extending the fixture and adding a row in the
     expected-IDs list.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Get-SentinelGap.Tests.ps1
+
+    Runs the full gap-analysis suite against the deliberately-broken
+    fixture.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Get-SentinelGap.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for identifying which SENT-* rule
+    stopped firing.
+
 .NOTES
     File:         Tests/Documenter/Get-SentinelGap.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -36,6 +48,7 @@
     Created:      2026-06-03
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {

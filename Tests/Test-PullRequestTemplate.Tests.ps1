@@ -17,6 +17,17 @@
     Import-ScriptFunctions helper) and dot-sources them, so the script's
     entry-point (which calls exit) never runs.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-PullRequestTemplate.Tests.ps1
+
+    Runs the PR-template parsing and validation tests. The script's
+    entry-point, which calls exit, never runs.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-PullRequestTemplate.Tests.ps1 -FullName '*Test-PullRequestTemplateBody*'
+
+    Runs only the body-validation assertions.
+
 .NOTES
     File:         Tests/Test-PullRequestTemplate.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -24,6 +35,7 @@
     Created:      2026-07-10
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

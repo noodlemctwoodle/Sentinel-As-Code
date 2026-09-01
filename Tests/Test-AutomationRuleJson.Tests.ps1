@@ -14,6 +14,17 @@
     Cross-file invariant: every rule's `automationRuleId` GUID must be
     unique across the tree (Sentinel uses it as the resource name).
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1
+
+    Validates every automation-rule JSON in the repo.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for pinpointing which field of which
+    rule failed.
+
 .NOTES
     File:         Tests/Test-AutomationRuleJson.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -21,8 +32,7 @@
     Created:      2026-05-13
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {

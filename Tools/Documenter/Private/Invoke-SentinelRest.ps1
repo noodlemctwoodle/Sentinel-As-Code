@@ -45,11 +45,12 @@
 .NOTES
     File:           Tools/Documenter/Private/Invoke-SentinelRest.ps1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
     Created:        2026-05-06
     Version:        0.1.0
-    Author:         noodlemctwoodle
-    Component:      Sentinel Documenter
     Last Updated:   2026-09-01
+    Component:      Sentinel Documenter
+    Requires:       PowerShell 7.2+, Az.Accounts
 
     Multi-cloud:
       Invoke-AzRestMethod automatically routes ARM calls to the audience of the

@@ -17,6 +17,17 @@
     table poll. Those need a real workspace and the retiring Data Collector
     API, so they cannot be unit tested.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewClassicTableFixture.Tests.ps1
+
+    Runs the signature and record-shape tests. Needs no workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewClassicTableFixture.Tests.ps1 -FullName '*New-DataCollectorSignature*'
+
+    Runs only the HMAC-SHA256 signature assertions, the failure that would
+    otherwise present as a silent 403.
+
 .NOTES
     File:         Tests/Test-NewClassicTableFixture.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -24,6 +35,7 @@
     Created:      2026-07-28
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

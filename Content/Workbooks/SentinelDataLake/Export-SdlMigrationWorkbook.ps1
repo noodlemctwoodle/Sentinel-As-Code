@@ -114,12 +114,15 @@
     Created:      2026-05-18
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Authentication : Uses the current Az context (Connect-AzAccount).
-    Requires       : PowerShell 7+, Az.Accounts, Az.OperationalInsights, ImportExcel
-    Tables API     : 2023-09-01
-    AlertRules API : 2025-09-01
-    Functions API  : 2020-08-01 (savedSearches)
-    Author         : Toby G
+    Requires:     PowerShell 7+, Az.Accounts, Az.OperationalInsights, ImportExcel
+
+    Authentication uses the current Az context, so run Connect-AzAccount
+    first.
+
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Alert rules          : 2025-09-01
+      - Saved searches       : 2020-08-01
 #>
 
 [CmdletBinding()]

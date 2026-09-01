@@ -42,11 +42,11 @@
 
 .NOTES
     File:           Deploy/permissions/Set-PlaybookPermissions.ps1
-    Created:        2026-04-28
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Created:        2026-04-28
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Repository:     Sentinel-As-Code
     Requires:       Az.Accounts, Az.Resources, Az.LogicApp
     Permissions:    User Access Administrator OR Owner on the playbook resource
                     group (and Sentinel resource group, if different).

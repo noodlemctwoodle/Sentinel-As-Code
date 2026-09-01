@@ -43,14 +43,31 @@
     Folder containing best-practices.json, mitre-attack.json, etc. Defaults to
     Tools/Documenter/Private/Resources.
 
+.EXAMPLE
+    ./Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1 `
+        -WorkspaceName 'law-sentinel-prod'
+
+    Renders the Markdown section files from the inventory that
+    Export-SentinelInventory.ps1 previously collected.
+
+.EXAMPLE
+    ./Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1 `
+        -InputRoot     './SecurityDocs/law-sentinel-prod/_raw' `
+        -OutputRoot    './SecurityDocs/law-sentinel-prod' `
+        -WorkspaceName 'law-sentinel-prod'
+
+    Renders from an explicit collection folder, for regenerating the
+    document set from an archived inventory.
+
 .NOTES
     File:           Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
     Created:        2026-05-06
     Version:        0.1.0
-    Author:         noodlemctwoodle
-    Component:      Sentinel Documenter — Renderer
     Last Updated:   2026-09-01
+    Component:      Sentinel Documenter, Renderer
+    Requires:       PowerShell 7.2+, powershell-yaml
 #>
 
 [CmdletBinding()]

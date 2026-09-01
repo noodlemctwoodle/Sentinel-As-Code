@@ -31,6 +31,17 @@
     assignment. Those need a live workspace, so the script gates them behind
     ShouldProcess and they are exercised by running the tool, not by Pester.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewDcrFromSchema.Tests.ps1
+
+    Runs the schema-validation and template-shape tests. Needs no workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-NewDcrFromSchema.Tests.ps1 -FullName '*Get-DefaultTransform*'
+
+    Runs only the transform-cast assertions, the ones guarding against
+    InvalidTransformOutput at deploy time.
+
 .NOTES
     File:         Tests/Test-NewDcrFromSchema.Tests.ps1
     Repository:   Sentinel-As-Code
@@ -38,6 +49,7 @@
     Created:      2026-07-30
     Version:      0.1.0
     Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

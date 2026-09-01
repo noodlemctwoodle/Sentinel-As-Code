@@ -34,8 +34,13 @@
     Created:      2026-05-06
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Endpoint: https://prices.azure.com/api/retail/prices
-    Documentation: https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+    Requires:     PowerShell 7.2+
+
+    Endpoint:
+        https://prices.azure.com/api/retail/prices
+
+    Reference:
+        https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
 #>
 
 function Get-AzureRetailPrice {
