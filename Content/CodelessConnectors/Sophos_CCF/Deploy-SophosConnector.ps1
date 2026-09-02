@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Deploys the Sophos Central CCF (Codeless Connector Framework) package to a Microsoft Sentinel workspace.
@@ -51,8 +53,8 @@
     Created:      2026-08-20
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Requires:     Azure CLI (az), logged in with rights to create tables,
-                  DCRs and Sentinel resources
+    Requires:     PowerShell 7.2+, Azure CLI (az), logged in with rights to
+                  create tables, DCRs and Sentinel resources
 
     API versions:
       - Set by the bundled ARM templates rather than by this script, which

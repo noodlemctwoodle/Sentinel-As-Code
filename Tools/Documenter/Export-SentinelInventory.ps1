@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources, Az.Monitor, Az.SecurityInsights, Az.LogicApp
 
 <#
@@ -70,7 +71,7 @@
     Version:        0.1.1
     Last Updated:   2026-09-01
     Component:      Sentinel Documenter
-    Requires:       Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
+    Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
     API versions:
       - Azure Resource Graph : 2022-10-01
@@ -108,8 +109,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$IncludePreview
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

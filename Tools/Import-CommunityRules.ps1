@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules powershell-yaml
 
 <#
@@ -83,7 +84,7 @@
     Created:        2026-04-28
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Requires:       powershell-yaml (auto-installed if missing); git 2.x or later in PATH
+    Requires:       PowerShell 7.2+, powershell-yaml (auto-installed if missing); git 2.x or later in PATH
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.Resources
 
 <#
@@ -71,7 +72,7 @@
                     subscription AND at least Privileged Role Administrator
                     in Entra ID. Run ONCE; the pipeline SPN is fully
                     autonomous after.
-    Requires:       Az.Accounts, Az.Resources, Microsoft.Graph
+    Requires:       PowerShell 7.2+, Az.Accounts, Az.Resources, Microsoft.Graph (auto-installed if missing)
 #>
 
 [CmdletBinding()]

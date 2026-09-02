@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts
 
 <#
@@ -117,7 +118,7 @@
     Created:        2026-03-20
     Version:        2.1.1
     Last Updated:   2026-09-01
-    Requires:       Az.Accounts
+    Requires:       PowerShell 7.2+, Az.Accounts
 
     API versions:
       - Sentinel  : 2025-09-01 (GA)
@@ -185,8 +186,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

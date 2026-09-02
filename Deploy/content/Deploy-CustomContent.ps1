@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts, powershell-yaml
 
 <#
@@ -125,7 +126,7 @@
     Created:        2026-03-20
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Requires:       Az.Accounts, powershell-yaml
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml
 
     API versions:
       - Sentinel             : 2025-07-01-preview (preview is required for the
@@ -196,8 +197,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

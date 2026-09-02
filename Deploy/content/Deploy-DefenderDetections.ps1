@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts, powershell-yaml
 
 <#
@@ -53,7 +54,7 @@
     Version:        1.0.2
     Last Updated:   2026-09-01
     Permissions:    CustomDetection.ReadWrite.All (Application)
-    Requires:       Az.Accounts, powershell-yaml
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml
 
     API versions:
       - Microsoft Graph Security : beta (custom detection rules are not yet
@@ -74,8 +75,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

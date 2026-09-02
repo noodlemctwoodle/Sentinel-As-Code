@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Az.Accounts'; ModuleVersion = '2.13.0' }
 
 <#
@@ -62,7 +62,7 @@
     Created:      2026-07-28
     Version:      0.2.1
     Last Updated: 2026-09-01
-    Requires:     PowerShell 7.0+, Az.Accounts 2.13.0+
+    Requires:     PowerShell 7.2+, Az.Accounts 2.13.0+
 
     Provenance:
         Originated as the Sentinel-CLv1-Analyzer project (MIT, by
