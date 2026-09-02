@@ -1,8 +1,4 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Report/Convert-FolderToWordReport.ps1
-#
-# Created by noodlemctwoodle on 25/06/2026.
-#
+#Requires -Version 7.2
 
 <#
 .SYNOPSIS
@@ -90,10 +86,13 @@
     Applies a branded reference template and a tighter per-file ceiling.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-06-25
+    File:           Tools/Documenter/Report/Convert-FolderToWordReport.ps1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-06-25
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Requires:       PowerShell 7.2+, pandoc on PATH
 
     This is a generic folder-to-Word converter. It has no Sentinel or

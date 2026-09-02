@@ -1,4 +1,5 @@
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
+#Requires -Version 7.2
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts
 
 <#
 .SYNOPSIS
@@ -17,6 +18,28 @@
     Uses Pester 5's Mock cmdlet to stub Az PowerShell calls so the
     suite runs offline with no Azure context. Each test imports the
     module fresh (Force) to avoid cross-test state leakage.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SentinelCommon.Tests.ps1
+
+    Runs the shared-module unit tests. Runs offline; the Az calls are
+    mocked.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SentinelCommon.Tests.ps1 -FullName '*Invoke-SentinelApi*'
+
+    Runs only the REST-wrapper assertions, including the
+    retry-on-transient-failure path.
+
+.NOTES
+    File:         Tests/Test-SentinelCommon.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+, Az.Accounts
 #>
 
 BeforeAll {

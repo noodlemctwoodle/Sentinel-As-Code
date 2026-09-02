@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Deploys custom Microsoft Sentinel content from the repository to a workspace.
@@ -52,6 +55,12 @@
 .PARAMETER SkipDetections
     When specified, skips deploying custom analytics rules.
 
+.PARAMETER SkipCommunityDetections
+    When specified, skips deploying analytics rules imported from the
+    community (those carrying import attribution). Repo-authored rules
+    still deploy. Use it to hold community content back while keeping
+    your own detections flowing.
+
 .PARAMETER SkipWatchlists
     When specified, skips deploying custom watchlists.
 
@@ -72,6 +81,11 @@
 
 .PARAMETER IsGov
     When specified, targets the Azure Government cloud environment.
+
+.PARAMETER SmartDeployment
+    When specified, deploys only content that changed since the last
+    successful run, ordered by the priority list in
+    sentinel-deployment.config. Omit it to deploy the whole content tree.
 
 .PARAMETER WhatIf
     When specified, performs a dry run showing what actions would be taken without
@@ -105,12 +119,26 @@
     Performs a dry run showing what would be deployed.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.1.0
-    Last Updated:   2026-04-28
+    File:           Deploy/content/Deploy-CustomContent.ps1
     Repository:     Sentinel-As-Code
-    API Version:    2025-07-01-preview
-    Requires:       Az.Accounts, powershell-yaml
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-03-20
+    Version:        1.1.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
+
+    API versions:
+      - Sentinel             : 2025-07-01-preview (preview is required for the
+                               newer rule properties this deployer sets)
+      - Log Analytics tables : 2022-10-01 (read to decide whether a rule can
+                               deploy enabled or must deploy disabled)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/watchlists
 #>
 
 [CmdletBinding()]
@@ -169,8 +197,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

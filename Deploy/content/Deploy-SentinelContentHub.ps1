@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Deploys Microsoft Sentinel Content Hub solutions and their associated content to a workspace.
@@ -108,12 +111,25 @@
     Performs a dry run showing what would be deployed without making any changes.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        2.1.0
-    Last Updated:   2026-04-28
+    File:           Deploy/content/Deploy-SentinelContentHub.ps1
     Repository:     Sentinel-As-Code
-    API Version:    2025-09-01 (GA)
-    Requires:       Az.Accounts
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-03-20
+    Version:        2.1.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, Az.Accounts
+
+    API versions:
+      - Sentinel  : 2025-09-01 (GA)
+      - Workbooks : 2022-04-01 (Microsoft.Insights/workbooks, used when a
+                    solution ships a workbook alongside its rules)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/application-insights/workbooks
 #>
 
 [CmdletBinding()]
@@ -170,8 +186,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

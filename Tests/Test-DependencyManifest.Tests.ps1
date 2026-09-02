@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -30,16 +31,29 @@
     Generates per-entry It blocks via -ForEach so per-file failures surface
     cleanly in the PR check UI.
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1
+
+    Validates dependencies.json against the content tree.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for identifying which manifest entry
+    no longer resolves.
+
 .NOTES
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1
+    File:         Tests/Test-DependencyManifest.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
-    Verbose:
-        Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1 -Output Detailed
-
-    Prerequisites:
-        - Pester 5+ (Install-Module Pester -Force -SkipPublisherCheck)
-        - powershell-yaml (auto-installed by the harness if missing)
+    powershell-yaml is auto-installed by the harness if missing. Install
+    Pester with: Install-Module Pester -Force -SkipPublisherCheck
 #>
 
 BeforeDiscovery {

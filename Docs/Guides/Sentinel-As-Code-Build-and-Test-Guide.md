@@ -196,7 +196,7 @@ looser.
 | [Az.ManagedServiceIdentity](https://learn.microsoft.com/powershell/module/az.managedserviceidentity/) | Service-principal / managed-identity setup | docs |
 | [Az.OperationalInsights](https://learn.microsoft.com/powershell/module/az.operationalinsights/) | Deploy pipeline and nightly workflow; Documenter collector | cmdlet usage |
 | [Microsoft.Graph.Applications](https://learn.microsoft.com/powershell/module/microsoft.graph.applications/) | `Setup-ServicePrincipal` | `Install-Module` (auto) |
-| [Microsoft.Graph.Identity.DirectoryManagement](https://learn.microsoft.com/powershell/module/microsoft.graph.identity.directorymanagement/) | `Setup-ServicePrincipal` | `Install-Module` (auto) |
+| [Microsoft.Graph.Identity.Governance](https://learn.microsoft.com/powershell/module/microsoft.graph.identity.governance/) | `Setup-ServicePrincipal` | `Install-Module` (auto) |
 | [powershell-yaml](https://www.powershellgallery.com/packages/powershell-yaml) | `Deploy-CustomContent`; `Deploy-DefenderDetections`; `Export-DefenderDetections`; `Import-CommunityRules`; `Build-DependencyManifest` | `Install-Module` (auto) |
 | `Sentinel.Common` (local) | Every deploy script plus `Build-DependencyManifest` | `Import-Module` from `Modules/` |
 
@@ -603,7 +603,7 @@ Install-Module Az.Resources, Az.KeyVault, Az.ManagedServiceIdentity, `
   -Scope CurrentUser -Force
 
 Install-Module Microsoft.Graph.Applications, `
-  Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Force
+  Microsoft.Graph.Identity.Governance -Scope CurrentUser -Force
 ```
 
 ### 10.3 Only for the standalone SDL workbook export

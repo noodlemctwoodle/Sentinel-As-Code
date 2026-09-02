@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Detects drift between Microsoft Sentinel Analytics Rules deployed in a workspace and
@@ -127,12 +130,20 @@
     inspection before letting the pipeline auto-sync.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.1.0
-    Last Updated:   2026-04-29
+    File:           Tools/Test-SentinelRuleDrift.ps1
     Repository:     Sentinel-As-Code
-    API Version:    2025-09-01 (GA)
-    Requires:       Az.Accounts, powershell-yaml
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-04-28
+    Version:        1.1.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
+
+    API versions:
+      - Sentinel : 2025-09-01 (GA)
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]
@@ -180,8 +191,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

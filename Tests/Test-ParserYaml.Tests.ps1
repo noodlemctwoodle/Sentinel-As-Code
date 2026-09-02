@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -17,9 +18,27 @@
     - functionAlias uniqueness: globally unique across the parser tree
       (Sentinel rejects duplicates)
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1
+
+    Validates every parser YAML in the repo, including global
+    functionAlias uniqueness.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for identifying which parser broke
+    the alias contract.
+
 .NOTES
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1
+    File:         Tests/Test-ParserYaml.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 #>
 
 BeforeDiscovery {

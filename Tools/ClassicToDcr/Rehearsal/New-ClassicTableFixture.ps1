@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
-#
-# Created by noodlemctwoodle on 23/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights
 
@@ -121,12 +115,20 @@
     Deletes the fixture table.
 
 .NOTES
-    Author:       noodlemctwoodle
-    Version:      1.0.0
-    Last Updated: 2026-07-23
+    File:         Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1
     Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
     Website:      https://sentinel.blog
+    Created:      2026-07-23
+    Version:      1.0.1
+    Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
+
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Data Collector API   : 2016-04-01 (the classic ingestion path this
+                               fixture deliberately exercises; it retires on
+                               2026-09-14)
 
     Runs standalone. Nothing from this repository needs to be alongside it.
 
@@ -134,8 +136,9 @@
       - Log Analytics Contributor on the workspace (read shared keys,
         delete the table)
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

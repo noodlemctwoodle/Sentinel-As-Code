@@ -1,8 +1,4 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/Get-AzureRetailPrice.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
+#Requires -Version 7.2
 
 <#
 .SYNOPSIS
@@ -34,8 +30,20 @@
     holding the union of all returned price rows.
 
 .NOTES
-    Endpoint: https://prices.azure.com/api/retail/prices
-    Documentation: https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+    File:         Tools/Documenter/Private/Get-AzureRetailPrice.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-06
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+
+
+    Endpoint:
+        https://prices.azure.com/api/retail/prices
+
+.LINK
+    https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
 #>
 
 function Get-AzureRetailPrice {

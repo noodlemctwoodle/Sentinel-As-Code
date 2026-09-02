@@ -1,8 +1,5 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Export-SentinelInventory.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources, Az.Monitor, Az.SecurityInsights, Az.LogicApp
 
 <#
 .SYNOPSIS
@@ -44,12 +41,49 @@
     Use the 2024-10-01-preview API version where applicable (Content Hub product packages,
     summary rules, pricings).
 
+.PARAMETER PlaybookResourceGroup
+    Resource group holding the Logic App playbooks, when they do not live
+    alongside the workspace. Defaults to -ResourceGroup.
+
+.EXAMPLE
+    ./Tools/Documenter/Export-SentinelInventory.ps1 `
+        -ResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName 'law-sentinel-prod'
+
+    Exports the full inventory to ./SecurityDocs/law-sentinel-prod/_raw/.
+
+.EXAMPLE
+    ./Tools/Documenter/Export-SentinelInventory.ps1 `
+        -ResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName 'law-sentinel-prod' `
+        -PlaybookResourceGroup 'rg-soar-prod' `
+        -IncludePreview
+
+    Collects playbooks from a separate resource group and uses the preview
+    API version where one is available.
+
 .NOTES
+    File:           Tools/Documenter/Export-SentinelInventory.ps1
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-05-06
+    Version:        0.1.1
+    Last Updated:   2026-09-01
     Component:      Sentinel Documenter
-    Version:        0.1.0
-    Last Updated:   2026-05-06
-    Requires:       Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
+    Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
+
+    API versions:
+      - Azure Resource Graph : 2022-10-01
+      - Everything else      : passed per collector through Invoke-SentinelRest,
+                               so a provider version can be bumped in one place
+                               without touching this script
+
+.LINK
+    https://learn.microsoft.com/azure/governance/resource-graph/first-query-rest-api
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]
@@ -75,8 +109,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$IncludePreview
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

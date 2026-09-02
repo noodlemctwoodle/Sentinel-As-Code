@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Exports Microsoft Sentinel workbooks from a workspace to disk in the
@@ -111,11 +114,20 @@
     Reports what would change without writing.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-30
+    File:           Tools/Export-SentinelWorkbooks.ps1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-05-13
+    Version:        1.0.1
+    Last Updated:   2026-09-01
     Requires:       PowerShell 7.2+, Az.Accounts, Sentinel.Common module
+
+    API versions:
+      - Workbooks         : 2022-04-01 (matched to the deploy script, so an
+                            export/redeploy round-trip stays symmetrical)
+      - Sentinel metadata : 2025-09-01 (read to identify Content Hub-owned
+                            workbooks so they can be skipped)
 
     Symmetry contract:
 

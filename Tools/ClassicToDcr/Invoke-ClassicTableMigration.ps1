@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1
-#
-# Created by noodlemctwoodle on 20/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
@@ -198,11 +192,13 @@
     RawData into the table's columns before associating any machines.
 
 .NOTES
-    Author:       noodlemctwoodle
-    Version:      2.0.0
-    Last Updated: 2026-07-23
+    File:         Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1
     Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
     Website:      https://sentinel.blog
+    Created:      2026-07-20
+    Version:      2.0.1
+    Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
     Runs standalone. Nothing from this repository needs to be alongside it.
@@ -218,9 +214,12 @@
                                 'endpoints', so Direct DCRs authored here
                                 receive a built-in logsIngestion endpoint)
 
-    Reference:
-      https://learn.microsoft.com/powershell/module/az.operationalinsights/invoke-azoperationalinsightsmigratetable
-      https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate
+
+.LINK
+    https://learn.microsoft.com/powershell/module/az.operationalinsights/invoke-azoperationalinsightsmigratetable
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate
 #>
 
 [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ByName')]

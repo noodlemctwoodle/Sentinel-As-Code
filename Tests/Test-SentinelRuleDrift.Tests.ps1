@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -22,19 +23,34 @@
     This lets us exercise pure functions without triggering the script's
     Invoke-Main entry-point (which would try to authenticate to Azure).
 
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1
+
+    Runs the full drift-comparison suite. The script's Invoke-Main
+    entry-point, which would authenticate to Azure, never runs.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 -FullName '*Compare-SentinelRule*'
+
+    Runs only the rule-comparison Describe block.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for diagnosing a YAML-rewrite failure.
+
 .NOTES
-    Run all tests:
-        Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1
+    File:         Tests/Test-SentinelRuleDrift.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-04-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
-    Run a single Describe block:
-        Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 -FullName '*Compare-SentinelRule*'
-
-    Verbose output:
-        Invoke-Pester -Path Tests/Test-SentinelRuleDrift.Tests.ps1 -Output Detailed
-
-    Prerequisites:
-        - Pester 5+ (Install-Module Pester -Force -SkipPublisherCheck)
-        - powershell-yaml (auto-installed by the YAML-related tests if missing)
+    powershell-yaml is auto-installed by the YAML-related tests if missing.
+    Install Pester with: Install-Module Pester -Force -SkipPublisherCheck
 #>
 
 BeforeAll {

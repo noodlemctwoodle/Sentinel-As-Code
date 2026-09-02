@@ -1,10 +1,5 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Convert-MermaidToImage.ps1
-#
-# Created by noodlemctwoodle on 14/05/2026.
-#
+#Requires -Version 7.2
 
-#requires -Version 7.2
 <#
 .SYNOPSIS
     Pre-renders Mermaid fenced blocks in the Documenter's markdown output to
@@ -74,8 +69,18 @@
     pwsh ./Convert-MermaidToImage.ps1 -Root ./SecurityDocs -Format svg
 
 .NOTES
-    Requires Node.js and @mermaid-js/mermaid-cli installed globally:
+    File:         Tools/Documenter/Convert-MermaidToImage.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-14
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Node.js, @mermaid-js/mermaid-cli
+
+    Install the renderer globally with:
         npm install -g @mermaid-js/mermaid-cli
+
     On Linux CI agents the script writes a puppeteer config enabling
     --no-sandbox automatically.
 #>

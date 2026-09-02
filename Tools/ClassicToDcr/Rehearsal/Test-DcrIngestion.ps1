@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1
-#
-# Created by noodlemctwoodle on 23/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
@@ -90,6 +84,11 @@
     After each batch, query the destination table for rows from this run
     and report how many have arrived. Subject to ingestion latency.
 
+.PARAMETER ArrivalTimeoutSeconds
+    How long -Follow waits for rows to surface in the destination table
+    before giving up. Defaults to 300. Raise it on a workspace with slow
+    ingestion; a timeout is reported, not treated as data loss.
+
 .PARAMETER GrantIngestionRole
     Grant the service principal Monitoring Metrics Publisher on the DCR if
     it does not already have it. Off by default: the script otherwise
@@ -125,12 +124,19 @@
     Sends three batches of five records and stops.
 
 .NOTES
-    Author:       noodlemctwoodle
-    Version:      1.0.0
-    Last Updated: 2026-07-23
+    File:         Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1
     Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
     Website:      https://sentinel.blog
+    Created:      2026-07-23
+    Version:      1.0.1
+    Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
+
+    API versions:
+      - Data collection rules : 2023-03-11
+      - Logs Ingestion        : 2023-01-01 (the data-plane version used for
+                                the POST this script proves out)
 
     Runs standalone. Nothing from this repository needs to be alongside it.
 
@@ -143,8 +149,9 @@
     A freshly granted role can take a few minutes to take effect for
     data-plane calls, so expect 401/403 immediately after -GrantIngestionRole.
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

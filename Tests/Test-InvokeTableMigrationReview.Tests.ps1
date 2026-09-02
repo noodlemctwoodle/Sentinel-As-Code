@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -28,6 +29,32 @@
 
     Deliberately not covered: the ARM calls, the Content Hub package fetch, and
     the HTML/CSV/JSON writers. Those need a live workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeTableMigrationReview.Tests.ps1
+
+    Runs the impact-scoring and connector-classification tests, plus the
+    report.html.template contract checks.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeTableMigrationReview.Tests.ps1 -FullName '*Resolve-IndirectTableImpact*'
+
+    Runs only the parser-chain resolution assertions, the case where a
+    miss would break rules silently.
+
+.NOTES
+    File:         Tests/Test-InvokeTableMigrationReview.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-07-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
+
+    One assertion couples the script's .NOTES Version to the version badge
+    in Tools/ClassicToDcr/Templates/report.html.template. Bump both
+    together or this suite fails.
 #>
 
 BeforeAll {
@@ -52,7 +79,8 @@ Describe 'Invoke-TableMigrationReview: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Invoke-TableMigrationReview\.ps1'
+        $script:sourceText | Should -Match 'File:\s+Tools/ClassicToDcr/Invoke-TableMigrationReview\.ps1'
+        $script:sourceText | Should -Match 'Repository:\s+Sentinel-As-Code'
     }
 
     It 'records its origin as the folded-in CLv1 analyzer' {

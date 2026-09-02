@@ -4,6 +4,63 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.09
+
+Connector, workbook and content-hygiene release, plus a repository-wide
+standardisation of PowerShell file headers.
+
+- **Sophos Central codeless connector** — a Codeless Connector Framework (CCF)
+  package that ingests Sophos Central SIEM API events and alerts with no Logic
+  App or Function App in the path. Auth is OAuth2 client credentials, paging is
+  cursor-based over `NextPageToken`, and raw snake_case field names are
+  translated to PascalCase in the DCR transform so the translation lives in
+  exactly one place. Deploy-time placeholders keep the package portable across
+  workspaces and regions. This is the first CCF package in the repository and
+  establishes `Content/CodelessConnectors/` as the home for the pattern.
+- **Detection Engineering dashboard** — a nine-tab workbook covering the health,
+  coverage, fidelity and lifecycle of the detection portfolio: rule inventory
+  and health, MITRE coverage, alert fidelity, incident outcomes, ingestion, and
+  engineering velocity. Built on the `AlertInfo` advanced-hunting table rather
+  than `SecurityAlert`, so it spans Defender for Endpoint, Office 365, Identity
+  and Cloud Apps alongside custom detections, and still returns data in unified
+  SecOps tenants where `SentinelHealth` and `SentinelAudit` are not enabled. It
+  also surfaces which classic custom tables are still posting to the Azure
+  Monitor HTTP Data Collector API, which loses support on 14 September 2026.
+  Ships with a reference page and an Overview screenshot.
+- **Connector metadata corrections** — `requiredDataConnectors` fixed on 14
+  analytical rules that carried authoring placeholders (`YourConnectorId`),
+  empty connector blocks, non-existent connector IDs, or data types the named
+  connector does not emit. Nothing failed at deploy time, which is why the
+  errors survived, but the metadata feeds Content Hub solution mapping and the
+  dependency-impact scoring in `Invoke-TableMigrationReview.ps1`, so wrong
+  values there produced wrong answers in migration assessments. No detection
+  logic changed.
+- **PowerShell file headers standardised** — every `.ps1` and `.psm1` in the
+  repository now opens with its `#Requires` statements, then a comment-based
+  help block, and nothing else above either. The five-line `#` path/date banner
+  is gone and its metadata moved into `.NOTES`, which now carries the same eight
+  keys everywhere. Scripts also declare their real dependencies as `#Requires`
+  statements rather than only in prose, so a missing module now fails at the
+  door instead of part-way through a deployment. Modules a script installs for
+  itself stay out of `#Requires`, since the statement aborts the load before the
+  install could run. The header rewrite itself is comment-only, verified by
+  comparing the executable token stream of all 64 files before and after; the
+  one behavioural change that came out of this work is listed separately below.
+- **Setup-ServicePrincipal installs the right Graph submodule** — the Entra ID
+  role-assignment step installed `Microsoft.Graph.Identity.DirectoryManagement`
+  but called `Get-MgRoleManagementDirectoryRoleAssignment` and its `New-`
+  counterpart, both of which ship in `Microsoft.Graph.Identity.Governance`. On a
+  machine that already had Governance present the step worked by accident; on a
+  clean machine the install succeeded, the cmdlet lookup failed, and the catch
+  block reported it as a missing Privileged Role Administrator permission,
+  sending anyone debugging it after a problem that did not exist. The script now
+  installs `Microsoft.Graph.Identity.Governance`, and the docs that repeated the
+  wrong module name were corrected with it.
+- **Notebook ordering** — the data-lake demo notebooks are zero-padded
+  (`demo01` to `demo18`) so GitHub's lexical file listing matches the order the
+  catalogue presents them in, rather than burying the connect-and-orient
+  notebook two thirds of the way down.
+
 ## 26.07.3
 
 Data-lake tooling release: two migration toolkits for moving off classic custom

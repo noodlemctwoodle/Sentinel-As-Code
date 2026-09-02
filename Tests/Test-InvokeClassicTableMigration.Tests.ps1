@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,6 +20,26 @@
     deployment. Those need a live workspace and a table that can only be
     migrated once, so they are not unit-testable. The script gates all
     three behind ShouldProcess for that reason.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeClassicTableMigration.Tests.ps1
+
+    Runs the column-mapping and ARM-shape tests. Needs no workspace.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-InvokeClassicTableMigration.Tests.ps1 -FullName '*ConvertTo-StreamColumn*'
+
+    Runs only the stream-declaration assertions.
+
+.NOTES
+    File:         Tests/Test-InvokeClassicTableMigration.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-07-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
@@ -156,7 +177,8 @@ Describe 'Invoke-ClassicTableMigration: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Invoke-ClassicTableMigration\.ps1'
+        $script:sourceText | Should -Match 'File:\s+Tools/ClassicToDcr/Invoke-ClassicTableMigration\.ps1'
+        $script:sourceText | Should -Match 'Repository:\s+Sentinel-As-Code'
     }
 
     It 'is standalone: does not import the Sentinel.Common module' {

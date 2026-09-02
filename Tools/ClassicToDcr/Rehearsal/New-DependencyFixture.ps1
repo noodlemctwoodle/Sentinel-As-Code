@@ -1,9 +1,3 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1
-#
-# Created by noodlemctwoodle on 28/07/2026.
-#
-
 #Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.OperationalInsights
 
@@ -186,12 +180,21 @@
     Tables API will accept the delete.
 
 .NOTES
-    Author:       noodlemctwoodle
-    Version:      1.0.0
-    Last Updated: 2026-07-28
+    File:         Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1
     Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
     Website:      https://sentinel.blog
+    Created:      2026-07-28
+    Version:      1.0.1
+    Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
+
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Saved searches       : 2020-08-01 (the parser functions the indirect
+                               dependency chains are built from)
+      - Sentinel alert rules : 2024-03-01
+      - Data Collector API   : 2016-04-01 (retires 2026-09-14)
 
     Runs standalone. Nothing from this repository needs to be alongside it. The
     bundled data/solution-mapping.json is used for the alias guard when it is
@@ -226,10 +229,15 @@
       - The HTTP Data Collector API retires on 2026-09-14. After that date this
         script cannot create classic tables, because nothing can.
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
-      https://learn.microsoft.com/azure/azure-monitor/logs/functions
-      https://learn.microsoft.com/rest/api/securityinsights/alert-rules/create-or-update
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/functions
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules/create-or-update
 #>
 
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]

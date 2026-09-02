@@ -1,12 +1,4 @@
-#
-# Sentinel-As-Code/Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1
-#
-# Originated as the Sentinel-CLv1-Analyzer project (MIT, by noodlemctwoodle),
-# now folded into Sentinel-As-Code (Apache-2.0) as the assess-and-plan stage
-# of the ClassicToDcr migration toolkit.
-#
-
-#Requires -Version 7.0
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Az.Accounts'; ModuleVersion = '2.13.0' }
 
 <#
@@ -63,14 +55,27 @@
     Scripted mode - outputs all reports to ./reports/2026-04.
 
 .NOTES
-    Version: 0.2.0
-
+    File:         Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1
+    Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
-                  https://github.com/noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-07-28
+    Version:      0.2.1
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Az.Accounts 2.13.0+
+
+    Provenance:
+        Originated as the Sentinel-CLv1-Analyzer project (MIT, by
+        noodlemctwoodle), now folded into Sentinel-As-Code (Apache-2.0)
+        as the assess-and-plan stage of the ClassicToDcr migration
+        toolkit.
 
     Data source:
         Azure-Sentinel Solutions Analyzer
         https://github.com/Azure/Azure-Sentinel/tree/master/Tools/Solutions%20Analyzer
+
+    Runs standalone. Nothing else from this repository needs to sit
+    alongside it.
 
 .LINK
     https://github.com/noodlemctwoodle/Sentinel-CLv1-Analyzer

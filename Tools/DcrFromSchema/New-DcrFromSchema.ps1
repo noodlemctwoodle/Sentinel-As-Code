@@ -245,14 +245,23 @@
     paths and, when deployed, the immutable ID and ingestion endpoint.
 
 .NOTES
-    Sentinel-As-Code/Tools/DcrFromSchema/New-DcrFromSchema.ps1
+    File:         Tools/DcrFromSchema/New-DcrFromSchema.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-07-30
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
-    Created by noodlemctwoodle on 30/07/2026.
+    API versions:
+      - Log Analytics tables  : 2025-07-01
+      - Data collection rules : 2023-03-11 (the version that added
+                                'endpoints', so Direct DCRs authored here
+                                receive a built-in logsIngestion endpoint)
+      - Logs Ingestion        : 2023-01-01
 
-    Prerequisites:
-      - PowerShell 7.2+
-      - Az.Accounts, Az.OperationalInsights, Az.Resources
-      - Connect-AzAccount
+    Run Connect-AzAccount before invoking.
 
     RBAC:
       - Log Analytics Contributor on the workspace, to create the table

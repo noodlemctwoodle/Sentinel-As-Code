@@ -1,8 +1,5 @@
-#
-# Sentinel-As-Code/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
-#
-# Created by noodlemctwoodle on 18/05/2026.
-#
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, ImportExcel
 
 <#
 .SYNOPSIS
@@ -114,12 +111,29 @@
     absolute or relative path your environment prefers.
 
 .NOTES
-    Authentication : Uses the current Az context (Connect-AzAccount).
-    Requires       : PowerShell 7+, Az.Accounts, Az.OperationalInsights, ImportExcel
-    Tables API     : 2023-09-01
-    AlertRules API : 2025-09-01
-    Functions API  : 2020-08-01 (savedSearches)
-    Author         : Toby G
+    File:         Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-18
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, ImportExcel
+
+    Authentication uses the current Az context, so run Connect-AzAccount
+    first.
+
+    API versions:
+      - Log Analytics tables : 2023-09-01
+      - Sentinel alert rules : 2025-09-01
+      - Saved searches       : 2020-08-01 (parser functions, read to work out
+                               which content reaches a table indirectly)
+
+.LINK
+    https://learn.microsoft.com/rest/api/loganalytics/tables
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 [CmdletBinding()]

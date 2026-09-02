@@ -26,6 +26,88 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | `Test-PullRequestTemplate.ps1` | Validates a PR description against `.github/PULL_REQUEST_TEMPLATE.md`; drives the PR Template Validation workflow | See [Pipelines](../Pipelines/README.md) |
 | `Test-SentinelRuleDrift.ps1` | Detects portal-edited rules and absorbs Custom drift | See [Sentinel Drift Detection](../Tools/Sentinel-Drift-Detection.md) |
 
+## Script header convention
+
+Every `.ps1` and `.psm1` in the repo opens with its `#Requires`
+statements, then a comment-based help block, and nothing else above
+either. There is no separate `#`-comment banner; the path, author and
+dates live in `.NOTES`.
+
+```powershell
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
+
+<#
+.SYNOPSIS
+    ...
+```
+
+Each `#Requires` keyword needs its own statement, so a file that needs
+modules carries two lines and a file that needs none carries just the
+`-Version` line. Either way every module shares the one `-Modules`
+line. It accepts a mix of plain names and version hashtables, so
+`@{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts` is
+one statement rather than two.
+
+`Requires:` in `.NOTES` and the `#Requires` statements must stay in
+step in both directions. `#Requires` is the functional gate, enforced
+when the file is run, dot-sourced or imported; `Requires:` is the
+human-readable summary. Neither may name something the other omits.
+
+Three things never go in `#Requires -Modules`, because it resolves
+against `PSModulePath` and fails the load when it cannot:
+`Sentinel.Common`, which is imported by path; CLI tooling such as the
+Azure CLI or pandoc, which are not modules; and anything the file
+installs itself, since `#Requires` aborts before the install can run.
+All three still belong in `Requires:`, the self-installing ones marked
+`(auto-installed if missing)`.
+
+Keywords appear in a fixed order, with a blank line between each:
+`.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER` (one per parameter, in
+declaration order), `.OUTPUTS`, `.EXAMPLE`, `.NOTES`, `.LINK`.
+
+`.NOTES` carries the same eight keys everywhere, aligned to one column:
+
+```powershell
+.NOTES
+    File:         Deploy/content/Deploy-SentinelContentHub.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-03-20
+    Version:      2.1.1
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Az.Accounts
+
+    API versions:
+      - Sentinel  : 2025-09-01 (GA)
+      - Workbooks : 2022-04-01 (Microsoft.Insights/workbooks, used when a
+                    solution ships a workbook alongside its rules)
+```
+
+Optional extras (`Component:`, `Permissions:`) sit between
+`Last Updated:` and `Requires:`, so `Requires:` is always the last key.
+Free-form prose goes after a blank line, never welded onto the end of
+the keys.
+
+Two rules worth calling out, because they are easy to get wrong:
+
+- **Anything that calls an Azure or Graph API records every version it
+  pins**, in an `API versions:` block after the keys, one line per API
+  with colons aligned. Use the parenthetical to say why a version was
+  chosen where that is not obvious; it is the part a reader cannot
+  recover from the code. `#Requires` statements are the functional
+  gate for modules; `Requires:` is the human-readable summary and must
+  name everything they enforce.
+- **Files implementing a documented API contract carry a `.LINK` to
+  the Microsoft Learn REST reference** for that API, one URL per
+  entry. Link the reference, not a conceptual overview, and check the
+  URL resolves before committing it.
+
+Full rules, including the variants for function-library files and
+Pester suites, are in
+[`.github/instructions/powershell-scripts.instructions.md`](../../.github/instructions/powershell-scripts.instructions.md).
+
 ## Setup-ServicePrincipal.ps1
 
 One-time bootstrap script that grants the service principal all required Azure, Entra ID, and Microsoft Graph permissions needed for the pipeline to operate autonomously.
@@ -44,7 +126,9 @@ One-time bootstrap script that grants the service principal all required Azure, 
 - Service Principal (app registration) already created
 - The user running the script needs Owner on the target subscription and at least Privileged Role Administrator in Entra ID to grant these permissions
 - Authenticated Azure context (`Connect-AzAccount`)
-- `Az.Accounts`, `Az.Resources`, and `Microsoft.Graph` PowerShell modules
+- `Az.Accounts` and `Az.Resources` PowerShell modules, plus
+  `Microsoft.Graph.Identity.Governance` and `Microsoft.Graph.Applications`
+  (the script installs the two Graph submodules itself if they are missing)
 
 ### Parameter Reference
 

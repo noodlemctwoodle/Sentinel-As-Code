@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Discovers content dependencies from KQL queries embedded in
@@ -72,11 +74,14 @@
     on match, 1 on drift (with the diff printed).
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-29
+    File:           Tools/Build-DependencyManifest.ps1
     Repository:     Sentinel-As-Code
-    Requires:       PowerShell 7.2+, powershell-yaml, Sentinel.Common
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-05-13
+    Version:        1.0.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, powershell-yaml (auto-installed if missing), Sentinel.Common
 #>
 
 [CmdletBinding()]

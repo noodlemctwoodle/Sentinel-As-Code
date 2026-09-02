@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Deploys custom detection rules to Microsoft Defender XDR via the Graph Security API.
@@ -43,13 +46,22 @@
     Performs a dry run showing what rules would be deployed.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.1
-    Last Updated:   2026-04-28
+    File:           Deploy/content/Deploy-DefenderDetections.ps1
     Repository:     Sentinel-As-Code
-    API Version:    Microsoft Graph Security API (beta)
-    Requires:       Az.Accounts, powershell-yaml
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-03-20
+    Version:        1.0.2
+    Last Updated:   2026-09-01
     Permissions:    CustomDetection.ReadWrite.All (Application)
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
+
+    API versions:
+      - Microsoft Graph Security : beta (custom detection rules are not yet
+                                   on the v1.0 endpoint)
+
+.LINK
+    https://learn.microsoft.com/graph/api/resources/security-customdetectionrule
 #>
 
 [CmdletBinding()]
@@ -63,8 +75,6 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$WhatIf
 )
-
-#Requires -Modules Az.Accounts
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

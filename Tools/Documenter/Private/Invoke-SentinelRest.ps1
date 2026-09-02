@@ -1,8 +1,5 @@
-#
-# Sentinel-As-Code/Tools/Documenter/Private/Invoke-SentinelRest.ps1
-#
-# Created by noodlemctwoodle on 06/05/2026.
-#
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
 
 <#
 .SYNOPSIS
@@ -49,9 +46,19 @@
     Invoke-SentinelRest -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' -ApiVersion '2024-09-01'
 
 .NOTES
+    File:           Tools/Documenter/Private/Invoke-SentinelRest.ps1
+    Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-05-06
+    Version:        0.1.0
+    Last Updated:   2026-09-01
     Component:      Sentinel Documenter
-    Last Updated:   2026-05-13
+    Requires:       PowerShell 7.2+, Az.Accounts
+
+    API versions:
+      - None pinned here. Each caller supplies its own via -ApiVersion, which
+        this helper appends to the request path.
 
     Multi-cloud:
       Invoke-AzRestMethod automatically routes ARM calls to the audience of the

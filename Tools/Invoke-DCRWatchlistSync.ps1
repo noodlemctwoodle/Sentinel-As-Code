@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts
 
 <#
@@ -36,20 +37,47 @@
     Column used as the watchlist search key. Defaults to DCRName (the watchlist
     holds one aggregated row per DCR, so DCRName is the unique key).
 
+.EXAMPLE
+    ./Tools/Invoke-DCRWatchlistSync.ps1 `
+        -WorkspaceResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName          'law-sentinel-prod'
+
+    Enumerates every DCR and association visible to the identity, then
+    writes the aggregated inventory to the default watchlist alias.
+
+.EXAMPLE
+    ./Tools/Invoke-DCRWatchlistSync.ps1 `
+        -WorkspaceResourceGroup 'rg-sentinel-prod' `
+        -WorkspaceName          'law-sentinel-prod' `
+        -WatchlistAlias         'DcrInventoryTest' `
+        -WatchlistDisplayName   'DCR Inventory (test)'
+
+    Writes to a separate alias, for validating a schema change without
+    disturbing the watchlist that rules already query.
+
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-03-23
+    File:           Tools/Invoke-DCRWatchlistSync.ps1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
     Website:        https://sentinel.blog
+    Created:        2026-03-23
+    Version:        1.0.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, Az.Accounts
 
     Required RBAC on managed identity:
       - Monitoring Reader on subscription (to list DCRs and associations via ARM)
       - Microsoft Sentinel Contributor on Sentinel resource group (watchlist write)
 
     API versions:
-      - DCR / associations : 2024-03-11
-      - Sentinel watchlist : 2025-09-01
+      - DCRs and associations : 2024-03-11
+      - Sentinel watchlists   : 2025-09-01
+
+.LINK
+    https://learn.microsoft.com/rest/api/monitor/data-collection-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/watchlists
 #>
 
 [CmdletBinding()]

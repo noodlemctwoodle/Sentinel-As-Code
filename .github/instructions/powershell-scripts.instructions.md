@@ -21,38 +21,212 @@ the existing repo style. Reference doc:
 - **`$ErrorActionPreference = 'Stop'`** at the top of every script
   and module. Errors should fail loud, not be silently swallowed.
 
-## File header (required for new files)
+## File header (required for every file)
+
+Every `.ps1` and `.psm1` file opens with its `#Requires` statements,
+then a comment-based help block, and nothing else above either. There
+is no separate `#`-comment banner - the repo-relative path, author and
+dates belong in `.NOTES`. See "#Requires statements" below for what may
+and may not be enforced there.
+
+Keywords always appear in this order, one blank line between each:
 
 ```powershell
-#
-# Sentinel-As-Code/Deploy/<Name>.ps1
-#
-# Created by <author> on DD/MM/YYYY.
-#
+#Requires -Version 7.2
 
 <#
 .SYNOPSIS
-    One-line summary.
+    One sentence, no full stop needed. What the file does, not how.
 
 .DESCRIPTION
-    Multi-paragraph description: what does this script do, when
-    should I run it, what does it produce?
+    Multi-paragraph prose: what it does, when to run it, what it
+    produces, and any behaviour a reader would otherwise have to
+    infer from the code. Wrap at roughly 75 characters.
 
 .PARAMETER ParamName
-    Per-parameter description.
+    One entry per parameter in the param block, in declaration order.
+    Say what it controls and what happens when it is omitted.
+
+.OUTPUTS
+    Optional. The type emitted to the pipeline, and what it carries.
 
 .EXAMPLE
     ./Deploy/Foo.ps1 -ParamName Value
-    Brief description of what the example does.
+
+    A blank line, then prose explaining what this invocation does and
+    when you would reach for it.
 
 .NOTES
-    Author:       <author>
-    Version:      <semver>
-    Last Updated: YYYY-MM-DD
+    File:         Deploy/Foo.ps1
     Repository:   Sentinel-As-Code
-    Requires:     PowerShell 7.2+, Az.Accounts (etc.)
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      YYYY-MM-DD
+    Version:      0.1.0
+    Last Updated: YYYY-MM-DD
+    Requires:     PowerShell 7.2+, Az.Accounts
+
+    API versions:
+      - Sentinel : 2025-09-01 (GA)
+
+    Any free-form notes go here, after a blank line, never welded
+    onto the end of the metadata keys.
+
+.LINK
+    Optional. One URL per entry.
 #>
 ```
+
+Field rules for `.NOTES`:
+
+- Every file carries the same eight keys, in the order shown, values
+  aligned to a single column. Optional extras (`Component:`,
+  `Permissions:`) sit between `Last Updated:` and `Requires:`.
+- **`File:`** - repo-relative path with no leading `./` and no
+  `Sentinel-As-Code/` prefix. Keep it accurate when a file moves.
+- **`Repository:`** - always `Sentinel-As-Code`.
+- **`Author:`** - `noodlemctwoodle` unless the file was contributed
+  by someone else, in which case credit them.
+- **`Website:`** - always `https://sentinel.blog`.
+- **`Created:`** / **`Last Updated:`** - ISO `YYYY-MM-DD`.
+- **`Version:`** - semver. New files start at `0.1.0`. Bump on change.
+- **`Requires:`** - mandatory, always the last key, always one line.
+  Name the PowerShell floor first, then modules and external tooling.
+  It must stay in step with the file's `#Requires` statements in both
+  directions: `#Requires` is the functional gate, `Requires:` is the
+  human-readable summary, and neither may name something the other
+  omits. See "#Requires statements" below.
+- **`API Version:`** is not a key. API versions go in a prose block, see
+  "API versions" below.
+- **Free-form prose** (provenance, RBAC needs, data sources) is
+  allowed, but must be separated from the keys by a blank line so the
+  metadata block stays scannable.
+
+### #Requires statements
+
+Every file declares its PowerShell floor and its PSGallery module
+dependencies as `#Requires` statements, above the help block and with
+nothing else before them:
+
+```powershell
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
+
+<#
+.SYNOPSIS
+    ...
+```
+
+`-Version` first, then `-Modules`, then a blank line. Spell the
+directive `#Requires`, capital R. PowerShell accepts any casing, but a
+mixed-case corpus makes the statement harder to grep for.
+
+Each keyword needs its own statement, so a file that needs modules
+carries two lines. A file that needs none carries just the `-Version`
+line. Either way every module goes on the single `-Modules` line,
+comma-separated. The value takes a mix of plain names and version
+hashtables:
+
+```powershell
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts
+```
+
+Repeated `#Requires -Modules` lines are legal, and PowerShell unions
+them, but they give the same declaration two places to live and drift
+apart in.
+
+`#Requires -Version 7.2` is not optional and not negotiable down: the
+repo floor is 7.2, matching `Sentinel.Common.psd1`, so every file
+declares it even when it needs no modules at all.
+
+Both statements belong at the top of the file and nowhere else. A
+second `#Requires` after the `param()` block is redundant, since the
+one at the top already gates the whole file, and it drifts out of step
+with the header the moment either is edited.
+
+Three things must never appear in `#Requires -Modules`. The statement
+resolves against `PSModulePath` and fails the load outright when it
+cannot, so naming any of these breaks the file for everyone:
+
+- **`Sentinel.Common`**, which is imported by path, not installed.
+- **CLI tooling** (Azure CLI, git, pandoc, Node) which is not a
+  PowerShell module at all.
+- **Anything the file installs itself.** Several scripts and suites
+  call `Install-Module powershell-yaml` when it is missing.
+  `#Requires` aborts the load before the first line of the file runs,
+  so gating on a module the file was going to fetch makes the fetch
+  unreachable and turns a self-healing script into a hard failure.
+
+All three still belong in `Requires:`, where they are documentation
+rather than a gate. Mark the self-installing ones
+`(auto-installed if missing)` so the distinction is visible without
+reading the code.
+
+Remember that `#Requires` is enforced when a file is run, dot-sourced
+or imported, not when it is parsed. Most scripts here are only
+AST-parsed by their test suite, so a module requirement never loads.
+The exceptions are the files a test dot-sources or imports directly,
+where an unavailable module fails the suite. Check before adding a
+module that CI does not install.
+
+### API versions
+
+Any file that calls an Azure or Graph API records every version it
+pins, in a labelled block after the metadata keys. One line per API,
+colons aligned, with a parenthetical where the choice of version is
+not obvious:
+
+```powershell
+    API versions:
+      - Log Analytics tables  : 2023-09-01
+      - Data collection rules : 2023-03-11 (the version that added
+                                'endpoints', so Direct DCRs authored here
+                                receive a built-in logsIngestion endpoint)
+```
+
+A single-line `API Version: a, b, c` key is not the convention. The
+block form leaves room to say *why* a version was chosen, which is the
+part a reader cannot recover from the code.
+
+Helpers that take their version from the caller say so rather than
+inventing one. Test files need no block: asserting on a version string
+is not calling an API.
+
+### References
+
+Any file that implements a documented Azure or Graph API contract
+carries a `.LINK` entry pointing at the Microsoft Learn reference for
+it, one URL per entry, after `.NOTES`. Link the REST reference for the
+API being called, not a conceptual overview, so a reader can check the
+request shape directly:
+
+```powershell
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
+
+.LINK
+    https://learn.microsoft.com/rest/api/application-insights/workbooks
+```
+
+Verify a URL resolves before committing it. A dead reference is worse
+than no reference, because it implies the contract was checked.
+
+### Variants
+
+**Files that define functions rather than run** (`Modules/**/*.psm1`,
+`Tools/Documenter/Private/*.ps1`): the file-level block describes the
+file and carries `.NOTES`. Per-parameter and per-example detail lives
+on each function's own help block, not the file's.
+
+**Pester test files** (`Tests/**/*.Tests.ps1`): no `.PARAMETER`, since
+they take none. `.EXAMPLE` carries the `Invoke-Pester` invocations a
+reader would actually run - the full file, a focused `-FullName`
+subset, and detailed output where useful. Prerequisites go in
+`.NOTES` prose.
+
+**`.psd1` manifests** are data files (`@{ ... }`) and carry no
+comment-based help. Their metadata lives in the manifest keys
+(`Author`, `ModuleVersion`, `Description`) instead.
 
 ## Use the Sentinel.Common module
 

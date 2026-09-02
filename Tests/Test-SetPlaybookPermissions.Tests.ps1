@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -18,6 +19,27 @@
     $ContributorActionPatterns, $HttpMsiAudienceRoles. The AST extractor
     pulls the function bodies but NOT those top-level table definitions,
     so the BeforeAll block sets them up to mirror the source script.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SetPlaybookPermissions.Tests.ps1
+
+    Runs the connector-to-role mapping and scope-resolution tests.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-SetPlaybookPermissions.Tests.ps1 -FullName '*Get-PlaybookRequiredRoles*'
+
+    Runs only the role-extraction assertions, including the
+    Responder-to-Contributor upgrade rule.
+
+.NOTES
+    File:         Tests/Test-SetPlaybookPermissions.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

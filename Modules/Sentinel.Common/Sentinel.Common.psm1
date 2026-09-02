@@ -1,3 +1,6 @@
+#Requires -Version 7.2
+#Requires -Modules Az.Accounts
+
 <#
 .SYNOPSIS
     Shared helpers used across the Sentinel-As-Code deployer scripts and the
@@ -28,11 +31,27 @@
       caller's).
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-29
+    File:           Modules/Sentinel.Common/Sentinel.Common.psm1
     Repository:     Sentinel-As-Code
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-05-13
+    Version:        1.1.1
+    Last Updated:   2026-09-01
     Requires:       PowerShell 7.2+, Az.Accounts
+
+    API versions:
+      - Log Analytics workspaces : 2022-10-01 (the only version this module
+                                   pins; every other call takes its version
+                                   from the caller)
+
+    This file defines functions rather than running. Per-parameter and
+    per-example detail lives on each exported function's own help block.
+    The module's shipped version is ModuleVersion in Sentinel.Common.psd1,
+    which is what Import-Module reads.
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules
 #>
 
 Set-StrictMode -Version Latest

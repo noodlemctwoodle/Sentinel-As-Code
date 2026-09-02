@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,6 +20,27 @@
       - responseActions default to an empty array when the rule has none
       - mitreTechniques and impactedAssets are forced to arrays
       - lastModifiedDateTime forwards from queryCondition
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeployDefenderDetections.Tests.ps1
+
+    Runs the YAML-to-Graph body conversion tests.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DeployDefenderDetections.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for diagnosing which converted field
+    came out in the wrong shape.
+
+.NOTES
+    File:         Tests/Test-DeployDefenderDetections.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-05-13
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

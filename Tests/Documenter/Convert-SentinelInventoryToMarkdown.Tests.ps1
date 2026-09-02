@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -12,6 +13,27 @@
 
     Output is written to a temp folder so repeated test runs don't pollute the
     fixture or the working tree.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1
+
+    Runs the full renderer suite against the sample fixture.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for working out which section file
+    failed to render.
+
+.NOTES
+    File:         Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-06-03
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

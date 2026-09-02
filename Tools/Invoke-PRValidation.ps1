@@ -1,8 +1,4 @@
-#
-# Sentinel-As-Code/Tools/Invoke-PRValidation.ps1
-#
-# Created by noodlemctwoodle on 29/04/2026.
-#
+#Requires -Version 7.2
 
 <#
 .SYNOPSIS
@@ -69,11 +65,14 @@
     file locally.
 
 .NOTES
-    Author:         noodlemctwoodle
-    Version:        1.0.0
-    Last Updated:   2026-04-29
+    File:           Tools/Invoke-PRValidation.ps1
     Repository:     Sentinel-As-Code
-    Requires:       Pester 5+, powershell-yaml
+    Author:         noodlemctwoodle
+    Website:        https://sentinel.blog
+    Created:        2026-04-29
+    Version:        1.0.1
+    Last Updated:   2026-09-01
+    Requires:       PowerShell 7.2+, Pester 5+ and powershell-yaml (both auto-installed if missing)
 #>
 
 [CmdletBinding()]

@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -16,6 +17,28 @@
 
     To exercise the build logic without going to Azure we mock
     Invoke-AzRestMethod and capture the URL the helper would have sent.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Invoke-SentinelRest.Tests.ps1
+
+    Runs the URL-construction suite. Needs no Azure auth; the REST call
+    is mocked.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Documenter/Invoke-SentinelRest.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, showing the URL the helper would
+    have sent.
+
+.NOTES
+    File:         Tests/Documenter/Invoke-SentinelRest.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-06-03
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {

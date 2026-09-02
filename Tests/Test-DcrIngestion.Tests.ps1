@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,6 +20,27 @@
     Deliberately not covered: the token network call, the streaming loop,
     and the role assignment. Those need a real service principal and a
     deployed DCR, so they are verified live, not here.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DcrIngestion.Tests.ps1
+
+    Runs the helper unit tests. Needs no Azure auth.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-DcrIngestion.Tests.ps1 -Output Detailed
+
+    Runs with per-assertion output, for diagnosing a stream-resolution
+    or record-shape failure.
+
+.NOTES
+    File:         Tests/Test-DcrIngestion.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-07-28
+    Version:      0.1.0
+    Last Updated: 2026-09-01
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
@@ -101,7 +123,8 @@ Describe 'Test-DcrIngestion: script-level contract' {
     }
 
     It 'has the correct repo-relative header path' {
-        $script:sourceText | Should -Match 'Sentinel-As-Code/Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion\.ps1'
+        $script:sourceText | Should -Match 'File:\s+Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion\.ps1'
+        $script:sourceText | Should -Match 'Repository:\s+Sentinel-As-Code'
     }
 
     It 'resolves the -Follow workspace defensively, not by direct index' {

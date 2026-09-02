@@ -214,9 +214,37 @@ Each test file follows this skeleton (see
 for the full real example):
 
 ```powershell
+#Requires -Version 7.2
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
-<# .SYNOPSIS / .DESCRIPTION / .NOTES #>
+<#
+.SYNOPSIS
+    One sentence: what this suite covers.
+
+.DESCRIPTION
+    Which functions are pinned, and what is deliberately not covered
+    (anything needing a live workspace usually is not).
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-<ScriptName>.Tests.ps1
+
+    Runs the whole suite.
+
+.EXAMPLE
+    Invoke-Pester -Path Tests/Test-<ScriptName>.Tests.ps1 -FullName '*FunctionName*'
+
+    Runs one Describe block.
+
+.NOTES
+    File:         Tests/Test-<ScriptName>.Tests.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      YYYY-MM-DD
+    Version:      0.1.0
+    Last Updated: YYYY-MM-DD
+    Requires:     PowerShell 7.2+, Pester 5+
+#>
 
 BeforeAll {
     # 1. Resolve the source script path. Scripts do NOT live directly under
