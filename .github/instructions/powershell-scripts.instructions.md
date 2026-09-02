@@ -121,10 +121,11 @@ nothing else before them:
 directive `#Requires`, capital R. PowerShell accepts any casing, but a
 mixed-case corpus makes the statement harder to grep for.
 
-Each keyword needs its own statement, so the prologue is always at
-least two lines. Every module goes on the single `-Modules` line
-though, comma-separated. The value takes a mix of plain names and
-version hashtables:
+Each keyword needs its own statement, so a file that needs modules
+carries two lines. A file that needs none carries just the `-Version`
+line. Either way every module goes on the single `-Modules` line,
+comma-separated. The value takes a mix of plain names and version
+hashtables:
 
 ```powershell
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts
