@@ -36,7 +36,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-13
-    Version:        1.0.1
+    Version:        1.1.1
     Last Updated:   2026-09-01
     Requires:       PowerShell 7.2+, Az.Accounts
 
