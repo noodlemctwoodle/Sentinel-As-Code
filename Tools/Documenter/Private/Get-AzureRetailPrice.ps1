@@ -42,8 +42,8 @@
     Endpoint:
         https://prices.azure.com/api/retail/prices
 
-    Reference:
-        https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+.LINK
+    https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
 #>
 
 function Get-AzureRetailPrice {

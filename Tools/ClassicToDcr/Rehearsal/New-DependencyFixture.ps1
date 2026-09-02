@@ -229,10 +229,15 @@
       - The HTTP Data Collector API retires on 2026-09-14. After that date this
         script cannot create classic tables, because nothing can.
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
-      https://learn.microsoft.com/azure/azure-monitor/logs/functions
-      https://learn.microsoft.com/rest/api/securityinsights/alert-rules/create-or-update
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/functions
+
+.LINK
+    https://learn.microsoft.com/rest/api/securityinsights/alert-rules/create-or-update
 #>
 
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]

@@ -136,8 +136,9 @@
       - Log Analytics Contributor on the workspace (read shared keys,
         delete the table)
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/data-collector-api
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

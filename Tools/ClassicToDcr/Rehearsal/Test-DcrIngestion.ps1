@@ -149,8 +149,9 @@
     A freshly granted role can take a few minutes to take effect for
     data-plane calls, so expect 401/403 immediately after -GrantIngestionRole.
 
-    Reference:
-      https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

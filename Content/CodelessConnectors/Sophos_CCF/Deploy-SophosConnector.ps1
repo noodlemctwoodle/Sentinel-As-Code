@@ -53,12 +53,18 @@
     Created:      2026-08-20
     Version:      0.1.0
     Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Azure CLI (az), logged in with rights to
-                  create tables, DCRs and Sentinel resources
+    Requires:     PowerShell 7.2+, Azure CLI (az) signed in with rights to create tables, DCRs and Sentinel resources
 
     API versions:
-      - Set by the bundled ARM templates rather than by this script, which
-        deploys them through az. Change a version in the template, not here.
+      - Log Analytics tables : 2023-09-01 (custom table create)
+      - Data Collection      : 2023-03-11 (DCR create and read)
+      - Sentinel             : 2024-10-01-preview (connector definition and
+                               poller; CCF has no GA API version yet)
+      - OperationalInsights  : 2025-02-01 (workspace read, for the location
+                               and customer ID the other calls need)
+
+    The bundled ARM templates carry their own versions for the resources they
+    deploy. These five are the ones this script sends on its own az rest calls.
 
 .LINK
     https://learn.microsoft.com/azure/sentinel/create-codeless-connector
