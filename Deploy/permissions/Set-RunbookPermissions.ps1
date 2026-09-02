@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Assigns RBAC permissions to the DCR Watchlist Sync Automation Account
@@ -50,7 +52,7 @@
     Created:        2026-03-23
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Requires:       Azure CLI (az), Owner or User Access Administrator on subscription
+    Requires:       PowerShell 7.2+, Azure CLI (az), Owner or User Access Administrator on subscription
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

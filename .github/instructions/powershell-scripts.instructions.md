@@ -119,6 +119,15 @@ nothing else before them:
 
 `-Version` first, then `-Modules`, then a blank line.
 
+`#Requires -Version 7.2` is not optional and not negotiable down: the
+repo floor is 7.2, matching `Sentinel.Common.psd1`, so every file
+declares it even when it needs no modules at all.
+
+Both statements belong at the top of the file and nowhere else. A
+second `#Requires` after the `param()` block is redundant, since the
+one at the top already gates the whole file, and it drifts out of step
+with the header the moment either is edited.
+
 Two things must never appear in `#Requires -Modules`. The statement
 resolves against `PSModulePath` and fails the load outright when it
 cannot, so naming either of these breaks the file for everyone:

@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 #Requires -Modules Az.Accounts, Az.Resources, Az.LogicApp
 
 <#
@@ -56,7 +57,7 @@
                     permit Sentinel-tier role assignments, so this script
                     is intended for ad-hoc execution by a separate elevated
                     identity rather than the pipeline SPN.
-    Requires:       Az.Accounts, Az.Resources, Az.LogicApp
+    Requires:       PowerShell 7.2+, Az.Accounts, Az.Resources, Az.LogicApp
 #>
 
 [CmdletBinding()]
