@@ -214,9 +214,12 @@
                                 'endpoints', so Direct DCRs authored here
                                 receive a built-in logsIngestion endpoint)
 
-    Reference:
-      https://learn.microsoft.com/powershell/module/az.operationalinsights/invoke-azoperationalinsightsmigratetable
-      https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate
+
+.LINK
+    https://learn.microsoft.com/powershell/module/az.operationalinsights/invoke-azoperationalinsightsmigratetable
+
+.LINK
+    https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate
 #>
 
 [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ByName')]
