@@ -47,11 +47,13 @@ step in both directions. `#Requires` is the functional gate, enforced
 when the file is run, dot-sourced or imported; `Requires:` is the
 human-readable summary. Neither may name something the other omits.
 
-Two things never go in `#Requires -Modules`, because it resolves
+Three things never go in `#Requires -Modules`, because it resolves
 against `PSModulePath` and fails the load when it cannot:
-`Sentinel.Common`, which is imported by path, and CLI tooling such as
-the Azure CLI or pandoc, which are not modules. Both still belong in
-`Requires:`.
+`Sentinel.Common`, which is imported by path; CLI tooling such as the
+Azure CLI or pandoc, which are not modules; and anything the file
+installs itself, since `#Requires` aborts before the install can run.
+All three still belong in `Requires:`, the self-installing ones marked
+`(auto-installed if missing)`.
 
 Keywords appear in a fixed order, with a blank line between each:
 `.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER` (one per parameter, in

@@ -1,5 +1,5 @@
 #Requires -Version 7.2
-#Requires -Modules Az.Accounts, powershell-yaml
+#Requires -Modules Az.Accounts
 
 <#
 .SYNOPSIS
@@ -126,7 +126,7 @@
     Created:        2026-03-20
     Version:        1.1.1
     Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
 
     API versions:
       - Sentinel             : 2025-07-01-preview (preview is required for the

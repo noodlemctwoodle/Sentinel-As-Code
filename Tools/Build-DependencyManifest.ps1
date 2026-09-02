@@ -1,5 +1,4 @@
 #Requires -Version 7.2
-#Requires -Modules powershell-yaml
 
 <#
 .SYNOPSIS
@@ -82,7 +81,7 @@
     Created:        2026-05-13
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, powershell-yaml, Sentinel.Common
+    Requires:       PowerShell 7.2+, powershell-yaml (auto-installed if missing), Sentinel.Common
 #>
 
 [CmdletBinding()]
