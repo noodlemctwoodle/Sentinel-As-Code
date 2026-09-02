@@ -42,8 +42,9 @@ dates live in `.NOTES`.
     ...
 ```
 
-Each `#Requires` keyword needs its own statement, so the prologue is
-always at least two lines, but every module shares the one `-Modules`
+Each `#Requires` keyword needs its own statement, so a file that needs
+modules carries two lines and a file that needs none carries just the
+`-Version` line. Either way every module shares the one `-Modules`
 line. It accepts a mix of plain names and version hashtables, so
 `@{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts` is
 one statement rather than two.
