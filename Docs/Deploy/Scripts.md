@@ -126,7 +126,9 @@ One-time bootstrap script that grants the service principal all required Azure, 
 - Service Principal (app registration) already created
 - The user running the script needs Owner on the target subscription and at least Privileged Role Administrator in Entra ID to grant these permissions
 - Authenticated Azure context (`Connect-AzAccount`)
-- `Az.Accounts`, `Az.Resources`, and `Microsoft.Graph` PowerShell modules
+- `Az.Accounts` and `Az.Resources` PowerShell modules, plus
+  `Microsoft.Graph.Identity.Governance` and `Microsoft.Graph.Applications`
+  (the script installs the two Graph submodules itself if they are missing)
 
 ### Parameter Reference
 

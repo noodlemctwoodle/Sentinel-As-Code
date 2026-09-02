@@ -72,7 +72,10 @@
                     subscription AND at least Privileged Role Administrator
                     in Entra ID. Run ONCE; the pipeline SPN is fully
                     autonomous after.
-    Requires:       PowerShell 7.2+, Az.Accounts, Az.Resources, Microsoft.Graph (auto-installed if missing)
+    Requires:       PowerShell 7.2+, Az.Accounts, Az.Resources,
+                    Microsoft.Graph.Identity.Governance,
+                    Microsoft.Graph.Applications (both auto-installed if
+                    missing, each pulling in Microsoft.Graph.Authentication)
 #>
 
 [CmdletBinding()]
@@ -310,10 +313,10 @@ if ($SkipEntraRole) {
     $secAdminTemplateId = "194ae4cb-b126-40b2-bd5b-6091b380977d"
 
     try {
-        # Check if Microsoft.Graph module is available
-        if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Identity.DirectoryManagement)) {
-            Write-Host "  Installing Microsoft.Graph.Identity.DirectoryManagement module..." -ForegroundColor Yellow
-            Install-Module -Name Microsoft.Graph.Identity.DirectoryManagement -Force -Scope CurrentUser -AllowClobber
+        # Role-management cmdlets ship in Identity.Governance, not Identity.DirectoryManagement
+        if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Identity.Governance)) {
+            Write-Host "  Installing Microsoft.Graph.Identity.Governance module..." -ForegroundColor Yellow
+            Install-Module -Name Microsoft.Graph.Identity.Governance -Force -Scope CurrentUser -AllowClobber
         }
 
         # Connect to Graph if not already connected
@@ -359,7 +362,7 @@ if ($SkipGraphPermission) {
     $results += @{ Step = "CustomDetection.ReadWrite.All (Graph)"; Status = "Skipped" }
 } else {
     try {
-        # Check if Microsoft.Graph module is available
+        # App-role assignment cmdlets ship in Microsoft.Graph.Applications
         if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Applications)) {
             Write-Host "  Installing Microsoft.Graph.Applications module..." -ForegroundColor Yellow
             Install-Module -Name Microsoft.Graph.Applications -Force -Scope CurrentUser -AllowClobber

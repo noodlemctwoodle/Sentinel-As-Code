@@ -43,7 +43,7 @@ needed to validate the project.
 | `Az.ManagedServiceIdentity` | Service-principal / managed-identity setup (per [Scripts](Scripts.md)) | docs |
 | `Az.OperationalInsights` | [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) and the nightly workflow (`Get-AzOperationalInsightsWorkspace`); Documenter collector | cmdlet usage |
 | `Microsoft.Graph.Applications` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | `Install-Module` (auto) |
-| `Microsoft.Graph.Identity.DirectoryManagement` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | `Install-Module` (auto) |
+| `Microsoft.Graph.Identity.Governance` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) - supplies the `*-MgRoleManagementDirectoryRoleAssignment` cmdlets | `Install-Module` (auto) |
 | `powershell-yaml` | [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1), [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) | `Install-Module` (auto) |
 | `Sentinel.Common` (local) | Every deploy script plus [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1) | `Import-Module` from `Modules/` |
 
@@ -100,7 +100,7 @@ Install-Module Az.Resources, Az.KeyVault, Az.ManagedServiceIdentity, `
     Az.LogicApp, Az.OperationalInsights, Az.SecurityInsights, Az.Monitor `
     -Scope CurrentUser -Force
 Install-Module Microsoft.Graph.Applications, `
-    Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Force
+    Microsoft.Graph.Identity.Governance -Scope CurrentUser -Force
 
 # Only for the standalone SDL workbook export
 Install-Module ImportExcel -Scope CurrentUser -Force
