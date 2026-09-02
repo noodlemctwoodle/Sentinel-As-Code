@@ -117,7 +117,9 @@ nothing else before them:
     ...
 ```
 
-`-Version` first, then `-Modules`, then a blank line.
+`-Version` first, then `-Modules`, then a blank line. Spell the
+directive `#Requires`, capital R. PowerShell accepts any casing, but a
+mixed-case corpus makes the statement harder to grep for.
 
 `#Requires -Version 7.2` is not optional and not negotiable down: the
 repo floor is 7.2, matching `Sentinel.Common.psd1`, so every file

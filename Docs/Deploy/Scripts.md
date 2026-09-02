@@ -68,7 +68,7 @@ declaration order), `.OUTPUTS`, `.EXAMPLE`, `.NOTES`, `.LINK`.
     Created:      2026-03-20
     Version:      2.1.1
     Last Updated: 2026-09-01
-    Requires:     Az.Accounts
+    Requires:     PowerShell 7.2+, Az.Accounts
 
     API versions:
       - Sentinel  : 2025-09-01 (GA)
