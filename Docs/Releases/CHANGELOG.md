@@ -43,8 +43,19 @@ standardisation of PowerShell file headers.
   statements rather than only in prose, so a missing module now fails at the
   door instead of part-way through a deployment. Modules a script installs for
   itself stay out of `#Requires`, since the statement aborts the load before the
-  install could run. The change is comment-only, verified by comparing the
-  executable token stream of all 64 files before and after.
+  install could run. The header rewrite itself is comment-only, verified by
+  comparing the executable token stream of all 64 files before and after; the
+  one behavioural change that came out of this work is listed separately below.
+- **Setup-ServicePrincipal installs the right Graph submodule** — the Entra ID
+  role-assignment step installed `Microsoft.Graph.Identity.DirectoryManagement`
+  but called `Get-MgRoleManagementDirectoryRoleAssignment` and its `New-`
+  counterpart, both of which ship in `Microsoft.Graph.Identity.Governance`. On a
+  machine that already had Governance present the step worked by accident; on a
+  clean machine the install succeeded, the cmdlet lookup failed, and the catch
+  block reported it as a missing Privileged Role Administrator permission,
+  sending anyone debugging it after a problem that did not exist. The script now
+  installs `Microsoft.Graph.Identity.Governance`, and the docs that repeated the
+  wrong module name were corrected with it.
 - **Notebook ordering** — the data-lake demo notebooks are zero-padded
   (`demo01` to `demo18`) so GitHub's lexical file listing matches the order the
   catalogue presents them in, rather than burying the connect-and-orient
