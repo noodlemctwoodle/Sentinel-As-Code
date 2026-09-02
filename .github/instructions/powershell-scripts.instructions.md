@@ -121,6 +121,19 @@ nothing else before them:
 directive `#Requires`, capital R. PowerShell accepts any casing, but a
 mixed-case corpus makes the statement harder to grep for.
 
+Each keyword needs its own statement, so the prologue is always at
+least two lines. Every module goes on the single `-Modules` line
+though, comma-separated. The value takes a mix of plain names and
+version hashtables:
+
+```powershell
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts
+```
+
+Repeated `#Requires -Modules` lines are legal, and PowerShell unions
+them, but they give the same declaration two places to live and drift
+apart in.
+
 `#Requires -Version 7.2` is not optional and not negotiable down: the
 repo floor is 7.2, matching `Sentinel.Common.psd1`, so every file
 declares it even when it needs no modules at all.

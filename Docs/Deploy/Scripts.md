@@ -42,6 +42,12 @@ dates live in `.NOTES`.
     ...
 ```
 
+Each `#Requires` keyword needs its own statement, so the prologue is
+always at least two lines, but every module shares the one `-Modules`
+line. It accepts a mix of plain names and version hashtables, so
+`@{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts` is
+one statement rather than two.
+
 `Requires:` in `.NOTES` and the `#Requires` statements must stay in
 step in both directions. `#Requires` is the functional gate, enforced
 when the file is run, dot-sourced or imported; `Requires:` is the
