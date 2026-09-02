@@ -1,5 +1,5 @@
 #Requires -Version 7.2
-#Requires -Modules Az.Accounts, powershell-yaml
+#Requires -Modules Az.Accounts
 
 <#
 .SYNOPSIS
@@ -54,7 +54,7 @@
     Version:        1.0.2
     Last Updated:   2026-09-01
     Permissions:    CustomDetection.ReadWrite.All (Application)
-    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml
+    Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
 
     API versions:
       - Microsoft Graph Security : beta (custom detection rules are not yet

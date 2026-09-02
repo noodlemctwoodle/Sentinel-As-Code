@@ -1,5 +1,4 @@
 #Requires -Version 7.2
-#Requires -Modules Pester, powershell-yaml
 
 <#
 .SYNOPSIS
@@ -73,7 +72,7 @@
     Created:        2026-04-29
     Version:        1.0.1
     Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Pester 5+, powershell-yaml
+    Requires:       PowerShell 7.2+, Pester 5+ and powershell-yaml (both auto-installed if missing)
 #>
 
 [CmdletBinding()]

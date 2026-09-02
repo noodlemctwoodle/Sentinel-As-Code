@@ -130,16 +130,23 @@ second `#Requires` after the `param()` block is redundant, since the
 one at the top already gates the whole file, and it drifts out of step
 with the header the moment either is edited.
 
-Two things must never appear in `#Requires -Modules`. The statement
+Three things must never appear in `#Requires -Modules`. The statement
 resolves against `PSModulePath` and fails the load outright when it
-cannot, so naming either of these breaks the file for everyone:
+cannot, so naming any of these breaks the file for everyone:
 
 - **`Sentinel.Common`**, which is imported by path, not installed.
 - **CLI tooling** (Azure CLI, git, pandoc, Node) which is not a
   PowerShell module at all.
+- **Anything the file installs itself.** Several scripts and suites
+  call `Install-Module powershell-yaml` when it is missing.
+  `#Requires` aborts the load before the first line of the file runs,
+  so gating on a module the file was going to fetch makes the fetch
+  unreachable and turns a self-healing script into a hard failure.
 
-Both still belong in `Requires:`, where they are documentation rather
-than a gate.
+All three still belong in `Requires:`, where they are documentation
+rather than a gate. Mark the self-installing ones
+`(auto-installed if missing)` so the distinction is visible without
+reading the code.
 
 Remember that `#Requires` is enforced when a file is run, dot-sourced
 or imported, not when it is parsed. Most scripts here are only
