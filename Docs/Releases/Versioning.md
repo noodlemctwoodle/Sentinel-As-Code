@@ -69,6 +69,7 @@ immutable git history). The mapping:
 | Copilot activity monitoring content pack, Sentinel as Code Toolkit, PR template validation gate | `26.07.1` | PR #30, PR #31 |
 | Documentation overhaul, Toolkit and pipeline docs, Docs restructure, deploy fixes | `26.07.2` | PR #33 |
 | Classic-to-DCR and DCR-from-schema toolkits, Spark notebooks, MCP prompt books, drift-sync fix, docs housekeeping | `26.07.3` | PR #34, PR #35, PR #37, PR #40, PR #42, PR #43, PR #44, PR #45, PR #46, PR #47 |
+| Sophos codeless connector, Detection Engineering dashboard, connector-metadata corrections, PowerShell header standardisation | `26.09` | PR #49, PR #50, PR #52, PR #53, PR #54, PR #55, PR #57 |
 
 None of these releases were git-tagged; each shipped as a `release/<CalVer>`
 branch merged to `main` and, where published, a GitHub Release. The
