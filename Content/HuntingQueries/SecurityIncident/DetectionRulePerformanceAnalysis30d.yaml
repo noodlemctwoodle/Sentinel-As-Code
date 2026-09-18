@@ -1,6 +1,6 @@
-id: "6db4c5d6-e7f8-4091-a2b3-c4d5e6f70819"
-name: "Detection rule performance analysis 30-day"
-description: "Identifies underperforming detection rules by analyzing true positive rates, false positive rates, alert velocity, and time to resolution over 30 days to prioritize tuning efforts."
+id: 6db4c5d6-e7f8-4091-a2b3-c4d5e6f70819
+name: Detection rule performance analysis 30-day
+description: Identifies underperforming detection rules by analyzing true positive rates, false positive rates, alert velocity, and time to resolution over 30 days to prioritize tuning efforts.
 query: |
   // Analyzes analytical rule performance over the last 30 days by measuring true positive rates,
   // false positive rates, alert velocity, and time to resolution to identify rules that need tuning

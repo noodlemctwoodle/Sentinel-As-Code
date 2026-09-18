@@ -23,18 +23,19 @@ description: |
   MITRE T1584.002 — Compromise Infrastructure: DNS Server
 severity: High
 requiredDataConnectors:
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT30M
 queryPeriod: PT2H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
-- CredentialAccess
-- LateralMovement
-- ResourceDevelopment
+  - Collection
+  - CredentialAccess
+  - LateralMovement
+  - ResourceDevelopment
 query: |
   let WindowStart = ago(2h);
   let WindowMid   = ago(1h);
@@ -69,15 +70,14 @@ query: |
       FirstFlipTime   = min(FirstResolution)
   | where FlippedDomains >= 5
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ADIDNS Wildcard Abuse — {{FlippedDomains}} domains flipped NXDOMAIN to NOERROR'
-  alertDescriptionFormat: '{{FlippedDomains}} hostnames that previously returned NXDOMAIN are now resolving (NOERROR), affecting {{AffectedClients}} clients since {{FirstFlipTime}}. This pattern is characteristic
-    of a wildcard A record being injected into AD-Integrated DNS. Sample domains:'
+  alertDisplayNameFormat: ADIDNS Wildcard Abuse — {{FlippedDomains}} domains flipped NXDOMAIN to NOERROR
+  alertDescriptionFormat: "{{FlippedDomains}} hostnames that previously returned NXDOMAIN are now resolving (NOERROR), affecting {{AffectedClients}} clients since {{FirstFlipTime}}. This pattern is characteristic of a wildcard A record being injected into AD-Integrated DNS. Sample domains:"
 customDetails:
   FlippedDomains: FlippedDomains
   AffectedClients: AffectedClients
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

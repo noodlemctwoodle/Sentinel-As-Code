@@ -18,19 +18,19 @@ description: |
   and the ActionType value. Tune the threshold to the environment.
 severity: Medium
 requiredDataConnectors:
-- connectorId: MicrosoftThreatProtection
-  dataTypes:
-  - CloudAppEvents
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - CloudAppEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
+  - Collection
 relevantTechniques:
-- T1213
-- T1530
+  - T1213
+  - T1530
 query: |
   CloudAppEvents
   | where TimeGenerated > ago(1h)
@@ -47,13 +47,13 @@ query: |
   | where LabelledResourceCount > 15
   | order by LabelledResourceCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: AadUserId
-    columnName: AccountObjectId
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: AccountObjectId
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

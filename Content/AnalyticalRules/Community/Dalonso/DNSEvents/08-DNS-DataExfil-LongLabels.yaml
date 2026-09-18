@@ -20,20 +20,20 @@ description: |
   accumulates significant data transfer over time.
 severity: High
 requiredDataConnectors:
-- connectorId: WindowsDnsAma
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT1H
 queryPeriod: PT24H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Exfiltration
-- CommandAndControl
+  - Exfiltration
+  - CommandAndControl
 relevantTechniques:
-- T1048.003
-- T1071.004
+  - T1048.003
+  - T1071.004
 query: |
   ASimDnsActivityLogs
   | where TimeGenerated > ago(24h)
@@ -57,17 +57,17 @@ query: |
   | extend EstimatedKB = round(todouble(EstimatedBytes) / 1024.0, 1)
   | where EstimatedKB > 50
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: SrcHostname
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: SrcHostname
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DNS Exfiltration — {{SrcHostname}} sent ~{{EstimatedKB}}KB via long subdomain labels'
-  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) sent {{TotalQueries}} queries with long subdomain labels (max chars, avg ). Estimated data volume: ~KB.'' Sample domains:'
+  alertDisplayNameFormat: DNS Exfiltration — {{SrcHostname}} sent ~{{EstimatedKB}}KB via long subdomain labels
+  alertDescriptionFormat: "{{SrcHostname}} ({{SrcIpAddr}}) sent {{TotalQueries}} queries with long subdomain labels (max chars, avg ). Estimated data volume: ~KB.' Sample domains:"
 customDetails:
   EstimatedKB: EstimatedKB
   MaxLabelSeen: MaxLabelSeen
@@ -75,6 +75,6 @@ customDetails:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

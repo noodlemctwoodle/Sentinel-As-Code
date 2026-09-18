@@ -6,20 +6,23 @@ description: |
   Detects Zscaler Private Access (ZPA) connections to internal applications originating from countries the user has never accessed from in the previous 14 days. ZPA provides remote access to internal apps without a VPN; connections from unexpected geolocations indicate credential compromise, a threat actor using stolen credentials to access internal resources, or legitimate users travelling to unusual locations. MITRE ATT&CK: T1078 (Valid Accounts), T1133 (External Remote Services).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: ZscalerPrivateAccess
+    dataTypes:
+      - ZPA
 queryFrequency: PT1H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- LateralMovement
+  - InitialAccess
+  - LateralMovement
 relevantTechniques:
-- T1078
-- T1133
+  - T1078
+  - T1133
 query: |
   let recentWindow   = 1h;
   let baselineWindow = 14d;
@@ -51,13 +54,13 @@ query: |
   | project SourceUserName, NewCountries, AccessedApps, ConnectionCount, SrcIPs
   | order by ConnectionCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ZPA Anomalous Geolocation - {{SourceUserName}} from new countries'
-  alertDescriptionFormat: 'ZPA user {{SourceUserName}} connected from {{NewCountries}} — not seen in 14-day baseline. {{ConnectionCount}} connections to internal apps.'
+  alertDisplayNameFormat: ZPA Anomalous Geolocation - {{SourceUserName}} from new countries
+  alertDescriptionFormat: ZPA user {{SourceUserName}} connected from {{NewCountries}} — not seen in 14-day baseline. {{ConnectionCount}} connections to internal apps.
 customDetails:
   ConnectionCount: ConnectionCount
   NewCountries: NewCountries
@@ -70,12 +73,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

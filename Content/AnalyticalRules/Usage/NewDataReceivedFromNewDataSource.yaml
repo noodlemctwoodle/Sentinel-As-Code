@@ -4,18 +4,21 @@ description: |
   'New data received from new data connector'
 severity: Informational
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Usage
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
+  - Collection
 relevantTechniques:
-- T1530
+  - T1530
 query: |
   let lastWeekStart = ago(14d);
   let lastWeekEnd = ago(7d);
@@ -72,22 +75,20 @@ query: |
   | join kind=leftouter newDataConnector on $left.DataType == $right.DataConnector
   | project DataType, LastWeekSize, ThisWeekSize, ['Size Change %'], Caller, CallerIpAddress
 entityMappings:
-- entityType: CloudApplication
-  fieldMappings:
-  - identifier: Name
-    columnName: DataType
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: Caller
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIpAddress
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: DataType
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
 eventGroupingSettings:
   aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -98,9 +99,11 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
+suppressionDuration: P1D
+suppressionEnabled: true
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Workspace Usage
+  - Sentinel-As-Code
+  - Custom
+  - Workspace Usage

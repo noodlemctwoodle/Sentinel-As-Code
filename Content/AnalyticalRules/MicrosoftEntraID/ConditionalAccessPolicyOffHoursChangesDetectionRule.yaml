@@ -4,23 +4,23 @@ description: |
   'Detects any changes to Conditional Access Policies outside of business hours or on weekends'
 severity: Medium
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AuditLogs
 queryFrequency: PT7H
 queryPeriod: P7D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
-- CredentialAccess
-- Persistence
+  - DefenseEvasion
+  - CredentialAccess
+  - Persistence
 relevantTechniques:
-- T1556
-- T1556.009
-- T1562
-- T1562.001
+  - T1556
+  - T1556.009
+  - T1562
+  - T1562.001
 query: |
   AuditLogs
   | where OperationName has "conditional access"
@@ -45,10 +45,10 @@ query: |
       Actor
   | sort by LocalTime desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: Actor
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: Actor
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -59,12 +59,12 @@ incidentConfiguration:
     lookbackDuration: P1D
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

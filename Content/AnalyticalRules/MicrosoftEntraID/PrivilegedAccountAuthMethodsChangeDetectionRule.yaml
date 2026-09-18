@@ -6,26 +6,32 @@ description: |
   This rule has been modified to exclude trusted/known IP addresses'
 severity: High
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - AuditLogs
-  - SigninLogs
-- connectorId: BehaviorAnalytics
-  dataTypes:
-  - IdentityInfo
+  - connectorId: OfficeIRM
+    dataTypes:
+      - watchlist
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AuditLogs
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: MimecastATAPI
+    dataTypes:
+      - audit
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Persistence
-- CredentialAccess
+  - Persistence
+  - CredentialAccess
 relevantTechniques:
-- T1098
-- T1098.005
-- T1556
-- T1556.006
+  - T1098
+  - T1098.005
+  - T1556
+  - T1556.006
 query: |
   let adminLookupPeriod = 14d;
   let queryPeriod = 1d;
@@ -90,21 +96,21 @@ query: |
     , AuthentcationAction
     , Result
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: InitiatingUser
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: TargetUser
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: InitiatingUser
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: TargetUser
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

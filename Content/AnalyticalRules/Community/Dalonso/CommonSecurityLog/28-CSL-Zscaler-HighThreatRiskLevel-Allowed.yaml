@@ -6,20 +6,20 @@ description: |
   Detects Zscaler ZIA allowed web requests where ThreatLabz has assigned a ThreatRiskLevel of 50 or higher to the destination. ThreatRiskLevel (DeviceCustomNumber1 in the NSS CEF feed) is a 0-100 score assigned by Zscaler's cloud intelligence — scores >= 50 indicate suspicious or potentially malicious destinations. Allowed traffic with elevated risk scores may indicate policy gaps, miscategorized sites, or zero-day infrastructure not yet blocked. MITRE ATT&CK: T1071 (Application Layer Protocol), T1566.
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
-- InitialAccess
+  - CommandAndControl
+  - InitialAccess
 relevantTechniques:
-- T1071
-- T1566
+  - T1071
+  - T1566
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -39,13 +39,13 @@ query: |
     by SourceUserName
   | order by MaxRiskScore desc, EventCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler High ThreatRisk Allowed - {{SourceUserName}} (score {{MaxRiskScore}})'
-  alertDescriptionFormat: 'User {{SourceUserName}} browsed {{UniqueDestinations}} high-risk destinations (ThreatRiskLevel up to {{MaxRiskScore}}) without being blocked.'
+  alertDisplayNameFormat: Zscaler High ThreatRisk Allowed - {{SourceUserName}} (score {{MaxRiskScore}})
+  alertDescriptionFormat: User {{SourceUserName}} browsed {{UniqueDestinations}} high-risk destinations (ThreatRiskLevel up to {{MaxRiskScore}}) without being blocked.
 customDetails:
   EventCount: EventCount
   MaxRiskScore: MaxRiskScore
@@ -58,12 +58,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

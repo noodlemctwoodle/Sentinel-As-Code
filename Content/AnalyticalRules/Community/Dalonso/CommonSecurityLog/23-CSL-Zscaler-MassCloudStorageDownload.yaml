@@ -6,20 +6,20 @@ description: |
   Detects users downloading more than 500 MB or performing more than 200 requests from cloud storage services (Dropbox, OneDrive, Google Drive, Box, WeTransfer, SharePoint) via Zscaler ZIA in a 24-hour window. Bulk downloads from cloud storage are a key indicator of data staging before exfiltration — either by a malicious insider or a compromised account harvesting data. MITRE ATT&CK: T1530 (Data from Cloud Storage Object), T1048, T1213.
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
-- Exfiltration
+  - Collection
+  - Exfiltration
 relevantTechniques:
-- T1048
-- T1530
+  - T1048
+  - T1530
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -46,13 +46,13 @@ query: |
       "Medium")
   | order by MBDownloaded desc, DownloadCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler Mass Cloud Download - {{SourceUserName}} ({{MBDownloaded}} MB, {{RiskScore}})'
-  alertDescriptionFormat: 'User {{SourceUserName}} downloaded {{MBDownloaded}} MB from cloud storage services. Risk score: {{RiskScore}}.'
+  alertDisplayNameFormat: Zscaler Mass Cloud Download - {{SourceUserName}} ({{MBDownloaded}} MB, {{RiskScore}})
+  alertDescriptionFormat: "User {{SourceUserName}} downloaded {{MBDownloaded}} MB from cloud storage services. Risk score: {{RiskScore}}."
 customDetails:
   MBDownloaded: MBDownloaded
   DownloadCount: DownloadCount
@@ -65,12 +65,12 @@ incidentConfiguration:
     lookbackDuration: PT12H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

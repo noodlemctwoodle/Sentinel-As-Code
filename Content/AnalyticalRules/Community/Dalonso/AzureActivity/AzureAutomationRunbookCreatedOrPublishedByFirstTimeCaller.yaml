@@ -5,16 +5,23 @@ description: |
 
   Detects creation or publishing of Azure Automation runbooks by identities with no history of runbook operations in the last 14 days. Attackers create runbooks that execute code at scale with Automation Account managed identity privileges — a cloud-native persistence and execution vector (T1059.009). Seen in APT29 and LAPSUS$ TTPs. FP mitigations: (1) 14-day behavioral baseline excludes developers/automation owners already working with runbooks; (2) known DevOps pipeline caller name patterns excluded; (3) Azure platform IPs excluded; (4) only 'Success' status — draft saves ('Start') excluded.
 severity: High
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
 queryFrequency: PT6H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- Persistence
+  - Execution
+  - Persistence
 relevantTechniques:
-- T1059
+  - T1059
 query: |
   let KnownRunbookCallers = AzureActivity
       | where TimeGenerated between (ago(14d) .. ago(6h))
@@ -43,19 +50,19 @@ query: |
       AccountName = tostring(split(Caller, "@")[0]),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'New runbook author: {{Caller}} created {{RunbookNames}} from {{CallerIP}}'
-  alertDescriptionFormat: 'First-time runbook caller {{Caller}} performed {{RunbookOpCount}} runbook operation(s): {{Operations}} on'
+  alertDisplayNameFormat: "New runbook author: {{Caller}} created {{RunbookNames}} from {{CallerIP}}"
+  alertDescriptionFormat: "First-time runbook caller {{Caller}} performed {{RunbookOpCount}} runbook operation(s): {{Operations}} on"
 customDetails:
   RunbookNames: RunbookNames
   Operations: Operations
@@ -67,13 +74,13 @@ incidentConfiguration:
     lookbackDuration: PT12H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

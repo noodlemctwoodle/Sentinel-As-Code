@@ -18,23 +18,23 @@ description: |
   The CloudAppEvents ActionType for Copilot is "CopilotInteraction".
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftThreatProtection
-  dataTypes:
-  - CloudAppEvents
-- connectorId: BehaviorAnalytics
-  dataTypes:
-  - IdentityInfo
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - CloudAppEvents
 queryFrequency: P1D
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Collection
+  - InitialAccess
+  - Collection
 relevantTechniques:
-- T1078
-- T1078.004
+  - T1078
+  - T1078.004
 query: |
   let Privileged = IdentityInfo
     | where TimeGenerated > ago(14d)
@@ -76,19 +76,19 @@ query: |
       Application
   | order by TimeGenerated desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountUPN
-  - identifier: AadUserId
-    columnName: AccountObjectId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountUPN
+      - identifier: AadUserId
+        columnName: AccountObjectId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

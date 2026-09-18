@@ -16,23 +16,23 @@ description: |
   OAuth consent grants on the same account.
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftCopilot
-  dataTypes:
-  - CopilotActivity
-- connectorId: BehaviorAnalytics
-  dataTypes:
-  - IdentityInfo
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: MicrosoftCopilot
+    dataTypes:
+      - CopilotActivity
 queryFrequency: P1D
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Collection
+  - InitialAccess
+  - Collection
 relevantTechniques:
-- T1078
-- T1078.004
+  - T1078
+  - T1078.004
 query: |
   let Privileged = IdentityInfo
     | where TimeGenerated > ago(14d)
@@ -72,19 +72,19 @@ query: |
       AppIdentity
   | order by TimeGenerated desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: ActorName
-  - identifier: AadUserId
-    columnName: ActorUserId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: ActorName
+      - identifier: AadUserId
+        columnName: ActorUserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

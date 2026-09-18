@@ -11,18 +11,18 @@ description: |
   MITRE ATT&CK: T1048.002 (Exfiltration Over Web Service)
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT6H
 queryPeriod: P7D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Exfiltration
+  - Exfiltration
 relevantTechniques:
-- T1048
+  - T1048
 query: |
   let ShadowITCategories = dynamic([
       "PERSONAL_SITES_BLOGS", "FILE_HOST", "SHAREWARE_FREEWARE",
@@ -46,13 +46,13 @@ query: |
   | where TotalMBSent > 50 or RequestCount > 200
   | order by TotalMBSent desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Shadow IT Upload Risk - {{SourceUserName}} sent {{TotalMBSent}} MB to {{DeviceCustomString2}}'
-  alertDescriptionFormat: 'User {{SourceUserName}} sent {{TotalMBSent}} MB to shadow IT category {{DeviceCustomString2}} across requests. Possible data exfiltration via consumer cloud service.'
+  alertDisplayNameFormat: Shadow IT Upload Risk - {{SourceUserName}} sent {{TotalMBSent}} MB to {{DeviceCustomString2}}
+  alertDescriptionFormat: User {{SourceUserName}} sent {{TotalMBSent}} MB to shadow IT category {{DeviceCustomString2}} across requests. Possible data exfiltration via consumer cloud service.
 customDetails:
   TotalMBSent: TotalMBSent
   RequestCount: RequestCount
@@ -65,12 +65,12 @@ incidentConfiguration:
     lookbackDuration: P1D
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

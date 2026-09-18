@@ -1,5 +1,5 @@
 id: a036b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c
-name: 'Zscaler ZPA/ZIA - Perfect Impostor: Account Takeover Hiding Within Normal Traffic'
+name: "Zscaler ZPA/ZIA - Perfect Impostor: Account Takeover Hiding Within Normal Traffic"
 description: |
   Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
 
@@ -32,26 +32,38 @@ description: |
   T1114 (Email Collection), T1556 (Modify Authentication Process).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: ZscalerPrivateAccess
+    dataTypes:
+      - ZPA
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - OfficeActivity
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Operation
+  - connectorId: OfficeIRM
+    dataTypes:
+      - Update
 queryFrequency: PT4H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
-- DefenseEvasion
-- Persistence
-- PrivilegeEscalation
-- CredentialAccess
-- InitialAccess
+  - Collection
+  - DefenseEvasion
+  - Persistence
+  - PrivilegeEscalation
+  - CredentialAccess
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1098
-- T1114
-- T1556
+  - T1078
+  - T1098
+  - T1114
+  - T1556
 query: |
   let baselineWindow = 14d;
   let recentWindow   = 4h;
@@ -140,13 +152,13 @@ query: |
       ZPA_FirstSeen
   | order by ImpostorScore desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Perfect Impostor Candidate - {{UserName}} (score: {{ImpostorScore}})'
-  alertDescriptionFormat: 'User {{UserName}} shows cross-layer anomalies: new countries {{NewCountries}}, {{ZIA_RequestCount}} ZIA suspicious requests, identity/security changes. ImpostorScore:'' .'
+  alertDisplayNameFormat: "Perfect Impostor Candidate - {{UserName}} (score: {{ImpostorScore}})"
+  alertDescriptionFormat: "User {{UserName}} shows cross-layer anomalies: new countries {{NewCountries}}, {{ZIA_RequestCount}} ZIA suspicious requests, identity/security changes. ImpostorScore:' ."
 customDetails:
   ImpostorScore: ImpostorScore
   IdP_EventCount: IdP_EventCount
@@ -160,12 +172,12 @@ incidentConfiguration:
     lookbackDuration: PT8H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

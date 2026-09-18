@@ -6,20 +6,23 @@ description: |
   Detects ZPA users whose distinct application access count in a 1-hour window exceeds their 14-day daily average by 3x or more. A single user suddenly accessing many more internal apps than usual is a strong indicator of automated reconnaissance, credential compromise where the attacker is enumerating internal resources, or an insider staging access before an exfiltration event. MITRE ATT&CK: T1046 (Network Service Discovery), T1078 (Valid Accounts).
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: ZscalerPrivateAccess
+    dataTypes:
+      - ZPA
 queryFrequency: PT1H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Discovery
-- InitialAccess
+  - Discovery
+  - InitialAccess
 relevantTechniques:
-- T1046
-- T1078
+  - T1046
+  - T1078
 query: |
   let recentWindow   = 1h;
   let baselineWindow = 14d;
@@ -50,13 +53,13 @@ query: |
   | project SourceUserName, RecentAppCount, AvgDailyApps, SpikeRatio, RecentApps, RecentConns
   | order by SpikeRatio desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ZPA App Volume Spike - {{SourceUserName}} ({{SpikeRatio}}x baseline)'
-  alertDescriptionFormat: 'ZPA user {{SourceUserName}} accessed {{RecentAppCount}} distinct apps in 1h vs avg {{AvgDailyApps}}/day (x spike).'
+  alertDisplayNameFormat: ZPA App Volume Spike - {{SourceUserName}} ({{SpikeRatio}}x baseline)
+  alertDescriptionFormat: ZPA user {{SourceUserName}} accessed {{RecentAppCount}} distinct apps in 1h vs avg {{AvgDailyApps}}/day (x spike).
 customDetails:
   RecentAppCount: RecentAppCount
   SpikeRatio: SpikeRatio
@@ -69,12 +72,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

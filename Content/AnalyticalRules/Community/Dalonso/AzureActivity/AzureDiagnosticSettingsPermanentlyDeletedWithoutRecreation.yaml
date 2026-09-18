@@ -5,15 +5,22 @@ description: |
 
   Detects deletion of Azure Diagnostic Settings that are NOT re-created within 30 minutes. Attackers delete diagnostic settings to blind monitoring/SIEM ingestion before further activity (T1562.008). FP mitigations: (1) IaC/pipeline caller patterns excluded by name — Terraform 'destroy+apply' cycles typically recreate within seconds so the 30-min re-creation window handles those; (2) Only 'Success' status events — 'Start' is pre-execution noise; (3) Requires deletion NOT followed by timely recreation — catches destructive deletions vs. IaC cycles. NOT a duplicate of built-in 'NRT Security Event log cleared' which targets Windows OS event log, not Azure Diagnostic Settings.
 severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT1H
 queryPeriod: PT2H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
+  - DefenseEvasion
 relevantTechniques:
-- T1562
+  - T1562
 query: |
   let ExcludedCallerPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "arm-"]);
   let Deletions = AzureActivity
@@ -44,19 +51,19 @@ query: |
       AccountName = tostring(split(Caller, "@")[0]),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Diag Settings deleted by {{Caller}} — no recreation within 30 min'
-  alertDescriptionFormat: '{{Caller}} deleted {{DeletionCount}} diagnostic setting(s) from {{SubscriptionId}} with no timely recreation. Resources:'
+  alertDisplayNameFormat: Diag Settings deleted by {{Caller}} — no recreation within 30 min
+  alertDescriptionFormat: "{{Caller}} deleted {{DeletionCount}} diagnostic setting(s) from {{SubscriptionId}} with no timely recreation. Resources:"
 customDetails:
   DeletionCount: DeletionCount
   DeletedSettings: DeletedSettings
@@ -68,12 +75,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting
