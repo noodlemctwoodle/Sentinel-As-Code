@@ -10,6 +10,9 @@ requiredDataConnectors:
   - connectorId: AzureActivity
     dataTypes:
       - AzureActivity
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AADManagedIdentitySignInLogs
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt

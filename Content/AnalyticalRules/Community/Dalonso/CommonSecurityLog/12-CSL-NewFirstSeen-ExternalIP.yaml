@@ -11,18 +11,18 @@ description: |
   MITRE ATT&CK: T1071 (Application Layer Protocol)
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT6H
 queryPeriod: P7D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1071
+  - T1071
 query: |
   let HistoricalIPs =
       CommonSecurityLog
@@ -50,14 +50,13 @@ query: |
   | join kind=leftanti HistoricalIPs on DestinationIP
   | order by ConnectionCount desc
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: DestinationIP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: DestinationIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'First-Seen External IP - {{DestinationIP}} ({{ConnectionCount}} connections)'
-  alertDescriptionFormat: 'External IP {{DestinationIP}} received {{ConnectionCount}} allowed firewall connections in the last 24 hours but was not seen in the prior 7-day baseline. Possible new attacker
-    infrastructure.'
+  alertDisplayNameFormat: First-Seen External IP - {{DestinationIP}} ({{ConnectionCount}} connections)
+  alertDescriptionFormat: External IP {{DestinationIP}} received {{ConnectionCount}} allowed firewall connections in the last 24 hours but was not seen in the prior 7-day baseline. Possible new attacker infrastructure.
 customDetails:
   ConnectionCount: ConnectionCount
 incidentConfiguration:
@@ -68,12 +67,12 @@ incidentConfiguration:
     lookbackDuration: PT12H
     matchingMethod: Selected
     groupByEntities:
-    - IP
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

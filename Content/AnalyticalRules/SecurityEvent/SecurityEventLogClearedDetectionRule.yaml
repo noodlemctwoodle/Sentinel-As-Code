@@ -5,9 +5,12 @@ description: |
   The rule runs on a 24-hour schedule, scanning the past 24 hours of log data for any instances of cleared event logs. If such an event is detected, it will generate an incident for investigation and potential response actions'
 severity: High
 requiredDataConnectors:
-  - connectorId: WindowsSecurityEvents
+  - connectorId: ESI-ExchangeOnPremisesCollector
     dataTypes:
       - SecurityEvent
+  - connectorId: ESI-ExchangeOnlineCollector
+    dataTypes:
+      - Event
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt

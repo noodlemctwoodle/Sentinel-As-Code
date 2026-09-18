@@ -5,17 +5,28 @@ description: |
 
   Detects bursts of resource creation events by identities with no prior resource-creation history in the last 14 days, across 3+ distinct resource types, within a 2-hour window. This pattern is characteristic of: (1) Cryptojacking operators provisioning GPU/compute fleets post-credential-theft (T1496); (2) Attackers establishing persistence infrastructure — VMs, App Registrations, Container Instances (T1136); (3) Supply-chain-compromised pipelines spinning up outbound command-and-control infrastructure. Differentiated from the built-in 'Unusual number of resources created' alert because this rule uses IDENTITY-BASELINE logic (only triggers for identities with ZERO creation history) rather than simple count thresholds, and requires TYPE DIVERSITY (3+ distinct resource types) to signal broad infrastructure provisioning rather than legitimate scaling operations. Enriched with SigninLogs and AADServicePrincipalSignInLogs to surface whether the creating identity had a suspicious preceding authentication. FP mitigations: (1) 14-day identity creation baseline — established deployers never trigger; (2) 3+ distinct resource type requirement — avoids alert on auto-scaling of single resource type; (3) Minimum 15 resource events in 2h — accommodates IaC deployments that legitimately provision dozens of resources but filters single-test deployments; (4) IaC/CI-CD tool pattern exclusion; (5) Azure platform IP exclusion; (6) Only Success status operations.
 severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADServicePrincipalSignInLogs
 queryFrequency: PT2H
 queryPeriod: PT4H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Impact
-- Persistence
+  - Impact
+  - Persistence
 relevantTechniques:
-- T1136
-- T1496
+  - T1136
+  - T1496
 query: |
   let LookupWindow = 2h;
   let CreationThreshold = 15;
@@ -121,20 +132,19 @@ query: |
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
   | project-away SigninIP, SPSigninIP
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Mass creation: {{Caller}} created {{CreationCount}} resources ({{DistinctResourceTypes}} types) - first time seen'
-  alertDescriptionFormat: 'New identity {{Caller}} created {{CreationCount}} resources across {{DistinctResourceTypes}} distinct resource types in 2 hours from . No creation history in previous'' 14 days.
-    Sign-in risk: . Resources:'
+  alertDisplayNameFormat: "Mass creation: {{Caller}} created {{CreationCount}} resources ({{DistinctResourceTypes}} types) - first time seen"
+  alertDescriptionFormat: "New identity {{Caller}} created {{CreationCount}} resources across {{DistinctResourceTypes}} distinct resource types in 2 hours from . No creation history in previous' 14 days. Sign-in risk: . Resources:"
 customDetails:
   CreationCount: CreationCount
   DistinctResourceType: DistinctResourceTypes
@@ -149,13 +159,13 @@ incidentConfiguration:
     lookbackDuration: PT8H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

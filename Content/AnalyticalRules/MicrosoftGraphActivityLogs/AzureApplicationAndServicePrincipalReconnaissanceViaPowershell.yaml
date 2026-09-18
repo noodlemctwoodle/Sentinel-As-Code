@@ -8,28 +8,32 @@ description: |
   Each alert includes detailed context about the specific Graph endpoints accessed, the user's privileges, and the duration and pattern of the activity to help security teams quickly assess whether the behavior represents legitimate administration or potential threat activity. The detection only flags users who have made multiple requests (more than 2), focusing on systematic enumeration rather than one-off legitimate queries.
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftGraphActivityLogs
-  dataTypes:
-  - Mic
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+      - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Reconnaissance
-- ResourceDevelopment
-- InitialAccess
-- LateralMovement
-- Discovery
+  - Reconnaissance
+  - ResourceDevelopment
+  - InitialAccess
+  - LateralMovement
+  - Discovery
 relevantTechniques:
-- T1078
-- T1078.004
-- T1087
-- T1087.004
-- T1584
-- T1595
-- T1595.002
+  - T1078
+  - T1078.004
+  - T1087
+  - T1087.004
+  - T1584
+  - T1595
+  - T1595.002
 query: |
   let InvokeDumpAppsCalls = dynamic([
   "https://graph.microsoft.com/v1.0/users/",
@@ -109,16 +113,16 @@ query: |
   | project-away Scopes
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserDisplayName
-  - identifier: FullName
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserDisplayName
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -134,6 +138,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Graph
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Graph

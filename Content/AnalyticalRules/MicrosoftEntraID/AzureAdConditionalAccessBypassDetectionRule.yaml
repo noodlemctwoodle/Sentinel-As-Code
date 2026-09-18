@@ -14,25 +14,25 @@ description: |
   ConditionalAccessStatus == 3 // unknown'
 severity: Low
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - SignInLogs
-  - AADNonInteractiveUserSignInLogs
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Persistence
-- DefenseEvasion
+  - InitialAccess
+  - Persistence
+  - DefenseEvasion
 relevantTechniques:
-- T1078
-- T1078.004
-- T1098
-- T1556
-- T1556.009
+  - T1078
+  - T1078.004
+  - T1098
+  - T1556
+  - T1556.009
 query: |
   let threshold = 4; // Modify this threshold value to reduce false positives based on your environment
   let excludeErrorCodes = dynamic(['50078', '50076']); // Add more codes to reduce false positives based on your environment
@@ -100,18 +100,18 @@ query: |
   let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
   union isfuzzy=true aadSignin, aadNonInt
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddresses
-- entityType: CloudApplication
-  fieldMappings:
-  - identifier: Name
-    columnName: AppDisplayName
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddresses
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: AppDisplayName
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -127,6 +127,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

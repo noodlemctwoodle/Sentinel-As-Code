@@ -1,0 +1,19 @@
+id: 30423508-2a31-4b53-b673-9ca32700e270
+name: Hunting Query - Multiple failed sign-ins from a single IP address
+description: Alert when a single IP address produces ten or more failed Entra ID sign-ins within an hour.
+query: |
+  SigninLogs
+  | where TimeGenerated > ago(1h)
+  | where ResultType != 0
+  | summarize FailedAttempts = count(),
+              TargetedAccounts = dcount(UserPrincipalName),
+              AccountList = make_set(UserPrincipalName, 100)
+            by IPAddress, bin(TimeGenerated, 1h)
+  | where FailedAttempts >= 10
+  | project TimeGenerated, IPAddress, FailedAttempts,
+            TargetedAccounts, AccountList
+tactics:
+  - CredentialAccess
+techniques:
+  - T1110
+  - T1110.003

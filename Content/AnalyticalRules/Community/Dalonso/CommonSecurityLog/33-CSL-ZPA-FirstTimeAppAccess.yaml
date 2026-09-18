@@ -6,20 +6,23 @@ description: |
   Detects ZPA users successfully accessing internal applications they have never connected to in the previous 14 days. In a well-managed ZPA deployment, users have defined app segment policies; accessing new applications outside their normal pattern can indicate logical lateral movement — an attacker using valid credentials to explore internal resources, privilege escalation that granted access to additional app segments, or a legitimate administrator testing new policies. MITRE ATT&CK: T1078 (Valid Accounts), T1021 (Remote Services).
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: ZscalerPrivateAccess
+    dataTypes:
+      - ZPA
 queryFrequency: PT1H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- LateralMovement
-- InitialAccess
+  - LateralMovement
+  - InitialAccess
 relevantTechniques:
-- T1021
-- T1078
+  - T1021
+  - T1078
 query: |
   let recentWindow   = 1h;
   let baselineWindow = 14d;
@@ -48,13 +51,13 @@ query: |
   | project SourceUserName, FirstTimeApps, ConnectionCount, SourceIPs, RecentApps
   | order by ConnectionCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ZPA First-Time App Access - {{SourceUserName}} (new internal apps)'
-  alertDescriptionFormat: 'ZPA user {{SourceUserName}} accessed {{ConnectionCount}} connections to internal apps never seen in 14-day baseline: {{FirstTimeApps}}.'
+  alertDisplayNameFormat: ZPA First-Time App Access - {{SourceUserName}} (new internal apps)
+  alertDescriptionFormat: "ZPA user {{SourceUserName}} accessed {{ConnectionCount}} connections to internal apps never seen in 14-day baseline: {{FirstTimeApps}}."
 customDetails:
   ConnectionCount: ConnectionCount
   FirstTimeApps: FirstTimeApps
@@ -66,12 +69,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

@@ -4,31 +4,31 @@ description: |
   'Enter rule description here'
 severity: Medium
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: DockerFlow
+    dataTypes:
+      - DockerFlow_CL
 queryFrequency: PT5M
 queryPeriod: PT10M
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
-- Exfiltration
+  - CommandAndControl
+  - Exfiltration
 relevantTechniques:
-- T1048
-- T1071
-- T1071.001
+  - T1048
+  - T1071
+  - T1071.001
 query: |
   DockerFlow_CL
   | extend DstIPLocation = geo_info_from_ip_address(dstIp)
   | extend Country = tostring(DstIPLocation.Country)
   | where Country in ("Russia", "China")
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: dstIp
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: dstIp
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -44,5 +44,5 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
+  - Sentinel-As-Code
+  - Custom

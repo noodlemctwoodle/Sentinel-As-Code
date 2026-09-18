@@ -21,8 +21,9 @@ description: |
   sustained high query volume before firing.
 severity: Medium
 requiredDataConnectors:
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
@@ -43,24 +44,23 @@ query: |
     by SrcIpAddr, SrcHostname
   | where NullAnyCount > 5
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: SrcHostname
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: SrcHostname
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 alertDetailsOverride:
-  alertDisplayNameFormat: 'NULL/ANY DNS Queries — {{SrcHostname}} sent {{NullAnyCount}} unusual record type queries'
-  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) sent {{NullAnyCount}} NULL/ANY DNS queries. These record types have no legitimate use in corporate environments and indicate potential DNS tunneling.
-    Domains:'
+  alertDisplayNameFormat: NULL/ANY DNS Queries — {{SrcHostname}} sent {{NullAnyCount}} unusual record type queries
+  alertDescriptionFormat: "{{SrcHostname}} ({{SrcIpAddr}}) sent {{NullAnyCount}} NULL/ANY DNS queries. These record types have no legitimate use in corporate environments and indicate potential DNS tunneling. Domains:"
 customDetails:
   NullAnyCount: NullAnyCount
   RecordTypes: RecordTypes
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

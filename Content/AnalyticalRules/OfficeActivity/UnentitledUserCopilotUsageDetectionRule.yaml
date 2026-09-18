@@ -14,19 +14,22 @@ description: |
   Verify in tenant: OfficeActivity carries the CopilotInteraction operation.
 severity: Medium
 requiredDataConnectors:
-- connectorId: Office365
-  dataTypes:
-  - OfficeActivity
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - OfficeActivity
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Operation
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1078.004
+  - T1078
+  - T1078.004
 query: |
   let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
     | project UserPrincipalName = tolower(UserPrincipalName);
@@ -42,13 +45,13 @@ query: |
       LastSeen = max(TimeGenerated)
     by UserPrincipalName
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserPrincipalName
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

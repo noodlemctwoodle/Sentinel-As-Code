@@ -5,15 +5,19 @@ description: |
 
   Detects deletion of Azure Resource Locks, Policy Assignments, or Policy Definitions — guardrail controls that prevent unauthorized resource actions. Attackers delete locks/policies before destructive operations (ransomware, crypto-jacking, data wiping) to avoid 'cannot delete locked resource' failures (T1562). FP mitigations: (1) Known IaC tool name patterns excluded — Terraform/Bicep legitimately destroy and re-create policies, but correlation with other rules (e.g., VM deploy) provides context; (2) Azure platform IPs excluded; (3) Only Succeeded operations; (4) Policy exemption WRITE is intentionally covered — attackers create exemptions to bypass policy without triggering a DELETE.
 severity: Medium
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT1H
 queryPeriod: PT2H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
+  - DefenseEvasion
 relevantTechniques:
-- T1562
+  - T1562
 query: |
   let HighImpactOps = dynamic([
       "MICROSOFT.AUTHORIZATION/LOCKS/DELETE",
@@ -44,19 +48,19 @@ query: |
       AccountName = tostring(split(Caller, "@")[0]),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Guardrail removed: {{Operations}} by {{Caller}}'
-  alertDescriptionFormat: '{{Caller}} removed {{OperationCount}} Azure guardrail control(s): {{Operations}}. Affected:'
+  alertDisplayNameFormat: "Guardrail removed: {{Operations}} by {{Caller}}"
+  alertDescriptionFormat: "{{Caller}} removed {{OperationCount}} Azure guardrail control(s): {{Operations}}. Affected:"
 customDetails:
   Operations: Operations
   AffectedResources: AffectedResources
@@ -68,12 +72,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

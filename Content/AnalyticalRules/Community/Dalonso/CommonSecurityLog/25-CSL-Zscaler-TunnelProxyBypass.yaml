@@ -6,20 +6,20 @@ description: |
   Detects Zscaler ZIA traffic matching tunnel, SOCKS proxy, VPN protocol, or SSL-bypass / proxy-avoidance URL categories. These categories indicate a user or host attempting to establish an encrypted channel that bypasses Zscaler's SSL inspection engine or to route traffic through an anonymizing proxy — hiding true destination or preventing DLP and threat detection. MITRE ATT&CK: T1572 (Protocol Tunneling), T1090 (Proxy), T1562.007.
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
-- DefenseEvasion
+  - CommandAndControl
+  - DefenseEvasion
 relevantTechniques:
-- T1090
-- T1572
+  - T1090
+  - T1572
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -41,13 +41,13 @@ query: |
     by SourceUserName, TunnelCategory = DeviceCustomString2
   | order by TunnelAttempts desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler Tunnel/Bypass - {{SourceUserName}} ({{TunnelAttempts}} attempts)'
-  alertDescriptionFormat: 'User {{SourceUserName}} triggered {{TunnelAttempts}} tunneling or proxy-bypass events. Category: {{TunnelCategory}}.'
+  alertDisplayNameFormat: Zscaler Tunnel/Bypass - {{SourceUserName}} ({{TunnelAttempts}} attempts)
+  alertDescriptionFormat: "User {{SourceUserName}} triggered {{TunnelAttempts}} tunneling or proxy-bypass events. Category: {{TunnelCategory}}."
 customDetails:
   TunnelAttempts: TunnelAttempts
   UniqueTargets: UniqueTargets
@@ -60,12 +60,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

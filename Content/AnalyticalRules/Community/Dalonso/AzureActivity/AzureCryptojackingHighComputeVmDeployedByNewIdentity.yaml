@@ -5,15 +5,22 @@ description: |
 
   Detects deployment of GPU or high-compute VMs (NC/NV/ND/NP/HB/HC series) by identities with no history of such deployments in the last 14 days. Attackers compromise Azure credentials and immediately provision GPU VMs for cryptocurrency mining (T1496). FP mitigations applied: (1) 14-day behavioral baseline excludes established GPU deployers; (2) known IaC/CI-CD caller patterns excluded by name; (3) Azure platform IPs (168.63.x, 169.254.x) excluded; (4) requires ActivityStatus='Success' only — not 'Start' or 'Accept' which are pre-execution noise. NOT a duplicate of built-in 'Unusual number of resources created' because this is SKU-specific and identity-baseline-driven.
 severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT6H
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Impact
+  - Impact
 relevantTechniques:
-- T1496
+  - T1496
 query: |
   let GPUSKUs = dynamic(["Standard_NC", "Standard_NV", "Standard_ND", "Standard_NP", "Standard_HB", "Standard_HC"]);
   let KnownAutoPatterns = dynamic(["terraform", "bicep", "pipeline", "github", "pulumi", "devops", "arm-deployment"]);
@@ -44,19 +51,19 @@ query: |
       AccountName = tostring(split(Caller, "@")[0]),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Cryptojacking: GPU VM deployed by {{Caller}} from {{CallerIP}}'
-  alertDescriptionFormat: 'Identity {{Caller}} deployed {{DeploymentCount}} high-compute VM(s) with no prior history. Source IP(s): {{SourceIPs}}. Resources:'
+  alertDisplayNameFormat: "Cryptojacking: GPU VM deployed by {{Caller}} from {{CallerIP}}"
+  alertDescriptionFormat: "Identity {{Caller}} deployed {{DeploymentCount}} high-compute VM(s) with no prior history. Source IP(s): {{SourceIPs}}. Resources:"
 customDetails:
   DeploymentCount: DeploymentCount
   SourceIPs: SourceIPs
@@ -69,13 +76,13 @@ incidentConfiguration:
     lookbackDuration: PT12H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

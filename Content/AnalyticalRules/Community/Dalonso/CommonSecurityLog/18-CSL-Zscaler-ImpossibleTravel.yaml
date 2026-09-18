@@ -11,19 +11,19 @@ description: |
   MITRE ATT&CK: T1078 (Valid Accounts)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- DefenseEvasion
+  - InitialAccess
+  - DefenseEvasion
 relevantTechniques:
-- T1078
+  - T1078
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -40,13 +40,13 @@ query: |
   | where CountryCount > 1
   | order by CountryCount desc, RequestCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Impossible Travel - {{SourceUserName}} in {{CountryCount}} locations/hr'
-  alertDescriptionFormat: 'User {{SourceUserName}} accessed Zscaler from {{CountryCount}} distinct locations within 1 hour across {{RequestCount}} requests. Possible credential compromise or proxy bypass.'
+  alertDisplayNameFormat: Impossible Travel - {{SourceUserName}} in {{CountryCount}} locations/hr
+  alertDescriptionFormat: User {{SourceUserName}} accessed Zscaler from {{CountryCount}} distinct locations within 1 hour across {{RequestCount}} requests. Possible credential compromise or proxy bypass.
 customDetails:
   CountryCount: CountryCount
   RequestCount: RequestCount
@@ -58,12 +58,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

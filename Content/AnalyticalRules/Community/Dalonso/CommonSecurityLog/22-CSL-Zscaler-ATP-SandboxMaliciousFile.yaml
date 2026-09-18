@@ -6,20 +6,20 @@ description: |
   Detects Zscaler ZIA Advanced Threat Protection (ATP) or Sandbox events where a file download was blocked due to a malicious verdict. A sandbox block means Zscaler detonated the file and identified malicious behaviour — ransomware, trojan, exploit, or C2 callback. Treat any sandbox block as a high-confidence malware delivery attempt requiring immediate endpoint investigation. MITRE ATT&CK: T1204 (User Execution), T1566 (Phishing — Malicious File), T1071.
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT15M
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Execution
+  - InitialAccess
+  - Execution
 relevantTechniques:
-- T1204
-- T1566
+  - T1204
+  - T1566
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -45,13 +45,13 @@ query: |
     by ThreatCategory = DeviceCustomString2
   | order by BlockCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: RepUser
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: RepUser
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler ATP Block - {{ThreatCategory}} ({{BlockCount}} events, {{UserCount}} users)'
-  alertDescriptionFormat: 'Zscaler blocked {{BlockCount}} ATP or Sandbox events for category {{ThreatCategory}} affecting {{UserCount}} users.'
+  alertDisplayNameFormat: Zscaler ATP Block - {{ThreatCategory}} ({{BlockCount}} events, {{UserCount}} users)
+  alertDescriptionFormat: Zscaler blocked {{BlockCount}} ATP or Sandbox events for category {{ThreatCategory}} affecting {{UserCount}} users.
 customDetails:
   BlockCount: BlockCount
   UserCount: UserCount
@@ -64,12 +64,12 @@ incidentConfiguration:
     lookbackDuration: PT4H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

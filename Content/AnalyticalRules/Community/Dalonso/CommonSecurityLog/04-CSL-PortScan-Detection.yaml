@@ -10,18 +10,18 @@ description: |
   MITRE ATT&CK: T1046 (Network Service Discovery)
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Discovery
+  - Discovery
 relevantTechniques:
-- T1046
+  - T1046
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1h)
@@ -43,13 +43,13 @@ query: |
       "Combined Scan")
   | order by UniqueDestPorts desc, UniqueDestIPs desc
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SourceIP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SourceIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Port Scan Detected - {{SourceIP}} hit {{UniqueDestPorts}} ports'
-  alertDescriptionFormat: 'Source {{SourceIP}} targeted {{UniqueDestIPs}} IPs across {{UniqueDestPorts}} unique ports. Possible network reconnaissance activity.'
+  alertDisplayNameFormat: Port Scan Detected - {{SourceIP}} hit {{UniqueDestPorts}} ports
+  alertDescriptionFormat: Source {{SourceIP}} targeted {{UniqueDestIPs}} IPs across {{UniqueDestPorts}} unique ports. Possible network reconnaissance activity.
 customDetails:
   UniqueDestPorts: UniqueDestPorts
   UniqueDestIPs: UniqueDestIPs
@@ -62,12 +62,12 @@ incidentConfiguration:
     lookbackDuration: PT3H
     matchingMethod: Selected
     groupByEntities:
-    - IP
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

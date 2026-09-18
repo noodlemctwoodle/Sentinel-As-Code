@@ -19,18 +19,18 @@ description: |
   to avoid duplicate alerts on confirmed DGA events.
 severity: High
 requiredDataConnectors:
-- connectorId: WindowsDnsAma
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1568.002
+  - T1568.002
 query: |
   // Signal 1: High NXDOMAIN volume with high failure rate
   let NxdomainClients =
@@ -83,18 +83,17 @@ query: |
       FirstSeen,
       LastSeen
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: SrcHostname
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: SrcHostname
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DGA/NXDOMAIN Flood — {{SrcHostname}} got {{NxdomainCount}} NXDOMAIN responses ({{NxdomainRate}}%)'
-  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) received {{NxdomainCount}} NXDOMAIN responses (% failure rate) across unique domains in 1 hour. This pattern'' is characteristic of DGA malware.
-    Sample domains:'
+  alertDisplayNameFormat: DGA/NXDOMAIN Flood — {{SrcHostname}} got {{NxdomainCount}} NXDOMAIN responses ({{NxdomainRate}}%)
+  alertDescriptionFormat: "{{SrcHostname}} ({{SrcIpAddr}}) received {{NxdomainCount}} NXDOMAIN responses (% failure rate) across unique domains in 1 hour. This pattern' is characteristic of DGA malware. Sample domains:"
 customDetails:
   NxdomainCount: NxdomainCount
   NxdomainRate: NxdomainRate
@@ -102,6 +101,6 @@ customDetails:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

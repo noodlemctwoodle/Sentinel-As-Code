@@ -11,20 +11,20 @@ description: |
   MITRE ATT&CK: T1562 (Impair Defenses), T1046 (Network Service Discovery)
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
-- Discovery
+  - DefenseEvasion
+  - Discovery
 relevantTechniques:
-- T1046
-- T1562
+  - T1046
+  - T1562
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -46,8 +46,8 @@ query: |
   | where DenyCount > 50
   | order by DenyCount desc
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Palo Alto Policy Deny Spike - {{DeviceCustomString1}} ({{DenyCount}} denies)'
-  alertDescriptionFormat: 'Palo Alto policy {{DeviceCustomString1}} generated {{DenyCount}} deny events. High deny volume may indicate zone bypass attempts or firewall rule testing.'
+  alertDisplayNameFormat: Palo Alto Policy Deny Spike - {{DeviceCustomString1}} ({{DenyCount}} denies)
+  alertDescriptionFormat: Palo Alto policy {{DeviceCustomString1}} generated {{DenyCount}} deny events. High deny volume may indicate zone bypass attempts or firewall rule testing.
 customDetails:
   DenyCount: DenyCount
   DeviceCustomString1: DeviceCustomString1
@@ -61,10 +61,10 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails:
-    - DeviceCustomString1
+      - DeviceCustomString1
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

@@ -6,22 +6,25 @@ description: |
   REQUIRES WATCHLIST = "SuspiciousUsers"'
 severity: Medium
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - OfficeActivity
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Reconnaissance
-- InitialAccess
-- Persistence
+  - Reconnaissance
+  - InitialAccess
+  - Persistence
 relevantTechniques:
-- T1078
-- T1078.004
-- T1591
+  - T1078
+  - T1078.004
+  - T1591
 query: |
   let SuspiciousUsers = _GetWatchlist('SuspiciousUsers') | project UserPrincipalName;
   let O365Activity =
@@ -48,18 +51,18 @@ query: |
       ;
   union O365Activity, SuspiciousLogin
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserPrincipalName
-- entityType: CloudApplication
-  fieldMappings:
-  - identifier: Name
-    columnName: Appname
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: DeviceType
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: Appname
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceType
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -75,6 +78,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft 365
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft 365

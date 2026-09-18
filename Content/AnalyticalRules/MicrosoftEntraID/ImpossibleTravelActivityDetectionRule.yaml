@@ -10,24 +10,23 @@ description: |
   Another example is when an employee is traveling and working from a remote location. Their smartphone can jump between their cellular network provider that's connected using roaming from their home country and Wi-Fi located on a different continent.'
 severity: High
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - SigninLogs
-  - AADNonInteractiveUserSignInLogs
+  - connectorId: OfficeIRM
+    dataTypes:
+      - Watchlist
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- DefenseEvasion
-- InitialAccess
+  - CredentialAccess
+  - DefenseEvasion
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1078.004
-- T1550
-- T1550.001
+  - T1078
+  - T1078.004
+  - T1550
+  - T1550.001
 query: |
   let startDate = ago(1h);
   let endDate = now();
@@ -109,14 +108,14 @@ query: |
       )
   | project-reorder LastAccess, UserPrincipalName, HighRiskCountryCount, ImpossibleTravelRoutes, ImpossibleTravelRouteCount, Countries, CountryCount, IPAddresses, Severity
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddresses
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddresses
 customDetails:
   TravalRoutes: ImpossibleTravelRoutes
   ImpTravelCount: ImpossibleTravelRouteCount
@@ -136,6 +135,6 @@ incidentConfiguration:
 version: 1.1.1
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

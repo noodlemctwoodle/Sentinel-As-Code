@@ -6,20 +6,23 @@ description: |
   Detects ZPA users or source IPs generating more than 20 failed or blocked connection attempts to internal applications in a 1-hour window. Unlike network-level brute force, ZPA connection failures can indicate password spraying targeting applications exposed via ZPA, repeated MFA denials, configuration errors causing mass reconnects, or an attacker probing internal app segments using compromised ZPA credentials. MITRE ATT&CK: T1110 (Brute Force), T1133 (External Remote Services).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: ZscalerPrivateAccess
+    dataTypes:
+      - ZPA
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- InitialAccess
+  - CredentialAccess
+  - InitialAccess
 relevantTechniques:
-- T1110
-- T1133
+  - T1110
+  - T1133
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1h)
@@ -39,13 +42,13 @@ query: |
   | where FailureCount > 20
   | order by FailureCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ZPA Connection Spray - {{SourceUserName}} ({{FailureCount}} failures)'
-  alertDescriptionFormat: 'ZPA user {{SourceUserName}} generated {{FailureCount}} connection failures against {{UniqueApps}} internal apps in 1 hour.'
+  alertDisplayNameFormat: ZPA Connection Spray - {{SourceUserName}} ({{FailureCount}} failures)
+  alertDescriptionFormat: ZPA user {{SourceUserName}} generated {{FailureCount}} connection failures against {{UniqueApps}} internal apps in 1 hour.
 customDetails:
   FailureCount: FailureCount
   UniqueApps: UniqueApps
@@ -58,12 +61,12 @@ incidentConfiguration:
     lookbackDuration: PT4H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

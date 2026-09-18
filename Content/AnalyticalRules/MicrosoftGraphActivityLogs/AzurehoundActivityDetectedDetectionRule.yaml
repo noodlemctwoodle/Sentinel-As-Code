@@ -3,18 +3,22 @@ name: AzureHound activity detected
 description: |
   'Microsoft Graph queries sent to the tenant contained the User Agent string of AzureHound. This is a high fedility indicator that someone scans your Azure AD tenant for additional information and might be part of the inital phase of an attack.'
 severity: Medium
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - MicrosoftGraphActivityLogs
 enabled: true
 tactics:
-- Reconnaissance
-- Discovery
+  - Reconnaissance
+  - Discovery
 relevantTechniques:
-- T1069
-- T1069.003
-- T1087
-- T1087.004
-- T1589
-- T1595
-- T1595.002
+  - T1069
+  - T1069.003
+  - T1087
+  - T1087.004
+  - T1589
+  - T1595
+  - T1595.002
 query: |
   MicrosoftGraphActivityLogs
   | where UserAgent has "azurehound"
@@ -22,20 +26,20 @@ query: |
   | extend ConfidenceScore = 1
   | extend RemediationSteps = "Identify the identity and device used for this activity and confirm this is not a security test. If you can rule out a security test initiate the  incident response process to decide if the attacker can be evicted or should be observed"
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: AadUserId
-    columnName: UserId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 alertDetailsOverride:
   alertDynamicProperties:
-  - alertProperty: RemediationSteps
-    value: RemediationSteps
-  - alertProperty: ConfidenceScore
-    value: ConfidenceScore
+    - alertProperty: RemediationSteps
+      value: RemediationSteps
+    - alertProperty: ConfidenceScore
+      value: ConfidenceScore
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -46,12 +50,12 @@ incidentConfiguration:
     lookbackDuration: PT5H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: NRT
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Graph
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Graph

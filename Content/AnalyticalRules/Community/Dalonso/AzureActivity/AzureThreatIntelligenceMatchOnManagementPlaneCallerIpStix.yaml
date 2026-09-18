@@ -5,19 +5,30 @@ description: |
 
   Correlates CallerIpAddress from AzureActivity against active STIX 2.1 IP indicators from ThreatIntelIndicators. An IP match indicates adversary-controlled infrastructure calling Azure management APIs — characteristic of nation-state operators and ransomware affiliates managing compromised Azure tenants. Enriched with SigninLogs and AADServicePrincipalSignInLogs to confirm a preceding authenticated session from the same TI-matched IP, dramatically reducing false positives from NAT/proxy coincidences. FP mitigations: (1) Confidence >= 75 filters low-quality bulk TI; (2) IsActive == true, Revoked == false, IsDeleted == false, ValidUntil > now() filter stale/revoked indicators; (3) RFC 1918 and Azure platform IPs excluded; (4) Only IPv4 observables (ObservableKey =~ 'ipv4-addr:value'); (5) Only AzureActivity Success status; (6) SigninLogs/AADServicePrincipalSignInLogs corroboration within 2h window elevates confidence.
 severity: High
+requiredDataConnectors:
+  - connectorId: CiscoMerakiNativePoller
+    dataTypes:
+      - ThreatIntelIndicators
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADServicePrincipalSignInLogs
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Persistence
-- Impact
+  - InitialAccess
+  - Persistence
+  - Impact
 relevantTechniques:
-- T1078
-- T1098
-- T1496
+  - T1078
+  - T1098
+  - T1496
 query: |
   let LookbackWindow = 1d;
   let PrivateRanges = dynamic(["10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "127.", "169.254.", "168.63."]);
@@ -111,19 +122,19 @@ query: |
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
   | project-away SigninIP, SPSigninIP
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'TI match (STIX): {{Caller}} called Azure MGMT from {{CallerIP}} ({{ThreatType}}, score )'
-  alertDescriptionFormat: 'Caller {{Caller}} performed {{OperationCount}} Azure management operations from TI-matched IP {{CallerIP}}. Threat: . Group: . TLP: .'' Sign-in corroboration: ( sessions)'
+  alertDisplayNameFormat: "TI match (STIX): {{Caller}} called Azure MGMT from {{CallerIP}} ({{ThreatType}}, score )"
+  alertDescriptionFormat: "Caller {{Caller}} performed {{OperationCount}} Azure management operations from TI-matched IP {{CallerIP}}. Threat: . Group: . TLP: .' Sign-in corroboration: ( sessions)"
 customDetails:
   ThreatType: ThreatType
   ConfidenceScore: ConfidenceScore
@@ -139,13 +150,13 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

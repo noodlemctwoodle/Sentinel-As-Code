@@ -4,31 +4,43 @@ description: |
   'Enter rule description here'
 severity: Informational
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Usage
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
-- Impact
-query: "let lastWeekStart = ago(14d); \nlet lastWeekEnd = ago(7d); \nlet thirtyDaysStart = ago(30d);\nlet thirtyDaysEnd = ago(0d);\nlet averageIngestionLast30Days = toscalar(\n    Usage\n    | where IsBillable\
-  \ == true\n    | where TimeGenerated >= thirtyDaysStart and TimeGenerated < thirtyDaysEnd\n    | summarize avg(Quantity) / toreal(round(1024,-3))\n);\nUsage\n| where IsBillable == true\n| where TimeGenerated\
-  \ >= lastWeekStart and TimeGenerated < lastWeekEnd \n| summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType \n| extend LastWeekSize = toreal(LastWeekSize)\n| extend\
-  \ PercentageBelowAverage = iif(LastWeekSize < averageIngestionLast30Days, round((LastWeekSize / averageIngestionLast30Days) * 100, 2), 0.0)\n| project DataType, LastWeekSize, PercentageBelowAverage\n\
-  | where PercentageBelowAverage > 0\n"
+  - DefenseEvasion
+  - Impact
+query: |
+  let lastWeekStart = ago(14d); 
+  let lastWeekEnd = ago(7d); 
+  let thirtyDaysStart = ago(30d);
+  let thirtyDaysEnd = ago(0d);
+  let averageIngestionLast30Days = toscalar(
+      Usage
+      | where IsBillable == true
+      | where TimeGenerated >= thirtyDaysStart and TimeGenerated < thirtyDaysEnd
+      | summarize avg(Quantity) / toreal(round(1024,-3))
+  );
+  Usage
+  | where IsBillable == true
+  | where TimeGenerated >= lastWeekStart and TimeGenerated < lastWeekEnd 
+  | summarize LastWeekSize = sumif(Quantity, isnotempty(DataType)) / round(1024,-3) by DataType 
+  | extend LastWeekSize = toreal(LastWeekSize)
+  | extend PercentageBelowAverage = iif(LastWeekSize < averageIngestionLast30Days, round((LastWeekSize / averageIngestionLast30Days) * 100, 2), 0.0)
+  | project DataType, LastWeekSize, PercentageBelowAverage
+  | where PercentageBelowAverage > 0
 entityMappings:
-- entityType: CloudApplication
-  fieldMappings:
-  - identifier: Name
-    columnName: DataType
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: DataType
 eventGroupingSettings:
   aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -39,9 +51,11 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
+suppressionDuration: P1D
+suppressionEnabled: true
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Workspace Usage
+  - Sentinel-As-Code
+  - Custom
+  - Workspace Usage

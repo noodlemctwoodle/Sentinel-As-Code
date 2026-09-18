@@ -14,20 +14,20 @@ description: |
   This is outside of directories that they have access too "Downloads | OneDrive | Users"'
 severity: Informational
 requiredDataConnectors:
-- connectorId: MicrosoftDefenderforEndpoints
-  dataTypes:
-  - DeviceFileEvents
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - DeviceFileEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Execution
+  - InitialAccess
+  - Execution
 relevantTechniques:
-- T1059
-- T1189
+  - T1059
+  - T1189
 query: |
   DeviceFileEvents
   | where ActionType in ("FileCreated", "FileOpened", "FileModified", "FileDeleted")
@@ -64,18 +64,18 @@ query: |
       , Severity
   | where Severity has_any ("High", "Medium")
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: InitiatingProcessAccountUpn
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: DeviceName
-- entityType: Process
-  fieldMappings:
-  - identifier: CommandLine
-    columnName: InitiatingProcessFileName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: InitiatingProcessAccountUpn
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: DeviceName
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: InitiatingProcessFileName
 alertDetailsOverride:
   alertnameFormat: null
   alertDescriptionFormat: null
@@ -96,6 +96,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Defender XDR
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Defender XDR
