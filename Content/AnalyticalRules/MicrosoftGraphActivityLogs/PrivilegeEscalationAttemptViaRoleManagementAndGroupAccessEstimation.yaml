@@ -6,29 +6,33 @@ description: |
   The rule captures scenarios where an attacker or insider threat first enumerates all available groups in the tenant and then systematically tests their ability to modify these groups using the estimateAccess API endpoint. This pattern indicates deliberate permission probing rather than legitimate administrative actions. Each alert includes contextual information about the user's existing privileges, organizational position, and access patterns to help security teams quickly assess the risk level and determine appropriate response actions.
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftGraphActivityLogs
-  dataTypes:
-  - MicrosoftGraphActivityLogs
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+      - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Reconnaissance
-- InitialAccess
-- PrivilegeEscalation
-- Discovery
+  - Reconnaissance
+  - InitialAccess
+  - PrivilegeEscalation
+  - Discovery
 relevantTechniques:
-- T1069
-- T1069.003
-- T1078
-- T1078.004
-- T1087
-- T1087.004
-- T1591
-- T1595
-- T1595.002
+  - T1069
+  - T1069.003
+  - T1078
+  - T1078.004
+  - T1087
+  - T1087.004
+  - T1591
+  - T1595
+  - T1595.002
 query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
@@ -110,16 +114,16 @@ query: |
   UniqueEndpointsAccessed = array_length(RequestURIs)
   | order by BlastRadiusSeverity asc, RequestCount desc, ActivityDurationMinutes desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserPrincipalName
-  - identifier: Name
-    columnName: UserDisplayName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+      - identifier: Name
+        columnName: UserDisplayName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -135,6 +139,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Graph
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Graph

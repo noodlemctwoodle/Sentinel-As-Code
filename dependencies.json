@@ -880,6 +880,11 @@
         "SigninLogs"
       ]
     },
+    "Content/AnalyticalRules/MicrosoftEntraID/MultipleFailedSignInsFromSingleIp.yaml": {
+      "tables": [
+        "SigninLogs"
+      ]
+    },
     "Content/AnalyticalRules/MicrosoftEntraID/PotentialMaliciousSigninAzureAdConnectDetectionRule.yaml": {
       "tables": [
         "SigninLogs"
@@ -1414,6 +1419,11 @@
     "Content/HuntingQueries/SecurityIncident/WeeklySummaryWithTrendIndicators.yaml": {
       "tables": [
         "SecurityIncident"
+      ]
+    },
+    "Content/HuntingQueries/SigninLogs/MultipleFailedSignInsFromSingleIp.yaml": {
+      "tables": [
+        "SigninLogs"
       ]
     },
     "Content/HuntingQueries/SigninLogs/UserBehaviorBaselineAnalysis7day.yaml": {

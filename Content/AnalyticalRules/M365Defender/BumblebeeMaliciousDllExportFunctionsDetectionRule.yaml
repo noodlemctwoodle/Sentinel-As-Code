@@ -6,9 +6,11 @@ description: |
   Look for command line which contains malicious export functions as listed in query – this is a list of observed exports at time of writing and may change over time.'
 severity: High
 requiredDataConnectors:
-  - connectorId: MicrosoftDefenderforEndpoints
+  - connectorId: Dynamics365Finance
     dataTypes:
       - DeviceFileEvents
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
       - DeviceProcessEvents
 queryFrequency: PT1H
 queryPeriod: PT1H

@@ -6,18 +6,18 @@ description: |
   Detects when 3 or more distinct users access the same destination domain within a 1-hour window and that domain is classified as a phishing, advanced security risk, botnet, or malware category by Zscaler ZIA. A single user clicking a phishing link is a user error; multiple users targeting the same domain in the same hour is a strong indicator of an active phishing campaign delivered via email or collaboration tools. MITRE ATT&CK: T1566 (Phishing), T1192 (Spearphishing Link).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
+  - InitialAccess
 relevantTechniques:
-- T1566
+  - T1566
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1h)
@@ -39,13 +39,13 @@ query: |
   | where UserCount >= 3
   | order by UserCount desc
 entityMappings:
-- entityType: URL
-  fieldMappings:
-  - identifier: Url
-    columnName: RepURL
+  - entityType: URL
+    fieldMappings:
+      - identifier: Url
+        columnName: RepURL
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler Phishing Campaign - {{DestinationHostName}} ({{UserCount}} users in 1h)'
-  alertDescriptionFormat: '{{UserCount}} users accessed phishing/malicious domain {{DestinationHostName}} within 1 hour. Category: {{Category}}.'
+  alertDisplayNameFormat: Zscaler Phishing Campaign - {{DestinationHostName}} ({{UserCount}} users in 1h)
+  alertDescriptionFormat: "{{UserCount}} users accessed phishing/malicious domain {{DestinationHostName}} within 1 hour. Category: {{Category}}."
 customDetails:
   UserCount: UserCount
   DestinationHostName: DestinationHostName
@@ -58,12 +58,12 @@ incidentConfiguration:
     lookbackDuration: PT2H
     matchingMethod: Selected
     groupByEntities:
-    - URL
+      - URL
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

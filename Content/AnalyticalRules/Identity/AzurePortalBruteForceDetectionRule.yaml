@@ -6,26 +6,24 @@ description: |
   window. Default thresholds: 10 failures, 25 standard deviations.
 severity: Medium
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - SigninLogs
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - AADNonInteractiveUserSignInLogs
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P7D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- InitialAccess
+  - CredentialAccess
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1078.004
-- T1110
-- T1110.001
-- T1110.003
+  - T1078
+  - T1078.004
+  - T1110
+  - T1110.001
+  - T1110.003
 query: |
   // Set threshold value for deviation
   let threshold = 25;
@@ -72,22 +70,22 @@ query: |
   let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
   union isfuzzy=true aadSignin, aadNonInt
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserPrincipalName
-  - identifier: Name
-    columnName: Name
-  - identifier: UPNSuffix
-    columnName: UPNSuffix
-- entityType: Account
-  fieldMappings:
-  - identifier: AadUserId
-    columnName: UserId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -96,11 +94,11 @@ incidentConfiguration:
     lookbackDuration: PT5H
     matchingMethod: Selected
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
 version: 2.1.4
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Identity
+  - Sentinel-As-Code
+  - Custom
+  - Identity

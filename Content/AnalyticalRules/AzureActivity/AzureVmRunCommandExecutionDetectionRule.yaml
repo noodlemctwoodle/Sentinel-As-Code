@@ -4,22 +4,22 @@ description: |
   'A user has either initiated a Azure VM Run Command or Custom Script execution.'
 severity: Medium
 requiredDataConnectors:
-- connectorId: AzureActivity
-  dataTypes:
-  - AzureActivity
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT30M
 queryPeriod: PT35M
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- LateralMovement
+  - Execution
+  - LateralMovement
 relevantTechniques:
-- T1059
-- T1059.001
-- T1059.002
-- T1072
+  - T1059
+  - T1059.001
+  - T1059.002
+  - T1072
 query: |
   AzureActivity
   | where CategoryValue == "Administrative"
@@ -27,14 +27,14 @@ query: |
   | extend VMName = tostring(todynamic(Properties).resource)
   | summarize make_list(ActivityStatusValue), TimeGenerated = max(TimeGenerated) by CorrelationId, CallerIpAddress, Caller, ResourceGroup, VMName
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: AadUserId
-    columnName: Caller
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: VMName
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: Caller
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: VMName
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 incidentConfiguration:
@@ -50,6 +50,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Azure Activity
+  - Sentinel-As-Code
+  - Custom
+  - Azure Activity

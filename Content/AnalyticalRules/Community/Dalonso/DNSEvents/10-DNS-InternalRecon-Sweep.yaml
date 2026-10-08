@@ -13,16 +13,17 @@ description: |
   MITRE T1018 — Remote System Discovery, T1046 — Network Service Discovery
 severity: Medium
 requiredDataConnectors:
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT30M
 queryPeriod: PT30M
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Discovery
-- Reconnaissance
+  - Discovery
+  - Reconnaissance
 query: |
   ASimDnsActivityLogs
   | where TimeGenerated > ago(30m)
@@ -36,24 +37,23 @@ query: |
   | extend QueriesPerMinute = round(todouble(TotalQueries) / 30.0, 1)
   | where UniqueDomains > 300
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: SrcHostname
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: SrcHostname
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DNS Recon Sweep — {{SrcHostname}} resolved {{UniqueDomains}} unique domains in 30 min'
-  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) resolved {{UniqueDomains}} unique domains in 30 minutes (~ q/min). This exceeds the normal threshold of 300 and may indicate'' post-compromise
-    network enumeration.'
+  alertDisplayNameFormat: DNS Recon Sweep — {{SrcHostname}} resolved {{UniqueDomains}} unique domains in 30 min
+  alertDescriptionFormat: "{{SrcHostname}} ({{SrcIpAddr}}) resolved {{UniqueDomains}} unique domains in 30 minutes (~ q/min). This exceeds the normal threshold of 300 and may indicate' post-compromise network enumeration."
 customDetails:
   UniqueDomains: UniqueDomains
   QueriesPerMinute: QueriesPerMinute
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

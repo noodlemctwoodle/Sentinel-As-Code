@@ -4,37 +4,37 @@ description: |
   'Enter rule description here'
 severity: Informational
 requiredDataConnectors:
-- connectorId: AzureActivity
-  dataTypes:
-  - AzureActivity
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT30M
 queryPeriod: PT30M
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Persistence
-- PrivilegeEscalation
+  - Persistence
+  - PrivilegeEscalation
 relevantTechniques:
-- T1098
-- T1098.001
+  - T1098
+  - T1098.001
 query: |
   AzureActivity
   | where OperationNameValue =~ "Microsoft.ManagedServices/registrationAssignments/Write"
   | extend timestamp = TimeGenerated, AccountCustomEntity = Caller, IPCustomEntity = CallerIpAddress
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: AccountCustomEntity
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPCustomEntity
-- entityType: AzureResource
-  fieldMappings:
-  - identifier: ResourceId
-    columnName: SubscriptionId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: AccountCustomEntity
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPCustomEntity
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: SubscriptionId
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -50,6 +50,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Azure Activity
+  - Sentinel-As-Code
+  - Custom
+  - Azure Activity

@@ -4,11 +4,13 @@ description: |
   'MDE has detected a user that has potentially clicked an email with a phishing URL.'
 severity: High
 requiredDataConnectors:
-  - connectorId: MicrosoftThreatProtection
+  - connectorId: Dynamics365Finance
     dataTypes:
       - EmailEvents
-      - EmailUrlInfo
       - DeviceEvents
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - EmailUrlInfo
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt

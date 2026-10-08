@@ -13,21 +13,21 @@ description: |
   Ref: "New ClickFix attack abuses nslookup to retrieve PowerShell payload via DNS"
 severity: High
 requiredDataConnectors:
-- connectorId: SecurityEvents
-  dataTypes:
-  - SecurityEvent
+  - connectorId: ESI-ExchangeOnPremisesCollector
+    dataTypes:
+      - SecurityEvent
 queryFrequency: PT15M
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- CommandAndControl
+  - Execution
+  - CommandAndControl
 relevantTechniques:
-- T1059.001
-- T1071.004
-- T1204.002
+  - T1059.001
+  - T1071.004
+  - T1204.002
 query: |
   SecurityEvent
   | where TimeGenerated > ago(1d)
@@ -47,24 +47,23 @@ query: |
       ParentProcessName,
       ParentIsShell
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: Computer
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: Account
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Computer
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: Account
 alertDetailsOverride:
-  alertDisplayNameFormat: 'ClickFix DNS Payload — nslookup with explicit server on {{Computer}}'
-  alertDescriptionFormat: 'nslookup.exe launched with an explicit DNS server address on {{Computer}} by {{Account}}. This matches the ClickFix attack pattern (Feb 2026) that delivers PowerShell payloads
-    via DNS NAME field. Command: {{CommandLine}}'
+  alertDisplayNameFormat: ClickFix DNS Payload — nslookup with explicit server on {{Computer}}
+  alertDescriptionFormat: "nslookup.exe launched with an explicit DNS server address on {{Computer}} by {{Account}}. This matches the ClickFix attack pattern (Feb 2026) that delivers PowerShell payloads via DNS NAME field. Command: {{CommandLine}}"
 customDetails:
   CommandLine: CommandLine
   ParentProcess: ParentProcessName
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

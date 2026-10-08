@@ -5,17 +5,24 @@ description: |
 
   Detects when a service principal sign-in has Conditional Access status 'failure' or 'notApplied' (CA bypass) but ResultType=0 (sign-in succeeded), and that same source IP subsequently calls Azure management APIs within 1 hour. This is indicative of stolen SP tokens or credential abuse where the attacker bypassed CA policies (T1528 — Steal Application Access Token). Correlates AADServicePrincipalSignInLogs with AzureActivity on IP. FP mitigations: (1) ResultType=0 required — prevents alerting on simply failed sign-ins; (2) Requires 2+ management operations post sign-in — filters out single read operations; (3) Azure platform and link-local IPs excluded; (4) 1-hour temporal window keeps the correlation tight and reduces coincidental IP matches from shared NATs.
 severity: High
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AADServicePrincipalSignInLogs
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT1H
 queryPeriod: PT2H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- CredentialAccess
+  - InitialAccess
+  - CredentialAccess
 relevantTechniques:
-- T1078
-- T1528
+  - T1078
+  - T1528
 query: |
   let CABypassSignins = AADServicePrincipalSignInLogs
       | where TimeGenerated > ago(2h)
@@ -47,19 +54,19 @@ query: |
       AccountName = coalesce(tostring(split(Caller, "@")[0]), ServicePrincipalName),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'CA bypass SP {{ServicePrincipalName}} then {{MGMTOpCount}} MGMT ops from {{CallerIP}}'
-  alertDescriptionFormat: 'SP {{ServicePrincipalName}} signed in with CA status ''''{{CAStatus}}'''' from {{CallerIP}}, then performed management operations within 1 hour:'
+  alertDisplayNameFormat: CA bypass SP {{ServicePrincipalName}} then {{MGMTOpCount}} MGMT ops from {{CallerIP}}
+  alertDescriptionFormat: "SP {{ServicePrincipalName}} signed in with CA status ''{{CAStatus}}'' from {{CallerIP}}, then performed management operations within 1 hour:"
 customDetails:
   CAStatus: CAStatus
   MGMTOpCount: MGMTOpCount
@@ -72,13 +79,13 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

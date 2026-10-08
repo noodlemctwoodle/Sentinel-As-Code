@@ -8,6 +8,8 @@ requiredDataConnectors:
     dataTypes:
       - AZFWApplicationRule
       - AZFWNetworkRule
+  - connectorId: AzureBatchAccount_CCP
+    dataTypes:
       - AzureDiagnostics
 queryFrequency: PT1H
 queryPeriod: PT1H

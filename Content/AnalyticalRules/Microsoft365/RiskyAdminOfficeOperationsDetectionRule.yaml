@@ -4,26 +4,29 @@ description: |
   'Identifies Office operations initated by risky admin accounts (AADRiskyUser).'
 severity: High
 requiredDataConnectors:
-- connectorId: Office365
-  dataTypes:
-  - OfficeActivity
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - AADRiskyUsers
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AADRiskyUsers
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - OfficeActivity
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Operation
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Persistence
-- Collection
+  - Persistence
+  - Collection
 relevantTechniques:
-- T1098
-- T1098.001
-- T1098.003
-- T1114
-- T1114.003
+  - T1098
+  - T1098.001
+  - T1098.003
+  - T1114
+  - T1114.003
 query: |
   let riskyUser =
       // Get list of risky users
@@ -46,17 +49,17 @@ query: |
     , Operation
     , Parameters
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: ClientIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: ClientIP
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft 365
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft 365

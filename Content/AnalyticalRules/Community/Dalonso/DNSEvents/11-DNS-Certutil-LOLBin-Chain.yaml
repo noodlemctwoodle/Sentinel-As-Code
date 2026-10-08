@@ -20,22 +20,22 @@ description: |
   legitimate PKI certificate operations that trigger the built-in rule.
 severity: High
 requiredDataConnectors:
-- connectorId: SecurityEvents
-  dataTypes:
-  - SecurityEvent
+  - connectorId: ESI-ExchangeOnPremisesCollector
+    dataTypes:
+      - SecurityEvent
 queryFrequency: PT15M
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- DefenseEvasion
-- CommandAndControl
+  - Execution
+  - DefenseEvasion
+  - CommandAndControl
 relevantTechniques:
-- T1027
-- T1071.004
-- T1218.003
+  - T1027
+  - T1071.004
+  - T1218.003
 query: |
   let NslookupEvents =
       SecurityEvent
@@ -73,23 +73,23 @@ query: |
       CertutilCmds,
       TimeDelta = CertutilTime - NslookupTime
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: Computer
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: Account
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Computer
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: Account
 alertDetailsOverride:
-  alertDisplayNameFormat: 'LOLBin DNS Staging — nslookup+certutil chain on {{Computer}}'
-  alertDescriptionFormat: '{{Computer}} ({{Account}}): {{NslookupCount}} nslookup calls followed by certutil -decode within . This matches DNS payload staging via LOLBins. nslookup cmds: ,'' certutil cmds:'
+  alertDisplayNameFormat: LOLBin DNS Staging — nslookup+certutil chain on {{Computer}}
+  alertDescriptionFormat: "{{Computer}} ({{Account}}): {{NslookupCount}} nslookup calls followed by certutil -decode within . This matches DNS payload staging via LOLBins. nslookup cmds: ,' certutil cmds:"
 customDetails:
   NslookupCount: NslookupCount
   CertutilCmds: CertutilCmds
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

@@ -6,20 +6,20 @@ description: |
   Detects Zscaler ZIA users generating more than 500 allowed proxy requests or downloading more than 100 MB between 10PM and 6AM local time. Most business users are inactive during these hours, so high-volume activity in this window is a strong behavioural anomaly — it may indicate a compromised account being remote-controlled, an insider threat staging data for exfiltration, or automated malware activity. MITRE ATT&CK: T1078 (Valid Accounts), T1048, T1029.
 severity: Medium
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Exfiltration
-- DefenseEvasion
+  - Exfiltration
+  - DefenseEvasion
 relevantTechniques:
-- T1048
-- T1078
+  - T1048
+  - T1078
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -40,13 +40,13 @@ query: |
   | where OffHoursRequests > 500 or MBDownloaded > 100
   | order by MBDownloaded desc, OffHoursRequests desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler Off-Hours Activity - {{UserName}} ({{OffHoursRequests}} reqs, {{MBDownloaded}} MB)'
-  alertDescriptionFormat: 'User {{UserName}} made {{OffHoursRequests}} proxy requests and downloaded {{MBDownloaded}} MB outside business hours (10PM-6AM).'
+  alertDisplayNameFormat: Zscaler Off-Hours Activity - {{UserName}} ({{OffHoursRequests}} reqs, {{MBDownloaded}} MB)
+  alertDescriptionFormat: User {{UserName}} made {{OffHoursRequests}} proxy requests and downloaded {{MBDownloaded}} MB outside business hours (10PM-6AM).
 customDetails:
   OffHoursRequests: OffHoursRequests
   MBDownloaded: MBDownloaded
@@ -59,12 +59,12 @@ incidentConfiguration:
     lookbackDuration: PT8H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

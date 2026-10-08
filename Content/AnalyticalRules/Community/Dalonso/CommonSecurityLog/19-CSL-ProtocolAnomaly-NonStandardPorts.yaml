@@ -11,18 +11,18 @@ description: |
   MITRE ATT&CK: T1571 (Non-Standard Port)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1571
+  - T1571
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -44,8 +44,8 @@ query: |
     by DestinationPort, ApplicationProtocol, Protocol
   | order by ConnectionCount desc
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Non-Standard Protocol Port - {{ApplicationProtocol}} on port {{DestinationPort}}'
-  alertDescriptionFormat: '{{ConnectionCount}} allowed connections using {{ApplicationProtocol}} on non-standard port {{DestinationPort}}. Possible C2 channel disguised as web traffic.'
+  alertDisplayNameFormat: Non-Standard Protocol Port - {{ApplicationProtocol}} on port {{DestinationPort}}
+  alertDescriptionFormat: "{{ConnectionCount}} allowed connections using {{ApplicationProtocol}} on non-standard port {{DestinationPort}}. Possible C2 channel disguised as web traffic."
 customDetails:
   ConnectionCount: ConnectionCount
   DestinationPort: DestinationPort
@@ -60,10 +60,10 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails:
-    - DestinationPort
+      - DestinationPort
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

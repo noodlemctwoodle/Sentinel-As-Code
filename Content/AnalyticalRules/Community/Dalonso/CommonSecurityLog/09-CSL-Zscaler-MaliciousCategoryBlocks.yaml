@@ -10,18 +10,18 @@ description: |
   MITRE ATT&CK: T1071 (Application Layer Protocol)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT15M
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1071
+  - T1071
 query: |
   let MaliciousCategories = dynamic([
       "BOTNET_SITES", "MALWARE_SITES", "PHISHING", "SPYWARE_ADWARE_KEYLOGGERS",
@@ -46,8 +46,8 @@ query: |
     by DeviceCustomString2, DeviceCustomString3
   | order by BlockCount desc
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler Malicious Block - {{DeviceCustomString2}} ({{BlockCount}} attempts)'
-  alertDescriptionFormat: '{{BlockCount}} Zscaler requests blocked for malicious category {{DeviceCustomString2}} affecting {{UniqueUsers}} users. Possible malware C2 or phishing activity.'
+  alertDisplayNameFormat: Zscaler Malicious Block - {{DeviceCustomString2}} ({{BlockCount}} attempts)
+  alertDescriptionFormat: "{{BlockCount}} Zscaler requests blocked for malicious category {{DeviceCustomString2}} affecting {{UniqueUsers}} users. Possible malware C2 or phishing activity."
 customDetails:
   BlockCount: BlockCount
   UniqueUsers: UniqueUsers
@@ -62,10 +62,10 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails:
-    - DeviceCustomString2
+      - DeviceCustomString2
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

@@ -5,17 +5,28 @@ description: |
 
   Detects bulk deletion of critical Azure infrastructure resources (NSGs, VMs, Storage Accounts, VNETs, Disks, Key Vaults, Subnets) by a single identity within a 1-hour window. This pattern is characteristic of ransomware pre-staging (remove defenses before encrypting), destructive insider attacks (T1485 — Data Destruction), and adversary cleanup after cloud-environment abuse (T1562). Correlates with SigninLogs and AADServicePrincipalSignInLogs to surface whether the deleting identity had a suspicious preceding sign-in (risky, from TOR, CA failure, or first-time location). FP mitigations: (1) Minimum 10 distinct resource deletions — filters normal day-to-day single resource removals; (2) IaC/pipeline caller patterns excluded — Terraform destroy, Bicep, GitHub Actions deprovision legitimately; (3) Azure platform IPs excluded; (4) 14-day baseline excludes identities with a pattern of high-volume deletions; (5) Requires at least 2 distinct resource types — prevents alert on repeated deletion of same type (e.g., cleaning up test VMs of same kind). NOT a duplicate of any confirmed live built-in alert (verified against live SecurityAlert data).
 severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADServicePrincipalSignInLogs
 queryFrequency: PT1H
 queryPeriod: PT3H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Impact
-- DefenseEvasion
+  - Impact
+  - DefenseEvasion
 relevantTechniques:
-- T1485
-- T1562
+  - T1485
+  - T1562
 query: |
   let LookupWindow = 1h;
   let DeleteThreshold = 10;
@@ -120,19 +131,19 @@ query: |
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
   | project-away SigninIP, SPSigninIP
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Mass deletion: {{Caller}} deleted {{DeleteCount}} resources ({{DistinctResourceTypes}} types) from'
-  alertDescriptionFormat: 'Identity {{Caller}} deleted {{DeleteCount}} critical resources across {{DistinctResourceTypes}} resource types in 1 hour from . Sign-in risk: .'
+  alertDisplayNameFormat: "Mass deletion: {{Caller}} deleted {{DeleteCount}} resources ({{DistinctResourceTypes}} types) from"
+  alertDescriptionFormat: "Identity {{Caller}} deleted {{DeleteCount}} critical resources across {{DistinctResourceTypes}} resource types in 1 hour from . Sign-in risk: ."
 customDetails:
   DeleteCount: DeleteCount
   DistinctResourceType: DistinctResourceTypes
@@ -147,13 +158,13 @@ incidentConfiguration:
     lookbackDuration: PT4H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
-    - IP
+      - Account
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

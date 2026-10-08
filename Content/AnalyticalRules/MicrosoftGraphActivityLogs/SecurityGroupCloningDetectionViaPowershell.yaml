@@ -16,27 +16,35 @@ description: |
   Early detection of security group cloning attempts is critical as this technique can be used to establish persistent privileged access within the environment, potentially bypassing traditional detection methods focused on direct privilege assignments.
 severity: Medium
 requiredDataConnectors:
-- connectorId: MicrosoftGraphActivityLogs
-  dataTypes:
-  - MicrosoftGraphActivityLogs
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - MicrosoftGraphActivityLogs
+      - AADNonInteractiveUserSignInLogs
+      - AuditLogs
+  - connectorId: MimecastATAPI
+    dataTypes:
+      - audit
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Reconnaissance
-- CredentialAccess
-- Discovery
-- Persistence
-- PrivilegeEscalation
+  - Reconnaissance
+  - CredentialAccess
+  - Discovery
+  - Persistence
+  - PrivilegeEscalation
 relevantTechniques:
-- T1069
-- T1069.003
-- T1098
-- T1098.003
-- T1552
-- T1590
+  - T1069
+  - T1069.003
+  - T1098
+  - T1098.003
+  - T1552
+  - T1590
 query: |
   // Get most recent identity info to join later, including blast radius indicators
   let RecentIdentityInfo = IdentityInfo
@@ -143,16 +151,16 @@ query: |
   LastOperation
   | order by BlastRadiusSeverity asc, OperationCount desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: AadUserId
-    columnName: UserId
-  - identifier: Name
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: AadUserId
+        columnName: UserId
+      - identifier: Name
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -168,6 +176,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Graph
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Graph

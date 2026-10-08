@@ -10,19 +10,19 @@ description: |
   MITRE ATT&CK: T1071 (Application Layer Protocol), T1571 (Non-Standard Port)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1071
-- T1571
+  - T1071
+  - T1571
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -45,17 +45,17 @@ query: |
   | where BeaconScore > 5
   | order by BeaconScore desc
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SourceIP
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: DestinationIP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SourceIP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: DestinationIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Beaconing Detected - {{SourceIP}} → {{DestinationIP}}'
-  alertDescriptionFormat: 'Internal host {{SourceIP}} made {{ConnectionCount}} connections to external IP {{DestinationIP}} with a regular interval pattern (beacon score: ).'
+  alertDisplayNameFormat: Beaconing Detected - {{SourceIP}} → {{DestinationIP}}
+  alertDescriptionFormat: "Internal host {{SourceIP}} made {{ConnectionCount}} connections to external IP {{DestinationIP}} with a regular interval pattern (beacon score: )."
 customDetails:
   BeaconScore: BeaconScore
   ConnectionCount: ConnectionCount
@@ -68,12 +68,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - IP
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

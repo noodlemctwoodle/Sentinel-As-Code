@@ -5,22 +5,23 @@ description: |
   This may indicate a malicious attempt at password guessing based on knowledge of the users account.'
 severity: Medium
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - SignInLogs
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- InitialAccess
+  - CredentialAccess
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1078.004
-- T1110
-- T1110.001
+  - T1078
+  - T1078.004
+  - T1110
+  - T1110.001
 query: |
   let logonDiff = 10m;
   //let knownIPRange = _GetWatchlist('knownIPs') | project IPAddress | sort by IPAddress desc;
@@ -77,18 +78,18 @@ query: |
   let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
   union isfuzzy=true aadSignin, aadNonInt
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SuccessIPAddress
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: FailedIPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SuccessIPAddress
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: FailedIPAddress
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -104,6 +105,6 @@ incidentConfiguration:
 version: 1.0.1
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

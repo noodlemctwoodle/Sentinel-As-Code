@@ -4,17 +4,17 @@ description: |
   'Enter rule description here'
 severity: Informational
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
-- Impact
+  - DefenseEvasion
+  - Impact
 query: |
   AzureActivity
   | where OperationNameValue has "DATACOLLECTIONRULEASSOCIATIONS/WRITE"
@@ -25,22 +25,20 @@ query: |
   | extend DCR = toupper(split(Resources[2], "-association")[0])
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Source, SourceRG, DCR, Caller, CallerIpAddress
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: Caller
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIpAddress
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: Source
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Source
 eventGroupingSettings:
   aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -51,9 +49,11 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
+suppressionDuration: P1D
+suppressionEnabled: true
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Workspace Usage
+  - Sentinel-As-Code
+  - Custom
+  - Workspace Usage

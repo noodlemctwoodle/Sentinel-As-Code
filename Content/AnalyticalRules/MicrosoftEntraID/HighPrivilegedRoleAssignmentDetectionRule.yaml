@@ -4,22 +4,22 @@ description: |
   'A user was assigned a high privileged role'
 severity: Low
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - AuditLogs
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - AuditLogs
 queryFrequency: PT30M
 queryPeriod: PT30M
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Persistence
-- PrivilegeEscalation
+  - Persistence
+  - PrivilegeEscalation
 relevantTechniques:
-- T1078
-- T1078.004
-- T1098
-- T1098.003
+  - T1078
+  - T1078.004
+  - T1098
+  - T1098.003
 query: |
   let HighPrivRoles = dynamic(["Global Administrator","Company Administrator","Privileged Authentication Administrator","Privileged Role Administrator"]);
   AuditLogs
@@ -32,14 +32,14 @@ query: |
   | extend Actor = iff(isnotempty(InitiatedBy.user.userPrincipalName),InitiatedBy.user.userPrincipalName,InitiatedBy.app.servicePrincipalId)
   | extend TargetUsername = TargetResources.userPrincipalName
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: Actor
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: TargetUsername
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Actor
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: TargetUsername
 customDetails:
   AddedToRole: AddedToRole
 eventGroupingSettings:
@@ -57,6 +57,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

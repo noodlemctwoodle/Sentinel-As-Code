@@ -6,39 +6,39 @@ description: |
   Look for processes injected by Cobalt Strike or Meterpreter named "wab.exe", "wabmig.exe", or "ImagingDevices.exe" that performs domain exploration and reconnaissance activity. Other campaigns will inject into these processes as well, so activity surfaced will be malicious and require investigation, it may not be specific to Bumblebee.'
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftDefenderforEndpoints
-  dataTypes:
-  - DeviceProcessEvents
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
+      - DeviceProcessEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- Persistence
-- DefenseEvasion
-- LateralMovement
+  - Execution
+  - Persistence
+  - DefenseEvasion
+  - LateralMovement
 relevantTechniques:
-- T1055
-- T1059
-- T1059.003
-- T1211
-- T1554
-- T1569
-- T1569.002
+  - T1055
+  - T1059
+  - T1059.003
+  - T1211
+  - T1554
+  - T1569
+  - T1569.002
 query: |
   DeviceProcessEvents
   | where InitiatingProcessFileName has_any ('wab.exe','wabmig.exe','ImagingDevices.exe') and ProcessCommandLine has 'cmd.exe'
 entityMappings:
-- entityType: Process
-  fieldMappings:
-  - identifier: CommandLine
-    columnName: ProcessCommandLine
-- entityType: Process
-  fieldMappings:
-  - identifier: CommandLine
-    columnName: InitiatingProcessFileName
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: ProcessCommandLine
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: InitiatingProcessFileName
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -54,6 +54,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Defender XDR
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Defender XDR

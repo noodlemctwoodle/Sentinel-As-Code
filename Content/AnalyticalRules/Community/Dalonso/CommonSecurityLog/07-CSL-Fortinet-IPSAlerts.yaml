@@ -10,20 +10,20 @@ description: |
   MITRE ATT&CK: T1190 (Exploit Public-Facing Application), T1203 (Exploitation for Client Execution)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- Execution
+  - InitialAccess
+  - Execution
 relevantTechniques:
-- T1190
-- T1203
+  - T1190
+  - T1203
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -42,8 +42,8 @@ query: |
   | where HitCount > 10
   | order by HitCount desc
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Fortinet IPS Alert - {{Activity}} ({{HitCount}} hits)'
-  alertDescriptionFormat: 'Fortinet IPS/App Control signature {{Activity}} triggered {{HitCount}} events. Review source IPs and affected destinations for active exploitation.'
+  alertDisplayNameFormat: Fortinet IPS Alert - {{Activity}} ({{HitCount}} hits)
+  alertDescriptionFormat: Fortinet IPS/App Control signature {{Activity}} triggered {{HitCount}} events. Review source IPs and affected destinations for active exploitation.
 customDetails:
   HitCount: HitCount
   Activity: Activity
@@ -57,10 +57,10 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails:
-    - Activity
+      - Activity
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting
