@@ -1,0 +1,259 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Sentinel SharePoint Publish
+# ---------------------------------------------------------------------------
+# Publishes the iSOC Blueprint SharePoint site for one Sentinel workspace from
+# the Sentinel Documenter's output. Runs automatically after every successful
+# Sentinel Documenter run on main (pipeline resource trigger), and on demand.
+#
+# What it does:
+#   1. Downloads the Documenter run's 'sentinel-docs' artefact.
+#   2. Builds the dashboard web part package (sentinel-navigator.sppkg).
+#   3. Pre-renders any Mermaid diagrams still in the Markdown (no-op when the
+#      Documenter run already pre-rendered them).
+#   4. Builds the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
+#      page per section, findings, diagrams.
+#   5. Signs in as the SharePoint publisher identity through workload
+#      identity federation and publishes the bundle
+#      (Publish-SentinelDocsSite.ps1): pages, navigation, findings list,
+#      dashboard home page, and the web part package when its version
+#      changed.
+#   6. Publishes the bundle and package as the 'sharepoint-site' artefact.
+#
+# Prerequisites (one-off; see Docs/Pipelines/SharePoint-Publish.md):
+#   - The site exists and was prepared by
+#     Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1.
+#   - A separate Entra app registration for publishing, with the SharePoint
+#     application permission Sites.Selected (admin consent) and FullControl
+#     granted on this one site by the bootstrap. It has no Azure roles and no
+#     access to any other site.
+#   - An Azure Resource Manager service connection $(serviceConnection) using
+#     workload identity federation (manual) for that app. Create it at
+#     management-group scope (or give the app Reader on one empty resource
+#     group): the AzureCLI task selects a subscription after login, which
+#     fails for an identity that can see none.
+#   - Variable group 'sentinel-deployment' (shared with the Documenter)
+#     supplying:
+#       sentinelWorkspaceName   the workspace folder inside the artefact
+#       sharePointSiteUrl       the site for this workspace
+#   - The 'documenter' pipeline resource below names the Documenter pipeline
+#     as registered in this project. Docs/Deploy/ADO-OIDC-Setup.md registers
+#     it as 'Sentinel-Documenter'; change 'source' if yours differs.
+#
+# Manual run:
+#   Pipelines → Sentinel SharePoint Publish → Run pipeline. 'Resources' lets
+#   you pick which Documenter run to publish (default: latest on main).
+#   Tick 'What-if' to sign in, read the site and print the plan without
+#   changing anything.
+# ---------------------------------------------------------------------------
+
+trigger: none
+pr: none
+
+# Two publishes to the same site must never overlap.
+lockBehavior: sequential
+
+resources:
+  pipelines:
+    - pipeline: documenter
+      source: "Sentinel-Documenter"
+      trigger:
+        branches:
+          include:
+            - main
+
+parameters:
+  - name: whatIf
+    displayName: "What-if: read the site and print the plan, change nothing"
+    type: boolean
+    default: false
+
+  - name: deployAppPackage
+    displayName: "Deploy the dashboard web part package when its version changed"
+    type: boolean
+    default: true
+
+variables:
+  - group: sentinel-deployment      # sentinelWorkspaceName, sharePointSiteUrl
+  - name: serviceConnection
+    value: "sc-sentinel-sharepoint"
+
+  # Pinned tool versions. PnP.PowerShell 3.4.1 needs PowerShell 7.4+, which
+  # the ubuntu-latest image provides. SPFx 1.21.1 needs Node 22.
+  - name: pnpVersion
+    value: "3.4.1"
+  - name: nodeVersion
+    value: "22.x"
+  - name: mermaidCliVersion
+    value: "11"
+  - name: npm_config_cache
+    value: "$(Pipeline.Workspace)/.npm"
+
+  - name: webPartDir
+    value: "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/webpart/sentinel-navigator"
+  - name: docsRoot
+    value: "$(Pipeline.Workspace)/documenter/sentinel-docs"
+
+  - name: flagWhatIf
+    ${{ if eq(parameters.whatIf, true) }}:
+      value: "-WhatIf"
+    ${{ else }}:
+      value: ""
+
+stages:
+  - stage: Publish
+    displayName: "Build and publish the SharePoint site"
+    jobs:
+      - job: Publish
+        displayName: "Build → Publish"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 45
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - download: documenter
+            displayName: "Download the Documenter's 'sentinel-docs' artefact"
+            artifact: sentinel-docs
+
+          - task: PowerShell@2
+            displayName: "Locate the workspace snapshot"
+            env:
+              WORKSPACE_NAME: $(sentinelWorkspaceName)
+              DOCS_ROOT: $(docsRoot)
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                $ws = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
+                if (-not (Test-Path (Join-Path $ws '_raw'))) {
+                    Write-Error "No '$env:WORKSPACE_NAME/_raw' in the downloaded artefact ($env:DOCS_ROOT). Check sentinelWorkspaceName matches the Documenter run."
+                    exit 1
+                }
+                $md = (Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count
+                Write-Host "##[section]Snapshot: $ws ($md Markdown files)"
+                Write-Host "Documenter run: $(resources.pipeline.documenter.runName) ($(resources.pipeline.documenter.runID))"
+
+          - task: UseNode@1
+            displayName: "Install Node $(nodeVersion)"
+            inputs:
+              version: "$(nodeVersion)"
+
+          - task: Cache@2
+            displayName: "Cache npm"
+            inputs:
+              key: 'npm | "$(Agent.OS)" | Tools/Documenter/SharePoint/webpart/sentinel-navigator/package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(npm_config_cache)
+
+          - task: PowerShell@2
+            displayName: "Build the dashboard web part package"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              workingDirectory: "$(webPartDir)"
+              script: |
+                $ErrorActionPreference = 'Stop'
+                npm ci --no-audit --no-fund
+                if ($LASTEXITCODE -ne 0) { throw "npm ci failed ($LASTEXITCODE)" }
+                npm run package
+                if ($LASTEXITCODE -ne 0) { throw "npm run package failed ($LASTEXITCODE)" }
+                $pkg = Join-Path (Get-Location) 'sharepoint/solution/sentinel-navigator.sppkg'
+                if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
+                Write-Host "##[section]Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
+
+          - task: PowerShell@2
+            displayName: "Pre-render Mermaid → PNG"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                npm install -g "@mermaid-js/mermaid-cli@$(mermaidCliVersion)"
+                if ($LASTEXITCODE -ne 0) { throw "mermaid-cli install failed ($LASTEXITCODE)" }
+                & "$(Build.SourcesDirectory)/Tools/Documenter/Convert-MermaidToImage.ps1" -Root "$(docsRoot)" -Format png
+
+          - task: PowerShell@2
+            displayName: "Install PnP.PowerShell $(pnpVersion)"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                Install-Module -Name PnP.PowerShell -RequiredVersion '$(pnpVersion)' -Scope CurrentUser -Force -AllowClobber
+                Import-Module PnP.PowerShell -RequiredVersion '$(pnpVersion)' -ErrorAction Stop
+                Write-Host "##[section]PnP.PowerShell $(pnpVersion) ready on PowerShell $($PSVersionTable.PSVersion)"
+
+          - task: PowerShell@2
+            displayName: "Build the site bundle"
+            env:
+              WORKSPACE_NAME: $(sentinelWorkspaceName)
+              DOCS_ROOT: $(docsRoot)
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                $ws = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
+                & "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1" -Source $ws | Out-Null
+
+          - task: AzureCLI@2
+            displayName: "Publish to SharePoint"
+            env:
+              WORKSPACE_NAME: $(sentinelWorkspaceName)
+              DOCS_ROOT: $(docsRoot)
+              SHAREPOINT_SITE_URL: $(sharePointSiteUrl)
+              WEB_PART_DIR: $(webPartDir)
+            inputs:
+              azureSubscription: "$(serviceConnection)"
+              scriptType: "pscore"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                $ErrorActionPreference = 'Stop'
+                if (-not $env:SHAREPOINT_SITE_URL) { throw 'sharePointSiteUrl is not set in the sentinel-deployment variable group.' }
+
+                # SharePoint token for the publisher app, through the service
+                # connection's federated credential. The resource is the
+                # tenant's SharePoint host.
+                $resource = 'https://' + ([uri]$env:SHAREPOINT_SITE_URL).Host
+                $token = az account get-access-token --resource $resource --query accessToken -o tsv
+                if ($LASTEXITCODE -ne 0 -or -not $token) { throw "Could not get a SharePoint token for $resource" }
+                Write-Host "##vso[task.setsecret]$token"
+
+                $publish = @{
+                    SiteUrl     = $env:SHAREPOINT_SITE_URL
+                    Bundle      = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
+                    AccessToken = $token
+                }
+                if ('${{ parameters.deployAppPackage }}' -eq 'True') {
+                    $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+                }
+                & "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1" @publish $(flagWhatIf)
+
+          - task: PowerShell@2
+            displayName: "Stage the site bundle for artefact publish"
+            condition: succeededOrFailed()
+            env:
+              WORKSPACE_NAME: $(sentinelWorkspaceName)
+              DOCS_ROOT: $(docsRoot)
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                $dst = Join-Path "$(Build.ArtifactStagingDirectory)" 'sharepoint-site'
+                New-Item -ItemType Directory -Path $dst -Force | Out-Null
+                $bundle = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
+                if (Test-Path $bundle) { Copy-Item -Path "$bundle/*" -Destination $dst -Recurse -Force }
+                $pkg = "$(webPartDir)/sharepoint/solution/sentinel-navigator.sppkg"
+                if (Test-Path $pkg) { Copy-Item $pkg $dst }
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish 'sharepoint-site' artefact"
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/sharepoint-site"
+              artifact: "sharepoint-site"
+              publishLocation: "pipeline"

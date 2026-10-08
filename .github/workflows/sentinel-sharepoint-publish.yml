@@ -1,0 +1,267 @@
+# ---------------------------------------------------------------------------
+# GitHub Actions Workflow: Sentinel SharePoint Publish
+# ---------------------------------------------------------------------------
+# Publishes the iSOC Blueprint SharePoint site for one Sentinel workspace from
+# the Sentinel Documenter's output. Mirrors Pipelines/Sentinel-SharePoint-Publish.yml.
+#
+# Trigger: runs after every successful "Sentinel Documenter" run on main
+# (workflow_run), using that run's artefact, and on demand
+# (workflow_dispatch, defaulting to the latest successful Documenter run on
+# main). The Documenter has its own 06:00 UTC schedule; this workflow has
+# none, so it never publishes a stale snapshot on its own.
+#
+# What it does:
+#   1. Downloads the Documenter run's 'sentinel-docs-<ws>-<runId>' artefact.
+#   2. Builds the dashboard web part package (sentinel-navigator.sppkg).
+#   3. Pre-renders the Mermaid diagrams (the GitHub Documenter leaves them as
+#      fences, since GitHub renders Mermaid natively; SharePoint does not).
+#   4. Builds the site bundle (Build-SentinelDocsSite.ps1).
+#   5. Signs in as the SharePoint publisher identity (OIDC) and publishes the
+#      bundle (Publish-SentinelDocsSite.ps1).
+#   6. Uploads the bundle and package as a 30-day run artefact.
+#
+# CRITICAL: REPOSITORY PRIVACY
+# ---------------------------------------------------------------------------
+# The bundle holds tenant configuration (workspace and subscription IDs,
+# findings, role assignments, cost). Run artefacts on a public repository are
+# world-readable, so this workflow refuses to run on one, the same way the
+# Documenter does.
+#
+# Required repository secrets:
+#   SHAREPOINT_CLIENT_ID   Entra app id of the SharePoint publisher. A separate
+#                          app from the Documenter and deploy identities, with:
+#                            - SharePoint application permission Sites.Selected
+#                              (admin consent), FullControl granted on the one
+#                              site by Initialize-SentinelDocsSite.ps1
+#                            - no Azure role assignments
+#                            - a federated credential trusting
+#                                subject:  repo:<owner>/<repo>:environment:sharepoint-publish
+#                                audience: api://AzureADTokenExchange
+#   AZURE_TENANT_ID
+#
+# Required repository variables:
+#   SENTINEL_WORKSPACE     Log Analytics workspace name (shared with the Documenter)
+#   SHAREPOINT_SITE_URL    the site for this workspace
+#
+# Required environment: 'sharepoint-publish' (restrict it to the main branch).
+# The federated credential is bound to it, so no other workflow on main can
+# obtain a SharePoint token.
+# ---------------------------------------------------------------------------
+
+name: Sentinel SharePoint Publish
+
+on:
+  workflow_run:
+    workflows: ["Sentinel Documenter"]
+    types: [completed]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      documenter-run-id:
+        description: "Documenter run to publish (blank = latest successful run on main)"
+        type: string
+        default: ""
+      what-if:
+        description: "What-if: read the site and print the plan, change nothing"
+        type: boolean
+        default: false
+      deploy-app-package:
+        description: "Deploy the dashboard web part package when its version changed"
+        type: boolean
+        default: true
+
+concurrency:
+  group: sentinel-sharepoint-publish
+  cancel-in-progress: false
+
+# id-token: write  - OIDC for the SharePoint publisher identity.
+# actions:  read   - download the Documenter run's artefact.
+# contents: read   - checkout.
+permissions:
+  id-token: write
+  actions:  read
+  contents: read
+
+env:
+  PNP_VERSION:         "3.4.1"
+  NODE_VERSION:        "22"
+  MERMAID_CLI_VERSION: "11"
+  WEB_PART_DIR:        Tools/Documenter/SharePoint/webpart/sentinel-navigator
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: sharepoint-publish
+    # Scheduled chains only run when the Documenter run succeeded, and only on
+    # private repositories (so a public upstream does not fail every day). A
+    # manual dispatch always runs and hits the privacy guard below on a public
+    # repository.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' && github.event.repository.private == true) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Verify repository is private
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.repository.private }}" != "true" ]; then
+            echo "::error ::This workflow publishes tenant configuration to SharePoint and as a run artefact, which is world-readable on a public repository. The repository '${{ github.repository }}' is PUBLIC. Run it from a private repository. See Docs/Pipelines/SharePoint-Publish.md."
+            exit 1
+          fi
+          echo "Repository is private - publishing may proceed."
+
+      # Same run on both paths: the triggering run for workflow_run, else the
+      # input, else the latest successful Documenter run on main.
+      - name: Resolve the Documenter run
+        id: run
+        shell: bash
+        env:
+          GH_TOKEN:       ${{ github.token }}
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID:   ${{ inputs.documenter-run-id }}
+        run: |
+          set -euo pipefail
+          run_id="${TRIGGER_RUN_ID:-${INPUT_RUN_ID:-}}"
+          if [ -z "$run_id" ]; then
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow sentinel-document.yml --branch main \
+                       --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          fi
+          if ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error ::No Documenter run to publish (got '$run_id'). Run the Sentinel Documenter first, or pass documenter-run-id."
+            exit 1
+          fi
+          echo "Publishing Documenter run $run_id"
+          echo "id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download the Documenter artefact
+        uses: actions/download-artifact@v7
+        with:
+          name:         sentinel-docs-${{ vars.SENTINEL_WORKSPACE }}-${{ steps.run.outputs.id }}
+          run-id:       ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+          path:         documenter
+
+      - name: Locate the workspace snapshot
+        shell: pwsh
+        env:
+          WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ws = Join-Path 'documenter' $env:WORKSPACE_NAME
+          if (-not (Test-Path (Join-Path $ws '_raw'))) {
+              Write-Error "No '$env:WORKSPACE_NAME/_raw' in the downloaded artefact. Check SENTINEL_WORKSPACE matches the Documenter run."
+              exit 1
+          }
+          Write-Host "Snapshot: $ws ($((Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count) Markdown files)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version:          ${{ env.NODE_VERSION }}
+          cache:                 npm
+          cache-dependency-path: ${{ env.WEB_PART_DIR }}/package-lock.json
+
+      - name: Build the dashboard web part package
+        shell: pwsh
+        working-directory: ${{ env.WEB_PART_DIR }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed ($LASTEXITCODE)" }
+          npm run package
+          if ($LASTEXITCODE -ne 0) { throw "npm run package failed ($LASTEXITCODE)" }
+          $pkg = Join-Path (Get-Location) 'sharepoint/solution/sentinel-navigator.sppkg'
+          if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
+          Write-Host "Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
+
+      - name: Pre-render Mermaid to PNG
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm install -g "@mermaid-js/mermaid-cli@$env:MERMAID_CLI_VERSION"
+          if ($LASTEXITCODE -ne 0) { throw "mermaid-cli install failed ($LASTEXITCODE)" }
+          ./Tools/Documenter/Convert-MermaidToImage.ps1 -Root documenter -Format png
+
+      - name: Install PnP.PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-Module -Name PnP.PowerShell -RequiredVersion $env:PNP_VERSION -Scope CurrentUser -Force -AllowClobber
+          Import-Module PnP.PowerShell -RequiredVersion $env:PNP_VERSION -ErrorAction Stop
+          Write-Host "PnP.PowerShell $env:PNP_VERSION ready on PowerShell $($PSVersionTable.PSVersion)"
+
+      - name: Build the site bundle
+        shell: pwsh
+        env:
+          WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1 -Source (Join-Path 'documenter' $env:WORKSPACE_NAME) | Out-Null
+
+      - name: Azure login (OIDC, SharePoint publisher)
+        uses: ./.github/actions/azure-login-oidc
+        with:
+          client-id:              ${{ secrets.SHAREPOINT_CLIENT_ID }}
+          tenant-id:              ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: 'true'
+          enable-azps-session:    'false'
+
+      - name: Publish to SharePoint
+        shell: pwsh
+        env:
+          WORKSPACE_NAME:      ${{ vars.SENTINEL_WORKSPACE }}
+          SHAREPOINT_SITE_URL: ${{ vars.SHAREPOINT_SITE_URL }}
+          # workflow_run has no inputs, so it gets the same defaults as an
+          # untouched dispatch: no what-if, deploy the package when changed.
+          WHAT_IF:             ${{ github.event_name == 'workflow_dispatch' && inputs.what-if && 'true' || 'false' }}
+          DEPLOY_APP_PACKAGE:  ${{ github.event_name == 'workflow_dispatch' && !inputs.deploy-app-package && 'false' || 'true' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:SHAREPOINT_SITE_URL) { throw 'The SHAREPOINT_SITE_URL repository variable is not set.' }
+
+          $resource = 'https://' + ([uri]$env:SHAREPOINT_SITE_URL).Host
+          $token = az account get-access-token --resource $resource --query accessToken -o tsv
+          if ($LASTEXITCODE -ne 0 -or -not $token) { throw "Could not get a SharePoint token for $resource" }
+          Write-Host "::add-mask::$token"
+
+          $publish = @{
+              SiteUrl     = $env:SHAREPOINT_SITE_URL
+              Bundle      = Join-Path (Join-Path 'documenter' $env:WORKSPACE_NAME) 'sharepoint'
+              AccessToken = $token
+          }
+          if ($env:DEPLOY_APP_PACKAGE -eq 'true') {
+              $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+          }
+          if ($env:WHAT_IF -eq 'true') { $publish.WhatIf = $true }
+          ./Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1 @publish
+
+      - name: Stage the site bundle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE }}
+        run: |
+          $dst = 'sharepoint-site'
+          New-Item -ItemType Directory -Path $dst -Force | Out-Null
+          $bundle = Join-Path (Join-Path 'documenter' $env:WORKSPACE_NAME) 'sharepoint'
+          if (Test-Path $bundle) { Copy-Item -Path "$bundle/*" -Destination $dst -Recurse -Force }
+          $pkg = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+          if (Test-Path $pkg) { Copy-Item $pkg $dst }
+
+      - name: Upload the site bundle
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name:              sharepoint-site-${{ vars.SENTINEL_WORKSPACE }}-${{ github.run_id }}
+          path:              sharepoint-site/
+          retention-days:    30
+          if-no-files-found: warn

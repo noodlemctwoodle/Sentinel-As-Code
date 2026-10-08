@@ -1,8 +1,8 @@
 # Pipelines
 
 CI/CD that drives infrastructure provisioning, content deployment, and
-operational tooling. The repository ships **seven Azure DevOps pipelines**
-under [`Pipelines/`](../../Pipelines) and **eight GitHub Actions workflows**
+operational tooling. The repository ships **eight Azure DevOps pipelines**
+under [`Pipelines/`](../../Pipelines) and **nine GitHub Actions workflows**
 under [`.github/workflows/`](../../.github/workflows).
 
 This page is an index: it covers the shared concepts and the GitHub <-> ADO
@@ -23,10 +23,11 @@ specific pipeline.
 | Dependency Update | Keep [`dependencies.json`](../../dependencies.json) in sync with the content tree and auto-PR any drift | [Dependency-Update.md](Dependency-Update.md) |
 | DCR Inventory | Deploy the DCR-watchlist sync automation account, runbook, and schedule | [DCR-Inventory.md](DCR-Inventory.md) |
 | Word Report | **ADO-only** render of the Documenter Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Word-Report.md) |
+| SharePoint Publish | Publish the generated iSOC Blueprint SharePoint site after every Documenter run (requires a private repository) | [SharePoint-Publish.md](SharePoint-Publish.md) |
 
 ## GitHub <-> ADO Parity
 
-Six of the seven ADO pipelines have a GitHub workflow mirror. Three workflows
+Seven of the eight ADO pipelines have a GitHub workflow mirror. Three workflows
 break the symmetry (one ADO-only, two GitHub-only), so the two sets are **not**
 a clean one-to-one mapping.
 
@@ -38,6 +39,7 @@ a clean one-to-one mapping.
 | `Sentinel-DCR-Inventory.yml` | `sentinel-dcr-inventory.yml` |
 | `Sentinel-Dependency-Update.yml` | `sentinel-dependency-update.yml` |
 | `Sentinel-Documenter.yml` | `sentinel-document.yml` |
+| `Sentinel-SharePoint-Publish.yml` | `sentinel-sharepoint-publish.yml` |
 | `Sentinel-Word-Report.yml` | *(ADO-only, no GitHub equivalent)* |
 | *(GitHub-only, no ADO equivalent)* | `sentinel-deploy-nightly.yml` |
 | *(GitHub-only, no ADO equivalent)* | `pr-template-validation.yml` |
@@ -62,6 +64,10 @@ Asymmetries worth knowing:
   (`sentinel-document.yml`) runs on a daily cron plus `workflow_dispatch`,
   whereas the ADO pipeline (`Sentinel-Documenter.yml`) is manual-trigger-only
   for now. See [Documenter.md](Documenter.md).
+- The **SharePoint Publish** pair has no schedule of its own on either
+  platform: it runs after each successful Documenter run (a pipeline
+  resource trigger on ADO, `workflow_run` on GitHub). See
+  [SharePoint-Publish.md](SharePoint-Publish.md).
 
 ## Shared Concepts
 
