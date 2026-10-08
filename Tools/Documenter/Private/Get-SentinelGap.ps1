@@ -27,14 +27,26 @@
         CheckName    : Name of the Test-* function
         PassedAt     : ISO-8601 timestamp of the run
 
+    Pass -OutcomeCollector (an empty List[object]) to also receive one
+    record per rule saying what happened to its check:
+        Id           : SENT-001
+        Check        : Name of the Test-* function
+        Outcome      : Fired | Passed | Errored | Undefined
+        Message      : Error text for Errored / Undefined, else $null
+
+    The findings alone cannot tell "the check ran and passed" from "the
+    check threw" or "the check does not exist", because all three leave no
+    finding. The SharePoint findings list needs that difference: it only
+    marks a finding Resolved when its check actually passed.
+
 .NOTES
     File:         Tools/Documenter/Private/Get-SentinelGap.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-08
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -54,7 +66,10 @@ function Get-SentinelGap {
         [string]$RulesPath,
 
         [Parameter(Mandatory = $true)]
-        [string]$GapChecksPath
+        [string]$GapChecksPath,
+
+        [Parameter(Mandatory = $false)]
+        [System.Collections.Generic.List[object]]$OutcomeCollector
     )
 
     Set-StrictMode -Version Latest
@@ -72,12 +87,20 @@ function Get-SentinelGap {
 
     $inventory = New-InventoryFromRaw -InputRoot $InputRoot -ResourcesRoot $ResourcesRoot
 
+    $recordOutcome = {
+        param($Id, $Check, $Outcome, $Message)
+        if ($null -ne $OutcomeCollector) {
+            $OutcomeCollector.Add([pscustomobject]@{ Id = $Id; Check = $Check; Outcome = $Outcome; Message = $Message })
+        }
+    }
+
     $findings = @()
     foreach ($rule in $rules) {
         $checkName = $rule.check
         $cmd = Get-Command -Name $checkName -CommandType Function -ErrorAction SilentlyContinue
         if (-not $cmd) {
             Write-Warning "Get-SentinelGap: check '$checkName' (rule $($rule.id)) not defined in $GapChecksPath"
+            & $recordOutcome $rule.id $checkName 'Undefined' "Check '$checkName' is not defined."
             continue
         }
 
@@ -85,8 +108,11 @@ function Get-SentinelGap {
             $result = & $cmd -Inventory $inventory
         } catch {
             Write-Warning "Get-SentinelGap: rule $($rule.id) ($checkName) threw: $($_.Exception.Message)"
+            & $recordOutcome $rule.id $checkName 'Errored' $_.Exception.Message
             continue
         }
+
+        & $recordOutcome $rule.id $checkName $(if ($null -ne $result) { 'Fired' } else { 'Passed' }) $null
 
         if ($null -ne $result) {
             $findings += [pscustomobject]@{

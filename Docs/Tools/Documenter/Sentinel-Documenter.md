@@ -44,6 +44,15 @@ The PR is intentionally **review-only**. Merging it would commit tenant
 configuration to the target branch permanently. The PR description carries
 a "Do not merge" banner and the PR is created without auto-complete.
 
+Two downstream outputs build on the artefact:
+
+- **SharePoint site.** The SharePoint Publish pipeline runs after every
+  successful Documenter run and keeps a generated iSOC Blueprint site in
+  step: a page per section, navigation, a findings list with history and
+  the interactive dashboard. See [Sentinel SharePoint Site](Sentinel-SharePoint-Site.md).
+- **Word report.** An ADO-only pipeline renders the Markdown into a
+  page-numbered `.docx`. See [Sentinel Word Report](Sentinel-Word-Report.md).
+
 ---
 
 ## Topology options
@@ -98,7 +107,8 @@ SecurityDocs/
     │   ├── ... (≈69 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
-    │   └── gap-analysis.json
+    │   ├── gap-analysis.json          findings that fired
+    │   └── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
@@ -498,6 +508,8 @@ billable data or wasn't seen in the 90-day usage window.
 
 - [`Documenter-References.md`](Documenter-References.md): durable
   reference of API versions, modules, and Microsoft Learn pages.
+- [Sentinel SharePoint Site](Sentinel-SharePoint-Site.md): the generated
+  SharePoint site built from this tool's output.
 - [`Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1): sister
   read-only tool that detects portal-edited rules. The documenter answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
