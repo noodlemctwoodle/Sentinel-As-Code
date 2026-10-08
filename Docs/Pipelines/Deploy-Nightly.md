@@ -105,8 +105,13 @@ deploy-content-hub          Deploy one Content Hub solution (Azure Activity).
 deploy-custom-content       Deploy-CustomContent.ps1 -WhatIf (no mutation).
         ▼
 deploy-defender-detections  Deploy-DefenderDetections.ps1 -WhatIf.
-        ▼
-report-failure              Runs only if any prior job failed.
+        │
+        ├───────────────────────────────┐   (in parallel: both need the
+        ▼                               ▼    same five jobs above)
+report-failure                  report-recovery
+  Runs only if any prior          Always runs. Closes the tracking
+  job failed.                     issue for any stage that is green
+                                  again.
 ```
 
 Every deploy job first checks out the repo (`actions/checkout@v5`) and
@@ -241,6 +246,42 @@ that:
 
 De-duplicating on title means repeated failures at the same stage refresh
 one issue instead of spamming new ones.
+
+### 7. `report-recovery`
+
+`needs:` the same five prior jobs as `report-failure`
+(`check-infrastructure` and the four deploy jobs), but conditional
+`always()`, because recovery is tracked per stage: one stage can go green
+in the same run where another fails. It does not check out the repo, so
+it declares only `permissions: { issues: write }` and sets `GH_REPO` to
+tell `gh` which repository to act on.
+
+The bash step walks each stage's result and, for every stage that is
+`success`, looks for an open issue titled
+`Nightly E2E deploy validation failed: <stage>`. If it finds one it
+comments with a link to the passing run and closes it.
+
+Two deliberate restrictions:
+
+- Only `success` counts as recovery. A `skipped` stage is not evidence
+  that anything was fixed (`deploy-infrastructure` skips on every run
+  where the workspace already exists), so it leaves any open issue
+  alone.
+- The lookup filters on the `nightly-failure` label and matches the
+  title exactly, rather than using the fuzzy `in:title` search the
+  failure path uses. Closing the wrong issue is worse than opening a
+  duplicate, so it must not match a human-filed issue with a similar
+  title.
+
+The job is best-effort. It only reports, so if a `gh` call fails for one
+stage (an API error or rate limit) it logs a warning and carries on with
+the next stage, and the job still succeeds. A reporting hiccup never
+turns a green nightly red.
+
+Without this job there is no recovery path at all: `report-failure`
+opens and refreshes issues but nothing ever closes one, so a fixed
+failure stays open indefinitely and the `nightly-failure` label stops
+meaning "currently broken".
 
 ## Authentication
 
