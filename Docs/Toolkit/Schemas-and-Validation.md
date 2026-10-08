@@ -115,7 +115,7 @@ Findings are reported at three levels:
 - **Errors** for content that breaks the schema or will not deploy correctly,
   such as an invalid severity, a malformed GUID or a bad duration.
 - **Warnings** for likely mistakes, such as a table that the rule's connector
-  does not provide, or a connector that is deprecated.
+  does not provide.
 - **Information** for things worth knowing that are not wrong: a tactic or
   technique that is not in the bundled ATT&CK data (under the default
   settings), and hints when top-level fields are out of the canonical order.

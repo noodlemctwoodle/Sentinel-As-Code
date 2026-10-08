@@ -183,8 +183,11 @@ The **Sentinel-As-Code: Populate Required Data Connectors from Query** command
    connectors recognise, the command resolves the connector. When a table is
    provided by more than one connector, it prompts you to choose which one to
    require. The table's native connector is suggested first (for example
-   Windows Security Events for `SecurityEvent`), followed by connectors named
-   after the table, then Microsoft connectors, then the most specific ones.
+   Windows Security Events for `SecurityEvent`), followed by connectors that
+   are not deprecated, then connectors named after the table, then Microsoft
+   connectors, then the most specific ones. Each criterion only breaks ties left
+   by the ones before it, so a deprecated connector named after the table still
+   ranks below a non-deprecated connector that is neither.
 2. For each unknown custom table (typically a `_CL` table), it offers to
    register it: **Add as "<name>"** (using the table name with the `_CL` suffix
    removed as the connector ID), **Add with a different connector id**, or
