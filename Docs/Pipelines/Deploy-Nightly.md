@@ -105,11 +105,13 @@ deploy-content-hub          Deploy one Content Hub solution (Azure Activity).
 deploy-custom-content       Deploy-CustomContent.ps1 -WhatIf (no mutation).
         ▼
 deploy-defender-detections  Deploy-DefenderDetections.ps1 -WhatIf.
-        ▼
-report-failure              Runs only if any prior job failed.
-        ▼
-report-recovery             Always runs. Closes the tracking issue for
-                            any stage that is green again.
+        │
+        ├───────────────────────────────┐   (in parallel: both need the
+        ▼                               ▼    same five jobs above)
+report-failure                  report-recovery
+  Runs only if any prior          Always runs. Closes the tracking
+  job failed.                     issue for any stage that is green
+                                  again.
 ```
 
 Every deploy job first checks out the repo (`actions/checkout@v5`) and
