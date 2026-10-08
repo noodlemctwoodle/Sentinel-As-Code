@@ -394,6 +394,13 @@ jobs:
   # Runs on always() because recovery is per-stage: one stage can go green in
   # the same run where another fails. This job closes the recovered stage's
   # issue while report-failure opens or refreshes the still-broken one.
+  #
+  # Best-effort: it only reports, so a GitHub API failure for one stage logs
+  # a warning and moves on rather than failing a run whose deploy stages
+  # were green.
+  #
+  # No checkout, so no contents permission. GH_REPO gives gh the repository
+  # it would otherwise read from the checked-out git remote.
   report-recovery:
     name: "Close recovered failure issues"
     runs-on: ubuntu-latest
@@ -401,14 +408,16 @@ jobs:
     if: always()
     permissions:
       issues: write
-      contents: read
     steps:
       - name: Close issues for stages that are now green
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          set -euo pipefail
+          # No -e: every gh call below is checked so one failing stage
+          # cannot stop the others or fail the job.
+          set -uo pipefail
 
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
@@ -443,12 +452,18 @@ jobs:
               # the fuzzy 'in:title' search the failure path uses. Closing the
               # wrong issue is far worse than opening a duplicate, so this must
               # not match a human-filed issue with a similar title.
-              NUM=$(gh issue list \
+              # gh's built-in --jq (as report-failure uses) rather than an
+              # external jq binary. It takes no --arg, so the title is
+              # interpolated; stage names are fixed identifiers with no quotes.
+              if ! NUM=$(gh issue list \
                       --state open \
                       --label nightly-failure \
                       --limit 100 \
                       --json number,title \
-                  | jq -r --arg t "$TITLE" '[.[] | select(.title == $t) | .number] | first // empty')
+                      --jq "[.[] | select(.title == \"$TITLE\") | .number] | .[0] // empty"); then
+                  echo "::warning::$STAGE: could not list open issues; skipping"
+                  continue
+              fi
 
               if [ -z "$NUM" ]; then
                   echo "$STAGE: green, no open issue to close"
@@ -461,9 +476,17 @@ jobs:
               # continuation line would dedent out of this 'run: |' block and
               # break the workflow YAML. Single-quoted format so the backticks
               # stay literal instead of becoming command substitution.
+              # shellcheck disable=SC2016
               BODY=$(printf 'Recovered: `%s` passed in %s\n\nClosing automatically. If this stage breaks again the nightly will open a fresh issue rather than reopening this one.' \
                      "$STAGE" "$RUN_URL")
 
-              gh issue comment "$NUM" --body "$BODY"
-              gh issue close "$NUM" --reason completed
+              if ! gh issue comment "$NUM" --body "$BODY"; then
+                  echo "::warning::$STAGE: could not comment on issue #$NUM; leaving it open"
+                  continue
+              fi
+              if ! gh issue close "$NUM" --reason completed; then
+                  echo "::warning::$STAGE: could not close issue #$NUM"
+              fi
           done
+
+          exit 0
