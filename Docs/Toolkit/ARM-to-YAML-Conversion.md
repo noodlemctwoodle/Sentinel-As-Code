@@ -6,12 +6,13 @@ The Toolkit only converts and validates the content locally. It does not connect
 
 ## What It Converts
 
-The command reads an ARM template and extracts every `Microsoft.SecurityInsights/alertRules` resource it contains, converting each one into a separate analytics-rule YAML file that maps to the [Analytical Rules](../Content/Analytical-Rules.md) authoring contract.
+The command reads an ARM template and extracts every analytics rule resource it contains (type `Microsoft.OperationalInsights/workspaces/providers/alertRules`, the shape the Sentinel portal exports), converting each one into a separate analytics-rule YAML file that maps to the [Analytical Rules](../Content/Analytical-Rules.md) authoring contract.
 
 - **Input:** an ARM deployment template (`.json`) containing one or more `alertRules` resources. The template must have a valid `$schema` and a `resources` array.
 - **Output:** one analytics-rule `.yaml` file per rule, written alongside the source file by default (or to a configured output directory).
-- **Rule kinds:** `Scheduled`, `NearRealTime`, and `MLBehaviorAnalytics` are recognised. An unrecognised or missing `kind` is normalised to `Scheduled`.
-- **Skipped resources:** any resource that is not an `alertRules` resource, or that has no `displayName`, is ignored.
+- **Rule kinds:** `Scheduled` and `NRT` are converted as such (ARM exports near-real-time rules as kind `NRT`; `NearRealTime` is accepted as an alias). NRT rules are written without `queryFrequency`, `queryPeriod`, `triggerOperator` or `triggerThreshold`, because Sentinel runs them on its own cadence. `MLBehaviorAnalytics` is kept as-is. Any other or missing `kind` is normalised to `Scheduled`.
+- **MITRE techniques:** written under `relevantTechniques`, the canonical field for analytics rules. Sub-techniques from the ARM `subTechniques` property are folded into the same list (for example `T1078.004` rather than a bare `T1078`).
+- **Skipped resources:** any resource that is not an analytics rule resource of the type above, or that has no `displayName`, is ignored. Templates that declare rules as `Microsoft.SecurityInsights/alertRules` extension resources are not recognised.
 
 ### Single vs Bulk
 
@@ -30,11 +31,11 @@ The command is **Sentinel-As-Code: Decompile ARM to YAML** (`sentinelAsCode.conv
 | Editor right-click | Right-click inside an open `.json` file and choose the command from the Sentinel-As-Code group |
 | Explorer right-click | Right-click a `.json` file in the Explorer and choose the command |
 
-You are prompted for a file-naming strategy and the output location, then shown a conversion summary listing the files written and any warnings.
+If you run it from the Command Palette without a `.json` file open, you are asked to pick the template. Files are named with `conversion.defaultNamingStrategy` and written next to the source file, or to `conversion.outputDirectory` if set. The first converted file opens, and a summary lists any warnings.
 
 ## Naming Strategies
 
-The naming strategy decides how each converted file is named. The default comes from `sentinelAsCode.conversion.defaultNamingStrategy`, and you can override it per run when prompted.
+The naming strategy decides how each converted file is named. It comes from `sentinelAsCode.conversion.defaultNamingStrategy`; change the setting to use a different strategy.
 
 | Strategy | File name | Notes |
 |----------|-----------|-------|
@@ -49,7 +50,7 @@ All strategies write a `.yaml` extension.
 Several checks and clean-ups run as part of the conversion. Each is controlled by a setting (see [Conversion Settings](#conversion-settings)) and reported in the summary.
 
 - **MITRE correction** - when `validateMitreOnConversion` is on, tactics and techniques are validated and corrected against the Toolkit's bundled MITRE ATT&CK data. If a rule carries no usable tactic, a default is inserted and flagged with a warning so you know to replace it.
-- **Entity-mapping validation** - when `validateEntityMappings` is on, entity types and identifiers are validated. A rule with no entity mappings receives a placeholder mapping, flagged with a warning to prompt you to set real column names.
+- **Entity-mapping validation** - when `validateEntityMappings` is on, each entity mapping in the source is checked: the entity type must be one Sentinel recognises, and every field mapping needs both an `identifier` and a `columnName`. Problems are reported as warnings. Separately, a rule with no entity mappings always receives a placeholder mapping, flagged with a warning to prompt you to set real column names.
 - **Optional fields** - when `includeOptionalFields` is on, optional fields are written with sensible default values so the resulting YAML is complete rather than sparse.
 - **Query formatting** - when `preserveQueryFormatting` is on, the original KQL layout from the ARM template is kept intact rather than reflowed.
 - **Default version** - rules missing a `templateVersion` in the ARM template are given the value of `defaultVersion` (`1.0.0` by default).
@@ -71,7 +72,7 @@ All conversion behaviour lives under the `sentinelAsCode.conversion.*` namespace
 | `sentinelAsCode.conversion.outputDirectory` | `""` | Output folder for converted files (empty = same directory as the source) |
 | `sentinelAsCode.conversion.preserveQueryFormatting` | `true` | Preserve the original KQL query formatting |
 | `sentinelAsCode.conversion.includeOptionalFields` | `true` | Include optional fields with default values |
-| `sentinelAsCode.conversion.validateEntityMappings` | `true` | Validate entity types and identifiers |
+| `sentinelAsCode.conversion.validateEntityMappings` | `true` | Warn about unrecognised entity types and incomplete field mappings |
 | `sentinelAsCode.conversion.defaultVersion` | `"1.0.0"` | Version applied to rules missing `templateVersion` |
 
 Example settings block:

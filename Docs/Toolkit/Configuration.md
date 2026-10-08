@@ -34,17 +34,20 @@ ordering, and editor IntelliSense.
 
 | Setting | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `validation.enabled` | boolean | `true` | Enable automatic validation of Sentinel rules. When off, no diagnostics are produced. |
+| `validation.enabled` | boolean | `true` | Enable automatic validation of analytics rules and hunting queries. When off, no diagnostics are produced. |
 | `validation.onSave` | boolean | `true` | Validate a rule automatically when the file is saved. |
-| `validation.onType` | boolean | `false` | Validate as you type. Off by default because it can impact performance on large files. |
+| `validation.onType` | boolean | `true` | Validate as you type. Turn it off to validate only when a file is opened or saved, which can help on very large files. |
 | `validation.excludePatterns` | array of strings | `[]` | Glob patterns for files to exclude from validation. Matching files show no diagnostics. Supports `*`, `**`, `?`, and `{a,b}` alternation (for example `**/test/**`, `**/*.draft.yaml`, `**/.archive/**`). |
-| `formatting.enabled` | boolean | `true` | Enable automatic formatting of Sentinel rules (canonical field order, ISO 8601 duration correction, structure tidy). |
-| `fieldOrdering.enforceOrder` | boolean | `true` | Enforce the canonical field order for the detected rule type. |
-| `fieldOrdering.showOrderHints` | boolean | `true` | Show field-ordering hints in diagnostics when fields are out of order. |
-| `intellisense.enabled` | boolean | `true` | Enable IntelliSense for rule fields (field completion, tactics, techniques, connectors, enums, and hover help). |
+| `formatting.enabled` | boolean | `true` | Enable the Toolkit's Format Document provider for Sentinel content (canonical field order, ISO 8601 duration correction, structure tidy). When off, Format Document makes no Toolkit edits; the explicit format commands still run. |
+| `fieldOrdering.enforceOrder` | boolean | `true` | Reorder fields into the canonical order when formatting a rule. When off, formatting keeps the existing order. **Fix Field Order** always reorders, because that is its job. |
+| `fieldOrdering.showOrderHints` | boolean | `true` | Show information-level hints in the Problems panel when top-level fields are out of the canonical order. |
+| `intellisense.enabled` | boolean | `true` | Enable completions and hover help for rule fields (tactics, techniques, connectors, data types, enums and durations). |
 
 Templates carry `{{PLACEHOLDER}}` tokens and are always skipped by validation,
 regardless of `validation.excludePatterns`.
+
+Changing any `sentinelAsCode.*` setting re-validates the files you have open, so
+the effect shows straight away.
 
 ## MITRE ATT&CK
 
@@ -53,10 +56,9 @@ Controls which ATT&CK data the Toolkit loads and how strictly it validates the
 
 | Setting | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `mitre.version` | string enum (`v16`, `v15`, `v14`) | `v16` | ATT&CK framework version used for validation. |
 | `mitre.frameworks` | array enum (`enterprise`, `mobile`, `ics`) | `["enterprise", "mobile", "ics"]` | Which ATT&CK matrices to load and validate against. |
-| `mitre.allowUnknownTactics` | boolean | `true` | Allow tactics not found in the loaded ATT&CK data. Shows an information message only rather than an error. |
-| `mitre.allowUnknownTechniques` | boolean | `true` | Allow techniques not found in the loaded ATT&CK data. Shows an information message only rather than an error. |
+| `mitre.allowUnknownTactics` | boolean | `true` | Allow tactics not found in the loaded ATT&CK data. Shows an information message in the Problems panel rather than an error. When off, an unknown tactic is a warning. |
+| `mitre.allowUnknownTechniques` | boolean | `true` | Allow techniques not found in the loaded ATT&CK data. Shows an information message in the Problems panel rather than an error. When off, an unknown technique is a warning. |
 | `mitre.strictValidation` | boolean | `false` | Require every tactic and technique to be present in the loaded ATT&CK data. When on, unknown items are reported as errors. This overrides the two `allowUnknown` settings. |
 
 ## Data connectors
@@ -70,11 +72,17 @@ the workspace connector file and how these settings interact with it.
 | `connectors.validationMode` | string enum (`strict`, `workspace`, `permissive`) | `permissive` | How strictly connector IDs are validated. `strict` allows only connectors from the bundled catalogue; `workspace` also allows connectors defined in the workspace `.sentinel-connectors.json`; `permissive` allows any valid connector ID format (recommended). |
 | `connectors.customConnectors` | array of strings | `[]` | Additional connector IDs to treat as known, listed inline in settings. Useful for a handful of custom IDs without maintaining a connector file. |
 
+Data types are only checked for connectors whose tables are known: those in the
+bundled catalogue, or in `.sentinel-connectors.json` with tables listed. If a rule
+lists a table its connector does not provide, that table gets one warning on its
+own line. It is a warning rather than an error because the bundled mapping can be
+incomplete. Connectors listed only in `connectors.customConnectors` have no
+tables, so their data types are not checked.
+
 ## ARM to YAML conversion
 
-Controls the **Convert ARM to YAML** decompile of
-`Microsoft.SecurityInsights/alertRules` and how the resulting YAML is named,
-formatted, and validated.
+Controls the **Decompile ARM to YAML** command and how the resulting YAML is
+named, formatted, and validated. See [ARM to YAML Conversion](ARM-to-YAML-Conversion.md).
 
 | Setting | Type | Default | Effect |
 | --- | --- | --- | --- |
@@ -86,7 +94,7 @@ formatted, and validated.
 | `conversion.outputDirectory` | string | `""` | Custom output directory for converted files. Empty means write next to the source file. |
 | `conversion.preserveQueryFormatting` | boolean | `true` | Preserve the original KQL query formatting in the converted YAML. |
 | `conversion.includeOptionalFields` | boolean | `true` | Include optional fields with default values in the converted YAML. |
-| `conversion.validateEntityMappings` | boolean | `true` | Validate entity types and identifiers during conversion. |
+| `conversion.validateEntityMappings` | boolean | `true` | Warn during conversion about entity types Sentinel does not recognise and field mappings missing an identifier or column name. |
 | `conversion.defaultVersion` | string | `"1.0.0"` | Default version applied to rules that have no `templateVersion` in the ARM template. |
 
 ## Custom connectors
@@ -171,7 +179,9 @@ The **Sentinel-As-Code: Populate Required Data Connectors from Query** command
 1. For each table that the bundled catalogue and any registered custom
    connectors recognise, the command resolves the connector. When a table is
    provided by more than one connector, it prompts you to choose which one to
-   require (the best match is suggested first).
+   require. The table's native connector is suggested first (for example
+   Windows Security Events for `SecurityEvent`), followed by connectors named
+   after the table, then Microsoft connectors, then the most specific ones.
 2. For each unknown custom table (typically a `_CL` table), it offers to
    register it: **Add as "<name>"** (using the table name with the `_CL` suffix
    removed as the connector ID), **Add with a different connector id**, or
@@ -211,7 +221,6 @@ list two custom connector IDs inline):
   "sentinelAsCode.fieldOrdering.enforceOrder": true,
   "sentinelAsCode.fieldOrdering.showOrderHints": true,
   "sentinelAsCode.intellisense.enabled": true,
-  "sentinelAsCode.mitre.version": "v16",
   "sentinelAsCode.mitre.frameworks": ["enterprise", "mobile", "ics"],
   "sentinelAsCode.mitre.strictValidation": false,
   "sentinelAsCode.connectors.validationMode": "workspace",

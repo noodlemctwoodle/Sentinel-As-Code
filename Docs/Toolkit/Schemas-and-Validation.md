@@ -100,11 +100,28 @@ straight to it.
 
 - **On save.** Files are validated when you save them. Controlled by
   `sentinelAsCode.validation.onSave` (default `true`).
-- **On type.** Optional live validation as you edit. Controlled by
-  `sentinelAsCode.validation.onType` (default `false`, because continuous
-  validation can affect performance on large files).
+- **On type.** Live validation as you edit. Controlled by
+  `sentinelAsCode.validation.onType` (default `true`). Turn it off to validate
+  only when a file is opened or saved, which can help on very large files.
 - **Master switch.** `sentinelAsCode.validation.enabled` (default `true`) turns
-  all validation on or off.
+  validation of analytics rules and hunting queries on or off.
+- **Settings changes apply immediately.** Changing any `sentinelAsCode.*`
+  setting re-validates the files you have open.
+
+Findings are reported at three levels:
+
+- **Errors** for content that breaks the schema or will not deploy correctly,
+  such as an invalid severity, a malformed GUID or a bad duration.
+- **Warnings** for likely mistakes, such as a table that the rule's connector
+  does not provide, or a connector that is deprecated.
+- **Information** for things worth knowing that are not wrong: a tactic or
+  technique that is not in the bundled ATT&CK data (under the default
+  settings), and hints when top-level fields are out of the canonical order.
+  Turn the field-order hints off with `sentinelAsCode.fieldOrdering.showOrderHints`.
+
+Data connector checks follow `sentinelAsCode.connectors.validationMode`. Data
+types are only checked for connectors whose tables are known; see
+[Configuration](Configuration.md#data-connectors).
 
 ### Rule-type-aware detection
 
@@ -132,21 +149,20 @@ offers completion and hover help driven by the same schemas and reference data:
 ## MITRE ATT&CK validation
 
 Tactics and techniques are validated against MITRE ATT&CK data bundled with the
-extension. The Toolkit supports three ATT&CK frameworks and a selectable version
-line.
+extension. The Toolkit supports three ATT&CK frameworks.
 
 - **Frameworks.** `sentinelAsCode.mitre.frameworks` selects which framework data
   to load and validate against. The default loads all three: `enterprise`,
   `mobile` and `ics`. The mobile and ICS matrices ship as
   `data/mitre-mobile.json` and `data/mitre-ics.json`.
-- **Version.** `sentinelAsCode.mitre.version` selects the ATT&CK version, one of
-  `v16` (default), `v15` or `v14`. The bundled enterprise dataset is
-  `data/mitre-v16.json`.
+- **Version.** The bundled enterprise dataset is `data/mitre-v16.json` (ATT&CK
+  v16). There is no version setting; the data is updated with the extension.
 - **Strictness.** By default the Toolkit is permissive so that newer tactics and
   techniques are not blocked before the bundled data catches up:
   - `sentinelAsCode.mitre.allowUnknownTactics` (default `true`) and
     `sentinelAsCode.mitre.allowUnknownTechniques` (default `true`) report an
     unknown tactic or technique as an information message rather than an error.
+    Set either to `false` to report unknown values as warnings instead.
   - `sentinelAsCode.mitre.strictValidation` (default `false`), when enabled,
     requires every tactic and technique to exist in the loaded MITRE data and
     reports anything else as an error.
@@ -200,11 +216,11 @@ All settings live under the `sentinelAsCode.*` namespace in VS Code settings.
 | --- | --- | --- |
 | `validation.enabled` | `true` | Master switch for all validation. |
 | `validation.onSave` | `true` | Validate on save. |
-| `validation.onType` | `false` | Validate as you type. |
+| `validation.onType` | `true` | Validate as you type. |
 | `validation.excludePatterns` | `[]` | Globs for files to skip. |
 | `intellisense.enabled` | `true` | Field, value and hover assistance. |
+| `fieldOrdering.showOrderHints` | `true` | Show field-order hints as information items. |
 | `mitre.frameworks` | `["enterprise","mobile","ics"]` | ATT&CK matrices to load. |
-| `mitre.version` | `"v16"` | ATT&CK version (`v16` / `v15` / `v14`). |
 | `mitre.allowUnknownTactics` | `true` | Unknown tactic is info, not error. |
 | `mitre.allowUnknownTechniques` | `true` | Unknown technique is info, not error. |
 | `mitre.strictValidation` | `false` | Require all tactics/techniques to be known. |
@@ -212,8 +228,7 @@ All settings live under the `sentinelAsCode.*` namespace in VS Code settings.
 | `connectors.customConnectors` | `[]` | Extra connector IDs treated as known. |
 
 Formatting, field-ordering and conversion settings are covered in
-[Templates](Templates.md), which is where the scaffolding and formatting commands
-are documented.
+[Configuration](Configuration.md).
 
 ## Source of truth
 
