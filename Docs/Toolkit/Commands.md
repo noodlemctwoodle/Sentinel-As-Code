@@ -1,6 +1,6 @@
 # Toolkit Commands
 
-The Sentinel as Code Toolkit contributes 26 commands to VS Code. Every command is a Command Palette entry, grouped under one of two categories: **Sentinel-As-Code** (Sentinel content) or **Defender-As-Code** (Microsoft Defender XDR custom detections). A handful also appear on right-click menus or carry a keyboard shortcut.
+The Sentinel as Code Toolkit contributes 27 commands to VS Code. Every command is a Command Palette entry, grouped under one of two categories: **Sentinel-As-Code** (Sentinel content) or **Defender-As-Code** (Microsoft Defender XDR custom detections). A handful also appear on right-click menus or carry a keyboard shortcut.
 
 The Toolkit authors and validates content; it does not deploy. Scaffolding, formatting, conversion and validation all happen locally in your editor, and the [Sentinel-As-Code pipeline](../../README.md) does the deployment.
 
@@ -18,7 +18,7 @@ Palette entries are shown with their category prefix, exactly as they read in th
 | Group | Commands |
 |-------|----------|
 | [Rule and content authoring](#rule-and-content-authoring) | Create Sentinel Rule Template, Generate Rule Template, Generate Standard Rule Template, Generate NRT Rule Template, Generate New Rule ID, Generate New IDs for All Rules |
-| [Content scaffolding](#content-scaffolding) | New Sentinel-as-Code Content, New Hunting Query, New Parser, New Summary Rule, New Automation Rule, Create Watchlist from CSV, Convert Content YAML to JSON, Populate Required Data Connectors from Query |
+| [Content scaffolding](#content-scaffolding) | New Sentinel-as-Code Content, New Hunting Query, New Parser, New Summary Rule, New Automation Rule, Create Watchlist from CSV, Convert Content YAML to JSON, Convert Content JSON to YAML, Populate Required Data Connectors from Query |
 | [ARM conversion](#arm-conversion) | Decompile ARM to YAML |
 | [Validation and formatting](#validation-and-formatting) | Fix Field Order, Format Sentinel Rule, Format Sentinel Content, Validate Rule, Validate as Sentinel Analytics Rule, Bulk Maintenance and Validation |
 | [Defender custom detections](#defender-custom-detections) | Generate Custom Detection Template, Format Custom Detection for Repo, Convert Custom Detection YAML to JSON, Convert Custom Detection JSON to YAML, Validate as Custom Detection |
@@ -48,8 +48,9 @@ Commands for creating each non-analytics content type. Every content type is sca
 | `Sentinel-As-Code: New Summary Rule` | Scaffolds a summary rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Summary Rules](../Content/Summary-Rules.md). | - | Palette |
 | `Sentinel-As-Code: New Automation Rule` | Scaffolds an automation rule as commented YAML. Author the field values, then run **Convert Content YAML to JSON** to produce the `.json` the pipeline stores. See [Automation Rules](../Content/Automation-Rules.md). | - | Palette |
 | `Sentinel-As-Code: Create Watchlist from CSV` | Turns a `.csv` or `.tsv` file into a watchlist under `Content/Watchlists/<alias>/`, writing a `watchlist.yaml` template plus the data file. Set `watchlistAlias` and `itemsSearchKey` in the YAML, then run **Convert Content YAML to JSON** to produce the `watchlist.json` the pipeline deploys. See [Watchlists](../Content/Watchlists.md). | - | Editor (`.csv`/`.tsv`) and Palette (with a `.csv`/`.tsv` open) |
-| `Sentinel-As-Code: Convert Content YAML to JSON` | Converts an authored summary rule, automation rule or watchlist YAML into the JSON the pipeline stores, writing a `.json` beside the source with the same base name (a rule becomes `<name>.json`; a `watchlist.yaml` becomes `watchlist.json`). See [Templates](Templates.md). | - | Editor and Explorer (`.yaml`/`.yml`), and Palette |
-| `Sentinel-As-Code: Populate Required Data Connectors from Query` | Reads the KQL tables referenced by the rule's query and fills in `requiredDataConnectors` from the bundled Content Hub mapping. Unknown `_CL` tables are registered into a workspace-local `.sentinel-connectors.json`. | - | Editor (`.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
+| `Sentinel-As-Code: Convert Content YAML to JSON` | Converts an authored summary rule, automation rule or watchlist YAML into the JSON the pipeline stores, writing a `.json` beside the source with the same base name (a rule becomes `<name>.json`; a `watchlist.yaml` becomes `watchlist.json`). If that `.json` already exists, it asks before overwriting it. See [Templates](Templates.md). | - | Editor and Explorer (`.yaml`/`.yml`), and Palette |
+| `Sentinel-As-Code: Convert Content JSON to YAML` | The reverse: converts a summary rule, automation rule or watchlist JSON into YAML for re-authoring, writing a `.yaml` beside the source with the same base name. It also asks before overwriting an existing file. The YAML has no comments, because the JSON had none to carry over. | - | Editor and Explorer (`.json`), and Palette |
+| `Sentinel-As-Code: Populate Required Data Connectors from Query` | Reads the KQL tables referenced by the rule's query and fills in `requiredDataConnectors` from the bundled Content Hub mapping. When a table has several possible connectors you choose one, with the table's native connector suggested first. Unknown `_CL` tables are registered into a workspace-local `.sentinel-connectors.json`. | - | Editor (`.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
 
 ## ARM Conversion
 
@@ -57,7 +58,7 @@ Decompiles exported Microsoft Sentinel ARM templates back into the Toolkit's YAM
 
 | Palette title | What it does | Keybinding | Menus |
 |---------------|--------------|------------|-------|
-| `Sentinel-As-Code: Decompile ARM to YAML` | Converts one or more `Microsoft.SecurityInsights/alertRules` resources from an ARM `.json` template into rule YAML. Applies the configured naming strategy, corrects MITRE tactics and techniques, validates entity mappings and (optionally) auto-formats the result. | - | Editor and Explorer (`.json`), and Palette. All three require `sentinelAsCode.conversion.enabled` (the default). |
+| `Sentinel-As-Code: Decompile ARM to YAML` | Converts one or more analytics rule resources from an exported ARM `.json` template into rule YAML. Applies the configured naming strategy, keeps NRT rules as NRT, corrects MITRE tactics and techniques, validates entity mappings and (optionally) auto-formats the result. | - | Editor and Explorer (`.json`), and Palette. All three require `sentinelAsCode.conversion.enabled` (the default). |
 
 ## Validation And Formatting
 
@@ -65,14 +66,14 @@ Commands for keeping content well-formed: correct field order, canonical formatt
 
 | Palette title | What it does | Keybinding | Menus |
 |---------------|--------------|------------|-------|
-| `Sentinel-As-Code: Fix Field Order` | Reorders the fields of the active rule into the canonical order without otherwise reformatting. | `Ctrl+Shift+F` (`Cmd+Shift+F` on macOS), active only on `.sentinel.yaml`/`.sentinel.yml` files | Editor (`.sentinel.yaml`/`.yml`) and Palette (with a `.yaml` open) |
-| `Sentinel-As-Code: Format Sentinel Rule` | Applies full canonical formatting to an analytics rule: field order, ISO 8601 duration correction and structure tidy-up. | See note below | Editor (`.sentinel.yaml`/`.yml`) and Palette (with a `.yaml` open) |
-| `Sentinel-As-Code: Format Sentinel Content (Auto-detect)` | Formats any supported content type by auto-detecting whether the file is a rule, hunting query, parser, or JSON content, then applying the matching formatter. | See note below | Editor (`.yaml`/`.yml`/`.json`) and Palette (with one open) |
-| `Sentinel-As-Code: Validate Rule (Auto-detect Type)` | Validates the active file against the schema for its detected type and reports problems in the Problems panel. | - | Palette |
+| `Sentinel-As-Code: Fix Field Order` | Reorders the fields of the active rule into the canonical order without otherwise reformatting. | `Shift+Alt+O` (`Shift+Option+O` on macOS), active when editing a `.sentinel.yaml`/`.sentinel.yml` file | Editor (`.sentinel.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
+| `Sentinel-As-Code: Format Sentinel Rule` | Applies full canonical formatting to an analytics rule: field order, ISO 8601 duration correction and structure tidy-up. With `fieldOrdering.enforceOrder` off, the existing field order is kept. | See note below | Editor (`.sentinel.yaml`/`.yml`) and Palette (with a `.yaml`/`.yml` open) |
+| `Sentinel-As-Code: Format Sentinel Content (Auto-detect)` | Formats any supported content type by auto-detecting whether the file is a rule, hunting query, parser, or JSON content, then applying the matching formatter. Summary rules, automation rules and watchlists are formatted in their JSON form only; their YAML is left as written (run **Convert Content YAML to JSON** to produce the formatted JSON). Files it cannot classify are left untouched. | See note below | Editor (`.yaml`/`.yml`/`.json`) and Palette (with one open) |
+| `Sentinel-As-Code: Validate Rule (Auto-detect Type)` | Detects whether the active file is a Sentinel analytics rule or a Defender custom detection, validates it, and reports problems in the Problems panel. A Sentinel analytics rule passes when there are no errors or warnings; information-level hints do not fail it. A Defender detection passes when there are no errors, even if it has warnings (such as missing recommended MITRE techniques), and the pass message gives the warning count. | - | Palette |
 | `Sentinel-As-Code: Validate as Sentinel Analytics Rule` | Forces validation against the analytics-rule schema, regardless of auto-detection. Useful when a file's type is ambiguous. | - | Palette |
-| `Sentinel-As-Code: Bulk Maintenance & Validation` | Runs validation and maintenance across the whole workspace in one pass (bulk field-order fixes, ID checks and validation). | - | Palette |
+| `Sentinel-As-Code: Bulk Maintenance & Validation` | Works on every analytics rule in a folder. Choose the folder (or right-click it in the Explorer), then pick **Validate only** (problems go to the Problems panel, with one summary), **Format and fix field order** (formats and saves each rule), or **Validation report** (opens a Markdown report of every error and warning). Scaffolding templates and files matching `validation.excludePatterns` are skipped. | - | Palette and Explorer (right-click a folder) |
 
-**Format Document note:** the Toolkit registers a document formatter for Sentinel content folders (`AnalyticalRules/`, `HuntingQueries/`, `Parsers/`, `SummaryRules/`, `AutomationRules/`, `Watchlists/`, `Workbooks/`, `Playbooks/`) and for any `.sentinel.yaml`/`.sentinel.yml` file. Because of this, VS Code's built-in **Format Document** command (`Shift+Alt+F`, or `Shift+Option+F` on macOS) runs the same auto-detecting formatter as `Format Sentinel Content`. Only `Fix Field Order` has a dedicated Toolkit keybinding; the format commands rely on the built-in Format Document shortcut and their palette entries.
+**Format Document note:** the Toolkit registers a document formatter for Sentinel content folders (`AnalyticalRules/`, `HuntingQueries/`, `Parsers/`, `SummaryRules/`, `AutomationRules/`, `Watchlists/`, `Workbooks/`, `Playbooks/`) and for any `.sentinel.yaml`/`.sentinel.yml` file. Because of this, VS Code's built-in **Format Document** command (`Shift+Alt+F`, or `Shift+Option+F` on macOS) runs the same auto-detecting formatter as `Format Sentinel Content`. Setting `sentinelAsCode.formatting.enabled` to `false` turns this formatter off; the explicit format commands still work. Only `Fix Field Order` has a dedicated Toolkit keybinding; the format commands rely on the built-in Format Document shortcut and their palette entries.
 
 ## Defender Custom Detections
 
@@ -100,7 +101,9 @@ For quick reference, the commands that appear on right-click menus and the file 
 | Create Watchlist from CSV | `.csv` / `.tsv` | - |
 | Populate Required Data Connectors from Query | `.yaml` / `.yml` | - |
 | Convert Content YAML to JSON | `.yaml` / `.yml` | `.yaml` / `.yml` |
+| Convert Content JSON to YAML | `.json` | `.json` |
 | New Sentinel-as-Code Content... | - | Folders |
+| Bulk Maintenance & Validation | - | Folders |
 | Create Sentinel Rule Template... | - | Folders |
 
 ## Related Documentation
