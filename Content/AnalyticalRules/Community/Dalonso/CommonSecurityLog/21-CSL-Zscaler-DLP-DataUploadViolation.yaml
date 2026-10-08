@@ -6,19 +6,19 @@ description: |
   Detects Zscaler ZIA Data Loss Prevention (DLP) events where an upload or file transfer was blocked or flagged. DLP violations indicate a user attempted to send sensitive or restricted data to an external service — cloud storage, file-sharing site, or personal webmail. Repeated violations may indicate intentional exfiltration or a compromised account being used for data theft. MITRE ATT&CK: T1048 (Exfiltration Over Alternative Protocol), T1567 (Exfiltration Over Web Service).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT30M
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Exfiltration
+  - Exfiltration
 relevantTechniques:
-- T1048
-- T1567
+  - T1048
+  - T1567
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -41,13 +41,13 @@ query: |
     by SourceUserName, DLPCategory = DeviceCustomString2
   | order by ViolationCount desc, MBUploaded desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: SourceUserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SourceUserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Zscaler DLP Violation - {{SourceUserName}} ({{ViolationCount}} blocks)'
-  alertDescriptionFormat: 'User {{SourceUserName}} violated DLP policy {{ViolationCount}} times. Category: {{DLPCategory}}.'
+  alertDisplayNameFormat: Zscaler DLP Violation - {{SourceUserName}} ({{ViolationCount}} blocks)
+  alertDescriptionFormat: "User {{SourceUserName}} violated DLP policy {{ViolationCount}} times. Category: {{DLPCategory}}."
 customDetails:
   ViolationCount: ViolationCount
   MBUploaded: MBUploaded
@@ -60,12 +60,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

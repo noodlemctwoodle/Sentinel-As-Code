@@ -11,19 +11,19 @@ description: |
   MITRE ATT&CK: T1071.004 (Application Layer Protocol: DNS)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
-- Exfiltration
+  - CommandAndControl
+  - Exfiltration
 relevantTechniques:
-- T1071
+  - T1071
 query: |
   CommonSecurityLog
   | where TimeGenerated > ago(1d)
@@ -44,13 +44,13 @@ query: |
   | where QueryCount > 10
   | order by LongestQuery desc, QueryCount desc
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SourceIP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SourceIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DNS Tunneling Suspect - {{SourceIP}} ({{LongestQuery}}-char queries)'
-  alertDescriptionFormat: 'Host {{SourceIP}} made {{QueryCount}} DNS queries with max hostname length {{LongestQuery}} chars. Abnormal subdomain structure is consistent with DNS tunneling tools.'
+  alertDisplayNameFormat: DNS Tunneling Suspect - {{SourceIP}} ({{LongestQuery}}-char queries)
+  alertDescriptionFormat: Host {{SourceIP}} made {{QueryCount}} DNS queries with max hostname length {{LongestQuery}} chars. Abnormal subdomain structure is consistent with DNS tunneling tools.
 customDetails:
   QueryCount: QueryCount
   LongestQuery: LongestQuery
@@ -63,12 +63,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - IP
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

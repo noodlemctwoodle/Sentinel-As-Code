@@ -1,5 +1,5 @@
 id: c5d6e7f8-a9b0-4c1d-2e3f-4a5b6c7d8e9f
-name: 'Correlation: Firewall Traffic Matching Threat Intelligence Domain / URL'
+name: "Correlation: Firewall Traffic Matching Threat Intelligence Domain / URL"
 description: |
   Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
 
@@ -10,21 +10,21 @@ description: |
   MITRE ATT&CK: T1071 (Application Layer Protocol)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
-- connectorId: ThreatIntelligence
-  dataTypes:
-  - ThreatIntelligenceIndicator
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - ThreatIntelligenceIndicator
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT15M
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1071
+  - T1071
 query: |
   let TI_Domains =
       ThreatIntelligenceIndicator
@@ -54,13 +54,13 @@ query: |
     by MatchKey
   | order by FW_HitCount desc
 entityMappings:
-- entityType: DNS
-  fieldMappings:
-  - identifier: DomainName
-    columnName: MatchKey
+  - entityType: DNS
+    fieldMappings:
+      - identifier: DomainName
+        columnName: MatchKey
 alertDetailsOverride:
-  alertDisplayNameFormat: 'TI Domain Match in Firewall - {{MatchKey}} ({{FW_HitCount}} hits)'
-  alertDescriptionFormat: 'TI-flagged domain {{MatchKey}} (confidence: {{TI_Confidence}}) was contacted through the firewall {{FW_HitCount}} times. Possible C2 or active malware communication.'
+  alertDisplayNameFormat: TI Domain Match in Firewall - {{MatchKey}} ({{FW_HitCount}} hits)
+  alertDescriptionFormat: "TI-flagged domain {{MatchKey}} (confidence: {{TI_Confidence}}) was contacted through the firewall {{FW_HitCount}} times. Possible C2 or active malware communication."
 customDetails:
   FW_HitCount: FW_HitCount
   TI_Confidence: TI_Confidence
@@ -72,12 +72,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: Selected
     groupByEntities:
-    - DNS
+      - DNS
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

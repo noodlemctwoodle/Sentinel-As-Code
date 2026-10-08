@@ -13,24 +13,30 @@ description: |
   could be considered anomalous or potentially suspicious. A lower score will mean it is much closer to expected behaviour.'
 severity: High
 requiredDataConnectors:
-- connectorId: AzureActiveDirectory
-  dataTypes:
-  - SigninLogs
-  - AADNonInteractiveUserSignInLogs
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+      - AADNonInteractiveUserSignInLogs
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - IdentityInfo
+  - connectorId: MicrosoftSentinelUEBA
+    dataTypes:
+      - anomalies
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- CredentialAccess
+  - InitialAccess
+  - CredentialAccess
 relevantTechniques:
-- T1078
-- T1078.004
-- T1110
-- T1110.001
-- T1110.003
+  - T1078
+  - T1078.004
+  - T1110
+  - T1110.001
+  - T1110.003
 query: |
   let adminLookupTime = 14d;
   let starttime = 14d;
@@ -134,17 +140,17 @@ query: |
       , anomalies
       , ['Anomaly Score'] = score
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserPrincipalName
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IPAddress
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Entra ID
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Entra ID

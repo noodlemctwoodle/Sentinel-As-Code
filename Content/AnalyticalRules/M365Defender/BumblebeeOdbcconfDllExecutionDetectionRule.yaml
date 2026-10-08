@@ -6,35 +6,35 @@ description: |
   Looks for command line utilized for execution of rsp file which leads to execution of DLL using regsvr32. Here adversaries abuse odbcconf.exe to bypass application control solutions for DLL execution'
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftDefenderforEndpoints
-  dataTypes:
-  - DeviceProcessEvents
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
+      - DeviceProcessEvents
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Execution
-- Persistence
-- DefenseEvasion
-- LateralMovement
+  - Execution
+  - Persistence
+  - DefenseEvasion
+  - LateralMovement
 relevantTechniques:
-- T1059
-- T1059.003
-- T1211
-- T1218
-- T1554
-- T1569
-- T1569.002
+  - T1059
+  - T1059.003
+  - T1211
+  - T1218
+  - T1554
+  - T1569
+  - T1569.002
 query: |
   DeviceProcessEvents
   | where ProcessCommandLine has_all ("odbcconf",".rsp","-f")
 entityMappings:
-- entityType: Process
-  fieldMappings:
-  - identifier: CommandLine
-    columnName: ProcessCommandLine
+  - entityType: Process
+    fieldMappings:
+      - identifier: CommandLine
+        columnName: ProcessCommandLine
 eventGroupingSettings:
   aggregationKind: SingleAlert
 incidentConfiguration:
@@ -50,6 +50,6 @@ incidentConfiguration:
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Microsoft Defender XDR
+  - Sentinel-As-Code
+  - Custom
+  - Microsoft Defender XDR

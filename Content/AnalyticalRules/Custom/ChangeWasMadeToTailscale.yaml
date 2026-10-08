@@ -4,7 +4,7 @@ description: |
   'The alert rule was disabled due to too many consecutive failures. Reason: A table referenced in the query was not found. Verify that the relevant data source is connected. A change was made to Tailscale'
 severity: Medium
 requiredDataConnectors:
-  - connectorId: TailscaleCCF
+  - connectorId: TailscaleAudit
     dataTypes:
       - TailscaleAudit_CL
 queryFrequency: PT1H

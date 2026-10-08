@@ -13,19 +13,19 @@ description: |
   MITRE T1557.001 — LLMNR/NBT-NS Poisoning and SMB Relay
 severity: Medium
 requiredDataConnectors:
-- connectorId: WindowsDnsAma
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- Collection
+  - CredentialAccess
+  - Collection
 relevantTechniques:
-- T1557.001
+  - T1557.001
 query: |
   ASimDnsActivityLogs
   | where TimeGenerated > ago(1h)
@@ -38,19 +38,19 @@ query: |
     by DnsQuery
   | where UniqueHosts > 3
 entityMappings:
-- entityType: DNS
-  fieldMappings:
-  - identifier: DomainName
-    columnName: DnsQuery
+  - entityType: DNS
+    fieldMappings:
+      - identifier: DomainName
+        columnName: DnsQuery
 alertDetailsOverride:
-  alertDisplayNameFormat: 'WPAD Lookup Abuse — {{UniqueHosts}} hosts querying {{DnsQuery}}'
-  alertDescriptionFormat: '{{UniqueHosts}} internal hosts are querying ''{{DnsQuery}}''. If no corporate WPAD server exists, clients are vulnerable to Responder/Inveigh NTLM credential capture. Hosts: {{Hosts}}'
+  alertDisplayNameFormat: WPAD Lookup Abuse — {{UniqueHosts}} hosts querying {{DnsQuery}}
+  alertDescriptionFormat: "{{UniqueHosts}} internal hosts are querying '{{DnsQuery}}'. If no corporate WPAD server exists, clients are vulnerable to Responder/Inveigh NTLM credential capture. Hosts: {{Hosts}}"
 customDetails:
   UniqueHosts: UniqueHosts
   ResponseCodes: ResponseCode
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

@@ -1,5 +1,5 @@
 id: b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e
-name: 'Correlation: Firewall Traffic + Active Security Alert - Shared IOC IP'
+name: "Correlation: Firewall Traffic + Active Security Alert - Shared IOC IP"
 description: |
   Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
 
@@ -10,20 +10,23 @@ description: |
   MITRE ATT&CK: T1078 (Valid Accounts), T1071 (Application Layer Protocol)
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: AzureActiveDirectoryIdentityProtection
+    dataTypes:
+      - SecurityAlert
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
 queryFrequency: PT1H
 queryPeriod: P7D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
-- CommandAndControl
+  - InitialAccess
+  - CommandAndControl
 relevantTechniques:
-- T1071
-- T1078
+  - T1071
+  - T1078
 query: |
   let AlertIPs =
       SecurityAlert
@@ -67,13 +70,13 @@ query: |
       FW_LastSeen
   | order by AlertCount desc
 entityMappings:
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: IOC_IP
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IOC_IP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Active IOC in Firewall Traffic - {{IOC_IP}} ({{AlertCount}} alerts)'
-  alertDescriptionFormat: 'IP {{IOC_IP}} is referenced in {{AlertCount}} Sentinel alerts and generated {{FW_HitCount}} live firewall events. Confirmed active IOC still communicating through the perimeter.'
+  alertDisplayNameFormat: Active IOC in Firewall Traffic - {{IOC_IP}} ({{AlertCount}} alerts)
+  alertDescriptionFormat: IP {{IOC_IP}} is referenced in {{AlertCount}} Sentinel alerts and generated {{FW_HitCount}} live firewall events. Confirmed active IOC still communicating through the perimeter.
 customDetails:
   AlertCount: AlertCount
   FW_HitCount: FW_HitCount
@@ -85,12 +88,12 @@ incidentConfiguration:
     lookbackDuration: PT12H
     matchingMethod: Selected
     groupByEntities:
-    - IP
+      - IP
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

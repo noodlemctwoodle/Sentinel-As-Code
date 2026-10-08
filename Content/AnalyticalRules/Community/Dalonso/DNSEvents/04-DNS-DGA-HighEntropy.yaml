@@ -1,25 +1,38 @@
 id: a1b2c3d4-0004-4a5b-8c9d-dns004dga
 name: DGA — High-Entropy Subdomain Pattern (Domain Generation Algorithm)
-description: "Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.\n\nDetects clients communicating with Domain Generation Algorithm (DGA)\
-  \ generated\ndomains. DGA malware (Emotet, QakBot, Dridex, TrickBot, SolarWinds Sunburst)\ngenerates pseudo-random domain names at regular intervals, trying many until\none resolves to an active C2 server.\n\
-  Detection is based on the second-level domain character analysis:\n- High ratio of consonants (>65%) — real words are ~40-55% consonant\n- Contains embedded digits — rare in real brand names\n- Length\
-  \ between 10–40 characters — DGA sweet spot\n- High unique character count — randomness indicator\nDifferentiation from built-in \"Potential DGA via Repetitive Failures\n(Normalized DNS)\":\nThe built-in\
-  \ detects DGA via NXDOMAIN failure rate only — if the C2 domain\nhas already been registered and resolves, the built-in misses it. This rule\napplies consonant-ratio entropy analysis to SUCCESSFUL queries\
-  \ (NOERROR), \ncatching active C2 beaconing where the DGA domain resolved. Enables detection\nof DGA malware in its post-initial-C2-registration phase.\n"
+description: |
+  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
+
+  Detects clients communicating with Domain Generation Algorithm (DGA) generated
+  domains. DGA malware (Emotet, QakBot, Dridex, TrickBot, SolarWinds Sunburst)
+  generates pseudo-random domain names at regular intervals, trying many until
+  one resolves to an active C2 server.
+  Detection is based on the second-level domain character analysis:
+  - High ratio of consonants (>65%) — real words are ~40-55% consonant
+  - Contains embedded digits — rare in real brand names
+  - Length between 10–40 characters — DGA sweet spot
+  - High unique character count — randomness indicator
+  Differentiation from built-in "Potential DGA via Repetitive Failures
+  (Normalized DNS)":
+  The built-in detects DGA via NXDOMAIN failure rate only — if the C2 domain
+  has already been registered and resolves, the built-in misses it. This rule
+  applies consonant-ratio entropy analysis to SUCCESSFUL queries (NOERROR), 
+  catching active C2 beaconing where the DGA domain resolved. Enables detection
+  of DGA malware in its post-initial-C2-registration phase.
 severity: High
 requiredDataConnectors:
-- connectorId: WindowsDnsAma
-  dataTypes:
-  - ASimDnsActivityLogs
+  - connectorId: ASimDnsActivityLogs
+    dataTypes:
+      - ASimDnsActivityLogs
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CommandAndControl
+  - CommandAndControl
 relevantTechniques:
-- T1568.002
+  - T1568.002
 query: |
   ASimDnsActivityLogs
   | where TimeGenerated > ago(1h)
@@ -47,23 +60,23 @@ query: |
     by SrcIpAddr, SrcHostname
   | where DgaLikeDomains > 10
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: SrcHostname
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: SrcHostname
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DGA Activity — {{SrcHostname}} queried {{DgaLikeDomains}} high-entropy domains'
-  alertDescriptionFormat: '{{SrcHostname}} ({{SrcIpAddr}}) queried {{DgaLikeDomains}} high-entropy domains consistent with DGA malware activity. Sample:'
+  alertDisplayNameFormat: DGA Activity — {{SrcHostname}} queried {{DgaLikeDomains}} high-entropy domains
+  alertDescriptionFormat: "{{SrcHostname}} ({{SrcIpAddr}}) queried {{DgaLikeDomains}} high-entropy domains consistent with DGA malware activity. Sample:"
 customDetails:
   DgaLikeDomains: DgaLikeDomains
   SampleDomains: SampleDomains
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

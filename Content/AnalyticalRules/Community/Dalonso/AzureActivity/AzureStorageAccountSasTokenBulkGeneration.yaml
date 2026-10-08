@@ -5,16 +5,23 @@ description: |
 
   Detects when a single identity generates 3 or more SAS tokens (ListAccountSAS/ListServiceSAS) within a 30-minute window. Attackers that gain Azure management access generate SAS tokens as an alternative authentication material (T1550) to exfiltrate storage data without leaving standard AAD sign-in traces. These exact operation names were observed in this workspace. FP mitigations: (1) known backup and monitoring SP name patterns excluded; (2) threshold of 3+ in 30 min avoids single-use app auth flows; (3) correlated across both AccountSAS and ServiceSAS operation types — legitimate single-SA access typically uses one type.
 severity: Medium
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+  - connectorId: AzureStorageAccount
+    dataTypes:
+      - StorageBlobLogs
 queryFrequency: PT1H
 queryPeriod: PT2H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- CredentialAccess
-- DefenseEvasion
-- Exfiltration
-- LateralMovement
+  - CredentialAccess
+  - DefenseEvasion
+  - Exfiltration
+  - LateralMovement
 query: |
   let ExcludedPatterns = dynamic(["backup", "monitor", "storagesync", "azurebackup", "recov"]);
   AzureActivity
@@ -44,19 +51,19 @@ query: |
       AccountName = tostring(split(Caller, "@")[0]),
       AccountUPNSuffix = tostring(split(Caller, "@")[1])
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: AccountName
-  - identifier: UPNSuffix
-    columnName: AccountUPNSuffix
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIP
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: AccountName
+      - identifier: UPNSuffix
+        columnName: AccountUPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIP
 alertDetailsOverride:
-  alertDisplayNameFormat: 'SAS bulk generation: {{SASGenerationCount}} tokens by {{Caller}}'
-  alertDescriptionFormat: '{{Caller}} generated {{SASGenerationCount}} SAS tokens for accounts {{TargetAccounts}} within 30 min from IP'
+  alertDisplayNameFormat: "SAS bulk generation: {{SASGenerationCount}} tokens by {{Caller}}"
+  alertDescriptionFormat: "{{Caller}} generated {{SASGenerationCount}} SAS tokens for accounts {{TargetAccounts}} within 30 min from IP"
 customDetails:
   SASGenerationCount: SASGenerationCount
   TargetAccounts: TargetAccounts
@@ -68,12 +75,12 @@ incidentConfiguration:
     lookbackDuration: PT6H
     matchingMethod: AllEntities
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

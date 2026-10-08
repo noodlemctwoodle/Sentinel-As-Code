@@ -4,21 +4,21 @@ description: |
   'Detects when a new source is added to a Data Collection Rule (DCR)'
 severity: Informational
 requiredDataConnectors:
-- connectorId: AzureActivity
-  dataTypes:
-  - AzureActivity
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
-- DefenseEvasion
+  - Collection
+  - DefenseEvasion
 relevantTechniques:
-- T1074
-- T1074.002
-- T1530
+  - T1074
+  - T1074.002
+  - T1530
 query: |
   AzureActivity
   | where OperationNameValue has "DATACOLLECTIONRULEASSOCIATIONS/WRITE"
@@ -29,22 +29,20 @@ query: |
   | extend DCR = toupper(split(Resources[2], "-association")[0])
   | summarize by format_datetime(bin(TimeGenerated, 1d), "dd/MM/yyyy") , Source, SourceRG, DCR, Caller, CallerIpAddress
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: Caller
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: CallerIpAddress
-- entityType: Host
-  fieldMappings:
-  - identifier: HostName
-    columnName: Source
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Source
 eventGroupingSettings:
   aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -55,9 +53,11 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
+suppressionDuration: P1D
+suppressionEnabled: true
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Azure Activity
+  - Sentinel-As-Code
+  - Custom
+  - Azure Activity

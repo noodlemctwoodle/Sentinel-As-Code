@@ -22,20 +22,23 @@ description: |
   Ref: Shay Ber "Abusing DNSAdmins privilege for escalation in Active Directory"
 severity: High
 requiredDataConnectors:
-- connectorId: SecurityEvents
-  dataTypes:
-  - SecurityEvent
+  - connectorId: ESI-ExchangeOnPremisesCollector
+    dataTypes:
+      - SecurityEvent
+  - connectorId: MimecastATAPI
+    dataTypes:
+      - audit
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- PrivilegeEscalation
-- Persistence
+  - PrivilegeEscalation
+  - Persistence
 relevantTechniques:
-- T1078.002
-- T1574.002
+  - T1078.002
+  - T1574.002
 query: |
   // Step 1: Detect dnscmd.exe invoked with /serverlevelplugindll
   // (registers arbitrary DLL to be loaded by dns.exe at SYSTEM privilege)
@@ -73,24 +76,23 @@ query: |
       RestartTime,
       ServiceEvent
 entityMappings:
-- entityType: Host
-  fieldMappings:
-  - identifier: FullName
-    columnName: Computer
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: SubjectAccount
+  - entityType: Host
+    fieldMappings:
+      - identifier: FullName
+        columnName: Computer
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: SubjectAccount
 alertDetailsOverride:
-  alertDisplayNameFormat: 'DNSAdmins DLL Injection — {{SubjectAccount}} on {{Computer}} registered malicious DLL'
-  alertDescriptionFormat: 'User {{SubjectAccount}} on {{Computer}} executed dnscmd /serverlevelplugindll (command: ''{{CommandLine}}''). DNS service restart detected within 60 minutes — malicious DLL may
-    have been loaded by dns.exe at SYSTEM privilege level.'
+  alertDisplayNameFormat: DNSAdmins DLL Injection — {{SubjectAccount}} on {{Computer}} registered malicious DLL
+  alertDescriptionFormat: "User {{SubjectAccount}} on {{Computer}} executed dnscmd /serverlevelplugindll (command: '{{CommandLine}}'). DNS service restart detected within 60 minutes — malicious DLL may have been loaded by dns.exe at SYSTEM privilege level."
 customDetails:
   CommandLine: CommandLine
   ServiceEvent: ServiceEvent
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting

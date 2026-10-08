@@ -13,19 +13,19 @@ description: |
   Until the watchlist exists the deployer will disable the rule automatically.
 severity: Medium
 requiredDataConnectors:
-- connectorId: MicrosoftCopilot
-  dataTypes:
-  - CopilotActivity
+  - connectorId: MicrosoftCopilot
+    dataTypes:
+      - CopilotActivity
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- InitialAccess
+  - InitialAccess
 relevantTechniques:
-- T1078
-- T1078.004
+  - T1078
+  - T1078.004
 query: |
   let EntitledUsers = _GetWatchlist('CopilotEntitledUsers')
     | project UserPrincipalName = tolower(UserPrincipalName);
@@ -42,15 +42,15 @@ query: |
       LastSeen = max(TimeGenerated)
     by UserPrincipalName, ActorUserId
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: UserPrincipalName
-  - identifier: AadUserId
-    columnName: ActorUserId
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: UserPrincipalName
+      - identifier: AadUserId
+        columnName: ActorUserId
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

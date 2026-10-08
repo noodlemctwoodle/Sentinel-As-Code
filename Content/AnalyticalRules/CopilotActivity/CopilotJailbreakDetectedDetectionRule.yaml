@@ -12,18 +12,18 @@ description: |
   sensitive resources through Copilot, and correlate with sign-in risk.
 severity: High
 requiredDataConnectors:
-- connectorId: MicrosoftCopilot
-  dataTypes:
-  - CopilotActivity
+  - connectorId: MicrosoftCopilot
+    dataTypes:
+      - CopilotActivity
 queryFrequency: PT1H
 queryPeriod: PT1H
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- DefenseEvasion
+  - DefenseEvasion
 relevantTechniques:
-- T1562
+  - T1562
 query: |
   CopilotActivity
   | where TimeGenerated > ago(1h)
@@ -42,19 +42,19 @@ query: |
       MessageId = tostring(Messages.Id)
   | order by TimeGenerated desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: Name
-    columnName: ActorName
-  - identifier: AadUserId
-    columnName: ActorUserId
-- entityType: IP
-  fieldMappings:
-  - identifier: Address
-    columnName: SrcIpAddr
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: ActorName
+      - identifier: AadUserId
+        columnName: ActorUserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: SrcIpAddr
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Copilot
+  - Sentinel-As-Code
+  - Custom
+  - Copilot

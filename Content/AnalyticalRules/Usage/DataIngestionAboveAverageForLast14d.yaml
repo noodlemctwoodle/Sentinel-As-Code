@@ -4,9 +4,9 @@ description: |
   'Enter rule description here'
 severity: Informational
 requiredDataConnectors:
-  - connectorId: YourConnectorId
+  - connectorId: AzureMonitor
     dataTypes:
-      - YourDataType
+      - Usage
 queryFrequency: PT5H
 queryPeriod: PT5H
 triggerOperator: gt

@@ -4,21 +4,21 @@ description: |
   'This rule looks for changes to a Google Drive file by someone other than the owner of the document.'
 severity: Informational
 requiredDataConnectors:
-- connectorId: YourConnectorId
-  dataTypes:
-  - YourDataType
+  - connectorId: MimecastATAPI
+    dataTypes:
+      - audit
 queryFrequency: P1D
 queryPeriod: P1D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Collection
-- Impact
+  - Collection
+  - Impact
 relevantTechniques:
-- T1213
-- T1565
-- T1565.001
+  - T1213
+  - T1565
+  - T1565.001
 query: |
   GWorkspaceActivityReports
   | where ActorKey != "SYSTEM"
@@ -47,25 +47,23 @@ query: |
       , NewAccess
       , DocumentTitle
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: ChangeMadeBy
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: DocumentOwner
-- entityType: File
-  fieldMappings:
-  - identifier: Name
-    columnName: DocumentTitle
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: ChangeMadeBy
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: DocumentOwner
+  - entityType: File
+    fieldMappings:
+      - identifier: Name
+        columnName: DocumentTitle
 customDetails:
   OldAccess: OldAccess
   NewAccess: NewAccess
 eventGroupingSettings:
   aggregationKind: SingleAlert
-suppressionEnabled: true
-suppressionDuration: P1D
 incidentConfiguration:
   createIncident: true
   groupingConfiguration:
@@ -76,9 +74,11 @@ incidentConfiguration:
     groupByEntities: []
     groupByAlertDetails: []
     groupByCustomDetails: []
+suppressionDuration: P1D
+suppressionEnabled: true
 version: 1.0.0
 kind: Scheduled
 tags:
-- Sentinel-As-Code
-- Custom
-- Google Workspace
+  - Sentinel-As-Code
+  - Custom
+  - Google Workspace

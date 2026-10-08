@@ -1,5 +1,5 @@
 id: f935a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b
-name: 'Zscaler ZIA - Patient APT: Multi-Channel Low & Slow Exfiltration'
+name: "Zscaler ZIA - Patient APT: Multi-Channel Low & Slow Exfiltration"
 description: |
   Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.
 
@@ -22,19 +22,28 @@ description: |
   T1567 (Exfiltration Over Web Service), T1567.002 (Exfiltration to Cloud Storage).
 severity: High
 requiredDataConnectors:
-- connectorId: CommonSecurityEvents
-  dataTypes:
-  - CommonSecurityLog
+  - connectorId: MicrosoftDefenderThreatIntelligence
+    dataTypes:
+      - github
+  - connectorId: CefAma
+    dataTypes:
+      - CommonSecurityLog
+  - connectorId: Dynamics365Finance
+    dataTypes:
+      - OfficeActivity
+  - connectorId: AzureMonitor
+    dataTypes:
+      - Operation
 queryFrequency: P1D
 queryPeriod: P14D
 triggerOperator: gt
 triggerThreshold: 0
 enabled: true
 tactics:
-- Exfiltration
+  - Exfiltration
 relevantTechniques:
-- T1041
-- T1567
+  - T1041
+  - T1567
 query: |
   let HuntWindow   = 30d;
   let ExfilDomains = dynamic([
@@ -103,13 +112,13 @@ query: |
       DistinctChannels, Zscore
   | order by Zscore desc, ZIA_TotalMBSent desc
 entityMappings:
-- entityType: Account
-  fieldMappings:
-  - identifier: FullName
-    columnName: UserName
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserName
 alertDetailsOverride:
-  alertDisplayNameFormat: 'Low & Slow Exfil Candidate - {{UserName}} (z={{Zscore}}, {{ZIA_TotalMBSent}} MB over days)'
-  alertDescriptionFormat: 'User {{UserName}} uploaded {{ZIA_TotalMBSent}} MB to non-corporate destinations across {{ZIA_ActiveDays}} active days (z-score: ). Anonymous links created: .'
+  alertDisplayNameFormat: Low & Slow Exfil Candidate - {{UserName}} (z={{Zscore}}, {{ZIA_TotalMBSent}} MB over days)
+  alertDescriptionFormat: "User {{UserName}} uploaded {{ZIA_TotalMBSent}} MB to non-corporate destinations across {{ZIA_ActiveDays}} active days (z-score: ). Anonymous links created: ."
 customDetails:
   ZIA_TotalMBSent: ZIA_TotalMBSent
   ZIA_ActiveDays: ZIA_ActiveDays
@@ -124,12 +133,12 @@ incidentConfiguration:
     lookbackDuration: P1D
     matchingMethod: Selected
     groupByEntities:
-    - Account
+      - Account
     groupByAlertDetails: []
     groupByCustomDetails: []
 version: 1.0.0
 kind: Scheduled
 tags:
-- Community
-- David Alonso
-- Threat Hunting
+  - Community
+  - David Alonso
+  - Threat Hunting
