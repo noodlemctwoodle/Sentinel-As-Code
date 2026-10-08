@@ -72,7 +72,7 @@ Azure resources that host Sentinel content.
 
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)
 
-Seven Azure DevOps pipelines mirrored by seven GitHub Actions workflows. Start at
+Eight Azure DevOps pipelines, seven of them mirrored by GitHub Actions workflows. Start at
 the index for the GitHub/ADO parity map, then the per-pipeline pages.
 
 | Doc | What it covers |
@@ -87,6 +87,7 @@ the index for the GitHub/ADO parity map, then the per-pipeline pages.
 | [Dependency Update](Pipelines/Dependency-Update.md) | Daily `dependencies.json` drift check and auto-PR |
 | [DCR Inventory](Pipelines/DCR-Inventory.md) | CI/CD wiring for the DCR-watchlist sync automation account and runbook |
 | [Word Report](Pipelines/Word-Report.md) | ADO-only pipeline that renders the Documenter Markdown pack into a page-numbered Word `.docx` |
+| [SharePoint Publish](Pipelines/SharePoint-Publish.md) | Publishes the generated iSOC Blueprint SharePoint site after every Documenter run, on both CI systems |
 
 ## Tests - `Tests/`
 
@@ -137,6 +138,7 @@ The read-only documentation generator.
 | [References & Conventions](Tools/Documenter/Documenter-References.md) | Durable record of every API version, module, KQL query, and Learn page the Documenter relies on (rendered as `99-references.md`) |
 | [Data Lake Coverage](Tools/Documenter/Sentinel-Data-Lake-Coverage.md) | What the Documenter captures and renders for the Microsoft Sentinel data lake tier |
 | [Word Report](Tools/Documenter/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
+| [SharePoint Site](Tools/Documenter/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
 
 ## Toolkit - companion VS Code extension
 
