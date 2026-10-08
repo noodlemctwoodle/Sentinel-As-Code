@@ -47,7 +47,10 @@ Templates carry `{{PLACEHOLDER}}` tokens and are always skipped by validation,
 regardless of `validation.excludePatterns`.
 
 Changing any `sentinelAsCode.*` setting re-validates the files you have open, so
-the effect shows straight away.
+most changes show straight away. The exceptions are `mitre.frameworks` and
+`connectors.customConnectors`: the Toolkit loads that reference data once, when
+it starts, and re-validation does not reload it. After changing either of them,
+run **Developer: Reload Window** before validation uses the new values.
 
 ## MITRE ATT&CK
 

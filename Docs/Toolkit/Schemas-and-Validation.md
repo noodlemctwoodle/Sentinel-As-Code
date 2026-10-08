@@ -105,8 +105,10 @@ straight to it.
   only when a file is opened or saved, which can help on very large files.
 - **Master switch.** `sentinelAsCode.validation.enabled` (default `true`) turns
   validation of analytics rules and hunting queries on or off.
-- **Settings changes apply immediately.** Changing any `sentinelAsCode.*`
-  setting re-validates the files you have open.
+- **Settings changes re-validate.** Changing any `sentinelAsCode.*` setting
+  re-validates the files you have open. Changes to `mitre.frameworks` and
+  `connectors.customConnectors` also need **Developer: Reload Window**, because
+  that reference data is loaded once when the Toolkit starts.
 
 Findings are reported at three levels:
 
