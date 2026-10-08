@@ -68,8 +68,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.1
-    Last Updated:   2026-09-01
+    Version:        0.1.2
+    Last Updated:   2026-10-08
     Component:      Sentinel Documenter
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -1227,12 +1227,17 @@ Try-Capture 'cost-estimate' {
 # ---------------------------------------------------------------------------
 Try-Capture 'gap-analysis' {
     . (Join-Path $PSScriptRoot 'Private/Get-SentinelGap.ps1')
+    $gapOutcomes = [System.Collections.Generic.List[object]]::new()
     $findings = Get-SentinelGap `
         -InputRoot $rawOut `
         -ResourcesRoot (Join-Path $PSScriptRoot 'Private/Resources') `
         -RulesPath (Join-Path $PSScriptRoot 'Private/Resources/best-practices.json') `
-        -GapChecksPath (Join-Path $PSScriptRoot 'Private/GapChecks.ps1')
+        -GapChecksPath (Join-Path $PSScriptRoot 'Private/GapChecks.ps1') `
+        -OutcomeCollector $gapOutcomes
     Save-Json -FileName 'gap-analysis.json' -Data $findings
+    # One record per rule (Fired / Passed / Errored / Undefined), so a
+    # consumer can tell a check that passed from one that never ran.
+    Save-Json -FileName 'gap-checks.json' -Data $gapOutcomes.ToArray()
 }
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "sentinel-navigator-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/sentinelNavigator/SentinelNavigatorWebPart.js",
+          "manifest": "./src/webparts/sentinelNavigator/SentinelNavigatorWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "SentinelNavigatorWebPartStrings": "lib/webparts/sentinelNavigator/loc/{locale}.js"
+  }
+}

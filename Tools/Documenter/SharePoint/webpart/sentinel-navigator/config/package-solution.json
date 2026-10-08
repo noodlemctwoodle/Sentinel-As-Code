@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "sentinel-navigator-client-side-solution",
+    "id": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
+    "version": "1.1.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Sentinel Documenter",
+      "websiteUrl": "https://sentinel.blog",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.21.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Interactive Sentinel workspace dashboard"
+      },
+      "longDescription": {
+        "default": "Renders the self-contained Sentinel Documenter dashboard (data flow, posture, findings, sections) as the home page of a generated iSOC Blueprint SharePoint site."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "sentinel-navigator Feature",
+        "description": "Activates the Sentinel workspace dashboard web part.",
+        "id": "9263dd27-c9d1-46fa-9f98-8afa37475bb2",
+        "version": "1.1.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/sentinel-navigator.sppkg"
+  }
+}

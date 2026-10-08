@@ -156,6 +156,7 @@ workbook-export suites.
 | Documenter renderer | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Documenter Markdown from the `Tests/Documenter/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
 | Documenter gap engine | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
 | Documenter REST wrapper | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
+| Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -391,6 +392,11 @@ them against a fixed JSON fixture corpus rather than mocking Azure:
   dot-sources [`Tools/Documenter/Private/Invoke-SentinelRest.ps1`](../../Tools/Documenter/Private/Invoke-SentinelRest.ps1)
   and asserts URL construction (how `-ApiVersion` is appended when the path
   already carries a query string or its own `api-version`).
+- [`SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1)
+  dot-sources the helpers under [`Tools/Documenter/SharePoint/Private/`](../../Tools/Documenter/SharePoint/Private)
+  and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1)
+  offline against the rendered fixture. The publisher's decisions live in pure
+  planning functions, so nothing needs SharePoint or PnP.PowerShell.
 
 Because `Invoke-PRValidation.ps1` sets `Run.Path` to the whole `Tests/`
 folder, these run in the PR gate alongside the root suites.
@@ -580,8 +586,9 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
 | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus + empty-state safety | ~117 |
-| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture | ~36 |
+| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, plus per-check outcomes | ~43 |
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
+| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, SharePoint helpers, offline bundle build | 58 |
 
 Add new entries to this table as you cover more scripts.
 

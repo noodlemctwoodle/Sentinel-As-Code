@@ -48,8 +48,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-08
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -278,5 +278,84 @@ Describe 'Sentinel gap-analysis engine' {
             $f = $findings | Where-Object Id -eq 'SENT-049'
             $f.Evidence | Should -Match 'No data observed in the new'
         }
+    }
+}
+
+Describe 'Sentinel gap-analysis engine: per-check outcomes' {
+
+    BeforeAll {
+        $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        $fixtureRaw   = Join-Path $repoRoot 'Tests/Documenter/Fixtures/sample/_raw'
+        $resourcesDir = Join-Path $repoRoot 'Tools/Documenter/Private/Resources'
+        $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
+        $gapChecks    = Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1'
+        . (Join-Path $repoRoot 'Tools/Documenter/Private/Get-SentinelGap.ps1')
+
+        $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
+        $script:outcomes = [System.Collections.Generic.List[object]]::new()
+        $script:withCollector = Get-SentinelGap -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir `
+            -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $script:outcomes
+
+        # A rules file with one check that throws and one that does not exist,
+        # to prove both are recorded rather than silently dropped.
+        $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-outcomes-$(New-Guid)"
+        New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+        $badChecks = Join-Path $script:tempDir 'BadChecks.ps1'
+        Set-Content -Path $badChecks -Value @(
+            'function Test-Throws { param($Inventory) throw "boom" }'
+            'function Test-Quiet  { param($Inventory) return $null }'
+        )
+        $badRules = Join-Path $script:tempDir 'rules.json'
+        @{ rules = @(
+                @{ id = 'SENT-901'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throws'; remediation = ''; learn = '' }
+                @{ id = 'SENT-902'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Missing'; remediation = ''; learn = '' }
+                @{ id = 'SENT-903'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Quiet'; remediation = ''; learn = '' }
+            ) } | ConvertTo-Json -Depth 4 | Set-Content -Path $badRules
+        $script:badOutcomes = [System.Collections.Generic.List[object]]::new()
+        $null = Get-SentinelGap -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir -RulesPath $badRules `
+            -GapChecksPath $badChecks -OutcomeCollector $script:badOutcomes -WarningAction SilentlyContinue
+    }
+
+    AfterAll {
+        if ($script:tempDir -and (Test-Path $script:tempDir)) { Remove-Item $script:tempDir -Recurse -Force }
+    }
+
+    It 'records exactly one outcome per rule' {
+        $outcomes.Count | Should -Be $ruleIds.Count
+        @($outcomes | ForEach-Object Id | Sort-Object -Unique).Count | Should -Be $ruleIds.Count
+    }
+
+    It 'marks every finding that fired as Fired' {
+        foreach ($f in $withCollector) {
+            ($outcomes | Where-Object Id -eq $f.Id).Outcome | Should -Be 'Fired'
+        }
+    }
+
+    It 'marks rules that produced no finding as Passed' {
+        $fired = @($withCollector | ForEach-Object Id)
+        $passed = @($outcomes | Where-Object { $_.Id -notin $fired })
+        $passed | ForEach-Object { $_.Outcome | Should -Be 'Passed' }
+    }
+
+    It 'records a check that throws as Errored with its message' {
+        $o = $badOutcomes | Where-Object Id -eq 'SENT-901'
+        $o.Outcome | Should -Be 'Errored'
+        $o.Message | Should -Match 'boom'
+    }
+
+    It 'records a check that is not defined as Undefined' {
+        ($badOutcomes | Where-Object Id -eq 'SENT-902').Outcome | Should -Be 'Undefined'
+    }
+
+    It 'records a check that returns nothing as Passed' {
+        ($badOutcomes | Where-Object Id -eq 'SENT-903').Outcome | Should -Be 'Passed'
+    }
+
+    It 'returns the same findings with or without a collector' {
+        $plain = Get-SentinelGap -InputRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tests/Documenter/Fixtures/sample/_raw') `
+            -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Documenter/Private/Resources') `
+            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Documenter/Private/Resources/best-practices.json') `
+            -GapChecksPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Documenter/Private/GapChecks.ps1')
+        @($plain | ForEach-Object Id) | Should -Be @($withCollector | ForEach-Object Id)
     }
 }

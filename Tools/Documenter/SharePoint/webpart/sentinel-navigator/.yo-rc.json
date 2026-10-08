@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "sentinel-navigator",
+    "componentType": "webpart",
+    "template": "none",
+    "componentName": "SentinelNavigator",
+    "componentDescription": "Renders the Sentinel Documenter dashboard",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.3",
+    "sdksVersions": {},
+    "version": "1.21.1",
+    "libraryName": "sentinel-navigator",
+    "libraryId": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "sentinel-navigator description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false
+  }
+}

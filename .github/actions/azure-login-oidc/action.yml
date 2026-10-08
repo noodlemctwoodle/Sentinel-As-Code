@@ -24,6 +24,11 @@
 #   # Default is true because most call sites need both.
 #       enable-azps-session: 'false'
 #
+#   # Optional: an identity with no Azure subscription (for example the
+#   # SharePoint publisher, which only requests a SharePoint token). Omit
+#   # subscription-id and set:
+#       allow-no-subscriptions: 'true'
+#
 # Caller must declare permissions on the parent job:
 #
 #   permissions:
@@ -42,8 +47,13 @@ inputs:
     description: Azure AD tenant ID. Pass via secrets.AZURE_TENANT_ID.
     required: true
   subscription-id:
-    description: Default subscription to log into. Pass via secrets.AZURE_SUBSCRIPTION_ID.
-    required: true
+    description: Default subscription to log into. Pass via secrets.AZURE_SUBSCRIPTION_ID. Leave empty together with allow-no-subscriptions 'true' for an identity that has no Azure subscription.
+    required: false
+    default: ''
+  allow-no-subscriptions:
+    description: Set 'true' to sign in an identity that has no Azure subscription access (tenant-level login only). Default 'false'.
+    required: false
+    default: 'false'
   enable-azps-session:
     description: |
       Enable Azure PowerShell session in addition to az CLI. Default 'true'
@@ -63,3 +73,4 @@ runs:
         tenant-id: ${{ inputs.tenant-id }}
         subscription-id: ${{ inputs.subscription-id }}
         enable-AzPSSession: ${{ inputs.enable-azps-session }}
+        allow-no-subscriptions: ${{ inputs.allow-no-subscriptions }}
