@@ -104,7 +104,10 @@ SecurityDocs/
     │   ├── tables-with-data.json
     │   ├── alert-rules.json
     │   ├── data-connectors-classic.json
-    │   ├── ... (≈69 files)
+    │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
+    │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
+    │   ├── playbook-runs.json          runs and failures per playbook (7d)
+    │   ├── ... (≈78 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   ├── gap-analysis.json          findings that fired
@@ -325,7 +328,7 @@ reads `(ConvertFrom-Json).rules`. Each entry looks like:
 ```json
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "rules": [
     {
       "id": "SENT-001",
@@ -347,6 +350,33 @@ returns `$null` on pass or an Evidence/Detail object on fail; the engine wires t
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
 
+The catalogue holds 58 rules. Version 2.2.0 added thirteen that port the
+checks from the Sentinel health-check script contributed to the project:
+
+| Rule | What it reads | Fires when |
+|---|---|---|
+| SENT-036 Noisy rule | `rule-effectiveness.json` | 20+ closed incidents and more than 70% false positive |
+| SENT-037 No entity mappings | `alert-rules.json` | an enabled Scheduled/NRT rule has no `entityMappings` |
+| SENT-038 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
+| SENT-041 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
+| SENT-050 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
+| SENT-051 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests up to three undeployed, non-deprecated templates per table |
+| SENT-052 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
+| SENT-053 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |
+| SENT-054 Deprecated solution | `content-packages.json`, `content-product-packages.json` | an installed solution is `isDeprecated` or missing from the catalogue |
+| SENT-055 Single TI feed | `data-connectors-classic.json`, `threat-intel-counts.json` | at most one TI connector kind and no non-Microsoft indicator source |
+| SENT-056 Azure Firewall logged twice | `azure-diagnostics-categories.json`, `tables-with-data.json` | `AzureFirewall*` categories and `AZFW*` tables both carry data |
+| SENT-057 Closed unclassified | `incidents-summary.json` | 10+ closed and more than half Undetermined or unclassified |
+| SENT-058 No hunting | `hunts.json`, `bookmarks.json` | both captures ran and both are empty |
+
+The collector only writes some of those files when their capture succeeds
+(`hunts.json`, `playbook-runs.json`, `rule-effectiveness.json` and the
+reference files among them). `Inventory.RawFiles` lists the JSON files
+that exist, and the checks that need it use it to stay quiet when a
+capture did not run rather than report "none" on a failed call. KQL
+result cells arrive as strings, so the checks read numbers through small
+`_ToInt` / `_ToDouble` helpers rather than casting.
+
 ### Adding a new rule
 
 1. Write `Test-MyNewRule` in `GapChecks.ps1`.
@@ -354,7 +384,9 @@ result.
 3. Add a fixture-driven Pester test under
    `Tests/Documenter/Get-SentinelGap.Tests.ps1`.
 
-That's the complete change.
+That's the complete change. If the rule reads a capture that can be
+absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
+`$Inventory.RawFiles` before treating an empty array as a finding.
 
 ### Categories and severities
 

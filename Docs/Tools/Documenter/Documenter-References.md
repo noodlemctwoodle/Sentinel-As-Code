@@ -31,7 +31,7 @@ literal string.
 | Surface | Version | `$apiVersions` key | Why |
 |---|---|---|---|
 | `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers connectors, alert rules, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, settings, threat-intelligence metrics. |
-| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Content Hub product packages, SOC-optimisation recommendations, `pricings` resource. |
+| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Content Hub product packages, SOC-optimisation recommendations, `pricings` resource, `hunts`. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
 | `Microsoft.OperationalInsights/workspaces/tables` | `2023-09-01` | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`. |
 | `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms; REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
@@ -48,6 +48,7 @@ needs bumping.
 | `.../workspaces/<ws>/summaryLogs` (summary rules) | `2023-01-01-preview` | `summary-rules` |
 | `Microsoft.Insights/workbooks?category=sentinel` | `2023-06-01` | `workbooks-saved` |
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
+| `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |
 | `Microsoft.Insights/diagnosticSettings` | `2021-05-01-preview` | `diagnostic-settings` |
 | Dedicated cluster resource + `Microsoft.ResourceGraph/resources` | `2022-10-01` | `dedicated-cluster` |
 | `Microsoft.OperationsManagement/solutions` | `2015-11-01-preview` | `solutions-installed` |
@@ -130,7 +131,7 @@ call shape is non-obvious enough to be worth pinning down here:
 
 ## Recurring KQL queries
 
-The collector runs **23 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
+The collector runs **28 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
 each inside its own `Try-Capture` block that writes one `_raw/<name>.json` file. They are
 **not** all cheap billing-metadata reads: a good half of them query raw operational and
 security tables directly (`CommonSecurityLog`, `Syslog`, `SecurityEvent`, `SecurityAlert`,
@@ -143,9 +144,13 @@ Grouped by purpose:
 **Usage, cost and ingestion health**
 
 - `tables-with-data` - which schema'd tables actually receive data, with 90d/30d/7d/24h
-  billable-GB breakdowns (`Usage`).
+  billable-GB breakdowns and the 7-day ingested total (`Usage`).
 - `ingestion-latency` - broken-pipeline detector over ingestion/schema operations (`Operation`).
 - `workspace-usage` - workspace-level ingestion volume trend.
+- `workspace-usage-daily` - billable and free GB per day for 30 days, the ingestion trend
+  line on the dashboard.
+- `azure-diagnostics-categories` - `AzureDiagnostics` row counts by resource provider and
+  category over 7 days, the input to the duplicate-firewall-logging rule.
 - `la-query-logs` - Log Analytics query-audit activity.
 
 **Sentinel health and posture**
@@ -162,14 +167,25 @@ Grouped by purpose:
 
 - `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
   `incidents-detail-by-provider`, `incidents-by-rule` - incident counts, mean-time-to-respond,
-  daily trend, per-provider detail and per-rule breakdown.
+  daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
+  row with `Count`, `Closed` and three bags (`ByStatus`, `BySeverity`, `ByClassification`)
+  whose values are real counts; closed incidents with an empty classification are reported
+  as `Unclassified`.
+- `rule-effectiveness` - per analytics rule over 30 days: incidents, closures and the
+  true/false/benign-positive split, with a false-positive rate over closed incidents. Each
+  incident is counted once (`arg_max` by `IncidentNumber`) and joined to its alerts, whose
+  rule id comes from `ExtendedProperties` (`Analytic Rule Ids` on current alerts,
+  `Analytic Rule Id` on older ones).
 
 **Analytics and threat intelligence**
 
 - `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert` (grouped by
   `AlertName`, `ProductName`, `AlertSeverity`).
+- `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
+  than the alert name, so renamed rules and rules sharing a name are told apart.
 - `threat-intel-counts` - threat-intelligence indicator counts from KQL. (The related
   `threat-intel-metrics` capture is REST, from `.../threatIntelligence/main/metrics`.)
+- `threat-intel-objects` - `ThreatIntelObjects` rows by STIX type over 30 days.
 
 **Table hygiene, agent migration and connector misrouting**
 
@@ -201,6 +217,7 @@ is built on:
        IngestedLast90d = sum(Quantity) / 1024.0,
        BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(30d)) / 1024.0,
        BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(7d))  / 1024.0,
+       IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(7d)) / 1024.0,
        BillableLast24h = sumif(Quantity, IsBillable == true and TimeGenerated > ago(1d))  / 1024.0,
        FirstSeen       = min(TimeGenerated),
        LastIngested    = max(TimeGenerated),

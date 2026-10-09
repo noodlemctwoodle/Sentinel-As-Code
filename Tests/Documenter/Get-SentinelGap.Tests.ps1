@@ -27,6 +27,27 @@
       SENT-026  Silent table                      (AuditLogs: 90d data, no recent)
       SENT-027  Orphan table                      (OrphanTable_CL: schema, no data)
 
+    The v2.2 rules (ported from the health-check script contributed to the
+    project) fire on these conditions:
+
+      SENT-036  Noisy rule                        (rule-effectiveness.json: aaaa closed 24, 19 FP)
+      SENT-037  No entity mappings                (alert-rules.json: eeee enabled, entityMappings [])
+      SENT-038  Alert-only rule                   (alert-rules.json: eeee createIncident false)
+      SENT-041  Legacy incident-creation rule     (alert-rules.json: dddd MicrosoftSecurityIncidentCreation enabled)
+      SENT-050  Rule on legacy TI table           (rule-table-references.json: eeee reads ThreatIntelligenceIndicator)
+      SENT-051  High-volume table, no detection   (FirewallLogs_CL, SecurityEvent, OfficeActivity ... unreferenced)
+      SENT-052  Silent table with dependent rule  (AuditLogs IngestedLast7d 0, read by aaaa)
+      SENT-053  Playbook failures                 (playbook-runs.json: IncidentEnrich-IP Failed7d 5)
+      SENT-054  Deprecated / missing solution     (office365 isDeprecated, legacy-feed not in catalogue)
+      SENT-055  Single TI feed                    (data-connectors-classic.json: MicrosoftThreatIntelligence only)
+      SENT-056  AzFW logged twice                 (AzureFirewall* categories + AZFWNetworkRule table)
+      SENT-057  Closed unclassified               (incidents-summary.json: 20 of 32 closed Undetermined/Unclassified)
+      SENT-058  No hunting activity               (hunts.json and bookmarks.json both [])
+
+    Rules that read a capture file the collector only writes on success
+    (051, 052, 058) stay quiet when the file is absent; the second Describe
+    proves that with a trimmed copy of the fixture.
+
     Adding new rules requires extending the fixture and adding a row in the
     expected-IDs list.
 
@@ -48,8 +69,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.2.0
-    Last Updated: 2026-10-08
+    Version:      0.3.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -277,6 +298,176 @@ Describe 'Sentinel gap-analysis engine' {
         It 'notes the new ThreatIntelIndicators table is absent when SENT-049 fires' {
             $f = $findings | Where-Object Id -eq 'SENT-049'
             $f.Evidence | Should -Match 'No data observed in the new'
+        }
+
+        # ----- v2.2 health-check rules -----------------------------------
+
+        It 'fires SENT-036 because "Suspicious sign-in" closed 19 of 24 incidents as false positive' {
+            $f = $findings | Where-Object Id -eq 'SENT-036'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
+            $f.Evidence | Should -Match '19 of 24'
+            $f.Detail.Rules[0].FPRate | Should -Be 79.2
+        }
+
+        It 'does NOT flag "Failed logons" under SENT-036 (only 8 closed, under the floor of 20)' {
+            ($findings | Where-Object Id -eq 'SENT-036').Evidence | Should -Not -Match 'Failed logons'
+        }
+
+        It 'fires SENT-037 because the enabled rule "Failed logons" has no entity mappings' {
+            $f = $findings | Where-Object Id -eq 'SENT-037'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Failed logons across multiple accounts'
+            $f.Evidence | Should -Match '1 of 2 enabled'
+        }
+
+        It 'does NOT name the mapped rule or the disabled rule under SENT-037' {
+            $f = $findings | Where-Object Id -eq 'SENT-037'
+            $f.Evidence | Should -Not -Match 'Suspicious sign-in'
+            $f.Evidence | Should -Not -Match 'Lateral movement'
+        }
+
+        It 'fires SENT-038 because "Failed logons" has createIncident false' {
+            $f = $findings | Where-Object Id -eq 'SENT-038'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Failed logons across multiple accounts'
+            $f.Evidence | Should -Not -Match 'Suspicious sign-in'
+        }
+
+        It 'fires SENT-041 because a MicrosoftSecurityIncidentCreation rule is enabled while XDR syncs incidents' {
+            $f = $findings | Where-Object Id -eq 'SENT-041'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Create incidents from MDE alerts'
+            $f.Evidence | Should -Match 'duplicate incidents'
+            $f.Detail.XdrIncidentsConnected | Should -BeTrue
+        }
+
+        It 'fires SENT-050 because the enabled rule "Failed logons" reads ThreatIntelligenceIndicator' {
+            $f = $findings | Where-Object Id -eq 'SENT-050'
+            $f.Count | Should -Be 1
+            $f.Severity | Should -Be 'Critical'
+            $f.Evidence | Should -Match 'Failed logons across multiple accounts'
+            $f.Evidence | Should -Not -Match 'Lateral movement'
+        }
+
+        It 'fires SENT-051 for the high-volume tables no enabled rule reads' {
+            $f = $findings | Where-Object Id -eq 'SENT-051'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'FirewallLogs_CL 2000 GB'
+            $f.Detail.Count | Should -Be 8
+            @($f.Detail.Tables | ForEach-Object Table) | Should -Not -Contain 'SigninLogs'
+            @($f.Detail.Tables | ForEach-Object Table) | Should -Not -Contain 'SecurityIncident'
+        }
+
+        It 'suggests an undeployed template under SENT-051 but never a deprecated or deployed one' {
+            $f = $findings | Where-Object Id -eq 'SENT-051'
+            $office = $f.Detail.Tables | Where-Object Table -eq 'OfficeActivity'
+            $office.SuggestedTemplates | Should -Contain 'Data exfiltration'
+            $firewall = $f.Detail.Tables | Where-Object Table -eq 'FirewallLogs_CL'
+            @($firewall.SuggestedTemplates).Count | Should -Be 0
+            $f.Evidence | Should -Not -Match 'Deprecated'
+            $f.Evidence | Should -Not -Match 'Suspicious sign-in'
+        }
+
+        It 'fires SENT-052 because AuditLogs is read by an enabled rule and ingested nothing in 7 days' {
+            $f = $findings | Where-Object Id -eq 'SENT-052'
+            $f.Count | Should -Be 1
+            $f.Severity | Should -Be 'Critical'
+            $f.Evidence | Should -Match 'AuditLogs'
+            $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
+            $f.Evidence | Should -Not -Match 'SigninLogs'
+        }
+
+        It 'fires SENT-053 because IncidentEnrich-IP failed 5 of 42 runs' {
+            $f = $findings | Where-Object Id -eq 'SENT-053'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'IncidentEnrich-IP \(5 of 42 runs failed, last 2026-05-05T22:15:00Z\)'
+            $f.Evidence | Should -Not -Match 'NotifyOnHighSev'
+        }
+
+        It 'fires SENT-054 for the deprecated solution and the one missing from the catalogue' {
+            $f = $findings | Where-Object Id -eq 'SENT-054'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Microsoft 365 \(deprecated\)'
+            $f.Evidence | Should -Match 'Legacy Threat Feed \(not in catalogue\)'
+            $f.Evidence | Should -Not -Match 'Azure Active Directory'
+        }
+
+        It 'fires SENT-055 because the only TI feed is MicrosoftThreatIntelligence' {
+            $f = $findings | Where-Object Id -eq 'SENT-055'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'single feed \(MicrosoftThreatIntelligence\)'
+        }
+
+        It 'fires SENT-056 because AzureFirewall* categories and the AZFWNetworkRule table both carry data' {
+            $f = $findings | Where-Object Id -eq 'SENT-056'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'AzureFirewallNetworkRule'
+            $f.Evidence | Should -Match 'AZFWNetworkRule'
+            $f.Detail.LegacyRows7d | Should -Be 12099
+        }
+
+        It 'fires SENT-057 because 20 of 32 closed incidents have no classification (62%)' {
+            $f = $findings | Where-Object Id -eq 'SENT-057'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match '20 of 32 closed incidents \(62%\)'
+        }
+
+        It 'fires SENT-058 because hunts.json and bookmarks.json are both empty' {
+            ($findings | Where-Object Id -eq 'SENT-058').Count | Should -Be 1
+        }
+
+        It 'carries no em-dash in any v2.2 rule text' {
+            $rules = (Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | Where-Object {
+                $_.id -in @('SENT-036','SENT-037','SENT-038','SENT-041') -or $_.id -ge 'SENT-050'
+            }
+            foreach ($r in $rules) {
+                ($r.title + $r.remediation) | Should -Not -Match ([char]0x2014)
+            }
+        }
+    }
+}
+
+Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
+
+    BeforeAll {
+        $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        $fixtureRaw   = Join-Path $repoRoot 'Tests/Documenter/Fixtures/sample/_raw'
+        $resourcesDir = Join-Path $repoRoot 'Tools/Documenter/Private/Resources'
+        $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
+        $gapChecks    = Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1'
+        . (Join-Path $repoRoot 'Tools/Documenter/Private/Get-SentinelGap.ps1')
+
+        # A copy of the fixture without the files the collector only writes
+        # when its capture succeeds. "Not captured" must not read as "none".
+        $script:trimmed = Join-Path ([System.IO.Path]::GetTempPath()) "gap-absent-$(New-Guid)"
+        New-Item -ItemType Directory -Path $script:trimmed -Force | Out-Null
+        Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $script:trimmed
+        foreach ($name in 'rule-table-references.json', 'template-table-references.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json', 'azure-diagnostics-categories.json') {
+            Remove-Item (Join-Path $script:trimmed $name) -Force
+        }
+        $script:absentOutcomes = [System.Collections.Generic.List[object]]::new()
+        $script:absentFindings = Get-SentinelGap -InputRoot $script:trimmed -ResourcesRoot $resourcesDir `
+            -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $script:absentOutcomes
+    }
+
+    AfterAll {
+        if ($script:trimmed -and (Test-Path $script:trimmed)) { Remove-Item $script:trimmed -Recurse -Force }
+    }
+
+    It 'records every rule as Passed or Fired, none Errored, when capture files are missing' {
+        @($absentOutcomes | Where-Object Outcome -in 'Errored', 'Undefined').Count | Should -Be 0
+    }
+
+    It 'does not fire the rules whose input capture is absent' {
+        foreach ($id in 'SENT-036', 'SENT-050', 'SENT-051', 'SENT-052', 'SENT-053', 'SENT-056', 'SENT-058') {
+            ($absentOutcomes | Where-Object Id -eq $id).Outcome | Should -Be 'Passed' -Because "$id has no input to judge"
+        }
+    }
+
+    It 'still fires the rules whose inputs are present' {
+        foreach ($id in 'SENT-037', 'SENT-038', 'SENT-041', 'SENT-054', 'SENT-055', 'SENT-057') {
+            ($absentFindings | Where-Object Id -eq $id).Count | Should -Be 1 -Because "$id reads files that are still there"
         }
     }
 }

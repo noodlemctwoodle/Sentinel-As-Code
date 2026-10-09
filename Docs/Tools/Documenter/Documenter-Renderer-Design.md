@@ -363,7 +363,7 @@ assets root).
 | [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Tools/Documenter/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Documenter/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../../Tools/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
-| [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json) | 45-rule catalogue driving the gap engine |
+| [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json) | 58-rule catalogue driving the gap engine |
 | [`Tools/Documenter/Private/Resources/mitre-attack.json`](../../../Tools/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Documenter/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Documenter/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Documenter/Private/Resources/commitment-tiers.json`](../../../Tools/Documenter/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
@@ -485,7 +485,7 @@ Items deferred for future passes:
 - **Daily ingest line chart** (80-workspace.md or 84-cost-estimate.md), 
   needs `workspace-usage-14d.json` with per-day GB. Currently scalar
   peak/avg only.
-- **More gap rules**, the `best-practices.json` catalogue is at 45
+- **More gap rules**, the `best-practices.json` catalogue is at 58
   rules; future v2.x batches can extend per-vendor connector checks,
   detection engineering depth, identity & access depth, and XDR
   migration readiness.
