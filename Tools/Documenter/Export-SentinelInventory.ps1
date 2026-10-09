@@ -45,6 +45,11 @@
     Resource group holding the Logic App playbooks, when they do not live
     alongside the workspace. Defaults to -ResourceGroup.
 
+.PARAMETER TargetMaturityLevel
+    Maturity level (1 to 5) the workspace is aiming for in the maturity
+    assessment. Sets the gap and the roadmap in _raw/maturity.json.
+    Defaults to 3 (Established).
+
 .EXAMPLE
     ./Tools/Documenter/Export-SentinelInventory.ps1 `
         -ResourceGroup 'rg-sentinel-prod' `
@@ -68,8 +73,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.2
-    Last Updated:   2026-10-08
+    Version:        0.2.0
+    Last Updated:   2026-10-09
     Component:      Sentinel Documenter
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -107,7 +112,13 @@ param(
     [string]$PlaybookResourceGroup,
 
     [Parameter(Mandatory = $false)]
-    [switch]$IncludePreview
+    [switch]$IncludePreview,
+
+    # Maturity level (1-5) the workspace is aiming for. Drives the gap and
+    # roadmap in the maturity assessment; 3 (Established) is the default.
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 5)]
+    [int]$TargetMaturityLevel = 3
 )
 
 Set-StrictMode -Version Latest
@@ -135,6 +146,18 @@ $documenterVersion = '0.1.0'
 
 . (Join-Path $PSScriptRoot 'Private/Invoke-SentinelRest.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AzureRetailPrice.ps1')
+
+# Sentinel.Common supplies the KQL identifier extractor behind the
+# table-reference captures. It needs Az.Accounts, which this script already
+# requires; the consumers of the captured files do not.
+Import-Module (Join-Path $PSScriptRoot '../../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
+. (Join-Path $PSScriptRoot 'Private/Get-KqlTableReferences.ps1')
+
+# Shared between captures: each Try-Capture body runs in its own scope.
+$script:AlertRules         = @()
+$script:AlertRuleTemplates = @()
+$script:Workflows          = @()
+$script:GapOutcomes        = $null
 
 # Add the System.Web assembly for HttpUtility used by Get-AzureRetailPrice.
 Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
@@ -166,7 +189,7 @@ function Save-Json {
     $target = Join-Path $rawOut $FileName
     $singleObjectFiles = @(
         'workspace.json','run-context.json','settings.json','cost-estimate.json',
-        'subscription.json','dedicated-cluster.json'
+        'subscription.json','dedicated-cluster.json','maturity.json','bookmarks-count.json'
     )
     if ($null -eq $Data) {
         if ($singleObjectFiles -contains $FileName) {
@@ -311,12 +334,21 @@ Try-Capture 'data-connector-definitions' {
 
 Try-Capture 'alert-rules' {
     $rules = Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.Sentinel
+    $script:AlertRules = @($rules)
     Save-Json -FileName 'alert-rules.json' -Data $rules
 }
 
 Try-Capture 'alert-rule-templates' {
     $templates = Invoke-SentinelRest -Path "$sentinelScope/alertRuleTemplates" -ApiVersion $apiVersions.Sentinel
+    $script:AlertRuleTemplates = @($templates)
     Save-Json -FileName 'alert-rule-templates.json' -Data $templates
+}
+
+Try-Capture 'rule-table-references' {
+    # Which tables each rule and each template reads, resolved here with
+    # Sentinel.Common so the gap engine and the renderers read plain JSON.
+    Save-Json -FileName 'rule-table-references.json' -Data (Get-RuleTableReferences -AlertRules $script:AlertRules)
+    Save-Json -FileName 'template-table-references.json' -Data (Get-TemplateTableReferences -Templates $script:AlertRuleTemplates -AlertRules $script:AlertRules)
 }
 
 Try-Capture 'automation-rules' {
@@ -343,8 +375,33 @@ Try-Capture 'watchlists' {
 }
 
 Try-Capture 'bookmarks' {
-    $bm = Invoke-SentinelRest -Path "$sentinelScope/bookmarks" -ApiVersion $apiVersions.Sentinel
-    Save-Json -FileName 'bookmarks.json' -Data $bm
+    # The list API refuses a response over about 8 MB ("Bookmarks response
+    # is too large (N bytes, M items)") and has no paging. The message does
+    # carry the item count, so on that error the count is kept in
+    # bookmarks-count.json: the hunting rule and the maturity criterion then
+    # know bookmarks exist without the list itself.
+    try {
+        $bm = Invoke-SentinelRest -Path "$sentinelScope/bookmarks" -ApiVersion $apiVersions.Sentinel
+        Save-Json -FileName 'bookmarks.json' -Data $bm
+    } catch {
+        $msg = $_.Exception.Message
+        if ($msg -match 'too large[^)]*?(\d+)\s+items') {
+            $count = [int]$Matches[1]
+            Write-Warning "Bookmarks list refused as too large; keeping the count the service reported ($count)."
+            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
+        } else {
+            throw
+        }
+    }
+}
+
+Try-Capture 'hunts' {
+    # Hunts exist only on preview api-versions. A tenant or region that does
+    # not serve them answers 4xx, which Invoke-SentinelRest throws and
+    # Try-Capture reports, so no file is written and consumers treat hunting
+    # activity as unknown rather than as absent.
+    $hunts = Invoke-SentinelRest -Path "$sentinelScope/hunts" -ApiVersion $apiVersions.SentinelPreview
+    Save-Json -FileName 'hunts.json' -Data $hunts
 }
 
 Try-Capture 'metadata' {
@@ -529,6 +586,7 @@ Try-Capture 'playbooks' {
     $workflows = Invoke-SentinelRest `
         -Path "/subscriptions/$SubscriptionId/resourceGroups/$playbookRg/providers/Microsoft.Logic/workflows" `
         -ApiVersion '2016-06-01'
+    $script:Workflows = @($workflows)
     Save-Json -FileName 'playbooks.json' -Data $workflows
 
     # Resolve the per-playbook MI workspace-scoped role assignments.
@@ -576,6 +634,46 @@ Try-Capture 'playbooks' {
         }
     }
     Save-Json -FileName 'rbac-playbook-mi.json' -Data $miAssignments
+}
+
+Try-Capture 'playbook-runs' {
+    # Run health per playbook over the last 7 days, one bounded call per
+    # enabled workflow. Disabled workflows get a zero row without a call. A
+    # failure on one workflow is logged and the others are still recorded.
+    $since = (Get-Date).ToUniversalTime().AddDays(-7).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $runRows = @()
+    foreach ($wf in $script:Workflows) {
+        if ($null -eq $wf) { continue }
+        $wfName = [string]$wf.name
+        $state = ''
+        if ($wf.PSObject.Properties.Name -contains 'properties' -and $null -ne $wf.properties -and
+            $wf.properties.PSObject.Properties.Name -contains 'state') { $state = [string]$wf.properties.state }
+        $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null; Note = $null }
+        if ($state -eq 'Enabled') {
+            try {
+                $runs = @(Invoke-SentinelRest -Path "$($wf.id)/runs?`$top=250&`$filter=startTime ge $since" -ApiVersion '2016-06-01')
+                $runs = @($runs | Where-Object { $null -ne $_ -and $_.PSObject.Properties.Name -contains 'properties' })
+                $failed = @($runs | Where-Object { [string]$_.properties.status -in @('Failed', 'TimedOut', 'Aborted') })
+                $row.Runs7d = $runs.Count
+                $row.Failed7d = $failed.Count
+                if ($runs.Count -gt 0) {
+                    $latest = $runs | Sort-Object { [datetime]$_.properties.startTime } -Descending | Select-Object -First 1
+                    $row.LastRunStatus = [string]$latest.properties.status
+                }
+                if ($failed.Count -gt 0) {
+                    $lastFailed = $failed | Sort-Object { [datetime]$_.properties.startTime } -Descending | Select-Object -First 1
+                    $row.LastFailureUtc = [string]$lastFailed.properties.startTime
+                }
+            } catch {
+                # Marked so consumers can tell "no runs" from "could not read".
+                $row.LastRunStatus = 'Unavailable'
+                $row.Note = "Run history not readable: $($_.Exception.Message)"
+                Write-Warning "Run history for playbook $wfName failed: $($_.Exception.Message)"
+            }
+        }
+        $runRows += [pscustomobject]$row
+    }
+    Save-Json -FileName 'playbook-runs.json' -Data $runRows
 }
 
 # ---------------------------------------------------------------------------
@@ -740,6 +838,7 @@ Usage
     IngestedLast90d = sum(Quantity) / 1024.0,
     BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(30d)) / 1024.0,
     BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(7d))  / 1024.0,
+    IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(7d)) / 1024.0,
     BillableLast24h = sumif(Quantity, IsBillable == true and TimeGenerated > ago(1d))  / 1024.0,
     FirstSeen       = min(TimeGenerated),
     LastIngested    = max(TimeGenerated),
@@ -812,14 +911,22 @@ Try-Capture 'soc-optimization' {
 
 Try-Capture 'incidents-summary' {
     # Aggregate-only, the documenter never exports incident bodies (PII).
+    # The bags hold counts per key. ByClassification covers closed incidents
+    # only; an empty classification is reported as "Unclassified".
     $kql = @'
-SecurityIncident
+let inc = SecurityIncident
 | where TimeGenerated > ago(30d)
-| summarize arg_max(TimeGenerated, *) by IncidentNumber
-| summarize
-    Count   = count(),
-    ByStatus   = make_bag(bag_pack(Status,    1), 100),
-    BySeverity = make_bag(bag_pack(Severity,  1), 100)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber;
+let byStatus = inc | summarize N = count() by Status   | summarize B = make_bag(bag_pack(Status, N), 100);
+let bySev    = inc | summarize N = count() by Severity | summarize B = make_bag(bag_pack(Severity, N), 100);
+let byClass  = inc
+| where Status == "Closed"
+| extend C = iff(isempty(Classification), "Unclassified", Classification)
+| summarize N = count() by C
+| summarize B = make_bag(bag_pack(C, N), 100);
+inc
+| summarize Count = count(), Closed = countif(Status == "Closed")
+| extend ByStatus = toscalar(byStatus), BySeverity = toscalar(bySev), ByClassification = toscalar(byClass)
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1213,6 +1320,125 @@ SecurityAlert
     }
 }
 
+Try-Capture 'rule-effectiveness' {
+    # Incident outcomes per detection: each incident is counted once
+    # (arg_max per IncidentNumber), the SecurityAlert side is time-bounded,
+    # and Sentinel rules are keyed on the Analytic Rule Id carried in the
+    # alert's ExtendedProperties (an array on current alerts, a scalar on
+    # older ones). Alerts from other products (Defender XDR, Entra ID
+    # Protection, Purview) carry no rule id and are keyed on the alert name
+    # with Source set to the product, so a page can tell the two apart.
+    # Sentinel rules sort first so the row cap never drops them.
+    $kql = @'
+let w = 30d;
+let alerts = SecurityAlert
+| where TimeGenerated > ago(w)
+| extend ep = parse_json(ExtendedProperties)
+| extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
+| summarize arg_max(TimeGenerated, AlertName, AlertRuleId, ProductName, ProviderName) by SystemAlertId;
+SecurityIncident
+| where TimeGenerated > ago(w)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| project IncidentNumber, Status, Classification, AlertIds
+| mv-expand AlertId = AlertIds to typeof(string)
+| join kind=inner alerts on $left.AlertId == $right.SystemAlertId
+| extend RuleKey = iff(isempty(AlertRuleId), AlertName, AlertRuleId)
+| summarize AlertRuleId = any(AlertRuleId), RuleName = any(AlertName),
+    Product = any(ProductName), Provider = any(ProviderName),
+    Incidents = dcount(IncidentNumber),
+    Closed = dcountif(IncidentNumber, Status == "Closed"),
+    TruePositive = dcountif(IncidentNumber, Classification == "TruePositive"),
+    FalsePositive = dcountif(IncidentNumber, Classification == "FalsePositive"),
+    BenignPositive = dcountif(IncidentNumber, Classification == "BenignPositive"),
+    Undetermined = dcountif(IncidentNumber, Status == "Closed" and (Classification == "Undetermined" or isempty(Classification)))
+    by RuleKey
+| extend FPRate = round(100.0 * FalsePositive / iff(Closed == 0, 1, Closed), 1)
+| extend Source = iff(isempty(AlertRuleId), coalesce(Product, Provider, "Other"), "Analytics rule")
+| extend IsRule = isnotempty(AlertRuleId)
+| order by IsRule desc, Incidents desc
+| take 300
+| project-away RuleKey, IsRule
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'rule-effectiveness.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'rule-effectiveness.json' -Data @()
+    }
+}
+
+Try-Capture 'rules-fired' {
+    # Which Sentinel scheduled and NRT rules produced alerts in 30 days,
+    # keyed on rule id so renamed or dynamically named alerts still match.
+    $kql = @'
+SecurityAlert
+| where TimeGenerated > ago(30d)
+| where ProviderName in ("ASI Scheduled Alerts", "ASI NRT Alerts")
+| extend ep = parse_json(ExtendedProperties)
+| extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
+| summarize arg_max(TimeGenerated, AlertName, AlertRuleId) by SystemAlertId
+| summarize AlertRuleId = any(AlertRuleId), AlertName = any(AlertName), Alerts = count(), LastAlert = max(TimeGenerated)
+    by RuleKey = iff(isempty(AlertRuleId), AlertName, AlertRuleId)
+| project-away RuleKey
+| order by Alerts desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'rules-fired.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'rules-fired.json' -Data @()
+    }
+}
+
+Try-Capture 'workspace-usage-daily' {
+    $kql = @'
+Usage
+| where TimeGenerated > ago(30d)
+| summarize BillableGB = round(sumif(Quantity, IsBillable == true) / 1024.0, 3),
+            FreeGB     = round(sumif(Quantity, IsBillable == false) / 1024.0, 3)
+    by Day = bin(TimeGenerated, 1d)
+| order by Day asc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'workspace-usage-daily.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'workspace-usage-daily.json' -Data @()
+    }
+}
+
+Try-Capture 'azure-diagnostics-categories' {
+    # Category-level view of AzureDiagnostics, used to spot resources logging
+    # through both the legacy categories and resource-specific tables.
+    $kql = @'
+AzureDiagnostics
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count() by ResourceProvider, Category
+| top 100 by LogCount desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'azure-diagnostics-categories.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'azure-diagnostics-categories.json' -Data @()
+    }
+}
+
+Try-Capture 'threat-intel-objects' {
+    $kql = @'
+ThreatIntelObjects
+| where TimeGenerated > ago(30d)
+| summarize Count = count() by StixType
+| order by Count desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'threat-intel-objects.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'threat-intel-objects.json' -Data @()
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Cost estimate
 # ---------------------------------------------------------------------------
@@ -1237,7 +1463,25 @@ Try-Capture 'gap-analysis' {
     Save-Json -FileName 'gap-analysis.json' -Data $findings
     # One record per rule (Fired / Passed / Errored / Undefined), so a
     # consumer can tell a check that passed from one that never ran.
-    Save-Json -FileName 'gap-checks.json' -Data $gapOutcomes.ToArray()
+    $script:GapOutcomes = $gapOutcomes.ToArray()
+    Save-Json -FileName 'gap-checks.json' -Data $script:GapOutcomes
+}
+
+# ---------------------------------------------------------------------------
+# Maturity assessment, scored from the gap outcomes and the captures above.
+# A failed gap-analysis leaves $script:GapOutcomes null; the engine then
+# reads gap-checks.json if an earlier run left one, else every rule-backed
+# criterion is Unknown rather than Gap.
+# ---------------------------------------------------------------------------
+Try-Capture 'maturity' {
+    . (Join-Path $PSScriptRoot 'Private/Get-SentinelMaturity.ps1')
+    $maturity = Get-SentinelMaturity `
+        -InputRoot $rawOut `
+        -ResourcesRoot (Join-Path $PSScriptRoot 'Private/Resources') `
+        -CriteriaPath (Join-Path $PSScriptRoot 'Private/Resources/maturity-criteria.json') `
+        -GapOutcomes $script:GapOutcomes `
+        -TargetLevel $TargetMaturityLevel
+    Save-Json -FileName 'maturity.json' -Data $maturity
 }
 
 # ---------------------------------------------------------------------------
@@ -1258,7 +1502,8 @@ $expectNonEmpty = @(
     'alert-rules.json',
     'data-connectors-classic.json',
     'workspace.json',
-    'workspace-tables.json'
+    'workspace-tables.json',
+    'rule-table-references.json'
 )
 $expectIfActive = @(
     'automation-rules.json',
@@ -1266,7 +1511,11 @@ $expectIfActive = @(
     'playbooks.json',
     'hunting-queries.json',
     'workbooks-saved.json',
-    'cost-estimate.json'
+    'cost-estimate.json',
+    'rule-effectiveness.json',
+    'rules-fired.json',
+    'playbook-runs.json',
+    'workspace-usage-daily.json'
 )
 
 Write-Host ""

@@ -128,6 +128,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 
 $script:DashboardPage   = 'Dashboard'
 $script:FindingsListUrl = 'Lists/SentinelFindings'
@@ -204,19 +205,6 @@ function Measure-Count {
     if ($Data -is [System.Array]) { return @($Data | Where-Object { $null -ne $_ }).Count }
     if ($Data.PSObject.Properties.Name -contains 'value') { return @($Data.value).Count }
     return @($Data).Count
-}
-
-function Get-TableFamily {
-    <# Map a Log Analytics table name to a source family for the flow. #>
-    param([string] $Table)
-    switch -regex ($Table) {
-        '^ThreatIntel'                                                   { 'Threat Intelligence'; break }
-        '^(AAD|Signin|SigninLogs|AuditLogs|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs|AADNonInteractive|AADServicePrincipal|AADManagedIdentity|AADGraph)' { 'Entra ID / Identity'; break }
-        '^(Device|Alert|Email|CloudAppEvents|Identity|BehaviorAnalytics|UserPeerAnalytics|Anomalies)' { 'Defender XDR'; break }
-        '^(Syslog|CommonSecurityLog|AzureDiagnostics|AzureMetrics|AzureActivity)' { 'Azure / Syslog'; break }
-        '_CL$'                                                           { 'Custom logs'; break }
-        default                                                         { 'Other' }
-    }
 }
 
 function Get-ContentHash {
@@ -619,6 +607,227 @@ $healthTotal = 0.0; $healthOk = 0.0
 foreach ($h in $healthSum) { if (-not $h) { continue }; $n = [double]$h.LogCount; $healthTotal += $n; if ($h.Status -eq 'Success') { $healthOk += $n } }
 $healthPct = if ($healthTotal -gt 0) { [math]::Round(100.0 * $healthOk / $healthTotal, 1) } else { 0 }
 
+# ---- Health-check ports: estate, effectiveness, run health, maturity ----
+# KQL result cells arrive as strings and fixtures carry typed values, so
+# every number is parsed with the invariant culture rather than cast.
+function ConvertTo-BuildNumber {
+    param($Value)
+    if ($null -eq $Value) { return 0.0 }
+    $d = 0.0
+    if ([double]::TryParse([string]$Value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    return 0.0
+}
+# A KQL dynamic bag (ByClassification) as an ordered name -> count map.
+function Get-BuildBag {
+    param($Value)
+    $bag = [ordered]@{}
+    if ($null -eq $Value) { return $bag }
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) { return $bag }
+        try { $Value = $Value | ConvertFrom-Json } catch { return $bag }
+        if ($null -eq $Value) { return $bag }
+    }
+    foreach ($prop in $Value.PSObject.Properties) { $bag[$prop.Name] = [long](ConvertTo-BuildNumber $prop.Value) }
+    return $bag
+}
+function New-EstateRing {
+    param([string]$Label, [int]$Value, [int]$Max)
+    [ordered]@{ label = $Label; value = $Value; max = $Max; pct = $(if ($Max -gt 0) { [int][math]::Round(100.0 * $Value / $Max, 0) } else { $null }) }
+}
+
+$ruleRefs      = Read-RawArray 'rule-table-references.json'
+$templateRefs  = Read-RawArray 'template-table-references.json'
+$effectRows    = Read-RawArray 'rule-effectiveness.json'
+$firedRows     = Read-RawArray 'rules-fired.json'
+$runRows       = Read-RawArray 'playbook-runs.json'
+$huntRows      = Read-RawArray 'hunts.json'
+$bookmarkRows  = Read-RawArray 'bookmarks.json'
+$usageRows     = Read-RawArray 'workspace-usage-daily.json'
+$tablesData    = Read-RawArray 'tables-with-data.json'
+# Read-RawArray emits the array as one object, so take the first row by index.
+$incSummaryRows = @(Read-RawArray 'incidents-summary.json')
+$incSummaryRow = if ($incSummaryRows.Count -gt 0) { $incSummaryRows[0] } else { $null }
+$tiCountRows   = Read-RawArray 'threat-intel-counts.json'
+$tiObjectRows  = Read-RawArray 'threat-intel-objects.json'
+$maturityRaw   = Read-Raw 'maturity.json'
+# A failed maturity capture writes '{}', which is truthy, so test for the
+# members the dashboard needs.
+$maturityOk    = ($null -ne $maturityRaw -and $null -ne $maturityRaw.PSObject.Properties['areas'] -and $null -ne $maturityRaw.PSObject.Properties['overall'])
+
+# Estate: source families -> ingestion -> detection -> alerts -> incidents,
+# the same numbers the Markdown renderer draws on 00 and 01.
+$referencedTables = @{}
+foreach ($r in $ruleRefs) {
+    if (-not $r -or $r.Enabled -ne $true) { continue }
+    foreach ($t in @($r.Tables)) { if ($t) { $referencedTables[[string]$t] = $true } }
+}
+$famAgg2 = [ordered]@{}
+$tablesActive = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
+foreach ($t in $tablesData) {
+    if (-not $t -or -not $t.DataType) { continue }
+    $gb = ConvertTo-BuildNumber $t.BillableLast30d
+    if ($gb -le 0) { continue }
+    $tablesActive++; $estateTotalGb += $gb
+    $fam = Get-TableFamily $t.DataType
+    if (-not $famAgg2.Contains($fam)) { $famAgg2[$fam] = [ordered]@{ category = $fam; tables = 0; gb = 0.0; coveredGb = 0.0; covered = 0 } }
+    $famAgg2[$fam].tables++; $famAgg2[$fam].gb += $gb
+    if ($referencedTables.ContainsKey([string]$t.DataType)) { $tablesCovered++; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
+}
+$sortedFams = @($famAgg2.Values | Sort-Object { $_.gb } -Descending)
+$estateSources = @()
+foreach ($f in @($sortedFams | Select-Object -First 7)) {
+    $estateSources += [ordered]@{ category = $f.category; tables = $f.tables; gb = [math]::Round($f.gb, 2); coveredGb = [math]::Round($f.coveredGb, 2); covered = $f.covered }
+}
+$famTail = @($sortedFams | Select-Object -Skip 7)
+if ($famTail.Count -gt 0) {
+    $other = $estateSources | Where-Object { $_.category -eq 'Other' } | Select-Object -First 1
+    if (-not $other) { $other = [ordered]@{ category = 'Other'; tables = 0; gb = 0.0; coveredGb = 0.0; covered = 0 }; $estateSources += $other }
+    foreach ($f in $famTail) { $other.tables += $f.tables; $other.gb = [math]::Round($other.gb + $f.gb, 2); $other.coveredGb = [math]::Round($other.coveredGb + $f.coveredGb, 2); $other.covered += $f.covered }
+}
+$alerts30d = [long]0
+foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumber $f.Alerts) } }
+$incidents30d = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Count'])  { [int](ConvertTo-BuildNumber $incSummaryRow.Count) }  else { 0 }
+$closed30d    = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Closed']) { [int](ConvertTo-BuildNumber $incSummaryRow.Closed) } else { 0 }
+$rulesQueryEnabled = @($alertRaw | Where-Object { $_.properties -and $_.properties.enabled -and $_.kind -in @('Scheduled', 'NRT') }).Count
+$rulesFiredCount = @($firedRows | Where-Object { $_ }).Count
+$estate = [ordered]@{
+    window          = '30d'
+    sources         = $estateSources
+    totalGb         = [math]::Round($estateTotalGb, 2)
+    coveredGb       = [math]::Round($estateCoveredGb, 2)
+    uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
+    rings           = [ordered]@{
+        ingestion = New-EstateRing 'Tables still receiving data (30d of 90d)' $tablesActive (@($tablesData | Where-Object { $_ }).Count)
+        detection = New-EstateRing 'Active tables read by an enabled rule' $tablesCovered $tablesActive
+        alerts    = New-EstateRing 'Enabled Scheduled/NRT rules that fired' $rulesFiredCount $rulesQueryEnabled
+        incidents = New-EstateRing 'Incidents closed, of those created' $closed30d $incidents30d
+    }
+    rulesEnabled    = $rulesEnabled
+    rulesFired      = $rulesFiredCount
+    alerts          = $alerts30d
+    incidents       = $incidents30d
+    incidentsClosed = $closed30d
+    incidentsOpen   = [math]::Max(0, $incidents30d - $closed30d)
+    dcrs            = $counts.dcrs
+    automationRules = $counts.automationRules
+    playbooks       = Measure-Count (Read-Raw 'playbooks.json')
+}
+
+$effectiveness = @()
+# Sentinel rules first, then other products' alerts by name.
+$effectSorted = @($effectRows | Where-Object { $_ } | Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable)
+foreach ($e in ($effectSorted | Select-Object -First 15)) {
+    $src = if ($e.PSObject.Properties['Source'] -and $e.Source) { [string]$e.Source } elseif ($e.PSObject.Properties['AlertRuleId'] -and $e.AlertRuleId) { 'Analytics rule' } else { 'Other' }
+    $effectiveness += [ordered]@{
+        rule = $e.RuleName; source = $src; incidents = [int](ConvertTo-BuildNumber $e.Incidents); closed = [int](ConvertTo-BuildNumber $e.Closed)
+        tp = [int](ConvertTo-BuildNumber $e.TruePositive); fp = [int](ConvertTo-BuildNumber $e.FalsePositive); bp = [int](ConvertTo-BuildNumber $e.BenignPositive)
+        undetermined = [int](ConvertTo-BuildNumber $e.Undetermined); fpRate = [math]::Round((ConvertTo-BuildNumber $e.FPRate), 1)
+    }
+}
+
+$usageDaily = @()
+foreach ($u in ($usageRows | Where-Object { $_ } | Sort-Object { [datetime]$_.Day } | Select-Object -Last 90)) {
+    $usageDaily += [ordered]@{ day = ([datetime]$u.Day).ToUniversalTime().ToString('yyyy-MM-dd'); billable = [math]::Round((ConvertTo-BuildNumber $u.BillableGB), 2); free = [math]::Round((ConvertTo-BuildNumber $u.FreeGB), 2) }
+}
+
+# Tables with data that no enabled rule reads, with the undeployed templates
+# that would cover them (section 28's content, top 12 for the dashboard).
+$detectionOpportunities = @()
+$uncoveredTotal = 0
+if ($ruleRefs.Count -gt 0) {
+    $undeployed = @($templateRefs | Where-Object { $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true })
+    $sevRank2 = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
+    $operationalOnly = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
+    $uncovered = @($tablesData | Where-Object {
+        $_ -and $_.DataType -and (ConvertTo-BuildNumber $_.BillableLast30d) -gt 0 -and
+        -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
+    } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
+    $uncoveredTotal = $uncovered.Count
+    foreach ($t in ($uncovered | Select-Object -First 12)) {
+        $name = [string]$t.DataType
+        $cands = @($undeployed | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName)
+        $detectionOpportunities += [ordered]@{
+            table     = $name
+            family    = (Get-TableFamily $name)
+            gb30d     = [math]::Round((ConvertTo-BuildNumber $t.BillableLast30d), 2)
+            templates = @($cands | Select-Object -First 3 | ForEach-Object { [ordered]@{ name = $_.DisplayName; severity = $_.Severity } })
+            more      = [math]::Max(0, $cands.Count - 3)
+        }
+    }
+}
+
+# When the bookmarks list was too large to fetch, the collector keeps the
+# count the service reported.
+$bookmarkCount = @($bookmarkRows | Where-Object { $_ }).Count
+if (-not (Test-Path -LiteralPath (Join-Path $script:RawRoot 'bookmarks.json'))) {
+    $bookmarkCountDoc = Read-Raw 'bookmarks-count.json'
+    # Neither file: the count is unknown, not zero.
+    $bookmarkCount = if ($bookmarkCountDoc -and $bookmarkCountDoc.PSObject.Properties['Count']) { [int](ConvertTo-BuildNumber $bookmarkCountDoc.Count) } else { $null }
+}
+$huntsSummary = [ordered]@{
+    captured       = (Test-Path -LiteralPath (Join-Path $script:RawRoot 'hunts.json'))
+    hunts          = @($huntRows | Where-Object { $_ }).Count
+    bookmarks      = $bookmarkCount
+    huntingQueries = $counts.hunting
+}
+
+$pbRuns = 0; $pbFailed = 0; $pbFailing = @(); $pbUnavailable = 0
+foreach ($r in ($runRows | Where-Object { $_ })) {
+    if ($r.PSObject.Properties['LastRunStatus'] -and [string]$r.LastRunStatus -eq 'Unavailable') { $pbUnavailable++; continue }
+    $runs = [int](ConvertTo-BuildNumber $r.Runs7d); $failed = [int](ConvertTo-BuildNumber $r.Failed7d)
+    $pbRuns += $runs; $pbFailed += $failed
+    if ($failed -gt 0) {
+        $last = if ($r.LastFailureUtc) { ([datetime]$r.LastFailureUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') } else { '' }
+        $pbFailing += [ordered]@{ playbook = $r.Playbook; runs = $runs; failed = $failed; lastFailure = $last }
+    }
+}
+$playbookHealth = [ordered]@{ runs7d = $pbRuns; failed7d = $pbFailed; playbooks = @($runRows | Where-Object { $_ }).Count; unavailable = $pbUnavailable; failing = @($pbFailing | Sort-Object { $_.failed } -Descending) }
+
+$tiBySource = @()
+foreach ($row in ($tiCountRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending | Select-Object -First 6)) {
+    $tiBySource += [ordered]@{ source = [string]$row.SourceSystem; count = [long](ConvertTo-BuildNumber $row.Count) }
+}
+$tiObjects = @()
+foreach ($row in ($tiObjectRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending)) {
+    $tiObjects += [ordered]@{ type = [string]$row.StixType; count = [long](ConvertTo-BuildNumber $row.Count) }
+}
+
+$incidentsByClassification = @()
+if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ByClassification']) {
+    $bag = Get-BuildBag $incSummaryRow.ByClassification
+    foreach ($k in ($bag.Keys | Sort-Object { $bag[$_] } -Descending)) { if ($bag[$k] -gt 0) { $incidentsByClassification += [ordered]@{ label = [string]$k; value = [long]$bag[$k] } } }
+}
+
+# Maturity: the page carries evidence and guidance; the dashboard keeps the
+# scores, the criteria statuses, the roadmap and the rollup.
+$maturityModel = $null
+if ($maturityOk) {
+    $maturityModel = [ordered]@{
+        methodology      = [ordered]@{ name = [string]$maturityRaw.methodology.name; version = [string]$maturityRaw.methodology.version }
+        targetLevel      = [int]$maturityRaw.targetLevel
+        targetLevelName  = [string]$maturityRaw.targetLevelName
+        targetMet        = [bool]$maturityRaw.targetMet
+        overall          = [ordered]@{ score = $maturityRaw.overall.score; level = $maturityRaw.overall.level; levelName = [string]$maturityRaw.overall.levelName }
+        levels           = @(@($maturityRaw.levels) | ForEach-Object { [ordered]@{ level = [int]$_.level; name = [string]$_.name } })
+        areasBelowTarget = @(@($maturityRaw.areasBelowTarget) | ForEach-Object { [string]$_.id })
+        areas            = @(foreach ($a in @($maturityRaw.areas)) {
+            [ordered]@{ id = $a.id; name = $a.name; score = $a.score; level = $a.level; levelName = $a.levelName; met = $a.met; gap = $a.gap; unknown = $a.unknown; evaluated = $a.evaluated; confidence = $a.confidence }
+        })
+        criteria         = @(foreach ($a in @($maturityRaw.areas)) { foreach ($c in @($a.criteria)) {
+            [ordered]@{ id = $c.id; area = $a.id; kind = $c.kind; name = $c.name; status = $c.status; effort = $c.effort; impact = $c.impact; evidence = $c.evidence }
+        } })
+        roadmap          = @(@($maturityRaw.roadmap) | Select-Object -First 20 | ForEach-Object {
+            [ordered]@{ priority = $_.priority; criterionId = $_.criterionId; area = $_.area; name = $_.name; effort = $_.effort; overallLift = $_.overallLift; projectedScore = $_.projectedScore; guidance = $_.guidance }
+        })
+        quickWins        = @(@($maturityRaw.quickWins) | ForEach-Object { [ordered]@{ criterionId = $_.criterionId; area = $_.area; name = $_.name; guidance = $_.guidance; overallLift = $_.overallLift } })
+        csf              = [ordered]@{
+            source    = [string]$maturityRaw.csf.source
+            functions = @(@($maturityRaw.csf.functions) | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; criteria = $_.criteria; met = $_.met; gap = $_.gap; unknown = $_.unknown } })
+        }
+        totals           = [ordered]@{ criteria = $maturityRaw.totals.criteria; met = $maturityRaw.totals.met; gap = $maturityRaw.totals.gap; unknown = $maturityRaw.totals.unknown }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Sections: dashboard blocks and native page segments
 # ---------------------------------------------------------------------------
@@ -636,6 +845,11 @@ $headlineByNum = @{
     90 = "$($findings.total) findings"
 }
 if ($costModel) { $headlineByNum[84] = "$($costModel.currency) $($costModel.monthlyTotal)/mo" }
+if ($incSummaryRow) { $headlineByNum[15] = "$incidents30d incidents (30d)" }
+if ($ruleRefs.Count -gt 0) { $headlineByNum[28] = "$uncoveredTotal tables without detection" }
+if ($maturityModel) {
+    $headlineByNum[91] = if ($null -ne $maturityModel.overall.score) { "Score $($maturityModel.overall.score) / 5" } else { 'Not assessed' }
+}
 
 $assetsDir = Join-Path $Source 'assets'
 $sections = @()
@@ -738,6 +952,17 @@ $model = [ordered]@{
     flow         = $flow
     topRules     = $topRules
     health       = [ordered]@{ pct = $healthPct; totalEvents = [int]$healthTotal; rows = @($healthSum | Where-Object { $_ }) }
+    estate       = $estate
+    effectiveness = $effectiveness
+    usageDaily   = $usageDaily
+    maturity     = $maturityModel
+    detectionOpportunities = $detectionOpportunities
+    huntsSummary = $huntsSummary
+    playbookHealth = $playbookHealth
+    tiBySource   = $tiBySource
+    tiObjects    = $tiObjects
+    incidentsByClassification = $incidentsByClassification
+    familyOrder  = @(Get-SectionFamilyOrder)
     sections     = $sections
     dataLakeEnrolled = ($dataLake.Count -gt 0)
     whatsNew     = $whatsNew
@@ -746,6 +971,7 @@ $model = [ordered]@{
 
 Write-Log "  Sections   : $($sections.Count)   Diagrams: $($diagramFiles.Count)" Info
 Write-Log "  Findings   : $($findings.total)   Rules enabled: $($counts.rulesEnabled)/$($counts.rulesTotal)   MITRE: $mitreCovered/$($mitre.Count)" Info
+Write-Log "  Maturity   : $(if ($maturityModel -and $null -ne $maturityModel.overall.score) { "$($maturityModel.overall.score) / 5 ($($maturityModel.overall.levelName)), target $($maturityModel.targetLevel)" } else { 'not assessed' })   Uncovered: $(if ($ruleRefs.Count -gt 0) { "$uncoveredTotal table(s), $($estate.uncoveredGb) GB" } else { 'n/a' })" Info
 
 # ---------------------------------------------------------------------------
 # Findings for the SharePoint list

@@ -20,8 +20,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.0
-    Last Updated:   2026-09-01
+    Version:        0.2.0
+    Last Updated:   2026-10-09
     Component:      Sentinel Documenter, Gap Engine
     Requires:       PowerShell 7.2+
 
@@ -976,4 +976,448 @@ function Test-LegacyThreatIntelligenceTable {
     return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last 30 days. $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
 }
 
+# ============================================================
+# v2.2 rules, from the Sentinel health-check script contributed to the
+# project: detection effectiveness, table-to-rule mapping, run health,
+# hunting activity and threat-intelligence feed coverage. They read the
+# collector files added at the same time (rule-table-references,
+# rule-effectiveness, playbook-runs, hunts, azure-diagnostics-categories)
+# plus the extended incidents-summary and tables-with-data captures.
+#
+# KQL result cells arrive as strings from Invoke-AzOperationalInsightsQuery
+# and as typed values from fixture files, so every numeric read goes
+# through _ToInt / _ToDouble and every flag through _ToBool.
+# ============================================================
 
+function _ToInt {
+    param([object]$Value)
+    if ($null -eq $Value) { return 0 }
+    $d = 0.0
+    if ([double]::TryParse([string]$Value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return [int][math]::Round($d) }
+    return 0
+}
+
+function _ToDouble {
+    param([object]$Value)
+    if ($null -eq $Value) { return 0.0 }
+    $d = 0.0
+    if ([double]::TryParse([string]$Value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    return 0.0
+}
+
+function _ToBool {
+    param([object]$Value)
+    if ($null -eq $Value) { return $false }
+    if ($Value -is [bool]) { return $Value }
+    return ([string]$Value).Trim() -eq 'true'
+}
+
+# A KQL dynamic bag (ByClassification and friends) as a name -> int map.
+function _ReadBag {
+    param([object]$Value)
+    $bag = @{}
+    if ($null -eq $Value) { return $bag }
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) { return $bag }
+        try { $Value = $Value | ConvertFrom-Json -Depth 8 } catch { return $bag }
+        if ($null -eq $Value) { return $bag }
+    }
+    if ($Value -is [System.Collections.IDictionary]) {
+        foreach ($k in $Value.Keys) { $bag[[string]$k] = _ToInt $Value[$k] }
+        return $bag
+    }
+    foreach ($p in $Value.PSObject.Properties) { $bag[$p.Name] = _ToInt $p.Value }
+    return $bag
+}
+
+# Enabled Scheduled and NRT rules, the only kinds whose query, entity
+# mappings and incident settings are authored by the workspace owner.
+function _GetEnabledQueryRules {
+    param([object]$Inventory)
+    return @($Inventory.AlertRules | Where-Object {
+        $null -ne $_ -and
+        ((Get-PropOrDefault $_ 'kind' '') -in @('Scheduled', 'NRT')) -and
+        (_ToBool (Get-PropOrDefault $_ 'properties.enabled' $false))
+    })
+}
+
+function _GetRuleLabel {
+    param([object]$Rule)
+    return [string](Get-PropOrDefault $Rule 'properties.displayName' (Get-PropOrDefault $Rule 'name' '?'))
+}
+
+# GB ingested in the last 7 days, billable or not. IngestedLast7d was added
+# to tables-with-data in the same change as these rules; older captures
+# fall back to the billable figure.
+function _GetIngested7d {
+    param([object]$Row)
+    if ($null -ne $Row -and $Row.PSObject.Properties.Name -contains 'IngestedLast7d') {
+        return _ToDouble (Get-PropOrDefault $Row 'IngestedLast7d' 0)
+    }
+    return _ToDouble (Get-PropOrDefault $Row 'BillableLast7d' 0)
+}
+
+function _SampleSuffix {
+    param([int]$Count, [int]$Shown = 5)
+    if ($Count -gt $Shown) { return " (+ $($Count - $Shown) more)" }
+    return ''
+}
+
+# ConvertFrom-Json turns ISO-8601 strings into DateTime; keep timestamps
+# in evidence text as ISO-8601 UTC whichever shape arrives.
+function _ToIsoTime {
+    param([object]$Value)
+    if ($null -eq $Value) { return '' }
+    if ($Value -is [datetime]) { return $Value.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+    return [string]$Value
+}
+
+# ------------------------------------------------------------
+# SENT-036, Analytics rule closes mostly as false positive
+# ------------------------------------------------------------
+function Test-NoisyFalsePositiveRule {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.RuleEffectiveness).Count -eq 0) { return $null }
+    # Sentinel rules only (rows with an AlertRuleId); alerts from other
+    # products are tuned in their own portal, not in a rule's query.
+    # Statistical floor of 20 closed incidents so a handful of closures
+    # cannot condemn a rule.
+    $noisy = @($Inventory.RuleEffectiveness | Where-Object {
+        $null -ne $_ -and
+        -not [string]::IsNullOrWhiteSpace([string](Get-PropOrDefault $_ 'AlertRuleId' '')) -and
+        (_ToInt (Get-PropOrDefault $_ 'Closed' 0)) -ge 20 -and
+        (_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) -gt 70
+    } | Sort-Object { -(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) })
+    if ($noisy.Count -eq 0) { return $null }
+    $sample = ($noisy | Select-Object -First 5 | ForEach-Object {
+        "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
+    }) -join '; '
+    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last 30 days: $sample$(_SampleSuffix $noisy.Count)." -Detail @{
+        Count = $noisy.Count
+        Rules = @($noisy | ForEach-Object {
+            [pscustomobject]@{
+                RuleName      = [string](Get-PropOrDefault $_ 'RuleName' '')
+                AlertRuleId   = [string](Get-PropOrDefault $_ 'AlertRuleId' '')
+                Closed        = _ToInt (Get-PropOrDefault $_ 'Closed' 0)
+                FalsePositive = _ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)
+                FPRate        = _ToDouble (Get-PropOrDefault $_ 'FPRate' 0)
+            }
+        })
+    }
+}
+
+# ------------------------------------------------------------
+# SENT-037, Enabled rule has no entity mappings
+# ------------------------------------------------------------
+function Test-RuleEntityMappingsPresent {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $rules = _GetEnabledQueryRules $Inventory
+    if ($rules.Count -eq 0) { return $null }
+    $unmapped = @($rules | Where-Object {
+        @(Get-PropOrDefault $_ 'properties.entityMappings' @() | Where-Object { $null -ne $_ }).Count -eq 0
+    })
+    if ($unmapped.Count -eq 0) { return $null }
+    $names = @($unmapped | ForEach-Object { _GetRuleLabel $_ })
+    $sample = ($names | Select-Object -First 5) -join '; '
+    return New-Finding -Evidence "$($unmapped.Count) of $($rules.Count) enabled Scheduled/NRT rule(s) have no entity mappings: $sample$(_SampleSuffix $unmapped.Count)." -Detail @{ Count = $unmapped.Count; Total = $rules.Count; Rules = $names }
+}
+
+# ------------------------------------------------------------
+# SENT-038, Enabled rule does not create incidents
+# ------------------------------------------------------------
+function Test-RuleCreatesIncidents {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $rules = _GetEnabledQueryRules $Inventory
+    if ($rules.Count -eq 0) { return $null }
+    # createIncident defaults to true when the block is absent, so only an
+    # explicit false counts.
+    $alertOnly = @($rules | Where-Object {
+        $ic = Get-PropOrDefault $_ 'properties.incidentConfiguration' $null
+        ($null -ne $ic) -and ($ic.PSObject.Properties.Name -contains 'createIncident') -and (-not (_ToBool $ic.createIncident))
+    })
+    if ($alertOnly.Count -eq 0) { return $null }
+    $names = @($alertOnly | ForEach-Object { _GetRuleLabel $_ })
+    $sample = ($names | Select-Object -First 5) -join '; '
+    return New-Finding -Evidence "$($alertOnly.Count) enabled Scheduled/NRT rule(s) raise alerts without creating incidents: $sample$(_SampleSuffix $alertOnly.Count)." -Detail @{ Count = $alertOnly.Count; Rules = $names }
+}
+
+# ------------------------------------------------------------
+# SENT-041, Legacy Microsoft incident-creation rules still enabled
+# ------------------------------------------------------------
+function Test-LegacyIncidentCreationRules {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $legacy = @($Inventory.AlertRules | Where-Object {
+        $null -ne $_ -and
+        ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftSecurityIncidentCreation') -and
+        (_ToBool (Get-PropOrDefault $_ 'properties.enabled' $false))
+    })
+    if ($legacy.Count -eq 0) { return $null }
+    $xdrIncidents = @($Inventory.DataConnectors | Where-Object {
+        $null -ne $_ -and
+        ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftThreatProtection') -and
+        ((Get-PropOrDefault $_ 'properties.dataTypes.incidents.state' '') -eq 'enabled')
+    }).Count -gt 0
+    $names = @($legacy | ForEach-Object { _GetRuleLabel $_ })
+    $note = if ($xdrIncidents) {
+        'The Defender XDR connector already syncs incidents, so these rules can create duplicate incidents for the same alerts.'
+    } else {
+        'The Defender XDR connector is not syncing incidents; enable that first so alert-to-incident creation moves to XDR before these rules are retired.'
+    }
+    return New-Finding -Evidence "$($legacy.Count) enabled Microsoft incident-creation rule(s): $(($names | Select-Object -First 5) -join '; ')$(_SampleSuffix $legacy.Count). $note" -Detail @{ Count = $legacy.Count; Rules = $names; XdrIncidentsConnected = $xdrIncidents }
+}
+
+# ------------------------------------------------------------
+# SENT-050, Enabled rule queries the retired ThreatIntelligenceIndicator table
+# ------------------------------------------------------------
+function Test-RulesOnLegacyThreatIntelTable {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.RuleTableReferences).Count -eq 0) { return $null }
+    $hits = @($Inventory.RuleTableReferences | Where-Object {
+        $null -ne $_ -and
+        (_ToBool (Get-PropOrDefault $_ 'Enabled' $false)) -and
+        (@(Get-PropOrDefault $_ 'Tables' @()) -contains 'ThreatIntelligenceIndicator')
+    })
+    if ($hits.Count -eq 0) { return $null }
+    $names = @($hits | ForEach-Object { [string](Get-PropOrDefault $_ 'RuleName' (Get-PropOrDefault $_ 'RuleId' '?')) })
+    return New-Finding -Evidence "$($hits.Count) enabled rule(s) query ThreatIntelligenceIndicator, which stopped receiving indicators on 31 July 2025: $(($names | Select-Object -First 5) -join '; ')$(_SampleSuffix $hits.Count). They match against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
+}
+
+# ------------------------------------------------------------
+# SENT-051, High-volume table with no enabled rule referencing it
+# ------------------------------------------------------------
+function Test-HighVolumeTableWithoutDetection {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # Without the reference file there is no way to tell "no rule reads
+    # this" from "the mapping was not computed", so stay quiet.
+    if ($Inventory.RawFiles -notcontains 'rule-table-references.json') { return $null }
+    if (-not $Inventory.TablesWithData) { return $null }
+    $threshold = 5.0
+    $referenced = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($ref in @($Inventory.RuleTableReferences)) {
+        if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
+        foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) { if ($t) { [void]$referenced.Add([string]$t) } }
+    }
+    # Sentinel's own operational tables are outputs, not detection sources.
+    $operational = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
+    $uncovered = @($Inventory.TablesWithData | Where-Object {
+        $t = [string](Get-PropOrDefault $_ 'DataType' '')
+        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and ((_GetBillable30d $_) -ge $threshold)
+    } | Sort-Object { -(_GetBillable30d $_) })
+    if ($uncovered.Count -eq 0) { return $null }
+
+    # Suggest templates that read the table and are neither deployed already
+    # nor deprecated, highest severity first.
+    $severityRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
+    $templates = @($Inventory.TemplateTableReferences | Where-Object {
+        $null -ne $_ -and -not (_ToBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and -not (_ToBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false))
+    })
+    $rows = @(foreach ($table in $uncovered) {
+        $name = [string](Get-PropOrDefault $table 'DataType' '')
+        $candidates = @($templates | Where-Object { @(Get-PropOrDefault $_ 'Tables' @()) -contains $name } | Sort-Object {
+            $sev = [string](Get-PropOrDefault $_ 'Severity' '')
+            if ($severityRank.ContainsKey($sev)) { $severityRank[$sev] } else { 9 }
+        }, { [string](Get-PropOrDefault $_ 'DisplayName' '') })
+        [pscustomobject]@{
+            Table              = $name
+            Gb30d              = [math]::Round((_GetBillable30d $table), 1)
+            SuggestedTemplates = @($candidates | Select-Object -First 3 | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
+            MoreTemplates      = [math]::Max(0, $candidates.Count - 3)
+        }
+    })
+    $totalGb = [math]::Round((($rows | ForEach-Object { $_.Gb30d }) | Measure-Object -Sum).Sum, 1)
+    $sample = ($rows | Select-Object -First 5 | ForEach-Object {
+        $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
+        "$($_.Table) $($_.Gb30d) GB$hint"
+    }) -join '; '
+    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled analytics rule reading them: $sample$(_SampleSuffix $rows.Count)." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
+}
+
+# ------------------------------------------------------------
+# SENT-052, Table that enabled rules depend on has gone silent
+# ------------------------------------------------------------
+function Test-SilentTableWithDependentRules {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.RuleTableReferences).Count -eq 0) { return $null }
+    if (-not $Inventory.TablesWithData) { return $null }
+    # The extractor returns every bare identifier a query reads, which
+    # includes functions and parsers. Intersecting with the workspace's
+    # table list keeps only real tables; with no table list there is no
+    # safe way to do that, so stay quiet.
+    $known = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($t in @($Inventory.WorkspaceTables)) {
+        $n = [string](Get-PropOrDefault $t 'name' '')
+        if ($n) { [void]$known.Add($n) }
+    }
+    if ($known.Count -eq 0) { return $null }
+
+    $ingested = @{}
+    foreach ($row in $Inventory.TablesWithData) {
+        $n = [string](Get-PropOrDefault $row 'DataType' '')
+        if ($n) { $ingested[$n] = _GetIngested7d $row }
+    }
+    $rulesByTable = @{}
+    foreach ($ref in @($Inventory.RuleTableReferences)) {
+        if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
+        $ruleName = [string](Get-PropOrDefault $ref 'RuleName' (Get-PropOrDefault $ref 'RuleId' '?'))
+        foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) {
+            if (-not $t -or -not $known.Contains([string]$t)) { continue }
+            if (-not $rulesByTable.ContainsKey($t)) { $rulesByTable[$t] = [System.Collections.Generic.List[string]]::new() }
+            $rulesByTable[$t].Add($ruleName)
+        }
+    }
+    $silent = @($rulesByTable.Keys | Where-Object { -not $ingested.ContainsKey($_) -or $ingested[$_] -le 0 } | Sort-Object)
+    if ($silent.Count -eq 0) { return $null }
+    $sample = ($silent | Select-Object -First 5 | ForEach-Object {
+        "$_ ($($rulesByTable[$_].Count) rule(s): $((@($rulesByTable[$_]) | Select-Object -First 3) -join ', '))"
+    }) -join '; '
+    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in 7 days: $sample$(_SampleSuffix $silent.Count). Those rules cannot fire." -Detail @{
+        Count  = $silent.Count
+        Tables = @($silent | ForEach-Object { [pscustomobject]@{ Table = $_; Rules = @($rulesByTable[$_]) } })
+    }
+}
+
+# ------------------------------------------------------------
+# SENT-053, Playbook runs failed in the last 7 days
+# ------------------------------------------------------------
+function Test-PlaybookRunFailures {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.PlaybookRuns).Count -eq 0) { return $null }
+    $failing = @($Inventory.PlaybookRuns | Where-Object {
+        $null -ne $_ -and (_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) -gt 0
+    } | Sort-Object { -(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) })
+    if ($failing.Count -eq 0) { return $null }
+    $sample = ($failing | Select-Object -First 5 | ForEach-Object {
+        $last = _ToIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
+        $when = if ($last) { ", last $last" } else { '' }
+        "$(Get-PropOrDefault $_ 'Playbook' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
+    }) -join '; '
+    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last 7 days: $sample$(_SampleSuffix $failing.Count)." -Detail @{
+        Count     = $failing.Count
+        Playbooks = @($failing | ForEach-Object {
+            [pscustomobject]@{
+                Playbook       = [string](Get-PropOrDefault $_ 'Playbook' '')
+                Runs7d         = _ToInt (Get-PropOrDefault $_ 'Runs7d' 0)
+                Failed7d       = _ToInt (Get-PropOrDefault $_ 'Failed7d' 0)
+                LastFailureUtc = _ToIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
+            }
+        })
+    }
+}
+
+# ------------------------------------------------------------
+# SENT-054, Installed solution deprecated or no longer in the catalogue
+# ------------------------------------------------------------
+function Test-DeprecatedContentHubSolutions {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    $installed = @($Inventory.ContentPackages | Where-Object { $null -ne $_ })
+    $catalogue = @($Inventory.ContentProductPackages | Where-Object { $null -ne $_ })
+    if ($installed.Count -eq 0 -or $catalogue.Count -eq 0) { return $null }
+    $byId = @{}
+    foreach ($p in $catalogue) {
+        $id = [string](Get-PropOrDefault $p 'properties.contentId' '')
+        if ($id) { $byId[$id] = $p }
+    }
+    $flagged = @(foreach ($p in $installed) {
+        $id = [string](Get-PropOrDefault $p 'properties.contentId' '')
+        if (-not $id) { continue }
+        $name = [string](Get-PropOrDefault $p 'properties.displayName' $id)
+        if (-not $byId.ContainsKey($id)) {
+            [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'not in catalogue' }
+        } elseif (_ToBool (Get-PropOrDefault $byId[$id] 'properties.isDeprecated' $false)) {
+            [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'deprecated' }
+        }
+    })
+    if ($flagged.Count -eq 0) { return $null }
+    $sample = ($flagged | Select-Object -First 5 | ForEach-Object { "$($_.Solution) ($($_.Reason))" }) -join '; '
+    return New-Finding -Evidence "$($flagged.Count) installed Content Hub solution(s) are deprecated or no longer in the catalogue: $sample$(_SampleSuffix $flagged.Count)." -Detail @{ Count = $flagged.Count; Solutions = $flagged }
+}
+
+# ------------------------------------------------------------
+# SENT-055, Threat intelligence relies on a single feed
+# ------------------------------------------------------------
+function Test-ThreatIntelSingleFeed {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # Connector inventory is the primary signal; without it the check
+    # would report "no feed" on every failed capture.
+    if ($Inventory.RawFiles -notcontains 'data-connectors-classic.json') { return $null }
+    $tiKinds = @('MicrosoftThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence', 'ThreatIntelligenceUploadIndicatorsAPI', 'PremiumMicrosoftDefenderForThreatIntelligence')
+    $feeds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($c in @($Inventory.DataConnectors)) {
+        $kind = [string](Get-PropOrDefault $c 'kind' '')
+        if ($kind -and $tiKinds -contains $kind) { [void]$feeds.Add($kind) }
+    }
+    # Indicators from a non-Microsoft source count as a feed even when the
+    # connector that brought them in is not in the classic list (TAXII and
+    # upload-API sources show up here by name).
+    foreach ($row in @($Inventory.ThreatIntelCounts)) {
+        $src = [string](Get-PropOrDefault $row 'SourceSystem' '')
+        if ($src -and $src -notmatch '^(Microsoft|Azure Sentinel)') { [void]$feeds.Add("source: $src") }
+    }
+    if ($feeds.Count -gt 1) { return $null }
+    $evidence = if ($feeds.Count -eq 0) {
+        'No threat intelligence feed is connected and no indicators were seen in 30 days.'
+    } else {
+        "Threat intelligence comes from a single feed ($(@($feeds) -join ''))."
+    }
+    return New-Finding -Evidence "$evidence Every TI-based detection depends on that one source." -Detail @{ Feeds = @($feeds) }
+}
+
+# ------------------------------------------------------------
+# SENT-056, Azure Firewall logs collected twice
+# ------------------------------------------------------------
+function Test-AzureFirewallDuplicateLogging {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.AzureDiagnosticsCategories).Count -eq 0) { return $null }
+    if (-not $Inventory.TablesWithData) { return $null }
+    $legacy = @($Inventory.AzureDiagnosticsCategories | Where-Object {
+        $null -ne $_ -and ([string](Get-PropOrDefault $_ 'Category' '')) -match '^(AzureFirewall|AZFW)'
+    })
+    $structured = @($Inventory.TablesWithData | Where-Object {
+        ([string](Get-PropOrDefault $_ 'DataType' '')) -match '^AZFW' -and (_GetIngested7d $_) -gt 0
+    })
+    if ($legacy.Count -eq 0 -or $structured.Count -eq 0) { return $null }
+    $legacyRows = ($legacy | ForEach-Object { _ToInt (Get-PropOrDefault $_ 'LogCount' 0) } | Measure-Object -Sum).Sum
+    $categories = @($legacy | ForEach-Object { [string](Get-PropOrDefault $_ 'Category' '') } | Sort-Object -Unique)
+    $tables = @($structured | ForEach-Object { [string](Get-PropOrDefault $_ 'DataType' '') } | Sort-Object -Unique)
+    $structuredGb = [math]::Round((($structured | ForEach-Object { _GetBillable30d $_ }) | Measure-Object -Sum).Sum, 1)
+    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $($legacyRows.ToString('N0')) rows in 7 days) and the resource-specific tables ($($tables -join ', '); $structuredGb GB in 30 days). The same events are ingested and billed twice." -Detail @{ LegacyCategories = $categories; LegacyRows7d = $legacyRows; StructuredTables = $tables; StructuredGb30d = $structuredGb }
+}
+
+# ------------------------------------------------------------
+# SENT-057, Incidents closed without a classification
+# ------------------------------------------------------------
+function Test-IncidentsClosedUnclassified {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.IncidentsSummary).Count -eq 0) { return $null }
+    $row = $Inventory.IncidentsSummary[0]
+    # ByClassification arrived with this rule; an older capture has nothing
+    # to evaluate.
+    $bagValue = Get-PropOrDefault $row 'ByClassification' $null
+    if ($null -eq $bagValue) { return $null }
+    $closed = _ToInt (Get-PropOrDefault $row 'Closed' 0)
+    if ($closed -lt 10) { return $null }            # statistical floor, small samples lie
+    $bag = _ReadBag $bagValue
+    $unclassified = [int]$bag['Undetermined'] + [int]$bag['Unclassified']
+    $ratio = $unclassified / [double]$closed
+    if ($ratio -le 0.5) { return $null }
+    return New-Finding -Evidence "$unclassified of $closed closed incidents ($([math]::Round($ratio * 100, 0))%) were closed as Undetermined or with no classification. Without a true or false positive verdict, false-positive rates and rule tuning have nothing to work from." -Detail @{ Closed = $closed; Undetermined = [int]$bag['Undetermined']; Unclassified = [int]$bag['Unclassified']; ByClassification = $bag }
+}
+
+# ------------------------------------------------------------
+# SENT-058, No hunting activity recorded
+# ------------------------------------------------------------
+function Test-HuntingActivityRecorded {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # Both captures must have run: hunts.json is only written on success,
+    # and an empty bookmarks list means nothing without it. When the
+    # bookmarks list was too large to fetch, the collector keeps the count
+    # the service reported in bookmarks-count.json instead.
+    $haveBookmarks = ($Inventory.RawFiles -contains 'bookmarks.json') -or ($Inventory.RawFiles -contains 'bookmarks-count.json')
+    if ($Inventory.RawFiles -notcontains 'hunts.json' -or -not $haveBookmarks) { return $null }
+    $bookmarkCount = @($Inventory.Bookmarks).Count
+    if ($Inventory.RawFiles -notcontains 'bookmarks.json' -and $null -ne $Inventory.BookmarksCount) {
+        $bookmarkCount = _ToInt (Get-PropOrDefault $Inventory.BookmarksCount 'Count' 0)
+    }
+    if (@($Inventory.Hunts).Count -gt 0 -or $bookmarkCount -gt 0) { return $null }
+    return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
+}

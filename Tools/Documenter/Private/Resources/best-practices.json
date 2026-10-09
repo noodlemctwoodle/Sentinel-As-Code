@@ -1,6 +1,6 @@
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "rules": [
     {
       "id": "SENT-001",
@@ -318,6 +318,33 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/troubleshoot-analytics-rules"
     },
     {
+      "id": "SENT-036",
+      "title": "Analytics rule closes mostly as false positive",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-NoisyFalsePositiveRule",
+      "remediation": "A rule whose closed incidents are mostly false positives is consuming analyst time without finding anything. Review the query logic and thresholds, add exclusions for known-benign sources, raise the threshold or lower the severity, or convert it to a hunting query if it is better suited to exploration. Re-check the rate after tuning; the figure covers the last 30 days and needs at least 20 closed incidents before a rule is flagged.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/false-positives"
+    },
+    {
+      "id": "SENT-037",
+      "title": "Enabled analytics rule has no entity mappings",
+      "category": "Hygiene",
+      "severity": "Warning",
+      "check": "Test-RuleEntityMappingsPresent",
+      "remediation": "Entity mappings turn query columns into Sentinel entities (accounts, hosts, IP addresses). Without them the incidents a rule creates carry no entities, so the investigation graph, UEBA enrichment, entity pages and entity-based automation have nothing to work with, and alert grouping by entity cannot apply. Map at least the account, host or IP columns the query already produces.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/map-data-fields-to-entities"
+    },
+    {
+      "id": "SENT-038",
+      "title": "Enabled analytics rule does not create incidents",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-RuleCreatesIncidents",
+      "remediation": "Alert-only rules raise alerts that never reach the incident queue, so nobody is assigned and automation rules never run. That is a valid choice for rules that exist to feed Fusion or correlation only; for anything else, enable incident creation (incidentConfiguration.createIncident) so the detection has an owner.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-custom"
+    },
+    {
       "id": "SENT-039",
       "title": "Service principal granted Owner or Contributor at workspace scope",
       "category": "Identity",
@@ -334,6 +361,15 @@
       "check": "Test-ResponderRoleAssigned",
       "remediation": "Without anyone holding the Responder role, your SOC cannot acknowledge, comment on, or close incidents through least-privilege access — analysts end up using Contributor or Owner. Assign Microsoft Sentinel Responder to your tier-1 / tier-2 analyst groups.",
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
+    },
+    {
+      "id": "SENT-041",
+      "title": "Legacy Microsoft incident-creation rules still enabled",
+      "category": "Hygiene",
+      "severity": "Warning",
+      "check": "Test-LegacyIncidentCreationRules",
+      "remediation": "Microsoft security incident creation rules were the pre-XDR way to turn Defender alerts into Sentinel incidents. With the Defender XDR connector syncing incidents they create duplicate incidents for the same alerts; without it they are the only path and should be replaced by the connector's incident integration. Enable incident sync on the Defender XDR connector, confirm incidents arrive, then disable or delete these rules.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/create-incidents-from-alerts"
     },
     {
       "id": "SENT-042",
@@ -406,6 +442,87 @@
       "check": "Test-LegacyThreatIntelligenceTable",
       "remediation": "Microsoft stopped ingesting threat intelligence into the legacy ThreatIntelligenceIndicator table on 31 July 2025. New indicators land in ThreatIntelIndicators and ThreatIntelObjects (STIX 2.1). Update every TI-aware analytics rule, hunting query, workbook, and automation to reference the new tables (use union for the transition window where historical data still matters), then switch ingestion sources off the legacy TI Platforms connector (itself deprecated June 2026) and onto the Threat Intelligence Upload API.",
       "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
+    },
+    {
+      "id": "SENT-050",
+      "title": "Enabled analytics rule queries the retired ThreatIntelligenceIndicator table",
+      "category": "Foundation",
+      "severity": "Critical",
+      "check": "Test-RulesOnLegacyThreatIntelTable",
+      "remediation": "Microsoft stopped ingesting indicators into ThreatIntelligenceIndicator on 31 July 2025. A rule that reads it matches against an ageing, shrinking set of indicators and stops matching as they expire, with no error to say so. Rewrite each rule to read ThreatIntelIndicators (STIX 2.1 schema; union the legacy table during the transition if historical matches still matter), test it, then remove the legacy reference.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
+    },
+    {
+      "id": "SENT-051",
+      "title": "High-volume table with no enabled analytics rule reading it",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-HighVolumeTableWithoutDetection",
+      "remediation": "Data that no detection reads is paid for but never acted on. For each table, either deploy the suggested rule templates (or write a custom rule) so the data earns its keep, move the table to the Basic or Data Lake tier if it is kept for investigation only, or stop collecting it. SOC optimisation in the portal lists the same tables with its own template suggestions.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access"
+    },
+    {
+      "id": "SENT-052",
+      "title": "Table that enabled analytics rules depend on has gone silent",
+      "category": "Operational",
+      "severity": "Critical",
+      "check": "Test-SilentTableWithDependentRules",
+      "remediation": "An enabled rule that reads a table with no data in 7 days cannot fire, so the coverage it represents is gone and nothing says so. Check connector and agent health for each table, the DCR associations and any ingestion-time transform, and confirm the source system is still sending. Add a SentinelHealth or ingestion-based alert so the next outage is noticed in hours rather than at the next review.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
+    },
+    {
+      "id": "SENT-053",
+      "title": "Playbook runs failed in the last 7 days",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-PlaybookRunFailures",
+      "remediation": "A failing playbook means enrichment, notification or containment is silently not happening for the incidents it is attached to. Open the run history in Logic Apps, read the failed action's error (an expired connection, a missing permission on the playbook's managed identity, a changed API, a throttled connector), fix the cause and re-run the failed instances where the action is safe to repeat. Enable automation health in SentinelHealth so future failures alert.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-automation-health"
+    },
+    {
+      "id": "SENT-054",
+      "title": "Installed Content Hub solution is deprecated or no longer in the catalogue",
+      "category": "Hygiene",
+      "severity": "Warning",
+      "check": "Test-DeprecatedContentHubSolutions",
+      "remediation": "A deprecated solution no longer receives detection, parser or connector updates, and one that has left the catalogue cannot be updated at all. Check the solution's Content Hub page for the replacement (often a renamed or merged solution), deploy the replacement, migrate any enabled rules and workbooks across, then uninstall the old solution.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/sentinel-solutions-deploy"
+    },
+    {
+      "id": "SENT-055",
+      "title": "Threat intelligence relies on a single feed",
+      "category": "Coverage",
+      "severity": "Info",
+      "check": "Test-ThreatIntelSingleFeed",
+      "remediation": "One indicator feed gives one view of the threat landscape, and if it stops so does every TI-based detection. Add at least one more source: Microsoft Defender Threat Intelligence, a TAXII collection from an ISAC or a vendor, or your own indicators through the Threat Intelligence Upload API. Then confirm the TI analytics rules match against all of them.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/threat-intelligence-integration"
+    },
+    {
+      "id": "SENT-056",
+      "title": "Azure Firewall logs collected twice (AzureDiagnostics and resource-specific tables)",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-AzureFirewallDuplicateLogging",
+      "remediation": "The firewall's diagnostic settings send the same events to both the legacy AzureDiagnostics categories and the resource-specific AZFW tables, so every event is ingested and billed twice. Keep the resource-specific (structured) tables, which the current Azure Firewall solution and workbooks read, and remove the legacy categories from the diagnostic setting once any rules or workbooks that still read AzureDiagnostics have been moved over.",
+      "learn": "https://learn.microsoft.com/azure/firewall/firewall-structured-logs"
+    },
+    {
+      "id": "SENT-057",
+      "title": "Most incidents are closed without a classification",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-IncidentsClosedUnclassified",
+      "remediation": "Closing incidents as Undetermined or with no classification leaves no record of whether the detection was right, so false-positive rates, rule tuning and SOC reporting have nothing to work from. Make a true positive, benign positive or false positive verdict part of the closure procedure, back it with an automation rule or a closing-reason requirement, and review Undetermined closures weekly until the habit sticks.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/investigate-incidents"
+    },
+    {
+      "id": "SENT-058",
+      "title": "No hunting activity recorded",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-HuntingActivityRecorded",
+      "remediation": "No hunts and no bookmarks means hunting is either not happening or is happening outside Sentinel, where its findings are not linked to incidents or entities. Record hunts in the Hunts feature so hypotheses, queries and outcomes are tracked, and bookmark notable results so they can be promoted to incidents and feed detection engineering.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/hunts"
     }
   ]
 }

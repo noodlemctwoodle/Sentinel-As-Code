@@ -16,11 +16,11 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: overview tiles, MITRE ATT&CK coverage, ingest and billing flow, insights, every section with charts and table filters, findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
-| **Section pages** | One modern page per Documenter section (37 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
-| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Findings & references) with its pages, and Findings. | Top navigation bar |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, the billing flow, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Section pages** | One modern page per Documenter section (35 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
+| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the pre-rendered diagrams, and the publisher's state file. | `DocumenterAssets` library |
+| **Assets** | The dashboard HTML and data, the pre-rendered diagrams, the publisher's state file and the maturity score history. | `DocumenterAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -71,6 +71,29 @@ Nothing in the build contacts SharePoint or Azure, so you can inspect a
 bundle before anything is published. The one network call is the optional
 "What's new" feed for the dashboard; `-SkipWhatsNew` turns it off.
 
+### Dashboard panels
+
+The dashboard reads one embedded JSON model. Beyond the workspace headline,
+counts, cost, findings, MITRE coverage and the billing flow, the model
+carries the health-check views the Documenter computes:
+
+| Model key | Panel | Source captures |
+| --- | --- | --- |
+| `estate` | Overview: the four pipeline rings (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed) and the estate flow (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
+| `maturity` | Overview: the maturity card (score, level band, target marker) and quick wins. Maturity tab: overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
+| `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (top 12; the page has the full list) | `rule-table-references`, `template-table-references`, `tables-with-data` |
+| `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
+| `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
+| `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
+| `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
+| `familyOrder`, `sections[].headline` | Overview: the contents cards, one per family, each page linking to its native page | the rendered sections |
+
+Every panel has an empty state: a snapshot without a capture shows "not
+available" or "not assessed" rather than a zero dressed up as a result.
+The source families used by the estate flow come from
+`Tools/Documenter/Private/Get-TableFamily.ps1`, which the Markdown renderer
+also uses, so the Markdown pack and the dashboard agree.
+
 Run [`Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1)
 against the snapshot before building. Any diagram that was not pre-rendered
 shows on its page as a "diagram not rendered" note, and the build warns.
@@ -99,7 +122,9 @@ In this order, so a failure part-way leaves the site consistent:
    `Sentinel Findings` list and columns exist.
 2. **App.** Deploy the web part package to the site collection app catalog,
    only when its version differs from the deployed one.
-3. **Assets.** Upload the dashboard and any new diagrams.
+3. **Assets.** Upload the dashboard and any new diagrams. When the bundle
+   carries a maturity assessment, append its score to the history (see
+   below).
 4. **Pages.** Create or rebuild each section page, skipping pages whose
    content hash matches the last publish. Pages are rebuilt in place (cleared
    and refilled, then published once), so URLs and version history survive
@@ -115,6 +140,27 @@ In this order, so a failure part-way leaves the site consistent:
 
 A failed section page is reported and retried on the next run; it never
 stops the rest of the publish.
+
+### Maturity history
+
+Every publish of a bundle that carries a maturity assessment appends one
+entry to `DocumenterAssets/_state/maturity-history.json`:
+
+```json
+{ "entries": [ { "publishedUtc": "2026-10-09T06:12:00Z", "bundleBuiltUtc": "2026-10-09 06:05 UTC",
+                 "targetLevel": 3, "overall": { "score": 1.49, "level": 1 },
+                 "areas": [ { "id": "DET", "score": 1.11 }, ... ] } ] }
+```
+
+The entry is keyed on the bundle's build time, so publishing the same
+bundle twice does not add a point, and the file is capped at 180 entries
+(`Add-SacMaturityHistoryEntry -MaxEntries`). A copy is written next to the
+dashboard (`DocumenterAssets/dashboard/maturity-history.json`); the
+Maturity tab fetches it from beside its own page and draws the overall
+score as a trend once two entries exist. Opened from disk, the fetch
+cannot run and the trend panel stays hidden. Both files are readable by
+anyone who can read the dashboard, which is the same audience. `-WhatIf`
+reports what it would append and writes nothing.
 
 ## Setting it up
 

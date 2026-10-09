@@ -1,0 +1,14 @@
+[
+  {
+    "AlertRuleId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "AlertName": "Suspicious sign-in from rare country",
+    "Alerts": 412,
+    "LastAlert": "2026-05-06T06:10:00Z"
+  },
+  {
+    "AlertRuleId": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "AlertName": "Failed logons across multiple accounts",
+    "Alerts": 95,
+    "LastAlert": "2026-05-06T05:40:00Z"
+  }
+]

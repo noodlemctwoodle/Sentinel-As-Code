@@ -16,7 +16,8 @@
     The functions assume an open PnP connection (Connect-PnPOnline) and are
     only dot-sourced by the publisher and the bootstrap. Tests dot-source
     the pure helpers here (Resolve-SacSiteUrl, Get-SacAppPackageInfo,
-    ConvertTo-SacNavigationTree) without PnP installed.
+    ConvertTo-SacNavigationTree, Add-SacMaturityHistoryEntry) without PnP
+    installed.
 
 .NOTES
     File:         Tools/Documenter/SharePoint/Private/SacSharePoint.ps1
@@ -24,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.0
-    Last Updated: 2026-10-08
+    Version:      0.2.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file defines functions rather than running. Per-parameter detail
@@ -39,6 +40,7 @@ $script:SacAssetsLibraryUrl   = 'DocumenterAssets'
 $script:SacFindingsListTitle  = 'Sentinel Findings'
 $script:SacFindingsListUrl    = 'Lists/SentinelFindings'
 $script:SacStateFile          = 'publish-state.json'
+$script:SacMaturityHistoryFile = 'maturity-history.json'
 $script:SacWebPartComponentId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'
 $script:SacLinklessHeaderUrl  = 'http://linkless.header/'
 
@@ -308,6 +310,78 @@ function Save-SacPublishState {
     $json = $State | ConvertTo-Json -Depth 8
     if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/_state/$script:SacStateFile", 'Save publish state')) {
         Add-PnPFile -Folder "$script:SacAssetsLibraryUrl/_state" -FileName $script:SacStateFile -Content $json | Out-Null
+    }
+}
+
+function Read-SacMaturityHistory {
+    <#
+    .SYNOPSIS
+        Read the maturity score history the earlier publishes left behind,
+        or an empty history.
+
+    .OUTPUTS
+        [hashtable] @{ entries = @(...) }, oldest first.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+    $history = @{ entries = @() }
+    try {
+        $text = Get-PnPFile -Url "$script:SacAssetsLibraryUrl/_state/$script:SacMaturityHistoryFile" -AsString -ErrorAction Stop
+        if ($text) {
+            $parsed = $text | ConvertFrom-Json -AsHashtable
+            if ($parsed.entries) { $history.entries = @($parsed.entries) }
+        }
+    }
+    catch {
+        Write-Verbose "No maturity history yet: $($_.Exception.Message)"
+    }
+    return $history
+}
+
+function Add-SacMaturityHistoryEntry {
+    <#
+    .SYNOPSIS
+        Return a new history with one entry appended: the same bundle
+        published twice replaces its earlier entry, and the oldest entries
+        are dropped past -MaxEntries. Pure; the input is not changed.
+
+    .PARAMETER History
+        @{ entries = @(...) } as Read-SacMaturityHistory returns it.
+
+    .PARAMETER Entry
+        A hashtable with at least bundleBuiltUtc, publishedUtc and overall.
+
+    .PARAMETER MaxEntries
+        How many entries to keep. Defaults to 180 (half a year of daily runs).
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)] [hashtable] $History,
+        [Parameter(Mandatory)] [hashtable] $Entry,
+        [Parameter()] [ValidateRange(1, 10000)] [int] $MaxEntries = 180
+    )
+    $key = [string]$Entry.bundleBuiltUtc
+    $kept = @($History.entries | Where-Object { $_ -and ([string]$_.bundleBuiltUtc) -ne $key })
+    $entries = @($kept) + @($Entry)
+    if ($entries.Count -gt $MaxEntries) { $entries = @($entries | Select-Object -Last $MaxEntries) }
+    return @{ entries = $entries }
+}
+
+function Save-SacMaturityHistory {
+    <#
+    .SYNOPSIS
+        Write the maturity history to _state/ (the record) and to dashboard/
+        (what the dashboard fetches from beside its own page).
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)] [hashtable] $History)
+    $json = $History | ConvertTo-Json -Depth 8
+    foreach ($folder in '_state', 'dashboard') {
+        if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/$folder/$script:SacMaturityHistoryFile", 'Save maturity history')) {
+            Add-PnPFile -Folder "$script:SacAssetsLibraryUrl/$folder" -FileName $script:SacMaturityHistoryFile -Content $json | Out-Null
+        }
     }
 }
 

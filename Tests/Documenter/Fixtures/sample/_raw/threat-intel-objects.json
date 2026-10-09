@@ -1,0 +1,10 @@
+[
+  {
+    "StixType": "indicator",
+    "Count": 1500
+  },
+  {
+    "StixType": "threat-actor",
+    "Count": 12
+  }
+]

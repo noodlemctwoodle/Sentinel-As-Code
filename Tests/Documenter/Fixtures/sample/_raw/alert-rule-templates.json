@@ -2,16 +2,62 @@
   {
     "name": "tmpl-suspicious-signin",
     "kind": "Scheduled",
-    "properties": { "displayName": "Suspicious sign-in", "severity": "High", "version": "1.2.0" }
+    "properties": {
+      "displayName": "Suspicious sign-in",
+      "severity": "High",
+      "version": "1.2.0",
+      "query": "SigninLogs\n| where ResultType == 0 and Location !in (\"GB\", \"IE\")",
+      "tactics": [
+        "InitialAccess"
+      ],
+      "alertRulesCreatedByTemplateCount": 1
+    }
   },
   {
     "name": "tmpl-data-exfiltration",
     "kind": "Scheduled",
-    "properties": { "displayName": "Data exfiltration", "severity": "High" }
+    "properties": {
+      "displayName": "Data exfiltration",
+      "severity": "High",
+      "query": "OfficeActivity\n| where Operation == \"FileDownloaded\"\n| summarize count() by UserId",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "alertRulesCreatedByTemplateCount": 0,
+      "requiredDataConnectors": [
+        {
+          "connectorId": "Office365",
+          "dataTypes": [
+            "OfficeActivity (SharePoint)"
+          ]
+        }
+      ]
+    }
   },
   {
     "name": "tmpl-low-noise",
     "kind": "Scheduled",
-    "properties": { "displayName": "Low-severity noise", "severity": "Low" }
+    "properties": {
+      "displayName": "Low-severity noise",
+      "severity": "Low",
+      "query": "SecurityEvent\n| where EventID == 4624",
+      "tactics": [
+        "InitialAccess"
+      ],
+      "alertRulesCreatedByTemplateCount": 0
+    }
+  },
+  {
+    "name": "tmpl-deprecated-firewall",
+    "kind": "Scheduled",
+    "properties": {
+      "displayName": "[Deprecated] Firewall port scan",
+      "severity": "Medium",
+      "query": "FirewallLogs_CL\n| summarize count() by DestinationPort_d",
+      "tactics": [
+        "Discovery"
+      ],
+      "alertRulesCreatedByTemplateCount": 0
+    }
   }
 ]

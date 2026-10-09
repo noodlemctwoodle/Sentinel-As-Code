@@ -113,6 +113,7 @@ if (-not (Test-Path $OutputRoot)) {
 
 # Dot-source private helpers.
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -319,6 +320,236 @@ $catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
 
 $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
 
+# ---------------------------------------------------------------------------
+# Health-check ports, hoisted: table-to-rule references, rule effectiveness,
+# run health, the usage trend and the maturity assessment. Read once here so
+# 00-overview and 01-live-snapshot can draw the estate flow before the
+# sections that own the detail (15, 21, 28, 60, 80, 81, 91) are written.
+# ---------------------------------------------------------------------------
+$ruleTableRefs     = Read-RawArray 'rule-table-references.json'
+$templateTableRefs = Read-RawArray 'template-table-references.json'
+$ruleEffectiveness = Read-RawArray 'rule-effectiveness.json'
+$rulesFired        = Read-RawArray 'rules-fired.json'
+$playbookRuns      = Read-RawArray 'playbook-runs.json'
+$hunts             = Read-RawArray 'hunts.json'
+$usageDaily        = Read-RawArray 'workspace-usage-daily.json'
+$maturity          = Read-Raw 'maturity.json'
+$incSummary        = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
+$incMttr           = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
+# A failed maturity capture writes '{}', which is truthy, so test for the
+# members the page needs rather than for the object.
+$maturityOk = ($null -ne $maturity -and $null -ne $maturity.PSObject.Properties['areas'] -and $null -ne $maturity.PSObject.Properties['overall'])
+
+# KQL result cells arrive as strings; fixtures carry typed values. Parse
+# rather than cast so neither shape throws.
+function _RendererNumber {
+    param($Value)
+    if ($null -eq $Value) { return 0.0 }
+    $d = 0.0
+    if ([double]::TryParse([string]$Value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    return 0.0
+}
+# A KQL dynamic bag (ByClassification and friends) as an ordered name ->
+# count map, whether it arrived as JSON text or as an object.
+function _RendererBag {
+    param($Value)
+    $bag = [ordered]@{}
+    if ($null -eq $Value) { return $bag }
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) { return $bag }
+        try { $Value = $Value | ConvertFrom-Json } catch { return $bag }
+        if ($null -eq $Value) { return $bag }
+    }
+    foreach ($prop in $Value.PSObject.Properties) { $bag[$prop.Name] = [long](_RendererNumber $prop.Value) }
+    return $bag
+}
+function Format-Status-Badge { param([string]$Status)
+    switch ($Status) {
+        'Met'     { return '🟢 Met' }
+        'Gap'     { return '🔴 Gap' }
+        'Unknown' { return '⚪ Unknown' }
+        default   { return $Status }
+    }
+}
+
+# Source families -> ingestion -> detection -> alerts -> incidents: the
+# numbers behind the estate flow on 00 and 01 and the pipeline table. Null
+# safe; every input may be empty.
+function New-EstateModel {
+    $enabledRefs = @($ruleTableRefs | Where-Object { $_.Enabled -eq $true })
+    $referenced = @{}
+    foreach ($r in $enabledRefs) { foreach ($t in @($r.Tables)) { if ($t) { $referenced[[string]$t] = $true } } }
+    $byFamily = [ordered]@{}
+    $tablesActive = 0; $tablesCovered = 0
+    foreach ($t in $tablesWithData) {
+        $name = [string]$t.DataType
+        if (-not $name) { continue }
+        $gb = _RendererNumber $t.BillableLast30d
+        if ($gb -le 0) { continue }
+        $tablesActive++
+        $fam = Get-TableFamily -Table $name
+        if (-not $byFamily.Contains($fam)) { $byFamily[$fam] = [pscustomobject]@{ Category = $fam; Tables = 0; Gb = 0.0; CoveredGb = 0.0; Covered = 0 } }
+        $byFamily[$fam].Tables++
+        $byFamily[$fam].Gb += $gb
+        if ($referenced.ContainsKey($name)) { $tablesCovered++; $byFamily[$fam].Covered++; $byFamily[$fam].CoveredGb += $gb }
+    }
+    $sources = @($byFamily.Values | Sort-Object -Property Gb -Descending)
+    $totalGb = 0.0; $coveredGb = 0.0
+    foreach ($src in $sources) { $totalGb += $src.Gb; $coveredGb += $src.CoveredGb }
+    $alerts = [long]0
+    foreach ($f in $rulesFired) { $alerts += [long](_RendererNumber $f.Alerts) }
+    $incidents = if ($incSummary -and $incSummary.PSObject.Properties['Count'])  { [int](_RendererNumber $incSummary.Count) }  else { 0 }
+    $closed    = if ($incSummary -and $incSummary.PSObject.Properties['Closed']) { [int](_RendererNumber $incSummary.Closed) } else { 0 }
+    [pscustomobject]@{
+        Sources             = $sources
+        TablesSeen          = $tablesWithData.Count
+        TablesActive        = $tablesActive
+        TablesCovered       = $tablesCovered
+        TotalGb             = [math]::Round($totalGb, 2)
+        CoveredGb           = [math]::Round($coveredGb, 2)
+        UncoveredGb         = [math]::Round($totalGb - $coveredGb, 2)
+        TemplatesApplicable = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true }).Count
+        RulesEnabled        = $enabledRules.Count
+        RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
+        RulesFired          = $rulesFired.Count
+        Alerts              = $alerts
+        Incidents           = $incidents
+        IncidentsClosed     = $closed
+        IncidentsOpen       = [math]::Max(0, $incidents - $closed)
+    }
+}
+$estate = New-EstateModel
+
+function Format-EstateSankey {
+    # sankey-beta reads CSV rows: source,target,value. Labels are quoted so
+    # a family name with a comma cannot split a row; values are GB.
+    param($Estate)
+    function _Gb([double]$v) {
+        if ($v -le 0) { return $null }
+        return ([math]::Max(0.01, [math]::Round($v, 2))).ToString('0.##', [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    $rows = New-Object System.Collections.Generic.List[string]
+    foreach ($src in $Estate.Sources) {
+        $c = _Gb $src.CoveredGb
+        $u = _Gb ($src.Gb - $src.CoveredGb)
+        if ($c) { $rows.Add("`"$($src.Category)`",`"Ingestion`",$c") }
+        if ($u) { $rows.Add("`"$($src.Category)`",`"Not monitored`",$u") }
+    }
+    $covered = _Gb $Estate.CoveredGb
+    if ($covered) {
+        $det = "Detection ($($Estate.RulesEnabled) enabled rules)"
+        $al  = "Alerts ($($Estate.Alerts) in 30d)"
+        $inc = "Incidents ($($Estate.Incidents) in 30d)"
+        $rows.Add("`"Ingestion`",`"$det`",$covered")
+        $rows.Add("`"$det`",`"$al`",$covered")
+        $rows.Add("`"$al`",`"$inc`",$covered")
+        if ($Estate.Incidents -gt 0) {
+            $closedShare = [double]$Estate.CoveredGb * $Estate.IncidentsClosed / $Estate.Incidents
+            $c2 = _Gb $closedShare
+            $o2 = _Gb ($Estate.CoveredGb - $closedShare)
+            if ($c2) { $rows.Add("`"$inc`",`"Closed ($($Estate.IncidentsClosed))`",$c2") }
+            if ($o2) { $rows.Add("`"$inc`",`"Open ($($Estate.IncidentsOpen))`",$o2") }
+        }
+    }
+    if ($rows.Count -eq 0) { return '_Nothing to draw._' }
+    $height = [math]::Max(360, 40 * $Estate.Sources.Count + 200)
+    @"
+``````mermaid
+---
+config:
+  sankey:
+    showValues: true
+    width: 1200
+    height: $height
+---
+sankey-beta
+
+$($rows -join [Environment]::NewLine)
+``````
+"@
+}
+
+function Format-EstateRingsTable {
+    # The four pipeline stages as in-use / of / share, with a rating so the
+    # reader does not have to do the division: 80%+ strong, 65%+ fair.
+    param($Estate)
+    function _Row([string]$Stage, [int]$Value, [int]$Of) {
+        if ($Of -le 0) { return "| $Stage | $Value | $Of | _n/a_ | _n/a_ |" }
+        $pct = [int][math]::Round(100.0 * $Value / $Of, 0)
+        $badge = if ($pct -ge 80) { '🟢 Strong' } elseif ($pct -ge 65) { '🔵 Fair' } else { '🟠 Weak' }
+        return "| $Stage | $Value | $Of | $pct% | $badge |"
+    }
+    @"
+| Stage | In use | Of | Share | Rating |
+|---|---:|---:|---:|---|
+$(_Row 'Ingestion: tables still receiving data (30d, of those seen in 90d)' $Estate.TablesActive $Estate.TablesSeen)
+$(_Row 'Detection: active tables read by at least one enabled rule' $Estate.TablesCovered $Estate.TablesActive)
+$(_Row 'Alerts: enabled Scheduled/NRT rules that fired in 30d' $Estate.RulesFired $Estate.RulesQueryEnabled)
+$(_Row 'Incidents: closed, of those created in 30d' $Estate.IncidentsClosed $Estate.Incidents)
+"@
+}
+
+$estateBlock = if ($estate.Sources.Count -gt 0 -and $estate.TotalGb -gt 0) {
+@"
+
+## Estate flow
+
+Where the last 30 days of billable data came from, how much of it an enabled analytics rule reads, and what the detections produced. Ribbon width is GB; the counts sit in the node labels.
+
+$(Format-EstateSankey -Estate $estate)
+
+$(Format-EstateRingsTable -Estate $estate)
+
+GB that reaches **Not monitored** is ingested and billed but read by no enabled rule. [28-detection-opportunities.md](28-detection-opportunities.md) lists those tables with the templates that would cover them.
+"@
+} else {
+@"
+
+## Estate flow
+
+_No billable ingestion in the last 30 days, so there is no flow to draw._
+"@
+}
+
+$maturityHeadline = if ($maturityOk -and $null -ne $maturity.overall.score) {
+    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count). Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
+} elseif ($maturityOk) {
+    "_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md)."
+} else { '_Maturity assessment not available for this run._' }
+$maturityCell = if ($maturityOk -and $null -ne $maturity.overall.score) {
+    "$($maturity.overall.score) / $($maturity.targetLevel) ($($maturity.overall.levelName), target $($maturity.targetLevelName))"
+} else { '_not assessed_' }
+
+$usageTrendBlock = if ($usageDaily.Count -ge 2) {
+    $pts = @($usageDaily | Sort-Object { [datetime]$_.Day })
+    $labels = ($pts | ForEach-Object { "`"$((Format-DateUtc $_.Day).Substring(5, 5))`"" }) -join ', '
+    $bill = ($pts | ForEach-Object { [math]::Round((_RendererNumber $_.BillableGB), 2) }) -join ', '
+    $free = ($pts | ForEach-Object { [math]::Round((_RendererNumber $_.FreeGB), 2) }) -join ', '
+    $max = 1.0
+    foreach ($pt in $pts) { $v = (_RendererNumber $pt.BillableGB) + (_RendererNumber $pt.FreeGB); if ($v -gt $max) { $max = $v } }
+@"
+
+### Daily ingestion (last 30 days)
+
+``````mermaid
+---
+config:
+  xyChart:
+    width: 1400
+    height: 420
+---
+xychart-beta
+    title "Daily ingestion, GB (billable and free)"
+    x-axis [$labels]
+    y-axis "GB" 0 --> $([math]::Ceiling($max * 1.1) + 1)
+    line [$bill]
+    line [$free]
+``````
+
+First line billable GB, second line free (Sentinel-benefit and non-billable) GB, from ``Usage``. A step up that no connector change explains is the usual first sign of a runaway source.
+"@
+} else { '' }
+
 # Rule ↔ watchlist cross-reference. Scans every rule's KQL query for
 # `_GetWatchlist("alias")` calls (the canonical helper). The output is
 # two hashtables consumed by sections 20 and 50:
@@ -398,6 +629,11 @@ $($gapFindings.Count) open findings against the best-practice catalogue. Drill i
 | Tables operational (populated + custom logs) | $($operationalTables.Count) |
 | Tables receiving data (90d) | $($populatedTables.Count) |
 | Catalogue-only Microsoft schemas (never ingested) | $catalogueOnlyCount |
+$estateBlock
+
+## Maturity
+
+$maturityHeadline
 
 ## Estimated monthly cost
 
@@ -413,7 +649,7 @@ $(if ($top5Findings.Count -gt 0) {
 }) -join [Environment]::NewLine
 } else { '_No findings — clean run._' })
 
-See the rest of this folder for deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md).
+See the rest of this folder for deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [detection opportunities](28-detection-opportunities.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md), [maturity assessment](91-maturity-assessment.md).
 "@
 
 Write-Section '00-overview.md' $overviewBody
@@ -889,6 +1125,8 @@ $correlationState
 |---:|---:|---:|---:|---:|---:|---:|
 | $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) | $schedEnabled | $schedDisabled | $nrtEnabled | $nrtDisabled |
 
+Per-rule alert volumes and incident outcomes, the Microsoft-managed rules, recent modifications and the Content Hub solution breakdown follow below on this page; tables no enabled rule reads, with the templates that would cover them, are in [28-detection-opportunities.md](28-detection-opportunities.md).
+
 ## All rules
 
 $(Format-Table -Items $ruleRows -Columns 'Kind','Name','Severity','Enabled','Tactics')
@@ -910,11 +1148,10 @@ $(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','Lat
 These translate first-party security alerts (Defender for Cloud Apps, Defender XDR, etc.) into Sentinel incidents based on per-product filter criteria. They aren't editable as KQL rules; the ``Product`` column is the source product, and ``Includes`` / ``Excludes`` are the alert-name filters.
 
 $(Format-Table -Items $msIncidentRows -Columns 'Name','Product','Severities','Includes','Excludes','Enabled')
-
-[Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@
-
-Write-Section '20-analytics-rules.md' $rulesBody
+# $rulesBody is the first part of 20-analytics-rules.md; the alert-volume,
+# Microsoft-managed, modifications and solution subsections are built after
+# section 15 (they need its effectiveness rows) and the page is written there.
 
 # ---------------------------------------------------------------------------
 # Section: 25-mitre-coverage
@@ -1125,9 +1362,11 @@ $huntingRows = $hunting | ForEach-Object {
 # Aggregate hunting queries by tactic (parsed from the tactics= tag value).
 $huntByTactic = @{}
 foreach ($h in $hunting) {
-    $tactics = @($h.properties.tags | Where-Object { $_.name -eq 'tactics' } | ForEach-Object { $_.value })
-    if (-not $tactics) { $tactics = @('Untagged') }
-    foreach ($t in $tactics) {
+    # Named so it cannot shadow $tactics, the MITRE catalogue that the
+    # section-01 headline counts.
+    $huntTacticTags = @($h.properties.tags | Where-Object { $_.name -eq 'tactics' } | ForEach-Object { $_.value })
+    if (-not $huntTacticTags) { $huntTacticTags = @('Untagged') }
+    foreach ($t in $huntTacticTags) {
         # tactics tag can be a comma-separated list
         foreach ($tac in ($t -split ',')) {
             $key = $tac.Trim()
@@ -1154,11 +1393,35 @@ $($hunting.Count) hunting query(ies). Tactic distribution reveals where the SOC'
 "@
 } else { '' }
 
+$huntRows = @($hunts | ForEach-Object {
+    $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }
+    $owner = ''
+    if ($p.PSObject.Properties['owner'] -and $p.owner) {
+        if ($p.owner.PSObject.Properties['assignedTo'] -and $p.owner.assignedTo) { $owner = $p.owner.assignedTo }
+        elseif ($p.owner.PSObject.Properties['email'] -and $p.owner.email) { $owner = $p.owner.email }
+    }
+    [pscustomobject]@{
+        Name       = if ($p.PSObject.Properties['displayName']) { $p.displayName } elseif ($_.PSObject.Properties['name']) { $_.name } else { '' }
+        Status     = if ($p.PSObject.Properties['status']) { $p.status } else { '' }
+        Hypothesis = if ($p.PSObject.Properties['hypothesisStatus']) { $p.hypothesisStatus } else { '' }
+        Tactics    = if ($p.PSObject.Properties['attackTactics']) { @($p.attackTactics) -join ', ' } else { '' }
+        Owner      = $owner
+    }
+})
+
 Write-Section '30-hunting-queries.md' (@"
 $(Format-Banner -Title "Hunting Queries")
 $huntChartBlock
 
 $(Format-Table -Items $huntingRows -Columns 'Name','Tags')
+
+## Hunts
+
+Hunts recorded through the Hunts feature, with their hypothesis status. Bookmarks promoted from a hunt show on the incidents they were attached to. [SENT-058] fires when there are no hunts and no bookmarks at all.
+
+$(Format-Table -Items $huntRows -Columns 'Name','Status','Hypothesis','Tactics','Owner')
+
+[Hunts in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/hunts)
 "@)
 
 $parserRows = $parsers | ForEach-Object {
@@ -1372,6 +1635,34 @@ $pbRows = $playbooks | ForEach-Object {
 }
 $autoCount = $arRows.Count
 $pbCount   = $pbRows.Count
+# Run health from playbook-runs.json (7-day window, written by the collector
+# per enabled workflow).
+$pbRunRows = @($playbookRuns | ForEach-Object {
+    [pscustomobject]@{
+        Playbook       = $_.Playbook
+        Runs7d         = [int](_RendererNumber $_.Runs7d)
+        Failed7d       = [int](_RendererNumber $_.Failed7d)
+        LastRunStatus  = $_.LastRunStatus
+        LastFailureUtc = Format-DateUtc $_.LastFailureUtc
+        Note           = if ($_.PSObject.Properties['Note'] -and $_.Note) { [string]$_.Note } else { '' }
+    }
+} | Sort-Object -Property Failed7d -Descending)
+$pbUnavailable = @($pbRunRows | Where-Object { $_.LastRunStatus -eq 'Unavailable' }).Count
+$pbRunsTotal = 0; $pbFailedTotal = 0
+foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
+$pbFailingCount = @($pbRunRows | Where-Object { $_.Failed7d -gt 0 }).Count
+$pbRunsWarning = if ($pbFailingCount -gt 0) {
+    "> **$pbFailingCount playbook(s) had failed runs in the last 7 days.** A failing playbook is a response step that is quietly not happening; [SENT-053] carries the detail.`n"
+} else { '' }
+$pbRunsPie = if ($pbRunsTotal -gt 0) {
+@"
+``````mermaid
+pie showData title Playbook runs by outcome (7d)
+    "Succeeded" : $($pbRunsTotal - $pbFailedTotal)
+    "Failed" : $pbFailedTotal
+``````
+"@
+} else { '' }
 Write-Section '60-automation-rules-playbooks.md' (@"
 $(Format-Banner -Title "Automation Rules and Playbooks")
 
@@ -1416,7 +1707,15 @@ $(Format-Table -Items $arRows -Columns 'Name','Order','Enabled')
 
 $(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
 
-[Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks)
+## Playbook runs (last 7d)
+
+$pbRunsWarning
+$pbRunsPie
+
+$(if ($pbUnavailable -gt 0) { "_Run history could not be read for $pbUnavailable playbook(s) (LastRunStatus 'Unavailable'); their counts are not zero, they are unknown._`n" })
+$(Format-Table -Items $pbRunRows -Columns 'Playbook','Runs7d','Failed7d','LastRunStatus','LastFailureUtc','Note')
+
+[Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks) · [Monitor automation health](https://learn.microsoft.com/azure/sentinel/monitor-automation-health)
 "@)
 
 $contentPackages = Read-RawArray 'content-packages.json'
@@ -1447,6 +1746,23 @@ $cpRows = $contentPackages | ForEach-Object {
 $repoRows = $repos | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
 }
+# Installed solutions that the catalogue marks deprecated or no longer lists.
+# With no catalogue capture every solution would look unlisted, so the
+# table is only built when the catalogue is present.
+$deprecatedRows = @()
+if ($contentCatalogue.Count -gt 0) {
+    $deprecatedRows = @($contentPackages | ForEach-Object {
+        $cid = $_.properties.contentId
+        if (-not $cid) { return }
+        if (-not $catalogueByContentId.ContainsKey($cid)) {
+            [pscustomobject]@{ Name = $_.properties.displayName; ContentId = $cid; Reason = 'Not in catalogue' }
+        } else {
+            $cat = $catalogueByContentId[$cid]
+            $dep = if ($cat.properties.PSObject.Properties['isDeprecated']) { [string]$cat.properties.isDeprecated } else { '' }
+            if ($dep -eq 'true') { [pscustomobject]@{ Name = $_.properties.displayName; ContentId = $cid; Reason = 'Deprecated' } }
+        }
+    })
+}
 # Content-source distribution for the headline pie.
 $sourceCounts = @{}
 foreach ($p in $cpRows) {
@@ -1475,6 +1791,12 @@ $($cpRows.Count) package(s) installed across $($sourceCounts.Count) source kind(
 The ``UpdateAvailable`` column is populated only when the installed version is older than the latest available in the Content Hub catalogue.
 
 $(Format-Table -Items $cpRows -Columns 'Name','Installed','Latest','UpdateAvailable','Source')
+
+## Deprecated or unlisted solutions
+
+Installed solutions whose catalogue entry is marked deprecated, or that no longer appear in the Content Hub catalogue at all. Neither receives updates; [SENT-054] fires on either.
+
+$(Format-Table -Items $deprecatedRows -Columns 'Name','ContentId','Reason')
 
 ## Repositories
 
@@ -1608,6 +1930,7 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 | Last 14 days (avg/day) | _(n/a)_ | $($usage.BillableAvgDailyGB) |
 "@
    } else { '_No usage telemetry captured._' } )
+$usageTrendBlock
 
 ## Networking + replication
 
@@ -1698,6 +2021,27 @@ $catalogueOnly = @($workspaceTables | Where-Object {
 })
 $catalogueSample = ($catalogueOnly | Select-Object -First 20 | ForEach-Object { $_.name }) -join ', '
 
+# Detection coverage per operational table, from the enabled rules' table
+# references. Empty when the collector did not compute the mapping.
+$rulesPerTable = @{}
+foreach ($ref in $ruleTableRefs) {
+    if ($ref.Enabled -ne $true) { continue }
+    foreach ($t in @($ref.Tables)) {
+        if (-not $t) { continue }
+        if (-not $rulesPerTable.ContainsKey($t)) { $rulesPerTable[$t] = 0 }
+        $rulesPerTable[$t]++
+    }
+}
+$coverageRows = @($tableRows | Where-Object { $_.Gb90d -gt 0 } | ForEach-Object {
+    $n = if ($rulesPerTable.ContainsKey($_.Name)) { $rulesPerTable[$_.Name] } else { 0 }
+    [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; Coverage = if ($n -gt 0) { '🟢 Covered' } else { '🔴 None' } }
+} | Sort-Object -Property Gb90d -Descending)
+$coverageBlock = if ($ruleTableRefs.Count -eq 0) {
+    '_Table-to-rule mapping was not computed in this run._'
+} else {
+    Format-Table -Items $coverageRows -Columns 'Name','Plan','Gb90d','Rules','Coverage'
+}
+
 # Plan pie inputs.
 $planPieAnalytics  = ($gbByPlan | Where-Object { $_.Plan -eq 'Analytics' }  | Measure-Object -Property Tables -Sum).Sum
 $planPieBasic      = ($gbByPlan | Where-Object { $_.Plan -eq 'Basic' }      | Measure-Object -Property Tables -Sum).Sum
@@ -1751,6 +2095,12 @@ Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or ne
 ## Catalogue-only Microsoft schemas
 
 $($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem; first 20 names: ``$catalogueSample$(if ($catalogueOnly.Count -gt 20) { ', …' })``.
+
+## Tables by detection coverage
+
+Operational tables with data in the last 90 days and the number of enabled analytics rules that read each one. A high-volume table with no rules is cost without coverage; [28-detection-opportunities.md](28-detection-opportunities.md) lists the templates that would cover it.
+
+$coverageBlock
 
 ## Tables with non-default retention
 
@@ -2762,6 +3112,8 @@ gantt
 | MITRE tactics — Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
 | Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
+| Maturity (overall / target) | $maturityCell |
+$estateBlock
 
 ## Top recommendations
 
@@ -2776,14 +3128,115 @@ $(if ($top5Findings.Count -gt 0) {
 | Concern | See |
 |---|---|
 | Connectors and ingestion | [10-data-connectors.md](10-data-connectors.md), [83-data-collection.md](83-data-collection.md) |
-| Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [25-mitre-coverage.md](25-mitre-coverage.md) |
+| Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [25-mitre-coverage.md](25-mitre-coverage.md), [28-detection-opportunities.md](28-detection-opportunities.md) |
 | Workspace, tables, retention | [80-workspace.md](80-workspace.md), [81-table-plans-retention.md](81-table-plans-retention.md) |
 | Cost | [84-cost-estimate.md](84-cost-estimate.md) |
 | Operational health | [11-sentinel-health.md](11-sentinel-health.md), [12-soc-optimization.md](12-soc-optimization.md), [15-incidents.md](15-incidents.md) |
 | Identity and access | [85-rbac.md](85-rbac.md) |
 | Findings vs. best practice | [90-gap-analysis.md](90-gap-analysis.md) |
+| Maturity and roadmap | [91-maturity-assessment.md](91-maturity-assessment.md) |
 "@
 Write-Section '01-live-snapshot.md' $execBody
+
+# Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
+# Private/Get-SentinelMaturity.ps1; methodology and criteria:
+# Docs/Tools/Documenter/Sentinel-Maturity-Model.md.
+$maturityBody = if (-not $maturityOk) {
+@"
+$(Format-Banner -Title "Maturity Assessment")
+
+_The maturity assessment was not produced in this run (``_raw/maturity.json`` is absent or empty). The collector writes it after the gap analysis; when that capture fails this page stays empty rather than scoring a workspace it cannot see._
+"@
+} else {
+    $mAreas = @($maturity.areas)
+    $areaAxis = ($mAreas | ForEach-Object { "`"$($_.id)`"" }) -join ', '
+    $areaBars = ($mAreas | ForEach-Object { if ($null -eq $_.score) { 0 } else { $_.score } }) -join ', '
+    $areaRows = @($mAreas | ForEach-Object {
+        [pscustomobject]@{
+            Id          = $_.id
+            Area        = $_.name
+            Score       = if ($null -eq $_.score) { 'n/a' } else { $_.score }
+            Level       = if ($null -eq $_.level) { 'Not assessed' } else { "$($_.level) $($_.levelName)" }
+            Evaluated   = "$($_.met) met of $($_.evaluated)"
+            Unknown     = $_.unknown
+            Confidence  = $_.confidence
+            GapToTarget = if ($null -eq $_.score) { 'n/a' } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { [math]::Round($maturity.targetLevel - $_.score, 2) }
+        }
+    })
+    $roadmapRows = @(@($maturity.roadmap) | Select-Object -First 20 | ForEach-Object {
+        [pscustomobject]@{ Priority = $_.priority; Criterion = "$($_.criterionId) $($_.name)"; Area = $_.area; Effort = $_.effort; Lift = $_.overallLift; Projected = $_.projectedScore; Guidance = $_.guidance }
+    })
+    $quickWinLines = if (@($maturity.quickWins).Count -gt 0) {
+        (@($maturity.quickWins) | ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $($_.overallLift)): $($_.guidance)" }) -join [Environment]::NewLine
+    } else { '_No Low-effort gaps remain; the rest of the roadmap is Medium or High effort._' }
+    $csfRows = @(@($maturity.csf.functions) | ForEach-Object {
+        [pscustomobject]@{ Function = "$($_.id) $($_.name)"; Criteria = $_.criteria; Met = $_.met; Gap = $_.gap; Unknown = $_.unknown }
+    })
+    $criteriaRows = @($mAreas | ForEach-Object {
+        $areaId = $_.id
+        @($_.criteria) | ForEach-Object {
+            [pscustomobject]@{ Id = $_.id; Area = $areaId; Kind = $_.kind; Criterion = $_.name; Status = (Format-Status-Badge $_.status); Effort = $_.effort; Evidence = $_.evidence }
+        }
+    })
+    $outOfScopeLines = (@($maturity.outOfScope) | ForEach-Object { "- **$($_.area)**: $($_.reason)" }) -join [Environment]::NewLine
+    $overallText = if ($null -eq $maturity.overall.score) { 'not assessed' } else { "$($maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
+@"
+$(Format-Banner -Title "Maturity Assessment")
+
+> **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $($maturity.methodology.scaleNote)
+
+**Overall:** $overallText  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $($mAreas.Count)  ·  **Criteria:** $($maturity.totals.met) met · $($maturity.totals.gap) gaps · $($maturity.totals.unknown) unknown
+
+Unknown criteria are those whose input was not captured in this run; they never count against the workspace. Confidence says how much of an area could be evaluated. The scoring, and every criterion's source, is in [Sentinel-Maturity-Model.md](../../Docs/Tools/Documenter/Sentinel-Maturity-Model.md).
+
+## Area scores
+
+``````mermaid
+---
+config:
+  xyChart:
+    width: 1200
+    height: 420
+---
+xychart-beta
+    title "Maturity by area (0 to 5, target $($maturity.targetLevel))"
+    x-axis [$areaAxis]
+    y-axis "Score" 0 --> 5
+    bar [$areaBars]
+``````
+
+## Areas
+
+$(Format-Table -Items $areaRows -Columns 'Id','Area','Score','Level','Evaluated','Unknown','Confidence','GapToTarget')
+
+## Roadmap
+
+Every gap, ordered by how much closing it lifts the overall score, then by effort (Low first). ``Projected`` is the overall score after this entry and every one above it. Top 20 of $(@($maturity.roadmap).Count).
+
+$(Format-Table -Items $roadmapRows -Columns 'Priority','Criterion','Area','Effort','Lift','Projected','Guidance')
+
+## Quick wins
+
+The first five Low-effort entries on the roadmap.
+
+$quickWinLines
+
+## NIST CSF 2.0 rollup
+
+$(Format-Table -Items $csfRows -Columns 'Function','Criteria','Met','Gap','Unknown')
+
+Subcategory identifiers are from the NIST Cybersecurity Framework 2.0 (NIST CSWP 29); the mapping and the outcome paraphrases are this project's own.
+
+## Criteria
+
+$(Format-Table -Items $criteriaRows -Columns 'Id','Area','Kind','Criterion','Status','Effort','Evidence')
+
+## Out of scope
+
+$outOfScopeLines
+"@
+}
+Write-Section '91-maturity-assessment.md' $maturityBody
 
 # Section 11 — Sentinel health (TOC 4.8)
 $health = Read-RawArray 'sentinel-health.json'
@@ -2909,7 +3362,7 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 $socChartBlock
 
-> Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
+> Before tuning based on these recommendations, cross-reference [20-analytics-rules.md](20-analytics-rules.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
 
 ## Coverage recommendations
 
@@ -3081,8 +3534,8 @@ $(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
 "@)
 
 # Section 15 — Incidents (TOC 4.10)
-$incSummary = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
-$incMttr    = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
+# $incSummary and $incMttr are read at the top of the file (the estate flow
+# on 00 and 01 needs them before this section runs).
 $incByRule  = Read-RawArray 'incidents-by-rule.json'
 $incDaily   = Read-RawArray 'incidents-daily-metrics.json' | Select-Object -First 1
 
@@ -3127,6 +3580,46 @@ if ($incMttr -and ($incMttr.PSObject.Properties.Name -contains 'AcknowledgedCoun
 $unackCount = $closedCount - $ackCountForState
 $totalIncidents = if ($incSummary -and $incSummary.Count) { [int]$incSummary.Count } else { $closedCount }
 
+# Closure verdicts (ByClassification arrived with the 2.2 collector; older
+# captures have no bag and get no chart) and the per-rule effectiveness
+# table shared with section 21.
+$incClassBag = if ($incSummary -and $incSummary.PSObject.Properties['ByClassification']) { _RendererBag $incSummary.ByClassification } else { [ordered]@{} }
+$incClassTotal = 0
+foreach ($v in $incClassBag.Values) { $incClassTotal += [long]$v }
+$incOutcomeBlock = if ($incClassTotal -gt 0) {
+    $classRows = ($incClassBag.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }) -join [Environment]::NewLine
+@"
+
+## Incident outcomes (closed, last 30d)
+
+``````mermaid
+pie showData title Closed incidents by classification (30d)
+$classRows
+``````
+
+Undetermined and Unclassified closures carry no verdict, so they feed neither the false-positive rate nor rule tuning; [SENT-057] fires when they are the majority.
+"@
+} else { '' }
+# Sentinel rules first, then other products' alerts by name; Source is the
+# collector's column when present, else derived from the rule id.
+$effectivenessRows = @($ruleEffectiveness | Sort-Object { -(_RendererNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable | ForEach-Object {
+    $src = if ($_.PSObject.Properties['Source'] -and $_.Source) { [string]$_.Source }
+           elseif ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 'Analytics rule' }
+           elseif ($_.PSObject.Properties['Product'] -and $_.Product) { [string]$_.Product }
+           else { 'Other' }
+    [pscustomobject]@{
+        Rule         = $_.RuleName
+        Source       = $src
+        Incidents    = [int](_RendererNumber $_.Incidents)
+        Closed       = [int](_RendererNumber $_.Closed)
+        TP           = [int](_RendererNumber $_.TruePositive)
+        FP           = [int](_RendererNumber $_.FalsePositive)
+        BP           = [int](_RendererNumber $_.BenignPositive)
+        Undetermined = [int](_RendererNumber $_.Undetermined)
+        FPRate       = _RendererNumber $_.FPRate
+    }
+})
+
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
 
@@ -3136,7 +3629,7 @@ $mttrLine
 
 $dailyLine
 
-> When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
+> When triaging a high MTTR, cross-reference [20-analytics-rules.md](20-analytics-rules.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
 
 ## Incident lifecycle
 
@@ -3201,6 +3694,13 @@ Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Wo
 ## Top alerting rules (last 30d, top 25)
 
 $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
+$incOutcomeBlock
+
+## Rule effectiveness (last 30d)
+
+Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
+
+$(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
 ## Incident detail by provider / product / first rule (last 7d)
 
@@ -3230,7 +3730,7 @@ $volChartBlock = if ($ruleVolumes.Count -gt 0) {
     foreach ($r in $top10) { if ([long]$r.Alerts -gt $volMax) { $volMax = [long]$r.Alerts } }
     @"
 
-## Top 10 noisy rules — alert volume
+### Top 10 noisy rules by alert volume
 
 ``````mermaid
 ---
@@ -3250,14 +3750,21 @@ Short labels chart-axis-only — full rule names in the table below. A single ta
 "@
 } else { '' }
 
-Write-Section '21-analytics-by-volume.md' (@"
-$(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
+$volumeSection = @"
+
+## By alert volume (last 30d)
 
 The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
 $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
-"@)
+
+### Rule effectiveness (last 30d)
+
+Incidents per detection with their closure verdicts: Sentinel analytics rules first, then alerts from other products keyed by alert name with the product as ``Source``. ``FPRate`` is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
+
+$(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
+"@
 
 # Section 22 — Microsoft security rules (TOC 4.11.3)
 $msRules = @($rules | Where-Object {
@@ -3278,7 +3785,7 @@ $msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | So
 $msChartBlock = if ($msRules.Count -gt 0) {
     @"
 
-## Microsoft rules by severity
+### Microsoft rules by severity
 
 ``````mermaid
 pie showData title Microsoft-managed rules by severity
@@ -3289,14 +3796,15 @@ $($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm — 
 "@
 } else { '' }
 
-Write-Section '22-analytics-microsoft-rules.md' (@"
-$(Format-Banner -Title "Microsoft Security Rules  (TOC 4.11.3)")
+$msRulesSection = @"
+
+## Microsoft-managed rules
 
 Rules backed by a Microsoft template, or built-in Microsoft-managed kinds (Fusion, MicrosoftSecurityIncidentCreation, MLBehaviorAnalytics, ThreatIntelligence). These are not user-editable; tuning is via enable/disable and the per-rule incident-grouping config.
 $msChartBlock
 
 $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.properties.displayName; Severity = $_.properties.severity; Enabled = if ($_.properties.enabled) {'Yes'} else {'No'} } }) -Columns 'Kind','Name','Severity','Enabled')
-"@)
+"@
 
 # Section 23 — Modifications (TOC 4.11.4)
 # Sort uses ISO-formatted strings — ISO 8601 sorts lexically in the same
@@ -3333,10 +3841,11 @@ $modBars = ($monthBuckets.Values) -join ', '
 $modMax = 1
 foreach ($v in $monthBuckets.Values) { if ($v -gt $modMax) { $modMax = $v } }
 
-Write-Section '23-analytics-modifications.md' (@"
-$(Format-Banner -Title "Analytics Rules — Recent Modifications  (TOC 4.11.4)")
+$modificationsSection = @"
 
-## Modifications per month (last 12 months)
+## Recent modifications
+
+### Modifications per month (last 12 months)
 
 ``````mermaid
 xychart-beta
@@ -3351,7 +3860,7 @@ Each bar is one calendar month (MM). Tempo reveals release cadence — sustained
 The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Tools/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
 $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
-"@)
+"@
 
 # Section 24 — By Content Solution (TOC 4.11.5)
 $metadataAll = Read-RawArray 'metadata.json'
@@ -3388,10 +3897,11 @@ $otherSolCount = $counted - $top8Sum
 $solPieRows = $topSols | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }
 if ($otherSolCount -gt 0) { $solPieRows += "    `"Other`" : $otherSolCount" }
 
-Write-Section '24-analytics-by-solution.md' (@"
-$(Format-Banner -Title "Analytics Rules — by Content Solution  (TOC 4.11.5)")
+$solutionSection = @"
 
-## Top contributing solutions
+## By Content Hub solution
+
+### Top contributing solutions
 
 ``````mermaid
 pie showData title Analytics rules by Content Hub solution (top 8)
@@ -3403,7 +3913,18 @@ $($solCounts.Count) distinct solution(s) contributing $counted total rule(s). A 
 Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association — typically repo-deployed custom rules.
 
 $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
-"@)
+"@
+
+# One page for the rule estate: the core view built in the section-20 block
+# above, then the alert-volume, Microsoft-managed, modifications and
+# solution subsections (formerly 21 to 24).
+$analyticsLinks = @"
+
+[Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template) · [Alert and incident tuning](https://learn.microsoft.com/azure/sentinel/false-positives)
+"@
+# Each part begins with a newline and ends without one; joining with a
+# newline keeps a blank line between a table and the next heading.
+Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $analyticsLinks) -join [Environment]::NewLine)
 
 # Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
@@ -3557,6 +4078,21 @@ $($tiPieRows -join [Environment]::NewLine)
 "@
 } else { '' }
 
+# STIX objects beyond indicators, and the feeds that bring indicators in.
+$tiObjects = Read-RawArray 'threat-intel-objects.json'
+$tiObjectsBlock = if ($tiObjects.Count -gt 0) {
+@"
+
+## STIX objects (last 30d)
+
+Objects in ``ThreatIntelObjects`` by STIX type. Indicators alone give matches; threat actors, attack patterns and relationships give those matches their context.
+
+$(Format-Table -Items ($tiObjects | ForEach-Object { [pscustomobject]@{ StixType = $_.StixType; Count = $_.Count } }) -Columns 'StixType','Count')
+"@
+} else { '' }
+$tiFeedKinds = @('MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence', 'ThreatIntelligenceUploadIndicatorsAPI')
+$tiFeedRows = @($connectors | Where-Object { $_.kind -in $tiFeedKinds } | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.name } })
+
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
@@ -3567,11 +4103,115 @@ $tiPieBlock
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
 $tiTypeBlock
+$tiObjectsBlock
+
+## Feeds
+
+Threat-intelligence connectors configured on the workspace. One feed is a single point of failure for every TI detection; [SENT-055] fires when there is at most one.
+
+$(Format-Table -Items $tiFeedRows -Columns 'Kind','Name')
+
 [Microsoft Sentinel Threat Intelligence (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence)
 "@)
 
+# Section 28 — Detection opportunities: tables with data that no enabled
+# rule reads, and the undeployed templates that would cover them. The
+# detection-headroom view from the health-check script contributed to the
+# project, computed from the collector's table references.
+$applicableTemplates = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true })
+$undeployedTemplates = @($applicableTemplates | Where-Object { $_.AlreadyDeployed -ne $true })
+$enabledTableSet = @{}
+foreach ($ref in $ruleTableRefs) {
+    if ($ref.Enabled -ne $true) { continue }
+    foreach ($t in @($ref.Tables)) { if ($t) { $enabledTableSet[[string]$t] = $true } }
+}
+$dataTableSet = @{}
+foreach ($t in $tablesWithData) { if ($t.DataType -and (_RendererNumber $t.BillableLast30d) -gt 0) { $dataTableSet[[string]$t.DataType] = $true } }
+$sevRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
+# Sentinel's own operational tables are outputs, not detection sources.
+$operationalOnlyTables = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
+$uncoveredTables = @($tablesWithData | Where-Object {
+    $_.DataType -and (_RendererNumber $_.BillableLast30d) -gt 0 -and
+    -not $enabledTableSet.ContainsKey([string]$_.DataType) -and
+    ([string]$_.DataType) -notin $operationalOnlyTables
+} | Sort-Object { _RendererNumber $_.BillableLast30d } -Descending | Select-Object -First 25)
+$opportunityRows = @($uncoveredTables | ForEach-Object {
+    $name = [string]$_.DataType
+    $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
+    [pscustomobject]@{
+        Table              = $name
+        Gb30d              = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
+        SuggestedTemplates = (($cands | Select-Object -First 3 | ForEach-Object { $_.DisplayName }) -join '; ')
+        MoreTemplates      = [math]::Max(0, $cands.Count - 3)
+    }
+})
+$readyTemplates = @($undeployedTemplates | Where-Object {
+    $tbls = @($_.Tables)
+    @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
+} | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | Select-Object -First 25 | ForEach-Object {
+    [pscustomobject]@{ Template = $_.DisplayName; Kind = $_.Kind; Severity = $_.Severity; Tactics = (@($_.Tactics) -join ', '); Tables = (@($_.Tables) -join ', ') }
+})
+$headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
+@"
+
+``````mermaid
+---
+config:
+  xyChart:
+    width: 900
+    height: 380
+---
+xychart-beta
+    title "Detection headroom"
+    x-axis ["Applicable templates", "Enabled rules", "Not yet deployed"]
+    y-axis "Count" 0 --> $([math]::Max($applicableTemplates.Count, $enabledRules.Count) + 2)
+    bar [$($applicableTemplates.Count), $($enabledRules.Count), $($undeployedTemplates.Count)]
+``````
+"@
+} else { '' }
+$opportunityBody = if ($ruleTableRefs.Count -eq 0 -and $templateTableRefs.Count -eq 0) {
+@"
+$(Format-Banner -Title "Detection Opportunities")
+
+_Table-to-rule mapping was not computed in this run (``rule-table-references.json`` and ``template-table-references.json`` are absent), so there is nothing to compare. The collector writes both when the Sentinel.Common module is available to it._
+"@
+} else {
+@"
+$(Format-Banner -Title "Detection Opportunities")
+
+Which ingested tables no enabled analytics rule reads, and which rule templates would cover them. The template list is the workspace's own alert-rule template catalogue, so a suggestion here can be enabled from Content Hub without a new data source. Deprecated templates and templates already deployed are never suggested.
+$headroomChart
+
+**$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection (top 25 by volume)
+
+## Tables with data but no detection (last 30d)
+
+$(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTemplates','MoreTemplates')
+
+[SENT-051] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
+
+## Undeployed templates ready to enable
+
+Templates that are not deployed, not deprecated, and read at least one table that has data. Highest severity first, top 25.
+
+$(Format-Table -Items $readyTemplates -Columns 'Template','Kind','Severity','Tactics','Tables')
+
+[SOC optimization (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
+"@
+}
+Write-Section '28-detection-opportunities.md' $opportunityBody
+
 # Section 36 — Data export (TOC 4.3.3)
 $dataExports = Read-RawArray 'data-exports.json'
+$linkedServices = Read-RawArray 'linked-services.json'
+$linkedRows = @($linkedServices | ForEach-Object {
+    $lp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
+    [pscustomobject]@{
+        Name                  = $_.name
+        ResourceId            = if ($lp -and $lp.PSObject.Properties['resourceId']) { $lp.resourceId } else { '' }
+        WriteAccessResourceId = if ($lp -and $lp.PSObject.Properties['writeAccessResourceId']) { $lp.writeAccessResourceId } else { '' }
+    }
+})
 $exportRows = $dataExports | ForEach-Object {
     [pscustomobject]@{
         Name        = $_.name
@@ -3587,7 +4227,13 @@ Continuous export of selected tables to Storage Accounts or Event Hubs. Empty li
 
 $(Format-Table -Items $exportRows -Columns 'Name','Destination','Tables','Enabled')
 
-[Log Analytics data export (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export)
+## Linked services
+
+Workspace linked services: the automation account, the cluster, or the storage accounts used for customer-managed keys and private alert and query storage.
+
+$(Format-Table -Items $linkedRows -Columns 'Name','ResourceId','WriteAccessResourceId')
+
+[Log Analytics data export (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export) · [Linked storage accounts](https://learn.microsoft.com/azure/azure-monitor/logs/private-storage)
 "@)
 
 # Section 37 — Search and restore (TOC 4.3.4)
@@ -4228,14 +4874,11 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
 | [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | — | AzureActivity / AzureDiagnostics / XDR coverage by source |
 | [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
-| [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
-| [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
-| [22-analytics-microsoft-rules.md](22-analytics-microsoft-rules.md) | 4.11.3 | Microsoft-managed rules |
-| [23-analytics-modifications.md](23-analytics-modifications.md) | 4.11.4 | Recently modified rules |
-| [24-analytics-by-solution.md](24-analytics-by-solution.md) | 4.11.5 | Rules grouped by Content Hub solution |
+| [20-analytics-rules.md](20-analytics-rules.md) | 4.11 | All detection rules by kind, alert volume and effectiveness, Microsoft-managed rules, recent modifications, Content Hub solution |
 | [25-mitre-coverage.md](25-mitre-coverage.md) | 3.2 | Tactic + technique + sub-technique coverage |
 | [26-ueba.md](26-ueba.md) | 4.16 | UEBA configuration |
-| [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source |
+| [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source, STIX objects, feeds |
+| [28-detection-opportunities.md](28-detection-opportunities.md) | — | Tables with data but no detection, templates ready to enable |
 | [30-hunting-queries.md](30-hunting-queries.md) | 4.15 | Hunting queries |
 | [35-parsers-functions.md](35-parsers-functions.md) | — | Parsers and functions |
 | [36-data-export.md](36-data-export.md) | 4.3.3 | Data export configuration |
@@ -4255,6 +4898,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [87-azure-monitor-agents.md](87-azure-monitor-agents.md) | 4.5 | AMA agents heartbeating into the workspace |
 | [88-sentinel-data-lake.md](88-sentinel-data-lake.md) | — | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
 | [90-gap-analysis.md](90-gap-analysis.md) | — | Findings against MS Learn best practices |
+| [91-maturity-assessment.md](91-maturity-assessment.md) | — | Maturity by area, roadmap, quick wins, NIST CSF rollup |
 | [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
 | [99-references.md](99-references.md) | — | Documenter's own API versions and modules |
 "@

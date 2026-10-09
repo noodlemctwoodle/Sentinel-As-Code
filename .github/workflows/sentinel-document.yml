@@ -67,6 +67,11 @@ on:
         description: "Open / refresh a PR with the rendered docs (PRIVATE REPOS ONLY — fails on public repos)"
         type: boolean
         default: true
+      target-maturity-level:
+        description: "Maturity level (1 to 5) the assessment measures the workspace against"
+        type: choice
+        options: ["1", "2", "3", "4", "5"]
+        default: "3"
 
 concurrency:
   group: sentinel-document
@@ -146,12 +151,14 @@ jobs:
             $env:SENTINEL_RG          = '${{ vars.SENTINEL_RG }}'
             $env:SENTINEL_WORKSPACE   = '${{ vars.SENTINEL_WORKSPACE }}'
             $includePreview = [bool]::Parse('${{ inputs.include-preview || 'false' }}')
+            $targetLevel    = [int]'${{ inputs.target-maturity-level || '3' }}'
 
             ./Tools/Documenter/Export-SentinelInventory.ps1 `
-              -SubscriptionId  '${{ secrets.AZURE_SUBSCRIPTION_ID }}' `
-              -ResourceGroup   $env:SENTINEL_RG `
-              -WorkspaceName   $env:SENTINEL_WORKSPACE `
-              -IncludePreview:$includePreview
+              -SubscriptionId      '${{ secrets.AZURE_SUBSCRIPTION_ID }}' `
+              -ResourceGroup       $env:SENTINEL_RG `
+              -WorkspaceName       $env:SENTINEL_WORKSPACE `
+              -IncludePreview:$includePreview `
+              -TargetMaturityLevel $targetLevel
 
       - name: Render Markdown report
         shell: pwsh

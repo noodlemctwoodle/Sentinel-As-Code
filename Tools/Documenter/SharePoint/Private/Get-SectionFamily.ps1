@@ -24,8 +24,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.0
-    Last Updated: 2026-10-08
+    Version:      0.2.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -43,6 +43,7 @@ $script:SacSectionFamilyOrder = @(
     'Automation'
     'Workspace & data'
     'Cost & access'
+    'Maturity'
     'Findings & references'
 )
 
@@ -55,14 +56,11 @@ $script:SacSectionFamilyMap = @{
     13 = 'Data sources'            # 13-data-source-hygiene
     14 = 'Data sources'            # 14-coverage-breakdowns
     15 = 'Operational health'      # 15-incidents
-    20 = 'Detection'               # 20-analytics-rules
-    21 = 'Detection'               # 21-analytics-by-volume
-    22 = 'Detection'               # 22-analytics-microsoft-rules
-    23 = 'Detection'               # 23-analytics-modifications
-    24 = 'Detection'               # 24-analytics-by-solution
+    20 = 'Detection'               # 20-analytics-rules (alert volume, Microsoft rules, modifications and solutions are subsections)
     25 = 'Detection'               # 25-mitre-coverage
     26 = 'Detection'               # 26-ueba
     27 = 'Detection'               # 27-threat-intelligence
+    28 = 'Detection'               # 28-detection-opportunities
     30 = 'Hunting & content'       # 30-hunting-queries
     35 = 'Hunting & content'       # 35-parsers-functions
     36 = 'Workspace & data'        # 36-data-export
@@ -82,6 +80,7 @@ $script:SacSectionFamilyMap = @{
     87 = 'Workspace & data'        # 87-azure-monitor-agents
     88 = 'Workspace & data'        # 88-sentinel-data-lake
     90 = 'Findings & references'   # 90-gap-analysis
+    91 = 'Maturity'                # 91-maturity-assessment
     96 = 'Findings & references'   # 96-references-microsoft
     99 = 'Findings & references'   # 99-references
 }

@@ -1,5 +1,20 @@
 [
-  { "AlertName": "Suspicious sign-in from rare country", "ProductName": "Azure Sentinel", "Severity": "High",   "Alerts": 412 },
-  { "AlertName": "Failed logons across multiple accounts", "ProductName": "Azure Sentinel", "Severity": "Medium", "Alerts": 95 },
-  { "AlertName": "Privileged group membership change",   "ProductName": "Azure Sentinel", "Severity": "High",   "Alerts": 18 }
+  {
+    "AlertName": "Suspicious sign-in from rare country",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "High",
+    "Alerts": 412
+  },
+  {
+    "AlertName": "Failed logons across multiple accounts",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "Medium",
+    "Alerts": 95
+  },
+  {
+    "AlertName": "Privileged group membership change",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "High",
+    "Alerts": 18
+  }
 ]

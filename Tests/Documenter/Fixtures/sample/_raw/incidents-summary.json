@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "Count": 40,
+    "Closed": 32,
+    "ByStatus": {
+      "New": 5,
+      "Active": 3,
+      "Closed": 32
+    },
+    "BySeverity": {
+      "High": 6,
+      "Medium": 20,
+      "Low": 10,
+      "Informational": 4
+    },
+    "ByClassification": {
+      "TruePositive": 4,
+      "FalsePositive": 6,
+      "BenignPositive": 2,
+      "Undetermined": 15,
+      "Unclassified": 5
+    }
+  }
+]

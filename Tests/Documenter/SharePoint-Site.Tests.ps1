@@ -26,8 +26,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.0
-    Last Updated: 2026-10-08
+    Version:      0.2.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -66,6 +66,13 @@ Describe 'Get-SectionFamily' {
         Get-SectionFamily -Number 25 | Should -Be 'Detection'
         Get-SectionFamily -Number 84 | Should -Be 'Cost & access'
         Get-SectionFamily -Number 36 | Should -Be 'Workspace & data'
+    }
+
+    It 'places detection opportunities under Detection and the maturity page under Maturity, before the findings' {
+        Get-SectionFamily -Number 28 | Should -Be 'Detection'
+        Get-SectionFamily -Number 91 | Should -Be 'Maturity'
+        $order = @(Get-SectionFamilyOrder)
+        [array]::IndexOf($order, 'Maturity') | Should -Be ([array]::IndexOf($order, 'Findings & references') - 1)
     }
 }
 
@@ -360,6 +367,41 @@ Describe 'SharePoint helpers' {
     }
 }
 
+Describe 'Add-SacMaturityHistoryEntry' {
+
+    BeforeAll {
+        function New-HistoryEntry([string]$Built, [double]$Score) {
+            @{ publishedUtc = "$Built"; bundleBuiltUtc = $Built; targetLevel = 3; overall = @{ score = $Score; level = [int][math]::Floor($Score) }; areas = @() }
+        }
+    }
+
+    It 'appends a new entry to an empty history' {
+        $h = Add-SacMaturityHistoryEntry -History @{ entries = @() } -Entry (New-HistoryEntry '2026-10-01 06:00 UTC' 1.49)
+        @($h.entries).Count | Should -Be 1
+        $h.entries[0].overall.score | Should -Be 1.49
+    }
+
+    It 'keeps older entries first and the new one last' {
+        $h = @{ entries = @((New-HistoryEntry '2026-10-01 06:00 UTC' 1.49), (New-HistoryEntry '2026-10-02 06:00 UTC' 1.6)) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-03 06:00 UTC' 1.8)
+        @($h2.entries | ForEach-Object { $_.bundleBuiltUtc }) | Should -Be @('2026-10-01 06:00 UTC', '2026-10-02 06:00 UTC', '2026-10-03 06:00 UTC')
+        @($h.entries).Count | Should -Be 2 -Because 'the input is not changed'
+    }
+
+    It 'replaces the entry for a bundle that is published again' {
+        $h = @{ entries = @((New-HistoryEntry '2026-10-01 06:00 UTC' 1.49), (New-HistoryEntry '2026-10-02 06:00 UTC' 1.6)) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-02 06:00 UTC' 1.65)
+        @($h2.entries).Count | Should -Be 2
+        $h2.entries[-1].overall.score | Should -Be 1.65
+    }
+
+    It 'drops the oldest entries past the cap' {
+        $h = @{ entries = @(1..5 | ForEach-Object { New-HistoryEntry "2026-10-0$_ 06:00 UTC" $_ }) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-06 06:00 UTC' 6) -MaxEntries 3
+        @($h2.entries | ForEach-Object { $_.overall.score }) | Should -Be @(4, 5, 6)
+    }
+}
+
 Describe 'Build-SentinelDocsSite against the fixture' {
 
     BeforeAll {
@@ -440,6 +482,39 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '"product":"iSOC Blueprint"'
     }
 
+    It 'carries the estate, maturity, effectiveness and opportunity models' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $model.estate.rings.ingestion.max | Should -BeGreaterThan 0
+        $model.estate.rings.incidents.pct | Should -Be 80
+        @($model.estate.sources).Count | Should -BeGreaterThan 0
+        $model.estate.uncoveredGb | Should -BeGreaterThan 0
+        @($model.maturity.areas).Count | Should -Be 11
+        $model.maturity.overall.score | Should -Be 1.49
+        @($model.maturity.criteria).Count | Should -Be 60
+        $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
+        ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
+        @($model.effectiveness).Count | Should -Be 2
+        @($model.usageDaily).Count | Should -Be 3
+        $model.playbookHealth.failed7d | Should -Be 5
+        ($model.incidentsByClassification | Where-Object label -eq 'Undetermined').value | Should -Be 15
+        @($model.familyOrder) | Should -Contain 'Maturity'
+    }
+
+    It 'gives the new pages a family and a headline' {
+        ($site.sections | Where-Object num -eq 91).family | Should -Be 'Maturity'
+        ($site.sections | Where-Object num -eq 28).family | Should -Be 'Detection'
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        ($model.sections | Where-Object num -eq 91).headline | Should -Be 'Score 1.49 / 5'
+        ($model.sections | Where-Object num -eq 28).headline | Should -Be '8 tables without detection'
+    }
+
+    It 'ships the estate flow and the Maturity tab in the dashboard' {
+        $html | Should -Match 'function drawEstateFlow'
+        $html | Should -Match 'data-tab="maturity"'
+        $html | Should -Match 'id="estateRings"'
+        $html | Should -Match 'id="maturityBoard"'
+    }
+
     It 'writes the findings and the per-check outcomes' {
         $findingsDoc.analysisAvailable | Should -BeTrue
         @($findingsDoc.items).Count | Should -BeGreaterThan 0
@@ -458,6 +533,13 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.health.rows).Count | Should -Be 0
         $model.dataLakeEnrolled | Should -BeFalse
         (Get-Content (Join-Path $b2 'findings.json') -Raw | ConvertFrom-Json).analysisAvailable | Should -BeFalse
+        $model.maturity | Should -BeNullOrEmpty
+        @($model.estate.sources).Count | Should -Be 0
+        $model.estate.rings.ingestion.pct | Should -BeNullOrEmpty
+        @($model.usageDaily).Count | Should -Be 0
+        @($model.detectionOpportunities).Count | Should -Be 0
+        $model.playbookHealth.runs7d | Should -Be 0
+        ($model.sections | Where-Object num -eq 91) | Should -BeNullOrEmpty
     }
 
     It 'writes nothing with -WhatIf' {

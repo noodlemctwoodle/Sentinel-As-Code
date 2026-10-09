@@ -6,9 +6,15 @@
     "type": "Microsoft.SecurityInsights/dataConnectors",
     "properties": {
       "dataTypes": {
-        "sharePoint": { "state": "enabled" },
-        "exchange":   { "state": "enabled" },
-        "teams":      { "state": "enabled" }
+        "sharePoint": {
+          "state": "enabled"
+        },
+        "exchange": {
+          "state": "enabled"
+        },
+        "teams": {
+          "state": "enabled"
+        }
       },
       "tenantId": "00000000-0000-0000-0000-000000000000"
     }
@@ -20,8 +26,12 @@
     "type": "Microsoft.SecurityInsights/dataConnectors",
     "properties": {
       "dataTypes": {
-        "incidents": { "state": "enabled" },
-        "alerts":    { "state": "disabled" }
+        "incidents": {
+          "state": "enabled"
+        },
+        "alerts": {
+          "state": "disabled"
+        }
       },
       "tenantId": "00000000-0000-0000-0000-000000000000"
     }
@@ -33,9 +43,29 @@
     "type": "Microsoft.SecurityInsights/dataConnectors",
     "properties": {
       "dataTypes": {
-        "signInLogs":                   { "state": "enabled" },
-        "auditLogs":                    { "state": "enabled" },
-        "nonInteractiveUserSignInLogs": { "state": "disabled" }
+        "signInLogs": {
+          "state": "enabled"
+        },
+        "auditLogs": {
+          "state": "enabled"
+        },
+        "nonInteractiveUserSignInLogs": {
+          "state": "disabled"
+        }
+      },
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/dataConnectors/dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "name": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "kind": "MicrosoftThreatIntelligence",
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "properties": {
+      "dataTypes": {
+        "microsoftEmergingThreatFeed": {
+          "state": "enabled"
+        }
       },
       "tenantId": "00000000-0000-0000-0000-000000000000"
     }

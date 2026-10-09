@@ -93,7 +93,7 @@ topology that matches your setup:
 A folder per workspace under `SecurityDocs/<workspace>/`. The collector
 (`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
 (`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into `index.md`
-plus **37 numbered Markdown sections**:
+plus **35 numbered Markdown sections**:
 
 ```
 SecurityDocs/
@@ -104,11 +104,15 @@ SecurityDocs/
     │   ├── tables-with-data.json
     │   ├── alert-rules.json
     │   ├── data-connectors-classic.json
-    │   ├── ... (≈69 files)
+    │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
+    │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
+    │   ├── playbook-runs.json          runs and failures per playbook (7d)
+    │   ├── ... (≈79 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   ├── gap-analysis.json          findings that fired
-    │   └── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
+    │   ├── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
+    │   └── maturity.json              maturity assessment: area scores, roadmap, quick wins, CSF rollup
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
@@ -118,14 +122,11 @@ SecurityDocs/
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source
     ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
-    ├── 20-analytics-rules.md          all rules by kind (Scheduled, NRT, Fusion, …)
-    ├── 21-analytics-by-volume.md      top 50 rules by alert volume (30d)
-    ├── 22-analytics-microsoft-rules.md  Microsoft-managed rules
-    ├── 23-analytics-modifications.md  recently modified rules
-    ├── 24-analytics-by-solution.md    rules grouped by Content Hub solution
+    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source
+    ├── 28-detection-opportunities.md  tables with data but no detection, templates ready to enable
     ├── 30-hunting-queries.md
     ├── 35-parsers-functions.md
     ├── 36-data-export.md              data export configuration
@@ -145,6 +146,7 @@ SecurityDocs/
     ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace
     ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, migration candidates
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
+    ├── 91-maturity-assessment.md     maturity by area, roadmap, quick wins, NIST CSF rollup
     ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
     └── 99-references.md               documenter's own API versions + modules (copied from Documenter-References.md)
 ```
@@ -181,10 +183,11 @@ Beyond those headline pages the report groups into families:
   days), `12-soc-optimization.md` (SOC Optimization recommendations),
   `13-data-source-hygiene.md` (CEF/Syslog hygiene, agent dual-collection, noisy
   events) and `15-incidents.md` (MTTA/MTTR and the loudest rules).
-- **Analytics deep-dives**: `21-analytics-by-volume.md`,
-  `22-analytics-microsoft-rules.md`, `23-analytics-modifications.md` and
-  `24-analytics-by-solution.md` slice the rule estate by alert volume, ownership,
-  recent change and Content Hub solution; `26-ueba.md` and
+- **Analytics**: `20-analytics-rules.md` holds the whole rule estate on one
+  page: every rule by kind, the mouldy and template-drifted rules, the
+  Microsoft incident-creation rules, then the top rules by alert volume with
+  their incident outcomes, the Microsoft-managed rules, recent modifications
+  and the Content Hub solution breakdown; `26-ueba.md` and
   `27-threat-intelligence.md` cover UEBA configuration and indicator counts.
 - **Data platform**: `36-data-export.md`, `37-search-restore.md`,
   `38-summary-rules.md`, `87-azure-monitor-agents.md` and
@@ -223,6 +226,10 @@ The run-pipeline panel exposes two further parameters:
   Logic App playbooks live in a dedicated RG separate from the workspace RG (the
   Sentinel-As-Code convention). It maps to the collector's `-PlaybookResourceGroup`
   parameter; leave it blank to enumerate playbooks from the workspace RG.
+- *Target maturity level* (`targetMaturityLevel`, default `3`): the level the
+  maturity assessment measures the workspace against. Maps to the collector's
+  `-TargetMaturityLevel`; see
+  [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md).
 
 #### GitHub Actions: `.github/workflows/sentinel-document.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
@@ -325,7 +332,7 @@ reads `(ConvertFrom-Json).rules`. Each entry looks like:
 ```json
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "rules": [
     {
       "id": "SENT-001",
@@ -347,6 +354,33 @@ returns `$null` on pass or an Evidence/Detail object on fail; the engine wires t
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
 
+The catalogue holds 58 rules. Version 2.2.0 added thirteen that port the
+checks from the Sentinel health-check script contributed to the project:
+
+| Rule | What it reads | Fires when |
+|---|---|---|
+| SENT-036 Noisy rule | `rule-effectiveness.json` | a Sentinel analytics rule (rows with a rule id; other products' alerts are tuned in their own portal) with 20+ closed incidents and more than 70% false positive |
+| SENT-037 No entity mappings | `alert-rules.json` | an enabled Scheduled/NRT rule has no `entityMappings` |
+| SENT-038 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
+| SENT-041 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
+| SENT-050 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
+| SENT-051 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests up to three undeployed, non-deprecated templates per table |
+| SENT-052 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
+| SENT-053 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |
+| SENT-054 Deprecated solution | `content-packages.json`, `content-product-packages.json` | an installed solution is `isDeprecated` or missing from the catalogue |
+| SENT-055 Single TI feed | `data-connectors-classic.json`, `threat-intel-counts.json` | at most one TI connector kind and no non-Microsoft indicator source |
+| SENT-056 Azure Firewall logged twice | `azure-diagnostics-categories.json`, `tables-with-data.json` | `AzureFirewall*` categories and `AZFW*` tables both carry data |
+| SENT-057 Closed unclassified | `incidents-summary.json` | 10+ closed and more than half Undetermined or unclassified |
+| SENT-058 No hunting | `hunts.json`, `bookmarks.json` (or `bookmarks-count.json` when the list was too large to fetch) | both captures ran and both are empty |
+
+The collector only writes some of those files when their capture succeeds
+(`hunts.json`, `playbook-runs.json`, `rule-effectiveness.json` and the
+reference files among them). `Inventory.RawFiles` lists the JSON files
+that exist, and the checks that need it use it to stay quiet when a
+capture did not run rather than report "none" on a failed call. KQL
+result cells arrive as strings, so the checks read numbers through small
+`_ToInt` / `_ToDouble` helpers rather than casting.
+
 ### Adding a new rule
 
 1. Write `Test-MyNewRule` in `GapChecks.ps1`.
@@ -354,7 +388,23 @@ result.
 3. Add a fixture-driven Pester test under
    `Tests/Documenter/Get-SentinelGap.Tests.ps1`.
 
-That's the complete change.
+That's the complete change. If the rule reads a capture that can be
+absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
+`$Inventory.RawFiles` before treating an empty array as a finding.
+
+---
+
+## How the maturity assessment works
+
+After the gap engine, the collector runs
+[`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../../Tools/Documenter/Private/Get-SentinelMaturity.ps1)
+over the same `_raw/` folder and the per-rule outcomes, and writes
+`maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
+resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
+computed from the captures, plus a roadmap ordered by lift, five quick
+wins and a NIST CSF 2.0 rollup. Unknown never counts against the
+workspace. The methodology, the scoring and the full criteria list are in
+[Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md).
 
 ### Categories and severities
 
@@ -419,10 +469,19 @@ The Pester suite is fully offline:
   promises.
 - `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Invoke-SentinelRest.ps1`:
   `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
+- `Get-KqlTableReferences.Tests.ps1` runs the table-to-rule builder over the
+  fixture rules and templates and asserts equality with the hand-authored
+  reference files (it imports `Sentinel.Common`, so it needs `Az.Accounts`).
+- `Get-SentinelMaturity.Tests.ps1` scores the fixture, checks named criteria,
+  the roadmap order and the NIST CSF rollup, runs synthetic criteria for the
+  scoring arithmetic and guards the criteria file's schema.
+- `SharePoint-Site.Tests.ps1` covers the section families, the
+  Markdown-to-page conversion, the publish planners, the maturity history
+  helper and an offline bundle build.
 
-All three suites live under `Tests/Documenter/` and are part of the repo's 22 Pester
-files. They are picked up automatically by the existing PR-validation workflow
-(`Invoke-PRValidation.ps1` runs every suite and emits an NUnit 2.5 report).
+All six suites live under `Tests/Documenter/` and are picked up automatically
+by the existing PR-validation workflow (`Invoke-PRValidation.ps1` runs every
+suite and emits an NUnit 2.5 report).
 
 ---
 

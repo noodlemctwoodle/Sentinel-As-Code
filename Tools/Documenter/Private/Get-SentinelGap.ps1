@@ -39,14 +39,21 @@
     finding. The SharePoint findings list needs that difference: it only
     marks a finding Resolved when its check actually passed.
 
+    Inventory fields read from files that the collector only writes when
+    the capture succeeds (rule-effectiveness, playbook-runs, hunts and so
+    on) are always arrays: a missing or empty file gives an empty array.
+    Inventory.RawFiles lists the JSON files that exist, so a check can
+    tell "the capture did not run" (stay quiet) from "it ran and found
+    nothing" (which may itself be the finding).
+
 .NOTES
     File:         Tools/Documenter/Private/Get-SentinelGap.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.2.0
-    Last Updated: 2026-10-08
+    Version:      0.3.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -159,7 +166,19 @@ function New-InventoryFromRaw {
         return ($raw | ConvertFrom-Json -Depth 32)
     }
 
+    # Always an array: a missing file, an empty file and a JSON "[]" all give
+    # @(), so checks can take .Count without guarding. Checks that need to
+    # know whether the file exists at all consult RawFiles.
+    function Read-JsonArray([string]$Name) {
+        $data = Read-Json $Name
+        if ($null -eq $data) { return ,@() }
+        return ,@($data)
+    }
+
+    $rawFiles = @(Get-ChildItem -Path $InputRoot -Filter '*.json' -File | ForEach-Object Name)
+
     [pscustomobject]@{
+        RawFiles               = $rawFiles
         Workspace              = Read-Json 'workspace.json'
         WorkspaceTables        = @(Read-Json 'workspace-tables.json')
         TablesWithData         = @(Read-Json 'tables-with-data.json')
@@ -181,6 +200,17 @@ function New-InventoryFromRaw {
         AutomationRules        = @(Read-Json 'automation-rules.json')
         WorkspaceLocks         = @(Read-Json 'workspace-locks.json')
         AmaMmaMigration        = @(Read-Json 'ama-mma-migration.json')
+        RuleTableReferences    = Read-JsonArray 'rule-table-references.json'
+        TemplateTableReferences = Read-JsonArray 'template-table-references.json'
+        RuleEffectiveness      = Read-JsonArray 'rule-effectiveness.json'
+        RulesFired             = Read-JsonArray 'rules-fired.json'
+        PlaybookRuns           = Read-JsonArray 'playbook-runs.json'
+        Hunts                  = Read-JsonArray 'hunts.json'
+        Bookmarks              = Read-JsonArray 'bookmarks.json'
+        BookmarksCount         = Read-Json 'bookmarks-count.json'
+        IncidentsSummary       = Read-JsonArray 'incidents-summary.json'
+        AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
+        ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'
         MitreTactics           = @((Read-Resource 'mitre-attack.json').tactics)
         MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
         SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'
