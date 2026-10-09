@@ -248,6 +248,70 @@
   .split{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--line-2)}
   .split .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;min-width:46px}
 
+  /* ---------- estate rings, maturity, contents ---------- */
+  .posture.rings{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .outcome.ringcard{background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .outcome.ringcard::before{display:none}
+  .outcome.ringcard h3{color:var(--muted)}
+  .outcome.ringcard .big{font-size:24px}
+  .outcome.ringcard .unit,.outcome.ringcard .s{color:var(--muted);opacity:1}
+  .outcome.ringcard .s{border-top-color:var(--line-2)}
+  .outcome.ringcard .oic{background:var(--chip);border-color:var(--line-2)}
+  .outcome.ringcard .oic svg{color:var(--muted)}
+  .ring.tone{background:conic-gradient(var(--rc,var(--brand)) calc(var(--p,0)*1%),var(--ring-track) 0);box-shadow:none}
+  .ring.tone span{background:var(--panel);color:var(--ink)}
+  .estate{display:block;width:100%;height:auto;max-width:1200px;margin:0 auto}
+  .mat-band{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0 10px}
+  .mat-band .lvl{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint);padding:8px 4px;border-radius:9px;
+    background:var(--chip);border:1px solid var(--line-2);line-height:1.2}
+  .mat-band .lvl b{display:block;font-size:15px;color:var(--ink-2)}
+  .mat-band .lvl.on{background:color-mix(in srgb,var(--brand) 14%,var(--panel));border-color:color-mix(in srgb,var(--brand) 45%,var(--line));color:var(--brand-ink)}
+  .mat-band .lvl.on b{color:var(--brand-ink)}
+  .mat-band .lvl.target{outline:2px dashed color-mix(in srgb,var(--amber) 70%,transparent);outline-offset:-2px}
+  .meter{height:10px;border-radius:999px;background:var(--line-2);overflow:visible;position:relative;margin-top:6px}
+  .meter .mf{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--accent));width:var(--w,0%);transition:width .6s cubic-bezier(.22,.8,.3,1)}
+  .meter .mt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--amber);left:var(--t,60%)}
+  .matbig{font-size:34px;font-weight:850;letter-spacing:-.02em;line-height:1;margin-top:4px}
+  .matbig small{font-size:14px;font-weight:700;color:var(--muted);margin-left:6px}
+  .matcap{color:var(--muted);font-size:12.5px;margin-top:10px}
+  .btn{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--brand-ink);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:var(--shadow-sm)}
+  .btn:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line))}
+  .btn svg{width:14px;height:14px}
+  .qw{display:flex;flex-direction:column;gap:9px}
+  .qw .qwi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel-soft)}
+  .qw .qwn{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green);font-weight:800;font-size:12px}
+  .qw .qwt{font-weight:700;font-size:13px}
+  .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
+  .qw .qwl{font-size:11px;font-weight:700;color:var(--faint);white-space:nowrap}
+  .ctgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:10px}
+  .ctcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);padding:16px 16px 14px;display:flex;flex-direction:column;gap:6px}
+  .ctcard .ctt{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .ctcard .cth{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:4px}
+  .ctcard .cti{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line-2)}
+  .ctcard .cti a.sec{color:var(--ink-2);cursor:pointer;font-weight:600}
+  .ctcard .cti a.sec:hover{color:var(--brand-ink)}
+  .ctcard .cti a.pg{color:var(--faint);font-size:11px;white-space:nowrap}
+  .areabars{display:flex;flex-direction:column;gap:10px}
+  .abar{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:12px}
+  .abar .al{font-size:12.5px;font-weight:650;color:var(--ink-2)}
+  .abar .at{height:12px;border-radius:999px;background:var(--line-2);position:relative;overflow:visible}
+  .abar .af{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--c1,var(--brand)),var(--c2,var(--accent)));width:var(--w,0%)}
+  .abar .am{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--amber);left:var(--t,60%)}
+  .abar .av{font-size:12.5px;font-weight:800;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  .matbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--muted);white-space:nowrap}
+  .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
+  .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
+  .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
+  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)}
+  .trend{width:100%;height:auto;display:block}
+  .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
+  .csfc h4{margin:0 0 8px;font-size:12.5px;font-weight:750}
+  .csfc .dms{width:110px;height:110px} .csfc .dms .dmshole{width:68px;height:68px} .csfc .dms .dmsv{font-size:16px}
+  .oppl{display:flex;flex-wrap:wrap;gap:5px}
+  table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
   /* ---------- sections browser (docs) ---------- */
   .docwrap{display:grid;grid-template-columns:288px 1fr;gap:18px;align-items:start}
   @media(max-width:900px){.docwrap{grid-template-columns:1fr}}
@@ -446,6 +510,7 @@
       <div class="tab active" data-tab="overview" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</div>
       <div class="tab" data-tab="flow" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M4 7a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 10h-7m7 0a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM11 7h2a4 4 0 0 1 4 4v0M13 17h-2a4 4 0 0 1-4-4v0"/></svg>Data flow</div>
       <div class="tab" data-tab="sections" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>Insights</div>
+      <div class="tab" data-tab="maturity" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Maturity</div>
       <div class="tab" data-tab="sectionsdoc" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z"/></svg>Sections</div>
       <div class="tab" data-tab="findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".6"/></svg>Findings</div>
     </nav>
@@ -477,9 +542,26 @@
     <div class="seclabel">Security posture</div>
     <div class="posture" id="outcomes"></div>
 
+    <div class="seclabel">Estate pipeline (30 days)</div>
+    <div class="posture rings" id="estateRings"></div>
+
     <div class="panel">
       <div class="phead"><div>
-        <h2>Sentinel data &amp; detection flow</h2>
+        <h2>Estate flow</h2>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Strand width = GB; red strands are ingested and billed but read by no enabled analytics rule.</p>
+      </div></div>
+      <div class="flowbox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
+      <div class="legend" id="estateLegend"></div>
+    </div>
+
+    <div class="flowgrid">
+      <div class="panel" id="maturityCard"></div>
+      <div class="panel"><div class="phead"><div><h2>Quick wins</h2><p class="note">Low-effort gaps that lift the maturity score most.</p></div></div><div id="quickWins"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><div>
+        <h2>Sentinel data &amp; billing flow</h2>
         <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan &rarr; billed vs Defender benefit. Ribbon width = GB / 30 days.</p>
       </div></div>
       <div class="flowbox"><svg class="sankey" id="sankeyMini"></svg></div>
@@ -493,6 +575,9 @@
       </div></div>
       <div id="topFindings"></div>
     </div>
+
+    <div class="seclabel">Contents</div>
+    <div class="ctgrid" id="contents"></div>
   </section>
 
   <!-- DATA FLOW -->
@@ -515,6 +600,11 @@
   <!-- INSIGHTS (visual board) -->
   <section data-view="sections" class="hidden">
     <div class="insights" id="insightsBoard"></div>
+  </section>
+
+  <!-- MATURITY -->
+  <section data-view="maturity" class="hidden">
+    <div id="maturityBoard"></div>
   </section>
 
   <!-- SECTIONS (full documentation browser) -->
@@ -559,6 +649,7 @@
   };
   const colColor = ['#3b6fb0','#94a3b8','#4f5bd5','#2e8b64'];
   const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmtN = n => (Math.round((+n||0)*100)/100).toLocaleString();
   const svg = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
   const ICON = {
     globe:svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.3 2.5 15.7 0 18M12 3c-2.5 2.3-2.5 15.7 0 18"/>'),
@@ -640,7 +731,10 @@
     {k:'Ingestion', v:w.pnaIngestion, ic:ICON.ingest, sec:secOverview},
     {k:'Monthly cost', v:cost? (cost.currency+' '+cost.monthlyTotal):'n/a', ic:ICON.coins, sec:secCost},
     {k:'Open findings', v:M.findings.total, ic:ICON.shieldAlert,
-      badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)}
+      badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
+    {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
+      sec:((M.sections||[]).some(s=>s.num===91)?91:secOverview)},
+    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/by alert volume/i, secOverview)}
   ];
   const goArrow = '<svg class="pgo" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
   document.getElementById('heroPills').innerHTML = pills.map(p=>
@@ -677,6 +771,144 @@
       '<h3 style="margin-top:14px">'+o.h+'</h3>'+
       '<div class="big">'+o.big+'</div>'+(o.unit?'<div class="unit">'+o.unit+'</div>':'')+
       '<div class="s">'+o.s+'</div></div>').join('');
+
+  // ---- estate pipeline rings ----
+  const E = M.estate || null;
+  const ringTone = f => f>=.8 ? 'var(--green)' : (f>=.65 ? 'var(--brand)' : 'var(--amber)');
+  (function(){
+    const el=document.getElementById('estateRings');
+    if(!E || !E.rings){ el.innerHTML='<p class="note">Estate pipeline not available in this snapshot.</p>'; return; }
+    const R=E.rings;
+    const defs=[
+      {k:'ingestion', h:'Ingestion', ic:ICON.ingest, unit:'tables still receiving data', s:'of the tables seen in 90 days'},
+      {k:'detection', h:'Detection', ic:ICON.crosshair, unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection'},
+      {k:'alerts', h:'Alerts', ic:ICON.bolt, unit:'enabled rules that fired (30d)', s:(E.alerts||0).toLocaleString()+' alerts in 30 days'},
+      {k:'incidents', h:'Incidents', ic:ICON.flag, unit:'closed of created (30d)', s:(E.incidentsOpen||0)+' still open'}
+    ];
+    el.innerHTML=defs.map(d=>{
+      const r=R[d.k]||{value:0,max:0,pct:null};
+      const pct=r.pct==null?null:Math.round(r.pct);
+      const tone=pct==null?'var(--slate)':ringTone(pct/100);
+      return '<div class="outcome ringcard"><div class="row"><div><div class="oic">'+d.ic+'</div></div>'+
+        (pct==null?'<span class="note">n/a</span>':'<div class="ring tone" style="--p:'+pct+';--rc:'+tone+'"><span>'+pct+'%</span></div>')+'</div>'+
+        '<h3 style="margin-top:14px">'+esc(d.h)+'</h3><div class="big">'+r.value+' <span style="font-size:14px;color:var(--muted)">/ '+r.max+'</span></div>'+
+        '<div class="unit">'+esc(d.unit)+'</div><div class="s">'+esc(d.s)+'</div></div>';
+    }).join('');
+  })();
+
+  // ---- estate flow ----
+  // Source families on the left, the four pipeline rings across the middle,
+  // closed and open incidents on the right. Strands carry GB; a red strand
+  // is data no enabled rule reads, pooled under "Not monitored".
+  function drawEstateFlow(svgEl, E, opts){
+    opts=opts||{};
+    const ns='http://www.w3.org/2000/svg';
+    while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+    const W=1200, H=420;
+    svgEl.setAttribute('viewBox','0 0 '+W+' '+H);
+    const mk=(tag,attrs,text)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; svgEl.appendChild(el); return el; };
+    const sources=(E&&E.sources?E.sources:[]).slice(0,7);
+    if(!E || !sources.length || !(E.totalGb>0)){
+      mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in the last 30 days, so there is no flow to draw.');
+      return;
+    }
+    const maxGb=Math.max(...sources.map(s=>s.gb),0.01);
+    const strand=gb=>Math.max(2,Math.min(28,28*Math.sqrt(gb/maxGb)));
+    const srcX=230, poolX=560, poolY=380, cy=200, r=36;
+    const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,label:'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
+    const trunc=s=>{ s=String(s||''); return s.length>34? s.slice(0,33)+'…':s; };
+    const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
+    const gap=Math.min(44,(H-90)/Math.max(sources.length,1));
+    const top=cy-(sources.length-1)*gap/2;
+    mk('text',{x:srcX-22,y:cy-r-14-Math.max(0,(sources.length-1)*gap/2-r),'text-anchor':'end','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},'SOURCE FAMILY (GB / 30D)');
+    sources.forEach((s,i)=>{
+      const y=top+i*gap; const col=famColor[s.category]||'#64748b';
+      const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
+      if(cov>0) mk('path',{d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'});
+      if(unc>0) mk('path',{d:curve(srcX,y,poolX-70,poolY),fill:'none',stroke:'#dc2626','stroke-opacity':'.28','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'round'});
+      mk('rect',{x:srcX-14,y:y-7,width:10,height:14,rx:3,fill:col});
+      mk('text',{x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2)'},trunc(s.category));
+      mk('text',{x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--faint)'},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read');
+    });
+    if(E.uncoveredGb>0){
+      mk('rect',{x:poolX-70,y:poolY-16,width:170,height:34,rx:9,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.5'});
+      mk('text',{x:poolX+15,y:poolY-1,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},'Not monitored');
+      mk('text',{x:poolX+15,y:poolY+12,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},fmtN(E.uncoveredGb)+' GB read by no enabled rule');
+    }
+    const bandW=Math.max(3,strand(+E.coveredGb||0));
+    for(let i=0;i<rings.length-1;i++){
+      mk('line',{x1:rings[i].x+r,y1:cy,x2:rings[i+1].x-r,y2:cy,'stroke-opacity':'.35','stroke-width':bandW.toFixed(1),style:'stroke:var(--brand)'});
+    }
+    const C=2*Math.PI*r;
+    rings.forEach(rg=>{
+      const d=(E.rings&&E.rings[rg.k])||{value:0,max:0,pct:null};
+      const frac=d.pct==null?0:Math.max(0,Math.min(1,d.pct/100));
+      mk('circle',{cx:rg.x,cy:cy,r:r,'stroke-width':'8',style:'fill:var(--panel);stroke:var(--ring-track)'});
+      mk('circle',{cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'8','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
+        transform:'rotate(-90 '+rg.x+' '+cy+')',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))});
+      mk('text',{x:rg.x,y:cy+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%');
+      mk('text',{x:rg.x,y:cy-r-14,'text-anchor':'middle','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},rg.label.toUpperCase());
+      mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11',style:'fill:var(--muted)'},d.value+' of '+d.max);
+      mk('text',{x:rg.x,y:cy+r+34,'text-anchor':'middle','font-size':'10',style:'fill:var(--faint)'},trunc(d.label||''));
+    });
+    const last=rings[rings.length-1];
+    const boxes=[{l:'Closed',v:+E.incidentsClosed||0,col:'#16a34a',y:cy-40},{l:'Open',v:+E.incidentsOpen||0,col:'#d97706',y:cy+40}];
+    boxes.forEach(b=>{
+      const share=(+E.incidents||0)>0? b.v/(+E.incidents): .5;
+      mk('path',{d:curve(last.x+r,cy,1090,b.y),fill:'none',stroke:b.col,'stroke-opacity':'.35','stroke-width':Math.max(3,bandW*share).toFixed(1)});
+      mk('rect',{x:1090,y:b.y-16,width:96,height:32,rx:9,fill:b.col,'fill-opacity':'.12',stroke:b.col,'stroke-opacity':'.5'});
+      mk('text',{x:1138,y:b.y+4,'text-anchor':'middle','font-size':'12','font-weight':'800',fill:b.col},b.l+' '+b.v);
+    });
+  }
+  drawEstateFlow(document.getElementById('estateFlow'), E, {});
+  document.getElementById('estateLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
+    '<span><i style="background:#dc2626;opacity:.5"></i>Not monitored</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
+    '<span><i style="background:var(--brand)"></i>Fair (65%+)</span><span><i style="background:var(--amber)"></i>Weak</span>';
+
+  // ---- maturity card + quick wins ----
+  const MAT = M.maturity || null;
+  const lvlNames = (MAT&&MAT.levels&&MAT.levels.length)? MAT.levels.map(l=>l.name) : ['Not in place','Initial','Developing','Established','Measured','Optimised'];
+  (function(){
+    const card=document.getElementById('maturityCard');
+    if(MAT && MAT.overall && MAT.overall.score!=null){
+      const sc=+MAT.overall.score, lv=MAT.overall.level, tg=MAT.targetLevel;
+      const below=(MAT.areasBelowTarget||[]).length, total=(MAT.areas||[]).length;
+      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">'+esc(MAT.methodology.name)+' v'+esc(MAT.methodology.version)+' &middot; computed from configuration and 30 days of activity.</p></div></div>'+
+        '<div class="matbig">'+sc.toFixed(2)+'<small>/ 5 &middot; '+esc(MAT.overall.levelName)+'</small></div>'+
+        '<div class="mat-band">'+lvlNames.map((n,i)=>'<div class="lvl'+(i===lv?' on':'')+(i===tg?' target':'')+'"><b>'+i+'</b>'+esc(n)+'</div>').join('')+'</div>'+
+        '<div class="meter"><div class="mf" style="--w:'+(sc/5*100).toFixed(1)+'%"></div><div class="mt" style="--t:'+(tg/5*100)+'%"></div></div>'+
+        '<div class="matcap">Target level '+tg+' ('+esc(MAT.targetLevelName)+'): '+(MAT.targetMet?'met in every area.':below+' of '+total+' areas below target.')+' '+
+        MAT.totals.met+' criteria met &middot; '+MAT.totals.gap+' gaps &middot; '+MAT.totals.unknown+' unknown.</div>'+
+        '<button class="btn" type="button" data-go="maturity">Open the assessment '+ICON.arrow+'</button>';
+    } else {
+      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">Not assessed in this snapshot.</p></div></div>'+
+        '<p class="note">The collector writes maturity.json after the gap analysis. This run has none, or no criterion could be evaluated.</p>';
+    }
+    card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); window.scrollTo({top:0,behavior:'smooth'}); }));
+    const qw=document.getElementById('quickWins');
+    if(MAT && MAT.quickWins && MAT.quickWins.length){
+      qw.innerHTML='<div class="qw">'+MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt">'+esc(q.criterionId)+' &middot; '+esc(q.name)+'</div>'+
+        '<div class="qwg">'+esc(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>').join('')+'</div>';
+    } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
+  })();
+
+  // ---- contents: one card per section family ----
+  (function(){
+    const el=document.getElementById('contents'); const secs=M.sections||[];
+    if(!secs.length){ el.innerHTML='<p class="note">No sections in this snapshot.</p>'; return; }
+    const order=M.familyOrder||[]; const fams=[]; const byFam={};
+    secs.forEach(s=>{ if(!byFam[s.family]){byFam[s.family]=[];fams.push(s.family);} byFam[s.family].push(s); });
+    fams.sort((a,b)=>{ const ia=order.indexOf(a), ib=order.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+    const clean=t=>(t||'').replace(/\s*\(TOC[^)]*\)\s*$/i,'').trim();
+    el.innerHTML=fams.map(f=>{
+      const items=byFam[f].slice().sort((a,b)=>a.num-b.num);
+      const head=(items.find(s=>s.headline)||{}).headline||(items.length+' page'+(items.length===1?'':'s'));
+      return '<div class="ctcard"><div class="ctt">'+esc(f)+'</div><div class="cth">'+esc(head)+'</div>'+
+        items.map(s=>{ const u=sitePageUrl(s.page);
+          return '<div class="cti"><a class="sec" data-num="'+s.num+'" title="Open in Sections">'+esc(clean(s.title))+'</a>'+(u?'<a class="pg" href="'+esc(u)+'" target="_top">page &rarr;</a>':'')+'</div>'; }).join('')+'</div>';
+    }).join('');
+    el.querySelectorAll('a.sec').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.num)));
+  })();
 
   // ---- SANKEY ----
   function drawSankey(svgEl, opts){
@@ -949,6 +1181,82 @@
     '<p class="note">What is deployed in the workspace, at a glance.</p>'+
     '<div class="invg">'+invHtml+'</div></div>');
 
+  // 7a. Incident outcomes (30d)
+  if(M.incidentsByClassification && M.incidentsByClassification.length){
+    const cc={TruePositive:'#dc2626',FalsePositive:'#d97706',BenignPositive:'#0d9488',Undetermined:'#64748b',Unclassified:'#94a3b8'};
+    const items=M.incidentsByClassification.map(i=>({label:i.label,value:+i.value||0,display:(+i.value||0).toLocaleString(),color:cc[i.label]||'#94a3b8'}));
+    const tot=items.reduce((a,i)=>a+i.value,0);
+    cards.push('<div class="ipanel"><h3>Incident outcomes (30d)</h3>'+
+      '<p class="note">How closed incidents were classified. Undetermined and unclassified closures give rule tuning nothing to work from.</p>'+
+      donutMultiHtml(items,tot.toLocaleString(),'closed')+'</div>');
+  }
+
+  // 7b. Rule effectiveness (30d)
+  if(M.effectiveness && M.effectiveness.length){
+    const rows=M.effectiveness.slice(0,8).map(e=>'<tr><td>'+esc(e.rule)+'</td><td class="num">'+e.incidents+'</td><td class="num">'+e.closed+'</td>'+
+      '<td class="num">'+e.tp+'</td><td class="num">'+e.fp+'</td><td class="num">'+e.fpRate+'%</td></tr>').join('');
+    cards.push('<div class="ipanel"><h3>Rule effectiveness (30d)</h3>'+
+      '<p class="note">Incidents per rule with their closure verdicts. FP rate is false positives over closed incidents.</p>'+
+      '<table class="tbl"><thead><tr><th>Rule</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+rows+'</tbody></table></div>');
+  }
+
+  // 7c. Daily ingestion trend (string-built SVG: area, line, average, three x labels)
+  function trendHtml(points, opts){
+    opts=opts||{}; const col=THEME[opts.theme]||THEME.brand; const unit=opts.unit||'';
+    if(!points||points.length<2) return '<p class="note">Not enough points for a trend.</p>';
+    const W=640,H=180,pl=44,pr=12,pt=14,pb=26;
+    const vals=points.map(p=>+p.value||0); const max=Math.max(...vals,0.01);
+    const x=i=>pl+(W-pl-pr)*i/(points.length-1); const y=v=>pt+(H-pt-pb)*(1-v/max);
+    const line=vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');
+    const area=line+' L'+x(vals.length-1).toFixed(1)+','+y(0).toFixed(1)+' L'+x(0).toFixed(1)+','+y(0).toFixed(1)+' Z';
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const lab=[0,Math.floor((points.length-1)/2),points.length-1].map(i=>'<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#9aa3af">'+esc(points[i].label)+'</text>').join('');
+    return '<svg class="trend" viewBox="0 0 '+W+' '+H+'" role="img">'+
+      '<path d="'+area+'" fill="'+col[0]+'" fill-opacity=".12"/><path d="'+line+'" fill="none" stroke="'+col[0]+'" stroke-width="2.2" stroke-linejoin="round"/>'+
+      '<line x1="'+pl+'" y1="'+y(avg).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(avg).toFixed(1)+'" stroke="'+col[1]+'" stroke-dasharray="4 4" stroke-width="1.2"/>'+
+      '<text x="'+(W-pr)+'" y="'+(y(avg)-4).toFixed(1)+'" text-anchor="end" font-size="10" fill="'+col[1]+'">avg '+fmtN(avg)+unit+'</text>'+
+      '<text x="'+(pl-6)+'" y="'+(pt+4)+'" text-anchor="end" font-size="10" fill="#9aa3af">'+fmtN(max)+unit+'</text>'+
+      '<text x="'+(pl-6)+'" y="'+(y(0)+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="#9aa3af">0</text>'+lab+'</svg>';
+  }
+  if(M.usageDaily && M.usageDaily.length>=2){
+    const pts=M.usageDaily.map(u=>({label:(u.day||'').slice(5),value:u.billable}));
+    cards.push('<div class="ipanel"><h3>Daily ingestion (billable GB)</h3>'+
+      '<p class="note">'+M.usageDaily.length+' days from the Usage table. A step up that no connector change explains is the first sign of a runaway source.</p>'+
+      trendHtml(pts,{theme:'teal',unit:' GB'})+'</div>');
+  }
+
+  // 7d. Detection opportunities (section 28)
+  const opNum=(M.sections||[]).some(s=>s.num===28)?28:null;
+  if(M.detectionOpportunities && M.detectionOpportunities.length){
+    const rows=M.detectionOpportunities.map(o=>'<tr><td>'+esc(o.table)+'<div class="note" style="margin:2px 0 0">'+esc(o.family)+'</div></td><td class="num">'+fmtN(o.gb30d)+' GB</td><td>'+
+      (o.templates&&o.templates.length? '<div class="oppl">'+o.templates.map(t=>'<span class="tagpill">'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
+        (o.more?'<span class="tagpill">+'+o.more+' more</span>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>').join('');
+    cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
+      '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.'+
+      (opNum?' <a class="link-muted" data-jump="'+opNum+'">Open the full list &rarr;</a>':'')+'</p>'+
+      '<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows+'</tbody></table></div>');
+  }
+
+  // 7e. Playbook health (7d)
+  if(M.playbookHealth && M.playbookHealth.runs7d>0){
+    const ph=M.playbookHealth; const ok=ph.runs7d-ph.failed7d;
+    const items=[{label:'Succeeded',value:ok,display:ok.toLocaleString()},{label:'Failed',value:ph.failed7d,display:ph.failed7d.toLocaleString(),cls:'sev-Critical'}];
+    const fl=(ph.failing||[]).map(f=>({label:f.playbook,value:f.failed,display:f.failed+' of '+f.runs,cls:'sev-Critical'}));
+    cards.push('<div class="ipanel"><h3>Playbook health (7d)</h3>'+
+      '<p class="note">'+ph.runs7d.toLocaleString()+' runs across '+ph.playbooks+' playbook'+(ph.playbooks===1?'':'s')+'; '+(ph.failing||[]).length+' with failures.</p>'+
+      barsHtml(items,{theme:'teal'})+(fl.length?'<p class="note" style="margin:14px 0 8px">Failing playbooks</p>'+barsHtml(fl,{theme:'rose'}):'')+'</div>');
+  }
+
+  // 7f. Threat intelligence by source (30d)
+  if(M.tiBySource && M.tiBySource.length){
+    const pal=['#7a5a9e','#3b6fb0','#0d9488','#d97706','#64748b','#94a3b8'];
+    const items=M.tiBySource.map((t,i)=>({label:t.source,value:+t.count||0,display:(+t.count||0).toLocaleString(),color:pal[i%pal.length]}));
+    const tot=items.reduce((a,i)=>a+i.value,0);
+    cards.push('<div class="ipanel"><h3>Threat intelligence by source (30d)</h3>'+
+      '<p class="note">Indicators observed per feed. One feed is a single point of failure for every TI detection.</p>'+
+      donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
+  }
+
   // 8. What's new (Microsoft release communications, security-filtered)
   if(M.whatsNew && M.whatsNew.length){
     const wn=M.whatsNew.map(w=>
@@ -962,6 +1270,80 @@
   }
 
   board.innerHTML = cards.join('');
+  board.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
+
+  // ---- maturity board ----
+  (function(){
+    const el=document.getElementById('maturityBoard');
+    if(!MAT){
+      el.innerHTML='<div class="panel"><h2>Maturity not assessed</h2><p class="note">This snapshot has no maturity.json. The collector writes it after the gap analysis.</p></div>';
+      return;
+    }
+    const sc=MAT.overall.score, tg=MAT.targetLevel;
+    const pct=sc==null?0:Math.round(sc/5*100);
+    const confCls=c=>c==='Good'?'good':(c==='Moderate'?'moderate':'');
+    const areaName={}; (MAT.areas||[]).forEach(a=>areaName[a.id]=a.name);
+    function areaBarsHtml(areas,target){
+      return '<div class="areabars">'+areas.map(a=>{
+        const s=a.score==null?0:+a.score; const below=a.score!=null&&a.level<target;
+        return '<div class="abar" style="--c1:'+(below?'#d97706':'#2563eb')+';--c2:'+(below?'#f59e0b':'#6d5efc')+'"><div class="al"><b>'+esc(a.id)+'</b> '+esc(a.name)+'</div>'+
+          '<div class="at"><div class="af" style="--w:'+(s/5*100).toFixed(1)+'%"></div><div class="am" style="--t:'+(target/5*100)+'%"></div></div>'+
+          '<div class="av">'+(a.score==null?'n/a':(+a.score).toFixed(2))+'</div><span class="matbadge '+confCls(a.confidence)+'">'+esc(a.confidence)+'</span></div>';
+      }).join('')+'</div>';
+    }
+    let html='';
+    html+='<div class="panel"><div class="phead"><div><h2>'+esc(MAT.methodology.name)+'</h2>'+
+      '<p class="note">Eleven capability areas scored 0 to 5 from the gap outcomes and the captured configuration. Unknown criteria (inputs not captured in this run) never count against the workspace.</p></div></div>'+
+      '<div class="donutwrap">'+donutHtml(pct, sc==null?'n/a':(+sc).toFixed(2)+' / 5', sc==null?'not assessed':MAT.overall.levelName)+
+      '<div class="dlegend"><div class="di"><i style="background:var(--green)"></i>Met<b>'+MAT.totals.met+'</b></div>'+
+      '<div class="di"><i style="background:var(--red)"></i>Gap<b>'+MAT.totals.gap+'</b></div>'+
+      '<div class="di"><i style="background:var(--slate)"></i>Unknown<b>'+MAT.totals.unknown+'</b></div>'+
+      '<div class="di" style="margin-top:6px"><i style="background:var(--amber)"></i>Target level '+tg+' ('+esc(MAT.targetLevelName)+')<b>'+
+      (MAT.targetMet?'met':(MAT.areasBelowTarget||[]).length+' areas below')+'</b></div></div></div></div>';
+    html+='<div class="panel"><div class="phead"><div><h2>Areas</h2><p class="note">Dashed marker = target level. Amber bars are below it.</p></div></div>'+areaBarsHtml(MAT.areas||[],tg)+'</div>';
+    html+='<div class="panel" id="maturityTrend" style="display:none"><div class="phead"><div><h2>Score over time</h2><p class="note">One point per published run.</p></div></div><div id="maturityTrendBody"></div></div>';
+    if(MAT.roadmap&&MAT.roadmap.length){
+      html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
+        '<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
+        MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b>'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+esc(r.guidance||'')+'</div></td>'+
+          '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">+'+(+r.overallLift||0).toFixed(2)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>').join('')+
+        '</tbody></table></div>';
+    }
+    if(MAT.csf&&MAT.csf.functions&&MAT.csf.functions.length){
+      html+='<div class="panel"><div class="phead"><div><h2>NIST CSF 2.0 rollup</h2><p class="note">Criteria per function, by status.</p></div></div><div class="csfgrid">'+
+        MAT.csf.functions.map(f=>'<div class="csfc"><h4>'+esc(f.id)+' '+esc(f.name)+'</h4>'+
+          (f.criteria?donutMultiHtml([{label:'Met',value:f.met,color:'#16a34a'},{label:'Gap',value:f.gap,color:'#dc2626'},{label:'Unknown',value:f.unknown,color:'#64748b'}],String(f.criteria),'criteria'):'<p class="note">No criteria mapped.</p>')+'</div>').join('')+
+        '</div><p class="note" style="margin-top:12px">'+esc(MAT.csf.source||'NIST CSF 2.0')+'. Subcategory identifiers are NIST\'s; the mapping and the outcome paraphrases are this project\'s own.</p></div>';
+    }
+    html+='<div class="panel"><div class="phead"><div><h2>Criteria</h2><p class="note">Every criterion with its status and the evidence that decided it.</p></div>'+
+      '<div class="filters" style="margin:0"><select id="matStatus"><option value="">All statuses</option><option>Met</option><option>Gap</option><option>Unknown</option></select>'+
+      '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px"></div></div>'+
+      '<div class="tablewrap"><table class="tbl" id="matTable"><thead><tr><th>Id</th><th>Area</th><th>Criterion</th><th>Status</th><th>Effort</th><th>Evidence</th></tr></thead><tbody></tbody></table></div></div>';
+    el.innerHTML=html;
+    const tb=el.querySelector('#matTable tbody'), sel=el.querySelector('#matStatus'), q=el.querySelector('#matSearch');
+    function renderCriteria(){
+      const st=sel.value, s=(q.value||'').toLowerCase();
+      const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
+      tb.innerHTML=rows.map(c=>'<tr><td><b>'+esc(c.id)+'</b></td><td>'+esc(areaName[c.area]||c.area)+'</td><td>'+esc(c.name)+'<div class="note" style="margin:2px 0 0">'+esc(c.impact||'')+'</div></td>'+
+        '<td><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span></td><td>'+esc(c.effort)+'</td><td>'+esc(c.evidence||'')+'</td></tr>').join('')||'<tr><td colspan="6" class="note">No criteria match.</td></tr>';
+      if(typeof window.fitIframe==='function') window.fitIframe();
+    }
+    sel.addEventListener('change',renderCriteria); q.addEventListener('input',renderCriteria); renderCriteria();
+    // Score history: the publisher writes maturity-history.json beside this
+    // file on the site. From disk the fetch cannot run and nothing changes.
+    try{
+      const u=new URL('maturity-history.json', window.location.href);
+      if(/^https?:$/.test(u.protocol)){
+        fetch(u.href,{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(h=>{
+          const entries=(h&&h.entries)||[]; if(entries.length<2) return;
+          const pts=entries.map(e=>({label:(e.publishedUtc||'').slice(0,10),value:(e.overall&&e.overall.score)||0}));
+          document.getElementById('maturityTrendBody').innerHTML=trendHtml(pts,{theme:'indigo',unit:''});
+          document.getElementById('maturityTrend').style.display='';
+          if(typeof window.fitIframe==='function') window.fitIframe();
+        }).catch(()=>{});
+      }
+    }catch(e){}
+  })();
 
   // ---- sections browser (full documentation) ----
   (function(){
