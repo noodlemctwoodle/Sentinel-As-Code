@@ -472,10 +472,19 @@ The Pester suite is fully offline:
   promises.
 - `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Invoke-SentinelRest.ps1`:
   `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
+- `Get-KqlTableReferences.Tests.ps1` runs the table-to-rule builder over the
+  fixture rules and templates and asserts equality with the hand-authored
+  reference files (it imports `Sentinel.Common`, so it needs `Az.Accounts`).
+- `Get-SentinelMaturity.Tests.ps1` scores the fixture, checks named criteria,
+  the roadmap order and the NIST CSF rollup, runs synthetic criteria for the
+  scoring arithmetic and guards the criteria file's schema.
+- `SharePoint-Site.Tests.ps1` covers the section families, the
+  Markdown-to-page conversion, the publish planners, the maturity history
+  helper and an offline bundle build.
 
-All three suites live under `Tests/Documenter/` and are part of the repo's 22 Pester
-files. They are picked up automatically by the existing PR-validation workflow
-(`Invoke-PRValidation.ps1` runs every suite and emits an NUnit 2.5 report).
+All six suites live under `Tests/Documenter/` and are picked up automatically
+by the existing PR-validation workflow (`Invoke-PRValidation.ps1` runs every
+suite and emits an NUnit 2.5 report).
 
 ---
 

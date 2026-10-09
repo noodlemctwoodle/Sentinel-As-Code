@@ -156,7 +156,9 @@ the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 Documenter (`Docs/Tools/Documenter/`): [Sentinel Documenter](Docs/Tools/Documenter/Sentinel-Documenter.md),
 [Renderer Design](Docs/Tools/Documenter/Documenter-Renderer-Design.md),
 [References](Docs/Tools/Documenter/Documenter-References.md),
-[Data Lake Coverage](Docs/Tools/Documenter/Sentinel-Data-Lake-Coverage.md), and
+[Data Lake Coverage](Docs/Tools/Documenter/Sentinel-Data-Lake-Coverage.md),
+[Maturity Model](Docs/Tools/Documenter/Sentinel-Maturity-Model.md),
+[SharePoint Site](Docs/Tools/Documenter/Sentinel-SharePoint-Site.md), and
 [Word Report](Docs/Tools/Documenter/Sentinel-Word-Report.md).
 
 ### Tests and Copilot - `Docs/Tests/`, `Docs/GitHub/`
