@@ -107,11 +107,12 @@ SecurityDocs/
     │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
     │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
     │   ├── playbook-runs.json          runs and failures per playbook (7d)
-    │   ├── ... (≈78 files)
+    │   ├── ... (≈79 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   ├── gap-analysis.json          findings that fired
-    │   └── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
+    │   ├── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
+    │   └── maturity.json              maturity assessment: area scores, roadmap, quick wins, CSF rollup
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
@@ -226,6 +227,10 @@ The run-pipeline panel exposes two further parameters:
   Logic App playbooks live in a dedicated RG separate from the workspace RG (the
   Sentinel-As-Code convention). It maps to the collector's `-PlaybookResourceGroup`
   parameter; leave it blank to enumerate playbooks from the workspace RG.
+- *Target maturity level* (`targetMaturityLevel`, default `3`): the level the
+  maturity assessment measures the workspace against. Maps to the collector's
+  `-TargetMaturityLevel`; see
+  [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md).
 
 #### GitHub Actions: `.github/workflows/sentinel-document.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
@@ -387,6 +392,20 @@ result cells arrive as strings, so the checks read numbers through small
 That's the complete change. If the rule reads a capture that can be
 absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 `$Inventory.RawFiles` before treating an empty array as a finding.
+
+---
+
+## How the maturity assessment works
+
+After the gap engine, the collector runs
+[`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../../Tools/Documenter/Private/Get-SentinelMaturity.ps1)
+over the same `_raw/` folder and the per-rule outcomes, and writes
+`maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
+resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
+computed from the captures, plus a roadmap ordered by lift, five quick
+wins and a NIST CSF 2.0 rollup. Unknown never counts against the
+workspace. The methodology, the scoring and the full criteria list are in
+[Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md).
 
 ### Categories and severities
 

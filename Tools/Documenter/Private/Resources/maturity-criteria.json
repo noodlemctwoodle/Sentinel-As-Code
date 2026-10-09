@@ -1,0 +1,1551 @@
+{
+  "$comment": "Sentinel-As-Code maturity assessment: a capability reference point computed from a workspace's deployed configuration and recent activity, not an audit, a certification or a risk rating. Each criterion resolves to Met, Gap or Unknown from a gap rule outcome (gap-checks.json), a metric derived from the _raw captures, or a combination; areas score 0 to 5 over the criteria that could be evaluated. NIST Cybersecurity Framework 2.0 subcategory identifiers are from NIST CSWP 29 (US Government work, not subject to copyright in the United States); the outcome text here is a short paraphrase, not the official wording. The criterion set, the estate-flow view and the detection-headroom idea come from the Sentinel health-check script contributed to this project.",
+  "version": "1.0.0",
+  "methodology": {
+    "name": "Sentinel-As-Code maturity assessment",
+    "version": "1.0",
+    "scaleNote": "Computed from deployed configuration and 30 days of activity; a reference point for prioritising work, not an audit or a risk rating."
+  },
+  "levels": [
+    {
+      "level": 0,
+      "name": "Not in place"
+    },
+    {
+      "level": 1,
+      "name": "Initial"
+    },
+    {
+      "level": 2,
+      "name": "Developing"
+    },
+    {
+      "level": 3,
+      "name": "Established"
+    },
+    {
+      "level": 4,
+      "name": "Measured"
+    },
+    {
+      "level": 5,
+      "name": "Optimised"
+    }
+  ],
+  "confidence": {
+    "good": 6,
+    "moderate": 4,
+    "note": "Minimum evaluated criteria in an area for Good and Moderate confidence; fewer is Indicative."
+  },
+  "csf": {
+    "source": "NIST Cybersecurity Framework 2.0 (NIST CSWP 29, February 2024)",
+    "functions": {
+      "GV": "Govern",
+      "ID": "Identify",
+      "PR": "Protect",
+      "DE": "Detect",
+      "RS": "Respond",
+      "RC": "Recover"
+    },
+    "subcategories": {
+      "GV.PO-01": "Policy for managing cybersecurity risks is established, communicated and enforced.",
+      "GV.RR-02": "Roles, responsibilities and authorities for cybersecurity risk management are established, communicated, understood and enforced.",
+      "ID.AM-08": "Systems, hardware, software, services and data are managed throughout their life cycles.",
+      "ID.RA-02": "Cyber threat intelligence is received from information-sharing forums and sources.",
+      "ID.RA-03": "Internal and external threats to the organisation are identified and recorded.",
+      "ID.IM-02": "Improvements are identified from security tests and exercises.",
+      "ID.IM-03": "Improvements are identified from the execution of operational processes, procedures and activities.",
+      "PR.AA-05": "Access permissions, entitlements and authorisations are defined in policy, managed, enforced and reviewed, incorporating least privilege and separation of duties.",
+      "PR.DS-01": "The confidentiality, integrity and availability of data at rest are protected.",
+      "PR.DS-11": "Backups of data are created, protected, maintained and tested.",
+      "PR.PS-01": "Configuration management practices are established and applied.",
+      "PR.PS-04": "Log records are generated and made available for continuous monitoring.",
+      "PR.IR-01": "Networks and environments are protected from unauthorised logical access and usage.",
+      "PR.IR-04": "Adequate resource capacity to ensure availability is maintained.",
+      "DE.CM-01": "Networks and network services are monitored to find potentially adverse events.",
+      "DE.CM-03": "Personnel activity and technology usage are monitored to find potentially adverse events.",
+      "DE.CM-06": "External service provider activities and services are monitored to find potentially adverse events.",
+      "DE.CM-09": "Computing hardware and software, runtime environments and their data are monitored to find potentially adverse events.",
+      "DE.AE-02": "Potentially adverse events are analysed to better understand associated activities.",
+      "DE.AE-03": "Information is correlated from multiple sources.",
+      "DE.AE-06": "Information on adverse events is provided to authorised staff and tools.",
+      "DE.AE-07": "Cyber threat intelligence and other contextual information are integrated into the analysis.",
+      "DE.AE-08": "Incidents are declared when adverse events meet the defined incident criteria.",
+      "RS.MA-01": "The incident response plan is executed in coordination with relevant third parties once an incident is declared.",
+      "RS.MA-02": "Incident reports are triaged and validated.",
+      "RS.MA-03": "Incidents are categorised and prioritised.",
+      "RS.MA-04": "Incidents are escalated or elevated as needed.",
+      "RS.AN-03": "Analysis is performed to establish what has taken place during an incident and the root cause.",
+      "RS.AN-06": "Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved.",
+      "RS.AN-07": "Incident data and metadata are collected, and their integrity and provenance are preserved.",
+      "RS.CO-02": "Internal and external stakeholders are notified of incidents.",
+      "RS.MI-01": "Incidents are contained.",
+      "RS.MI-02": "Incidents are eradicated.",
+      "RC.RP-03": "The integrity of backups and other restoration assets is verified before using them for restoration."
+    }
+  },
+  "areas": [
+    {
+      "id": "DET",
+      "name": "Detection engineering",
+      "description": "Rules exist, are maintained, map entities and produce incidents worth having."
+    },
+    {
+      "id": "PLT",
+      "name": "Platform and collection",
+      "description": "The workspace and its collection pipeline are current, governed and resilient."
+    },
+    {
+      "id": "COV",
+      "name": "Telemetry coverage",
+      "description": "The sources an investigation needs are connected and producing data."
+    },
+    {
+      "id": "AUT",
+      "name": "Automation and response",
+      "description": "Triage, enrichment and response run without an analyst at the keyboard."
+    },
+    {
+      "id": "MON",
+      "name": "Monitoring coverage",
+      "description": "What is ingested is watched, across the kill chain and the platform itself."
+    },
+    {
+      "id": "INC",
+      "name": "Incident management",
+      "description": "Incidents are acknowledged, worked, classified and closed in time."
+    },
+    {
+      "id": "INV",
+      "name": "Investigation and evidence",
+      "description": "Evidence is complete, retained and recoverable when an investigation needs it."
+    },
+    {
+      "id": "TI",
+      "name": "Threat intelligence",
+      "description": "Indicators arrive from more than one source and detections read the current schema."
+    },
+    {
+      "id": "HNT",
+      "name": "Threat hunting",
+      "description": "Hunting is recorded, resourced with content and feeds detection engineering."
+    },
+    {
+      "id": "LOG",
+      "name": "Log management and cost",
+      "description": "Retention, tiers and caps are set deliberately rather than left at defaults."
+    },
+    {
+      "id": "GOV",
+      "name": "Governance and access",
+      "description": "Access follows least privilege and the workspace is protected from accidents."
+    }
+  ],
+  "outOfScope": [
+    {
+      "area": "People, staffing and skills",
+      "reason": "Not observable from a workspace."
+    },
+    {
+      "area": "Processes and runbooks outside Sentinel",
+      "reason": "Only the parts that leave a trace in the workspace (automation rules, hunts, classifications) are assessed."
+    },
+    {
+      "area": "Defender portal onboarding",
+      "reason": "No reliable signal in the captured configuration."
+    },
+    {
+      "area": "Automation coverage of specific incident types",
+      "reason": "Incident data is captured in aggregate only."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SAC-DET-01",
+      "area": "DET",
+      "kind": "coverage",
+      "name": "Analytics rules are deployed and enabled",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without enabled rules nothing in the workspace produces an incident.",
+      "guidance": "Enable the Content Hub rule templates for the connected data sources, starting with the High-severity ones.",
+      "csf": [
+        "DE.AE-02",
+        "DE.CM-09"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "enabledRules",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} enabled analytics rule(s).",
+        "gap": "No enabled analytics rules."
+      }
+    },
+    {
+      "id": "SAC-DET-02",
+      "area": "DET",
+      "kind": "practice",
+      "name": "Custom detections exist alongside templates",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Templates cover the generic cases; custom rules are where organisation-specific risk gets detected.",
+      "guidance": "Write Scheduled or NRT rules for the risks the templates do not cover (business applications, privileged workflows, crown-jewel systems) and keep them in source control.",
+      "csf": [
+        "DE.AE-02",
+        "ID.RA-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "customRules",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} enabled rule(s) authored without a template.",
+        "gap": "Every enabled Scheduled/NRT rule comes from a template; no custom detections."
+      }
+    },
+    {
+      "id": "SAC-DET-03",
+      "area": "DET",
+      "kind": "practice",
+      "name": "Enabled rules map entities",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Incidents without entities cannot be investigated through the graph, grouped by entity or enriched by UEBA.",
+      "guidance": "Add entity mappings (account, host, IP) to every Scheduled and NRT rule.",
+      "csf": [
+        "DE.AE-03",
+        "RS.AN-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-037"
+      },
+      "evidence": {
+        "met": "Every enabled Scheduled/NRT rule maps at least one entity."
+      }
+    },
+    {
+      "id": "SAC-DET-04",
+      "area": "DET",
+      "kind": "practice",
+      "name": "Rules are reviewed within twelve months",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Rules nobody has touched in a year drift away from the environment they were written for.",
+      "guidance": "Review every enabled rule at least yearly: query still valid, thresholds still right, data source still present.",
+      "csf": [
+        "ID.IM-03",
+        "DE.AE-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-031"
+      },
+      "evidence": {
+        "met": "No enabled rule has gone unmodified for more than twelve months."
+      }
+    },
+    {
+      "id": "SAC-DET-05",
+      "area": "DET",
+      "kind": "practice",
+      "name": "No rules left disabled",
+      "weight": 1.5,
+      "effort": "Low",
+      "impact": "A disabled rule is coverage someone decided to switch off; without a reason recorded it is a silent gap.",
+      "guidance": "Re-enable or delete disabled rules; if a rule must stay off, record why in its description.",
+      "csf": [
+        "DE.CM-09",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-007"
+      },
+      "evidence": {
+        "met": "No analytics rule is disabled."
+      }
+    },
+    {
+      "id": "SAC-DET-06",
+      "area": "DET",
+      "kind": "practice",
+      "name": "False-positive rate is under control",
+      "weight": 1.5,
+      "effort": "Medium",
+      "impact": "Rules that mostly produce false positives train analysts to ignore them.",
+      "guidance": "Tune or retire rules whose closed incidents are mostly false positives; the per-rule effectiveness table shows which.",
+      "csf": [
+        "DE.AE-02",
+        "ID.IM-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-036"
+      },
+      "evidence": {
+        "met": "No rule with 20 or more closed incidents has a false-positive rate above 70%."
+      }
+    },
+    {
+      "id": "SAC-DET-07",
+      "area": "DET",
+      "kind": "practice",
+      "name": "Content is current",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Out-of-date or deprecated solutions miss the detections Microsoft has shipped since.",
+      "guidance": "Update installed Content Hub solutions and replace deprecated ones.",
+      "csf": [
+        "ID.AM-08",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "allOf",
+        "sources": [
+          {
+            "kind": "gapRule",
+            "rule": "SENT-013"
+          },
+          {
+            "kind": "gapRule",
+            "rule": "SENT-054"
+          }
+        ]
+      },
+      "evidence": {
+        "met": "Installed solutions are current and none is deprecated.",
+        "gap": "Installed solutions are out of date or deprecated."
+      }
+    },
+    {
+      "id": "SAC-DET-08",
+      "area": "DET",
+      "kind": "practice",
+      "name": "Legacy incident-creation rules retired",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Legacy Microsoft incident-creation rules duplicate what the Defender XDR connector now does.",
+      "guidance": "Enable incident sync on the Defender XDR connector and disable the legacy rules.",
+      "csf": [
+        "DE.AE-08",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-041"
+      },
+      "evidence": {
+        "met": "No legacy Microsoft incident-creation rule is enabled."
+      }
+    },
+    {
+      "id": "SAC-PLT-01",
+      "area": "PLT",
+      "kind": "coverage",
+      "name": "Collection is governed by data collection rules",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "DCRs are where ingestion-time filtering and transformation live; without them every byte lands as sent.",
+      "guidance": "Move agent and API collection onto DCRs so filters and transforms can be applied before ingestion.",
+      "csf": [
+        "PR.PS-04",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "dcrCount",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} data collection rule(s) in scope.",
+        "gap": "No data collection rules in scope."
+      }
+    },
+    {
+      "id": "SAC-PLT-02",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "No legacy custom log (CLv1) tables",
+      "weight": 1.5,
+      "effort": "High",
+      "impact": "CLv1 tables stop accepting data when the HTTP Data Collector API retires; transforms and DCR routing never apply to them.",
+      "guidance": "Migrate each CLv1 table to a DCR-based custom table.",
+      "csf": [
+        "ID.AM-08",
+        "PR.PS-04"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-047"
+      },
+      "evidence": {
+        "met": "No CLv1 custom log table carries data."
+      }
+    },
+    {
+      "id": "SAC-PLT-03",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "Agents migrated off the Log Analytics agent",
+      "weight": 1,
+      "effort": "High",
+      "impact": "The Log Analytics agent is retired; machines still on it are on borrowed time.",
+      "guidance": "Move every machine to the Azure Monitor Agent and remove the MMA extension.",
+      "csf": [
+        "ID.AM-08",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-048"
+      },
+      "evidence": {
+        "met": "No machine is still heartbeating from the Log Analytics agent."
+      }
+    },
+    {
+      "id": "SAC-PLT-04",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "Query audit logging is on",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without LAQueryLogs there is no record of who ran what against the security data.",
+      "guidance": "Enable the Audit diagnostic category on the workspace so LAQueryLogs populates.",
+      "csf": [
+        "PR.PS-04",
+        "DE.CM-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "laQueryLogs7d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} audited queries in 7 days.",
+        "gap": "No LAQueryLogs rows in 7 days; query auditing is off."
+      }
+    },
+    {
+      "id": "SAC-PLT-05",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "Workspace replication is enabled",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Without replication a regional outage takes the SOC's data and detections with it.",
+      "guidance": "Enable workspace replication to a secondary region.",
+      "csf": [
+        "PR.IR-04",
+        "PR.DS-11"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-020"
+      },
+      "evidence": {
+        "met": "Workspace replication is enabled."
+      }
+    },
+    {
+      "id": "SAC-PLT-06",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "Ingestion and query use private networking",
+      "weight": 1,
+      "effort": "High",
+      "impact": "Public endpoints expose the workspace to credential-based access from anywhere.",
+      "guidance": "Disable public network access for ingestion and query and route through an Azure Monitor Private Link Scope.",
+      "csf": [
+        "PR.IR-01",
+        "PR.DS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-021"
+      },
+      "evidence": {
+        "met": "Public network access is disabled for ingestion and query."
+      }
+    },
+    {
+      "id": "SAC-PLT-07",
+      "area": "PLT",
+      "kind": "practice",
+      "name": "Connector health is clean",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Failed data-fetcher runs mean a connector is silently dropping data.",
+      "guidance": "Investigate every connector failure in SentinelHealth and fix the credential, permission or endpoint behind it.",
+      "csf": [
+        "DE.CM-09",
+        "ID.IM-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "connectorFailures7d",
+        "op": "eq",
+        "value": 0
+      },
+      "evidence": {
+        "met": "No connector failures in SentinelHealth in 7 days.",
+        "gap": "{metric} connector failure(s) in SentinelHealth in 7 days."
+      }
+    },
+    {
+      "id": "SAC-COV-01",
+      "area": "COV",
+      "kind": "coverage",
+      "name": "Telemetry is being ingested",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "An empty workspace detects nothing.",
+      "guidance": "Connect the data sources the detections need.",
+      "csf": [
+        "PR.PS-04",
+        "DE.CM-01"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "billableGb30d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} billable GB ingested in 30 days.",
+        "gap": "No billable ingestion in 30 days."
+      }
+    },
+    {
+      "id": "SAC-COV-02",
+      "area": "COV",
+      "kind": "coverage",
+      "name": "Identity telemetry is present",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Most intrusions go through identity; without sign-in and audit logs they are invisible.",
+      "guidance": "Connect the Microsoft Entra ID connector with sign-in, audit and non-interactive sign-in logs.",
+      "csf": [
+        "DE.CM-03",
+        "PR.AA-05"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "entraTablesPresent",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} Entra ID table(s) ingesting in the last 7 days.",
+        "gap": "No Entra ID table ingested data in the last 7 days."
+      }
+    },
+    {
+      "id": "SAC-COV-03",
+      "area": "COV",
+      "kind": "coverage",
+      "name": "Endpoint and XDR telemetry is present",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Without Defender XDR tables there is no endpoint, email or cloud-app visibility to correlate with.",
+      "guidance": "Connect Defender XDR and enable the advanced hunting tables (Device*, Email*, CloudAppEvents, Identity*).",
+      "csf": [
+        "DE.CM-09",
+        "DE.AE-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "xdrTablesPresent",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} Defender XDR table(s) with data.",
+        "gap": "No Defender XDR tables with data."
+      }
+    },
+    {
+      "id": "SAC-COV-04",
+      "area": "COV",
+      "kind": "coverage",
+      "name": "Cloud posture alerts flow in",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Defender for Cloud alerts are the only signal for many resource-level attacks.",
+      "guidance": "Connect the Microsoft Defender for Cloud connector so its alerts become incidents.",
+      "csf": [
+        "DE.CM-06",
+        "DE.AE-06"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "mdcConnector",
+        "op": "eq",
+        "value": true
+      },
+      "evidence": {
+        "met": "Defender for Cloud connector is configured.",
+        "gap": "No Defender for Cloud connector."
+      }
+    },
+    {
+      "id": "SAC-COV-05",
+      "area": "COV",
+      "kind": "practice",
+      "name": "UEBA is enabled",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Without UEBA there are no behavioural baselines, no peer analytics and no entity insights.",
+      "guidance": "Enable UEBA on the Entra ID and, where present, Active Directory sources.",
+      "csf": [
+        "DE.AE-03",
+        "DE.CM-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-005"
+      },
+      "evidence": {
+        "met": "UEBA is enabled and producing data."
+      }
+    },
+    {
+      "id": "SAC-COV-06",
+      "area": "COV",
+      "kind": "practice",
+      "name": "Entity analytics is enabled",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Entity analytics feeds the entity pages and IdentityInfo that investigations lean on.",
+      "guidance": "Enable the Entity Analytics setting with at least the Entra ID provider.",
+      "csf": [
+        "DE.AE-03",
+        "RS.AN-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "entityAnalyticsEnabled",
+        "op": "eq",
+        "value": true
+      },
+      "evidence": {
+        "met": "Entity analytics is enabled.",
+        "gap": "Entity analytics is not enabled."
+      }
+    },
+    {
+      "id": "SAC-AUT-01",
+      "area": "AUT",
+      "kind": "practice",
+      "name": "Automation rules exist",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without automation rules every incident is triaged by hand from a cold start.",
+      "guidance": "Start with automation rules that assign owners, tag by tactic and suppress known-benign patterns.",
+      "csf": [
+        "RS.MA-02",
+        "RS.MA-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-034"
+      },
+      "evidence": {
+        "met": "Automation rules are defined."
+      }
+    },
+    {
+      "id": "SAC-AUT-02",
+      "area": "AUT",
+      "kind": "practice",
+      "name": "Playbooks run reliably",
+      "weight": 1.5,
+      "effort": "Medium",
+      "impact": "A failing playbook is a response step that is quietly not happening.",
+      "guidance": "Fix playbooks with failed runs and alert on automation health.",
+      "csf": [
+        "RS.MI-01",
+        "ID.IM-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-053"
+      },
+      "evidence": {
+        "met": "No playbook failed a run in the last 7 days."
+      }
+    },
+    {
+      "id": "SAC-AUT-03",
+      "area": "AUT",
+      "kind": "coverage",
+      "name": "Playbooks are deployed",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Playbooks are how enrichment, notification and containment happen without an analyst at the keyboard.",
+      "guidance": "Deploy playbooks for enrichment and notification first, containment once the SOC trusts them.",
+      "csf": [
+        "RS.MI-01",
+        "RS.CO-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "playbooks",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} playbook(s) deployed.",
+        "gap": "No playbooks deployed."
+      }
+    },
+    {
+      "id": "SAC-AUT-04",
+      "area": "AUT",
+      "kind": "coverage",
+      "name": "Watchlists are in use",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Watchlists hold the allow-lists, VIP lists and asset context that keep detections precise.",
+      "guidance": "Create watchlists for known-good sources, high-value assets and service accounts and reference them in rules.",
+      "csf": [
+        "DE.AE-03",
+        "ID.AM-08"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "watchlists",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} watchlist(s) defined.",
+        "gap": "No watchlists defined."
+      }
+    },
+    {
+      "id": "SAC-MON-01",
+      "area": "MON",
+      "kind": "practice",
+      "name": "Enabled rules create incidents",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Alert-only rules fire into a void unless something else consumes the alert.",
+      "guidance": "Enable incident creation on rules that are not purely feeding correlation.",
+      "csf": [
+        "DE.AE-08",
+        "RS.MA-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-038"
+      },
+      "evidence": {
+        "met": "Every enabled Scheduled/NRT rule creates incidents."
+      }
+    },
+    {
+      "id": "SAC-MON-02",
+      "area": "MON",
+      "kind": "practice",
+      "name": "Sentinel health is tracked",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without SentinelHealth data there is no record of connector, rule or automation failures.",
+      "guidance": "Enable the Sentinel health diagnostic setting so SentinelHealth populates.",
+      "csf": [
+        "DE.CM-09",
+        "ID.IM-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "sentinelHealthRows7d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} SentinelHealth row(s) in 7 days.",
+        "gap": "No SentinelHealth rows in 7 days."
+      }
+    },
+    {
+      "id": "SAC-MON-03",
+      "area": "MON",
+      "kind": "coverage",
+      "name": "Broad MITRE tactic coverage",
+      "weight": 1,
+      "effort": "High",
+      "impact": "Coverage concentrated on two or three tactics leaves the rest of the kill chain unobserved.",
+      "guidance": "Deploy or write rules for the tactics with the fewest detections; the MITRE coverage page lists them.",
+      "csf": [
+        "DE.AE-02",
+        "ID.RA-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "tacticsCovered",
+        "op": "ge",
+        "value": 10
+      },
+      "evidence": {
+        "met": "{metric} of 14 MITRE tactics have at least one enabled rule.",
+        "gap": "Only {metric} of 14 MITRE tactics have an enabled rule."
+      }
+    },
+    {
+      "id": "SAC-MON-04",
+      "area": "MON",
+      "kind": "coverage",
+      "name": "No tactic without a rule",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "A tactic with zero rules is a stage of an attack nothing is watching.",
+      "guidance": "Give every tactic at least one enabled rule.",
+      "csf": [
+        "DE.AE-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-006"
+      },
+      "evidence": {
+        "met": "Every MITRE tactic has at least one enabled rule."
+      }
+    },
+    {
+      "id": "SAC-MON-05",
+      "area": "MON",
+      "kind": "coverage",
+      "name": "Ingested data has detections",
+      "weight": 1.5,
+      "effort": "Medium",
+      "impact": "Tables nothing reads are cost without coverage.",
+      "guidance": "Deploy templates or write rules for the high-volume tables no rule reads, or move them to a cheaper tier.",
+      "csf": [
+        "DE.CM-01",
+        "PR.PS-04"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-051"
+      },
+      "evidence": {
+        "met": "Every high-volume table is read by at least one enabled rule."
+      }
+    },
+    {
+      "id": "SAC-INC-01",
+      "area": "INC",
+      "kind": "practice",
+      "name": "Incidents are being closed",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "An incident queue that only grows means triage has stopped.",
+      "guidance": "Work the queue; automate closure of known-benign patterns.",
+      "csf": [
+        "RS.MA-01",
+        "RS.MA-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "closedIncidents30d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} incident(s) closed in 30 days.",
+        "gap": "No incidents closed in 30 days."
+      }
+    },
+    {
+      "id": "SAC-INC-02",
+      "area": "INC",
+      "kind": "practice",
+      "name": "Incidents are classified on closure",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Without a verdict on closure there is no false-positive rate and no basis for tuning.",
+      "guidance": "Make a true, benign or false positive verdict mandatory when closing.",
+      "csf": [
+        "RS.AN-06",
+        "ID.IM-03"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-057"
+      },
+      "evidence": {
+        "met": "Closed incidents carry a classification."
+      }
+    },
+    {
+      "id": "SAC-INC-03",
+      "area": "INC",
+      "kind": "practice",
+      "name": "Mean time to acknowledge under four hours",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Slow acknowledgement is dwell time handed to the attacker.",
+      "guidance": "Route high-severity incidents to an on-call rota and measure MTTA weekly.",
+      "csf": [
+        "RS.MA-02",
+        "RS.MA-04"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "mttaMinutes",
+        "op": "lt",
+        "value": 240
+      },
+      "evidence": {
+        "met": "Mean time to acknowledge is {metric} minutes.",
+        "gap": "Mean time to acknowledge is {metric} minutes, above the four-hour target."
+      }
+    },
+    {
+      "id": "SAC-INC-04",
+      "area": "INC",
+      "kind": "coverage",
+      "name": "Detections produce incidents",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "No incidents in 30 days means either nothing is being detected or nothing is creating incidents.",
+      "guidance": "Confirm rules are enabled, creating incidents and reading tables that have data.",
+      "csf": [
+        "DE.AE-08"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "incidents30d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} incident(s) in 30 days.",
+        "gap": "No incidents created in 30 days."
+      }
+    },
+    {
+      "id": "SAC-INC-05",
+      "area": "INC",
+      "kind": "practice",
+      "name": "Closures are acknowledged",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Incidents closed without ever being acknowledged were never looked at.",
+      "guidance": "Stop auto-closing without review; have automation assign before it closes.",
+      "csf": [
+        "RS.MA-02",
+        "RS.AN-06"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-030"
+      },
+      "evidence": {
+        "met": "Closed incidents were acknowledged first."
+      }
+    },
+    {
+      "id": "SAC-INC-06",
+      "area": "INC",
+      "kind": "practice",
+      "name": "Mean time to resolve within target",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Long resolution times extend the impact window.",
+      "guidance": "Set a resolution target per severity and review the incidents that miss it.",
+      "csf": [
+        "RS.MI-02",
+        "RS.MA-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-029"
+      },
+      "evidence": {
+        "met": "Mean time to resolve is within the 24-hour threshold."
+      }
+    },
+    {
+      "id": "SAC-INV-01",
+      "area": "INV",
+      "kind": "practice",
+      "name": "Retention matches ingestion",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Tables that have gone silent or exist with no data are investigation dead ends.",
+      "guidance": "Fix silent tables and remove orphan tables.",
+      "csf": [
+        "PR.PS-04",
+        "RS.AN-07"
+      ],
+      "source": {
+        "kind": "allOf",
+        "sources": [
+          {
+            "kind": "gapRule",
+            "rule": "SENT-026"
+          },
+          {
+            "kind": "gapRule",
+            "rule": "SENT-027"
+          }
+        ]
+      },
+      "evidence": {
+        "met": "No silent or orphan tables.",
+        "gap": "Silent or orphan tables exist."
+      }
+    },
+    {
+      "id": "SAC-INV-02",
+      "area": "INV",
+      "kind": "practice",
+      "name": "Search or restore has been exercised",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "If long-term data has never been searched or restored, nobody knows whether it can be.",
+      "guidance": "Run a search job or a restore against archived data at least quarterly.",
+      "csf": [
+        "RS.AN-07",
+        "RC.RP-03"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "searchOrRestoreJobs",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} search or restore job(s) on record.",
+        "gap": "No search jobs or restores on record."
+      }
+    },
+    {
+      "id": "SAC-INV-03",
+      "area": "INV",
+      "kind": "coverage",
+      "name": "Evidence is recoverable beyond interactive retention",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Investigations that reach back past interactive retention need a long-term tier or a working restore path.",
+      "guidance": "Extend total retention on the evidential tables or move them to the data lake tier, and prove the restore path.",
+      "csf": [
+        "RS.AN-07",
+        "PR.DS-11"
+      ],
+      "source": {
+        "kind": "anyOf",
+        "sources": [
+          {
+            "kind": "metric",
+            "path": "lakeExtendedTables",
+            "op": "gt",
+            "value": 0
+          },
+          {
+            "kind": "metric",
+            "path": "searchOrRestoreJobs",
+            "op": "gt",
+            "value": 0
+          }
+        ]
+      },
+      "evidence": {
+        "met": "Long-term retention or a proven restore path exists.",
+        "gap": "No table has retention beyond the interactive window and no restore has been run."
+      }
+    },
+    {
+      "id": "SAC-TI-01",
+      "area": "TI",
+      "kind": "practice",
+      "name": "Off the legacy indicator table",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "The legacy ThreatIntelligenceIndicator table stopped receiving indicators on 31 July 2025.",
+      "guidance": "Move ingestion to the upload API or TAXII, into ThreatIntelIndicators.",
+      "csf": [
+        "ID.RA-02",
+        "DE.AE-07"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-049"
+      },
+      "evidence": {
+        "met": "No ingestion into the legacy ThreatIntelligenceIndicator table."
+      }
+    },
+    {
+      "id": "SAC-TI-02",
+      "area": "TI",
+      "kind": "practice",
+      "name": "Rules read the current indicator schema",
+      "weight": 1.5,
+      "effort": "Medium",
+      "impact": "Rules on the legacy table match against an expiring set of indicators and go quiet.",
+      "guidance": "Rewrite TI rules to read ThreatIntelIndicators.",
+      "csf": [
+        "DE.AE-07",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-050"
+      },
+      "evidence": {
+        "met": "No enabled rule reads the legacy ThreatIntelligenceIndicator table."
+      }
+    },
+    {
+      "id": "SAC-TI-03",
+      "area": "TI",
+      "kind": "coverage",
+      "name": "Indicators are arriving",
+      "weight": 1.5,
+      "effort": "Low",
+      "impact": "TI detections with no indicators to match are decorative.",
+      "guidance": "Connect a feed and confirm indicators land in ThreatIntelIndicators.",
+      "csf": [
+        "ID.RA-02",
+        "DE.AE-07"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "tiIndicators30d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} indicator(s) observed in 30 days.",
+        "gap": "No indicators observed in 30 days."
+      }
+    },
+    {
+      "id": "SAC-TI-04",
+      "area": "TI",
+      "kind": "coverage",
+      "name": "STIX objects are present",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Objects beyond indicators (threat actors, attack patterns, relationships) give matches their context.",
+      "guidance": "Use a feed or the upload API that supplies STIX objects, not indicators alone.",
+      "csf": [
+        "ID.RA-02",
+        "DE.AE-07"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "tiObjects30d",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} STIX object(s) in ThreatIntelObjects over 30 days.",
+        "gap": "No STIX objects in ThreatIntelObjects."
+      }
+    },
+    {
+      "id": "SAC-TI-05",
+      "area": "TI",
+      "kind": "coverage",
+      "name": "More than one feed",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "A single feed is a single point of failure for every TI detection.",
+      "guidance": "Add a second source: Microsoft Defender Threat Intelligence, a TAXII collection or the upload API.",
+      "csf": [
+        "ID.RA-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-055"
+      },
+      "evidence": {
+        "met": "Threat intelligence comes from more than one feed."
+      }
+    },
+    {
+      "id": "SAC-TI-06",
+      "area": "TI",
+      "kind": "coverage",
+      "name": "Microsoft Defender Threat Intelligence is active",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "MDTI is the lowest-effort feed, with Microsoft's own indicators.",
+      "guidance": "Enable the Microsoft Defender Threat Intelligence connector.",
+      "csf": [
+        "ID.RA-02",
+        "DE.AE-07"
+      ],
+      "source": {
+        "kind": "anyOf",
+        "sources": [
+          {
+            "kind": "metric",
+            "path": "mdtiConnector",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "kind": "metric",
+            "path": "mdtiRows30d",
+            "op": "gt",
+            "value": 0
+          }
+        ]
+      },
+      "evidence": {
+        "met": "MDTI connector or MDTI indicators present.",
+        "gap": "No MDTI connector and no MDTI indicators."
+      }
+    },
+    {
+      "id": "SAC-HNT-01",
+      "area": "HNT",
+      "kind": "practice",
+      "name": "Hunts are recorded",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Hunting that is not recorded cannot be repeated, measured or turned into detections.",
+      "guidance": "Run hunts through the Hunts feature with a hypothesis and an outcome.",
+      "csf": [
+        "ID.IM-02",
+        "DE.AE-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-058"
+      },
+      "evidence": {
+        "met": "Hunts or bookmarks exist in the workspace."
+      }
+    },
+    {
+      "id": "SAC-HNT-02",
+      "area": "HNT",
+      "kind": "practice",
+      "name": "Findings are bookmarked",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Bookmarks are how a hunting result becomes evidence on an incident.",
+      "guidance": "Bookmark notable results and promote them to incidents where warranted.",
+      "csf": [
+        "RS.AN-07",
+        "ID.IM-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "bookmarks",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} bookmark(s) saved.",
+        "gap": "No bookmarks saved."
+      }
+    },
+    {
+      "id": "SAC-HNT-03",
+      "area": "HNT",
+      "kind": "coverage",
+      "name": "Hunting content is available",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without hunting queries each hunt starts from a blank editor.",
+      "guidance": "Deploy the hunting queries from the Content Hub solutions for the connected sources.",
+      "csf": [
+        "DE.AE-02",
+        "ID.IM-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "huntingQueries",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} hunting quer(ies) available.",
+        "gap": "No hunting queries available."
+      }
+    },
+    {
+      "id": "SAC-HNT-04",
+      "area": "HNT",
+      "kind": "coverage",
+      "name": "Hunting library of 25 or more",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "A broad library lets hunters pivot across tactics and sources.",
+      "guidance": "Grow the library past 25 queries, covering every connected data source.",
+      "csf": [
+        "DE.AE-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "huntingQueries",
+        "op": "ge",
+        "value": 25
+      },
+      "evidence": {
+        "met": "{metric} hunting queries available.",
+        "gap": "{metric} hunting queries, under the 25 target."
+      }
+    },
+    {
+      "id": "SAC-LOG-01",
+      "area": "LOG",
+      "kind": "practice",
+      "name": "Per-table retention is tuned",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "One retention for everything over-pays on noisy tables and under-keeps the evidential ones.",
+      "guidance": "Set retention per table: short for high-volume operational logs, long for identity and audit.",
+      "csf": [
+        "PR.PS-04",
+        "PR.DS-11"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "tablesWithCustomRetention",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} table(s) with retention set away from the workspace default.",
+        "gap": "Every table uses the workspace default retention."
+      }
+    },
+    {
+      "id": "SAC-LOG-02",
+      "area": "LOG",
+      "kind": "practice",
+      "name": "Table tiers are used",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "High-volume tables on the Analytics tier that no rule needs are the main cost lever left unpulled.",
+      "guidance": "Move verbose, investigation-only tables to Basic or Data Lake.",
+      "csf": [
+        "PR.IR-04",
+        "PR.PS-04"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-016"
+      },
+      "evidence": {
+        "met": "No high-volume Analytics table is a tier candidate."
+      }
+    },
+    {
+      "id": "SAC-LOG-03",
+      "area": "LOG",
+      "kind": "practice",
+      "name": "A daily cap is set",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without a cap a runaway connector bills without limit.",
+      "guidance": "Set a daily cap at around 110% of expected ingestion and alert on it.",
+      "csf": [
+        "PR.IR-04"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-001"
+      },
+      "evidence": {
+        "met": "A daily cap is configured."
+      }
+    },
+    {
+      "id": "SAC-LOG-04",
+      "area": "LOG",
+      "kind": "coverage",
+      "name": "Long-term tier in use",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Evidence older than the interactive window is lost without a long-term tier.",
+      "guidance": "Set total retention beyond interactive retention on evidential tables, or mirror them to the data lake.",
+      "csf": [
+        "PR.DS-11",
+        "RS.AN-07"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "lakeExtendedTables",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} table(s) with long-term retention or on the lake tier.",
+        "gap": "No table has retention beyond the interactive window."
+      }
+    },
+    {
+      "id": "SAC-LOG-05",
+      "area": "LOG",
+      "kind": "practice",
+      "name": "Summary rules are used",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Summary rules turn verbose tables into cheap aggregates that detections and workbooks can read.",
+      "guidance": "Create summary rules for the high-volume tables whose detail is rarely needed.",
+      "csf": [
+        "PR.IR-04",
+        "PR.PS-04"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "summaryRules",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} summary rule(s) defined.",
+        "gap": "No summary rules defined."
+      }
+    },
+    {
+      "id": "SAC-LOG-06",
+      "area": "LOG",
+      "kind": "practice",
+      "name": "No duplicate firewall logging",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Azure Firewall logged to both legacy and structured tables is billed twice.",
+      "guidance": "Remove the legacy AzureDiagnostics categories once rules read the AZFW tables.",
+      "csf": [
+        "PR.IR-04",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-056"
+      },
+      "evidence": {
+        "met": "Azure Firewall is not logged to both AzureDiagnostics and the AZFW tables."
+      }
+    },
+    {
+      "id": "SAC-GOV-01",
+      "area": "GOV",
+      "kind": "practice",
+      "name": "Workspace access follows least privilege",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "Owner and Contributor at workspace scope can change or delete every detection.",
+      "guidance": "Replace broad roles with the Microsoft Sentinel roles; keep Owner and Contributor to a handful of break-glass identities.",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "highPrivilegeAssignments",
+        "op": "le",
+        "value": 10
+      },
+      "evidence": {
+        "met": "{metric} Owner or Contributor assignment(s) at workspace scope.",
+        "gap": "{metric} Owner or Contributor assignments at workspace scope, more than the ten expected of a least-privilege model."
+      }
+    },
+    {
+      "id": "SAC-GOV-02",
+      "area": "GOV",
+      "kind": "practice",
+      "name": "Sentinel roles are used",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "If nobody holds a Microsoft Sentinel role, access is being granted through broader Azure roles.",
+      "guidance": "Assign Microsoft Sentinel Reader, Responder and Contributor to the SOC groups.",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-02"
+      ],
+      "source": {
+        "kind": "metric",
+        "path": "sentinelRoleAssignments",
+        "op": "gt",
+        "value": 0
+      },
+      "evidence": {
+        "met": "{metric} Microsoft Sentinel role assignment(s) at workspace scope.",
+        "gap": "No Microsoft Sentinel role assignments at workspace scope."
+      }
+    },
+    {
+      "id": "SAC-GOV-03",
+      "area": "GOV",
+      "kind": "practice",
+      "name": "Workspace is protected by a delete lock",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "A workspace deleted by mistake takes the SOC's history with it.",
+      "guidance": "Add a CanNotDelete lock on the workspace.",
+      "csf": [
+        "PR.DS-11",
+        "PR.PS-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-042"
+      },
+      "evidence": {
+        "met": "A CanNotDelete lock is present."
+      }
+    },
+    {
+      "id": "SAC-GOV-04",
+      "area": "GOV",
+      "kind": "practice",
+      "name": "Responder role is assigned",
+      "weight": 1,
+      "effort": "Low",
+      "impact": "Without Responder assignments analysts act through broader roles or cannot act at all.",
+      "guidance": "Assign Microsoft Sentinel Responder to the analyst group.",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-02"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-040"
+      },
+      "evidence": {
+        "met": "Microsoft Sentinel Responder is assigned."
+      }
+    },
+    {
+      "id": "SAC-GOV-05",
+      "area": "GOV",
+      "kind": "practice",
+      "name": "No service principal holds Owner or Contributor",
+      "weight": 1,
+      "effort": "Medium",
+      "impact": "A compromised deployment identity with Contributor can rewrite every detection.",
+      "guidance": "Give deployment identities Microsoft Sentinel Contributor and Log Analytics Contributor rather than Owner or Contributor.",
+      "csf": [
+        "PR.AA-05",
+        "GV.PO-01"
+      ],
+      "source": {
+        "kind": "gapRule",
+        "rule": "SENT-039"
+      },
+      "evidence": {
+        "met": "No service principal holds Owner or Contributor at workspace scope."
+      }
+    }
+  ]
+}

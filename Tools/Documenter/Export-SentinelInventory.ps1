@@ -157,6 +157,7 @@ Import-Module (Join-Path $PSScriptRoot '../../Modules/Sentinel.Common/Sentinel.C
 $script:AlertRules         = @()
 $script:AlertRuleTemplates = @()
 $script:Workflows          = @()
+$script:GapOutcomes        = $null
 
 # Add the System.Web assembly for HttpUtility used by Get-AzureRetailPrice.
 Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
@@ -1437,7 +1438,25 @@ Try-Capture 'gap-analysis' {
     Save-Json -FileName 'gap-analysis.json' -Data $findings
     # One record per rule (Fired / Passed / Errored / Undefined), so a
     # consumer can tell a check that passed from one that never ran.
-    Save-Json -FileName 'gap-checks.json' -Data $gapOutcomes.ToArray()
+    $script:GapOutcomes = $gapOutcomes.ToArray()
+    Save-Json -FileName 'gap-checks.json' -Data $script:GapOutcomes
+}
+
+# ---------------------------------------------------------------------------
+# Maturity assessment, scored from the gap outcomes and the captures above.
+# A failed gap-analysis leaves $script:GapOutcomes null; the engine then
+# reads gap-checks.json if an earlier run left one, else every rule-backed
+# criterion is Unknown rather than Gap.
+# ---------------------------------------------------------------------------
+Try-Capture 'maturity' {
+    . (Join-Path $PSScriptRoot 'Private/Get-SentinelMaturity.ps1')
+    $maturity = Get-SentinelMaturity `
+        -InputRoot $rawOut `
+        -ResourcesRoot (Join-Path $PSScriptRoot 'Private/Resources') `
+        -CriteriaPath (Join-Path $PSScriptRoot 'Private/Resources/maturity-criteria.json') `
+        -GapOutcomes $script:GapOutcomes `
+        -TargetLevel $TargetMaturityLevel
+    Save-Json -FileName 'maturity.json' -Data $maturity
 }
 
 # ---------------------------------------------------------------------------
