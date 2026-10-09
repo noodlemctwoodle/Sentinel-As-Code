@@ -367,6 +367,41 @@ Describe 'SharePoint helpers' {
     }
 }
 
+Describe 'Add-SacMaturityHistoryEntry' {
+
+    BeforeAll {
+        function New-HistoryEntry([string]$Built, [double]$Score) {
+            @{ publishedUtc = "$Built"; bundleBuiltUtc = $Built; targetLevel = 3; overall = @{ score = $Score; level = [int][math]::Floor($Score) }; areas = @() }
+        }
+    }
+
+    It 'appends a new entry to an empty history' {
+        $h = Add-SacMaturityHistoryEntry -History @{ entries = @() } -Entry (New-HistoryEntry '2026-10-01 06:00 UTC' 1.49)
+        @($h.entries).Count | Should -Be 1
+        $h.entries[0].overall.score | Should -Be 1.49
+    }
+
+    It 'keeps older entries first and the new one last' {
+        $h = @{ entries = @((New-HistoryEntry '2026-10-01 06:00 UTC' 1.49), (New-HistoryEntry '2026-10-02 06:00 UTC' 1.6)) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-03 06:00 UTC' 1.8)
+        @($h2.entries | ForEach-Object { $_.bundleBuiltUtc }) | Should -Be @('2026-10-01 06:00 UTC', '2026-10-02 06:00 UTC', '2026-10-03 06:00 UTC')
+        @($h.entries).Count | Should -Be 2 -Because 'the input is not changed'
+    }
+
+    It 'replaces the entry for a bundle that is published again' {
+        $h = @{ entries = @((New-HistoryEntry '2026-10-01 06:00 UTC' 1.49), (New-HistoryEntry '2026-10-02 06:00 UTC' 1.6)) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-02 06:00 UTC' 1.65)
+        @($h2.entries).Count | Should -Be 2
+        $h2.entries[-1].overall.score | Should -Be 1.65
+    }
+
+    It 'drops the oldest entries past the cap' {
+        $h = @{ entries = @(1..5 | ForEach-Object { New-HistoryEntry "2026-10-0$_ 06:00 UTC" $_ }) }
+        $h2 = Add-SacMaturityHistoryEntry -History $h -Entry (New-HistoryEntry '2026-10-06 06:00 UTC' 6) -MaxEntries 3
+        @($h2.entries | ForEach-Object { $_.overall.score }) | Should -Be @(4, 5, 6)
+    }
+}
+
 Describe 'Build-SentinelDocsSite against the fixture' {
 
     BeforeAll {

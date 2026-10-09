@@ -17,7 +17,10 @@
       2. App         the dashboard web part's .sppkg is deployed to the
                      site collection app catalog, only when its version
                      differs from what is deployed (-AppPackagePath)
-      3. Assets      dashboard HTML, its model and the diagrams uploaded
+      3. Assets      dashboard HTML, its model and the diagrams uploaded;
+                     when the model carries a maturity assessment, one
+                     entry is appended to the score history the dashboard
+                     draws as a trend
       4. Pages       section pages created or rebuilt, skipping any whose
                      content hash matches the last publish; per-page
                      failures are collected rather than stopping the run
@@ -97,8 +100,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.2.0
-    Last Updated: 2026-10-08
+    Version:      0.3.0
+    Last Updated: 2026-10-09
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
 #>
@@ -215,6 +218,25 @@ foreach ($file in @($site.diagrams)) {
     $uploaded++
 }
 Write-Host "  Diagrams uploaded: $uploaded (already present: $(@($site.diagrams).Count - $uploaded))"
+
+# Maturity history: one entry per published bundle, keyed on the bundle's
+# build time so a re-publish of the same bundle does not add a point.
+$model = Get-Content -LiteralPath (Join-Path $Bundle 'model.json') -Raw | ConvertFrom-Json -Depth 32
+if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.maturity.PSObject.Properties['overall']) {
+    $entry = @{
+        publishedUtc   = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+        bundleBuiltUtc = [string]$site.builtUtc
+        targetLevel    = [int]$model.maturity.targetLevel
+        overall        = @{ score = $model.maturity.overall.score; level = $model.maturity.overall.level }
+        areas          = @(@($model.maturity.areas) | ForEach-Object { @{ id = [string]$_.id; score = $_.score } })
+    }
+    $history = Add-SacMaturityHistoryEntry -History (Read-SacMaturityHistory) -Entry $entry
+    Save-SacMaturityHistory -History $history
+    Write-Host "  Maturity history: $(if ($WhatIfPreference) { 'would append' } else { 'appended' }) score $($entry.overall.score) for bundle $($entry.bundleBuiltUtc) ($(@($history.entries).Count) entries)"
+}
+else {
+    Write-Host '  Maturity history: no assessment in this bundle, nothing appended.'
+}
 
 # 4. Pages -------------------------------------------------------------------
 Write-Step '4/8 Section pages'

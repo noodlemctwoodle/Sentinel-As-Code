@@ -58,6 +58,7 @@ with `workflow_dispatch` for on-demand runs.
 | --- | --- | --- | --- |
 | `include-preview` | boolean | `false` | Passes `-IncludePreview` to the collector (Content Hub product packages, summary rules, pricings, data lake feature flag). |
 | `open-pull-request` | boolean | `true` | Whether to open / refresh the rolling docs PR after the artefact is uploaded. On a scheduled run the PR always opens (subject to the private-repo guard). |
+| `target-maturity-level` | choice (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against (see [Sentinel-Maturity-Model.md](../Tools/Documenter/Sentinel-Maturity-Model.md)). Scheduled runs use the default. |
 
 ### Job `document`
 
@@ -94,8 +95,9 @@ Steps, in order:
    `azPSVersion: latest`). Sets `SENTINEL_RG` and `SENTINEL_WORKSPACE`
    from repo variables, parses `include-preview`, then runs
    `./Tools/Documenter/Export-SentinelInventory.ps1` with
-   `-SubscriptionId`, `-ResourceGroup`, `-WorkspaceName` and
-   `-IncludePreview:$includePreview`.
+   `-SubscriptionId`, `-ResourceGroup`, `-WorkspaceName`,
+   `-IncludePreview:$includePreview` and `-TargetMaturityLevel` (from
+   `target-maturity-level`, default 3).
 6. **Render Markdown report** (`shell: pwsh`). Runs
    `./Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`
    `-WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'`.
@@ -161,6 +163,7 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
 | `openPullRequest` | boolean | `true` | Condition on the "Push docs branch and open / refresh PR" step. |
 | `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG. GitHub renders Mermaid natively and has no equivalent. |
 | `playbookResourceGroup` | string | `""` | Optional override; when set, passed to the collector as `-PlaybookResourceGroup`. Blank means enumerate playbooks from the workspace RG. |
+| `targetMaturityLevel` | number (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against. |
 
 ### Variables
 
@@ -189,7 +192,8 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
    $(serviceConnection)`, `azurePowerShellVersion: LatestVersion`). Runs
    `Export-SentinelInventory.ps1` with `SubscriptionId`, `ResourceGroup`,
    `WorkspaceName`, optionally `IncludePreview` (when
-   `flagIncludePreview` is set) and optionally `PlaybookResourceGroup`.
+   `flagIncludePreview` is set), optionally `PlaybookResourceGroup`, and
+   `TargetMaturityLevel`.
 4. **Run renderer** (`PowerShell@2`, inline). Runs
    `Convert-SentinelInventoryToMarkdown.ps1 -WorkspaceName
    $(sentinelWorkspaceName)`.
@@ -245,6 +249,7 @@ service connection.
 | PR toggle | `open-pull-request` input | `openPullRequest` parameter |
 | Mermaid handling | Rendered natively; no pre-render | `prerenderChartsToPng` (default on) converts fences to PNG |
 | Playbook RG override | Not exposed | `playbookResourceGroup` parameter |
+| Target maturity level | `target-maturity-level` input (choice, default 3) | `targetMaturityLevel` parameter (number, default 3) |
 | Collector task | `azure/powershell@v3` | `AzurePowerShell@5` |
 | Module install | `setup-pwsh-modules` composite action | Inline `PowerShell@2` step |
 | Extra git guard | "Confirm `SecurityDocs/` is not git-tracked" step | None (origin is the private ADO repo) |

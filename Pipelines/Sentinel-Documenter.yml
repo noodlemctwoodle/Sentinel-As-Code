@@ -87,6 +87,14 @@ parameters:
     type: string
     default: ""
 
+  # The level the maturity assessment measures the workspace against
+  # (Docs/Tools/Documenter/Sentinel-Maturity-Model.md). 3 is "Established".
+  - name: targetMaturityLevel
+    displayName: "Target maturity level (1 to 5)"
+    type: number
+    default: 3
+    values: [1, 2, 3, 4, 5]
+
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion
   - name: serviceConnection
@@ -177,6 +185,7 @@ stages:
 
                 $playbookRg = "${{ parameters.playbookResourceGroup }}"
                 if ($playbookRg) { $params['PlaybookResourceGroup'] = $playbookRg }
+                $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
 
                 Write-Host "##[section]Sentinel Documenter — Collector"
                 Write-Host "============================================================"
@@ -185,6 +194,7 @@ stages:
                 Write-Host "  Workspace    : $(sentinelWorkspaceName)"
                 Write-Host "  Playbook RG  : $(if ($playbookRg) { $playbookRg } else { '(workspace RG)' })"
                 Write-Host "  Preview API  : $(flagIncludePreview)"
+                Write-Host "  Target level : $($params['TargetMaturityLevel'])"
                 Write-Host "============================================================"
 
                 & "$(Build.SourcesDirectory)/Tools/Documenter/Export-SentinelInventory.ps1" @params

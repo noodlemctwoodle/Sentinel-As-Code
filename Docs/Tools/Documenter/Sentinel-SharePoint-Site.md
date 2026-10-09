@@ -20,7 +20,7 @@ One communication site per workspace, containing:
 | **Section pages** | One modern page per Documenter section (39 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the pre-rendered diagrams, and the publisher's state file. | `DocumenterAssets` library |
+| **Assets** | The dashboard HTML and data, the pre-rendered diagrams, the publisher's state file and the maturity score history. | `DocumenterAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -122,7 +122,9 @@ In this order, so a failure part-way leaves the site consistent:
    `Sentinel Findings` list and columns exist.
 2. **App.** Deploy the web part package to the site collection app catalog,
    only when its version differs from the deployed one.
-3. **Assets.** Upload the dashboard and any new diagrams.
+3. **Assets.** Upload the dashboard and any new diagrams. When the bundle
+   carries a maturity assessment, append its score to the history (see
+   below).
 4. **Pages.** Create or rebuild each section page, skipping pages whose
    content hash matches the last publish. Pages are rebuilt in place (cleared
    and refilled, then published once), so URLs and version history survive
@@ -138,6 +140,27 @@ In this order, so a failure part-way leaves the site consistent:
 
 A failed section page is reported and retried on the next run; it never
 stops the rest of the publish.
+
+### Maturity history
+
+Every publish of a bundle that carries a maturity assessment appends one
+entry to `DocumenterAssets/_state/maturity-history.json`:
+
+```json
+{ "entries": [ { "publishedUtc": "2026-10-09T06:12:00Z", "bundleBuiltUtc": "2026-10-09 06:05 UTC",
+                 "targetLevel": 3, "overall": { "score": 1.49, "level": 1 },
+                 "areas": [ { "id": "DET", "score": 1.11 }, ... ] } ] }
+```
+
+The entry is keyed on the bundle's build time, so publishing the same
+bundle twice does not add a point, and the file is capped at 180 entries
+(`Add-SacMaturityHistoryEntry -MaxEntries`). A copy is written next to the
+dashboard (`DocumenterAssets/dashboard/maturity-history.json`); the
+Maturity tab fetches it from beside its own page and draws the overall
+score as a trend once two entries exist. Opened from disk, the fetch
+cannot run and the trend panel stays hidden. Both files are readable by
+anyone who can read the dashboard, which is the same audience. `-WhatIf`
+reports what it would append and writes nothing.
 
 ## Setting it up
 
