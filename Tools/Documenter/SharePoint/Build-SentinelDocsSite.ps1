@@ -714,9 +714,12 @@ $estate = [ordered]@{
 }
 
 $effectiveness = @()
-foreach ($e in ($effectRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Incidents } -Descending | Select-Object -First 15)) {
+# Sentinel rules first, then other products' alerts by name.
+$effectSorted = @($effectRows | Where-Object { $_ } | Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable)
+foreach ($e in ($effectSorted | Select-Object -First 15)) {
+    $src = if ($e.PSObject.Properties['Source'] -and $e.Source) { [string]$e.Source } elseif ($e.PSObject.Properties['AlertRuleId'] -and $e.AlertRuleId) { 'Analytics rule' } else { 'Other' }
     $effectiveness += [ordered]@{
-        rule = $e.RuleName; incidents = [int](ConvertTo-BuildNumber $e.Incidents); closed = [int](ConvertTo-BuildNumber $e.Closed)
+        rule = $e.RuleName; source = $src; incidents = [int](ConvertTo-BuildNumber $e.Incidents); closed = [int](ConvertTo-BuildNumber $e.Closed)
         tp = [int](ConvertTo-BuildNumber $e.TruePositive); fp = [int](ConvertTo-BuildNumber $e.FalsePositive); bp = [int](ConvertTo-BuildNumber $e.BenignPositive)
         undetermined = [int](ConvertTo-BuildNumber $e.Undetermined); fpRate = [math]::Round((ConvertTo-BuildNumber $e.FPRate), 1)
     }
@@ -753,15 +756,24 @@ if ($ruleRefs.Count -gt 0) {
     }
 }
 
+# When the bookmarks list was too large to fetch, the collector keeps the
+# count the service reported.
+$bookmarkCount = @($bookmarkRows | Where-Object { $_ }).Count
+if (-not (Test-Path -LiteralPath (Join-Path $script:RawRoot 'bookmarks.json'))) {
+    $bookmarkCountDoc = Read-Raw 'bookmarks-count.json'
+    # Neither file: the count is unknown, not zero.
+    $bookmarkCount = if ($bookmarkCountDoc -and $bookmarkCountDoc.PSObject.Properties['Count']) { [int](ConvertTo-BuildNumber $bookmarkCountDoc.Count) } else { $null }
+}
 $huntsSummary = [ordered]@{
     captured       = (Test-Path -LiteralPath (Join-Path $script:RawRoot 'hunts.json'))
     hunts          = @($huntRows | Where-Object { $_ }).Count
-    bookmarks      = @($bookmarkRows | Where-Object { $_ }).Count
+    bookmarks      = $bookmarkCount
     huntingQueries = $counts.hunting
 }
 
-$pbRuns = 0; $pbFailed = 0; $pbFailing = @()
+$pbRuns = 0; $pbFailed = 0; $pbFailing = @(); $pbUnavailable = 0
 foreach ($r in ($runRows | Where-Object { $_ })) {
+    if ($r.PSObject.Properties['LastRunStatus'] -and [string]$r.LastRunStatus -eq 'Unavailable') { $pbUnavailable++; continue }
     $runs = [int](ConvertTo-BuildNumber $r.Runs7d); $failed = [int](ConvertTo-BuildNumber $r.Failed7d)
     $pbRuns += $runs; $pbFailed += $failed
     if ($failed -gt 0) {
@@ -769,7 +781,7 @@ foreach ($r in ($runRows | Where-Object { $_ })) {
         $pbFailing += [ordered]@{ playbook = $r.Playbook; runs = $runs; failed = $failed; lastFailure = $last }
     }
 }
-$playbookHealth = [ordered]@{ runs7d = $pbRuns; failed7d = $pbFailed; playbooks = @($runRows | Where-Object { $_ }).Count; failing = @($pbFailing | Sort-Object { $_.failed } -Descending) }
+$playbookHealth = [ordered]@{ runs7d = $pbRuns; failed7d = $pbFailed; playbooks = @($runRows | Where-Object { $_ }).Count; unavailable = $pbUnavailable; failing = @($pbFailing | Sort-Object { $_.failed } -Descending) }
 
 $tiBySource = @()
 foreach ($row in ($tiCountRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending | Select-Object -First 6)) {

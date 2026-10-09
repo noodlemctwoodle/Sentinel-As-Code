@@ -1644,8 +1644,10 @@ $pbRunRows = @($playbookRuns | ForEach-Object {
         Failed7d       = [int](_RendererNumber $_.Failed7d)
         LastRunStatus  = $_.LastRunStatus
         LastFailureUtc = Format-DateUtc $_.LastFailureUtc
+        Note           = if ($_.PSObject.Properties['Note'] -and $_.Note) { [string]$_.Note } else { '' }
     }
 } | Sort-Object -Property Failed7d -Descending)
+$pbUnavailable = @($pbRunRows | Where-Object { $_.LastRunStatus -eq 'Unavailable' }).Count
 $pbRunsTotal = 0; $pbFailedTotal = 0
 foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
 $pbFailingCount = @($pbRunRows | Where-Object { $_.Failed7d -gt 0 }).Count
@@ -1710,7 +1712,8 @@ $(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
 $pbRunsWarning
 $pbRunsPie
 
-$(Format-Table -Items $pbRunRows -Columns 'Playbook','Runs7d','Failed7d','LastRunStatus','LastFailureUtc')
+$(if ($pbUnavailable -gt 0) { "_Run history could not be read for $pbUnavailable playbook(s) (LastRunStatus 'Unavailable'); their counts are not zero, they are unknown._`n" })
+$(Format-Table -Items $pbRunRows -Columns 'Playbook','Runs7d','Failed7d','LastRunStatus','LastFailureUtc','Note')
 
 [Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks) · [Monitor automation health](https://learn.microsoft.com/azure/sentinel/monitor-automation-health)
 "@)
@@ -3597,9 +3600,16 @@ $classRows
 Undetermined and Unclassified closures carry no verdict, so they feed neither the false-positive rate nor rule tuning; [SENT-057] fires when they are the majority.
 "@
 } else { '' }
-$effectivenessRows = @($ruleEffectiveness | Sort-Object { _RendererNumber $_.Incidents } -Descending | ForEach-Object {
+# Sentinel rules first, then other products' alerts by name; Source is the
+# collector's column when present, else derived from the rule id.
+$effectivenessRows = @($ruleEffectiveness | Sort-Object { -(_RendererNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable | ForEach-Object {
+    $src = if ($_.PSObject.Properties['Source'] -and $_.Source) { [string]$_.Source }
+           elseif ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 'Analytics rule' }
+           elseif ($_.PSObject.Properties['Product'] -and $_.Product) { [string]$_.Product }
+           else { 'Other' }
     [pscustomobject]@{
         Rule         = $_.RuleName
+        Source       = $src
         Incidents    = [int](_RendererNumber $_.Incidents)
         Closed       = [int](_RendererNumber $_.Closed)
         TP           = [int](_RendererNumber $_.TruePositive)
@@ -3688,9 +3698,9 @@ $incOutcomeBlock
 
 ## Rule effectiveness (last 30d)
 
-Incidents per analytics rule with their closure verdicts. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
+Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
 
-$(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
+$(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
 ## Incident detail by provider / product / first rule (last 7d)
 
@@ -3751,9 +3761,9 @@ $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule =
 
 ### Rule effectiveness (last 30d)
 
-Incidents per rule with their closure verdicts, every rule that produced an incident. ``FPRate`` is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
+Incidents per detection with their closure verdicts: Sentinel analytics rules first, then alerts from other products keyed by alert name with the product as ``Source``. ``FPRate`` is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
 
-$(Format-Table -Items $effectivenessRows -Columns 'Rule','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
+$(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 "@
 
 # Section 22 — Microsoft security rules (TOC 4.11.3)

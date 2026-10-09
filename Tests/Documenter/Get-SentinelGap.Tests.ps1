@@ -470,6 +470,20 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
             ($absentFindings | Where-Object Id -eq $id).Count | Should -Be 1 -Because "$id reads files that are still there"
         }
     }
+
+    It 'takes the service-reported bookmark count when the list was too large to fetch' {
+        # bookmarks.json absent, bookmarks-count.json present with a count: hunting activity exists, SENT-058 stays quiet.
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-bmcount-$(New-Guid)"
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        try {
+            Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
+            Remove-Item (Join-Path $dir 'bookmarks.json') -Force
+            '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
+            $out = [System.Collections.Generic.List[object]]::new()
+            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $out
+            ($out | Where-Object Id -eq 'SENT-058').Outcome | Should -Be 'Passed'
+        } finally { Remove-Item $dir -Recurse -Force }
+    }
 }
 
 Describe 'Sentinel gap-analysis engine: per-check outcomes' {

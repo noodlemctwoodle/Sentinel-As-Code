@@ -234,8 +234,8 @@ Describe 'Sentinel Documenter renderer' {
             $script:inc15 | Should -Match '"Undetermined" : 15'
         }
 
-        It 'tables the rule effectiveness with the false-positive rate' {
-            $script:inc15 | Should -Match '\| Suspicious sign-in from rare country \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
+        It 'tables the rule effectiveness with the source and the false-positive rate' {
+            $script:inc15 | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
         }
     }
 
@@ -259,7 +259,7 @@ Describe 'Sentinel Documenter renderer' {
             $script:rulesMd | Should -Match 'pie showData title Microsoft-managed rules by severity'
             $script:rulesMd | Should -Match 'Rule modifications per month'
             $script:rulesMd | Should -Match 'pie showData title Analytics rules by Content Hub solution'
-            $script:rulesMd | Should -Match '### Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| 10 \| 8 \|'
+            $script:rulesMd | Should -Match '### Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| Analytics rule \| 10 \| 8 \|'
         }
 
         It 'ends with the Learn links once' {

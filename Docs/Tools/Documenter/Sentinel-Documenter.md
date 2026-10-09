@@ -359,7 +359,7 @@ checks from the Sentinel health-check script contributed to the project:
 
 | Rule | What it reads | Fires when |
 |---|---|---|
-| SENT-036 Noisy rule | `rule-effectiveness.json` | 20+ closed incidents and more than 70% false positive |
+| SENT-036 Noisy rule | `rule-effectiveness.json` | a Sentinel analytics rule (rows with a rule id; other products' alerts are tuned in their own portal) with 20+ closed incidents and more than 70% false positive |
 | SENT-037 No entity mappings | `alert-rules.json` | an enabled Scheduled/NRT rule has no `entityMappings` |
 | SENT-038 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
 | SENT-041 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
@@ -371,7 +371,7 @@ checks from the Sentinel health-check script contributed to the project:
 | SENT-055 Single TI feed | `data-connectors-classic.json`, `threat-intel-counts.json` | at most one TI connector kind and no non-Microsoft indicator source |
 | SENT-056 Azure Firewall logged twice | `azure-diagnostics-categories.json`, `tables-with-data.json` | `AzureFirewall*` categories and `AZFW*` tables both carry data |
 | SENT-057 Closed unclassified | `incidents-summary.json` | 10+ closed and more than half Undetermined or unclassified |
-| SENT-058 No hunting | `hunts.json`, `bookmarks.json` | both captures ran and both are empty |
+| SENT-058 No hunting | `hunts.json`, `bookmarks.json` (or `bookmarks-count.json` when the list was too large to fetch) | both captures ran and both are empty |
 
 The collector only writes some of those files when their capture succeeds
 (`hunts.json`, `playbook-runs.json`, `rule-effectiveness.json` and the

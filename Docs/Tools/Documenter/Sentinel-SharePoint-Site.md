@@ -84,7 +84,7 @@ carries the health-check views the Documenter computes:
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (top 12; the page has the full list) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
-| `playbookHealth` | Insights: runs and failures per playbook | `playbook-runs` |
+| `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
 | `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
 | `familyOrder`, `sections[].headline` | Overview: the contents cards, one per family, each page linking to its native page | the rendered sections |
 

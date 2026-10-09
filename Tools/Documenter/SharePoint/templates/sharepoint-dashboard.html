@@ -1210,11 +1210,11 @@
 
   // 7b. Rule effectiveness (30d)
   if(M.effectiveness && M.effectiveness.length){
-    const rows=M.effectiveness.slice(0,8).map(e=>'<tr><td>'+esc(e.rule)+'</td><td class="num">'+e.incidents+'</td><td class="num">'+e.closed+'</td>'+
+    const rows=M.effectiveness.slice(0,8).map(e=>'<tr><td>'+esc(e.rule)+(e.source&&e.source!=='Analytics rule'?'<div class="note" style="margin:2px 0 0">'+esc(e.source)+'</div>':'')+'</td><td class="num">'+e.incidents+'</td><td class="num">'+e.closed+'</td>'+
       '<td class="num">'+e.tp+'</td><td class="num">'+e.fp+'</td><td class="num">'+e.fpRate+'%</td></tr>').join('');
     cards.push('<div class="ipanel"><h3>Rule effectiveness (30d)</h3>'+
-      '<p class="note">Incidents per rule with their closure verdicts. FP rate is false positives over closed incidents.</p>'+
-      '<table class="tbl"><thead><tr><th>Rule</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+rows+'</tbody></table></div>');
+      '<p class="note">Incidents per detection with their closure verdicts: Sentinel analytics rules first, then other products\' alerts (product shown under the name). FP rate is false positives over closed incidents.</p>'+
+      '<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+rows+'</tbody></table></div>');
   }
 
   // 7c. Daily ingestion trend (string-built SVG: area, line, average, three x labels)
@@ -1260,7 +1260,7 @@
     const items=[{label:'Succeeded',value:ok,display:ok.toLocaleString()},{label:'Failed',value:ph.failed7d,display:ph.failed7d.toLocaleString(),cls:'sev-Critical'}];
     const fl=(ph.failing||[]).map(f=>({label:f.playbook,value:f.failed,display:f.failed+' of '+f.runs,cls:'sev-Critical'}));
     cards.push('<div class="ipanel"><h3>Playbook health (7d)</h3>'+
-      '<p class="note">'+ph.runs7d.toLocaleString()+' runs across '+ph.playbooks+' playbook'+(ph.playbooks===1?'':'s')+'; '+(ph.failing||[]).length+' with failures.</p>'+
+      '<p class="note">'+ph.runs7d.toLocaleString()+' runs across '+ph.playbooks+' playbook'+(ph.playbooks===1?'':'s')+'; '+(ph.failing||[]).length+' with failures'+(ph.unavailable?'; run history unavailable for '+ph.unavailable:'')+'.</p>'+
       barsHtml(items,{theme:'teal'})+(fl.length?'<p class="note" style="margin:14px 0 8px">Failing playbooks</p>'+barsHtml(fl,{theme:'rose'}):'')+'</div>');
   }
 

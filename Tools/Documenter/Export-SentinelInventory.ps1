@@ -189,7 +189,7 @@ function Save-Json {
     $target = Join-Path $rawOut $FileName
     $singleObjectFiles = @(
         'workspace.json','run-context.json','settings.json','cost-estimate.json',
-        'subscription.json','dedicated-cluster.json','maturity.json'
+        'subscription.json','dedicated-cluster.json','maturity.json','bookmarks-count.json'
     )
     if ($null -eq $Data) {
         if ($singleObjectFiles -contains $FileName) {
@@ -375,8 +375,24 @@ Try-Capture 'watchlists' {
 }
 
 Try-Capture 'bookmarks' {
-    $bm = Invoke-SentinelRest -Path "$sentinelScope/bookmarks" -ApiVersion $apiVersions.Sentinel
-    Save-Json -FileName 'bookmarks.json' -Data $bm
+    # The list API refuses a response over about 8 MB ("Bookmarks response
+    # is too large (N bytes, M items)") and has no paging. The message does
+    # carry the item count, so on that error the count is kept in
+    # bookmarks-count.json: the hunting rule and the maturity criterion then
+    # know bookmarks exist without the list itself.
+    try {
+        $bm = Invoke-SentinelRest -Path "$sentinelScope/bookmarks" -ApiVersion $apiVersions.Sentinel
+        Save-Json -FileName 'bookmarks.json' -Data $bm
+    } catch {
+        $msg = $_.Exception.Message
+        if ($msg -match 'too large[^)]*?(\d+)\s+items') {
+            $count = [int]$Matches[1]
+            Write-Warning "Bookmarks list refused as too large; keeping the count the service reported ($count)."
+            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
+        } else {
+            throw
+        }
+    }
 }
 
 Try-Capture 'hunts' {
@@ -632,7 +648,7 @@ Try-Capture 'playbook-runs' {
         $state = ''
         if ($wf.PSObject.Properties.Name -contains 'properties' -and $null -ne $wf.properties -and
             $wf.properties.PSObject.Properties.Name -contains 'state') { $state = [string]$wf.properties.state }
-        $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null }
+        $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null; Note = $null }
         if ($state -eq 'Enabled') {
             try {
                 $runs = @(Invoke-SentinelRest -Path "$($wf.id)/runs?`$top=250&`$filter=startTime ge $since" -ApiVersion '2016-06-01')
@@ -649,6 +665,9 @@ Try-Capture 'playbook-runs' {
                     $row.LastFailureUtc = [string]$lastFailed.properties.startTime
                 }
             } catch {
+                # Marked so consumers can tell "no runs" from "could not read".
+                $row.LastRunStatus = 'Unavailable'
+                $row.Note = "Run history not readable: $($_.Exception.Message)"
                 Write-Warning "Run history for playbook $wfName failed: $($_.Exception.Message)"
             }
         }
@@ -1302,18 +1321,21 @@ SecurityAlert
 }
 
 Try-Capture 'rule-effectiveness' {
-    # Incident outcomes per analytics rule: each incident is counted once
+    # Incident outcomes per detection: each incident is counted once
     # (arg_max per IncidentNumber), the SecurityAlert side is time-bounded,
-    # and rules are keyed on the Analytic Rule Id carried in the alert's
-    # ExtendedProperties (an array on current alerts, a scalar on older
-    # ones), falling back to the alert name.
+    # and Sentinel rules are keyed on the Analytic Rule Id carried in the
+    # alert's ExtendedProperties (an array on current alerts, a scalar on
+    # older ones). Alerts from other products (Defender XDR, Entra ID
+    # Protection, Purview) carry no rule id and are keyed on the alert name
+    # with Source set to the product, so a page can tell the two apart.
+    # Sentinel rules sort first so the row cap never drops them.
     $kql = @'
 let w = 30d;
 let alerts = SecurityAlert
 | where TimeGenerated > ago(w)
 | extend ep = parse_json(ExtendedProperties)
 | extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
-| summarize arg_max(TimeGenerated, AlertName, AlertRuleId) by SystemAlertId;
+| summarize arg_max(TimeGenerated, AlertName, AlertRuleId, ProductName, ProviderName) by SystemAlertId;
 SecurityIncident
 | where TimeGenerated > ago(w)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
@@ -1322,6 +1344,7 @@ SecurityIncident
 | join kind=inner alerts on $left.AlertId == $right.SystemAlertId
 | extend RuleKey = iff(isempty(AlertRuleId), AlertName, AlertRuleId)
 | summarize AlertRuleId = any(AlertRuleId), RuleName = any(AlertName),
+    Product = any(ProductName), Provider = any(ProviderName),
     Incidents = dcount(IncidentNumber),
     Closed = dcountif(IncidentNumber, Status == "Closed"),
     TruePositive = dcountif(IncidentNumber, Classification == "TruePositive"),
@@ -1330,9 +1353,11 @@ SecurityIncident
     Undetermined = dcountif(IncidentNumber, Status == "Closed" and (Classification == "Undetermined" or isempty(Classification)))
     by RuleKey
 | extend FPRate = round(100.0 * FalsePositive / iff(Closed == 0, 1, Closed), 1)
-| project-away RuleKey
-| order by Incidents desc
-| take 200
+| extend Source = iff(isempty(AlertRuleId), coalesce(Product, Provider, "Other"), "Analytics rule")
+| extend IsRule = isnotempty(AlertRuleId)
+| order by IsRule desc, Incidents desc
+| take 300
+| project-away RuleKey, IsRule
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop

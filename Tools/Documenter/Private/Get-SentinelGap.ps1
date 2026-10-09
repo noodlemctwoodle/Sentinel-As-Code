@@ -207,6 +207,7 @@ function New-InventoryFromRaw {
         PlaybookRuns           = Read-JsonArray 'playbook-runs.json'
         Hunts                  = Read-JsonArray 'hunts.json'
         Bookmarks              = Read-JsonArray 'bookmarks.json'
+        BookmarksCount         = Read-Json 'bookmarks-count.json'
         IncidentsSummary       = Read-JsonArray 'incidents-summary.json'
         AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
         ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'

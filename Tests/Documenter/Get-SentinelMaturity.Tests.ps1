@@ -204,6 +204,16 @@ Describe 'Maturity assessment over the sample fixture' {
         $fromFile.overall.score | Should -Be $maturity.overall.score
     }
 
+    It 'reads the bookmark count from bookmarks-count.json when the list is absent' {
+        $dir = Join-Path $TestDrive 'bmcount-raw'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
+        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).bookmarks | Should -Be 350
+        $bare = Join-Path $TestDrive 'bmcount-none'
+        New-Item -ItemType Directory -Path $bare -Force | Out-Null
+        (New-MaturityMetrics -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
+    }
+
     It 'marks every rule-backed criterion Unknown when there are no outcomes and no captures' {
         $empty = Join-Path $TestDrive 'empty-raw'
         New-Item -ItemType Directory -Path $empty -Force | Out-Null

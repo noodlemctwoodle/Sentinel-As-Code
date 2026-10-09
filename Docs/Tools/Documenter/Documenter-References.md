@@ -46,6 +46,7 @@ needs bumping.
 | Surface | Version | Capture (`Try-Capture` label) |
 |---|---|---|
 | `.../workspaces/<ws>/summaryLogs` (summary rules) | `2023-01-01-preview` | `summary-rules` |
+| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging; the collector then keeps the item count the error reports in `bookmarks-count.json` |
 | `Microsoft.Insights/workbooks?category=sentinel` | `2023-06-01` | `workbooks-saved` |
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
 | `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |
@@ -171,11 +172,14 @@ Grouped by purpose:
   row with `Count`, `Closed` and three bags (`ByStatus`, `BySeverity`, `ByClassification`)
   whose values are real counts; closed incidents with an empty classification are reported
   as `Unclassified`.
-- `rule-effectiveness` - per analytics rule over 30 days: incidents, closures and the
+- `rule-effectiveness` - per detection over 30 days: incidents, closures and the
   true/false/benign-positive split, with a false-positive rate over closed incidents. Each
-  incident is counted once (`arg_max` by `IncidentNumber`) and joined to its alerts, whose
-  rule id comes from `ExtendedProperties` (`Analytic Rule Ids` on current alerts,
-  `Analytic Rule Id` on older ones).
+  incident is counted once (`arg_max` by `IncidentNumber`) and joined to its alerts. Sentinel
+  rules are keyed on the rule id from `ExtendedProperties` (`Analytic Rule Ids` on current
+  alerts, `Analytic Rule Id` on older ones) and carry `Source` "Analytics rule"; alerts from
+  other products (Defender XDR, Entra ID Protection, Purview) have no rule id, are keyed on
+  the alert name and carry the product as `Source`. Sentinel rules sort first, then the
+  300-row cap applies, so a busy XDR tenant never pushes its own rules off the list.
 
 **Analytics and threat intelligence**
 

@@ -164,7 +164,7 @@ Unknown), and `0` or `false` when the file exists but holds nothing.
 | `summaryRules` | `summary-rules.json` | summary rules |
 | `tiIndicators30d`, `mdtiRows30d` | `threat-intel-counts.json` | indicators in 30 days, all sources and Microsoft sources |
 | `tiObjects30d` | `threat-intel-objects.json` | STIX objects in 30 days |
-| `bookmarks` | `bookmarks.json` | bookmarks |
+| `bookmarks` | `bookmarks.json`, else `bookmarks-count.json` | bookmarks; the list API refuses a workspace with many bookmarks, and the collector then keeps the count the service reported |
 | `huntingQueries` | `hunting-queries.json` | hunting queries |
 | `highPrivilegeAssignments` | `rbac-workspace.json` | Owner and Contributor assignments at workspace scope |
 | `sentinelRoleAssignments` | `rbac-workspace.json` | assignments of any `Microsoft Sentinel *` role |

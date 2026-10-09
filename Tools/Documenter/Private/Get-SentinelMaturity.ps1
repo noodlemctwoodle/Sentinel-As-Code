@@ -293,6 +293,14 @@ function New-MaturityMetrics {
         $sentinelRoleAssignments  = @($rbac | Where-Object { ([string](Get-MaturityPropertyValue $_ 'RoleDefinitionName' '')) -like 'Microsoft Sentinel*' }).Count
     }
 
+    # The bookmarks list is refused when too large; the collector then keeps
+    # the count the service reported in bookmarks-count.json.
+    $bookmarks = Get-RowCount 'bookmarks.json'
+    if ($null -eq $bookmarks) {
+        $bookmarkCountDoc = Read-Json 'bookmarks-count.json'
+        if ($null -ne $bookmarkCountDoc) { $bookmarks = [int](ConvertTo-MaturityNumber (Get-MaturityPropertyValue $bookmarkCountDoc 'Count' 0)) }
+    }
+
     $connectorFailures7d = Get-RowSum $health 'LogCount' { param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector') }
     $sentinelHealthRows7d = Get-RowSum $health 'LogCount'
     $laQueryLogs7d = Get-RowSum (Read-Rows 'la-query-logs.json') 'QueryCount'
@@ -323,7 +331,7 @@ function New-MaturityMetrics {
         tiIndicators30d           = $tiIndicators30d
         mdtiRows30d               = $mdtiRows30d
         tiObjects30d              = $tiObjects30d
-        bookmarks                 = Get-RowCount 'bookmarks.json'
+        bookmarks                 = $bookmarks
         huntingQueries            = Get-RowCount 'hunting-queries.json'
         highPrivilegeAssignments  = $highPrivilegeAssignments
         sentinelRoleAssignments   = $sentinelRoleAssignments

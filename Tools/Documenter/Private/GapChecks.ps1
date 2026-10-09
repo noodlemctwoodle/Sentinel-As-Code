@@ -1078,10 +1078,13 @@ function _ToIsoTime {
 function Test-NoisyFalsePositiveRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (@($Inventory.RuleEffectiveness).Count -eq 0) { return $null }
+    # Sentinel rules only (rows with an AlertRuleId); alerts from other
+    # products are tuned in their own portal, not in a rule's query.
     # Statistical floor of 20 closed incidents so a handful of closures
     # cannot condemn a rule.
     $noisy = @($Inventory.RuleEffectiveness | Where-Object {
         $null -ne $_ -and
+        -not [string]::IsNullOrWhiteSpace([string](Get-PropOrDefault $_ 'AlertRuleId' '')) -and
         (_ToInt (Get-PropOrDefault $_ 'Closed' 0)) -ge 20 -and
         (_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) -gt 70
     } | Sort-Object { -(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) })
@@ -1406,8 +1409,15 @@ function Test-IncidentsClosedUnclassified {
 function Test-HuntingActivityRecorded {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     # Both captures must have run: hunts.json is only written on success,
-    # and an empty bookmarks list means nothing without it.
-    if ($Inventory.RawFiles -notcontains 'hunts.json' -or $Inventory.RawFiles -notcontains 'bookmarks.json') { return $null }
-    if (@($Inventory.Hunts).Count -gt 0 -or @($Inventory.Bookmarks).Count -gt 0) { return $null }
+    # and an empty bookmarks list means nothing without it. When the
+    # bookmarks list was too large to fetch, the collector keeps the count
+    # the service reported in bookmarks-count.json instead.
+    $haveBookmarks = ($Inventory.RawFiles -contains 'bookmarks.json') -or ($Inventory.RawFiles -contains 'bookmarks-count.json')
+    if ($Inventory.RawFiles -notcontains 'hunts.json' -or -not $haveBookmarks) { return $null }
+    $bookmarkCount = @($Inventory.Bookmarks).Count
+    if ($Inventory.RawFiles -notcontains 'bookmarks.json' -and $null -ne $Inventory.BookmarksCount) {
+        $bookmarkCount = _ToInt (Get-PropOrDefault $Inventory.BookmarksCount 'Count' 0)
+    }
+    if (@($Inventory.Hunts).Count -gt 0 -or $bookmarkCount -gt 0) { return $null }
     return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
 }
