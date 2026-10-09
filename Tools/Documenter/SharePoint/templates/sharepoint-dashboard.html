@@ -1545,10 +1545,40 @@
   }
   sevSel.onchange=renderFindings; renderFindings();
 
+  // ---- balanced card grids ----
+  // auto-fill packs as many columns as fit and leaves a short last row
+  // (six cards, then four). For each card grid, take the column count that
+  // fits, work out how many rows that needs, and spread the cards evenly
+  // over those rows instead: ten cards at six wide become five and five.
+  // Full-width panels (.full) span every column and are left out of the
+  // count. Re-run on resize and when a hidden tab is shown.
+  const BALANCED=[['#contents',250],['#heroPills',150],['#estateRings',220],['#outcomes',290],['#insightsBoard',380],['.csfgrid',200],['.invg',130]];
+  function balanceGrids(){
+    BALANCED.forEach(([sel,min])=>{
+      document.querySelectorAll(sel).forEach(el=>{
+        const w=el.clientWidth; if(!w) return;                     // hidden tab, measure when shown
+        const n=[...el.children].filter(c=>!c.classList.contains('full')).length;
+        if(!n) return;
+        const gap=parseFloat(getComputedStyle(el).columnGap)||12;
+        const maxCols=Math.max(1,Math.floor((w+gap)/(min+gap)));
+        const rows=Math.ceil(n/maxCols);
+        const cols=Math.max(1,Math.ceil(n/rows));
+        el.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
+      });
+    });
+  }
+  balanceGrids();
+  window.addEventListener('resize',balanceGrids);
+  if(window.ResizeObserver){
+    const ro=new ResizeObserver(()=>balanceGrids());
+    BALANCED.forEach(([sel])=>document.querySelectorAll(sel).forEach(el=>ro.observe(el)));
+  }
+
   // ---- tabs ----
   activateTab = function(name){
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===name));
     document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==name));
+    balanceGrids();
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{
