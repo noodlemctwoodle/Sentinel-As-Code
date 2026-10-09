@@ -20,13 +20,13 @@ ADO-only image pre-render pass:
 
 ```
 Live workspace → Export-SentinelInventory.ps1     → _raw/*.json
-_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 40 .md files
+_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 36 .md files
 *.md (ADO only)→ Convert-MermaidToImage.ps1        → assets/*.png + rewritten fences
 ```
 
-Stage 2 (this spec's subject) emits **40 output files**: 39 numbered
+Stage 2 (this spec's subject) emits **36 output files**: 35 numbered
 section files (`00-overview.md` through `99-references.md`) plus
-`index.md`. Of the 39 numbered files, 38 are written by `Write-Section`
+`index.md`. Of the 35 numbered files, 34 are written by `Write-Section`
 blocks; `99-references.md` is copied verbatim from the resource
 catalogue (`Copy-Item`) rather than generated. Stage 3
 (`Convert-MermaidToImage.ps1`) is described in
@@ -76,7 +76,7 @@ hoisted globals).
 
 ## Chart system
 
-**46 Mermaid chart blocks across 34 of the 39 numbered sections.** Every
+**46 Mermaid chart blocks across 30 of the 35 numbered sections.** Every
 chart is driven by data from the captured `_raw/*.json` (no static
 decoration) except for a handful of deliberately static, instructional
 diagrams (the SOC-analyst `journey`, the alert-to-response
@@ -102,10 +102,10 @@ table only.
 | `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
 | `20-analytics-rules.md` | classDiagram | per-kind deployed-count notes | none |
-| `21-analytics-by-volume.md` | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
-| `22-analytics-microsoft-rules.md` | pie | Microsoft rules grouped by Severity | `$msRules.Count -gt 0` |
-| `23-analytics-modifications.md` | xychart-beta bar | per-month bucket counts (last 12mo) | none |
-| `24-analytics-by-solution.md` | pie | top 8 solutions by rule count + Other | none |
+| `20-analytics-rules.md` (By alert volume) | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
+| `20-analytics-rules.md` (Microsoft-managed rules) | pie | Microsoft rules grouped by Severity | `$msRules.Count -gt 0` |
+| `20-analytics-rules.md` (Recent modifications) | xychart-beta bar | per-month bucket counts (last 12mo) | none |
+| `20-analytics-rules.md` (By Content Hub solution) | pie | top 8 solutions by rule count + Other | none |
 | `25-mitre-coverage.md` | xychart-beta bar (width 1400) | `$mitreRowsRich.EnabledRules` | none |
 | `26-ueba.md` | pie | `$uebaPresenceRows` by table | `$uebaTotalRows -gt 0` |
 | `27-threat-intelligence.md` | pie | `$tiRows` top 6 by IndicatorCount | `$tiRows total > 0` |
@@ -137,7 +137,7 @@ table only.
 
 ### Sections intentionally chart-less
 
-5 of the 39 numbered sections do not emit a chart because the data shape
+5 of the 35 numbered sections do not emit a chart because the data shape
 doesn't support one or the page is pure-reference:
 
 - `36-data-export.md`, `37-search-restore.md`, `82-dedicated-cluster.md`, 
@@ -146,12 +146,12 @@ doesn't support one or the page is pure-reference:
   `99-references.md` (the Documenter's own API-version / module list,
   copied verbatim from the resource catalogue).
 
-Two further pages carry no chart but are not counted in the 34 above:
+Two further pages carry no chart but are not counted in the 30 above:
 
 - `index.md`, the navigation TOC (not a numbered section).
 - `87-azure-monitor-agents.md` when agent count < 3, renders a sentence
   instead because a 1-vs-0 pie is visually meaningless (it is otherwise
-  a chart-bearing section, hence its place in the 34).
+  a chart-bearing section, hence its place in the 30).
 
 The rule: **chart only when data shape justifies it; never as decoration.**
 
@@ -392,7 +392,7 @@ assets root).
 | [`Tools/Documenter/Private/Resources/mitre-attack.json`](../../../Tools/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Documenter/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Documenter/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Documenter/Private/Resources/commitment-tiers.json`](../../../Tools/Documenter/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~184 tests) |
+| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~183 tests) |
 | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (63 tests) |
 | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (31 tests) |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |

@@ -79,8 +79,7 @@ Describe 'Sentinel Documenter renderer' {
             '13-data-source-hygiene.md',
             '14-coverage-breakdowns.md',
             '15-incidents.md',
-            '20-analytics-rules.md','21-analytics-by-volume.md','22-analytics-microsoft-rules.md',
-            '23-analytics-modifications.md','24-analytics-by-solution.md',
+            '20-analytics-rules.md',
             '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
             '28-detection-opportunities.md',
             '30-hunting-queries.md','35-parsers-functions.md',
@@ -240,10 +239,38 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
-    Context '21-analytics-by-volume.md repeats the full effectiveness table' {
-        It 'contains both fixture rules under Rule effectiveness' {
-            $md = Get-Content (Join-Path $script:tempWsRoot '21-analytics-by-volume.md') -Raw
-            $md | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| 10 \| 8 \|'
+    Context '20-analytics-rules.md carries the merged analytics subsections' {
+        BeforeAll {
+            $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+        }
+
+        It 'has the four former deep-dive pages as H2 subsections, in order' {
+            $heads = [regex]::Matches($script:rulesMd, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }
+            $heads | Should -Contain 'By alert volume (last 30d)'
+            $heads | Should -Contain 'Microsoft-managed rules'
+            $heads | Should -Contain 'Recent modifications'
+            $heads | Should -Contain 'By Content Hub solution'
+            ([array]::IndexOf($heads, 'By alert volume (last 30d)')) | Should -BeLessThan ([array]::IndexOf($heads, 'Microsoft-managed rules'))
+            ([array]::IndexOf($heads, 'Recent modifications')) | Should -BeLessThan ([array]::IndexOf($heads, 'By Content Hub solution'))
+        }
+
+        It 'keeps the charts and tables of the merged pages' {
+            $script:rulesMd | Should -Match '### Top 10 noisy rules by alert volume'
+            $script:rulesMd | Should -Match 'pie showData title Microsoft-managed rules by severity'
+            $script:rulesMd | Should -Match 'Rule modifications per month'
+            $script:rulesMd | Should -Match 'pie showData title Analytics rules by Content Hub solution'
+            $script:rulesMd | Should -Match '### Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| 10 \| 8 \|'
+        }
+
+        It 'ends with the Learn links once' {
+            ([regex]::Matches($script:rulesMd, 'Detect threats from template')).Count | Should -Be 1
+            $script:rulesMd.TrimEnd() | Should -Match 'false-positives\)$'
+        }
+
+        It 'no longer writes the four separate pages' {
+            foreach ($f in '21-analytics-by-volume.md', '22-analytics-microsoft-rules.md', '23-analytics-modifications.md', '24-analytics-by-solution.md') {
+                Join-Path $script:tempWsRoot $f | Should -Not -Exist
+            }
         }
     }
 

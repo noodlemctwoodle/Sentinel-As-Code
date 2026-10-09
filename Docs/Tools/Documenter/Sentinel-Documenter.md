@@ -93,7 +93,7 @@ topology that matches your setup:
 A folder per workspace under `SecurityDocs/<workspace>/`. The collector
 (`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
 (`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into `index.md`
-plus **39 numbered Markdown sections**:
+plus **35 numbered Markdown sections**:
 
 ```
 SecurityDocs/
@@ -122,11 +122,7 @@ SecurityDocs/
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source
     ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
-    ├── 20-analytics-rules.md          all rules by kind (Scheduled, NRT, Fusion, …)
-    ├── 21-analytics-by-volume.md      top 50 rules by alert volume (30d)
-    ├── 22-analytics-microsoft-rules.md  Microsoft-managed rules
-    ├── 23-analytics-modifications.md  recently modified rules
-    ├── 24-analytics-by-solution.md    rules grouped by Content Hub solution
+    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source
@@ -187,10 +183,11 @@ Beyond those headline pages the report groups into families:
   days), `12-soc-optimization.md` (SOC Optimization recommendations),
   `13-data-source-hygiene.md` (CEF/Syslog hygiene, agent dual-collection, noisy
   events) and `15-incidents.md` (MTTA/MTTR and the loudest rules).
-- **Analytics deep-dives**: `21-analytics-by-volume.md`,
-  `22-analytics-microsoft-rules.md`, `23-analytics-modifications.md` and
-  `24-analytics-by-solution.md` slice the rule estate by alert volume, ownership,
-  recent change and Content Hub solution; `26-ueba.md` and
+- **Analytics**: `20-analytics-rules.md` holds the whole rule estate on one
+  page: every rule by kind, the mouldy and template-drifted rules, the
+  Microsoft incident-creation rules, then the top rules by alert volume with
+  their incident outcomes, the Microsoft-managed rules, recent modifications
+  and the Content Hub solution breakdown; `26-ueba.md` and
   `27-threat-intelligence.md` cover UEBA configuration and indicator counts.
 - **Data platform**: `36-data-export.md`, `37-search-restore.md`,
   `38-summary-rules.md`, `87-azure-monitor-agents.md` and

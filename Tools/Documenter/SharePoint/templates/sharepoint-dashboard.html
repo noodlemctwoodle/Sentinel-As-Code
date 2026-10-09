@@ -746,7 +746,7 @@
       badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
     {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
       sec:((M.sections||[]).some(s=>s.num===91)?91:secOverview)},
-    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/by alert volume/i, secOverview)}
+    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/^analytics rules/i, secOverview)}
   ];
   const goArrow = '<svg class="pgo" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
   document.getElementById('heroPills').innerHTML = pills.map(p=>

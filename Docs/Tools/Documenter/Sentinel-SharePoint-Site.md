@@ -17,7 +17,7 @@ One communication site per workspace, containing:
 | Part | What it is | Where |
 | --- | --- | --- |
 | **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, the billing flow, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
-| **Section pages** | One modern page per Documenter section (39 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
+| **Section pages** | One modern page per Documenter section (35 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. | `Lists/SentinelFindings` |
 | **Assets** | The dashboard HTML and data, the pre-rendered diagrams, the publisher's state file and the maturity score history. | `DocumenterAssets` library |

@@ -1125,7 +1125,7 @@ $correlationState
 |---:|---:|---:|---:|---:|---:|---:|
 | $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) | $schedEnabled | $schedDisabled | $nrtEnabled | $nrtDisabled |
 
-Per-rule incident outcomes and false-positive rates for the last 30 days are in [21-analytics-by-volume.md](21-analytics-by-volume.md); tables no enabled rule reads, with the templates that would cover them, in [28-detection-opportunities.md](28-detection-opportunities.md).
+Per-rule alert volumes and incident outcomes, the Microsoft-managed rules, recent modifications and the Content Hub solution breakdown follow below on this page; tables no enabled rule reads, with the templates that would cover them, are in [28-detection-opportunities.md](28-detection-opportunities.md).
 
 ## All rules
 
@@ -1148,11 +1148,10 @@ $(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','Lat
 These translate first-party security alerts (Defender for Cloud Apps, Defender XDR, etc.) into Sentinel incidents based on per-product filter criteria. They aren't editable as KQL rules; the ``Product`` column is the source product, and ``Includes`` / ``Excludes`` are the alert-name filters.
 
 $(Format-Table -Items $msIncidentRows -Columns 'Name','Product','Severities','Includes','Excludes','Enabled')
-
-[Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@
-
-Write-Section '20-analytics-rules.md' $rulesBody
+# $rulesBody is the first part of 20-analytics-rules.md; the alert-volume,
+# Microsoft-managed, modifications and solution subsections are built after
+# section 15 (they need its effectiveness rows) and the page is written there.
 
 # ---------------------------------------------------------------------------
 # Section: 25-mitre-coverage
@@ -3360,7 +3359,7 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 $socChartBlock
 
-> Before tuning based on these recommendations, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
+> Before tuning based on these recommendations, cross-reference [20-analytics-rules.md](20-analytics-rules.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
 
 ## Coverage recommendations
 
@@ -3620,7 +3619,7 @@ $mttrLine
 
 $dailyLine
 
-> When triaging a high MTTR, cross-reference [21-analytics-by-volume.md](21-analytics-by-volume.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
+> When triaging a high MTTR, cross-reference [20-analytics-rules.md](20-analytics-rules.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
 
 ## Incident lifecycle
 
@@ -3689,7 +3688,7 @@ $incOutcomeBlock
 
 ## Rule effectiveness (last 30d)
 
-Incidents per analytics rule with their closure verdicts. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires at 20 or more closed and above 70%. The full table is repeated in [21-analytics-by-volume.md](21-analytics-by-volume.md) next to the alert volumes.
+Incidents per analytics rule with their closure verdicts. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
 
 $(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
@@ -3721,7 +3720,7 @@ $volChartBlock = if ($ruleVolumes.Count -gt 0) {
     foreach ($r in $top10) { if ([long]$r.Alerts -gt $volMax) { $volMax = [long]$r.Alerts } }
     @"
 
-## Top 10 noisy rules — alert volume
+### Top 10 noisy rules by alert volume
 
 ``````mermaid
 ---
@@ -3741,20 +3740,21 @@ Short labels chart-axis-only — full rule names in the table below. A single ta
 "@
 } else { '' }
 
-Write-Section '21-analytics-by-volume.md' (@"
-$(Format-Banner -Title "Analytics Rules — by Alert Volume  (TOC 4.11.2)")
+$volumeSection = @"
+
+## By alert volume (last 30d)
 
 The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
 $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 
-## Rule effectiveness (last 30d)
+### Rule effectiveness (last 30d)
 
 Incidents per rule with their closure verdicts, every rule that produced an incident. ``FPRate`` is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
 
 $(Format-Table -Items $effectivenessRows -Columns 'Rule','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
-"@)
+"@
 
 # Section 22 — Microsoft security rules (TOC 4.11.3)
 $msRules = @($rules | Where-Object {
@@ -3775,7 +3775,7 @@ $msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | So
 $msChartBlock = if ($msRules.Count -gt 0) {
     @"
 
-## Microsoft rules by severity
+### Microsoft rules by severity
 
 ``````mermaid
 pie showData title Microsoft-managed rules by severity
@@ -3786,14 +3786,15 @@ $($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm — 
 "@
 } else { '' }
 
-Write-Section '22-analytics-microsoft-rules.md' (@"
-$(Format-Banner -Title "Microsoft Security Rules  (TOC 4.11.3)")
+$msRulesSection = @"
+
+## Microsoft-managed rules
 
 Rules backed by a Microsoft template, or built-in Microsoft-managed kinds (Fusion, MicrosoftSecurityIncidentCreation, MLBehaviorAnalytics, ThreatIntelligence). These are not user-editable; tuning is via enable/disable and the per-rule incident-grouping config.
 $msChartBlock
 
 $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.properties.displayName; Severity = $_.properties.severity; Enabled = if ($_.properties.enabled) {'Yes'} else {'No'} } }) -Columns 'Kind','Name','Severity','Enabled')
-"@)
+"@
 
 # Section 23 — Modifications (TOC 4.11.4)
 # Sort uses ISO-formatted strings — ISO 8601 sorts lexically in the same
@@ -3830,10 +3831,11 @@ $modBars = ($monthBuckets.Values) -join ', '
 $modMax = 1
 foreach ($v in $monthBuckets.Values) { if ($v -gt $modMax) { $modMax = $v } }
 
-Write-Section '23-analytics-modifications.md' (@"
-$(Format-Banner -Title "Analytics Rules — Recent Modifications  (TOC 4.11.4)")
+$modificationsSection = @"
 
-## Modifications per month (last 12 months)
+## Recent modifications
+
+### Modifications per month (last 12 months)
 
 ``````mermaid
 xychart-beta
@@ -3848,7 +3850,7 @@ Each bar is one calendar month (MM). Tempo reveals release cadence — sustained
 The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Tools/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
 $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
-"@)
+"@
 
 # Section 24 — By Content Solution (TOC 4.11.5)
 $metadataAll = Read-RawArray 'metadata.json'
@@ -3885,10 +3887,11 @@ $otherSolCount = $counted - $top8Sum
 $solPieRows = $topSols | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }
 if ($otherSolCount -gt 0) { $solPieRows += "    `"Other`" : $otherSolCount" }
 
-Write-Section '24-analytics-by-solution.md' (@"
-$(Format-Banner -Title "Analytics Rules — by Content Solution  (TOC 4.11.5)")
+$solutionSection = @"
 
-## Top contributing solutions
+## By Content Hub solution
+
+### Top contributing solutions
 
 ``````mermaid
 pie showData title Analytics rules by Content Hub solution (top 8)
@@ -3900,7 +3903,18 @@ $($solCounts.Count) distinct solution(s) contributing $counted total rule(s). A 
 Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association — typically repo-deployed custom rules.
 
 $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
-"@)
+"@
+
+# One page for the rule estate: the core view built in the section-20 block
+# above, then the alert-volume, Microsoft-managed, modifications and
+# solution subsections (formerly 21 to 24).
+$analyticsLinks = @"
+
+[Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template) · [Alert and incident tuning](https://learn.microsoft.com/azure/sentinel/false-positives)
+"@
+# Each part begins with a newline and ends without one; joining with a
+# newline keeps a blank line between a table and the next heading.
+Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $analyticsLinks) -join [Environment]::NewLine)
 
 # Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
@@ -4850,11 +4864,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
 | [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | — | AzureActivity / AzureDiagnostics / XDR coverage by source |
 | [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
-| [20-analytics-rules.md](20-analytics-rules.md) | 4.11.1 | All detection rules by kind |
-| [21-analytics-by-volume.md](21-analytics-by-volume.md) | 4.11.2 | Top 50 rules by alert volume (30d) |
-| [22-analytics-microsoft-rules.md](22-analytics-microsoft-rules.md) | 4.11.3 | Microsoft-managed rules |
-| [23-analytics-modifications.md](23-analytics-modifications.md) | 4.11.4 | Recently modified rules |
-| [24-analytics-by-solution.md](24-analytics-by-solution.md) | 4.11.5 | Rules grouped by Content Hub solution |
+| [20-analytics-rules.md](20-analytics-rules.md) | 4.11 | All detection rules by kind, alert volume and effectiveness, Microsoft-managed rules, recent modifications, Content Hub solution |
 | [25-mitre-coverage.md](25-mitre-coverage.md) | 3.2 | Tactic + technique + sub-technique coverage |
 | [26-ueba.md](26-ueba.md) | 4.16 | UEBA configuration |
 | [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source, STIX objects, feeds |

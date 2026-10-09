@@ -34,6 +34,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   third-party model's name. Also fixed on the way: the live-snapshot MITRE
   headline counted hunting-query tags instead of the 14-tactic catalogue,
   and `incidents-summary` returned presence flags where counts were meant.
+- **One analytics page** - the four analytics deep-dives (by alert volume,
+  Microsoft-managed rules, recent modifications, by Content Hub solution)
+  are now subsections of `20-analytics-rules.md` rather than separate
+  files, so the Detection family reads as one rules page. A site published
+  from an earlier run retires the four old pages on its next publish.
 
 ## 26.09
 
