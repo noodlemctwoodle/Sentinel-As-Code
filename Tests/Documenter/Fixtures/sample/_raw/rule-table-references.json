@@ -1,0 +1,43 @@
+[
+  {
+    "RuleId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "RuleName": "Suspicious sign-in from rare country",
+    "Kind": "Scheduled",
+    "Enabled": true,
+    "Tables": [
+      "AuditLogs",
+      "SigninLogs"
+    ]
+  },
+  {
+    "RuleId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "RuleName": "Lateral movement detected",
+    "Kind": "NRT",
+    "Enabled": false,
+    "Tables": []
+  },
+  {
+    "RuleId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "RuleName": "Fusion (built-in)",
+    "Kind": "Fusion",
+    "Enabled": true,
+    "Tables": []
+  },
+  {
+    "RuleId": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "RuleName": "Create incidents from MDE alerts",
+    "Kind": "MicrosoftSecurityIncidentCreation",
+    "Enabled": true,
+    "Tables": []
+  },
+  {
+    "RuleId": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "RuleName": "Failed logons across multiple accounts",
+    "Kind": "Scheduled",
+    "Enabled": true,
+    "Tables": [
+      "SigninLogs",
+      "ThreatIntelligenceIndicator"
+    ]
+  }
+]

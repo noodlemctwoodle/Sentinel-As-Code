@@ -128,6 +128,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 
 $script:DashboardPage   = 'Dashboard'
 $script:FindingsListUrl = 'Lists/SentinelFindings'
@@ -204,19 +205,6 @@ function Measure-Count {
     if ($Data -is [System.Array]) { return @($Data | Where-Object { $null -ne $_ }).Count }
     if ($Data.PSObject.Properties.Name -contains 'value') { return @($Data.value).Count }
     return @($Data).Count
-}
-
-function Get-TableFamily {
-    <# Map a Log Analytics table name to a source family for the flow. #>
-    param([string] $Table)
-    switch -regex ($Table) {
-        '^ThreatIntel'                                                   { 'Threat Intelligence'; break }
-        '^(AAD|Signin|SigninLogs|AuditLogs|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs|AADNonInteractive|AADServicePrincipal|AADManagedIdentity|AADGraph)' { 'Entra ID / Identity'; break }
-        '^(Device|Alert|Email|CloudAppEvents|Identity|BehaviorAnalytics|UserPeerAnalytics|Anomalies)' { 'Defender XDR'; break }
-        '^(Syslog|CommonSecurityLog|AzureDiagnostics|AzureMetrics|AzureActivity)' { 'Azure / Syslog'; break }
-        '_CL$'                                                           { 'Custom logs'; break }
-        default                                                         { 'Other' }
-    }
 }
 
 function Get-ContentHash {

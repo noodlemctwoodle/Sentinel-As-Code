@@ -1,0 +1,18 @@
+[
+  {
+    "Playbook": "IncidentEnrich-IP",
+    "Id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Logic/workflows/IncidentEnrich-IP",
+    "Runs7d": 42,
+    "Failed7d": 5,
+    "LastFailureUtc": "2026-05-05T22:15:00Z",
+    "LastRunStatus": "Failed"
+  },
+  {
+    "Playbook": "NotifyOnHighSev",
+    "Id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Logic/workflows/NotifyOnHighSev",
+    "Runs7d": 12,
+    "Failed7d": 0,
+    "LastFailureUtc": null,
+    "LastRunStatus": "Succeeded"
+  }
+]
