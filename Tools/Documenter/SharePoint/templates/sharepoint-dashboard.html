@@ -261,6 +261,7 @@
   .ring.tone{background:conic-gradient(var(--rc,var(--brand)) calc(var(--p,0)*1%),var(--ring-track) 0);box-shadow:none}
   .ring.tone span{background:var(--panel);color:var(--ink)}
   .estate{display:block;width:100%;height:auto;max-width:1200px;margin:0 auto}
+  .flowbox.estatebox{background:var(--panel-soft)}
   .mat-band{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0 10px}
   .mat-band .lvl{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint);padding:8px 4px;border-radius:9px;
     background:var(--chip);border:1px solid var(--line-2);line-height:1.2}
@@ -292,14 +293,17 @@
   .ctcard .cti a.sec{color:var(--ink-2);cursor:pointer;font-weight:600}
   .ctcard .cti a.sec:hover{color:var(--brand-ink)}
   .ctcard .cti a.pg{color:var(--faint);font-size:11px;white-space:nowrap}
-  .areabars{display:flex;flex-direction:column;gap:10px}
-  .abar{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:12px}
+  /* One grid for every area row (rows are display:contents) so the score
+     and confidence columns line up across rows whatever the badge width. */
+  .areabars{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:10px 12px}
+  .abar{display:contents}
   .abar .al{font-size:12.5px;font-weight:650;color:var(--ink-2)}
   .abar .at{height:12px;border-radius:999px;background:var(--line-2);position:relative;overflow:visible}
   .abar .af{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--c1,var(--brand)),var(--c2,var(--accent)));width:var(--w,0%)}
   .abar .am{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--amber);left:var(--t,60%)}
   .abar .av{font-size:12.5px;font-weight:800;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
-  .matbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--muted);white-space:nowrap}
+  .matbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--muted);white-space:nowrap;min-width:92px;text-align:center}
+  .cid{white-space:nowrap}
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
@@ -550,7 +554,7 @@
         <h2>Estate flow</h2>
         <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Strand width = GB; red strands are ingested and billed but read by no enabled analytics rule.</p>
       </div></div>
-      <div class="flowbox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
+      <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
     </div>
 
@@ -887,7 +891,7 @@
     card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); window.scrollTo({top:0,behavior:'smooth'}); }));
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
-      qw.innerHTML='<div class="qw">'+MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt">'+esc(q.criterionId)+' &middot; '+esc(q.name)+'</div>'+
+      qw.innerHTML='<div class="qw">'+MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
         '<div class="qwg">'+esc(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>').join('')+'</div>';
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
   })();
@@ -1305,7 +1309,7 @@
     if(MAT.roadmap&&MAT.roadmap.length){
       html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
         '<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
-        MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b>'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+esc(r.guidance||'')+'</div></td>'+
+        MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+esc(r.guidance||'')+'</div></td>'+
           '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">+'+(+r.overallLift||0).toFixed(2)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>').join('')+
         '</tbody></table></div>';
     }
@@ -1324,7 +1328,7 @@
     function renderCriteria(){
       const st=sel.value, s=(q.value||'').toLowerCase();
       const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
-      tb.innerHTML=rows.map(c=>'<tr><td><b>'+esc(c.id)+'</b></td><td>'+esc(areaName[c.area]||c.area)+'</td><td>'+esc(c.name)+'<div class="note" style="margin:2px 0 0">'+esc(c.impact||'')+'</div></td>'+
+      tb.innerHTML=rows.map(c=>'<tr><td class="cid"><b>'+esc(c.id)+'</b></td><td>'+esc(areaName[c.area]||c.area)+'</td><td>'+esc(c.name)+'<div class="note" style="margin:2px 0 0">'+esc(c.impact||'')+'</div></td>'+
         '<td><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span></td><td>'+esc(c.effort)+'</td><td>'+esc(c.evidence||'')+'</td></tr>').join('')||'<tr><td colspan="6" class="note">No criteria match.</td></tr>';
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
