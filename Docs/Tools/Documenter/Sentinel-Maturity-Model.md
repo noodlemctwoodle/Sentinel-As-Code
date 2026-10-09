@@ -29,7 +29,8 @@ scale and the scoring are defined in
 and computed by
 [`Private/Get-SentinelMaturity.ps1`](../../../Tools/Documenter/Private/Get-SentinelMaturity.ps1).
 The criterion set, the estate-flow view and the detection-headroom idea
-come from the Sentinel health-check script contributed to the project.
+come from the Sentinel health-check script written by Lasitha R, who gave
+it to the project.
 
 ## The areas
 

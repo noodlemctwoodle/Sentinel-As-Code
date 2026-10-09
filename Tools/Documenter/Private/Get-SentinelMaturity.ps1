@@ -59,9 +59,9 @@
 
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block. The criterion set and the
-    roadmap idea come from the Sentinel health-check script contributed to
-    this project; the scoring, the Unknown handling and the area taxonomy
-    are this project's own.
+    roadmap idea come from the Sentinel health-check script written by
+    Lasitha R, who gave it to this project; the scoring, the Unknown
+    handling and the area taxonomy are this project's own.
 #>
 
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {

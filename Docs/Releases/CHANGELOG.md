@@ -4,6 +4,37 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## Unreleased
+
+- **Sentinel health check folded into the Documenter and the iSOC Blueprint
+  site** - the content of the Sentinel health-check script written by
+  Lasitha R, who gave it to the project, now lands on the Documenter's own
+  layers and is refreshed by the daily pipelines. Thirteen new gap rules
+  (SENT-036, 037, 038, 041 and 050 to 058: noisy rules, missing entity
+  mappings, alert-only rules, legacy incident-creation rules, rules on the
+  retired threat-intelligence table, high-volume tables no rule reads with
+  the templates that would cover them, silent tables that enabled rules
+  depend on, playbook failures, deprecated solutions, a single TI feed,
+  Azure Firewall logged twice, incidents closed unclassified, no hunting
+  activity), 58 in all. A maturity assessment, the Sentinel-As-Code
+  maturity assessment, scores eleven capability areas 0 to 5 from sixty
+  criteria with a roadmap, quick wins and a NIST CSF 2.0 rollup, written to
+  `maturity.json` and measured against a target level that both pipelines
+  take as a parameter (default 3). The Markdown pack gains an estate flow
+  on the overview, `28-detection-opportunities.md` and
+  `91-maturity-assessment.md`, and ten extended sections (incident
+  outcomes, rule effectiveness, STIX objects and feeds, hunts, linked
+  services, playbook run health, deprecated solutions, daily ingestion,
+  tables by detection coverage). The SharePoint dashboard's Overview is an
+  executive summary with pipeline rings, the estate flow, a maturity card
+  and quick wins; a Maturity tab and five Insights panels are new; every
+  publish records the score so the tab draws a trend. The criterion set,
+  the estate-flow view and the detection-headroom idea are Lasitha R's;
+  the methodology, scoring and taxonomy are the project's own and carry no
+  third-party model's name. Also fixed on the way: the live-snapshot MITRE
+  headline counted hunting-query tags instead of the 14-tactic catalogue,
+  and `incidents-summary` returned presence flags where counts were meant.
+
 ## 26.09
 
 Connector, workbook and content-hygiene release, plus a repository-wide

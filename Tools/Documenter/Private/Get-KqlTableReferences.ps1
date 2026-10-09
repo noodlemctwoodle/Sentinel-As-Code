@@ -44,7 +44,7 @@
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block. The table-to-rule mapping and
     the template-suggestion idea come from the Sentinel health-check script
-    contributed to this project.
+    written by Lasitha R, who gave it to this project.
 #>
 
 # ASIM parsers and the im/ASim function families are functions, not tables.
