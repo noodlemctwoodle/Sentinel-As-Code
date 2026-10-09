@@ -20,6 +20,8 @@
     --topbar-bg:rgba(255,255,255,.78);
     --tab-ink:#5b6479;
     --radius:16px;
+    --gap:16px;          /* between cards in a grid and between stacked blocks */
+    --gap-label:10px;    /* between a section label and its cards */
   }
   html[data-theme="dark"]{
     --bg:#0a0d16; --bg-2:#0c1120;
@@ -101,7 +103,7 @@
   /* A low header row: title and workspace line on the left, fact chips on
      the right. Wraps to two rows on narrow screens. */
   .hero{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;
-    margin:22px 0 4px;padding:16px 22px;border:1px solid var(--line);border-radius:var(--radius);
+    margin:22px 0 0;padding:16px 22px;border:1px solid var(--line);border-radius:var(--radius);
     background:var(--panel);box-shadow:var(--shadow-sm);
     animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
   .hero .hero-main{min-width:0}
@@ -117,18 +119,18 @@
 
   /* ---------- panels / headings ---------- */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:22px 24px;margin:18px 0;animation:rise .45s cubic-bezier(.22,.8,.3,1) both}
+    box-shadow:var(--shadow);padding:22px 24px;margin:var(--gap) 0;animation:rise .45s cubic-bezier(.22,.8,.3,1) both}
   .panel>h2,.phead h2{margin:0;font-size:16.5px;font-weight:750;letter-spacing:-.01em}
   .panel .note,.phead .note{color:var(--muted);font-size:13px;margin:5px 0 0}
   .phead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
-  .seclabel{display:flex;align-items:center;gap:10px;margin:28px 2px 2px;font-size:12px;font-weight:800;
+  .seclabel{display:flex;align-items:center;gap:10px;margin:24px 2px var(--gap-label);font-size:12px;font-weight:800;
     letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
   .seclabel::after{content:"";flex:1;height:1px;background:var(--line)}
   .link-muted{color:var(--brand-ink);cursor:pointer;font-weight:650;font-size:13px;white-space:nowrap}
 
   /* ---------- glance stat tiles (#heroPills) ---------- */
-  .glance{margin-top:18px}
-  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .glance{margin-top:var(--gap)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--gap)}
   .pill{position:relative;display:flex;flex-direction:column;gap:12px;background:var(--panel);
     border:1px solid var(--line);border-radius:12px;padding:15px 15px 16px;
     transition:border-color .15s,box-shadow .18s,transform .15s}
@@ -149,7 +151,7 @@
   .pill.badge-green .v{color:var(--ink)}
 
   /* ---------- posture cards (#outcomes) ---------- */
-  .posture{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px;margin:10px 0 2px}
+  .posture{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:var(--gap);margin:0 0 var(--gap)}
   .outcome{position:relative;overflow:hidden;border-radius:18px;padding:20px 20px 18px;color:#fff;
     box-shadow:var(--shadow);isolation:isolate;transition:transform .14s,box-shadow .2s;
     animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
@@ -171,7 +173,7 @@
     font-size:12.5px;font-weight:800;color:#fff}
 
   /* ---------- insights board (Sections) ---------- */
-  .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+  .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:var(--gap);margin:var(--gap) 0}
   .ipanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     box-shadow:var(--shadow);padding:20px 22px;animation:rise .45s cubic-bezier(.22,.8,.3,1) both;min-width:0}
   .ipanel.full{grid-column:1/-1}
@@ -235,7 +237,7 @@
   .mrow.thin .mstat{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .mrow.gap .mstat{background:var(--chip);color:var(--muted)}
   /* inventory tiles */
-  .invg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+  .invg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:var(--gap)}
   .invc{border:1px solid var(--line);border-radius:12px;padding:14px 15px;background:var(--panel-soft);display:flex;flex-direction:column;gap:7px}
   .invc .iic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--chip);color:var(--muted);border:1px solid var(--line-2)}
   .invc .iic svg{width:16px;height:16px}
@@ -282,7 +284,7 @@
   .qw .qwt{font-weight:700;font-size:13px}
   .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
   .qw .qwl{font-size:11px;font-weight:700;color:var(--faint);white-space:nowrap}
-  .ctgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:10px}
+  .ctgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--gap);margin:0 0 var(--gap)}
   .ctcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);padding:16px 16px 14px;display:flex;flex-direction:column;gap:6px}
   .ctcard .ctt{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
   .ctcard .cth{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:4px}
@@ -306,7 +308,7 @@
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
   .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)}
   .trend{width:100%;height:auto;display:block}
-  .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap)}
   .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
   .csfc h4{margin:0 0 8px;font-size:12.5px;font-weight:750}
   .csfc .dms{width:110px;height:110px} .csfc .dms .dmshole{width:68px;height:68px} .csfc .dms .dmsv{font-size:16px}
@@ -314,7 +316,7 @@
   table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 
   /* ---------- sections browser (docs) ---------- */
-  .docwrap{display:grid;grid-template-columns:288px 1fr;gap:18px;align-items:start}
+  .docwrap{display:grid;grid-template-columns:288px 1fr;gap:var(--gap);align-items:start;margin:var(--gap) 0}
   @media(max-width:900px){.docwrap{grid-template-columns:1fr}}
   .docnav{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;
     box-shadow:var(--shadow);padding:14px;overflow:visible}
@@ -431,11 +433,14 @@
     justify-content:center}
   .legend span{display:inline-flex;align-items:center}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:6px}
-  .flowgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  /* Panels inside a grid row keep no stacked-block margin, or the row
+     would carry twice the spacing of its neighbours. */
+  .flowgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin:var(--gap) 0}
+  .flowgrid>.panel{margin:0}
   @media(max-width:860px){.flowgrid{grid-template-columns:1fr}}
 
   /* ---------- section cards ---------- */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:var(--gap)}
   .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;
     box-shadow:var(--shadow-sm);padding:16px 16px 15px;display:flex;flex-direction:column;gap:9px;
     overflow:hidden;transition:transform .13s,box-shadow .2s,border-color .15s}
@@ -456,7 +461,7 @@
   .famhead::after{content:"";flex:1;height:1px;background:var(--line)}
 
   /* ---------- filters ---------- */
-  .filters{display:flex;align-items:center;gap:10px;margin:20px 0 4px;flex-wrap:wrap}
+  .filters{display:flex;align-items:center;gap:10px;margin:var(--gap) 0 0;flex-wrap:wrap}
   select{font:inherit;font-weight:600;padding:9px 12px;border:1px solid var(--line);border-radius:11px;
     background:var(--panel);color:var(--ink);box-shadow:var(--shadow-sm);cursor:pointer}
   .chip{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
