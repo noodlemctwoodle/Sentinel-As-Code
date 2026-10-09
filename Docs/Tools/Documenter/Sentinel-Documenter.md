@@ -93,7 +93,7 @@ topology that matches your setup:
 A folder per workspace under `SecurityDocs/<workspace>/`. The collector
 (`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
 (`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into `index.md`
-plus **37 numbered Markdown sections**:
+plus **39 numbered Markdown sections**:
 
 ```
 SecurityDocs/
@@ -130,6 +130,7 @@ SecurityDocs/
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source
+    ├── 28-detection-opportunities.md  tables with data but no detection, templates ready to enable
     ├── 30-hunting-queries.md
     ├── 35-parsers-functions.md
     ├── 36-data-export.md              data export configuration
@@ -149,6 +150,7 @@ SecurityDocs/
     ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace
     ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, migration candidates
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
+    ├── 91-maturity-assessment.md     maturity by area, roadmap, quick wins, NIST CSF rollup
     ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
     └── 99-references.md               documenter's own API versions + modules (copied from Documenter-References.md)
 ```

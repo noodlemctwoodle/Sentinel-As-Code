@@ -31,8 +31,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-09
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -82,13 +82,15 @@ Describe 'Sentinel Documenter renderer' {
             '20-analytics-rules.md','21-analytics-by-volume.md','22-analytics-microsoft-rules.md',
             '23-analytics-modifications.md','24-analytics-by-solution.md',
             '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
+            '28-detection-opportunities.md',
             '30-hunting-queries.md','35-parsers-functions.md',
             '36-data-export.md','37-search-restore.md','38-summary-rules.md',
             '40-workbooks.md','50-watchlists.md','60-automation-rules-playbooks.md',
             '70-content-hub.md','80-workspace.md','81-table-plans-retention.md',
             '82-dedicated-cluster.md','83-data-collection.md','84-cost-estimate.md',
             '85-rbac.md','86-subscription-context.md','87-azure-monitor-agents.md',
-            '90-gap-analysis.md','96-references-microsoft.md','99-references.md'
+            '90-gap-analysis.md','91-maturity-assessment.md',
+            '96-references-microsoft.md','99-references.md'
         )
 
         It 'creates <_>' -ForEach $expected {
@@ -114,6 +116,82 @@ Describe 'Sentinel Documenter renderer' {
         It 'links to the cost-estimate page' {
             $script:overview | Should -Match '\(84-cost-estimate\.md\)'
         }
+
+        It 'draws the estate flow as a sankey with a Not monitored pool' {
+            $script:overview | Should -Match '## Estate flow'
+            $script:overview | Should -Match 'sankey-beta'
+            $script:overview | Should -Match '"Not monitored"'
+            $script:overview | Should -Match '"Entra ID / Identity","Ingestion"'
+        }
+
+        It 'rates the four pipeline stages' {
+            $script:overview | Should -Match '\| Stage \| In use \| Of \| Share \| Rating \|'
+            $script:overview | Should -Match 'Incidents: closed, of those created in 30d \| 32 \| 40 \| 80% \|'
+        }
+
+        It 'carries the maturity headline and links to the new pages' {
+            $script:overview | Should -Match '\*\*Maturity:\*\* 1\.49 / 5 \(Initial\)'
+            $script:overview | Should -Match '\(28-detection-opportunities\.md\)'
+            $script:overview | Should -Match '\(91-maturity-assessment\.md\)'
+        }
+    }
+
+    Context '28-detection-opportunities.md lists uncovered tables and ready templates' {
+        BeforeAll {
+            $script:opp = Get-Content (Join-Path $script:tempWsRoot '28-detection-opportunities.md') -Raw
+        }
+
+        It 'draws the detection headroom chart' {
+            $script:opp | Should -Match 'xychart-beta'
+            $script:opp | Should -Match 'bar \[3, 4, 2\]'
+        }
+
+        It 'lists the highest-volume uncovered table first with no suggestion' {
+            $script:opp | Should -Match '\| FirewallLogs_CL \| 2000 \|  \| 0 \|'
+        }
+
+        It 'suggests the undeployed template for OfficeActivity and never the deprecated one' {
+            $script:opp | Should -Match '\| OfficeActivity \| 400 \| Data exfiltration \| 0 \|'
+            $script:opp | Should -Not -Match 'Deprecated\] Firewall'
+        }
+
+        It 'does not list a table an enabled rule already reads' {
+            $script:opp | Should -Not -Match '\| SigninLogs \|'
+        }
+
+        It 'lists ready templates highest severity first' {
+            $script:opp | Should -Match '## Undeployed templates ready to enable[\s\S]*\| Data exfiltration \| Scheduled \| High \|[\s\S]*\| Low-severity noise \| Scheduled \| Low \|'
+        }
+    }
+
+    Context '91-maturity-assessment.md renders the assessment' {
+        BeforeAll {
+            $script:mat = Get-Content (Join-Path $script:tempWsRoot '91-maturity-assessment.md') -Raw
+        }
+
+        It 'names the methodology and the headline score' {
+            $script:mat | Should -Match 'Sentinel-As-Code maturity assessment'
+            $script:mat | Should -Match '\*\*Overall:\*\* 1\.49 / 5 \(Initial\)'
+            $script:mat | Should -Match '\*\*Target:\*\* 3 \(Established\)'
+        }
+
+        It 'charts the eleven areas and tables them' {
+            $script:mat | Should -Match 'x-axis \["DET", "PLT", "COV", "AUT", "MON", "INC", "INV", "TI", "HNT", "LOG", "GOV"\]'
+            $script:mat | Should -Match '\| DET \| Detection engineering \| 1\.11 \| 1 Initial \|'
+        }
+
+        It 'carries the roadmap, quick wins, CSF rollup and criteria' {
+            $script:mat | Should -Match '## Roadmap'
+            $script:mat | Should -Match '\| 1 \| SAC-INV-02 '
+            $script:mat | Should -Match '## Quick wins[\s\S]*- \*\*SAC-INV-02\*\*'
+            $script:mat | Should -Match '\| DE Detect \| 30 \| 11 \| 19 \| 0 \|'
+            $script:mat | Should -Match '\| SAC-LOG-03 \| LOG \| practice \| A daily cap is set \| 🔴 Gap \|'
+        }
+
+        It 'leaves SAC criterion ids unlinked but links SENT ids' {
+            $script:mat | Should -Not -Match '\[SAC-'
+            $script:mat | Should -Match '\[SENT-037\]\(90-gap-analysis\.md#sent-037\)'
+        }
     }
 
     Context '01-live-snapshot.md MITRE headline shape' {
@@ -134,6 +212,87 @@ Describe 'Sentinel Documenter renderer' {
             # CredentialAccess; the other 12 catalogue tactics are uncovered,
             # which the headline must enumerate after "uncovered:".
             $script:liveSnap | Should -Match 'uncovered:.*Reconnaissance'
+        }
+
+        It 'counts the tactics against the 14-tactic catalogue' {
+            $script:liveSnap | Should -Match 'of 14'
+        }
+
+        It 'carries the estate flow and the maturity row' {
+            $script:liveSnap | Should -Match 'sankey-beta'
+            $script:liveSnap | Should -Match '\| Maturity \(overall / target\) \| 1\.49 / 3 \(Initial, target Established\) \|'
+            $script:liveSnap | Should -Match '\(91-maturity-assessment\.md\)'
+        }
+    }
+
+    Context '15-incidents.md surfaces closure outcomes and rule effectiveness' {
+        BeforeAll {
+            $script:inc15 = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw
+        }
+
+        It 'draws the classification pie from ByClassification' {
+            $script:inc15 | Should -Match 'pie showData title Closed incidents by classification'
+            $script:inc15 | Should -Match '"Undetermined" : 15'
+        }
+
+        It 'tables the rule effectiveness with the false-positive rate' {
+            $script:inc15 | Should -Match '\| Suspicious sign-in from rare country \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
+        }
+    }
+
+    Context '21-analytics-by-volume.md repeats the full effectiveness table' {
+        It 'contains both fixture rules under Rule effectiveness' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '21-analytics-by-volume.md') -Raw
+            $md | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| 10 \| 8 \|'
+        }
+    }
+
+    Context '27-threat-intelligence.md surfaces STIX objects and feeds' {
+        It 'lists the STIX object types and the single Microsoft feed' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '27-threat-intelligence.md') -Raw
+            $md | Should -Match '## STIX objects \(last 30d\)[\s\S]*\| threat-actor \| 12 \|'
+            $md | Should -Match '## Feeds[\s\S]*\| MicrosoftThreatIntelligence \|'
+        }
+    }
+
+    Context '30-hunting-queries.md renders the Hunts table' {
+        It 'shows the empty state because the fixture has no hunts' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '30-hunting-queries.md') -Raw
+            $md | Should -Match '## Hunts[\s\S]*_None\._'
+        }
+    }
+
+    Context '60-automation-rules-playbooks.md surfaces playbook run health' {
+        It 'warns about the failing playbook and tables the runs' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
+            $md | Should -Match '\*\*1 playbook\(s\) had failed runs in the last 7 days\.\*\*'
+            $md | Should -Match '"Succeeded" : 49'
+            $md | Should -Match '\| IncidentEnrich-IP \| 42 \| 5 \| Failed \| 2026-05-05 22:15 \|'
+        }
+    }
+
+    Context '70-content-hub.md lists deprecated and unlisted solutions' {
+        It 'names both flagged solutions with their reason' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
+            $md | Should -Match '\| Microsoft 365 \| office365 \| Deprecated \|'
+            $md | Should -Match '\| Legacy Threat Feed \| legacy-feed \| Not in catalogue \|'
+        }
+    }
+
+    Context '80-workspace.md draws the daily ingestion trend' {
+        It 'emits an xychart with one point per fixture day' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+            $md | Should -Match '### Daily ingestion \(last 30 days\)'
+            $md | Should -Match 'x-axis \["05-04", "05-05", "05-06"\]'
+            $md | Should -Match 'line \[41\.2, 39\.8, 12\.6\]'
+        }
+    }
+
+    Context '81-table-plans-retention.md tables detection coverage' {
+        It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw
+            $md | Should -Match '## Tables by detection coverage'
+            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 🔴 None \|'
         }
     }
 
@@ -850,7 +1009,9 @@ Describe 'Sentinel Documenter renderer — empty-state safety' {
         }
         # Deliberately remove the files that caused phantom rows on the production run.
         # TI removal needs both sources gone — the renderer falls back from metrics to counts.
-        @('threat-intel-counts.json','threat-intel-metrics.json','playbooks.json','rbac-playbook-mi.json') | ForEach-Object {
+        @('threat-intel-counts.json','threat-intel-metrics.json','playbooks.json','rbac-playbook-mi.json',
+          'maturity.json','hunts.json','playbook-runs.json','rule-effectiveness.json',
+          'rule-table-references.json','template-table-references.json','workspace-usage-daily.json') | ForEach-Object {
             $f = Join-Path $emptyWsRoot "_raw/$_"
             if (Test-Path $f) { Remove-Item -Force $f }
         }
@@ -897,6 +1058,42 @@ Describe 'Sentinel Documenter renderer — empty-state safety' {
 
         It 'emits an empty-state message under the Playbooks heading' {
             $script:playbookMd | Should -Match '## Playbooks \(Logic Apps\)[\s\S]*?_None\._'
+        }
+
+        It 'shows no run-health chart or warning when playbook-runs.json is absent' {
+            $script:playbookMd | Should -Match '## Playbook runs \(last 7d\)[\s\S]*?_None\._'
+            $script:playbookMd | Should -Not -Match 'had failed runs'
+            $script:playbookMd | Should -Not -Match 'Playbook runs by outcome'
+        }
+    }
+
+    Context 'health-check pages fall back cleanly when their captures are absent' {
+        It '91-maturity-assessment.md says the assessment was not produced' {
+            $md = Get-Content (Join-Path $script:emptyWsRoot '91-maturity-assessment.md') -Raw
+            $md | Should -Match 'was not produced in this run'
+            $md | Should -Not -Match '## Roadmap'
+        }
+
+        It '28-detection-opportunities.md says the mapping was not computed' {
+            $md = Get-Content (Join-Path $script:emptyWsRoot '28-detection-opportunities.md') -Raw
+            $md | Should -Match 'was not computed in this run'
+        }
+
+        It '00-overview.md still draws the estate flow with everything unmonitored' {
+            $md = Get-Content (Join-Path $script:emptyWsRoot '00-overview.md') -Raw
+            $md | Should -Match 'sankey-beta'
+            $md | Should -Not -Match '"Ingestion","Detection'
+            $md | Should -Match '_Maturity assessment not available for this run\._'
+        }
+
+        It '80-workspace.md omits the ingestion trend without daily usage' {
+            $md = Get-Content (Join-Path $script:emptyWsRoot '80-workspace.md') -Raw
+            $md | Should -Not -Match 'Daily ingestion \(last 30 days\)'
+        }
+
+        It '15-incidents.md and 30-hunting-queries.md show empty states' {
+            (Get-Content (Join-Path $script:emptyWsRoot '15-incidents.md') -Raw) | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*?_None\._'
+            (Get-Content (Join-Path $script:emptyWsRoot '30-hunting-queries.md') -Raw) | Should -Match '## Hunts[\s\S]*?_None\._'
         }
     }
 }

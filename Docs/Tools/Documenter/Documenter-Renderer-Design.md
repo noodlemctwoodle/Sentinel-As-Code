@@ -20,13 +20,13 @@ ADO-only image pre-render pass:
 
 ```
 Live workspace → Export-SentinelInventory.ps1     → _raw/*.json
-_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 38 .md files
+_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 40 .md files
 *.md (ADO only)→ Convert-MermaidToImage.ps1        → assets/*.png + rewritten fences
 ```
 
-Stage 2 (this spec's subject) emits **38 output files**: 37 numbered
+Stage 2 (this spec's subject) emits **40 output files**: 39 numbered
 section files (`00-overview.md` through `99-references.md`) plus
-`index.md`. Of the 37 numbered files, 36 are written by `Write-Section`
+`index.md`. Of the 39 numbered files, 38 are written by `Write-Section`
 blocks; `99-references.md` is copied verbatim from the resource
 catalogue (`Copy-Item`) rather than generated. Stage 3
 (`Convert-MermaidToImage.ps1`) is described in
@@ -38,7 +38,7 @@ The renderer is a single PowerShell script organised as:
 1. **Param block + module bootstrap**: the `param()` block declares
    `-WorkspaceName` (mandatory), `-InputRoot`, `-OutputRoot`,
    `-ResourcesRoot` (defaults to `Private/Resources`); it then dot-sources
-   `Private/Get-EffectiveConnectors.ps1`.
+   `Private/Get-EffectiveConnectors.ps1` and `Private/Get-TableFamily.ps1`.
 2. **Helpers**: the toolbox. Documented in detail below. Note these are
    **not** collected in one block, they are interleaved with the section
    code (from `Read-Raw` near the top down to `Format-MinutesScalar` well
@@ -46,8 +46,9 @@ The renderer is a single PowerShell script organised as:
 3. **Inventory loading + cross-section hoisting**: every `_raw/*.json` is
    read once into a typed PSObject via `Read-Raw` / `Read-RawArray`; the
    few globals that multiple sections share (`$gapBySeverity`,
-   `$gapByCategory`, `$populatedTableNames`) are computed here, and
-   `$mitreRowsRich` is built later inside the section-25 block.
+   `$gapByCategory`, `$populatedTableNames`, `$estate`, `$maturity` and
+   the health-check captures) are computed here, and `$mitreRowsRich` is
+   built later inside the section-25 block.
 4. **Section emit blocks**: one block per `.md` file. Each block builds
    its data, optionally builds a Mermaid chart, then calls
    `Write-Section <filename> <body>` which writes to disk + applies the
@@ -75,7 +76,7 @@ hoisted globals).
 
 ## Chart system
 
-**39 Mermaid chart blocks across 32 of the 37 numbered sections.** Every
+**46 Mermaid chart blocks across 34 of the 39 numbered sections.** Every
 chart is driven by data from the captured `_raw/*.json` (no static
 decoration) except for a handful of deliberately static, instructional
 diagrams (the SOC-analyst `journey`, the alert-to-response
@@ -88,7 +89,9 @@ table only.
 | Section | Chart type | Data source | Conditional guard |
 |---|---|---|---|
 | `00-overview.md` | pie | `$gapBySeverity` | none (always renders) |
+| `00-overview.md` | sankey-beta | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
 | `01-live-snapshot.md` | pie | `$gapBySeverity` (reused) | none |
+| `01-live-snapshot.md` | sankey-beta | `$estate` (same block as 00) | `$estate.TotalGb -gt 0` |
 | `01-live-snapshot.md` | gantt | static deadlines + `_DaysUntilFromToday` | none |
 | `10-data-connectors.md` | pie | `$connectors` grouped by `kind` | none |
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
@@ -96,6 +99,7 @@ table only.
 | `13-data-source-hygiene.md` | pie | `$cefDevices` grouped by DeviceVendor | `$cefDevices.Count -gt 0` |
 | `14-coverage-breakdowns.md` | xychart-beta bar | `$xdrPres` top 12 by RecordCount | `$xdrPres.Count -gt 0` |
 | `15-incidents.md` | stateDiagram-v2 | `$incMttr.ClosedCount` + `$incSummary.Count` | none |
+| `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
 | `20-analytics-rules.md` | classDiagram | per-kind deployed-count notes | none |
 | `21-analytics-by-volume.md` | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
@@ -105,14 +109,17 @@ table only.
 | `25-mitre-coverage.md` | xychart-beta bar (width 1400) | `$mitreRowsRich.EnabledRules` | none |
 | `26-ueba.md` | pie | `$uebaPresenceRows` by table | `$uebaTotalRows -gt 0` |
 | `27-threat-intelligence.md` | pie | `$tiRows` top 6 by IndicatorCount | `$tiRows total > 0` |
+| `28-detection-opportunities.md` | xychart-beta bar | applicable templates / enabled rules / not yet deployed (`$templateTableRefs`, `$enabledRules`) | either count `-gt 0`; the whole page is a sentence when both reference files are absent |
 | `30-hunting-queries.md` | pie | hunting queries grouped by MITRE tactic tag | `$hunting.Count -gt 0` |
 | `35-parsers-functions.md` | pie | parsers grouped by Category | `$parserRows.Count -gt 0` |
 | `38-summary-rules.md` | pie | summary rules grouped by Active/Status | `$summaryRows.Count -gt 0` |
 | `40-workbooks.md` | pie | saved vs available templates | none |
 | `50-watchlists.md` | pie | watchlists grouped by Source | `$wlRows.Count -gt 0` |
 | `60-automation-rules-playbooks.md` | sequenceDiagram | static alert-to-response chain | none |
+| `60-automation-rules-playbooks.md` | pie | `$playbookRuns` succeeded vs failed (7d) | total runs `-gt 0` |
 | `70-content-hub.md` | pie | packages grouped by source kind | none |
 | `80-workspace.md` | timeline | `$wsCreated` + static platform deadlines | none |
+| `80-workspace.md` | xychart-beta line (two series) | `$usageDaily` billable and free GB per day | `$usageDaily.Count -ge 2` |
 | `81-table-plans-retention.md` | pie | tables grouped by plan | none |
 | `83-data-collection.md` | flowchart (LR, 3 subgraphs) | `$connectors` → workspace → downstream | none |
 | `84-cost-estimate.md` | xychart-beta bar | `$cost.Top10TablesByCost` | inside the `if ($cost)` branch |
@@ -126,10 +133,11 @@ table only.
 | `88-sentinel-data-lake.md` | xychart-beta bar (width 1400, height 480) | `$topRetention` Lake-only retention days | inside the same `$tierPieRows.Count -ge 2` branch |
 | `88-sentinel-data-lake.md` | flowchart (LR, three tiers) | static Lake ingest / mirror / promote / query paths | `$hasDataLake` |
 | `90-gap-analysis.md` | xychart-beta grouped bar | `$gapByCategory` × Warning/Info | `$gapFindings.Count -gt 0` |
+| `91-maturity-assessment.md` | xychart-beta bar | `$maturity.areas[].score` on a fixed 0 to 5 axis | `$maturityOk` (else a "not produced" sentence) |
 
 ### Sections intentionally chart-less
 
-5 of the 37 numbered sections do not emit a chart because the data shape
+5 of the 39 numbered sections do not emit a chart because the data shape
 doesn't support one or the page is pure-reference:
 
 - `36-data-export.md`, `37-search-restore.md`, `82-dedicated-cluster.md`, 
@@ -138,12 +146,12 @@ doesn't support one or the page is pure-reference:
   `99-references.md` (the Documenter's own API-version / module list,
   copied verbatim from the resource catalogue).
 
-Two further pages carry no chart but are not counted in the 32 above:
+Two further pages carry no chart but are not counted in the 34 above:
 
 - `index.md`, the navigation TOC (not a numbered section).
 - `87-azure-monitor-agents.md` when agent count < 3, renders a sentence
   instead because a 1-vs-0 pie is visually meaningless (it is otherwise
-  a chart-bearing section, hence its place in the 32).
+  a chart-bearing section, hence its place in the 34).
 
 The rule: **chart only when data shape justifies it; never as decoration.**
 
@@ -205,6 +213,21 @@ block and read back by the section-01 headline.
 - **`$populatedTableNames`**, hashtable of table names with billable data in
   the last 90 days. Consumed by 81 (operational subset filter) + 84
   (cost calculation gating).
+- **Health-check captures**: `$ruleTableRefs`, `$templateTableRefs`,
+  `$ruleEffectiveness`, `$rulesFired`, `$playbookRuns`, `$hunts`,
+  `$usageDaily`, `$maturity` (with `$maturityOk`, because a failed
+  capture writes `{}`), `$incSummary` and `$incMttr`. All read once at
+  the top so 00 and 01 can draw the estate flow before sections 15, 21,
+  28, 60, 80, 81 and 91 render their detail.
+- **`$estate`**, from `New-EstateModel`: source families (`Get-TableFamily`)
+  with GB and covered GB, table counts, enabled and fired rules, alerts,
+  incidents and closures. Consumed by `Format-EstateSankey` and
+  `Format-EstateRingsTable`, whose output is `$estateBlock`, pasted into
+  00 and 01. The SharePoint dashboard draws the same numbers.
+- **`$effectivenessRows`**, built in the section-15 block from
+  `$ruleEffectiveness` and repeated in full by section 21.
+- **`$usageTrendBlock`**, the daily-ingestion xychart, built at the top and
+  pasted into section 80.
 
 ## Conventions and gotchas (Mermaid safety)
 
@@ -362,6 +385,8 @@ assets root).
 | [`Tools/Documenter/Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Tools/Documenter/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Documenter/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
+| [`Tools/Documenter/Private/Get-TableFamily.ps1`](../../../Tools/Documenter/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
+| [`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../../Tools/Documenter/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Tools/Documenter/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
 | [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../../Tools/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json) | 58-rule catalogue driving the gap engine |
 | [`Tools/Documenter/Private/Resources/mitre-attack.json`](../../../Tools/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
@@ -408,6 +433,10 @@ assets root).
 5. Add a Pester case in
    `Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`
    asserting the section renders (at least its title) cleanly.
+6. Map the section number to a family in `Get-SectionFamily` in
+   `Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1`, and give
+   it a headline in `$headlineByNum` if the dashboard should summarise
+   it; see [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
 
 ### Adding a new helper
 1. Place the function ahead of its first caller. Helpers are not gathered
