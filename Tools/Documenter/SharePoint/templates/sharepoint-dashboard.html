@@ -97,26 +97,23 @@
   .cta:hover{transform:translateY(-1px);filter:brightness(1.05);box-shadow:0 14px 30px -8px rgba(76,29,149,.7);text-decoration:none}
   .cta svg{width:16px;height:16px}
 
-  /* ---------- hero ---------- */
-  .hero{position:relative;overflow:hidden;border-radius:22px;margin:24px 0 6px;color:#fff;
-    padding:34px 36px 32px;
-    background:
-      radial-gradient(900px 420px at 85% -40%, rgba(167,139,250,.55), transparent 60%),
-      radial-gradient(760px 360px at 0% 120%, rgba(56,189,248,.45), transparent 58%),
-      linear-gradient(125deg,#1e3a8a 0%,#4338ca 48%,#6d28d9 100%);
-    box-shadow:0 30px 70px -24px rgba(49,24,122,.6);
+  /* ---------- page header ---------- */
+  /* A low header row: title and workspace line on the left, fact chips on
+     the right. Wraps to two rows on narrow screens. */
+  .hero{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;
+    margin:22px 0 4px;padding:16px 22px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--panel);box-shadow:var(--shadow-sm);
     animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
-  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:.5;
-    background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:22px 22px}
-  .hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
-    letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.82);
-    border:1px solid rgba(255,255,255,.26);border-radius:999px;padding:5px 12px;
-    background:rgba(255,255,255,.08);backdrop-filter:blur(6px)}
-  .hero .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:#5eead4;box-shadow:0 0 0 4px rgba(94,234,212,.25)}
-  .hero h1{position:relative;margin:16px 0 0;font-size:clamp(28px,3.4vw,42px);line-height:1.05;
-    font-weight:800;letter-spacing:-.025em}
-  .hero .sub{position:relative;margin:12px 0 0;font-size:14.5px;color:rgba(255,255,255,.86);max-width:860px}
-  .hero .sub b{color:#fff;font-weight:700}
+  .hero .hero-main{min-width:0}
+  .hero h1{margin:0;font-size:clamp(20px,2.2vw,26px);line-height:1.1;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .hero .sub{margin:5px 0 0;font-size:13px;color:var(--muted)}
+  .hero .sub b{color:var(--ink);font-weight:700}
+  .hero-facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+  .fact{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel-soft);font-size:12.5px;color:var(--ink);font-weight:650;white-space:nowrap}
+  .fact .fk{color:var(--faint);font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px}
+  .fact i{width:8px;height:8px;border-radius:50%;background:var(--slate);flex:none}
+  .fact.ok i{background:var(--green)} .fact.alert i{background:var(--red)} .fact.brand i{background:var(--brand)}
 
   /* ---------- panels / headings ---------- */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -497,7 +494,7 @@
   }
   @media(max-width:720px){
     .shell{padding:0 16px 56px}.topbar .inner{padding:10px 16px}
-    .hero{padding:26px 22px}
+    .hero{padding:14px 16px}
     .brand .bs{display:none}
   }
 </style>
@@ -529,8 +526,11 @@
 
 <div class="shell">
   <header class="hero">
-    <h1 id="title">iSOC Blueprint</h1>
-    <p class="sub" id="subtitle"></p>
+    <div class="hero-main">
+      <h1 id="title">iSOC Blueprint</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <div class="hero-facts" id="heroFacts"></div>
   </header>
 
   <!-- OVERVIEW -->
@@ -705,8 +705,16 @@
   document.getElementById('brandSub').textContent = PRODUCT_SUB;
   const w = M.workspace;
   document.getElementById('subtitle').innerHTML =
-    'Workspace <b>'+esc(w.name)+'</b> &middot; '+esc(w.region||'')+' &middot; generated '+esc(w.generatedUtc||'')+
-    ' &middot; Documenter v'+esc(w.documenterVer||'');
+    'Workspace <b>'+esc(w.name)+'</b>'+(w.region?' &middot; '+esc(w.region):'')+(w.resourceGroup?' &middot; '+esc(w.resourceGroup):'');
+  const headerMat = M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null;
+  const headerFacts = [
+    {k:'Generated', v:w.generatedUtc||'n/a', cls:'ok'},
+    {k:'Documenter', v:'v'+(w.documenterVer||'?')},
+    {k:'Maturity', v:headerMat? (M.maturity.overall.score+' / 5 &middot; '+esc(M.maturity.overall.levelName)) : 'not assessed', cls:headerMat?'brand':'', raw:true},
+    {k:'Findings', v:M.findings.total+' open', cls:M.findings.total>0?'alert':'ok'}
+  ];
+  document.getElementById('heroFacts').innerHTML = headerFacts.map(f=>
+    '<span class="fact '+(f.cls||'')+'">'+(f.cls?'<i></i>':'')+'<span class="fk">'+esc(f.k)+'</span>'+(f.raw?f.v:esc(f.v))+'</span>').join('');
   // Gap analysis is section 90 (native, in the Sections tab) — jump there in-page.
   const gapNum = (M.sections && (M.sections.find(s=>s.num===90) ||
                    M.sections.find(s=>/gap analysis/i.test(s.title)))||{}).num;
