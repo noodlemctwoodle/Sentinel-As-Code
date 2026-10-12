@@ -1,9 +1,11 @@
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "rules": [
     {
-      "id": "SENT-001",
+      "id": "SAC-LOG-03",
+      "legacyId": "SENT-001",
+      "area": "LOG",
       "title": "Daily cap not configured on the Log Analytics workspace",
       "category": "Cost",
       "severity": "Warning",
@@ -12,7 +14,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap"
     },
     {
-      "id": "SENT-002",
+      "id": "SAC-LOG-07",
+      "legacyId": "SENT-002",
+      "area": "LOG",
       "title": "Workspace default retention below the 90-day Sentinel free benefit",
       "category": "Cost",
       "severity": "Warning",
@@ -21,7 +25,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/billing"
     },
     {
-      "id": "SENT-003",
+      "id": "SAC-LOG-08",
+      "legacyId": "SENT-003",
+      "area": "LOG",
       "title": "High-volume table on Analytics plan with no DCR transform",
       "category": "Cost",
       "severity": "Warning",
@@ -30,7 +36,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention"
     },
     {
-      "id": "SENT-004",
+      "id": "SAC-COV-07",
+      "legacyId": "SENT-004",
+      "area": "COV",
       "title": "Recommended data connectors not deployed",
       "category": "Coverage",
       "severity": "Info",
@@ -39,7 +47,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/data-connectors-reference"
     },
     {
-      "id": "SENT-005",
+      "id": "SAC-COV-05",
+      "legacyId": "SENT-005",
+      "area": "COV",
       "title": "User & Entity Behaviour Analytics (UEBA) disabled",
       "category": "Coverage",
       "severity": "Warning",
@@ -48,7 +58,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics"
     },
     {
-      "id": "SENT-006",
+      "id": "SAC-MON-04",
+      "legacyId": "SENT-006",
+      "area": "MON",
       "title": "MITRE ATT&CK tactic with zero enabled detection rules",
       "category": "Coverage",
       "severity": "Warning",
@@ -57,7 +69,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/mitre-coverage"
     },
     {
-      "id": "SENT-007",
+      "id": "SAC-DET-05",
+      "legacyId": "SENT-007",
+      "area": "DET",
       "title": "Analytics rules disabled or in error state",
       "category": "Operational",
       "severity": "Warning",
@@ -66,7 +80,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-built-in"
     },
     {
-      "id": "SENT-008",
+      "id": "SAC-DET-09",
+      "legacyId": "SENT-008",
+      "area": "DET",
       "title": "High-severity rule templates not deployed",
       "category": "Coverage",
       "severity": "Info",
@@ -75,7 +91,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-from-template"
     },
     {
-      "id": "SENT-009",
+      "id": "SAC-GOV-06",
+      "legacyId": "SENT-009",
+      "area": "GOV",
       "title": "Owner or Contributor RBAC at workspace scope",
       "category": "Identity",
       "severity": "Warning",
@@ -84,7 +102,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
     },
     {
-      "id": "SENT-010",
+      "id": "SAC-PLT-08",
+      "legacyId": "SENT-010",
+      "area": "PLT",
       "title": "Diagnostic settings on the Log Analytics workspace not configured",
       "category": "Operational",
       "severity": "Info",
@@ -93,7 +113,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/monitor-workspace"
     },
     {
-      "id": "SENT-011",
+      "id": "SAC-AUT-05",
+      "legacyId": "SENT-011",
+      "area": "AUT",
       "title": "Playbook managed identity lacks the Microsoft Sentinel Responder role",
       "category": "Operational",
       "severity": "Warning",
@@ -102,7 +124,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks"
     },
     {
-      "id": "SENT-012",
+      "id": "SAC-LOG-09",
+      "legacyId": "SENT-012",
+      "area": "LOG",
       "title": "DCR transform missing on noisy custom tables",
       "category": "Cost",
       "severity": "Info",
@@ -111,7 +135,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations"
     },
     {
-      "id": "SENT-013",
+      "id": "SAC-DET-07",
+      "legacyId": "SENT-013",
+      "area": "DET",
       "title": "Content Hub solution updates available",
       "category": "Hygiene",
       "severity": "Info",
@@ -120,7 +146,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/sentinel-solutions"
     },
     {
-      "id": "SENT-014",
+      "id": "SAC-PLT-11",
+      "legacyId": "SENT-014",
+      "area": "PLT",
       "title": "Sentinel still on Azure portal — Defender XDR migration deadline 2027-03-31",
       "category": "Strategic",
       "severity": "Info",
@@ -129,7 +157,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/move-to-defender"
     },
     {
-      "id": "SENT-015",
+      "id": "SAC-LOG-10",
+      "legacyId": "SENT-015",
+      "area": "LOG",
       "title": "Workspace on PerGB2018 while sustained ingest exceeds the next commitment-tier break-even",
       "category": "Cost",
       "severity": "Info",
@@ -138,7 +168,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs"
     },
     {
-      "id": "SENT-016",
+      "id": "SAC-LOG-02",
+      "legacyId": "SENT-016",
+      "area": "LOG",
       "title": "High-volume Analytics-plan table is a Basic/Auxiliary candidate",
       "category": "Cost",
       "severity": "Info",
@@ -147,7 +179,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure"
     },
     {
-      "id": "SENT-017",
+      "id": "SAC-LOG-11",
+      "legacyId": "SENT-017",
+      "area": "LOG",
       "title": "Long-term data on Analytics interactive retention rather than archive",
       "category": "Cost",
       "severity": "Info",
@@ -156,7 +190,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive"
     },
     {
-      "id": "SENT-018",
+      "id": "SAC-LOG-12",
+      "legacyId": "SENT-018",
+      "area": "LOG",
       "title": "Total ingest > 500 GB/day but no dedicated cluster",
       "category": "Cost",
       "severity": "Info",
@@ -165,7 +201,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters"
     },
     {
-      "id": "SENT-019",
+      "id": "SAC-LOG-13",
+      "legacyId": "SENT-019",
+      "area": "LOG",
       "title": "Sentinel free benefit not detected on a workspace with eligible Defender plans",
       "category": "Cost",
       "severity": "Warning",
@@ -174,7 +212,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/billing-reduce-costs"
     },
     {
-      "id": "SENT-020",
+      "id": "SAC-PLT-05",
+      "legacyId": "SENT-020",
+      "area": "PLT",
       "title": "Workspace replication disabled in a paired-region production tenant",
       "category": "Resilience",
       "severity": "Info",
@@ -183,7 +223,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication"
     },
     {
-      "id": "SENT-021",
+      "id": "SAC-PLT-06",
+      "legacyId": "SENT-021",
+      "area": "PLT",
       "title": "Public network access enabled for ingestion or query (no AMPLS)",
       "category": "Network",
       "severity": "Warning",
@@ -192,7 +234,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security"
     },
     {
-      "id": "SENT-022",
+      "id": "SAC-PLT-09",
+      "legacyId": "SENT-022",
+      "area": "PLT",
       "title": "Sentinel or Log Analytics resource provider not registered on the subscription",
       "category": "Foundation",
       "severity": "Critical",
@@ -201,7 +245,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types"
     },
     {
-      "id": "SENT-023",
+      "id": "SAC-LOG-14",
+      "legacyId": "SENT-023",
+      "area": "LOG",
       "title": "Eligible tables not yet evaluated for Sentinel Data Lake mirroring",
       "category": "Cost",
       "severity": "Info",
@@ -210,7 +256,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview"
     },
     {
-      "id": "SENT-024",
+      "id": "SAC-GOV-07",
+      "legacyId": "SENT-024",
+      "area": "GOV",
       "title": "disableLocalAuth is false on the workspace (shared-key ingestion permitted)",
       "category": "Identity",
       "severity": "Warning",
@@ -219,7 +267,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/manage-access"
     },
     {
-      "id": "SENT-025",
+      "id": "SAC-GOV-08",
+      "legacyId": "SENT-025",
+      "area": "GOV",
       "title": "enableLogAccessUsingOnlyResourcePermissions misconfigured for the chosen access model",
       "category": "Identity",
       "severity": "Info",
@@ -228,7 +278,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/manage-access"
     },
     {
-      "id": "SENT-026",
+      "id": "SAC-INV-01",
+      "legacyId": "SENT-026",
+      "area": "INV",
       "title": "Silent table — had ingestion historically but nothing in the last 7 days",
       "category": "Operational",
       "severity": "Warning",
@@ -237,7 +289,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
-      "id": "SENT-027",
+      "id": "SAC-INV-04",
+      "legacyId": "SENT-027",
+      "area": "INV",
       "title": "Orphan table — schema deployed but no data in the last 90 days",
       "category": "Hygiene",
       "severity": "Info",
@@ -246,7 +300,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table"
     },
     {
-      "id": "SENT-028",
+      "id": "SAC-PLT-10",
+      "legacyId": "SENT-028",
+      "area": "PLT",
       "title": "Connector reports Connected but its target table has zero ingestion in 24h",
       "category": "Operational",
       "severity": "Warning",
@@ -255,7 +311,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
-      "id": "SENT-029",
+      "id": "SAC-INC-06",
+      "legacyId": "SENT-029",
+      "area": "INC",
       "title": "Incident MTTR above the 24-hour SOC efficiency threshold",
       "category": "Operational",
       "severity": "Warning",
@@ -264,7 +322,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/manage-soc-with-incident-metrics"
     },
     {
-      "id": "SENT-030",
+      "id": "SAC-INC-05",
+      "legacyId": "SENT-030",
+      "area": "INC",
       "title": "Majority of incidents closed without ever being acknowledged",
       "category": "Operational",
       "severity": "Warning",
@@ -273,7 +333,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/manage-soc-with-incident-metrics"
     },
     {
-      "id": "SENT-031",
+      "id": "SAC-DET-04",
+      "legacyId": "SENT-031",
+      "area": "DET",
       "title": "Enabled detection rule not modified in over 12 months",
       "category": "Operational",
       "severity": "Info",
@@ -282,7 +344,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-analytics-rule-integrity"
     },
     {
-      "id": "SENT-032",
+      "id": "SAC-DET-10",
+      "legacyId": "SENT-032",
+      "area": "DET",
       "title": "Deployed analytics rule lags behind the latest template version",
       "category": "Hygiene",
       "severity": "Info",
@@ -291,7 +355,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-from-template"
     },
     {
-      "id": "SENT-033",
+      "id": "SAC-DET-11",
+      "legacyId": "SENT-033",
+      "area": "DET",
       "title": "Single analytics rule accounts for over 30 % of total alert volume",
       "category": "Operational",
       "severity": "Warning",
@@ -300,7 +366,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-optimize-analytics-rule-execution"
     },
     {
-      "id": "SENT-034",
+      "id": "SAC-AUT-01",
+      "legacyId": "SENT-034",
+      "area": "AUT",
       "title": "No automation rules defined — every incident hits analysts manually",
       "category": "Operational",
       "severity": "Warning",
@@ -309,7 +377,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/automate-incident-handling-with-automation-rules"
     },
     {
-      "id": "SENT-035",
+      "id": "SAC-DET-12",
+      "legacyId": "SENT-035",
+      "area": "DET",
       "title": "Enabled rule has produced zero alerts in the last 90 days",
       "category": "Operational",
       "severity": "Info",
@@ -318,7 +388,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/troubleshoot-analytics-rules"
     },
     {
-      "id": "SENT-036",
+      "id": "SAC-DET-06",
+      "legacyId": "SENT-036",
+      "area": "DET",
       "title": "Analytics rule closes mostly as false positive",
       "category": "Operational",
       "severity": "Warning",
@@ -327,7 +399,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/false-positives"
     },
     {
-      "id": "SENT-037",
+      "id": "SAC-DET-03",
+      "legacyId": "SENT-037",
+      "area": "DET",
       "title": "Enabled analytics rule has no entity mappings",
       "category": "Hygiene",
       "severity": "Warning",
@@ -336,7 +410,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/map-data-fields-to-entities"
     },
     {
-      "id": "SENT-038",
+      "id": "SAC-MON-01",
+      "legacyId": "SENT-038",
+      "area": "MON",
       "title": "Enabled analytics rule does not create incidents",
       "category": "Operational",
       "severity": "Info",
@@ -345,7 +421,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-custom"
     },
     {
-      "id": "SENT-039",
+      "id": "SAC-GOV-05",
+      "legacyId": "SENT-039",
+      "area": "GOV",
       "title": "Service principal granted Owner or Contributor at workspace scope",
       "category": "Identity",
       "severity": "Warning",
@@ -354,7 +432,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
     },
     {
-      "id": "SENT-040",
+      "id": "SAC-GOV-04",
+      "legacyId": "SENT-040",
+      "area": "GOV",
       "title": "No identity holds the Microsoft Sentinel Responder role",
       "category": "Identity",
       "severity": "Warning",
@@ -363,7 +443,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
     },
     {
-      "id": "SENT-041",
+      "id": "SAC-DET-08",
+      "legacyId": "SENT-041",
+      "area": "DET",
       "title": "Legacy Microsoft incident-creation rules still enabled",
       "category": "Hygiene",
       "severity": "Warning",
@@ -372,7 +454,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/create-incidents-from-alerts"
     },
     {
-      "id": "SENT-042",
+      "id": "SAC-GOV-03",
+      "legacyId": "SENT-042",
+      "area": "GOV",
       "title": "No deletion-protection lock on the Sentinel workspace",
       "category": "Resilience",
       "severity": "Warning",
@@ -381,7 +465,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources"
     },
     {
-      "id": "SENT-043",
+      "id": "SAC-LOG-15",
+      "legacyId": "SENT-043",
+      "area": "LOG",
       "title": "CommonSecurityLog volume warrants a custom-table split to a vendor _CL",
       "category": "Cost",
       "severity": "Info",
@@ -390,7 +476,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/transformation-filter-split"
     },
     {
-      "id": "SENT-044",
+      "id": "SAC-LOG-16",
+      "legacyId": "SENT-044",
+      "area": "LOG",
       "title": "Syslog volume warrants a facility-based DCR filter or _CL split",
       "category": "Cost",
       "severity": "Info",
@@ -399,7 +487,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-syslog"
     },
     {
-      "id": "SENT-045",
+      "id": "SAC-LOG-17",
+      "legacyId": "SENT-045",
+      "area": "LOG",
       "title": "SecurityEvent or WindowsEvent volume warrants an XPath filter on the AMA DCR",
       "category": "Cost",
       "severity": "Info",
@@ -408,7 +498,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-windows-events"
     },
     {
-      "id": "SENT-046",
+      "id": "SAC-LOG-18",
+      "legacyId": "SENT-046",
+      "area": "LOG",
       "title": "AzureDiagnostics carrying multiple resource providers — switch to resource-specific tables",
       "category": "Cost",
       "severity": "Info",
@@ -417,7 +509,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/platform/resource-logs"
     },
     {
-      "id": "SENT-047",
+      "id": "SAC-PLT-02",
+      "legacyId": "SENT-047",
+      "area": "PLT",
       "title": "Custom log table still using the HTTP Data Collector API (CLv1) — retirement 2026-09-14",
       "category": "Foundation",
       "severity": "Critical",
@@ -426,7 +520,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate"
     },
     {
-      "id": "SENT-048",
+      "id": "SAC-PLT-03",
+      "legacyId": "SENT-048",
+      "area": "PLT",
       "title": "Legacy Log Analytics agent (MMA / OMS) still heartbeating — retired 2024-08-31",
       "category": "Foundation",
       "severity": "Critical",
@@ -435,7 +531,9 @@
       "learn": "https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration"
     },
     {
-      "id": "SENT-049",
+      "id": "SAC-TI-01",
+      "legacyId": "SENT-049",
+      "area": "TI",
       "title": "Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table — stopped 2025-07-31",
       "category": "Foundation",
       "severity": "Critical",
@@ -444,7 +542,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
     },
     {
-      "id": "SENT-050",
+      "id": "SAC-TI-02",
+      "legacyId": "SENT-050",
+      "area": "TI",
       "title": "Enabled analytics rule queries the retired ThreatIntelligenceIndicator table",
       "category": "Foundation",
       "severity": "Critical",
@@ -453,7 +553,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence"
     },
     {
-      "id": "SENT-051",
+      "id": "SAC-MON-05",
+      "legacyId": "SENT-051",
+      "area": "MON",
       "title": "High-volume table with no enabled analytics rule reading it",
       "category": "Cost",
       "severity": "Info",
@@ -462,7 +564,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access"
     },
     {
-      "id": "SENT-052",
+      "id": "SAC-MON-06",
+      "legacyId": "SENT-052",
+      "area": "MON",
       "title": "Table that enabled analytics rules depend on has gone silent",
       "category": "Operational",
       "severity": "Critical",
@@ -471,7 +575,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
-      "id": "SENT-053",
+      "id": "SAC-AUT-02",
+      "legacyId": "SENT-053",
+      "area": "AUT",
       "title": "Playbook runs failed in the last 7 days",
       "category": "Operational",
       "severity": "Warning",
@@ -480,7 +586,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-automation-health"
     },
     {
-      "id": "SENT-054",
+      "id": "SAC-DET-13",
+      "legacyId": "SENT-054",
+      "area": "DET",
       "title": "Installed Content Hub solution is deprecated or no longer in the catalogue",
       "category": "Hygiene",
       "severity": "Warning",
@@ -489,7 +597,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/sentinel-solutions-deploy"
     },
     {
-      "id": "SENT-055",
+      "id": "SAC-TI-05",
+      "legacyId": "SENT-055",
+      "area": "TI",
       "title": "Threat intelligence relies on a single feed",
       "category": "Coverage",
       "severity": "Info",
@@ -498,7 +608,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/threat-intelligence-integration"
     },
     {
-      "id": "SENT-056",
+      "id": "SAC-LOG-06",
+      "legacyId": "SENT-056",
+      "area": "LOG",
       "title": "Azure Firewall logs collected twice (AzureDiagnostics and resource-specific tables)",
       "category": "Cost",
       "severity": "Warning",
@@ -507,7 +619,9 @@
       "learn": "https://learn.microsoft.com/azure/firewall/firewall-structured-logs"
     },
     {
-      "id": "SENT-057",
+      "id": "SAC-INC-02",
+      "legacyId": "SENT-057",
+      "area": "INC",
       "title": "Most incidents are closed without a classification",
       "category": "Operational",
       "severity": "Warning",
@@ -516,7 +630,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/investigate-incidents"
     },
     {
-      "id": "SENT-058",
+      "id": "SAC-HNT-01",
+      "legacyId": "SENT-058",
+      "area": "HNT",
       "title": "No hunting activity recorded",
       "category": "Operational",
       "severity": "Info",
@@ -525,7 +641,9 @@
       "learn": "https://learn.microsoft.com/azure/sentinel/hunts"
     },
     {
-      "id": "SENT-059",
+      "id": "SAC-DET-14",
+      "legacyId": "SENT-059",
+      "area": "DET",
       "title": "Analytics rule runs are failing",
       "category": "Operational",
       "severity": "Warning",

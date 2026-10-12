@@ -166,7 +166,7 @@
           "kind": "practice",
           "name": "Enabled rules map entities",
           "status": "Gap",
-          "evidence": "SENT-037 fired.",
+          "evidence": "SAC-DET-03 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Incidents without entities cannot be investigated through the graph, grouped by entity or enriched by UEBA.",
@@ -177,7 +177,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-037"
+            "rule": "SAC-DET-03"
           }
         },
         {
@@ -185,7 +185,7 @@
           "kind": "practice",
           "name": "Rules are reviewed within twelve months",
           "status": "Gap",
-          "evidence": "SENT-031 fired.",
+          "evidence": "SAC-DET-04 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "Rules nobody has touched in a year drift away from the environment they were written for.",
@@ -196,7 +196,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-031"
+            "rule": "SAC-DET-04"
           }
         },
         {
@@ -204,7 +204,7 @@
           "kind": "practice",
           "name": "No rules left disabled",
           "status": "Gap",
-          "evidence": "SENT-007 fired.",
+          "evidence": "SAC-DET-05 fired.",
           "weight": 1.5,
           "effort": "Low",
           "impact": "A disabled rule is coverage someone decided to switch off; without a reason recorded it is a silent gap.",
@@ -215,7 +215,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-007"
+            "rule": "SAC-DET-05"
           }
         },
         {
@@ -223,7 +223,7 @@
           "kind": "practice",
           "name": "False-positive rate is under control",
           "status": "Gap",
-          "evidence": "SENT-036 fired.",
+          "evidence": "SAC-DET-06 fired.",
           "weight": 1.5,
           "effort": "Medium",
           "impact": "Rules that mostly produce false positives train analysts to ignore them.",
@@ -234,7 +234,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-036"
+            "rule": "SAC-DET-06"
           }
         },
         {
@@ -256,11 +256,11 @@
             "sources": [
               {
                 "kind": "gapRule",
-                "rule": "SENT-013"
+                "rule": "SAC-DET-07"
               },
               {
                 "kind": "gapRule",
-                "rule": "SENT-054"
+                "rule": "SAC-DET-13"
               }
             ]
           }
@@ -270,7 +270,7 @@
           "kind": "practice",
           "name": "Legacy incident-creation rules retired",
           "status": "Gap",
-          "evidence": "SENT-041 fired.",
+          "evidence": "SAC-DET-08 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Legacy Microsoft incident-creation rules duplicate what the Defender XDR connector now does.",
@@ -281,7 +281,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-041"
+            "rule": "SAC-DET-08"
           }
         }
       ]
@@ -325,7 +325,7 @@
           "kind": "practice",
           "name": "No legacy custom log (CLv1) tables",
           "status": "Gap",
-          "evidence": "SENT-047 fired.",
+          "evidence": "SAC-PLT-02 fired.",
           "weight": 1.5,
           "effort": "High",
           "impact": "CLv1 tables stop accepting data when the HTTP Data Collector API retires; transforms and DCR routing never apply to them.",
@@ -336,7 +336,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-047"
+            "rule": "SAC-PLT-02"
           }
         },
         {
@@ -344,7 +344,7 @@
           "kind": "practice",
           "name": "Agents migrated off the Log Analytics agent",
           "status": "Gap",
-          "evidence": "SENT-048 fired.",
+          "evidence": "SAC-PLT-03 fired.",
           "weight": 1.0,
           "effort": "High",
           "impact": "The Log Analytics agent is retired; machines still on it are on borrowed time.",
@@ -355,7 +355,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-048"
+            "rule": "SAC-PLT-03"
           }
         },
         {
@@ -384,7 +384,7 @@
           "kind": "practice",
           "name": "Workspace replication is enabled",
           "status": "Gap",
-          "evidence": "SENT-020 fired.",
+          "evidence": "SAC-PLT-05 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "Without replication a regional outage takes the SOC's data and detections with it.",
@@ -395,7 +395,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-020"
+            "rule": "SAC-PLT-05"
           }
         },
         {
@@ -403,7 +403,7 @@
           "kind": "practice",
           "name": "Ingestion and query use private networking",
           "status": "Gap",
-          "evidence": "SENT-021 fired.",
+          "evidence": "SAC-PLT-06 fired.",
           "weight": 1.0,
           "effort": "High",
           "impact": "Public endpoints expose the workspace to credential-based access from anywhere.",
@@ -414,7 +414,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-021"
+            "rule": "SAC-PLT-06"
           }
         },
         {
@@ -553,7 +553,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-005"
+            "rule": "SAC-COV-05"
           }
         },
         {
@@ -597,7 +597,7 @@
           "kind": "practice",
           "name": "Automation rules exist",
           "status": "Gap",
-          "evidence": "SENT-034 fired.",
+          "evidence": "SAC-AUT-01 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Without automation rules every incident is triaged by hand from a cold start.",
@@ -608,7 +608,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-034"
+            "rule": "SAC-AUT-01"
           }
         },
         {
@@ -616,7 +616,7 @@
           "kind": "practice",
           "name": "Playbooks run reliably",
           "status": "Gap",
-          "evidence": "SENT-053 fired.",
+          "evidence": "SAC-AUT-02 fired.",
           "weight": 1.5,
           "effort": "Medium",
           "impact": "A failing playbook is a response step that is quietly not happening.",
@@ -627,7 +627,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-053"
+            "rule": "SAC-AUT-02"
           }
         },
         {
@@ -692,7 +692,7 @@
           "kind": "practice",
           "name": "Enabled rules create incidents",
           "status": "Gap",
-          "evidence": "SENT-038 fired.",
+          "evidence": "SAC-MON-01 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Alert-only rules fire into a void unless something else consumes the alert.",
@@ -703,7 +703,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-038"
+            "rule": "SAC-MON-01"
           }
         },
         {
@@ -753,7 +753,7 @@
           "kind": "coverage",
           "name": "No tactic without a rule",
           "status": "Gap",
-          "evidence": "SENT-006 fired.",
+          "evidence": "SAC-MON-04 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "A tactic with zero rules is a stage of an attack nothing is watching.",
@@ -763,7 +763,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-006"
+            "rule": "SAC-MON-04"
           }
         },
         {
@@ -771,7 +771,7 @@
           "kind": "coverage",
           "name": "Ingested data has detections",
           "status": "Gap",
-          "evidence": "SENT-051 fired.",
+          "evidence": "SAC-MON-05 fired.",
           "weight": 1.5,
           "effort": "Medium",
           "impact": "Tables nothing reads are cost without coverage.",
@@ -782,7 +782,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-051"
+            "rule": "SAC-MON-05"
           }
         }
       ]
@@ -826,7 +826,7 @@
           "kind": "practice",
           "name": "Incidents are classified on closure",
           "status": "Gap",
-          "evidence": "SENT-057 fired.",
+          "evidence": "SAC-INC-02 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "Without a verdict on closure there is no false-positive rate and no basis for tuning.",
@@ -837,7 +837,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-057"
+            "rule": "SAC-INC-02"
           }
         },
         {
@@ -886,7 +886,7 @@
           "kind": "practice",
           "name": "Closures are acknowledged",
           "status": "Gap",
-          "evidence": "SENT-030 fired.",
+          "evidence": "SAC-INC-05 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Incidents closed without ever being acknowledged were never looked at.",
@@ -897,7 +897,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-030"
+            "rule": "SAC-INC-05"
           }
         },
         {
@@ -905,7 +905,7 @@
           "kind": "practice",
           "name": "Mean time to resolve within target",
           "status": "Gap",
-          "evidence": "SENT-029 fired.",
+          "evidence": "SAC-INC-06 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "Long resolution times extend the impact window.",
@@ -916,7 +916,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-029"
+            "rule": "SAC-INC-06"
           }
         }
       ]
@@ -953,11 +953,11 @@
             "sources": [
               {
                 "kind": "gapRule",
-                "rule": "SENT-026"
+                "rule": "SAC-INV-01"
               },
               {
                 "kind": "gapRule",
-                "rule": "SENT-027"
+                "rule": "SAC-INV-04"
               }
             ]
           }
@@ -1035,7 +1035,7 @@
           "kind": "practice",
           "name": "Off the legacy indicator table",
           "status": "Gap",
-          "evidence": "SENT-049 fired.",
+          "evidence": "SAC-TI-01 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "The legacy ThreatIntelligenceIndicator table stopped receiving indicators on 31 July 2025.",
@@ -1046,7 +1046,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-049"
+            "rule": "SAC-TI-01"
           }
         },
         {
@@ -1054,7 +1054,7 @@
           "kind": "practice",
           "name": "Rules read the current indicator schema",
           "status": "Gap",
-          "evidence": "SENT-050 fired.",
+          "evidence": "SAC-TI-02 fired.",
           "weight": 1.5,
           "effort": "Medium",
           "impact": "Rules on the legacy table match against an expiring set of indicators and go quiet.",
@@ -1065,7 +1065,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-050"
+            "rule": "SAC-TI-02"
           }
         },
         {
@@ -1115,7 +1115,7 @@
           "kind": "coverage",
           "name": "More than one feed",
           "status": "Gap",
-          "evidence": "SENT-055 fired.",
+          "evidence": "SAC-TI-05 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "A single feed is a single point of failure for every TI detection.",
@@ -1125,7 +1125,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-055"
+            "rule": "SAC-TI-05"
           }
         },
         {
@@ -1180,7 +1180,7 @@
           "kind": "practice",
           "name": "Hunts are recorded",
           "status": "Gap",
-          "evidence": "SENT-058 fired.",
+          "evidence": "SAC-HNT-01 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Hunting that is not recorded cannot be repeated, measured or turned into detections.",
@@ -1191,7 +1191,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-058"
+            "rule": "SAC-HNT-01"
           }
         },
         {
@@ -1297,7 +1297,7 @@
           "kind": "practice",
           "name": "Table tiers are used",
           "status": "Gap",
-          "evidence": "SENT-016 fired.",
+          "evidence": "SAC-LOG-02 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "High-volume tables on the Analytics tier that no rule needs are the main cost lever left unpulled.",
@@ -1308,7 +1308,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-016"
+            "rule": "SAC-LOG-02"
           }
         },
         {
@@ -1326,7 +1326,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-001"
+            "rule": "SAC-LOG-03"
           }
         },
         {
@@ -1376,7 +1376,7 @@
           "kind": "practice",
           "name": "No duplicate firewall logging",
           "status": "Gap",
-          "evidence": "SENT-056 fired.",
+          "evidence": "SAC-LOG-06 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Azure Firewall logged to both legacy and structured tables is billed twice.",
@@ -1387,7 +1387,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-056"
+            "rule": "SAC-LOG-06"
           }
         }
       ]
@@ -1463,7 +1463,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-042"
+            "rule": "SAC-GOV-03"
           }
         },
         {
@@ -1471,7 +1471,7 @@
           "kind": "practice",
           "name": "Responder role is assigned",
           "status": "Gap",
-          "evidence": "SENT-040 fired.",
+          "evidence": "SAC-GOV-04 fired.",
           "weight": 1.0,
           "effort": "Low",
           "impact": "Without Responder assignments analysts act through broader roles or cannot act at all.",
@@ -1482,7 +1482,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-040"
+            "rule": "SAC-GOV-04"
           }
         },
         {
@@ -1490,7 +1490,7 @@
           "kind": "practice",
           "name": "No service principal holds Owner or Contributor",
           "status": "Gap",
-          "evidence": "SENT-039 fired.",
+          "evidence": "SAC-GOV-05 fired.",
           "weight": 1.0,
           "effort": "Medium",
           "impact": "A compromised deployment identity with Contributor can rewrite every detection.",
@@ -1501,7 +1501,7 @@
           ],
           "source": {
             "kind": "gapRule",
-            "rule": "SENT-039"
+            "rule": "SAC-GOV-05"
           }
         }
       ]
@@ -1533,7 +1533,7 @@
       "areaName": "Automation and response",
       "name": "Playbooks run reliably",
       "kind": "practice",
-      "evidence": "SENT-053 fired.",
+      "evidence": "SAC-AUT-02 fired.",
       "impact": "A failing playbook is a response step that is quietly not happening.",
       "guidance": "Fix playbooks with failed runs and alert on automation health.",
       "effort": "Medium",
@@ -1590,7 +1590,7 @@
       "areaName": "Monitoring coverage",
       "name": "Ingested data has detections",
       "kind": "coverage",
-      "evidence": "SENT-051 fired.",
+      "evidence": "SAC-MON-05 fired.",
       "impact": "Tables nothing reads are cost without coverage.",
       "guidance": "Deploy templates or write rules for the high-volume tables no rule reads, or move them to a cheaper tier.",
       "effort": "Medium",
@@ -1609,7 +1609,7 @@
       "areaName": "Threat hunting",
       "name": "Hunts are recorded",
       "kind": "practice",
-      "evidence": "SENT-058 fired.",
+      "evidence": "SAC-HNT-01 fired.",
       "impact": "Hunting that is not recorded cannot be repeated, measured or turned into detections.",
       "guidance": "Run hunts through the Hunts feature with a hypothesis and an outcome.",
       "effort": "Low",
@@ -1684,7 +1684,7 @@
       "areaName": "Automation and response",
       "name": "Automation rules exist",
       "kind": "practice",
-      "evidence": "SENT-034 fired.",
+      "evidence": "SAC-AUT-01 fired.",
       "impact": "Without automation rules every incident is triaged by hand from a cold start.",
       "guidance": "Start with automation rules that assign owners, tag by tactic and suppress known-benign patterns.",
       "effort": "Low",
@@ -1741,7 +1741,7 @@
       "areaName": "Threat intelligence",
       "name": "Rules read the current indicator schema",
       "kind": "practice",
-      "evidence": "SENT-050 fired.",
+      "evidence": "SAC-TI-02 fired.",
       "impact": "Rules on the legacy table match against an expiring set of indicators and go quiet.",
       "guidance": "Rewrite TI rules to read ThreatIntelIndicators.",
       "effort": "Medium",
@@ -1760,7 +1760,7 @@
       "areaName": "Governance and access",
       "name": "Responder role is assigned",
       "kind": "practice",
-      "evidence": "SENT-040 fired.",
+      "evidence": "SAC-GOV-04 fired.",
       "impact": "Without Responder assignments analysts act through broader roles or cannot act at all.",
       "guidance": "Assign Microsoft Sentinel Responder to the analyst group.",
       "effort": "Low",
@@ -1779,7 +1779,7 @@
       "areaName": "Governance and access",
       "name": "No service principal holds Owner or Contributor",
       "kind": "practice",
-      "evidence": "SENT-039 fired.",
+      "evidence": "SAC-GOV-05 fired.",
       "impact": "A compromised deployment identity with Contributor can rewrite every detection.",
       "guidance": "Give deployment identities Microsoft Sentinel Contributor and Log Analytics Contributor rather than Owner or Contributor.",
       "effort": "Medium",
@@ -1798,7 +1798,7 @@
       "areaName": "Platform and collection",
       "name": "No legacy custom log (CLv1) tables",
       "kind": "practice",
-      "evidence": "SENT-047 fired.",
+      "evidence": "SAC-PLT-02 fired.",
       "impact": "CLv1 tables stop accepting data when the HTTP Data Collector API retires; transforms and DCR routing never apply to them.",
       "guidance": "Migrate each CLv1 table to a DCR-based custom table.",
       "effort": "High",
@@ -1817,7 +1817,7 @@
       "areaName": "Monitoring coverage",
       "name": "Enabled rules create incidents",
       "kind": "practice",
-      "evidence": "SENT-038 fired.",
+      "evidence": "SAC-MON-01 fired.",
       "impact": "Alert-only rules fire into a void unless something else consumes the alert.",
       "guidance": "Enable incident creation on rules that are not purely feeding correlation.",
       "effort": "Low",
@@ -1836,7 +1836,7 @@
       "areaName": "Monitoring coverage",
       "name": "No tactic without a rule",
       "kind": "coverage",
-      "evidence": "SENT-006 fired.",
+      "evidence": "SAC-MON-04 fired.",
       "impact": "A tactic with zero rules is a stage of an attack nothing is watching.",
       "guidance": "Give every tactic at least one enabled rule.",
       "effort": "Medium",
@@ -1911,7 +1911,7 @@
       "areaName": "Detection engineering",
       "name": "No rules left disabled",
       "kind": "practice",
-      "evidence": "SENT-007 fired.",
+      "evidence": "SAC-DET-05 fired.",
       "impact": "A disabled rule is coverage someone decided to switch off; without a reason recorded it is a silent gap.",
       "guidance": "Re-enable or delete disabled rules; if a rule must stay off, record why in its description.",
       "effort": "Low",
@@ -1930,7 +1930,7 @@
       "areaName": "Incident management",
       "name": "Closures are acknowledged",
       "kind": "practice",
-      "evidence": "SENT-030 fired.",
+      "evidence": "SAC-INC-05 fired.",
       "impact": "Incidents closed without ever being acknowledged were never looked at.",
       "guidance": "Stop auto-closing without review; have automation assign before it closes.",
       "effort": "Low",
@@ -1967,7 +1967,7 @@
       "areaName": "Log management and cost",
       "name": "No duplicate firewall logging",
       "kind": "practice",
-      "evidence": "SENT-056 fired.",
+      "evidence": "SAC-LOG-06 fired.",
       "impact": "Azure Firewall logged to both legacy and structured tables is billed twice.",
       "guidance": "Remove the legacy AzureDiagnostics categories once rules read the AZFW tables.",
       "effort": "Low",
@@ -1986,7 +1986,7 @@
       "areaName": "Detection engineering",
       "name": "False-positive rate is under control",
       "kind": "practice",
-      "evidence": "SENT-036 fired.",
+      "evidence": "SAC-DET-06 fired.",
       "impact": "Rules that mostly produce false positives train analysts to ignore them.",
       "guidance": "Tune or retire rules whose closed incidents are mostly false positives; the per-rule effectiveness table shows which.",
       "effort": "Medium",
@@ -2005,7 +2005,7 @@
       "areaName": "Incident management",
       "name": "Incidents are classified on closure",
       "kind": "practice",
-      "evidence": "SENT-057 fired.",
+      "evidence": "SAC-INC-02 fired.",
       "impact": "Without a verdict on closure there is no false-positive rate and no basis for tuning.",
       "guidance": "Make a true, benign or false positive verdict mandatory when closing.",
       "effort": "Medium",
@@ -2024,7 +2024,7 @@
       "areaName": "Incident management",
       "name": "Mean time to resolve within target",
       "kind": "practice",
-      "evidence": "SENT-029 fired.",
+      "evidence": "SAC-INC-06 fired.",
       "impact": "Long resolution times extend the impact window.",
       "guidance": "Set a resolution target per severity and review the incidents that miss it.",
       "effort": "Medium",
@@ -2043,7 +2043,7 @@
       "areaName": "Log management and cost",
       "name": "Table tiers are used",
       "kind": "practice",
-      "evidence": "SENT-016 fired.",
+      "evidence": "SAC-LOG-02 fired.",
       "impact": "High-volume tables on the Analytics tier that no rule needs are the main cost lever left unpulled.",
       "guidance": "Move verbose, investigation-only tables to Basic or Data Lake.",
       "effort": "Medium",
@@ -2081,7 +2081,7 @@
       "areaName": "Threat intelligence",
       "name": "Off the legacy indicator table",
       "kind": "practice",
-      "evidence": "SENT-049 fired.",
+      "evidence": "SAC-TI-01 fired.",
       "impact": "The legacy ThreatIntelligenceIndicator table stopped receiving indicators on 31 July 2025.",
       "guidance": "Move ingestion to the upload API or TAXII, into ThreatIntelIndicators.",
       "effort": "Medium",
@@ -2100,7 +2100,7 @@
       "areaName": "Threat intelligence",
       "name": "More than one feed",
       "kind": "coverage",
-      "evidence": "SENT-055 fired.",
+      "evidence": "SAC-TI-05 fired.",
       "impact": "A single feed is a single point of failure for every TI detection.",
       "guidance": "Add a second source: Microsoft Defender Threat Intelligence, a TAXII collection or the upload API.",
       "effort": "Medium",
@@ -2137,7 +2137,7 @@
       "areaName": "Platform and collection",
       "name": "Workspace replication is enabled",
       "kind": "practice",
-      "evidence": "SENT-020 fired.",
+      "evidence": "SAC-PLT-05 fired.",
       "impact": "Without replication a regional outage takes the SOC's data and detections with it.",
       "guidance": "Enable workspace replication to a secondary region.",
       "effort": "Medium",
@@ -2156,7 +2156,7 @@
       "areaName": "Platform and collection",
       "name": "Agents migrated off the Log Analytics agent",
       "kind": "practice",
-      "evidence": "SENT-048 fired.",
+      "evidence": "SAC-PLT-03 fired.",
       "impact": "The Log Analytics agent is retired; machines still on it are on borrowed time.",
       "guidance": "Move every machine to the Azure Monitor Agent and remove the MMA extension.",
       "effort": "High",
@@ -2175,7 +2175,7 @@
       "areaName": "Platform and collection",
       "name": "Ingestion and query use private networking",
       "kind": "practice",
-      "evidence": "SENT-021 fired.",
+      "evidence": "SAC-PLT-06 fired.",
       "impact": "Public endpoints expose the workspace to credential-based access from anywhere.",
       "guidance": "Disable public network access for ingestion and query and route through an Azure Monitor Private Link Scope.",
       "effort": "High",
@@ -2194,7 +2194,7 @@
       "areaName": "Detection engineering",
       "name": "Enabled rules map entities",
       "kind": "practice",
-      "evidence": "SENT-037 fired.",
+      "evidence": "SAC-DET-03 fired.",
       "impact": "Incidents without entities cannot be investigated through the graph, grouped by entity or enriched by UEBA.",
       "guidance": "Add entity mappings (account, host, IP) to every Scheduled and NRT rule.",
       "effort": "Low",
@@ -2232,7 +2232,7 @@
       "areaName": "Detection engineering",
       "name": "Legacy incident-creation rules retired",
       "kind": "practice",
-      "evidence": "SENT-041 fired.",
+      "evidence": "SAC-DET-08 fired.",
       "impact": "Legacy Microsoft incident-creation rules duplicate what the Defender XDR connector now does.",
       "guidance": "Enable incident sync on the Defender XDR connector and disable the legacy rules.",
       "effort": "Low",
@@ -2251,7 +2251,7 @@
       "areaName": "Detection engineering",
       "name": "Rules are reviewed within twelve months",
       "kind": "practice",
-      "evidence": "SENT-031 fired.",
+      "evidence": "SAC-DET-04 fired.",
       "impact": "Rules nobody has touched in a year drift away from the environment they were written for.",
       "guidance": "Review every enabled rule at least yearly: query still valid, thresholds still right, data source still present.",
       "effort": "Medium",
@@ -2291,7 +2291,7 @@
       "areaName": "Threat hunting",
       "name": "Hunts are recorded",
       "kind": "practice",
-      "evidence": "SENT-058 fired.",
+      "evidence": "SAC-HNT-01 fired.",
       "impact": "Hunting that is not recorded cannot be repeated, measured or turned into detections.",
       "guidance": "Run hunts through the Hunts feature with a hypothesis and an outcome.",
       "effort": "Low",
@@ -2348,7 +2348,7 @@
       "areaName": "Automation and response",
       "name": "Automation rules exist",
       "kind": "practice",
-      "evidence": "SENT-034 fired.",
+      "evidence": "SAC-AUT-01 fired.",
       "impact": "Without automation rules every incident is triaged by hand from a cold start.",
       "guidance": "Start with automation rules that assign owners, tag by tactic and suppress known-benign patterns.",
       "effort": "Low",

@@ -73,7 +73,7 @@ function Get-PropOrDefault {
 }
 
 # ------------------------------------------------------------
-# SENT-001, Daily cap not configured
+# SAC-LOG-03, Daily cap not configured
 # ------------------------------------------------------------
 function Test-DailyCapConfigured {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -85,7 +85,7 @@ function Test-DailyCapConfigured {
 }
 
 # ------------------------------------------------------------
-# SENT-002, Workspace default retention < 90d
+# SAC-LOG-07, Workspace default retention < 90d
 # ------------------------------------------------------------
 function Test-WorkspaceRetentionMeetsSentinelBenefit {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -97,7 +97,7 @@ function Test-WorkspaceRetentionMeetsSentinelBenefit {
 }
 
 # ------------------------------------------------------------
-# SENT-003, High-volume table on Analytics with no transform
+# SAC-LOG-08, High-volume table on Analytics with no transform
 # ------------------------------------------------------------
 function Test-NoisyTableHasTransform {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -132,7 +132,7 @@ function Test-NoisyTableHasTransform {
 }
 
 # ------------------------------------------------------------
-# SENT-004, Recommended connectors not deployed
+# SAC-COV-07, Recommended connectors not deployed
 # ------------------------------------------------------------
 function Test-RecommendedConnectorsDeployed {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -151,7 +151,7 @@ function Test-RecommendedConnectorsDeployed {
 }
 
 # ------------------------------------------------------------
-# SENT-005, UEBA disabled
+# SAC-COV-05, UEBA disabled
 # ------------------------------------------------------------
 function Test-UebaEnabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -189,7 +189,7 @@ function Test-UebaEnabled {
 }
 
 # ------------------------------------------------------------
-# SENT-006, MITRE tactic with zero enabled rules
+# SAC-MON-04, MITRE tactic with zero enabled rules
 # ------------------------------------------------------------
 function Test-MitreTacticCoverage {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -210,7 +210,7 @@ function Test-MitreTacticCoverage {
 }
 
 # ------------------------------------------------------------
-# SENT-007, Rules disabled or in error
+# SAC-DET-05, Rules disabled or in error
 # ------------------------------------------------------------
 function Test-RulesDisabledOrFailing {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -229,7 +229,7 @@ function Test-RulesDisabledOrFailing {
 }
 
 # ------------------------------------------------------------
-# SENT-008, High-severity templates not deployed
+# SAC-DET-09, High-severity templates not deployed
 # ------------------------------------------------------------
 function Test-HighSeverityTemplatesDeployed {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -250,7 +250,7 @@ function Test-HighSeverityTemplatesDeployed {
 }
 
 # ------------------------------------------------------------
-# SENT-009, Owner/Contributor at workspace scope
+# SAC-GOV-06, Owner/Contributor at workspace scope
 # ------------------------------------------------------------
 function Test-RbacOverPrivileged {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -265,7 +265,7 @@ function Test-RbacOverPrivileged {
 }
 
 # ------------------------------------------------------------
-# SENT-010, Diagnostic settings not configured
+# SAC-PLT-08, Diagnostic settings not configured
 # ------------------------------------------------------------
 function Test-DiagnosticSettingsConfigured {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -276,7 +276,7 @@ function Test-DiagnosticSettingsConfigured {
 }
 
 # ------------------------------------------------------------
-# SENT-011, Playbook MI lacks Sentinel Responder role
+# SAC-AUT-05, Playbook MI lacks Sentinel Responder role
 # ------------------------------------------------------------
 function Test-PlaybookMiHasResponder {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -294,7 +294,7 @@ function Test-PlaybookMiHasResponder {
 }
 
 # ------------------------------------------------------------
-# SENT-012, DCR transform missing on noisy custom table
+# SAC-LOG-09, DCR transform missing on noisy custom table
 # ------------------------------------------------------------
 function Test-DcrTransformMissing {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -311,7 +311,7 @@ function Test-DcrTransformMissing {
 }
 
 # ------------------------------------------------------------
-# SENT-013, Content Hub solution updates available
+# SAC-DET-07, Content Hub solution updates available
 # ------------------------------------------------------------
 function Test-ContentHubUpdatesAvailable {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -334,7 +334,7 @@ function Test-ContentHubUpdatesAvailable {
 }
 
 # ------------------------------------------------------------
-# SENT-014, Sentinel still on Azure portal (info-only)
+# SAC-PLT-11, Sentinel still on Azure portal (info-only)
 # ------------------------------------------------------------
 function Test-OnboardedToDefender {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -345,7 +345,7 @@ function Test-OnboardedToDefender {
 }
 
 # ------------------------------------------------------------
-# SENT-015, Commitment-tier opportunity
+# SAC-LOG-10, Commitment-tier opportunity
 # ------------------------------------------------------------
 function Test-CommitmentTierOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -369,7 +369,7 @@ function Test-CommitmentTierOpportunity {
 }
 
 # ------------------------------------------------------------
-# SENT-016, High-volume table candidate for Basic/Auxiliary
+# SAC-LOG-02, High-volume table candidate for Basic/Auxiliary
 # ------------------------------------------------------------
 function Test-HighVolumeTablePlanCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -391,7 +391,7 @@ function Test-HighVolumeTablePlanCandidate {
 }
 
 # ------------------------------------------------------------
-# SENT-017, Long retention on Analytics rather than archive
+# SAC-LOG-11, Long retention on Analytics rather than archive
 # ------------------------------------------------------------
 function Test-RetentionOverArchive {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -406,7 +406,7 @@ function Test-RetentionOverArchive {
 }
 
 # ------------------------------------------------------------
-# SENT-018, Dedicated cluster candidate
+# SAC-LOG-12, Dedicated cluster candidate
 # ------------------------------------------------------------
 function Test-DedicatedClusterCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -423,7 +423,7 @@ function Test-DedicatedClusterCandidate {
 }
 
 # ------------------------------------------------------------
-# SENT-019, Sentinel benefit not detected
+# SAC-LOG-13, Sentinel benefit not detected
 # ------------------------------------------------------------
 function Test-SentinelBenefitApplied {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -441,7 +441,7 @@ function Test-SentinelBenefitApplied {
 }
 
 # ------------------------------------------------------------
-# SENT-020, Workspace replication disabled
+# SAC-PLT-05, Workspace replication disabled
 # ------------------------------------------------------------
 function Test-ReplicationEnabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -453,7 +453,7 @@ function Test-ReplicationEnabled {
 }
 
 # ------------------------------------------------------------
-# SENT-021, Public network access enabled
+# SAC-PLT-06, Public network access enabled
 # ------------------------------------------------------------
 function Test-PublicNetworkAccessDisabled {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -466,7 +466,7 @@ function Test-PublicNetworkAccessDisabled {
 }
 
 # ------------------------------------------------------------
-# SENT-022, Resource providers registered
+# SAC-PLT-09, Resource providers registered
 # ------------------------------------------------------------
 function Test-ResourceProvidersRegistered {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -484,7 +484,7 @@ function Test-ResourceProvidersRegistered {
 }
 
 # ------------------------------------------------------------
-# SENT-023, Data Lake mirroring candidate
+# SAC-LOG-14, Data Lake mirroring candidate
 # ------------------------------------------------------------
 function Test-DataLakeMirroringCandidate {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -500,7 +500,7 @@ function Test-DataLakeMirroringCandidate {
 }
 
 # ------------------------------------------------------------
-# SENT-024, disableLocalAuth
+# SAC-GOV-07, disableLocalAuth
 # ------------------------------------------------------------
 function Test-DisableLocalAuth {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -512,7 +512,7 @@ function Test-DisableLocalAuth {
 }
 
 # ------------------------------------------------------------
-# SENT-025, Access mode consistency
+# SAC-GOV-08, Access mode consistency
 # ------------------------------------------------------------
 function Test-AccessModeConsistent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -525,7 +525,7 @@ function Test-AccessModeConsistent {
 }
 
 # ------------------------------------------------------------
-# SENT-026, Silent tables (had data, none last 7d)
+# SAC-INV-01, Silent tables (had data, none last 7d)
 # ------------------------------------------------------------
 function Test-SilentTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -543,7 +543,7 @@ function Test-SilentTables {
 }
 
 # ------------------------------------------------------------
-# SENT-027, Orphan tables (schema, no data 90d)
+# SAC-INV-04, Orphan tables (schema, no data 90d)
 # ------------------------------------------------------------
 function Test-OrphanTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -583,7 +583,7 @@ function _GetBillable30d {
 }
 
 # ------------------------------------------------------------
-# SENT-028, Connector connected but target table has no recent data
+# SAC-PLT-10, Connector connected but target table has no recent data
 # ------------------------------------------------------------
 function Test-ConnectorTableMismatch {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -619,7 +619,7 @@ function Test-ConnectorTableMismatch {
 }
 
 # ------------------------------------------------------------
-# SENT-029, Incident MTTR above 24h
+# SAC-INC-06, Incident MTTR above 24h
 # ------------------------------------------------------------
 function Test-IncidentMttrThreshold {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -636,7 +636,7 @@ function Test-IncidentMttrThreshold {
 }
 
 # ------------------------------------------------------------
-# SENT-030, Majority of incidents closed without ever being acknowledged
+# SAC-INC-05, Majority of incidents closed without ever being acknowledged
 # ------------------------------------------------------------
 function Test-IncidentClosedWithoutAcknowledgement {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -655,7 +655,7 @@ function Test-IncidentClosedWithoutAcknowledgement {
 }
 
 # ------------------------------------------------------------
-# SENT-031, Mouldy rules, enabled, untouched > 12 months
+# SAC-DET-04, Mouldy rules, enabled, untouched > 12 months
 # ------------------------------------------------------------
 function Test-MouldyAnalyticsRules {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -681,7 +681,7 @@ function Test-MouldyAnalyticsRules {
 }
 
 # ------------------------------------------------------------
-# SENT-032, Deployed rule's templateVersion lags the latest template
+# SAC-DET-10, Deployed rule's templateVersion lags the latest template
 # ------------------------------------------------------------
 function Test-AnalyticsRuleTemplateDrift {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -715,7 +715,7 @@ function Test-AnalyticsRuleTemplateDrift {
 }
 
 # ------------------------------------------------------------
-# SENT-033, Single rule producing > 30% of alert volume
+# SAC-DET-11, Single rule producing > 30% of alert volume
 # ------------------------------------------------------------
 function Test-DominantNoisyRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -732,7 +732,7 @@ function Test-DominantNoisyRule {
 }
 
 # ------------------------------------------------------------
-# SENT-034, No automation rules defined
+# SAC-AUT-01, No automation rules defined
 # ------------------------------------------------------------
 function Test-AutomationRulesPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -742,7 +742,7 @@ function Test-AutomationRulesPresent {
 }
 
 # ------------------------------------------------------------
-# SENT-035, Enabled rule with zero alerts in 90d
+# SAC-DET-12, Enabled rule with zero alerts in 90d
 # ------------------------------------------------------------
 function Test-DeadAnalyticsRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -769,7 +769,7 @@ function Test-DeadAnalyticsRule {
 }
 
 # ------------------------------------------------------------
-# SENT-039, Service principal with Owner/Contributor at workspace scope
+# SAC-GOV-05, Service principal with Owner/Contributor at workspace scope
 # ------------------------------------------------------------
 function Test-ServicePrincipalOverPrivileged {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -786,7 +786,7 @@ function Test-ServicePrincipalOverPrivileged {
 }
 
 # ------------------------------------------------------------
-# SENT-040, Zero Microsoft Sentinel Responder assignments
+# SAC-GOV-04, Zero Microsoft Sentinel Responder assignments
 # ------------------------------------------------------------
 function Test-ResponderRoleAssigned {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -799,7 +799,7 @@ function Test-ResponderRoleAssigned {
 }
 
 # ------------------------------------------------------------
-# SENT-042, No deletion-protection lock on the workspace
+# SAC-GOV-03, No deletion-protection lock on the workspace
 # ------------------------------------------------------------
 function Test-WorkspaceLockPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -823,7 +823,7 @@ function Test-WorkspaceLockPresent {
 $script:DataRoutingSplitThresholdGb30d = 150.0
 
 # ------------------------------------------------------------
-# SENT-043, CommonSecurityLog volume warrants a vendor _CL split
+# SAC-LOG-15, CommonSecurityLog volume warrants a vendor _CL split
 # ------------------------------------------------------------
 function Test-CefSplitOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -837,7 +837,7 @@ function Test-CefSplitOpportunity {
 }
 
 # ------------------------------------------------------------
-# SENT-044, Syslog volume warrants a facility-based DCR filter or _CL split
+# SAC-LOG-16, Syslog volume warrants a facility-based DCR filter or _CL split
 # ------------------------------------------------------------
 function Test-SyslogSplitOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -851,7 +851,7 @@ function Test-SyslogSplitOpportunity {
 }
 
 # ------------------------------------------------------------
-# SENT-045, SecurityEvent / WindowsEvent XPath filter opportunity
+# SAC-LOG-17, SecurityEvent / WindowsEvent XPath filter opportunity
 # ------------------------------------------------------------
 function Test-WindowsEventXPathFilterOpportunity {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -871,7 +871,7 @@ function Test-WindowsEventXPathFilterOpportunity {
 }
 
 # ------------------------------------------------------------
-# SENT-046, AzureDiagnostics carries multiple resource providers
+# SAC-LOG-18, AzureDiagnostics carries multiple resource providers
 # ------------------------------------------------------------
 function Test-AzureDiagnosticsResourceSpecific {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -890,7 +890,7 @@ function Test-AzureDiagnosticsResourceSpecific {
 }
 
 # ------------------------------------------------------------
-# SENT-047, CLv1 (HTTP Data Collector API) custom log tables still in use
+# SAC-PLT-02, CLv1 (HTTP Data Collector API) custom log tables still in use
 # ------------------------------------------------------------
 function Test-CustomLogsV1Migration {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -935,7 +935,7 @@ function Test-CustomLogsV1Migration {
 }
 
 # ------------------------------------------------------------
-# SENT-048, MMA / OMS / Log Analytics agent still heartbeating
+# SAC-PLT-03, MMA / OMS / Log Analytics agent still heartbeating
 # ------------------------------------------------------------
 function Test-MmaAgentStillHeartbeating {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -950,7 +950,7 @@ function Test-MmaAgentStillHeartbeating {
 }
 
 # ------------------------------------------------------------
-# SENT-049, Legacy ThreatIntelligenceIndicator table still in use
+# SAC-TI-01, Legacy ThreatIntelligenceIndicator table still in use
 # ------------------------------------------------------------
 function Test-LegacyThreatIntelligenceTable {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1073,7 +1073,7 @@ function _ToIsoTime {
 }
 
 # ------------------------------------------------------------
-# SENT-036, Analytics rule closes mostly as false positive
+# SAC-DET-06, Analytics rule closes mostly as false positive
 # ------------------------------------------------------------
 function Test-NoisyFalsePositiveRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1107,7 +1107,7 @@ function Test-NoisyFalsePositiveRule {
 }
 
 # ------------------------------------------------------------
-# SENT-037, Enabled rule has no entity mappings
+# SAC-DET-03, Enabled rule has no entity mappings
 # ------------------------------------------------------------
 function Test-RuleEntityMappingsPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1123,7 +1123,7 @@ function Test-RuleEntityMappingsPresent {
 }
 
 # ------------------------------------------------------------
-# SENT-038, Enabled rule does not create incidents
+# SAC-MON-01, Enabled rule does not create incidents
 # ------------------------------------------------------------
 function Test-RuleCreatesIncidents {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1142,7 +1142,7 @@ function Test-RuleCreatesIncidents {
 }
 
 # ------------------------------------------------------------
-# SENT-041, Legacy Microsoft incident-creation rules still enabled
+# SAC-DET-08, Legacy Microsoft incident-creation rules still enabled
 # ------------------------------------------------------------
 function Test-LegacyIncidentCreationRules {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1167,7 +1167,7 @@ function Test-LegacyIncidentCreationRules {
 }
 
 # ------------------------------------------------------------
-# SENT-050, Enabled rule queries the retired ThreatIntelligenceIndicator table
+# SAC-TI-02, Enabled rule queries the retired ThreatIntelligenceIndicator table
 # ------------------------------------------------------------
 function Test-RulesOnLegacyThreatIntelTable {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1183,7 +1183,7 @@ function Test-RulesOnLegacyThreatIntelTable {
 }
 
 # ------------------------------------------------------------
-# SENT-051, High-volume table with no enabled rule referencing it
+# SAC-MON-05, High-volume table with no enabled rule referencing it
 # ------------------------------------------------------------
 function Test-HighVolumeTableWithoutDetection {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1233,7 +1233,7 @@ function Test-HighVolumeTableWithoutDetection {
 }
 
 # ------------------------------------------------------------
-# SENT-052, Table that enabled rules depend on has gone silent
+# SAC-MON-06, Table that enabled rules depend on has gone silent
 # ------------------------------------------------------------
 function Test-SilentTableWithDependentRules {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1277,7 +1277,7 @@ function Test-SilentTableWithDependentRules {
 }
 
 # ------------------------------------------------------------
-# SENT-053, Playbook runs failed in the last 7 days
+# SAC-AUT-02, Playbook runs failed in the last 7 days
 # ------------------------------------------------------------
 function Test-PlaybookRunFailures {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1305,7 +1305,7 @@ function Test-PlaybookRunFailures {
 }
 
 # ------------------------------------------------------------
-# SENT-054, Installed solution deprecated or no longer in the catalogue
+# SAC-DET-13, Installed solution deprecated or no longer in the catalogue
 # ------------------------------------------------------------
 function Test-DeprecatedContentHubSolutions {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1333,7 +1333,7 @@ function Test-DeprecatedContentHubSolutions {
 }
 
 # ------------------------------------------------------------
-# SENT-055, Threat intelligence relies on a single feed
+# SAC-TI-05, Threat intelligence relies on a single feed
 # ------------------------------------------------------------
 function Test-ThreatIntelSingleFeed {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1363,7 +1363,7 @@ function Test-ThreatIntelSingleFeed {
 }
 
 # ------------------------------------------------------------
-# SENT-056, Azure Firewall logs collected twice
+# SAC-LOG-06, Azure Firewall logs collected twice
 # ------------------------------------------------------------
 function Test-AzureFirewallDuplicateLogging {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1384,7 +1384,7 @@ function Test-AzureFirewallDuplicateLogging {
 }
 
 # ------------------------------------------------------------
-# SENT-057, Incidents closed without a classification
+# SAC-INC-02, Incidents closed without a classification
 # ------------------------------------------------------------
 function Test-IncidentsClosedUnclassified {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1404,7 +1404,7 @@ function Test-IncidentsClosedUnclassified {
 }
 
 # ------------------------------------------------------------
-# SENT-058, No hunting activity recorded
+# SAC-HNT-01, No hunting activity recorded
 # ------------------------------------------------------------
 function Test-HuntingActivityRecorded {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -1423,7 +1423,7 @@ function Test-HuntingActivityRecorded {
 }
 
 # ------------------------------------------------------------
-# SENT-059, Analytics rule runs are failing (SentinelHealth, last 7 days)
+# SAC-DET-14, Analytics rule runs are failing (SentinelHealth, last 7 days)
 # ------------------------------------------------------------
 function Test-AnalyticsRuleRunFailures {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)

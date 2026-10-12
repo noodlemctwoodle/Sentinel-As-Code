@@ -163,7 +163,7 @@ Grouped by purpose:
 - `sentinel-health` and `sentinel-health-summary` - `SentinelHealth`-based connector/rule health.
 - `rule-health` - analytics rules whose scheduled runs failed in the last 7 days, with the
   failure count, last failure and recorded reason (`SentinelHealth`, resource type
-  "Analytics Rule"); the input to SENT-059 and the rule-run-failures table.
+  "Analytics Rule"); the input to SAC-DET-14 and the rule-run-failures table.
 - `ueba-data-presence` - infers whether UEBA is producing data (row presence in
   `BehaviorAnalytics` / `IdentityInfo` / `UserPeerAnalytics`), the operational counterpart to
   the `settings/Ueba` configuration signal.

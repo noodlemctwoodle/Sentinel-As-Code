@@ -97,7 +97,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
 
     Context 'headings, anchors and rules' {
         BeforeAll {
-            $md = "# T`n`n## Two`n`n### Three`n`n#### Four`n`n##### Five`n`n<a id=`"sent-001`"></a>`n`n---`n`ntext"
+            $md = "# T`n`n## Two`n`n### Three`n`n#### Four`n`n##### Five`n`n<a id=`"sac-log-03`"></a>`n`n---`n`ntext"
             $script:html = Join-Html (ConvertTo-Segments $md)
         }
         It 'clamps headings to h2-h4' {
@@ -120,7 +120,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
                 '# T'
                 ''
                 'See [rules](20-analytics-rules.md), [rule detail](25-mitre-coverage.md#heatmap),'
-                '[SENT-009](90-gap-analysis.md#sent-009), [here](#sent-010), [script](../../Tools/Documenter/Export-SentinelInventory.ps1),'
+                '[SAC-GOV-06](90-gap-analysis.md#sac-gov-06), [here](#sac-plt-08), [script](../../Tools/Documenter/Export-SentinelInventory.ps1),'
                 '[index](index.md) and [Learn](https://learn.microsoft.com/azure/sentinel/).'
             ) -join "`n"
             $script:html = Join-Html (ConvertTo-Segments $md '90-gap-analysis.md')
@@ -130,8 +130,8 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $html | Should -Match 'href="~site/SitePages/sac-25-mitre-coverage.aspx">rule detail</a>'
         }
         It 'points finding links at the findings list filtered on the id' {
-            $html | Should -Match 'href="~site/Lists/SentinelFindings/AllItems.aspx\?FilterField1=FindingId&amp;FilterValue1=SENT-009"'
-            $html | Should -Match 'FilterValue1=SENT-010'
+            $html | Should -Match 'href="~site/Lists/SentinelFindings/AllItems.aspx\?FilterField1=FindingId&amp;FilterValue1=SAC-GOV-06"'
+            $html | Should -Match 'FilterValue1=SAC-PLT-08'
         }
         It 'turns repository-relative and index links into plain text' {
             $html | Should -Match '>script<|, script,| script\b'
@@ -245,8 +245,25 @@ Describe 'Get-FindingSyncPlan' {
         }
     }
 
+    It 'updates an item filed under the legacy id in place and moves it to the new id' {
+        $cur = F 'SAC-LOG-03'; $cur | Add-Member -NotePropertyName legacyId -NotePropertyValue 'SENT-001'
+        $p = Plan @($cur) @(E 7 'SENT-001' 'Open') @(C 'SAC-LOG-03' 'Fired')
+        @($p).Count | Should -Be 1
+        $p.Action | Should -Be 'Update'
+        $p.ItemId | Should -Be 7
+        $p.FindingId | Should -Be 'SAC-LOG-03'
+        $p.Values.FindingId | Should -Be 'SAC-LOG-03'
+    }
+
+    It 'reopens a resolved legacy item under the new id rather than adding a duplicate' {
+        $cur = F 'SAC-LOG-03'; $cur | Add-Member -NotePropertyName legacyId -NotePropertyValue 'SENT-001'
+        $p = Plan @($cur) @(E 7 'SENT-001' 'Resolved') @(C 'SAC-LOG-03' 'Fired')
+        $p.Action | Should -Be 'Reopen'
+        $p.ItemId | Should -Be 7
+    }
+
     It 'adds a new finding as Open with first and last seen' {
-        $p = Plan @(F 'SENT-001') @() @(C 'SENT-001' 'Fired')
+        $p = Plan @(F 'SAC-LOG-03') @() @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Add'
         $p.Values.Status | Should -Be 'Open'
         $p.Values.FirstSeen | Should -Be $now
@@ -256,14 +273,14 @@ Describe 'Get-FindingSyncPlan' {
     }
 
     It 'updates an open finding that still fires' {
-        $p = Plan @(F 'SENT-001') @(E 7 'SENT-001' 'Open') @(C 'SENT-001' 'Fired')
+        $p = Plan @(F 'SAC-LOG-03') @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Update'
         $p.ItemId | Should -Be 7
         $p.Values.ContainsKey('FirstSeen') | Should -BeFalse
     }
 
     It 'reopens a resolved finding that fires again' {
-        $p = Plan @(F 'SENT-001') @(E 7 'SENT-001' 'Resolved') @(C 'SENT-001' 'Fired')
+        $p = Plan @(F 'SAC-LOG-03') @(E 7 'SAC-LOG-03' 'Resolved') @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Reopen'
         $p.Values.Status | Should -Be 'Open'
         $p.Values.ContainsKey('ResolvedOn') | Should -BeTrue
@@ -271,32 +288,32 @@ Describe 'Get-FindingSyncPlan' {
     }
 
     It 'resolves an open finding whose check passed' {
-        $p = Plan @() @(E 7 'SENT-001' 'Open') @(C 'SENT-001' 'Passed')
+        $p = Plan @() @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Passed')
         $p.Action | Should -Be 'Resolve'
         $p.Values.Status | Should -Be 'Resolved'
         $p.Values.ResolvedOn | Should -Be $now
     }
 
     It 'keeps an open finding open when its check errored' {
-        @(Plan @() @(E 7 'SENT-001' 'Open') @(C 'SENT-001' 'Errored')).Count | Should -Be 0
+        @(Plan @() @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Errored')).Count | Should -Be 0
     }
 
     It 'retires an open finding whose rule left the rule set' {
-        $p = Plan @() @(E 7 'SENT-050' 'Open') @(C 'SENT-001' 'Passed')
+        $p = Plan @() @(E 7 'SAC-TI-02' 'Open') @(C 'SAC-LOG-03' 'Passed')
         $p.Action | Should -Be 'Retire'
         $p.Values.Status | Should -Be 'Retired'
     }
 
     It 'leaves resolved and retired items alone' {
-        @(Plan @() @((E 7 'SENT-001' 'Resolved'), (E 8 'SENT-002' 'Retired')) @(C 'SENT-001' 'Passed')).Count | Should -Be 0
+        @(Plan @() @((E 7 'SAC-LOG-03' 'Resolved'), (E 8 'SAC-LOG-07' 'Retired')) @(C 'SAC-LOG-03' 'Passed')).Count | Should -Be 0
     }
 
     It 'resolves on absence when the snapshot has no per-check outcomes' {
-        (Plan @() @(E 7 'SENT-001' 'Open') $null).Action | Should -Be 'Resolve'
+        (Plan @() @(E 7 'SAC-LOG-03' 'Open') $null).Action | Should -Be 'Resolve'
     }
 
     It 'resolves nothing when the snapshot has no gap analysis' {
-        @(Plan @() @(E 7 'SENT-001' 'Open') $null $false).Count | Should -Be 0
+        @(Plan @() @(E 7 'SAC-LOG-03' 'Open') $null $false).Count | Should -Be 0
     }
 }
 

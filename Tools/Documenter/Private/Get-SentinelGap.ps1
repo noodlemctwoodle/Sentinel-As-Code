@@ -16,7 +16,7 @@
                                     -GapChecksPath './Tools/Documenter/Private/GapChecks.ps1'
 
     Each finding is a [pscustomobject] with these fields:
-        Id           : SENT-001
+        Id           : SAC-LOG-03
         Title        : Daily cap not configured...
         Category     : Cost
         Severity     : Warning
@@ -29,7 +29,7 @@
 
     Pass -OutcomeCollector (an empty List[object]) to also receive one
     record per rule saying what happened to its check:
-        Id           : SENT-001
+        Id           : SAC-LOG-03
         Check        : Name of the Test-* function
         Outcome      : Fired | Passed | Errored | Undefined
         Message      : Error text for Errored / Undefined, else $null
@@ -124,6 +124,8 @@ function Get-SentinelGap {
         if ($null -ne $result) {
             $findings += [pscustomobject]@{
                 Id          = $rule.id
+                LegacyId    = $(if ($rule.PSObject.Properties['legacyId']) { [string]$rule.legacyId } else { $null })
+                Area        = $(if ($rule.PSObject.Properties['area']) { [string]$rule.area } else { $null })
                 Title       = $rule.title
                 Category    = $rule.category
                 Severity    = $rule.severity

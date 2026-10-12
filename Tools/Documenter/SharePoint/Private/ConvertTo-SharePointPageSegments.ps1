@@ -20,7 +20,7 @@
          code blocks flattened to <pre>, horizontal rules dropped, tables
          wrapped in the responsive table markup the SharePoint editor uses.
       4. Links are rewritten for the site: links to other section files go
-         to their generated page, SENT-NNN finding links go to the findings
+         to their generated page, finding links go to the findings
          list filtered on that id, and repository-relative links become
          plain text (they mean nothing on SharePoint).
       5. Mermaid blocks that were not pre-rendered are replaced with a note
@@ -176,8 +176,8 @@ function ConvertTo-SacSiteLink {
 
     if ($decoded -match '^(https?|mailto):') { return $Href }
 
-    # SENT-NNN finding links: '90-gap-analysis.md#sent-009' or '#sent-009'.
-    if ($decoded -match '^(?:(?<file>[^#]*\.md))?#(?<id>sent-\d+)$') {
+    # Finding links: '90-gap-analysis.md#sac-gov-06' or '#sac-gov-06' (and the retired sent-NNN anchors).
+    if ($decoded -match '^(?:(?<file>[^#]*\.md))?#(?<id>(?:sent-\d+|sac-[a-z]{2,4}-\d{2}))$') {
         $id = $Matches['id'].ToUpperInvariant()
         return "~site/$FindingsListUrl/AllItems.aspx?FilterField1=FindingId&amp;FilterValue1=$id"
     }

@@ -17,7 +17,7 @@
         Unknown  the input was not captured, so no judgement is made
 
     Source kinds:
-        gapRule  a SENT rule outcome: Passed is Met, Fired is Gap, anything
+        gapRule  a gap rule outcome: Passed is Met, Fired is Gap, anything
                  else (Errored, Undefined, not evaluated) is Unknown
         metric   a value from New-MaturityMetrics compared with op/value;
                  a null metric (its file was not captured) is Unknown
@@ -376,7 +376,7 @@ function Test-MaturityCriteriaDocument {
         $kind = [string](Get-MaturityPropertyValue $Source 'kind' '')
         switch ($kind) {
             'gapRule' {
-                if (([string](Get-MaturityPropertyValue $Source 'rule' '')) -notmatch '^SENT-\d{3,}$') { $problems.Add("$Id gapRule source needs a SENT rule id") }
+                if (([string](Get-MaturityPropertyValue $Source 'rule' '')) -notmatch '^SAC-[A-Z]{2,4}-\d{2}$') { $problems.Add("$Id gapRule source needs a SAC finding id") }
             }
             'metric' {
                 $path = [string](Get-MaturityPropertyValue $Source 'path' '')

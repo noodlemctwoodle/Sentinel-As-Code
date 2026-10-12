@@ -512,6 +512,8 @@ $findingList = @()
 foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
     $findingList += [ordered]@{
         id          = $f.Id
+        legacyId    = $(if ($f.PSObject.Properties['LegacyId'] -and $f.LegacyId) { [string]$f.LegacyId } else { $null })
+        area        = $(if ($f.PSObject.Properties['Area'] -and $f.Area) { [string]$f.Area } else { $null })
         title       = $f.Title
         severity    = [string]$f.Severity
         category    = [string]$f.Category

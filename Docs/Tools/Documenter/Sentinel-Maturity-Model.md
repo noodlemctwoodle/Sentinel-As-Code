@@ -49,7 +49,7 @@ it to the project.
 | GOV | Governance and access | Access follows least privilege and the workspace is protected from accidents |
 
 Sixty criteria sit under those areas, between three and eight each. Every
-criterion has an id of the form `SAC-<AREA>-NN`, a `kind` (`practice` for
+criterion has an id of the form `SAC-<AREA>-NN` (shared with the gap rule that decides it, where one rule does; see the finding id note in [Sentinel-Documenter.md](Sentinel-Documenter.md)), a `kind` (`practice` for
 something the team does, `coverage` for something the workspace has), a
 `weight` (1, or 1.5 for the ones that matter most), an `effort` (Low,
 Medium, High), an `impact` sentence, a `guidance` sentence, one or more

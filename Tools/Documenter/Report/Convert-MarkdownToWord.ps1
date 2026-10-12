@@ -184,7 +184,7 @@ function Get-FindingTitleMap {
     <#
     .SYNOPSIS
         Build a map of finding ID -> canonical title from gap-analysis
-        headings like '### [SENT-047](#sent-047) - Custom log table ...',
+        headings like '### [SAC-PLT-02](#sac-plt-02) - Custom log table ...',
         so the dense overview bullets can be split into title + body
         without guessing at internal dashes.
     #>
@@ -193,7 +193,7 @@ function Get-FindingTitleMap {
     param([Parameter(Mandatory)] [string[]] $Texts)
 
     $map = @{}
-    $pattern = '(?m)^#{2,4}[ \t]+\[(?<id>[A-Za-z]+-\d+)\]\([^)]*\)[ \t]*[—–-][ \t]*(?<title>.+?)[ \t]*$'
+    $pattern = '(?m)^#{2,4}[ \t]+\[(?<id>[A-Za-z]+(?:-[A-Za-z]+)?-\d+)\]\([^)]*\)[ \t]*[—–-][ \t]*(?<title>.+?)[ \t]*$'
     foreach ($t in $Texts) {
         if (-not $t) { continue }
         foreach ($m in [regex]::Matches($t, $pattern)) {
@@ -212,7 +212,7 @@ function Convert-FindingBullets {
 
     .DESCRIPTION
         Only lines shaped like '- **<sev>** [<ID>](<link>) <rest>' (where
-        <ID> is e.g. SENT-047) are touched - everything else is returned
+        <ID> is e.g. SAC-PLT-02) are touched - everything else is returned
         verbatim. The title is split from the description using the title
         map where the ID is known, otherwise on the first ' - ' break.
         Returns the rewritten text; increments $Count by the number of
@@ -226,7 +226,7 @@ function Convert-FindingBullets {
         [Parameter(Mandatory)] [ref]       $Count
     )
 
-    $pattern = '(?m)^(?<ind>[ \t]*)[-*][ \t]+\*\*(?<sev>[^*]+?)\*\*[ \t]*\[(?<id>[A-Za-z]+-\d+)\]\((?<link>[^)]+)\)[ \t]*(?<rest>.*\S)[ \t]*$'
+    $pattern = '(?m)^(?<ind>[ \t]*)[-*][ \t]+\*\*(?<sev>[^*]+?)\*\*[ \t]*\[(?<id>[A-Za-z]+(?:-[A-Za-z]+)?-\d+)\]\((?<link>[^)]+)\)[ \t]*(?<rest>.*\S)[ \t]*$'
     $Count.Value += [regex]::Matches($Text, $pattern).Count
 
     # Severity word -> character style (defined in the reference doc) so

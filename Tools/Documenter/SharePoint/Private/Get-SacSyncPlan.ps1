@@ -102,7 +102,8 @@ function Get-FindingSyncPlan {
 
     .PARAMETER Current
         The findings that fired in this run: objects with id, title,
-        severity, category, evidence, remediation, learn.
+        severity, category, evidence, remediation, learn and, for a rule
+        renamed from the SENT-NNN scheme, legacyId.
 
     .PARAMETER Existing
         Items already in the list: objects with ItemId, FindingId and Status.
@@ -152,6 +153,12 @@ function Get-FindingSyncPlan {
         $id = [string]$f.id
         if (-not $id) { continue }
         [void]$fired.Add($id)
+        # A finding renamed from the SENT-NNN scheme carries its old id as
+        # legacyId; an item still filed under that id is the same finding and
+        # is updated in place (its FindingId moves to the new id).
+        $legacyId = if ($f.PSObject.Properties['legacyId'] -and $f.legacyId) { [string]$f.legacyId } else { $null }
+        $match = if ($existingById.ContainsKey($id)) { $existingById[$id] } elseif ($legacyId -and $existingById.ContainsKey($legacyId)) { $existingById[$legacyId] } else { $null }
+        if ($match -and $legacyId) { [void]$fired.Add($legacyId) }
         $severity = [string]$f.severity
         $values = @{
             Title        = [string]$f.title
@@ -166,17 +173,17 @@ function Get-FindingSyncPlan {
             LastSeen     = $now
         }
 
-        if (-not $existingById.ContainsKey($id)) {
+        if (-not $match) {
             $values.FirstSeen = $now
             $values.ResolvedOn = $null
             $plan.Add([pscustomobject]@{ Action = 'Add'; FindingId = $id; ItemId = $null; Values = $values })
         }
-        elseif ([string]$existingById[$id].Status -ne 'Open') {
+        elseif ([string]$match.Status -ne 'Open') {
             $values.ResolvedOn = $null
-            $plan.Add([pscustomobject]@{ Action = 'Reopen'; FindingId = $id; ItemId = $existingById[$id].ItemId; Values = $values })
+            $plan.Add([pscustomobject]@{ Action = 'Reopen'; FindingId = $id; ItemId = $match.ItemId; Values = $values })
         }
         else {
-            $plan.Add([pscustomobject]@{ Action = 'Update'; FindingId = $id; ItemId = $existingById[$id].ItemId; Values = $values })
+            $plan.Add([pscustomobject]@{ Action = 'Update'; FindingId = $id; ItemId = $match.ItemId; Values = $values })
         }
     }
 

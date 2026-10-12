@@ -207,7 +207,7 @@ recommendation.
 
 This block uses an ingest-volume heuristic. A second, independent
 Lake-candidate signal exists in the gap checker: `Test-DataLakeMirroringCandidate`
-(`SENT-023`, "Data Lake mirroring candidate") in
+(`SAC-LOG-14`, "Data Lake mirroring candidate") in
 [`Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1)
 flags Analytics-plan tables with `totalRetentionInDays > 365`, a retention
 heuristic, and surfaces via the report's Findings/Gaps section rather than
@@ -327,7 +327,7 @@ retention chart.
   (search `_TopologyBucketFor` / asset table detection) should be
   extended.
 - **CMK incompatibility surface.** "Lake doesn't support CMK" is currently
-  prose in *When to stay on legacy*. A gap rule (`SENT-xxx`) flagging a
+  prose in *When to stay on legacy*. A gap rule (`SAC-LOG-NN`) flagging a
   workspace that has both CMK configured AND `unifiedSentinelBillingOnly`
   set would be a useful sanity check, Microsoft's docs say these states
   are mutually exclusive in practice.
@@ -351,7 +351,7 @@ retention chart.
 | [`Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
 | [`Tools/Documenter/Private/Get-SentinelCostEstimate.ps1`](../../../Tools/Documenter/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
 | [`Tools/Documenter/Private/Resources/cost-meters.json`](../../../Tools/Documenter/Private/Resources/cost-meters.json) | Lake meter → category mapping |
-| [`Tools/Documenter/Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SENT-023`), the retention-based Lake-candidate gap finding |
+| [`Tools/Documenter/Private/GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
 | [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Documenter tool, per-table Lake ingestion/processing/storage cost modelling |
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`

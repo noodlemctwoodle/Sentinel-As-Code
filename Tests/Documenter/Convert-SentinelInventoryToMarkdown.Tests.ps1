@@ -184,12 +184,16 @@ Describe 'Sentinel Documenter renderer' {
             $script:mat | Should -Match '\| 1 \| SAC-INV-02 '
             $script:mat | Should -Match '## Quick wins[\s\S]*- \*\*SAC-INV-02\*\*'
             $script:mat | Should -Match '\| DE Detect \| 30 \| 11 \| 19 \| 0 \|'
-            $script:mat | Should -Match '\| SAC-LOG-03 \| LOG \| practice \| A daily cap is set \| 🔴 Gap \|'
+            # the criterion shares its id with the daily-cap finding, which fired, so the id links to it
+            $script:mat | Should -Match '\| \[SAC-LOG-03\]\(90-gap-analysis\.md#sac-log-03\) \| LOG \| practice \| A daily cap is set \| 🔴 Gap \|'
         }
 
-        It 'leaves SAC criterion ids unlinked but links SENT ids' {
-            $script:mat | Should -Not -Match '\[SAC-'
-            $script:mat | Should -Match '\[SENT-037\]\(90-gap-analysis\.md#sent-037\)'
+        It 'links a criterion id only when the finding that shares it fired' {
+            # SAC-DET-03 (entity mappings) fired in the fixture: linked to its finding
+            $script:mat | Should -Match '\[SAC-DET-03\]\(90-gap-analysis\.md#sac-det-03\)'
+            # SAC-DET-01 is a metric criterion with no finding behind it: plain text
+            $script:mat | Should -Match '\| SAC-DET-01 \| DET \|'
+            $script:mat | Should -Not -Match '\[SAC-DET-01\]'
         }
     }
 
@@ -650,7 +654,7 @@ Describe 'Sentinel Documenter renderer' {
         }
 
         It 'lists at least one finding ID' {
-            $script:gapMd | Should -Match 'SENT-00\d'
+            $script:gapMd | Should -Match 'SAC-[A-Z]{2,4}-\d{2}'
         }
 
         It 'links to learn.microsoft.com' {

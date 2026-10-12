@@ -1,6 +1,6 @@
 {
   "$comment": "Sentinel-As-Code maturity assessment: a capability reference point computed from a workspace's deployed configuration and recent activity, not an audit, a certification or a risk rating. Each criterion resolves to Met, Gap or Unknown from a gap rule outcome (gap-checks.json), a metric derived from the _raw captures, or a combination; areas score 0 to 5 over the criteria that could be evaluated. NIST Cybersecurity Framework 2.0 subcategory identifiers are from NIST CSWP 29 (US Government work, not subject to copyright in the United States); the outcome text here is a short paraphrase, not the official wording. The criterion set, the estate-flow view and the detection-headroom idea come from the Sentinel health-check script written by Lasitha R, who gave it to this project.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "methodology": {
     "name": "Sentinel-As-Code maturity assessment",
     "version": "1.0",
@@ -223,7 +223,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-037"
+        "rule": "SAC-DET-03"
       },
       "evidence": {
         "met": "Every enabled Scheduled/NRT rule maps at least one entity."
@@ -244,7 +244,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-031"
+        "rule": "SAC-DET-04"
       },
       "evidence": {
         "met": "No enabled rule has gone unmodified for more than twelve months."
@@ -265,7 +265,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-007"
+        "rule": "SAC-DET-05"
       },
       "evidence": {
         "met": "No analytics rule is disabled."
@@ -286,7 +286,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-036"
+        "rule": "SAC-DET-06"
       },
       "evidence": {
         "met": "No rule with 20 or more closed incidents has a false-positive rate above 70%."
@@ -310,11 +310,11 @@
         "sources": [
           {
             "kind": "gapRule",
-            "rule": "SENT-013"
+            "rule": "SAC-DET-07"
           },
           {
             "kind": "gapRule",
-            "rule": "SENT-054"
+            "rule": "SAC-DET-13"
           }
         ]
       },
@@ -338,7 +338,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-041"
+        "rule": "SAC-DET-08"
       },
       "evidence": {
         "met": "No legacy Microsoft incident-creation rule is enabled."
@@ -383,7 +383,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-047"
+        "rule": "SAC-PLT-02"
       },
       "evidence": {
         "met": "No CLv1 custom log table carries data."
@@ -404,7 +404,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-048"
+        "rule": "SAC-PLT-03"
       },
       "evidence": {
         "met": "No machine is still heartbeating from the Log Analytics agent."
@@ -449,7 +449,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-020"
+        "rule": "SAC-PLT-05"
       },
       "evidence": {
         "met": "Workspace replication is enabled."
@@ -470,7 +470,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-021"
+        "rule": "SAC-PLT-06"
       },
       "evidence": {
         "met": "Public network access is disabled for ingestion and query."
@@ -611,7 +611,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-005"
+        "rule": "SAC-COV-05"
       },
       "evidence": {
         "met": "UEBA is enabled and producing data."
@@ -656,7 +656,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-034"
+        "rule": "SAC-AUT-01"
       },
       "evidence": {
         "met": "Automation rules are defined."
@@ -677,7 +677,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-053"
+        "rule": "SAC-AUT-02"
       },
       "evidence": {
         "met": "No playbook failed a run in the last 7 days."
@@ -746,7 +746,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-038"
+        "rule": "SAC-MON-01"
       },
       "evidence": {
         "met": "Every enabled Scheduled/NRT rule creates incidents."
@@ -814,7 +814,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-006"
+        "rule": "SAC-MON-04"
       },
       "evidence": {
         "met": "Every MITRE tactic has at least one enabled rule."
@@ -835,7 +835,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-051"
+        "rule": "SAC-MON-05"
       },
       "evidence": {
         "met": "Every high-volume table is read by at least one enabled rule."
@@ -880,7 +880,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-057"
+        "rule": "SAC-INC-02"
       },
       "evidence": {
         "met": "Closed incidents carry a classification."
@@ -948,7 +948,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-030"
+        "rule": "SAC-INC-05"
       },
       "evidence": {
         "met": "Closed incidents were acknowledged first."
@@ -969,7 +969,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-029"
+        "rule": "SAC-INC-06"
       },
       "evidence": {
         "met": "Mean time to resolve is within the 24-hour threshold."
@@ -993,11 +993,11 @@
         "sources": [
           {
             "kind": "gapRule",
-            "rule": "SENT-026"
+            "rule": "SAC-INV-01"
           },
           {
             "kind": "gapRule",
-            "rule": "SENT-027"
+            "rule": "SAC-INV-04"
           }
         ]
       },
@@ -1080,7 +1080,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-049"
+        "rule": "SAC-TI-01"
       },
       "evidence": {
         "met": "No ingestion into the legacy ThreatIntelligenceIndicator table."
@@ -1101,7 +1101,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-050"
+        "rule": "SAC-TI-02"
       },
       "evidence": {
         "met": "No enabled rule reads the legacy ThreatIntelligenceIndicator table."
@@ -1169,7 +1169,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-055"
+        "rule": "SAC-TI-05"
       },
       "evidence": {
         "met": "Threat intelligence comes from more than one feed."
@@ -1225,7 +1225,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-058"
+        "rule": "SAC-HNT-01"
       },
       "evidence": {
         "met": "Hunts or bookmarks exist in the workspace."
@@ -1341,7 +1341,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-016"
+        "rule": "SAC-LOG-02"
       },
       "evidence": {
         "met": "No high-volume Analytics table is a tier candidate."
@@ -1361,7 +1361,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-001"
+        "rule": "SAC-LOG-03"
       },
       "evidence": {
         "met": "A daily cap is configured."
@@ -1430,7 +1430,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-056"
+        "rule": "SAC-LOG-06"
       },
       "evidence": {
         "met": "Azure Firewall is not logged to both AzureDiagnostics and the AZFW tables."
@@ -1499,7 +1499,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-042"
+        "rule": "SAC-GOV-03"
       },
       "evidence": {
         "met": "A CanNotDelete lock is present."
@@ -1520,7 +1520,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-040"
+        "rule": "SAC-GOV-04"
       },
       "evidence": {
         "met": "Microsoft Sentinel Responder is assigned."
@@ -1541,7 +1541,7 @@
       ],
       "source": {
         "kind": "gapRule",
-        "rule": "SENT-039"
+        "rule": "SAC-GOV-05"
       },
       "evidence": {
         "met": "No service principal holds Owner or Contributor at workspace scope."

@@ -92,7 +92,7 @@ function Get-SentinelCostEstimate {
         'Search-job and restored-log storage not included.',
         'Data-export egress and cross-region transfer not included.',
         'Defender XDR-side meters not included.',
-        'Sentinel free-benefit tables are priced at zero on the assumption the benefit is active. SENT-019 flags workspaces with eligible Defender plans where the benefit is not detected.'
+        'Sentinel free-benefit tables are priced at zero on the assumption the benefit is active. SAC-LOG-13 flags workspaces with eligible Defender plans where the benefit is not detected.'
     )
 
     $byPlan = @{

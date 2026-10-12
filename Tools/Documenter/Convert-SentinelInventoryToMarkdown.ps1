@@ -104,6 +104,16 @@ if (-not $InputRoot)  {
 if (-not $OutputRoot) { $OutputRoot = $InputRoot }
 
 $rawRoot = Join-Path $InputRoot '_raw'
+# Finding ids known to the rule catalogue. The auto-linker in Write-Section
+# only links these, so a maturity criterion id that no rule shares stays
+# plain text.
+$script:FindingIds = @{}
+$bpPathForIds = Join-Path $ResourcesRoot 'best-practices.json'
+if (Test-Path -LiteralPath $bpPathForIds) {
+    foreach ($bpRule in @((Get-Content -LiteralPath $bpPathForIds -Raw | ConvertFrom-Json -Depth 8).rules)) {
+        if ($bpRule -and $bpRule.PSObject.Properties['id'] -and $bpRule.id) { $script:FindingIds[[string]$bpRule.id] = $true }
+    }
+}
 if (-not (Test-Path $rawRoot)) {
     throw "Renderer cannot find raw inventory at $rawRoot. Run Export-SentinelInventory.ps1 first."
 }
@@ -119,6 +129,14 @@ if (-not (Test-Path $OutputRoot)) {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+function _RProp {
+    # StrictMode-safe property read: $Default when the object or property is absent or null.
+    param($Object, [string]$Name, $Default = $null)
+    if ($null -eq $Object) { return $Default }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -and $null -ne $prop.Value) { return $prop.Value }
+    return $Default
+}
 function Read-Raw([string]$Name) {
     $p = Join-Path $rawRoot $Name
     if (-not (Test-Path $p)) { return $null }
@@ -149,33 +167,37 @@ function Write-Section([string]$FileName, [string]$Body) {
     #      and 01-live-snapshot's "Top recommendations" blocks where the
     #      square brackets are literal (Markdown treats `[X]` without a
     #      following `(...)` as plain text).
-    #   2. Bare `SENT-NNN` not already inside a Markdown link → wrap.
+    #   2. Bare `SAC-<AREA>-NN` not already inside a Markdown link → wrap.
     # On 90-gap-analysis.md itself the target collapses to just the anchor
-    # so internal links work (`[SENT-001](#sent-001)`). Existing links are
+    # so internal links work (`[SAC-LOG-03](#sac-log-03)`). Existing links are
     # preserved — the lookarounds skip anything already followed by `](`.
     $relTarget = if ($FileName -eq '90-gap-analysis.md') { '' } else { '90-gap-analysis.md' }
 
     # Walk the body line-by-line, tracking fenced-code state. Auto-link only
     # outside fences — references inside ```mermaid / ```kusto / etc must
-    # render literally (Mermaid `click` directives in 85-rbac use SENT-NNN
+    # render literally (Mermaid `click` directives in 85-rbac use finding ids
     # in their tooltips and break if rewritten).
     $sb = New-Object System.Text.StringBuilder
     $inFence = $false
     foreach ($line in ($body -split "(`r?`n)")) {
         if ($line -match '^\s*```') { $inFence = -not $inFence; [void]$sb.Append($line); continue }
         if ($inFence) { [void]$sb.Append($line); continue }
-        # Pass 1: bracketed-but-unlinked IDs.
-        $line = [regex]::Replace($line, '\[(SENT-\d{3,})\](?!\()', {
+        # Pass 1: bracketed-but-unlinked IDs (only ids the rule catalogue knows).
+        $line = [regex]::Replace($line, '\[(SAC-[A-Z]{2,4}-\d{2})\](?!\()', {
             param($m)
             $id = $m.Groups[1].Value
+            if (-not $script:FindingIds.ContainsKey($id)) { return $m.Value }
             "[$id]($relTarget#$($id.ToLower()))"
         })
-        # Pass 2: bare IDs not preceded by `[`, `(`, `#`, or `-` and not
-        # followed by `]` or `)`. The leading `-` exclusion guards against
-        # future composite IDs like `SENT-AUTH-001`.
-        $line = [regex]::Replace($line, '(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])', {
+        # Pass 2: bare IDs not preceded by `[`, `(`, `#`, `-` or a word
+        # character and not followed by `]`, `)`, `-` or a word character.
+        # On the maturity page the same ids name criteria, so only ids whose
+        # finding fired in this run (and so has an anchor on 90) are linked.
+        $linkable = if ($FileName -eq '91-maturity-assessment.md') { $script:FiredFindingIds } else { $script:FindingIds }
+        $line = [regex]::Replace($line, '(?<![\[\(#\-\w])(SAC-[A-Z]{2,4}-\d{2})(?![\]\)\-\w])', {
             param($m)
             $id = $m.Groups[1].Value
+            if (-not $linkable.ContainsKey($id)) { return $m.Value }
             "[$id]($relTarget#$($id.ToLower()))"
         })
         [void]$sb.Append($line)
@@ -294,6 +316,10 @@ $workspaceTables    = Read-RawArray 'workspace-tables.json'
 $watchlists         = Read-RawArray 'watchlists.json'
 $autoRules          = Read-RawArray 'automation-rules.json'
 $gapFindings        = Read-RawArray 'gap-analysis.json'
+# Ids that fired in this run, so the maturity page links only the criterion
+# ids that have a finding (and an anchor) on 90-gap-analysis.md.
+$script:FiredFindingIds = @{}
+foreach ($gf in @($gapFindings)) { if ($gf -and $gf.PSObject.Properties['Id'] -and $gf.Id) { $script:FiredFindingIds[[string]$gf.Id] = $true } }
 $cost               = Read-Raw 'cost-estimate.json'
 
 $enabledRules = @($rules | Where-Object { $_.properties.enabled -eq $true })
@@ -335,6 +361,16 @@ $playbookRuns      = Read-RawArray 'playbook-runs.json'
 $hunts             = Read-RawArray 'hunts.json'
 $usageDaily        = Read-RawArray 'workspace-usage-daily.json'
 $maturity          = Read-Raw 'maturity.json'
+# A Gap criterion whose id is a finding id means that finding fired, so
+# the maturity page can link it even when gap-analysis.json is partial.
+if ($maturity) {
+    foreach ($mArea in @(_RProp $maturity 'areas' @())) {
+        foreach ($mCrit in @(_RProp $mArea 'criteria' @())) {
+            $mid = [string](_RProp $mCrit 'id' '')
+            if ($mid -and (_RProp $mCrit 'status' '') -eq 'Gap' -and $script:FindingIds.ContainsKey($mid)) { $script:FiredFindingIds[$mid] = $true }
+        }
+    }
+}
 $incSummary        = Read-RawArray 'incidents-summary.json' | Select-Object -First 1
 $incMttr           = Read-RawArray 'incidents-mttr.json'    | Select-Object -First 1
 # A failed maturity capture writes '{}', which is truthy, so test for the
@@ -343,14 +379,6 @@ $maturityOk = ($null -ne $maturity -and $null -ne $maturity.PSObject.Properties[
 
 # KQL result cells arrive as strings; fixtures carry typed values. Parse
 # rather than cast so neither shape throws.
-function _RProp {
-    # StrictMode-safe property read: $Default when the object or property is absent or null.
-    param($Object, [string]$Name, $Default = $null)
-    if ($null -eq $Object) { return $Default }
-    $prop = $Object.PSObject.Properties[$Name]
-    if ($prop -and $null -ne $prop.Value) { return $prop.Value }
-    return $Default
-}
 function _RendererNumber {
     param($Value)
     if ($null -eq $Value) { return 0.0 }
@@ -914,7 +942,7 @@ $unificationRows = @(
     [pscustomobject]@{ Check = 'XDR incidents data type'; Value = (& $mtpState 'incidents'); Meaning = 'Enabled means Defender incidents (and their alerts) are synchronised, the unified-queue path' }
     [pscustomobject]@{ Check = 'XDR alerts data type'; Value = (& $mtpState 'alerts'); Meaning = 'Enabled means raw XDR alerts also land in SecurityAlert' }
     [pscustomobject]@{ Check = 'XDR advanced-hunting tables with data (7d)'; Value = "$xdrActive of $($xdrPresenceRows.Count) checked"; Meaning = 'Device, Email, Identity and CloudApp tables streaming into the workspace; see 14-coverage-breakdowns.md' }
-    [pscustomobject]@{ Check = 'Legacy Microsoft incident-creation rules enabled'; Value = $legacyIncidentRulesEnabled; Meaning = 'The pre-unification way of promoting Defender alerts; with the incidents data type enabled they duplicate work ([SENT-041])' }
+    [pscustomobject]@{ Check = 'Legacy Microsoft incident-creation rules enabled'; Value = $legacyIncidentRulesEnabled; Meaning = 'The pre-unification way of promoting Defender alerts; with the incidents data type enabled they duplicate work ([SAC-DET-08])' }
     [pscustomobject]@{ Check = 'Unified Sentinel and Defender billing'; Value = $(if ($unifiedBillingFlag) { 'true' } else { 'false / absent' }); Meaning = 'features.unifiedSentinelBillingOnly on the workspace, set once the workspace is on the unified billing model' }
     [pscustomobject]@{ Check = 'Sentinel onboarding state resource'; Value = $(if ($onboardingRow) { 'Present' } else { 'Not captured' }); Meaning = 'Microsoft.SecurityInsights/onboardingStates/default exists on every Sentinel-enabled workspace; it does not prove Defender-portal onboarding' }
     [pscustomobject]@{ Check = 'Defender portal onboarding'; Value = 'Not observable'; Meaning = 'No workspace-scope API reports it; confirm under Defender portal, System, Settings, Microsoft Sentinel' }
@@ -1458,7 +1486,7 @@ $(Format-Table -Items $huntingRows -Columns 'Name','Tags')
 
 ## Hunts
 
-Hunts recorded through the Hunts feature, with their hypothesis status. Bookmarks promoted from a hunt show on the incidents they were attached to. [SENT-058] fires when there are no hunts and no bookmarks at all.
+Hunts recorded through the Hunts feature, with their hypothesis status. Bookmarks promoted from a hunt show on the incidents they were attached to. [SAC-HNT-01] fires when there are no hunts and no bookmarks at all.
 
 $(Format-Table -Items $huntRows -Columns 'Name','Status','Hypothesis','Tactics','Owner')
 
@@ -1693,7 +1721,7 @@ $pbRunsTotal = 0; $pbFailedTotal = 0
 foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
 $pbFailingCount = @($pbRunRows | Where-Object { $_.Failed7d -gt 0 }).Count
 $pbRunsWarning = if ($pbFailingCount -gt 0) {
-    "> **$pbFailingCount playbook(s) had failed runs in the last 7 days.** A failing playbook is a response step that is quietly not happening; [SENT-053] carries the detail.`n"
+    "> **$pbFailingCount playbook(s) had failed runs in the last 7 days.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
 } else { '' }
 $pbRunsPie = if ($pbRunsTotal -gt 0) {
 @"
@@ -1744,7 +1772,7 @@ $(Format-Banner -Title "Automation Rules and Playbooks")
 
 ## Alert-to-response chain — target shape
 
-The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this — gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SENT-034], missing step 9's MI role = [SENT-011], missing step 11's analyst ack = [SENT-030].
+The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this — gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SAC-AUT-01], missing step 9's MI role = [SAC-AUT-05], missing step 11's analyst ack = [SAC-INC-05].
 
 ``````mermaid
 sequenceDiagram
@@ -1885,7 +1913,7 @@ $(Format-Table -Items $cpRows -Columns 'Name','Installed','Latest','UpdateAvaila
 
 ## Deprecated or unlisted solutions
 
-Installed solutions whose catalogue entry is marked deprecated, or that no longer appear in the Content Hub catalogue at all. Neither receives updates; [SENT-054] fires on either.
+Installed solutions whose catalogue entry is marked deprecated, or that no longer appear in the Content Hub catalogue at all. Neither receives updates; [SAC-DET-13] fires on either.
 
 $(Format-Table -Items $deprecatedRows -Columns 'Name','ContentId','Reason')
 
@@ -2050,13 +2078,13 @@ $( $wsProps80 = _RProp $workspace 'properties'
    $cmk80 = _RProp (_RProp $onb80 'properties') 'customerManagedKey'
    $locks80 = @(Read-RawArray 'workspace-locks.json' | Where-Object { $_ }).Count
    $resRows = @(
-       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + [string](_RProp $repl 'location' '?') + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SENT-020]' }
-       [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$plsr linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SENT-021] covers public access' }
+       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + [string](_RProp $repl 'location' '?') + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SAC-PLT-05]' }
+       [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$plsr linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SAC-PLT-06] covers public access' }
        [pscustomobject]@{ Control = 'Public ingestion / query'; State = "$(_RProp $wsProps80 'publicNetworkAccessForIngestion' 'Enabled') / $(_RProp $wsProps80 'publicNetworkAccessForQuery' 'Enabled')"; Note = 'Disabled on both means every path goes through Private Link' }
        [pscustomobject]@{ Control = 'Customer-managed key'; State = $(if ($null -eq $cmk80) { 'Unknown (onboarding state not captured)' } elseif ($cmk80) { 'Yes' } else { 'No (platform-managed keys)' }); Note = 'From the Sentinel onboarding state; CMK also needs a dedicated cluster' }
        [pscustomobject]@{ Control = 'Managed identity'; State = $identityType; Note = 'Identity on the workspace resource itself' }
-       [pscustomobject]@{ Control = 'Daily cap'; State = $(if ($null -eq $capGb -or [double]$capGb -eq -1) { 'Unlimited' } else { "$capGb GB / day" }); Note = 'A cap protects spend and drops data once hit; [SENT-001]' }
-       [pscustomobject]@{ Control = 'Resource locks'; State = $(if ($locks80 -gt 0) { "$locks80 lock(s)" } else { 'None' }); Note = 'CanNotDelete on the workspace; [SENT-042]' }
+       [pscustomobject]@{ Control = 'Daily cap'; State = $(if ($null -eq $capGb -or [double]$capGb -eq -1) { 'Unlimited' } else { "$capGb GB / day" }); Note = 'A cap protects spend and drops data once hit; [SAC-LOG-03]' }
+       [pscustomobject]@{ Control = 'Resource locks'; State = $(if ($locks80 -gt 0) { "$locks80 lock(s)" } else { 'None' }); Note = 'CanNotDelete on the workspace; [SAC-GOV-03]' }
    )
    Format-Table -Items $resRows -Columns 'Control','State','Note' )
 
@@ -2177,7 +2205,7 @@ $coverageBlock = if ($ruleTableRefs.Count -eq 0) {
 
 # Silent tables in detail, split by whether an enabled rule reads them: a
 # silent table nobody detects on is a cost question, one that rules depend
-# on is a detection outage ([SENT-052]).
+# on is a detection outage ([SAC-MON-06]).
 $docNow = $(if ($run -and (_RProp $run 'CompletedAtUtc')) { ([datetime]::Parse([string]$run.CompletedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)).ToUniversalTime() } else { [datetime]::UtcNow })
 $silentRows = @($silent | ForEach-Object {
     $name = $_.Name
@@ -2219,7 +2247,7 @@ $classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 
 $classicBlock = if ($classicRows.Count -eq 0) {
     "_No classic custom tables: every custom table in this workspace is DCR-based ($dcrBasedCustom table(s)), so nothing is exposed to the Data Collector API retirement._"
 } else { @"
-**$($classicRows.Count)** classic table(s): **$classicActiveCount** still ingesting, **$classicDormantCount** stale or empty, beside **$dcrBasedCustom** DCR-based custom table(s). [SENT-047] fires for the ones still receiving data.
+**$($classicRows.Count)** classic table(s): **$classicActiveCount** still ingesting, **$classicDormantCount** stale or empty, beside **$dcrBasedCustom** DCR-based custom table(s). [SAC-PLT-02] fires for the ones still receiving data.
 
 $(Format-Table -Items $classicRows -Columns 'Name','Plan','Interactive','Total','Gb90d','LastIngested','Status','Rules','Action')
 "@ }
@@ -2244,7 +2272,7 @@ pie showData title Operational tables by plan
     "Auxiliary" : $planPieAuxiliary
 ``````
 
-[SENT-016] flags high-volume Analytics tables that could move to Basic / Auxiliary for cost savings; this chart shows the current tier distribution at a glance.
+[SAC-LOG-02] flags high-volume Analytics tables that could move to Basic / Auxiliary for cost savings; this chart shows the current tier distribution at a glance.
 
 The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it — typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
 
@@ -2825,7 +2853,7 @@ sankey-beta
 $sankeyFlowText
 ``````
 
-Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SENT-043] / [SENT-044] / [SENT-046] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.$sankeyTailNote
+Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SAC-LOG-15] / [SAC-LOG-16] / [SAC-LOG-18] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.$sankeyTailNote
 
 ## Cost flow — table → billing tier (compact view)
 
@@ -2955,7 +2983,7 @@ foreach ($role in $rolesSeen) {
         $prinId = "P$prinIdx"
         $principalNodes += "        $prinId[$n $t$(if ($n -gt 1) { 's' })]"
         if ($role -in @('Owner', 'Contributor')) {
-            $sentId = if ($t -eq 'ServicePrincipal') { 'sent-039' } else { 'sent-009' }
+            $sentId = if ($t -eq 'ServicePrincipal') { 'sac-gov-05' } else { 'sac-gov-06' }
             $principalEdges += "    $prinId -.->|broad| $($roleIdMap[$role])"
             $principalClicks += "    click $prinId href ""90-gap-analysis.md#$sentId"" ""$($sentId.ToUpper()) — broad role recommendation"""
         } else {
@@ -2967,7 +2995,7 @@ foreach ($role in $rolesSeen) {
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "RBAC")
 
-$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor) — see [SENT-009] and [SENT-039] in the gap analysis.
+$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor) — see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
 
 ## Who-grants-what-to-whom
 
@@ -3049,7 +3077,7 @@ pie showData title Required resource providers — registration state
 $($rpPieRows -join [Environment]::NewLine)
 ``````
 
-[SENT-022] fires whenever any required provider is not in the `Registered` state. The pie surfaces that ratio at a glance.
+[SAC-PLT-09] fires whenever any required provider is not in the `Registered` state. The pie surfaces that ratio at a glance.
 "@
 } else { '' }
 
@@ -3620,7 +3648,7 @@ pie showData title CommonSecurityLog by DeviceVendor (last 7d)
 $($cefPieRows -join [Environment]::NewLine)
 ``````
 
-A single vendor dominating means CEF ingestion is mostly that source — likely a candidate for SENT-043 (`_CL` split) if volume is high.
+A single vendor dominating means CEF ingestion is mostly that source — likely a candidate for SAC-LOG-15 (`_CL` split) if volume is high.
 "@
 } else { '' }
 
@@ -3836,7 +3864,7 @@ pie showData title Closed incidents by classification (30d)
 $classRows
 ``````
 
-Undetermined and Unclassified closures carry no verdict, so they feed neither the false-positive rate nor rule tuning; [SENT-057] fires when they are the majority.
+Undetermined and Unclassified closures carry no verdict, so they feed neither the false-positive rate nor rule tuning; [SAC-INC-02] fires when they are the majority.
 "@
 } else { '' }
 # Sentinel rules first, then other products' alerts by name; Source is the
@@ -3876,7 +3904,7 @@ $dailyLine
 stateDiagram-v2
     [*] --> New : Alert fires
     New --> Active : Analyst opens
-    New --> Closed : Auto-suppress<br/>(SENT-030 fires here)
+    New --> Closed : Auto-suppress<br/>(SAC-INC-05 fires here)
     Active --> InProgress : Investigation begins
     InProgress --> Active : Re-assigned
     InProgress --> Closed : Resolved
@@ -3928,7 +3956,7 @@ journey
         Document + close: 4: Analyst
 ``````
 
-Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Workspaces firing [SENT-034] (no automation) see steeper dips because every step is manual.
+Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Workspaces firing [SAC-AUT-01] (no automation) see steeper dips because every step is manual.
 
 ## Top alerting rules (last 30d, top 25)
 
@@ -3937,7 +3965,7 @@ $incOutcomeBlock
 
 ## Rule effectiveness (last 30d)
 
-Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SENT-036] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
+Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SAC-DET-06] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
 
 $(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
@@ -4202,7 +4230,7 @@ $ruleHealthSection = @"
 
 ## Rule run failures (last 7d)
 
-Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the failure count, the last failure and the reason Sentinel recorded. A failing rule is a detection that stopped without an alert; the usual causes are a query past the timeout, a table or column that no longer exists, or a KQL function the rule depends on that was removed. [SENT-059] fires while any rule is failing.
+Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the failure count, the last failure and the reason Sentinel recorded. A failing rule is a detection that stopped without an alert; the usual causes are a query past the timeout, a table or column that no longer exists, or a KQL function the rule depends on that was removed. [SAC-DET-14] fires while any rule is failing.
 
 $(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last 7 days._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','LastFailure','Reason' })
 "@
@@ -4417,7 +4445,7 @@ $tiObjectsBlock
 
 ## Feeds
 
-Threat-intelligence connectors configured on the workspace. One feed is a single point of failure for every TI detection; [SENT-055] fires when there is at most one.
+Threat-intelligence connectors configured on the workspace. One feed is a single point of failure for every TI detection; [SAC-TI-05] fires when there is at most one.
 
 $(Format-Table -Items $tiFeedRows -Columns 'Kind','Name')
 
@@ -4498,7 +4526,7 @@ $headroomChart
 
 $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTemplates','MoreTemplates')
 
-[SENT-051] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
+[SAC-MON-05] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
 
 ## Undeployed templates ready to enable
 

@@ -138,7 +138,7 @@ Describe 'Maturity assessment over the sample fixture' {
         $criterionById['SAC-PLT-04'].status | Should -Be 'Met'
     }
 
-    It 'resolves the combined criteria (content current is Gap via SENT-054, MDTI is Met via the connector)' {
+    It 'resolves the combined criteria (content current is Gap via SAC-DET-13, MDTI is Met via the connector)' {
         $criterionById['SAC-DET-07'].status | Should -Be 'Gap'
         $criterionById['SAC-TI-06'].status | Should -Be 'Met'
         $criterionById['SAC-INV-03'].status | Should -Be 'Gap'
@@ -230,8 +230,8 @@ Describe 'Maturity assessment over the sample fixture' {
 Describe 'Maturity scoring with synthetic criteria' {
 
     It 'scores two Met of three equal criteria as 3.33, level 3' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001'), (New-GapCriterion 'SAC-ONE-02' 'SENT-002'), (New-GapCriterion 'SAC-ONE-03' 'SENT-003')) `
-            -Outcomes @((New-Outcome 'SENT-001' 'Passed'), (New-Outcome 'SENT-002' 'Passed'), (New-Outcome 'SENT-003' 'Fired'))
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08')) `
+            -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Passed'), (New-Outcome 'SAC-LOG-08' 'Fired'))
         $one = $m.areas | Where-Object id -eq 'ONE'
         $one.score | Should -Be 3.33
         $one.level | Should -Be 3
@@ -240,14 +240,14 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'weights a 1.5 criterion more heavily' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001' -Weight 1.5), (New-GapCriterion 'SAC-ONE-02' 'SENT-002')) `
-            -Outcomes @((New-Outcome 'SENT-001' 'Fired'), (New-Outcome 'SENT-002' 'Passed'))
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03' -Weight 1.5), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07')) `
+            -Outcomes @((New-Outcome 'SAC-LOG-03' 'Fired'), (New-Outcome 'SAC-LOG-07' 'Passed'))
         ($m.areas | Where-Object id -eq 'ONE').score | Should -Be 2
     }
 
     It 'leaves Errored, Undefined and missing outcomes out of the denominator' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001'), (New-GapCriterion 'SAC-ONE-02' 'SENT-002'), (New-GapCriterion 'SAC-ONE-03' 'SENT-003'), (New-GapCriterion 'SAC-ONE-04' 'SENT-004')) `
-            -Outcomes @((New-Outcome 'SENT-001' 'Passed'), (New-Outcome 'SENT-002' 'Errored'), (New-Outcome 'SENT-003' 'Undefined'))
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08'), (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07')) `
+            -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Errored'), (New-Outcome 'SAC-LOG-08' 'Undefined'))
         $one = $m.areas | Where-Object id -eq 'ONE'
         $one.score | Should -Be 5
         $one.unknown | Should -Be 3
@@ -256,7 +256,7 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'gives an all-Unknown area no score and Not assessed' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001')) -Outcomes @()
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03')) -Outcomes @()
         $one = $m.areas | Where-Object id -eq 'ONE'
         $one.score | Should -BeNullOrEmpty
         $one.level | Should -BeNullOrEmpty
@@ -265,18 +265,18 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'sets confidence Good at six evaluated, Moderate at four, Indicative below' {
-        $criteria = @(1..6 | ForEach-Object { New-GapCriterion ('SAC-ONE-0' + $_) ('SENT-00' + $_) })
-        $six = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..6 | ForEach-Object { New-Outcome ('SENT-00' + $_) 'Passed' })
+        $criteria = @(1..6 | ForEach-Object { New-GapCriterion ('SAC-ONE-0' + $_) ('SAC-TST-0' + $_) })
+        $six = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..6 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
         ($six.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Good'
-        $four = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..4 | ForEach-Object { New-Outcome ('SENT-00' + $_) 'Passed' })
+        $four = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..4 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
         ($four.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Moderate'
-        $three = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..3 | ForEach-Object { New-Outcome ('SENT-00' + $_) 'Passed' })
+        $three = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..3 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
         ($three.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Indicative'
     }
 
     It 'reports the areas below target with the gap to close' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001'), (New-GapCriterion 'SAC-ONE-02' 'SENT-002'), (New-GapCriterion 'SAC-TWO-01' 'SENT-003' -Area 'TWO')) `
-            -Outcomes @((New-Outcome 'SENT-001' 'Passed'), (New-Outcome 'SENT-002' 'Fired'), (New-Outcome 'SENT-003' 'Passed')) -Target 4
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-TWO-01' 'SAC-LOG-08' -Area 'TWO')) `
+            -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed')) -Target 4
         $m.targetMet | Should -BeFalse
         $m.areasBelowTarget.Count | Should -Be 1
         $m.areasBelowTarget[0].id | Should -Be 'ONE'
@@ -285,20 +285,21 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'reports the target as met when every assessed area reaches it' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SENT-001')) -Outcomes @((New-Outcome 'SENT-001' 'Passed')) -Target 5
+        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03')) -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed')) -Target 5
         $m.targetMet | Should -BeTrue
         $m.areasBelowTarget.Count | Should -Be 0
     }
 
     It 'orders the roadmap by lift, then Low before Medium before High, then id' {
         $criteria = @(
-            (New-GapCriterion 'SAC-ONE-01' 'SENT-001' -Weight 1.5 -Effort 'High'),
-            (New-GapCriterion 'SAC-ONE-02' 'SENT-002' -Effort 'Medium'),
-            (New-GapCriterion 'SAC-ONE-03' 'SENT-003' -Effort 'Low'),
-            (New-GapCriterion 'SAC-ONE-04' 'SENT-004' -Effort 'Low'),
-            (New-GapCriterion 'SAC-ONE-05' 'SENT-005')
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03' -Weight 1.5 -Effort 'High'),
+            (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07' -Effort 'Medium'),
+            (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08' -Effort 'Low'),
+            (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07' -Effort 'Low'),
+            (New-GapCriterion 'SAC-ONE-05' 'SAC-COV-05')
         )
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..5 | ForEach-Object { New-Outcome ('SENT-00' + $_) $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) })
+        $ruleIds = @('SAC-LOG-03', 'SAC-LOG-07', 'SAC-LOG-08', 'SAC-COV-07', 'SAC-COV-05')
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..5 | ForEach-Object { New-Outcome $ruleIds[$_ - 1] $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) })
         @($m.roadmap | ForEach-Object criterionId) | Should -Be @('SAC-ONE-01', 'SAC-ONE-03', 'SAC-ONE-04', 'SAC-ONE-02')
         $m.roadmap[0].areaLift | Should -Be 1.36
         $m.roadmap[-1].projectedScore | Should -Be 5
@@ -312,14 +313,14 @@ Describe 'Maturity scoring with synthetic criteria' {
                source = @{ kind = $Kind; sources = @($Rules | ForEach-Object { @{ kind = 'gapRule'; rule = $_ } }) } }
         }
         $criteria = @(
-            (& $mk 'SAC-ONE-01' 'allOf' @('SENT-001', 'SENT-002')),   # Passed + Fired   -> Gap
-            (& $mk 'SAC-ONE-02' 'allOf' @('SENT-001', 'SENT-009')),   # Passed + missing -> Unknown
-            (& $mk 'SAC-ONE-03' 'allOf' @('SENT-001', 'SENT-003')),   # Passed + Passed  -> Met
-            (& $mk 'SAC-ONE-04' 'anyOf' @('SENT-002', 'SENT-001')),   # Fired + Passed   -> Met
-            (& $mk 'SAC-ONE-05' 'anyOf' @('SENT-002', 'SENT-009')),   # Fired + missing  -> Unknown
-            (& $mk 'SAC-ONE-06' 'anyOf' @('SENT-002', 'SENT-004'))    # Fired + Fired    -> Gap
+            (& $mk 'SAC-ONE-01' 'allOf' @('SAC-LOG-03', 'SAC-LOG-07')),   # Passed + Fired   -> Gap
+            (& $mk 'SAC-ONE-02' 'allOf' @('SAC-LOG-03', 'SAC-GOV-06')),   # Passed + missing -> Unknown
+            (& $mk 'SAC-ONE-03' 'allOf' @('SAC-LOG-03', 'SAC-LOG-08')),   # Passed + Passed  -> Met
+            (& $mk 'SAC-ONE-04' 'anyOf' @('SAC-LOG-07', 'SAC-LOG-03')),   # Fired + Passed   -> Met
+            (& $mk 'SAC-ONE-05' 'anyOf' @('SAC-LOG-07', 'SAC-GOV-06')),   # Fired + missing  -> Unknown
+            (& $mk 'SAC-ONE-06' 'anyOf' @('SAC-LOG-07', 'SAC-COV-07'))    # Fired + Fired    -> Gap
         )
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @((New-Outcome 'SENT-001' 'Passed'), (New-Outcome 'SENT-002' 'Fired'), (New-Outcome 'SENT-003' 'Passed'), (New-Outcome 'SENT-004' 'Fired'))
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed'), (New-Outcome 'SAC-COV-07' 'Fired'))
         $by = @{}
         foreach ($c in ($m.areas | Where-Object id -eq 'ONE').criteria) { $by[$c.id] = $c.status }
         $by['SAC-ONE-01'] | Should -Be 'Gap'
@@ -331,12 +332,12 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'rejects a criteria file that names an unknown metric, area or CSF id' {
-        $bad = New-GapCriterion 'SAC-ONE-01' 'SENT-001'
+        $bad = New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'
         $bad.source = @{ kind = 'metric'; path = 'noSuchMetric'; op = 'gt'; value = 0 }
         { Invoke-Synthetic -Criteria @($bad) -Outcomes @() } | Should -Throw '*unknown metric*'
-        $badArea = New-GapCriterion 'SAC-ZZZ-01' 'SENT-001' -Area 'ZZZ'
+        $badArea = New-GapCriterion 'SAC-ZZZ-01' 'SAC-LOG-03' -Area 'ZZZ'
         { Invoke-Synthetic -Criteria @($badArea) -Outcomes @() } | Should -Throw '*unknown area*'
-        $badCsf = New-GapCriterion 'SAC-ONE-01' 'SENT-001'
+        $badCsf = New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'
         $badCsf.csf = @('XX.YY-99')
         { Invoke-Synthetic -Criteria @($badCsf) -Outcomes @() } | Should -Throw '*not in the reference*'
     }

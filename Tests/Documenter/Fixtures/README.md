@@ -43,7 +43,7 @@ Examples of the brokenness:
 | `data-connectors-classic.json`, `threat-intel-counts.json` | `MicrosoftThreatIntelligence` is the only TI feed; no third-party indicator source |
 | `sentinel-data-lake.json` | One platform-services resource, so the workspace counts as lake-enrolled; every fixture table has total retention equal to analytics retention, so the tier profile is all "Analytics + Lake mirror" |
 | `solutions-installed.json`, `onboarding-state.json`, `ingestion-latency.json` | One legacy OMS solution, an onboarding state without a customer-managed key, and one failed DCR transform, so pages 70, 80 and 11 render their tables |
-| `rule-health.json` | One rule with three failed runs and a timeout reason, so SENT-059 fires and page 20 lists it |
+| `rule-health.json` | One rule with three failed runs and a timeout reason, so SAC-DET-14 fires and page 20 lists it |
 | `incident-title-stats.json` | Three incident titles: a phishing title that closes fast and mostly as false positive, a rare-country sign-in that closes mostly as false positive, a brute-force title that closes within the hour |
 | `threat-intel-by-type.json` | IP, Domain and URL indicator counts for the by-type pie on page 27 |
 | `syslog-contributors.json`, `securityevent-top-hosts.json` | Two Syslog hosts and two SecurityEvent hosts for the contributor tables on page 13 |

@@ -43,6 +43,77 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **One id scheme for findings and criteria** - gap findings are now
+  `SAC-<AREA>-NN` like the maturity criteria, with the area taken from the
+  eleven assessment areas; a rule that decides a criterion on its own
+  carries that criterion's id, so the finding and the gap it causes share
+  a name. Every rule keeps its retired id as `legacyId` (catalogue 3.0.0),
+  page anchors, finding links and the SharePoint findings list follow the
+  new ids, and an existing list item under the old id is moved rather than
+  resolved and re-added. The mapping:
+
+  | Retired | New |
+  | --- | --- |
+  | SENT-001 | SAC-LOG-03 |
+  | SENT-002 | SAC-LOG-07 |
+  | SENT-003 | SAC-LOG-08 |
+  | SENT-004 | SAC-COV-07 |
+  | SENT-005 | SAC-COV-05 |
+  | SENT-006 | SAC-MON-04 |
+  | SENT-007 | SAC-DET-05 |
+  | SENT-008 | SAC-DET-09 |
+  | SENT-009 | SAC-GOV-06 |
+  | SENT-010 | SAC-PLT-08 |
+  | SENT-011 | SAC-AUT-05 |
+  | SENT-012 | SAC-LOG-09 |
+  | SENT-013 | SAC-DET-07 |
+  | SENT-014 | SAC-PLT-11 |
+  | SENT-015 | SAC-LOG-10 |
+  | SENT-016 | SAC-LOG-02 |
+  | SENT-017 | SAC-LOG-11 |
+  | SENT-018 | SAC-LOG-12 |
+  | SENT-019 | SAC-LOG-13 |
+  | SENT-020 | SAC-PLT-05 |
+  | SENT-021 | SAC-PLT-06 |
+  | SENT-022 | SAC-PLT-09 |
+  | SENT-023 | SAC-LOG-14 |
+  | SENT-024 | SAC-GOV-07 |
+  | SENT-025 | SAC-GOV-08 |
+  | SENT-026 | SAC-INV-01 |
+  | SENT-027 | SAC-INV-04 |
+  | SENT-028 | SAC-PLT-10 |
+  | SENT-029 | SAC-INC-06 |
+  | SENT-030 | SAC-INC-05 |
+  | SENT-031 | SAC-DET-04 |
+  | SENT-032 | SAC-DET-10 |
+  | SENT-033 | SAC-DET-11 |
+  | SENT-034 | SAC-AUT-01 |
+  | SENT-035 | SAC-DET-12 |
+  | SENT-036 | SAC-DET-06 |
+  | SENT-037 | SAC-DET-03 |
+  | SENT-038 | SAC-MON-01 |
+  | SENT-039 | SAC-GOV-05 |
+  | SENT-040 | SAC-GOV-04 |
+  | SENT-041 | SAC-DET-08 |
+  | SENT-042 | SAC-GOV-03 |
+  | SENT-043 | SAC-LOG-15 |
+  | SENT-044 | SAC-LOG-16 |
+  | SENT-045 | SAC-LOG-17 |
+  | SENT-046 | SAC-LOG-18 |
+  | SENT-047 | SAC-PLT-02 |
+  | SENT-048 | SAC-PLT-03 |
+  | SENT-049 | SAC-TI-01 |
+  | SENT-050 | SAC-TI-02 |
+  | SENT-051 | SAC-MON-05 |
+  | SENT-052 | SAC-MON-06 |
+  | SENT-053 | SAC-AUT-02 |
+  | SENT-054 | SAC-DET-13 |
+  | SENT-055 | SAC-TI-05 |
+  | SENT-056 | SAC-LOG-06 |
+  | SENT-057 | SAC-INC-02 |
+  | SENT-058 | SAC-HNT-01 |
+  | SENT-059 | SAC-DET-14 |
+
 - **Dashboard reading comfort** - long evidence, remediation and guidance
   cells clamp to three lines with an Expand control (semicolon lists open
   as bullets), so table rows stay uniform and nothing is cut; the Overview

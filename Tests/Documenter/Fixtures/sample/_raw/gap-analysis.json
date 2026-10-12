@@ -1,6 +1,6 @@
 [
   {
-    "Id": "SENT-001",
+    "Id": "SAC-LOG-03",
     "Title": "Daily cap not configured on the Log Analytics workspace",
     "Category": "Cost",
     "Severity": "Warning",
@@ -12,7 +12,7 @@
     "PassedAt": "2026-05-06T08:01:00Z"
   },
   {
-    "Id": "SENT-002",
+    "Id": "SAC-LOG-07",
     "Title": "Workspace default retention below the 90-day Sentinel free benefit",
     "Category": "Cost",
     "Severity": "Warning",

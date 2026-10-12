@@ -1269,7 +1269,7 @@ which includes platform tables such as `AzureDiagnostics` that are fed
 by diagnostic settings. Those must never be migrated. The `_CL` suffix
 is enforced at table creation and is the authoritative custom-table
 marker, so the script excludes anything without it and says why. This
-matches the filter used by the documenter's SENT-047 check.
+matches the filter used by the documenter's SAC-PLT-02 check.
 
 ### Two DCR shapes
 

@@ -12,38 +12,38 @@
 
     The fixture is constructed so several SENT-* rules fire by design:
 
-      SENT-001  Daily cap unset                   (workspace.json: dailyQuotaGb = -1)
-      SENT-002  Default retention < 90d           (workspace.json: retentionInDays = 30)
-      SENT-007  Disabled rule                     (alert-rules.json: NRT rule disabled)
-      SENT-009  Owner role at workspace scope     (rbac-workspace.json: legacy admin group)
-      SENT-014  Defender migration banner         (always fires)
-      SENT-016  > 50 GB Analytics-plan candidate  (FirewallLogs_CL: 2000 GB / 30d)
-      SENT-017  > 90d retention on Analytics      (FirewallLogs_CL: 730d)
-      SENT-019  Sentinel benefit not applied      (SecurityEvent: 500 GB billable)
-      SENT-020  Replication disabled              (workspace.json)
-      SENT-021  Public network access enabled     (workspace.json)
-      SENT-022  Microsoft.Insights NotRegistered  (resource-providers.json)
-      SENT-024  disableLocalAuth = false          (workspace.json)
-      SENT-026  Silent table                      (AuditLogs: 90d data, no recent)
-      SENT-027  Orphan table                      (OrphanTable_CL: schema, no data)
+      SAC-LOG-03  Daily cap unset                   (workspace.json: dailyQuotaGb = -1)
+      SAC-LOG-07  Default retention < 90d           (workspace.json: retentionInDays = 30)
+      SAC-DET-05  Disabled rule                     (alert-rules.json: NRT rule disabled)
+      SAC-GOV-06  Owner role at workspace scope     (rbac-workspace.json: legacy admin group)
+      SAC-PLT-11  Defender migration banner         (always fires)
+      SAC-LOG-02  > 50 GB Analytics-plan candidate  (FirewallLogs_CL: 2000 GB / 30d)
+      SAC-LOG-11  > 90d retention on Analytics      (FirewallLogs_CL: 730d)
+      SAC-LOG-13  Sentinel benefit not applied      (SecurityEvent: 500 GB billable)
+      SAC-PLT-05  Replication disabled              (workspace.json)
+      SAC-PLT-06  Public network access enabled     (workspace.json)
+      SAC-PLT-09  Microsoft.Insights NotRegistered  (resource-providers.json)
+      SAC-GOV-07  disableLocalAuth = false          (workspace.json)
+      SAC-INV-01  Silent table                      (AuditLogs: 90d data, no recent)
+      SAC-INV-04  Orphan table                      (OrphanTable_CL: schema, no data)
 
     The v2.2 rules (ported from the health-check script contributed to the
     project) fire on these conditions:
 
-      SENT-036  Noisy rule                        (rule-effectiveness.json: aaaa closed 24, 19 FP)
-      SENT-037  No entity mappings                (alert-rules.json: eeee enabled, entityMappings [])
-      SENT-038  Alert-only rule                   (alert-rules.json: eeee createIncident false)
-      SENT-041  Legacy incident-creation rule     (alert-rules.json: dddd MicrosoftSecurityIncidentCreation enabled)
-      SENT-050  Rule on legacy TI table           (rule-table-references.json: eeee reads ThreatIntelligenceIndicator)
-      SENT-051  High-volume table, no detection   (FirewallLogs_CL, SecurityEvent, OfficeActivity ... unreferenced)
-      SENT-052  Silent table with dependent rule  (AuditLogs IngestedLast7d 0, read by aaaa)
-      SENT-053  Playbook failures                 (playbook-runs.json: IncidentEnrich-IP Failed7d 5)
-      SENT-054  Deprecated / missing solution     (office365 isDeprecated, legacy-feed not in catalogue)
-      SENT-055  Single TI feed                    (data-connectors-classic.json: MicrosoftThreatIntelligence only)
-      SENT-056  AzFW logged twice                 (AzureFirewall* categories + AZFWNetworkRule table)
-      SENT-057  Closed unclassified               (incidents-summary.json: 20 of 32 closed Undetermined/Unclassified)
-      SENT-058  No hunting activity               (hunts.json and bookmarks.json both [])
-      SENT-059  Rule run failures                 (rule-health.json: Suspicious sign-in from rare country, 3 failed runs)
+      SAC-DET-06  Noisy rule                        (rule-effectiveness.json: aaaa closed 24, 19 FP)
+      SAC-DET-03  No entity mappings                (alert-rules.json: eeee enabled, entityMappings [])
+      SAC-MON-01  Alert-only rule                   (alert-rules.json: eeee createIncident false)
+      SAC-DET-08  Legacy incident-creation rule     (alert-rules.json: dddd MicrosoftSecurityIncidentCreation enabled)
+      SAC-TI-02  Rule on legacy TI table           (rule-table-references.json: eeee reads ThreatIntelligenceIndicator)
+      SAC-MON-05  High-volume table, no detection   (FirewallLogs_CL, SecurityEvent, OfficeActivity ... unreferenced)
+      SAC-MON-06  Silent table with dependent rule  (AuditLogs IngestedLast7d 0, read by aaaa)
+      SAC-AUT-02  Playbook failures                 (playbook-runs.json: IncidentEnrich-IP Failed7d 5)
+      SAC-DET-13  Deprecated / missing solution     (office365 isDeprecated, legacy-feed not in catalogue)
+      SAC-TI-05  Single TI feed                    (data-connectors-classic.json: MicrosoftThreatIntelligence only)
+      SAC-LOG-06  AzFW logged twice                 (AzureFirewall* categories + AZFWNetworkRule table)
+      SAC-INC-02  Closed unclassified               (incidents-summary.json: 20 of 32 closed Undetermined/Unclassified)
+      SAC-HNT-01  No hunting activity               (hunts.json and bookmarks.json both [])
+      SAC-DET-14  Rule run failures                 (rule-health.json: Suspicious sign-in from rare country, 3 failed runs)
 
     Rules that read a capture file the collector only writes on success
     (051, 052, 058) stay quiet when the file is absent; the second Describe
@@ -109,62 +109,62 @@ Describe 'Sentinel gap-analysis engine' {
             $findings.Count | Should -BeGreaterThan 0
         }
 
-        It 'fires SENT-001 because daily cap is unset' {
-            ($findings | Where-Object Id -eq 'SENT-001').Count | Should -Be 1
+        It 'fires SAC-LOG-03 because daily cap is unset' {
+            ($findings | Where-Object Id -eq 'SAC-LOG-03').Count | Should -Be 1
         }
 
-        It 'fires SENT-002 because retention is 30d < 90d' {
-            $f = $findings | Where-Object Id -eq 'SENT-002'
+        It 'fires SAC-LOG-07 because retention is 30d < 90d' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-07'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '30 days'
         }
 
-        It 'fires SENT-007 because an NRT rule is disabled' {
-            ($findings | Where-Object Id -eq 'SENT-007').Count | Should -Be 1
+        It 'fires SAC-DET-05 because an NRT rule is disabled' {
+            ($findings | Where-Object Id -eq 'SAC-DET-05').Count | Should -Be 1
         }
 
-        It 'fires SENT-009 because Owner exists at workspace scope' {
-            ($findings | Where-Object Id -eq 'SENT-009').Count | Should -Be 1
+        It 'fires SAC-GOV-06 because Owner exists at workspace scope' {
+            ($findings | Where-Object Id -eq 'SAC-GOV-06').Count | Should -Be 1
         }
 
-        It 'fires SENT-014 (Defender migration banner is always emitted)' {
-            ($findings | Where-Object Id -eq 'SENT-014').Count | Should -Be 1
+        It 'fires SAC-PLT-11 (Defender migration banner is always emitted)' {
+            ($findings | Where-Object Id -eq 'SAC-PLT-11').Count | Should -Be 1
         }
 
-        It 'fires SENT-016 because FirewallLogs_CL is > 50 GB on Analytics' {
-            $f = $findings | Where-Object Id -eq 'SENT-016'
+        It 'fires SAC-LOG-02 because FirewallLogs_CL is > 50 GB on Analytics' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-02'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'FirewallLogs_CL'
         }
 
-        It 'fires SENT-017 because at least one table has retention > 90d' {
-            ($findings | Where-Object Id -eq 'SENT-017').Count | Should -Be 1
+        It 'fires SAC-LOG-11 because at least one table has retention > 90d' {
+            ($findings | Where-Object Id -eq 'SAC-LOG-11').Count | Should -Be 1
         }
 
-        It 'fires SENT-020 because replication is disabled' {
-            ($findings | Where-Object Id -eq 'SENT-020').Count | Should -Be 1
+        It 'fires SAC-PLT-05 because replication is disabled' {
+            ($findings | Where-Object Id -eq 'SAC-PLT-05').Count | Should -Be 1
         }
 
-        It 'fires SENT-021 because public network access is Enabled' {
-            $f = $findings | Where-Object Id -eq 'SENT-021'
+        It 'fires SAC-PLT-06 because public network access is Enabled' {
+            $f = $findings | Where-Object Id -eq 'SAC-PLT-06'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Enabled'
         }
 
-        It 'fires SENT-022 because Microsoft.Insights is NotRegistered' {
-            ($findings | Where-Object Id -eq 'SENT-022').Count | Should -Be 1
+        It 'fires SAC-PLT-09 because Microsoft.Insights is NotRegistered' {
+            ($findings | Where-Object Id -eq 'SAC-PLT-09').Count | Should -Be 1
         }
 
-        It 'fires SENT-024 because disableLocalAuth is false' {
-            ($findings | Where-Object Id -eq 'SENT-024').Count | Should -Be 1
+        It 'fires SAC-GOV-07 because disableLocalAuth is false' {
+            ($findings | Where-Object Id -eq 'SAC-GOV-07').Count | Should -Be 1
         }
 
-        It 'fires SENT-026 because AuditLogs has 90d data but none last 7d' {
-            ($findings | Where-Object Id -eq 'SENT-026').Count | Should -Be 1
+        It 'fires SAC-INV-01 because AuditLogs has 90d data but none last 7d' {
+            ($findings | Where-Object Id -eq 'SAC-INV-01').Count | Should -Be 1
         }
 
-        It 'fires SENT-027 because OrphanTable_CL has schema and no data' {
-            $f = $findings | Where-Object Id -eq 'SENT-027'
+        It 'fires SAC-INV-04 because OrphanTable_CL has schema and no data' {
+            $f = $findings | Where-Object Id -eq 'SAC-INV-04'
             $f.Count | Should -Be 1
         }
 
@@ -189,170 +189,170 @@ Describe 'Sentinel gap-analysis engine' {
 
         # ----- v2 catalogue additions ------------------------------------
 
-        It 'fires SENT-029 because MTTR is 1620 min (27h) > 24h threshold' {
-            $f = $findings | Where-Object Id -eq 'SENT-029'
+        It 'fires SAC-INC-06 because MTTR is 1620 min (27h) > 24h threshold' {
+            $f = $findings | Where-Object Id -eq 'SAC-INC-06'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '27 hours'
         }
 
-        It 'fires SENT-030 because 20 of 32 closed incidents were never acknowledged (62%)' {
-            $f = $findings | Where-Object Id -eq 'SENT-030'
+        It 'fires SAC-INC-05 because 20 of 32 closed incidents were never acknowledged (62%)' {
+            $f = $findings | Where-Object Id -eq 'SAC-INC-05'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '20 of 32 closed incidents'
         }
 
-        It 'fires SENT-031 because the Scheduled rule was last modified in 2024 (>1y ago)' {
-            $f = $findings | Where-Object Id -eq 'SENT-031'
+        It 'fires SAC-DET-04 because the Scheduled rule was last modified in 2024 (>1y ago)' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-04'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
         }
 
-        It 'fires SENT-032 because the deployed rule is at v1.0.0 vs template v1.2.0' {
-            $f = $findings | Where-Object Id -eq 'SENT-032'
+        It 'fires SAC-DET-10 because the deployed rule is at v1.0.0 vs template v1.2.0' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-10'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '1\.0\.0.*1\.2\.0'
         }
 
-        It 'fires SENT-033 because one rule produces 412 of 525 alerts (78%)' {
-            $f = $findings | Where-Object Id -eq 'SENT-033'
+        It 'fires SAC-DET-11 because one rule produces 412 of 525 alerts (78%)' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-11'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
         }
 
-        It 'fires SENT-034 because automation-rules.json is empty' {
-            ($findings | Where-Object Id -eq 'SENT-034').Count | Should -Be 1
+        It 'fires SAC-AUT-01 because automation-rules.json is empty' {
+            ($findings | Where-Object Id -eq 'SAC-AUT-01').Count | Should -Be 1
         }
 
-        It 'does NOT fire SENT-035 because the only enabled Scheduled/NRT rule is in the noisy set' {
+        It 'does NOT fire SAC-DET-12 because the only enabled Scheduled/NRT rule is in the noisy set' {
             # The fixture has volumes for "Suspicious sign-in" / "Failed logons" / "Privileged group" only.
-            # SENT-035 should NOT flag the disabled rule (filtered out by enabled=false), so it only fires when
+            # SAC-DET-12 should NOT flag the disabled rule (filtered out by enabled=false), so it only fires when
             # there exist enabled Scheduled/NRT rules outside the noisy set. The fixture's lone enabled Scheduled
             # rule IS in the noisy set, so we expect zero findings here — confirming the negative path.
-            ($findings | Where-Object Id -eq 'SENT-035').Count | Should -Be 0
+            ($findings | Where-Object Id -eq 'SAC-DET-12').Count | Should -Be 0
         }
 
-        It 'fires SENT-039 because a service principal holds Contributor at workspace scope' {
-            $f = $findings | Where-Object Id -eq 'SENT-039'
+        It 'fires SAC-GOV-05 because a service principal holds Contributor at workspace scope' {
+            $f = $findings | Where-Object Id -eq 'SAC-GOV-05'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'ci-deployer-sp'
         }
 
-        It 'fires SENT-040 because no identity holds Microsoft Sentinel Responder' {
-            ($findings | Where-Object Id -eq 'SENT-040').Count | Should -Be 1
+        It 'fires SAC-GOV-04 because no identity holds Microsoft Sentinel Responder' {
+            ($findings | Where-Object Id -eq 'SAC-GOV-04').Count | Should -Be 1
         }
 
-        It 'does NOT fire SENT-042 because the fixture has a CanNotDelete lock present' {
-            ($findings | Where-Object Id -eq 'SENT-042').Count | Should -Be 0
+        It 'does NOT fire SAC-GOV-03 because the fixture has a CanNotDelete lock present' {
+            ($findings | Where-Object Id -eq 'SAC-GOV-03').Count | Should -Be 0
         }
 
-        It 'fires SENT-043 because CommonSecurityLog is 300 GB / 30d (above the 150 GB threshold)' {
-            $f = $findings | Where-Object Id -eq 'SENT-043'
+        It 'fires SAC-LOG-15 because CommonSecurityLog is 300 GB / 30d (above the 150 GB threshold)' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-15'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'CommonSecurityLog'
         }
 
-        It 'fires SENT-044 because Syslog is 280 GB / 30d' {
-            $f = $findings | Where-Object Id -eq 'SENT-044'
+        It 'fires SAC-LOG-16 because Syslog is 280 GB / 30d' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-16'
             $f.Count | Should -Be 1
         }
 
-        It 'fires SENT-045 because SecurityEvent is 500 GB / 30d' {
-            $f = $findings | Where-Object Id -eq 'SENT-045'
+        It 'fires SAC-LOG-17 because SecurityEvent is 500 GB / 30d' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-17'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'SecurityEvent'
         }
 
-        It 'fires SENT-046 because AzureDiagnostics is 50 GB / 30d (above the 10 GB AzureDiagnostics threshold)' {
-            $f = $findings | Where-Object Id -eq 'SENT-046'
+        It 'fires SAC-LOG-18 because AzureDiagnostics is 50 GB / 30d (above the 10 GB AzureDiagnostics threshold)' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-18'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'AzureDiagnostics'
         }
 
         # ----- v2.1 deprecation-deadline rules ---------------------------
 
-        It 'fires SENT-047 because LegacyCLv1_CL has data but no DCR points to it' {
-            $f = $findings | Where-Object Id -eq 'SENT-047'
+        It 'fires SAC-PLT-02 because LegacyCLv1_CL has data but no DCR points to it' {
+            $f = $findings | Where-Object Id -eq 'SAC-PLT-02'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'LegacyCLv1_CL'
             $f.Severity | Should -Be 'Critical'
         }
 
-        It 'does NOT flag FirewallLogs_CL under SENT-047 (CLv2 — has a DCR)' {
-            $f = $findings | Where-Object Id -eq 'SENT-047'
+        It 'does NOT flag FirewallLogs_CL under SAC-PLT-02 (CLv2 — has a DCR)' {
+            $f = $findings | Where-Object Id -eq 'SAC-PLT-02'
             $f.Evidence | Should -Not -Match 'FirewallLogs_CL'
         }
 
-        It 'fires SENT-048 because the fixture shows 8 machines still on MMA' {
-            $f = $findings | Where-Object Id -eq 'SENT-048'
+        It 'fires SAC-PLT-03 because the fixture shows 8 machines still on MMA' {
+            $f = $findings | Where-Object Id -eq 'SAC-PLT-03'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '8 machine'
             $f.Severity | Should -Be 'Critical'
         }
 
-        It 'fires SENT-049 because ThreatIntelligenceIndicator carries billable data' {
-            $f = $findings | Where-Object Id -eq 'SENT-049'
+        It 'fires SAC-TI-01 because ThreatIntelligenceIndicator carries billable data' {
+            $f = $findings | Where-Object Id -eq 'SAC-TI-01'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'ThreatIntelligenceIndicator'
             $f.Severity | Should -Be 'Critical'
         }
 
-        It 'notes the new ThreatIntelIndicators table is absent when SENT-049 fires' {
-            $f = $findings | Where-Object Id -eq 'SENT-049'
+        It 'notes the new ThreatIntelIndicators table is absent when SAC-TI-01 fires' {
+            $f = $findings | Where-Object Id -eq 'SAC-TI-01'
             $f.Evidence | Should -Match 'No data observed in the new'
         }
 
         # ----- v2.2 health-check rules -----------------------------------
 
-        It 'fires SENT-036 because "Suspicious sign-in" closed 19 of 24 incidents as false positive' {
-            $f = $findings | Where-Object Id -eq 'SENT-036'
+        It 'fires SAC-DET-06 because "Suspicious sign-in" closed 19 of 24 incidents as false positive' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-06'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Suspicious sign-in from rare country'
             $f.Evidence | Should -Match '19 of 24'
             $f.Detail.Rules[0].FPRate | Should -Be 79.2
         }
 
-        It 'does NOT flag "Failed logons" under SENT-036 (only 8 closed, under the floor of 20)' {
-            ($findings | Where-Object Id -eq 'SENT-036').Evidence | Should -Not -Match 'Failed logons'
+        It 'does NOT flag "Failed logons" under SAC-DET-06 (only 8 closed, under the floor of 20)' {
+            ($findings | Where-Object Id -eq 'SAC-DET-06').Evidence | Should -Not -Match 'Failed logons'
         }
 
-        It 'fires SENT-037 because the enabled rule "Failed logons" has no entity mappings' {
-            $f = $findings | Where-Object Id -eq 'SENT-037'
+        It 'fires SAC-DET-03 because the enabled rule "Failed logons" has no entity mappings' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-03'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Failed logons across multiple accounts'
             $f.Evidence | Should -Match '1 of 2 enabled'
         }
 
-        It 'does NOT name the mapped rule or the disabled rule under SENT-037' {
-            $f = $findings | Where-Object Id -eq 'SENT-037'
+        It 'does NOT name the mapped rule or the disabled rule under SAC-DET-03' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-03'
             $f.Evidence | Should -Not -Match 'Suspicious sign-in'
             $f.Evidence | Should -Not -Match 'Lateral movement'
         }
 
-        It 'fires SENT-038 because "Failed logons" has createIncident false' {
-            $f = $findings | Where-Object Id -eq 'SENT-038'
+        It 'fires SAC-MON-01 because "Failed logons" has createIncident false' {
+            $f = $findings | Where-Object Id -eq 'SAC-MON-01'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Failed logons across multiple accounts'
             $f.Evidence | Should -Not -Match 'Suspicious sign-in'
         }
 
-        It 'fires SENT-041 because a MicrosoftSecurityIncidentCreation rule is enabled while XDR syncs incidents' {
-            $f = $findings | Where-Object Id -eq 'SENT-041'
+        It 'fires SAC-DET-08 because a MicrosoftSecurityIncidentCreation rule is enabled while XDR syncs incidents' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-08'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Create incidents from MDE alerts'
             $f.Evidence | Should -Match 'duplicate incidents'
             $f.Detail.XdrIncidentsConnected | Should -BeTrue
         }
 
-        It 'fires SENT-050 because the enabled rule "Failed logons" reads ThreatIntelligenceIndicator' {
-            $f = $findings | Where-Object Id -eq 'SENT-050'
+        It 'fires SAC-TI-02 because the enabled rule "Failed logons" reads ThreatIntelligenceIndicator' {
+            $f = $findings | Where-Object Id -eq 'SAC-TI-02'
             $f.Count | Should -Be 1
             $f.Severity | Should -Be 'Critical'
             $f.Evidence | Should -Match 'Failed logons across multiple accounts'
             $f.Evidence | Should -Not -Match 'Lateral movement'
         }
 
-        It 'fires SENT-051 for the high-volume tables no enabled rule reads' {
-            $f = $findings | Where-Object Id -eq 'SENT-051'
+        It 'fires SAC-MON-05 for the high-volume tables no enabled rule reads' {
+            $f = $findings | Where-Object Id -eq 'SAC-MON-05'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'FirewallLogs_CL 2000 GB'
             $f.Detail.Count | Should -Be 8
@@ -360,8 +360,8 @@ Describe 'Sentinel gap-analysis engine' {
             @($f.Detail.Tables | ForEach-Object Table) | Should -Not -Contain 'SecurityIncident'
         }
 
-        It 'suggests an undeployed template under SENT-051 but never a deprecated or deployed one' {
-            $f = $findings | Where-Object Id -eq 'SENT-051'
+        It 'suggests an undeployed template under SAC-MON-05 but never a deprecated or deployed one' {
+            $f = $findings | Where-Object Id -eq 'SAC-MON-05'
             $office = $f.Detail.Tables | Where-Object Table -eq 'OfficeActivity'
             $office.SuggestedTemplates | Should -Contain 'Data exfiltration'
             $firewall = $f.Detail.Tables | Where-Object Table -eq 'FirewallLogs_CL'
@@ -370,8 +370,8 @@ Describe 'Sentinel gap-analysis engine' {
             $f.Evidence | Should -Not -Match 'Suspicious sign-in'
         }
 
-        It 'fires SENT-052 because AuditLogs is read by an enabled rule and ingested nothing in 7 days' {
-            $f = $findings | Where-Object Id -eq 'SENT-052'
+        It 'fires SAC-MON-06 because AuditLogs is read by an enabled rule and ingested nothing in 7 days' {
+            $f = $findings | Where-Object Id -eq 'SAC-MON-06'
             $f.Count | Should -Be 1
             $f.Severity | Should -Be 'Critical'
             $f.Evidence | Should -Match 'AuditLogs'
@@ -379,60 +379,91 @@ Describe 'Sentinel gap-analysis engine' {
             $f.Evidence | Should -Not -Match 'SigninLogs'
         }
 
-        It 'fires SENT-053 because IncidentEnrich-IP failed 5 of 42 runs' {
-            $f = $findings | Where-Object Id -eq 'SENT-053'
+        It 'fires SAC-AUT-02 because IncidentEnrich-IP failed 5 of 42 runs' {
+            $f = $findings | Where-Object Id -eq 'SAC-AUT-02'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'IncidentEnrich-IP \(5 of 42 runs failed, last 2026-05-05T22:15:00Z\)'
             $f.Evidence | Should -Not -Match 'NotifyOnHighSev'
         }
 
-        It 'fires SENT-054 for the deprecated solution and the one missing from the catalogue' {
-            $f = $findings | Where-Object Id -eq 'SENT-054'
+        It 'fires SAC-DET-13 for the deprecated solution and the one missing from the catalogue' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-13'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Microsoft 365 \(deprecated\)'
             $f.Evidence | Should -Match 'Legacy Threat Feed \(not in catalogue\)'
             $f.Evidence | Should -Not -Match 'Azure Active Directory'
         }
 
-        It 'fires SENT-055 because the only TI feed is MicrosoftThreatIntelligence' {
-            $f = $findings | Where-Object Id -eq 'SENT-055'
+        It 'fires SAC-TI-05 because the only TI feed is MicrosoftThreatIntelligence' {
+            $f = $findings | Where-Object Id -eq 'SAC-TI-05'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'single feed \(MicrosoftThreatIntelligence\)'
         }
 
-        It 'fires SENT-056 because AzureFirewall* categories and the AZFWNetworkRule table both carry data' {
-            $f = $findings | Where-Object Id -eq 'SENT-056'
+        It 'fires SAC-LOG-06 because AzureFirewall* categories and the AZFWNetworkRule table both carry data' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-06'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'AzureFirewallNetworkRule'
             $f.Evidence | Should -Match 'AZFWNetworkRule'
             $f.Detail.LegacyRows7d | Should -Be 12099
         }
 
-        It 'fires SENT-057 because 20 of 32 closed incidents have no classification (62%)' {
-            $f = $findings | Where-Object Id -eq 'SENT-057'
+        It 'fires SAC-INC-02 because 20 of 32 closed incidents have no classification (62%)' {
+            $f = $findings | Where-Object Id -eq 'SAC-INC-02'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match '20 of 32 closed incidents \(62%\)'
         }
 
-        It 'fires SENT-059 because a rule run failed three times' {
-            $f = $findings | Where-Object Id -eq 'SENT-059'
+        It 'fires SAC-DET-14 because a rule run failed three times' {
+            $f = $findings | Where-Object Id -eq 'SAC-DET-14'
             $f.Count | Should -Be 1
             $f.Evidence | Should -Match 'Suspicious sign-in from rare country \(3 failed run\(s\): Query execution exceeded'
             $f.Detail.Rules[0].Status | Should -Be 'Failure'
         }
 
-        It 'fires SENT-058 because hunts.json and bookmarks.json are both empty' {
-            ($findings | Where-Object Id -eq 'SENT-058').Count | Should -Be 1
+        It 'fires SAC-HNT-01 because hunts.json and bookmarks.json are both empty' {
+            ($findings | Where-Object Id -eq 'SAC-HNT-01').Count | Should -Be 1
         }
 
         It 'carries no em-dash in any v2.2 rule text' {
             $rules = (Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | Where-Object {
-                $_.id -in @('SENT-036','SENT-037','SENT-038','SENT-041') -or $_.id -ge 'SENT-050'
+                $_.id -in @('SAC-DET-06','SAC-DET-03','SAC-MON-01','SAC-DET-08') -or $_.id -ge 'SAC-TI-02'
             }
             foreach ($r in $rules) {
                 ($r.title + $r.remediation) | Should -Not -Match ([char]0x2014)
             }
         }
+    }
+}
+
+Describe 'Sentinel gap-analysis rule catalogue' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        $script:catalogue = Get-Content (Join-Path $repoRoot 'Tools/Documenter/Private/Resources/best-practices.json') -Raw | ConvertFrom-Json
+        $script:areaIds = @('DET', 'PLT', 'COV', 'AUT', 'MON', 'INC', 'INV', 'TI', 'HNT', 'LOG', 'GOV')
+    }
+
+    It 'names every rule in the maturity id scheme, uniquely' {
+        $ids = @($script:catalogue.rules | ForEach-Object { $_.id })
+        $ids.Count | Should -Be 59
+        ($ids | Sort-Object -Unique).Count | Should -Be 59
+        foreach ($id in $ids) { $id | Should -Match '^SAC-[A-Z]{2,4}-\d{2}$' }
+    }
+
+    It 'keeps the retired SENT id as a unique legacy alias and names an area on every rule' {
+        $legacy = @($script:catalogue.rules | ForEach-Object { $_.legacyId })
+        ($legacy | Sort-Object -Unique).Count | Should -Be 59
+        foreach ($l in $legacy) { $l | Should -Match '^SENT-\d{3}$' }
+        foreach ($r in $script:catalogue.rules) {
+            $r.area | Should -BeIn $script:areaIds
+            $r.id | Should -Match ('^SAC-' + [regex]::Escape($r.area) + '-\d{2}$')
+        }
+    }
+
+    It 'gives a rule the id of the criterion it decides' {
+        ($script:catalogue.rules | Where-Object legacyId -eq 'SENT-037').id | Should -Be 'SAC-DET-03'
+        ($script:catalogue.rules | Where-Object legacyId -eq 'SENT-001').id | Should -Be 'SAC-LOG-03'
+        ($script:catalogue.rules | Where-Object legacyId -eq 'SENT-059').id | Should -Be 'SAC-DET-14'
     }
 }
 
@@ -468,19 +499,19 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
     }
 
     It 'does not fire the rules whose input capture is absent' {
-        foreach ($id in 'SENT-036', 'SENT-050', 'SENT-051', 'SENT-052', 'SENT-053', 'SENT-056', 'SENT-058', 'SENT-059') {
+        foreach ($id in 'SAC-DET-06', 'SAC-TI-02', 'SAC-MON-05', 'SAC-MON-06', 'SAC-AUT-02', 'SAC-LOG-06', 'SAC-HNT-01', 'SAC-DET-14') {
             ($absentOutcomes | Where-Object Id -eq $id).Outcome | Should -Be 'Passed' -Because "$id has no input to judge"
         }
     }
 
     It 'still fires the rules whose inputs are present' {
-        foreach ($id in 'SENT-037', 'SENT-038', 'SENT-041', 'SENT-054', 'SENT-055', 'SENT-057') {
+        foreach ($id in 'SAC-DET-03', 'SAC-MON-01', 'SAC-DET-08', 'SAC-DET-13', 'SAC-TI-05', 'SAC-INC-02') {
             ($absentFindings | Where-Object Id -eq $id).Count | Should -Be 1 -Because "$id reads files that are still there"
         }
     }
 
     It 'takes the service-reported bookmark count when the list was too large to fetch' {
-        # bookmarks.json absent, bookmarks-count.json present with a count: hunting activity exists, SENT-058 stays quiet.
+        # bookmarks.json absent, bookmarks-count.json present with a count: hunting activity exists, SAC-HNT-01 stays quiet.
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-bmcount-$(New-Guid)"
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         try {
@@ -489,7 +520,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
             '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
             $out = [System.Collections.Generic.List[object]]::new()
             $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $out
-            ($out | Where-Object Id -eq 'SENT-058').Outcome | Should -Be 'Passed'
+            ($out | Where-Object Id -eq 'SAC-HNT-01').Outcome | Should -Be 'Passed'
         } finally { Remove-Item $dir -Recurse -Force }
     }
 }
@@ -520,9 +551,9 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
         )
         $badRules = Join-Path $script:tempDir 'rules.json'
         @{ rules = @(
-                @{ id = 'SENT-901'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throws'; remediation = ''; learn = '' }
-                @{ id = 'SENT-902'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Missing'; remediation = ''; learn = '' }
-                @{ id = 'SENT-903'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Quiet'; remediation = ''; learn = '' }
+                @{ id = 'SAC-TST-01'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throws'; remediation = ''; learn = '' }
+                @{ id = 'SAC-TST-02'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Missing'; remediation = ''; learn = '' }
+                @{ id = 'SAC-TST-03'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Quiet'; remediation = ''; learn = '' }
             ) } | ConvertTo-Json -Depth 4 | Set-Content -Path $badRules
         $script:badOutcomes = [System.Collections.Generic.List[object]]::new()
         $null = Get-SentinelGap -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir -RulesPath $badRules `
@@ -551,17 +582,17 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
     }
 
     It 'records a check that throws as Errored with its message' {
-        $o = $badOutcomes | Where-Object Id -eq 'SENT-901'
+        $o = $badOutcomes | Where-Object Id -eq 'SAC-TST-01'
         $o.Outcome | Should -Be 'Errored'
         $o.Message | Should -Match 'boom'
     }
 
     It 'records a check that is not defined as Undefined' {
-        ($badOutcomes | Where-Object Id -eq 'SENT-902').Outcome | Should -Be 'Undefined'
+        ($badOutcomes | Where-Object Id -eq 'SAC-TST-02').Outcome | Should -Be 'Undefined'
     }
 
     It 'records a check that returns nothing as Passed' {
-        ($badOutcomes | Where-Object Id -eq 'SENT-903').Outcome | Should -Be 'Passed'
+        ($badOutcomes | Where-Object Id -eq 'SAC-TST-03').Outcome | Should -Be 'Passed'
     }
 
     It 'returns the same findings with or without a collector' {
