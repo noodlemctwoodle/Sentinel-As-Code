@@ -119,7 +119,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.1.0
+    Version:        0.1.1
     Last Updated:   2026-10-12
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
@@ -219,7 +219,7 @@ Write-Host "============================================================" -Foreg
 Write-Step "Verifying Azure sign-in..."
 $context = Get-AzContext -WarningAction SilentlyContinue
 if (-not $context) { throw 'Not authenticated. Run Connect-AzAccount first.' }
-Set-AzContext -SubscriptionId $SubscriptionId -WarningAction SilentlyContinue | Out-Null
+Set-AzContext -SubscriptionId $SubscriptionId -WarningAction SilentlyContinue -WhatIf:$false | Out-Null
 $context = Get-AzContext -WarningAction SilentlyContinue
 $tenantId = $context.Tenant.Id
 $subscriptionName = $context.Subscription.Name
@@ -314,7 +314,8 @@ if ($sp) {
     if ($existing) {
         Write-Ok 'Already assigned'
     } elseif ($PSCmdlet.ShouldProcess($rg.ResourceId, "Assign Reader to $($app.DisplayName)")) {
-        New-AzRoleAssignment -ObjectId $sp.Id -RoleDefinitionName 'Reader' -Scope $rg.ResourceId -ErrorAction Stop | Out-Null
+        # ObjectType skips the directory lookup, which fails while a new service principal replicates.
+        New-AzRoleAssignment -ObjectId $sp.Id -ObjectType 'ServicePrincipal' -RoleDefinitionName 'Reader' -Scope $rg.ResourceId -ErrorAction Stop | Out-Null
         Write-Ok 'Assigned'
     } else {
         Write-Skip 'Would assign Reader'
@@ -418,13 +419,19 @@ if ($SharePointSiteUrl) {
         if ($current -eq $SharePointSiteUrl) {
             Write-Ok 'Already set'
         } elseif ($PSCmdlet.ShouldProcess("$VariableGroupName/sharePointSiteUrl", "Set to $SharePointSiteUrl")) {
+            # ADO omits isSecret on plain variables and description on groups without one.
             $vars = [ordered]@{}
-            foreach ($p in $group.variables.PSObject.Properties) { $vars[$p.Name] = @{ value = $p.Value.value; isSecret = [bool]$p.Value.isSecret } }
+            foreach ($p in $group.variables.PSObject.Properties) {
+                $isSecret = $p.Value.PSObject.Properties['isSecret'] -and [bool]$p.Value.isSecret
+                $value = if ($p.Value.PSObject.Properties['value']) { $p.Value.value } else { $null }
+                $vars[$p.Name] = @{ value = $value; isSecret = $isSecret }
+            }
             $vars['sharePointSiteUrl'] = @{ value = $SharePointSiteUrl; isSecret = $false }
+            $groupDescription = if ($group.PSObject.Properties['description']) { $group.description } else { '' }
             $update = [ordered]@{
-                id = $group.id; name = $group.name; type = $group.type; description = $group.description
+                id = $group.id; name = $group.name; type = $group.type; description = $groupDescription
                 variables = $vars
-                variableGroupProjectReferences = @(@{ projectReference = @{ id = $project.id; name = $project.name }; name = $group.name; description = $group.description })
+                variableGroupProjectReferences = @(@{ projectReference = @{ id = $project.id; name = $project.name }; name = $group.name; description = $groupDescription })
             }
             Invoke-Ado -Method PUT -Uri "$org/_apis/distributedtask/variablegroups/$($group.id)?api-version=7.1-preview.2" -Body $update | Out-Null
             Write-Ok 'Set'
