@@ -491,18 +491,50 @@ Describe 'Publish-SacDashboardPage' {
     }
 }
 
+Describe 'Get-SacCatalogApp' {
+
+    BeforeAll { $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Invoke-PnPSPRestMethod' = '$Method, $Url' }) }
+    AfterAll { Remove-PnPStub $script:pnpStubs }
+
+    It 'reads the catalog item id, product id and validity, without braces and in lower case' {
+        Mock Invoke-PnPSPRestMethod {
+            [pscustomobject]@{ value = @(
+                    [pscustomobject]@{ ID = '{AAAA0000-0000-0000-0000-000000000001}'; ProductId = '{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}'; Title = 'isoc-blueprint-client-side-solution'; AppCatalogVersion = '1.2.0.0'; CanUpgrade = $false; IsValidAppPackage = $false; ErrorMessage = 'duplicate' }
+                ) }
+        }
+        $app = @(Get-SacCatalogApp)[0]
+        $app.Id | Should -Be 'aaaa0000-0000-0000-0000-000000000001'
+        $app.ProductId | Should -Be '7f7eb9c2-a720-45f1-ab47-7772da011e1d'
+        $app.Valid | Should -BeFalse
+        $app.Error | Should -Be 'duplicate'
+    }
+
+    It 'leaves the product id empty and treats the package as valid when the response omits them' {
+        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @([pscustomobject]@{ ID = 'b'; Title = 't'; AppCatalogVersion = '1.0.0.0' }) } }
+        $app = @(Get-SacCatalogApp)[0]
+        $app.ProductId | Should -Be ''
+        $app.Valid | Should -BeTrue
+    }
+
+    It 'returns an empty list for an empty catalog' {
+        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @() } }
+        @(Get-SacCatalogApp).Count | Should -Be 0
+    }
+}
+
 Describe 'Publish-SacAppPackage' {
 
     BeforeAll {
         $script:pnpStubs = Install-PnPStub ([ordered]@{
-            'Get-PnPApp'    = '$Scope'
             'Add-PnPApp'    = '$Path, $Scope, [switch] $Overwrite, [switch] $Publish, [switch] $SkipFeatureDeployment'
             'Remove-PnPApp' = '$Identity, $Scope'
         })
         $script:productId = '7f7eb9c2-a720-45f1-ab47-7772da011e1d'
-        function New-DeployedApp([string] $Title, [string] $Version) {
-            [pscustomobject]@{ Id = '{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}'; Title = $Title; AppCatalogVersion = $Version; CanUpgrade = $false }
+        function New-CatalogApp([string] $Id, [string] $Title, [string] $Version, [bool] $Valid = $true, [string] $ProductId = $script:productId) {
+            [pscustomobject]@{ Id = $Id; ProductId = $ProductId; Title = $Title; Version = $Version; CanUpgrade = $false; Valid = $Valid; Error = $(if ($Valid) { '' } else { 'A package with this id already exists' }) }
         }
+        $script:oldApp = New-CatalogApp 'old-item' 'sentinel-navigator-client-side-solution' '1.1.0.0'
+        $script:failedNew = New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' -Valid $false
     }
     AfterAll { Remove-PnPStub $script:pnpStubs }
     BeforeEach {
@@ -513,31 +545,48 @@ Describe 'Publish-SacAppPackage' {
         $script:removed = $false
     }
 
-    It 'replaces a package deployed under the old solution name: remove, then add' {
-        Mock Get-PnPApp { if (-not $script:removed) { New-DeployedApp 'sentinel-navigator-client-side-solution' '1.1.0.0' } }
+    It 'removes the package deployed under the old solution name, then adds the new one' {
+        # The state the lab site was in: the old package deployed and a
+        # rejected upload of the renamed one next to it.
+        Mock Get-SacCatalogApp { if ($script:removed) { $script:failedNew } else { $script:oldApp; $script:failedNew } }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Should -Be '1.2.0.0'
-        Should -Invoke Remove-PnPApp -Times 1 -Exactly -ParameterFilter { $Identity -eq $script:productId -and $Scope -eq 'Site' }
+        Should -Invoke Remove-PnPApp -Times 1 -Exactly -ParameterFilter { $Identity -eq 'old-item' -and $Scope -eq 'Site' }
+        Should -Invoke Add-PnPApp -Times 1 -Exactly
+    }
+
+    It 'recognises the old package by title when the catalog reports no product id' {
+        $noProduct = New-CatalogApp 'old-item' 'sentinel-navigator-client-side-solution' '1.1.0.0' -ProductId ''
+        Mock Get-SacCatalogApp { if (-not $script:removed) { $noProduct } }
+        Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
+        Should -Invoke Remove-PnPApp -Times 1 -Exactly -ParameterFilter { $Identity -eq 'old-item' }
         Should -Invoke Add-PnPApp -Times 1 -Exactly
     }
 
     It 'stops with a clear message when the old package cannot be removed' {
-        Mock Get-PnPApp { New-DeployedApp 'sentinel-navigator-client-side-solution' '1.1.0.0' }
+        Mock Get-SacCatalogApp { $script:oldApp }
         { Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' } | Should -Throw '*remove it by hand*'
         Should -Invoke Add-PnPApp -Times 0 -Exactly
     }
 
-    It 'upgrades the same solution in place without removing it' {
-        Mock Get-PnPApp { New-DeployedApp 'isoc-blueprint-client-side-solution' '1.1.0.0' }
+    It 'upgrades the same solution in place without removing anything' {
+        Mock Get-SacCatalogApp { New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.1.0.0' }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
         Should -Invoke Add-PnPApp -Times 1 -Exactly
     }
 
     It 'does nothing when the same version is already deployed' {
-        Mock Get-PnPApp { New-DeployedApp 'isoc-blueprint-client-side-solution' '1.2.0.0' }
+        Mock Get-SacCatalogApp { New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Should -Be '1.2.0.0'
         Should -Invoke Add-PnPApp -Times 0 -Exactly
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
+    }
+
+    It 'ignores other solutions in the catalog' {
+        Mock Get-SacCatalogApp { New-CatalogApp 'other' 'someone-elses-solution' '3.0.0.0' -ProductId '11111111-2222-3333-4444-555555555555' }
+        Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
+        Should -Invoke Remove-PnPApp -Times 0 -Exactly
+        Should -Invoke Add-PnPApp -Times 1 -Exactly
     }
 }
 

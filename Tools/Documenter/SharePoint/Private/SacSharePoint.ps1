@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.2
+    Version:      0.2.3
     Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -42,6 +42,9 @@ $script:SacFindingsListUrl    = 'Lists/SentinelFindings'
 $script:SacStateFile          = 'publish-state.json'
 $script:SacMaturityHistoryFile = 'maturity-history.json'
 $script:SacWebPartComponentId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'
+# Earlier titles of the dashboard solution. Only used to recognise an old
+# package when the app catalog does not report product ids.
+$script:SacPreviousSolutionTitles = @('sentinel-navigator-client-side-solution')
 $script:SacLinklessHeaderUrl  = 'http://linkless.header/'
 
 # Findings list columns: internal name -> PnP field type.
@@ -208,6 +211,45 @@ function Initialize-SacSiteStructure {
     }
 }
 
+function Get-SacCatalogApp {
+    <#
+    .SYNOPSIS
+        List the site collection app catalog with the fields the deploy
+        step needs.
+
+    .DESCRIPTION
+        Reads _api/web/sitecollectionappcatalog/AvailableApps directly
+        because Get-PnPApp returns PnP Framework's AppMetadata, whose Id is
+        the catalog item's id and which carries no product id. The REST
+        response has both, plus whether SharePoint accepted the package.
+
+    .OUTPUTS
+        [pscustomobject], one per catalog entry: Id (catalog item id),
+        ProductId ('' when not reported), Title, Version, CanUpgrade, Valid,
+        Error. Ids are lower case without braces.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param()
+
+    $response = Invoke-PnPSPRestMethod -Method Get -Url '/_api/web/sitecollectionappcatalog/AvailableApps' -ErrorAction Stop
+    if ($response -is [string]) { $response = $response | ConvertFrom-Json }
+    $items = if ($null -ne $response -and $response.PSObject.Properties['value']) { @($response.value) } else { @($response) }
+
+    $items | Where-Object { $null -ne $_ } | ForEach-Object {
+            $props = $_.PSObject.Properties
+            [pscustomobject]@{
+                Id         = ([string]$_.ID).Trim('{}').ToLowerInvariant()
+                ProductId  = if ($props['ProductId'] -and $_.ProductId) { ([string]$_.ProductId).Trim('{}').ToLowerInvariant() } else { '' }
+                Title      = [string]$_.Title
+                Version    = [string]$_.AppCatalogVersion
+                CanUpgrade = [bool]$_.CanUpgrade
+                Valid      = if ($props['IsValidAppPackage']) { [bool]$_.IsValidAppPackage } else { $true }
+                Error      = if ($props['ErrorMessage']) { [string]$_.ErrorMessage } else { '' }
+            }
+        }
+}
+
 function Publish-SacAppPackage {
     <#
     .SYNOPSIS
@@ -218,6 +260,14 @@ function Publish-SacAppPackage {
         The package is built with skipFeatureDeployment, so publishing it
         to the site's own app catalog makes the web part available on this
         site immediately; no per-site install step is needed.
+
+        SharePoint keeps one catalog file per solution id. A package with
+        the same id under another title (the solution was renamed, as
+        sentinel-navigator became isoc-blueprint) makes the new upload an
+        invalid package that never appears in AvailableApps, and Add-PnPApp
+        then fails with "appMetadata". So any entry for this solution with
+        another title is removed before the new package is added. The web
+        part keeps its component id, so pages that use it pick it up again.
 
     .PARAMETER Path
         Path to the .sppkg.
@@ -230,34 +280,33 @@ function Publish-SacAppPackage {
     param([Parameter(Mandatory)] [string] $Path)
 
     $info = Get-SacAppPackageInfo -Path $Path
-    $deployed = Get-PnPApp -Scope Site -ErrorAction SilentlyContinue |
-        Where-Object { ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $info.ProductId } |
-        Select-Object -First 1
-    $deployedVersion = if ($deployed -and $deployed.AppCatalogVersion) { [string]$deployed.AppCatalogVersion } else { '' }
+    $knownTitles = @($info.Title) + @($script:SacPreviousSolutionTitles)
+    $ours = @(Get-SacCatalogApp | Where-Object {
+            if ($_.ProductId) { $_.ProductId -eq $info.ProductId } else { $knownTitles -contains $_.Title }
+        })
+    foreach ($app in $ours) {
+        Write-Host "  In the app catalog: $($app.Title) $($app.Version)$(if (-not $app.Valid) { " (not accepted: $($app.Error))" })"
+    }
+    $stale = @($ours | Where-Object { $_.Title -ne $info.Title })
+    $current = $ours | Where-Object { $_.Title -eq $info.Title -and $_.Valid } | Select-Object -First 1
 
-    $deployedTitle = if ($deployed) { [string]$deployed.Title } else { '' }
-    $renamed = $deployedTitle -and $deployedTitle -ne $info.Title
-
-    if ($deployedVersion -eq $info.Version -and -not $deployed.CanUpgrade -and -not $renamed) {
+    if ($stale.Count -eq 0 -and $current -and $current.Version -eq $info.Version -and -not $current.CanUpgrade) {
         Write-Host "  App package $($info.Version) already deployed."
         return $info.Version
     }
-    if ($PSCmdlet.ShouldProcess("$($info.Title) $($info.Version) (deployed: $(if ($deployedVersion) { "$deployedTitle $deployedVersion" } else { 'none' }))", 'Deploy to site collection app catalog')) {
-        if ($renamed) {
-            # SharePoint keeps one catalog file per solution id and refuses the
-            # same id under a second file name (Add-PnPApp fails with
-            # "appMetadata"). A renamed solution (sentinel-navigator became
-            # isoc-blueprint) therefore replaces the old package: remove it,
-            # then add the new one. The web part keeps its component id, so
-            # pages that use it pick it up again.
-            Write-Host "  Removing '$deployedTitle' $deployedVersion from the app catalog; it is now '$($info.Title)'."
-            Remove-PnPApp -Identity $info.ProductId -Scope Site | Out-Null
+    $deployedText = if ($current) { "$($current.Title) $($current.Version)" } elseif ($stale.Count) { ($stale | ForEach-Object { "$($_.Title) $($_.Version)" }) -join ', ' } else { 'none' }
+    if ($PSCmdlet.ShouldProcess("$($info.Title) $($info.Version) (deployed: $deployedText)", 'Deploy to site collection app catalog')) {
+        foreach ($app in $stale) {
+            Write-Host "  Removing '$($app.Title)' $($app.Version) from the app catalog; it is now '$($info.Title)'."
+            Remove-PnPApp -Identity $app.Id -Scope Site | Out-Null
+        }
+        if ($stale.Count) {
             # Remove-PnPApp logs a refused removal on a no-script site and
             # returns, so check rather than trust it.
-            $stillThere = Get-PnPApp -Scope Site -ErrorAction SilentlyContinue |
-                Where-Object { ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $info.ProductId }
-            if ($stillThere) {
-                throw "Could not remove '$deployedTitle' from this site's app catalog. Remove it by hand (Site contents, Apps for SharePoint) and run the publish again."
+            $staleIds = @($stale | ForEach-Object Id)
+            $left = @(Get-SacCatalogApp | Where-Object { $staleIds -contains $_.Id })
+            if ($left.Count) {
+                throw "Could not remove '$($left[0].Title)' from this site's app catalog. Remove it by hand (Site contents, Apps for SharePoint) and run the publish again."
             }
         }
         Add-PnPApp -Path $Path -Scope Site -Overwrite -Publish -SkipFeatureDeployment | Out-Null
