@@ -20,9 +20,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   moves from `Tools/Documenter/SharePoint/webpart/sentinel-navigator/` to
   `webpart/isoc-blueprint/` and builds `isoc-blueprint.sppkg`
   (`isoc-blueprint-client-side-solution`, web part `IsocBlueprintWebPart`),
-  version 1.2.0. The solution and web part ids are unchanged, so a site
-  that already has the old package upgrades in place and its dashboard
-  page keeps working. The Documenter pipeline, the GitHub SharePoint
+  version 1.2.0. The solution and web part ids are unchanged. SharePoint
+  refuses the same solution id under a second file name (`Add-PnPApp`
+  fails with "appMetadata"), so on a site that still has the old package
+  the publisher removes it and then adds the new one; the dashboard
+  page keeps working because the web part's component id is the same. The Documenter pipeline, the GitHub SharePoint
   workflow, the site scripts' help and the docs use the new path.
 - **The SharePoint stage no longer renders Mermaid** - the dashboard draws
   its own charts, so the `SharePoint` stage of

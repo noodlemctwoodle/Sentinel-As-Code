@@ -39,6 +39,11 @@ one in the site's app catalog. Bump both:
 - `solution.version` and `features[0].version` in
   `config/package-solution.json` (four-part, for example `1.2.0.0`)
 
+Keep `solution.id` and the web part's `id` as they are. Renaming the
+solution (its `name` or the `.sppkg` file) is fine: the publisher sees the
+different title on the deployed package, removes the old one and adds the
+new one, since SharePoint allows only one catalog file per solution id.
+
 ## How it renders
 
 - **Script.** SharePoint's page content security policy applies inside the

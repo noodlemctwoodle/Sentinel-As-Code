@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -235,11 +235,31 @@ function Publish-SacAppPackage {
         Select-Object -First 1
     $deployedVersion = if ($deployed -and $deployed.AppCatalogVersion) { [string]$deployed.AppCatalogVersion } else { '' }
 
-    if ($deployedVersion -eq $info.Version -and -not $deployed.CanUpgrade) {
+    $deployedTitle = if ($deployed) { [string]$deployed.Title } else { '' }
+    $renamed = $deployedTitle -and $deployedTitle -ne $info.Title
+
+    if ($deployedVersion -eq $info.Version -and -not $deployed.CanUpgrade -and -not $renamed) {
         Write-Host "  App package $($info.Version) already deployed."
         return $info.Version
     }
-    if ($PSCmdlet.ShouldProcess("$($info.Title) $($info.Version) (deployed: $(if ($deployedVersion) { $deployedVersion } else { 'none' }))", 'Deploy to site collection app catalog')) {
+    if ($PSCmdlet.ShouldProcess("$($info.Title) $($info.Version) (deployed: $(if ($deployedVersion) { "$deployedTitle $deployedVersion" } else { 'none' }))", 'Deploy to site collection app catalog')) {
+        if ($renamed) {
+            # SharePoint keeps one catalog file per solution id and refuses the
+            # same id under a second file name (Add-PnPApp fails with
+            # "appMetadata"). A renamed solution (sentinel-navigator became
+            # isoc-blueprint) therefore replaces the old package: remove it,
+            # then add the new one. The web part keeps its component id, so
+            # pages that use it pick it up again.
+            Write-Host "  Removing '$deployedTitle' $deployedVersion from the app catalog; it is now '$($info.Title)'."
+            Remove-PnPApp -Identity $info.ProductId -Scope Site | Out-Null
+            # Remove-PnPApp logs a refused removal on a no-script site and
+            # returns, so check rather than trust it.
+            $stillThere = Get-PnPApp -Scope Site -ErrorAction SilentlyContinue |
+                Where-Object { ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $info.ProductId }
+            if ($stillThere) {
+                throw "Could not remove '$deployedTitle' from this site's app catalog. Remove it by hand (Site contents, Apps for SharePoint) and run the publish again."
+            }
+        }
         Add-PnPApp -Path $Path -Scope Site -Overwrite -Publish -SkipFeatureDeployment | Out-Null
         Write-Host "  Deployed app package $($info.Version)."
     }

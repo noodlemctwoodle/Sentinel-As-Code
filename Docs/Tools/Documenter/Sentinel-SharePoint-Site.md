@@ -176,7 +176,9 @@ In this order, so a failure part-way leaves the site consistent:
    `Sentinel Findings` list and columns exist.
 2. **App.** Deploy the web part package to the site collection app catalog,
    only when its version differs from the deployed one (and, on ADO, when
-   **SharePoint: deploy the web part if it changed** is ticked).
+   **SharePoint: deploy the web part if it changed** is ticked). A package
+   deployed under an older solution name (`sentinel-navigator`) is removed
+   first, because SharePoint keeps one catalog file per solution id.
 3. **Assets.** Upload the dashboard and any new diagrams. When the bundle
    carries a maturity assessment, append its score to the history (see
    below).
