@@ -73,7 +73,7 @@ latest snapshot.
 
 | ADO parameter | GitHub input | Default | Effect |
 | --- | --- | --- | --- |
-| `publishSharePointSite` (**Export: SharePoint site**) | (the workflow itself) | `false` | Include the `SharePoint` stage in the Documenter run. |
+| `publishSharePointSite` (**Export: SharePoint site**) | (the workflow itself) | `true` | Include the `SharePoint` stage in the Documenter run. Untick it for a workspace with no site or no `sc-sentinel-sharepoint` connection. |
 | `sharePointWhatIf` (**SharePoint: what-if**) | `what-if` | `false` | Sign in, read the site and print the plan; change nothing. |
 | `deployAppPackage` (**SharePoint: deploy the web part if it changed**) | `deploy-app-package` | `true` | Deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
 | (the same run) | `documenter-run-id` | latest successful | Which Documenter run to publish. |

@@ -6,6 +6,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The ADO Documenter publishes the SharePoint site and uses the preview
+  APIs by default** - `publishSharePointSite` (**Export: SharePoint
+  site**) and `includePreview` (**Collector: include preview APIs**) now
+  default to on in `Pipelines/Sentinel-Documenter.yml`. Untick the
+  SharePoint export for a workspace with no site or no
+  `sc-sentinel-sharepoint` connection. The GitHub workflow's
+  `include-preview` input is unchanged (off).
 - **SharePoint navigation publishes, and PnP calls are checked before a
   run** - the first publish to reach the navigation step failed: it
   cleared the top navigation with `Remove-PnPNavigationNode -Location

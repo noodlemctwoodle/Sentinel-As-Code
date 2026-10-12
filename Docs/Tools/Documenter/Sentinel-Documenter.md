@@ -210,8 +210,9 @@ private ADO project. Reuses the `sentinel-deployment` variable group and the
 pipelines already depend on. Pushes to `origin` on the ADO agent, which is
 the **ADO repo only**, never GitHub.
 
-> Pipelines → **Sentinel Documenter** → Run pipeline → optionally tick
-> *Collector: include preview APIs*. To skip the PR step and get only the
+> Pipelines → **Sentinel Documenter** → Run pipeline. *Export: SharePoint
+> site* and *Collector: include preview APIs* are ticked by default; untick
+> the SharePoint export for a workspace with no site. To skip the PR step and get only the
 > artefact, untick *Export: Markdown (docs pull request in this repo)*. The
 > Markdown is rendered either way: the artefact, the Word report and the
 > SharePoint site are all built from it.

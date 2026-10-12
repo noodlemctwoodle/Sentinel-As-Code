@@ -60,8 +60,11 @@
 #
 # Manual run:
 #   Pipelines -> Sentinel-Documenter -> Run pipeline. Tick the outputs you
-#   want. 'Collector: include preview APIs' adds Content Hub product
-#   packages, summary rules, pricings and the Sentinel Data Lake feature flag.
+#   want; the SharePoint site and the Markdown pull request are ticked by
+#   default. 'Collector: include preview APIs' (on by default) adds Content
+#   Hub product packages, summary rules, pricings and the Sentinel Data Lake
+#   feature flag. Untick 'Export: SharePoint site' for a workspace that has
+#   no site or no sc-sentinel-sharepoint connection.
 #
 # Output review:
 #   1. Build summary -> Related -> Published artefacts: 'sentinel-docs'
@@ -103,7 +106,7 @@ parameters:
   - name: publishSharePointSite
     displayName: "Export: SharePoint site (the iSOC Blueprint site)"
     type: boolean
-    default: false
+    default: true
 
   - name: openPullRequest
     displayName: "Export: Markdown (docs pull request in this repo)"
@@ -141,7 +144,7 @@ parameters:
   - name: includePreview
     displayName: "Collector: include preview APIs"
     type: boolean
-    default: false
+    default: true
 
   # Optional override. Sentinel-As-Code's convention is that Logic App
   # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate

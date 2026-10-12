@@ -8,7 +8,10 @@ CI/CD wiring for the Sentinel Documenter across both CI systems:
 On Azure DevOps the one pipeline carries the three exports as tick boxes at
 queue time, in any combination: **Export: SharePoint site**, **Export:
 Markdown** (the pack as a review-only pull request) and **Export: Word
-report**. GitHub keeps the
+report**. The SharePoint site and the Markdown pull request are ticked by
+default, as is **Collector: include preview APIs**; untick **Export:
+SharePoint site** for a workspace with no site or no `sc-sentinel-sharepoint`
+connection. GitHub keeps the
 SharePoint publish as a separate chained workflow
 ([SharePoint-Publish.md](SharePoint-Publish.md)) and has no Word report
 ([Word-Report.md](Word-Report.md)).
@@ -181,13 +184,13 @@ renders and keeps the `sentinel-docs` artefact.
 
 | Parameter | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `publishSharePointSite` | boolean | `false` | SharePoint site: includes the `SharePoint` stage, which builds the site bundle from the run's artefact and publishes it. See [SharePoint-Publish.md](SharePoint-Publish.md). |
+| `publishSharePointSite` | boolean | `true` | SharePoint site: includes the `SharePoint` stage, which builds the site bundle from the run's artefact and publishes it. See [SharePoint-Publish.md](SharePoint-Publish.md). |
 | `openPullRequest` | boolean | `true` | The Markdown export: condition on the "Push docs branch and open / refresh PR" step, which commits the pack to a rolling branch and opens a review-only pull request. The Markdown is rendered and kept as the `sentinel-docs` artefact on every run either way, because the Word report and the SharePoint site are built from it. |
 | `publishWordReport` | boolean | `false` | Word report: includes the `WordReport` stage (compile-time `${{ if }}`), which renders the run's artefact to a `.docx`. See [Word-Report.md](Word-Report.md). |
 | `sharePointWhatIf` | boolean | `false` | SharePoint stage: sign in, read the site and print the plan; change nothing. Compiled to the `flagWhatIf` variable. |
 | `deployAppPackage` | boolean | `true` | SharePoint stage: deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
 | `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG. GitHub renders Mermaid natively and has no equivalent. |
-| `includePreview` | boolean | `false` | Compiled to the `flagIncludePreview` variable (`-IncludePreview` or empty), passed to the collector. |
+| `includePreview` | boolean | `true` | Compiled to the `flagIncludePreview` variable (`-IncludePreview` or empty), passed to the collector. On by default on ADO; the GitHub `include-preview` input stays off by default. |
 | `playbookResourceGroup` | string | `" "` (a single space) | Where the collector enumerates playbooks, passed as `-PlaybookResourceGroup`. Left blank, the collector step uses `sentinelResourceGroup` from the variable group, and the run log's `Playbook RG` line shows which one it used. The default is a space because the run panel treats an empty default as no default, marks the field Required and disables Next; the collector step trims it. |
 | `targetMaturityLevel` | number (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against. |
 
@@ -319,7 +322,7 @@ role; the Word report stage signs in nowhere.
 | Identity | Dedicated read-only documenter SP via OIDC (`AZURE_DOCUMENTER_CLIENT_ID`) | Service connection `sc-sentinel-as-code` |
 | Privacy enforcement | Unconditional guard step; scheduled runs skipped on public repos, manual fails fast | Relies on ADO repos being private by default |
 | Config source | Repo secrets + repo variables (`SENTINEL_RG`, `SENTINEL_WORKSPACE`) | Variable group `sentinel-deployment` |
-| Preview toggle | `include-preview` input | `includePreview` parameter |
+| Preview toggle | `include-preview` input (default off) | `includePreview` parameter (default on) |
 | PR toggle | `open-pull-request` input | `openPullRequest` parameter |
 | Mermaid handling | Rendered natively; no pre-render | `prerenderChartsToPng` (default on) converts fences to PNG |
 | Playbook RG override | Not exposed | `playbookResourceGroup` parameter |
