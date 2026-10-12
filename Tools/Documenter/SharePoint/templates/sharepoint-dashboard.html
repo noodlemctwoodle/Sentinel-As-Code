@@ -892,9 +892,14 @@
     opts=opts||{};
     const ns='http://www.w3.org/2000/svg';
     while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-    const W=1200, H=420;
+    const W=1200, H=440;
     svgEl.setAttribute('viewBox','0 0 '+W+' '+H);
     const mk=(tag,attrs,text)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; svgEl.appendChild(el); return el; };
+    // Text drawn over strands gets a panel-coloured halo so it stays legible;
+    // long captions wrap onto short lines instead of running into each other.
+    const HALO='paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;';
+    const wrapLines=(t,max)=>{ const out=[]; let cur=''; String(t||'').split(/\s+/).forEach(w=>{ if((cur+' '+w).trim().length>max && cur){ out.push(cur); cur=w; } else cur=(cur+' '+w).trim(); }); if(cur) out.push(cur); return out; };
+    const mkLines=(x,y,lines,attrs,lh)=>{ const t=mk('text',Object.assign({x:x,y:y},attrs)); lines.forEach((ln,i)=>{ const ts=document.createElementNS(ns,'tspan'); ts.setAttribute('x',x); ts.setAttribute('dy',i?String(lh||12):'0'); ts.textContent=ln; t.appendChild(ts); }); return t; };
     const sources=(E&&E.sources?E.sources:[]);
     if(!E || !sources.length || !(E.totalGb>0)){
       mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in the last 30 days, so there is no flow to draw.');
@@ -902,7 +907,12 @@
     }
     const maxGb=Math.max(...sources.map(s=>s.gb),0.01);
     const strand=gb=>Math.max(2,Math.min(28,28*Math.sqrt(gb/maxGb)));
-    const srcX=230, poolX=560, poolY=380, cy=200, r=36;
+    const srcX=230, poolY=398, cy=200, r=36;
+    // The "Not monitored" pool sits low and right of the ingestion ring, sized
+    // to its own text; unmonitored strands drop early and run in from the
+    // left, below the rings and their captions, instead of crossing them.
+    const poolTitle='Not monitored', poolText=fmtN(E.uncoveredGb||0)+' GB read by no enabled rule';
+    const poolW=Math.max(170, Math.round(Math.max(poolTitle.length*7, poolText.length*5.8)+28)), poolCx=620, poolLeft=poolCx-poolW/2;
     const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,label:'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
     const trunc=s=>String(s||'');
     const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
@@ -913,15 +923,16 @@
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
       const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
       if(cov>0) mk('path',{d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'});
-      if(unc>0) mk('path',{d:curve(srcX,y,poolX-70,poolY),fill:'none',stroke:'#dc2626','stroke-opacity':'.28','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'round'});
+      if(unc>0) mk('path',{d:'M'+srcX+','+y+' C'+(srcX+90)+','+y+' '+(poolLeft-120)+','+poolY+' '+poolLeft+','+poolY,fill:'none',stroke:'#dc2626','stroke-opacity':'.26','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'round'});
       mk('rect',{x:srcX-14,y:y-7,width:10,height:14,rx:3,fill:col});
-      mk('text',{x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2)'},trunc(s.category));
-      mk('text',{x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--faint)'},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read');
+      mk('text',{x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},trunc(s.category));
+      mk('text',{x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read');
     });
     if(E.uncoveredGb>0){
-      mk('rect',{x:poolX-70,y:poolY-16,width:170,height:34,rx:9,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.5'});
-      mk('text',{x:poolX+15,y:poolY-1,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},'Not monitored');
-      mk('text',{x:poolX+15,y:poolY+12,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},fmtN(E.uncoveredGb)+' GB read by no enabled rule');
+      mk('rect',{x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,style:'fill:var(--panel)'});
+      mk('rect',{x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.55'});
+      mk('text',{x:poolCx,y:poolY-3,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},poolTitle);
+      mk('text',{x:poolCx,y:poolY+11,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},poolText);
     }
     const bandW=Math.max(3,strand(+E.coveredGb||0));
     for(let i=0;i<rings.length-1;i++){
@@ -936,8 +947,8 @@
         transform:'rotate(-90 '+rg.x+' '+cy+')',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))});
       mk('text',{x:rg.x,y:cy+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%');
       mk('text',{x:rg.x,y:cy-r-14,'text-anchor':'middle','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},rg.label.toUpperCase());
-      mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11',style:'fill:var(--muted)'},d.value+' of '+d.max);
-      mk('text',{x:rg.x,y:cy+r+34,'text-anchor':'middle','font-size':'10',style:'fill:var(--faint)'},trunc(d.label||''));
+      mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
+      mkLines(rg.x,cy+r+35,wrapLines(d.label||'',24),{'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},12);
     });
     const last=rings[rings.length-1];
     const boxes=[{l:'Closed',v:+E.incidentsClosed||0,col:'#16a34a',y:cy-40},{l:'Open',v:+E.incidentsOpen||0,col:'#d97706',y:cy+40}];

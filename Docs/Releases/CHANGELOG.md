@@ -122,6 +122,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   section titles and subsection headings are more prominent; doc-table
   cells longer than 40 characters wrap instead of overflowing; the estate
   flow and Sankey no longer shorten any label. Documenter version 0.2.0.
+  The estate flow keeps its layout but reads cleanly: ring captions wrap
+  onto two lines with a panel-coloured halo, the "Not monitored" pool is
+  sized to its text and sits below the rings, and the unmonitored strands
+  drop early and run in from the left instead of crossing the ingestion
+  ring and its captions.
 - **Six new captures close the last health-check gaps** - `rule-health`
   (analytics rules whose runs failed, with the recorded reason; new rule
   SENT-059 and a "Rule run failures" table on the analytics page),
