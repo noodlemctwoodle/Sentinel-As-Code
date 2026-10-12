@@ -88,13 +88,14 @@ receiving data with its family, GB, rule count and coverage.
 
 Findings (on their tab and on the Overview) and the maturity criteria use
 one card layout: a card per item with the pill, id and title on the first
-line, chips beneath (category, area and retired id; area, kind and effort
-for criteria), the criterion's impact line, then Evidence beside
-Remediation (or Guidance), each clamped to three lines. Every card is the
-same height when collapsed: each block reserves its three lines, and one
-chevron at the far right of the title row (beside Learn, in the same
-place on every card, shown only when a block is clamped) opens both
-blocks; clicking the clamped text does the same. Findings
+line and a chevron at its far right, chips beneath (category, area and
+retired id; area, kind and effort for criteria), the criterion's impact
+line, then Evidence beside Remediation (or Guidance), each clamped to
+three lines. The Microsoft Learn link sits under the remediation text and
+a criterion's "Open finding" link under its evidence. Every card is the
+same height when collapsed: each block reserves its three lines and its
+link line, and the chevron (shown only when a block is clamped) opens
+both blocks; clicking the clamped text does the same. Findings
 filter by severity, category and free text; criteria by status, area and
 free text, and a criterion whose id a fired finding shares carries an
 "Open finding" link.

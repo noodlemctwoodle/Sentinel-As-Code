@@ -540,9 +540,9 @@
   .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
   .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
   .fc-actions{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap}
-  .fc-actions a{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:1px solid var(--line);border-radius:999px;
-    background:var(--panel);font-weight:700;font-size:12px;color:var(--brand-ink);text-decoration:none;cursor:pointer}
-  .fc-actions a:hover{background:var(--chip);text-decoration:none}
+  .fc-link{min-height:20px;margin-top:6px;font-size:12px;font-weight:700}
+  .fc-link a{color:var(--brand-ink);cursor:pointer;text-decoration:none}
+  .fc-link a:hover{text-decoration:underline}
   .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;min-height:22px}
   .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
   .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5;min-height:1.5em}
@@ -756,10 +756,10 @@
   function findingCard(f){
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
-      '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'<button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+      '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
-      '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'</div>'+
-      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div></div>';
+      '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'<div class="fc-link"></div></div>'+
+      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'<div class="fc-link">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Microsoft Learn &rarr;</a>':'')+'</div></div></div></div>';
   }
   const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
@@ -1687,11 +1687,11 @@
       const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
       tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'">'+
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
-        '<span class="fc-actions">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'<button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+        '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
-        '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'</div>'+
-        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+        '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'<div class="fc-link">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</div></div>'+
+        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'<div class="fc-link"></div></div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
       tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();

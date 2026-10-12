@@ -123,12 +123,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   of every numeric column with its figures.
 - **Findings and criteria as cards** - the Findings tab, the Overview
   findings and the maturity criteria share one card layout: a card per
-  item with the pill, id and title on one line and the Learn or "Open
-  finding" link at the right, chips beneath (category, area, the retired
-  id; area, kind and effort for criteria), then Evidence beside Remediation
-  or Guidance, each clamped to three lines. Every card is the same height
-  when collapsed, and one chevron in the title row (or a click on the
-  clamped text) opens both blocks. Findings filter by severity, category and
+  item with the pill, id and title on one line and a chevron at its right,
+  chips beneath (category, area, the retired id; area, kind and effort for
+  criteria), then Evidence beside Remediation or Guidance, each clamped to
+  three lines, with Microsoft Learn under the remediation and "Open
+  finding" under a criterion's evidence. Every card is the same height
+  when collapsed, and the chevron (or a click on the clamped text) opens
+  both blocks. Findings filter by severity, category and
   search; criteria by status, area and search, and a criterion that shares
   its id with a fired finding links to it.
 - **Dashboard reading comfort** - long evidence, remediation and guidance
