@@ -537,7 +537,7 @@ $(Format-EstateSankey -Estate $estate)
 
 $(Format-EstateRingsTable -Estate $estate)
 
-GB that reaches **Not monitored** is ingested and billed but read by no enabled rule. [28-detection-opportunities.md](28-detection-opportunities.md) lists those tables with the templates that would cover them.
+GB that reaches **Not monitored** is ingested and billed but read by no enabled Sentinel analytics rule; detections that run inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables and are not counted here. [28-detection-opportunities.md](28-detection-opportunities.md) lists those tables with the templates that would cover them.
 "@
 } else {
 @"
@@ -4523,6 +4523,8 @@ $headroomChart
 **$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection (top 25 by volume)
 
 ## Tables with data but no detection (last 30d)
+
+"Detection" here means an enabled Sentinel analytics rule whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alert volumes by product in [20-analytics-rules.md](20-analytics-rules.md) before treating a row as unprotected.
 
 $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTemplates','MoreTemplates')
 

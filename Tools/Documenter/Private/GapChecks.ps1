@@ -223,7 +223,44 @@ function Test-RulesDisabledOrFailing {
     })
     if ($bad.Count -gt 0) {
         $names = ($bad | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' (Get-PropOrDefault $_ 'name' '?') }) -join '; '
-        return New-Finding -Evidence "$($bad.Count) rule(s) disabled: $names." -Detail @{ Count = $bad.Count }
+        # Many rules last modified on one day points at a bulk change rather
+        # than individual tuning decisions; name the day when it covers at
+        # least ten rules and a third of the disabled set.
+        $byDay = @{}
+        foreach ($r in $bad) {
+            $lm = [string](Get-PropOrDefault $r 'properties.lastModifiedUtc' '')
+            if ($lm.Length -ge 10) { $d = $lm.Substring(0, 10); if (-not $byDay.ContainsKey($d)) { $byDay[$d] = 0 }; $byDay[$d]++ }
+        }
+        $bulkDay = $null; $bulkCount = 0
+        foreach ($k in $byDay.Keys) { if ($byDay[$k] -gt $bulkCount) { $bulkCount = $byDay[$k]; $bulkDay = $k } }
+        $bulk = ($bulkCount -ge 10 -and $bulkCount -ge [math]::Ceiling($bad.Count / 3.0))
+        # A disabled rule that still produced alerts in the last 30 days was
+        # switched off recently; those are the ones to ask about first.
+        $firedById = @{}
+        foreach ($f in @($Inventory.RulesFired)) {
+            if ($null -eq $f) { continue }
+            $rid = ([string](Get-PropOrDefault $f 'AlertRuleId' '')).Trim('{}').ToLowerInvariant()
+            if ($rid) { $firedById[$rid] = _ToInt (Get-PropOrDefault $f 'Alerts' 0) }
+        }
+        $firedThenDisabled = @($bad | Where-Object { $firedById.ContainsKey(([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()) } | ForEach-Object {
+            [pscustomobject]@{
+                Rule         = [string](Get-PropOrDefault $_ 'properties.displayName' (Get-PropOrDefault $_ 'name' '?'))
+                Alerts30d    = $firedById[([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()]
+                LastModified = [string](Get-PropOrDefault $_ 'properties.lastModifiedUtc' '')
+            }
+        } | Sort-Object { -$_.Alerts30d })
+        $extra = ''
+        if ($bulk) { $extra += " $bulkCount of them were last modified on $bulkDay, which looks like a bulk change rather than rule-by-rule tuning." }
+        if ($firedThenDisabled.Count -gt 0) {
+            $sample = ($firedThenDisabled | Select-Object -First 5 | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in 30d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
+            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last 30 days and were disabled since: $sample$(_SampleSuffix $firedThenDisabled.Count)."
+        }
+        return New-Finding -Evidence "$($bad.Count) rule(s) disabled: $names.$extra" -Detail @{
+            Count             = $bad.Count
+            BulkDay           = $(if ($bulk) { $bulkDay } else { $null })
+            BulkCount         = $(if ($bulk) { $bulkCount } else { 0 })
+            FiredThenDisabled = $firedThenDisabled
+        }
     }
     return $null
 }

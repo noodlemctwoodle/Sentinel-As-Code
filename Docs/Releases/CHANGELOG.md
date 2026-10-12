@@ -114,6 +114,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   | SENT-058 | SAC-HNT-01 |
   | SENT-059 | SAC-DET-14 |
 
+- **Coverage means Sentinel rules, and says so** - the estate flow, its
+  detail panel and page 28 state that "read by a rule" means an enabled
+  Sentinel analytics rule; first-party detections (Defender XDR, Entra ID
+  Protection, Defender for Identity, Defender for Cloud) do not read
+  workspace tables and are now listed per family in the detail panel from
+  the alert volumes by product. The disabled-rules finding names a bulk
+  change day when most disabled rules share a last-modified date and lists
+  the disabled rules that still produced alerts in the last 30 days.
 - **Interactive estate flow** - hover a source family to spotlight its
   strands; click a family or the "Not monitored" pool for the tables behind
   it (GB, rules reading each, monitored or not); click a ring to open its

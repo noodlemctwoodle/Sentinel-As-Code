@@ -760,6 +760,40 @@ foreach ($f in $sortedFams) {
 }
 $alerts30d = [long]0
 foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumber $f.Alerts) } }
+# First-party detections by source family: alerts raised inside Defender XDR,
+# Entra ID Protection, Defender for Identity and Defender for Cloud do not
+# read workspace tables, so the rings cannot count them; the flow shows them
+# beside each family instead. Sentinel's own rules are excluded here.
+$productFamily = @{
+    'Azure Active Directory Identity Protection'   = 'Entra ID / Identity'
+    'Microsoft Entra ID Protection'                 = 'Entra ID / Identity'
+    'Azure Advanced Threat Protection'              = 'Entra ID / Identity'
+    'Microsoft Defender for Identity'               = 'Entra ID / Identity'
+    'Microsoft 365 Defender'                        = 'Defender XDR'
+    'Microsoft Defender XDR'                        = 'Defender XDR'
+    'Microsoft Defender Advanced Threat Protection' = 'Defender XDR'
+    'Microsoft Defender for Endpoint'               = 'Defender XDR'
+    'Office 365 Advanced Threat Protection'         = 'Defender XDR'
+    'Microsoft Defender for Office 365'             = 'Defender XDR'
+    'Microsoft Cloud App Security'                  = 'Defender XDR'
+    'Microsoft Defender for Cloud Apps'             = 'Defender XDR'
+    'Microsoft Data Loss Prevention'                = 'Defender XDR'
+    'Microsoft Application Protection'              = 'Defender XDR'
+    'Azure Security Center'                         = 'Azure / Syslog'
+    'Microsoft Defender for Cloud'                  = 'Azure / Syslog'
+    'Azure Security Center for IoT'                 = 'Azure / Syslog'
+    'Microsoft Defender for IoT'                    = 'Azure / Syslog'
+}
+$productAgg = [ordered]@{}
+foreach ($v in @($volumes | Where-Object { $_ })) {
+    $prod = [string]$(if ($v.PSObject.Properties['ProductName']) { $v.ProductName } else { '' })
+    if (-not $prod -or $prod -match 'Sentinel') { continue }
+    $famName = if ($productFamily.ContainsKey($prod)) { $productFamily[$prod] } else { 'Other' }
+    $key = "$famName|$prod"
+    if (-not $productAgg.Contains($key)) { $productAgg[$key] = [ordered]@{ family = $famName; product = $prod; alerts = [long]0; detections = 0 } }
+    $productAgg[$key].alerts += [long](ConvertTo-BuildNumber $v.Alerts); $productAgg[$key].detections++
+}
+$productAlerts = @($productAgg.Values | Sort-Object { -$_.alerts })
 $incidents30d = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Count'])  { [int](ConvertTo-BuildNumber $incSummaryRow.Count) }  else { 0 }
 $closed30d    = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Closed']) { [int](ConvertTo-BuildNumber $incSummaryRow.Closed) } else { 0 }
 $rulesQueryEnabled = @($alertRaw | Where-Object { $_.properties -and $_.properties.enabled -and $_.kind -in @('Scheduled', 'NRT') }).Count
@@ -768,13 +802,14 @@ $estate = [ordered]@{
     window          = '30d'
     sources         = $estateSources
     tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
+    productAlerts   = $productAlerts
     totalGb         = [math]::Round($estateTotalGb, 2)
     coveredGb       = [math]::Round($estateCoveredGb, 2)
     uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
     rings           = [ordered]@{
         ingestion = New-EstateRing 'Tables still receiving data (30d of 90d)' $tablesActive (@($tablesData | Where-Object { $_ }).Count)
-        detection = New-EstateRing 'Active tables read by an enabled rule' $tablesCovered $tablesActive
-        alerts    = New-EstateRing 'Enabled Scheduled/NRT rules that fired' $rulesFiredCount $rulesQueryEnabled
+        detection = New-EstateRing 'Active tables read by an enabled Sentinel rule' $tablesCovered $tablesActive
+        alerts    = New-EstateRing 'Enabled Scheduled/NRT Sentinel rules that fired' $rulesFiredCount $rulesQueryEnabled
         incidents = New-EstateRing 'Incidents closed, of those created' $closed30d $incidents30d
     }
     rulesEnabled    = $rulesEnabled

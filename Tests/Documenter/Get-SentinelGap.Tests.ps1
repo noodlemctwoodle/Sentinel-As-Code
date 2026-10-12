@@ -436,6 +436,44 @@ Describe 'Sentinel gap-analysis engine' {
     }
 }
 
+Describe 'Disabled-rules check names bulk changes and rules that still fired' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1')
+        function New-Rule($name, $title, $enabled, $modified) {
+            [pscustomobject]@{ name = $name; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified } }
+        }
+        $rules = @(1..12 | ForEach-Object { New-Rule ("r$_") "Rule $_" $false '2026-08-31T10:00:00Z' })
+        $rules += New-Rule 'r13' 'Still firing' $false '2026-09-19T08:00:00Z'
+        $rules += New-Rule 'r14' 'Kept on' $true '2026-01-01T00:00:00Z'
+        $script:inv = [pscustomobject]@{
+            AlertRules = $rules
+            RulesFired = @([pscustomobject]@{ AlertRuleId = 'R13'; AlertName = 'Still firing'; Alerts = 382 }, [pscustomobject]@{ AlertRuleId = 'r14'; AlertName = 'Kept on'; Alerts = 5 })
+        }
+        $script:f = Test-RulesDisabledOrFailing -Inventory $script:inv
+    }
+
+    It 'counts the disabled rules and names the bulk day' {
+        $script:f.Detail.Count | Should -Be 13
+        $script:f.Detail.BulkDay | Should -Be '2026-08-31'
+        $script:f.Detail.BulkCount | Should -Be 12
+        $script:f.Evidence | Should -Match '12 of them were last modified on 2026-08-31'
+    }
+
+    It 'lists the disabled rules that produced alerts in the last 30 days' {
+        @($script:f.Detail.FiredThenDisabled).Count | Should -Be 1
+        $script:f.Detail.FiredThenDisabled[0].Rule | Should -Be 'Still firing'
+        $script:f.Evidence | Should -Match 'Still firing \(382 alert\(s\) in 30d, disabled 2026-09-19\)'
+    }
+
+    It 'stays quiet about bulk changes when the disabled set is small' {
+        $small = [pscustomobject]@{ AlertRules = @((New-Rule 'a' 'A' $false '2026-08-31T10:00:00Z'), (New-Rule 'b' 'B' $false '2026-08-31T10:00:00Z')); RulesFired = @() }
+        $r = Test-RulesDisabledOrFailing -Inventory $small
+        $r.Detail.BulkDay | Should -BeNullOrEmpty
+        $r.Evidence | Should -Not -Match 'bulk change'
+    }
+}
+
 Describe 'Sentinel gap-analysis rule catalogue' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)

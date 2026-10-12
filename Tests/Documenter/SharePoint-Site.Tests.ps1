@@ -507,6 +507,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.estate.uncoveredGb | Should -BeGreaterThan 0
         # every table receiving data travels with the model so the flow can list them on click
         @($model.estate.tables).Count | Should -BeGreaterThan 0
+        # first-party product alerts per family, Sentinel's own rules excluded
+        ($model.estate.productAlerts | Where-Object family -eq 'Entra ID / Identity').alerts | Should -Be 40
+        ($model.estate.productAlerts | Where-Object product -match 'Sentinel') | Should -BeNullOrEmpty
+        $model.estate.rings.detection.label | Should -Match 'Sentinel rule'
         ($model.estate.tables | Where-Object table -eq 'SigninLogs').covered | Should -BeTrue
         ($model.estate.tables | Where-Object table -eq 'SigninLogs').rules | Should -BeGreaterThan 0
         ($model.estate.tables | Where-Object table -eq 'FirewallLogs_CL').covered | Should -BeFalse

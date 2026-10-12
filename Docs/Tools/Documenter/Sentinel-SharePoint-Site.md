@@ -83,8 +83,13 @@ tables behind it (GB, rules reading each, monitored or not, with "Show all"),
 clicking a ring opens the matching page (table plans, detection
 opportunities, analytics rules, incidents) and the Closed and Open boxes open
 the incidents page. Unmonitored strands keep their family colour and run
-dashed into the pool. The model's `estate.tables` carries every table
-receiving data with its family, GB, rule count and coverage.
+dashed into the pool. The rings count Sentinel analytics rules only;
+alerts raised inside Defender XDR, Entra ID Protection, Defender for
+Identity or Defender for Cloud do not read workspace tables, so the detail
+panel lists them per family (`estate.productAlerts`, Sentinel's own rules
+excluded) and the status column reads "Sentinel rule reads it" or "No
+Sentinel rule". The model's `estate.tables` carries every table receiving
+data with its family, GB, rule count and coverage.
 
 Findings (on their tab and on the Overview) and the maturity criteria use
 one card layout: a card per item with the pill, id and title on the first

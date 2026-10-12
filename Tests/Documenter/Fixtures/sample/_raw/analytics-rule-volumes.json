@@ -16,5 +16,11 @@
     "ProductName": "Azure Sentinel",
     "AlertSeverity": "High",
     "Alerts": 18
+  },
+  {
+    "AlertName": "Anonymous IP address",
+    "ProductName": "Azure Active Directory Identity Protection",
+    "AlertSeverity": "Medium",
+    "Alerts": 40
   }
 ]
