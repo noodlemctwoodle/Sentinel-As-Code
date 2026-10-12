@@ -252,15 +252,21 @@ them:
    This guarantees the branch always descends from current `main` and
    avoids "Added in both" merge conflicts when a previous drift PR has
    already merged.
-4. `git add Content/AnalyticalRules reports` - only the paths the script may
-   legitimately have touched.
-5. Commit with a timestamped `chore(sentinel): sync drift from portal ...`
-   message, then `git push --force-with-lease` the bot branch.
-6. Build a **concise PR body** from the newest
+4. Regenerate the dependency manifest with
+   `Tools/Build-DependencyManifest.ps1 -Mode Generate`. Absorbed rules change
+   the dependency graph, and the deploy and PR gates fail on a stale
+   `dependencies.json`.
+5. `git add Content/AnalyticalRules reports dependencies.json` - only the
+   paths the job may legitimately have touched.
+6. Commit with a timestamped `chore(sentinel): sync drift from portal ...`
+   message, then `git push --force-with-lease` the bot branch. On ADO the
+   job first fetches the sync branch ref so a branch left over from a
+   previous run does not make the lease fail with "stale info".
+7. Build a **concise PR body** from the newest
    `reports/sentinel-drift-*.md` (the Summary section plus a bullet list of
    drifted rule headings), because the full report embeds full KQL bodies
    and would exceed the PR-description limits.
-7. Look for an existing open PR from the sync branch into `main`; **edit**
+8. Look for an existing open PR from the sync branch into `main`; **edit**
    its description if found, otherwise **create** a new PR.
 
 ## Artefacts and outputs
