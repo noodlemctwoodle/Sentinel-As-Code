@@ -218,6 +218,13 @@ reports what it would append and writes nothing.
 
 ### 1. App registrations
 
+On Azure DevOps, [`Deploy/setup/Setup-SharePointPublisher.ps1`](../../../Deploy/setup/Setup-SharePointPublisher.ps1)
+creates the publisher app, grants its SharePoint permission, creates the
+`sc-sentinel-sharepoint` service connection and adds the federated
+credential in one idempotent run (`-WhatIf` first). The table below is what
+it sets up; on GitHub the federated credential is added by hand as the
+[pipeline page](../../Pipelines/SharePoint-Publish.md) describes.
+
 | App | Used by | Needs |
 | --- | --- | --- |
 | **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../../Pipelines/SharePoint-Publish.md)). No secrets, no Azure roles. |

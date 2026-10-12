@@ -18,6 +18,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   collecting again. `Pipelines/Sentinel-SharePoint-Publish.yml` and
   `Pipelines/Sentinel-Word-Report.yml` are removed; the GitHub SharePoint
   workflow is unchanged.
+- **One-shot bootstrap for the SharePoint publisher identity** -
+  `Deploy/setup/Setup-SharePointPublisher.ps1` finds or creates the
+  publisher app registration, declares and consents the SharePoint Online
+  `Sites.Selected` application permission, grants Reader on one resource
+  group, creates the `sc-sentinel-sharepoint` service connection with
+  workload identity federation through the Azure DevOps REST API, adds the
+  federated credential, and optionally authorises the Documenter pipeline
+  and sets `sharePointSiteUrl` in the variable group. Idempotent, with
+  `-WhatIf`.
 - **The Markdown pack carries everything the dashboard shows** - the
   estate flow on the overview pages gains a Source families table (tables,
   GB, tables read by a detection, first-party alerts beside their family)

@@ -6,6 +6,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | Script | Purpose | Doc anchor |
 | --- | --- | --- |
 | `Setup-ServicePrincipal.ps1` | One-time bootstrap of all required service-principal permissions | [#setup-serviceprincipalps1](#setup-serviceprincipalps1) |
+| `Setup-SharePointPublisher.ps1` | One-time bootstrap of the SharePoint publisher identity: app registration, Sites.Selected consent, ADO service connection, federated credential | [#setup-sharepointpublisherps1](#setup-sharepointpublisherps1) |
 | `Deploy-SentinelContentHub.ps1` | Deploys Content Hub solutions and OoB content | [#deploy-sentinelcontenthubps1](#deploy-sentinelcontenthubps1) |
 | `Deploy-CustomContent.ps1` | Deploys repo-authored custom content | [#deploy-customcontentps1](#deploy-customcontentps1) |
 | `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
@@ -184,6 +185,119 @@ Both `SubscriptionId` and `ServicePrincipalAppId` are mandatory, so every invoca
 6. **Completion**: Prints confirmation that setup is complete and the pipeline is ready to run autonomously
 
 ---
+
+## Setup-SharePointPublisher.ps1
+
+**Location:** `Deploy/setup/Setup-SharePointPublisher.ps1`
+
+One-time bootstrap of the identity the Documenter pipeline's SharePoint
+stage signs in with. It replaces the six manual steps (Entra app, SharePoint
+permission, admin consent, Azure role, ADO service connection, federated
+credential) with one idempotent run, and prints the
+`Initialize-SentinelDocsSite.ps1` command to run next.
+
+### Key Features
+
+- Finds or creates the publisher app registration and its service
+  principal. No secret, no certificate.
+- Declares the **SharePoint Online** application permission `Sites.Selected`
+  (not Microsoft Graph's) and grants admin consent through an app role
+  assignment on the SharePoint Online service principal.
+- Grants the publisher Reader on one empty resource group, so the
+  `AzureCLI@2` task can select a subscription after it signs in.
+- Creates the `sc-sentinel-sharepoint` Azure Resource Manager service
+  connection in the ADO project with workload identity federation (manual
+  mode), scoped to that subscription, and reads back the issuer and subject
+  ADO assigned.
+- Adds the federated credential (issuer, subject, audience
+  `api://AzureADTokenExchange`) to the app.
+- Optionally authorises `Sentinel-Documenter` to use the connection and
+  writes `sharePointSiteUrl` into the `sentinel-deployment` variable group.
+- Supports `-WhatIf`; every step checks before it changes anything, so
+  re-running after a partial failure finishes the job.
+
+### Prerequisites
+
+- Signed in with `Connect-AzAccount` as a user who can create app
+  registrations and grant admin consent in Entra ID (Application
+  Administrator plus Privileged Role Administrator, or Global
+  Administrator), assign roles on the resource group, and create service
+  connections in the ADO project. Microsoft Graph sign-in is prompted when
+  needed (`Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`).
+- The Azure account is a member of the ADO organisation, or a personal
+  access token is passed with `-AdoPersonalAccessToken`.
+- An existing, preferably empty, resource group for the Reader grant.
+- Modules: Az.Accounts, Az.Resources, Microsoft.Graph.Applications
+  (auto-installed when missing).
+
+### Parameter Reference
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `-AdoOrganizationUrl` | Yes | The organisation, for example `https://dev.azure.com/contoso`. |
+| `-AdoProject` | Yes | The project that holds the Documenter pipeline. |
+| `-SubscriptionId` | Yes | Subscription the connection is scoped to. |
+| `-ReaderResourceGroup` | Yes | Existing resource group the publisher gets Reader on. |
+| `-ServiceConnectionName` | No | Defaults to `sc-sentinel-sharepoint`, what the pipeline expects. |
+| `-PublisherAppName` | No | Display name of the app to find or create. Default `Sentinel Documenter SharePoint publisher`. |
+| `-PublisherAppId` | No | Use an existing app registration instead of creating one. |
+| `-SharePointSiteUrl` | No | Written to `sharePointSiteUrl` in the variable group. |
+| `-VariableGroupName` | No | Defaults to `sentinel-deployment`. |
+| `-AuthorizePipeline` | No | Pipeline to authorise for the connection. Default `Sentinel-Documenter`; empty string skips. |
+| `-AdoPersonalAccessToken` | No | SecureString PAT when the Azure account is not an organisation member. |
+| `-WhatIf` | No | Print every change without making it. |
+
+### Usage Examples
+
+#### Preview everything first
+
+```powershell
+./Deploy/setup/Setup-SharePointPublisher.ps1 `
+    -AdoOrganizationUrl 'https://dev.azure.com/contoso' `
+    -AdoProject 'sentinel-as-code' `
+    -SubscriptionId '00000000-0000-0000-0000-000000000000' `
+    -ReaderResourceGroup 'rg-sentinel-publisher' `
+    -SharePointSiteUrl 'https://contoso.sharepoint.com/sites/isoc-blueprint' `
+    -WhatIf
+```
+
+#### Create the lot
+
+```powershell
+./Deploy/setup/Setup-SharePointPublisher.ps1 `
+    -AdoOrganizationUrl 'https://dev.azure.com/contoso' `
+    -AdoProject 'sentinel-as-code' `
+    -SubscriptionId '00000000-0000-0000-0000-000000000000' `
+    -ReaderResourceGroup 'rg-sentinel-publisher' `
+    -SharePointSiteUrl 'https://contoso.sharepoint.com/sites/isoc-blueprint'
+```
+
+### How It Works
+
+1. Verifies the Azure context, switches to the subscription and connects
+   to Microsoft Graph with the two application scopes.
+2. Looks the app up by `-PublisherAppId` or display name; creates it with
+   `New-MgApplication` (single tenant) and its service principal when
+   absent.
+3. Adds SharePoint Online (`00000003-0000-0ff1-ce00-000000000000`) role
+   `Sites.Selected` (`20d37865-089c-4dee-8c41-6967602d4ac8`) to the app's
+   required permissions and creates the app role assignment that is admin
+   consent.
+4. Assigns Reader on the resource group with `New-AzRoleAssignment`.
+5. Calls the ADO REST API: looks the project up, creates the `azurerm`
+   endpoint with `authorization.scheme = WorkloadIdentityFederation`,
+   `creationMode = Manual` and subscription scope, then reads
+   `workloadIdentityFederationIssuer` and `workloadIdentityFederationSubject`
+   back (falling back to `https://vstoken.dev.azure.com/<org id>` and
+   `sc://<org>/<project>/<name>` when the API does not return them).
+6. Adds the federated credential with `New-MgApplicationFederatedIdentityCredential`.
+7. Authorises the pipeline through the `pipelinepermissions` API and
+   updates the variable group, when asked.
+
+What it leaves to you: clicking Verify on the connection, and preparing
+the site with `Initialize-SentinelDocsSite.ps1`, which grants this app
+FullControl on that one site. See
+[Sentinel SharePoint Site](../Tools/Documenter/Sentinel-SharePoint-Site.md#setting-it-up).
 
 ## Deploy-SentinelContentHub.ps1
 

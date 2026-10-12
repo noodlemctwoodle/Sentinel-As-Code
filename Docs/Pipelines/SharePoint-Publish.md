@@ -153,6 +153,10 @@ SharePoint token.
 
 ### The publisher app registration
 
+For Azure DevOps, [`Deploy/setup/Setup-SharePointPublisher.ps1`](../Deploy/Scripts.md#setup-sharepointpublisherps1)
+creates the app, its permission and consent, the service connection and the
+federated credential in one run. The requirements it satisfies:
+
 One app registration (or one per platform, if you prefer) with:
 
 - **SharePoint** application permission `Sites.Selected`, admin consented.

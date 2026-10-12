@@ -174,10 +174,12 @@ them need the `sc-sentinel-as-code` service connection:
   (pure document conversion). The SharePoint stage uses its **own**
   service connection, `sc-sentinel-sharepoint`, for a separate publisher
   identity that can write to one SharePoint site and nothing in Azure.
-  Create that connection with Steps 1-4 against the publisher app, scoped
-  to a management group; see
-  [SharePoint Publish](../Pipelines/SharePoint-Publish.md). Until it
-  exists, leave the SharePoint tick box clear.
+  `Deploy/setup/Setup-SharePointPublisher.ps1` creates the publisher
+  app, its SharePoint permission, that connection and the federated
+  credential in one run (see
+  [Scripts.md](Scripts.md#setup-sharepointpublisherps1)); Steps 1-4 by
+  hand against the publisher app give the same result. Until the
+  connection exists, leave the SharePoint tick box clear.
 
 Once Verify passes, register all six (in this order to keep the
 blast radius growing gradually):
