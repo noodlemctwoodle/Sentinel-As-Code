@@ -44,7 +44,7 @@ in its default `-Toc Baked` mode. See the tool page for how that works.
 ## Running it
 
 Queue the Documenter (**Pipelines -> Sentinel-Documenter -> Run pipeline**)
-and tick **Word report**. Leave **Charts: pre-render Mermaid to PNG** on: the
+and tick **Export: Word report**. Leave **Charts: Mermaid to PNG** on: the
 Word report pulls the chart images from `assets/`, and pandoc drops Mermaid
 fences, so with pre-rendering off the stage warns and the report carries no
 charts. Any mixture of the three outputs (Markdown pull request, Word

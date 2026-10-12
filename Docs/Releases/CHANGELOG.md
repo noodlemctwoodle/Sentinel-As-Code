@@ -24,12 +24,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
   SharePoint workflow still pre-renders.
 - **Tidier Documenter run panel** - the queue-time options of
-  `Pipelines/Sentinel-Documenter.yml` now read as groups (`Pull request:`,
-  `Word report:`, `SharePoint site:`, `Charts:`, `Collector:`, `Maturity:`)
-  with one-line labels, tick boxes first and the two inputs last. The
-  first box is labelled as the pull request it controls: the Markdown
-  pack is rendered on every run because the other outputs are built from
-  it. The
+  `Pipelines/Sentinel-Documenter.yml` now read as groups with one-line
+  labels: the three exports first and side by side (`Export: SharePoint
+  site`, `Export: Markdown`, `Export: Word report`, any combination), then
+  the `SharePoint:` options, `Charts:`, `Collector:` and `Maturity:`. The
+  Markdown export is the review pull request; the Markdown itself is
+  rendered on every run because the other exports are built from it. The
   playbook resource group field is no longer marked Required, which had
   disabled Next: its default is now a single space, which the collector
   step trims, and left blank it falls back to the Sentinel RG

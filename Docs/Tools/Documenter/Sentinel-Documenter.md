@@ -212,13 +212,13 @@ the **ADO repo only**, never GitHub.
 
 > Pipelines → **Sentinel Documenter** → Run pipeline → optionally tick
 > *Collector: include preview APIs*. To skip the PR step and get only the
-> artefact, untick *Pull request: open or refresh the docs review PR*. The
+> artefact, untick *Export: Markdown (docs pull request in this repo)*. The
 > Markdown is rendered either way: the artefact, the Word report and the
 > SharePoint site are all built from it.
 
 The run-pipeline panel exposes three further parameters:
 
-- *Charts: pre-render Mermaid to PNG* (`prerenderChartsToPng`, **default ON**):
+- *Charts: Mermaid to PNG* (`prerenderChartsToPng`, **default ON**):
   ADO Repos and wiki render `mermaid` fences as plain code and block inline SVG,
   so the pipeline installs `@mermaid-js/mermaid-cli` and converts each fenced chart
   to a PNG via `Convert-MermaidToImage.ps1`. This step is ADO-only; the GitHub

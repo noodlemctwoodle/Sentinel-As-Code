@@ -119,7 +119,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.1.1
+    Version:        0.1.2
     Last Updated:   2026-10-12
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
@@ -453,5 +453,5 @@ Write-Host "     ./Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1 `
 Write-Host "         -SiteUrl '$(if ($SharePointSiteUrl) { $SharePointSiteUrl } else { '<site url>' })' -Owner '<owner upn>' ``" -ForegroundColor White
 Write-Host "         -PublisherAppId '$appId' -ClientId '<your PnP sign-in app id>' -Tenant '<tenant>.onmicrosoft.com' -WhatIf" -ForegroundColor White
 Write-Host ""
-Write-Host "  3. Queue Sentinel-Documenter with 'SharePoint site' and its what-if ticked, read the plan, then run it for real."
+Write-Host "  3. Queue Sentinel-Documenter with 'Export: SharePoint site' and 'SharePoint: what-if' ticked, read the plan, then run it again without what-if."
 Write-Host ""

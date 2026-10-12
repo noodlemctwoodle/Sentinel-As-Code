@@ -241,7 +241,7 @@ The `WordReport` stage of
 [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml)
 runs on `ubuntu-latest` after the `Document` stage and renders that run's
 artefact. To run it: **Pipelines -> Sentinel-Documenter -> Run pipeline**,
-tick **Word report** (and leave the Mermaid pre-render on), then download
+tick **Export: Word report** (and leave **Charts** on), then download
 the artefact from **Build summary -> Published artefacts ->
 `sentinel-word-report`**. See [Word-Report.md](../../Pipelines/Word-Report.md).
 

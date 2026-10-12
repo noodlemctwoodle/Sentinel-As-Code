@@ -173,14 +173,16 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
 ### Parameters (queue-time)
 
 The run panel lists them in this order. It has no headings, so each label
-starts with its group (`Pull request:`, `Word report:`, `SharePoint site:`,
-`Charts:`, `Collector:`, `Maturity:`).
+starts with its group (`Export:`, `SharePoint:`, `Charts:`, `Collector:`,
+`Maturity:`). The three exports (SharePoint site, Markdown, Word report) can
+be ticked in any combination; with none ticked the run still collects,
+renders and keeps the `sentinel-docs` artefact.
 
 | Parameter | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `openPullRequest` | boolean | `true` | Condition on the "Push docs branch and open / refresh PR" step. Only the pull request: the Markdown pack is rendered and published as the `sentinel-docs` artefact on every run, because the Word report and the SharePoint site are built from it. |
-| `publishWordReport` | boolean | `false` | Word report: includes the `WordReport` stage (compile-time `${{ if }}`), which renders the run's artefact to a `.docx`. See [Word-Report.md](Word-Report.md). |
 | `publishSharePointSite` | boolean | `false` | SharePoint site: includes the `SharePoint` stage, which builds the site bundle from the run's artefact and publishes it. See [SharePoint-Publish.md](SharePoint-Publish.md). |
+| `openPullRequest` | boolean | `true` | The Markdown export: condition on the "Push docs branch and open / refresh PR" step, which commits the pack to a rolling branch and opens a review-only pull request. The Markdown is rendered and kept as the `sentinel-docs` artefact on every run either way, because the Word report and the SharePoint site are built from it. |
+| `publishWordReport` | boolean | `false` | Word report: includes the `WordReport` stage (compile-time `${{ if }}`), which renders the run's artefact to a `.docx`. See [Word-Report.md](Word-Report.md). |
 | `sharePointWhatIf` | boolean | `false` | SharePoint stage: sign in, read the site and print the plan; change nothing. Compiled to the `flagWhatIf` variable. |
 | `deployAppPackage` | boolean | `true` | SharePoint stage: deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
 | `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG. GitHub renders Mermaid natively and has no equivalent. |
