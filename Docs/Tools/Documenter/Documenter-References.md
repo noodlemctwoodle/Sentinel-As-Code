@@ -80,9 +80,12 @@ anywhere in `Export-SentinelInventory.ps1`. The only Az cmdlets it actually invo
 - `Invoke-AzOperationalInsightsQuery` (from `Az.OperationalInsights`, used **only** to run the KQL queries below, not for inventory reads)
 - `Invoke-AzRestMethod -Uri https://graph.microsoft.com/beta/security/rules/detectionRules` for the
   `defender-custom-detections` capture (Defender XDR custom detection rules, paged on
-  `@odata.nextLink`). Needs the Microsoft Graph application permission `CustomDetection.Read.All`;
-  a 401 or 403 is recorded as a failed capture, not as an empty list. The companion
-  `custom-detection-table-references` file is derived locally with `Resolve-KqlTableNames`.
+  `@odata.nextLink`), through `Private/Get-DefenderCustomDetections.ps1`. A Graph PowerShell SDK
+  session (`Connect-MgGraph -Scopes 'CustomDetection.Read.All'`, `Invoke-MgGraphRequest`) is used
+  when one exists, otherwise the Azure PowerShell context, which needs the application permission
+  `CustomDetection.Read.All`; a 401 or 403 is recorded as a failed capture, not as an empty list.
+  The companion `custom-detection-table-references` file is derived locally with
+  `Resolve-KqlTableNames`.
 - `Get-AzureRetailPrice` (repo-local helper in `Private/Get-AzureRetailPrice.ps1`)
 
 The `Az.SecurityInsights` / `Az.OperationalInsights` / `Az.Monitor` pins therefore exist for

@@ -357,9 +357,12 @@ result.
 Detection coverage (the estate flow, the table-coverage view on page 81,
 page 28 and rule SAC-MON-05) counts enabled Sentinel analytics rules and
 enabled Defender XDR custom detections that read a table. Custom detections
-come from Microsoft Graph (`beta/security/rules/detectionRules`), which
-needs the `CustomDetection.Read.All` application permission on the
-collector's identity; without it the capture is recorded as not taken, the
+come from Microsoft Graph (`beta/security/rules/detectionRules`). The
+pipeline identity needs the `CustomDetection.Read.All` application
+permission; for an interactive run, sign in to the Graph PowerShell SDK
+first (`Connect-MgGraph -Scopes 'CustomDetection.Read.All'`) and the capture
+uses that session, because Azure PowerShell's own app cannot request that
+delegated scope. Without either, the capture is recorded as not taken, the
 pages say so and coverage counts Sentinel rules only. Product alerts raised
 inside Defender XDR, Entra ID Protection, Defender for Identity or Defender
 for Cloud never read workspace tables, so they are shown per source family

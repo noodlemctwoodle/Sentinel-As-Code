@@ -159,6 +159,7 @@ workbook-export suites.
 | Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
 | Documenter table references | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
 | Documenter maturity engine | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
+| Documenter custom detections | [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (imports `Sentinel.Common`) |
 | Documenter lake tiers | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
@@ -607,6 +608,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
 | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, offline bundle build | 70 |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
+| [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
 | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
 | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards | 32 |
 

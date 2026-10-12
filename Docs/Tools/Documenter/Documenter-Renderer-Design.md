@@ -398,6 +398,8 @@ assets root).
 | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (32 tests) |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
+| [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
+| [`Tools/Documenter/Private/Get-DefenderCustomDetections.ps1`](../../../Tools/Documenter/Private/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | `Tests/Documenter/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 
