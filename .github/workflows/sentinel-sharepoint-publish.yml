@@ -2,7 +2,7 @@
 # GitHub Actions Workflow: Sentinel SharePoint Publish
 # ---------------------------------------------------------------------------
 # Publishes the iSOC Blueprint SharePoint site for one Sentinel workspace from
-# the Sentinel Documenter's output. Mirrors Pipelines/Sentinel-SharePoint-Publish.yml.
+# the Sentinel Documenter's output. Mirrors the SharePoint stage of Pipelines/Sentinel-Documenter.yml.
 #
 # Trigger: runs after every successful "Sentinel Documenter" run on main
 # (workflow_run), using that run's artefact, and on demand

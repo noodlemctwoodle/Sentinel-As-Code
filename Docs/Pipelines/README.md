@@ -19,17 +19,18 @@ specific pipeline.
 | Deploy | Main end-to-end deploy: Bicep infra, Content Hub solutions, custom content, and Defender XDR custom detections | [Deploy.md](Deploy.md) |
 | Deploy Nightly | **GitHub-only** nightly E2E smoke test that provisions and tears down the throwaway `Infra/test-workspace/` workspace | [Deploy-Nightly.md](Deploy-Nightly.md) |
 | Drift-Detect | Detect rules edited in the portal and auto-PR the drift back into the repo (report-only runs never open a PR) | [Drift-Detect.md](Drift-Detect.md) |
-| Documenter | Snapshot the live Sentinel workspace to Markdown (requires a private repository) | [Documenter.md](Documenter.md) |
+| Documenter | Snapshot the live Sentinel workspace to Markdown (requires a private repository); on ADO also the Word report and SharePoint site as tick boxes | [Documenter.md](Documenter.md) |
 | Dependency Update | Keep [`dependencies.json`](../../dependencies.json) in sync with the content tree and auto-PR any drift | [Dependency-Update.md](Dependency-Update.md) |
 | DCR Inventory | Deploy the DCR-watchlist sync automation account, runbook, and schedule | [DCR-Inventory.md](DCR-Inventory.md) |
-| Word Report | **ADO-only** render of the Documenter Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Word-Report.md) |
-| SharePoint Publish | Publish the generated iSOC Blueprint SharePoint site after every Documenter run (requires a private repository) | [SharePoint-Publish.md](SharePoint-Publish.md) |
+| Word Report | **ADO-only** stage of the Documenter that renders the Markdown into a styled `.docx` via pandoc and LibreOffice | [Word-Report.md](Word-Report.md) |
+| SharePoint Publish | Publish the generated iSOC Blueprint SharePoint site: a stage of the Documenter run on ADO, a chained workflow on GitHub (requires a private repository) | [SharePoint-Publish.md](SharePoint-Publish.md) |
 
 ## GitHub <-> ADO Parity
 
-Seven of the eight ADO pipelines have a GitHub workflow mirror. Three workflows
-break the symmetry (one ADO-only, two GitHub-only), so the two sets are **not**
-a clean one-to-one mapping.
+Every ADO pipeline has a GitHub workflow mirror, but the two sets are
+**not** a clean one-to-one mapping: two workflows are GitHub-only, the
+SharePoint publish is a stage of the Documenter on ADO and a separate
+workflow on GitHub, and the Word report is an ADO-only stage.
 
 | ADO pipeline (`Pipelines/`) | GitHub workflow (`.github/workflows/`) |
 | --- | --- |
@@ -39,8 +40,8 @@ a clean one-to-one mapping.
 | `Sentinel-DCR-Inventory.yml` | `sentinel-dcr-inventory.yml` |
 | `Sentinel-Dependency-Update.yml` | `sentinel-dependency-update.yml` |
 | `Sentinel-Documenter.yml` | `sentinel-document.yml` |
-| `Sentinel-SharePoint-Publish.yml` | `sentinel-sharepoint-publish.yml` |
-| `Sentinel-Word-Report.yml` | *(ADO-only, no GitHub equivalent)* |
+| `Sentinel-Documenter.yml` (`SharePoint` stage) | `sentinel-sharepoint-publish.yml` |
+| `Sentinel-Documenter.yml` (`WordReport` stage) | *(ADO-only, no GitHub equivalent)* |
 | *(GitHub-only, no ADO equivalent)* | `sentinel-deploy-nightly.yml` |
 | *(GitHub-only, no ADO equivalent)* | `pr-template-validation.yml` |
 
@@ -56,18 +57,20 @@ Asymmetries worth knowing:
   (the `template` status check). The PR body arrives in the Actions event
   payload, which has no ADO build-validation equivalent. See
   [PR-Template-Validation.md](PR-Template-Validation.md).
-- [`Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml)
-  is **ADO-only** - the pandoc plus LibreOffice `.docx` render of the
-  Documenter Markdown. There is no `*word*` workflow under
-  `.github/workflows/`. See [Word-Report.md](Word-Report.md).
+- The **Word report** is **ADO-only** - the `WordReport` stage of
+  [`Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml),
+  the pandoc plus LibreOffice `.docx` render of the Documenter Markdown.
+  There is no `*word*` workflow under `.github/workflows/`. See
+  [Word-Report.md](Word-Report.md).
 - The **Documenter** pair diverges on schedule: the GitHub workflow
   (`sentinel-document.yml`) runs on a daily cron plus `workflow_dispatch`,
   whereas the ADO pipeline (`Sentinel-Documenter.yml`) is manual-trigger-only
   for now. See [Documenter.md](Documenter.md).
-- The **SharePoint Publish** pair has no schedule of its own on either
-  platform: it runs after each successful Documenter run (a pipeline
-  resource trigger on ADO, `workflow_run` on GitHub). See
-  [SharePoint-Publish.md](SharePoint-Publish.md).
+- The **SharePoint publish** has no schedule of its own on either
+  platform. On ADO it is the `SharePoint` stage of the Documenter run,
+  ticked at queue time alongside the Markdown pull request and the Word
+  report; on GitHub it is a separate workflow chained with `workflow_run`.
+  See [SharePoint-Publish.md](SharePoint-Publish.md).
 
 ## Shared Concepts
 

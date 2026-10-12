@@ -86,8 +86,8 @@ the index for the GitHub/ADO parity map, then the per-pipeline pages.
 | [Documenter](Pipelines/Documenter.md) | CI/CD wiring for the Sentinel Documenter (daily on GitHub, manual-trigger-only on ADO) |
 | [Dependency Update](Pipelines/Dependency-Update.md) | Daily `dependencies.json` drift check and auto-PR |
 | [DCR Inventory](Pipelines/DCR-Inventory.md) | CI/CD wiring for the DCR-watchlist sync automation account and runbook |
-| [Word Report](Pipelines/Word-Report.md) | ADO-only pipeline that renders the Documenter Markdown pack into a page-numbered Word `.docx` |
-| [SharePoint Publish](Pipelines/SharePoint-Publish.md) | Publishes the generated iSOC Blueprint SharePoint site after every Documenter run, on both CI systems |
+| [Word Report](Pipelines/Word-Report.md) | ADO-only stage of the Documenter that renders the Documenter Markdown pack into a page-numbered Word `.docx` |
+| [SharePoint Publish](Pipelines/SharePoint-Publish.md) | Publishes the generated iSOC Blueprint SharePoint site: a tick box on the ADO Documenter run, a chained workflow on GitHub, after every Documenter run, on both CI systems |
 
 ## Tests - `Tests/`
 

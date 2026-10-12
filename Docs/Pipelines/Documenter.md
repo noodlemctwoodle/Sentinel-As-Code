@@ -5,6 +5,13 @@ CI/CD wiring for the Sentinel Documenter across both CI systems:
 - GitHub Actions: [`.github/workflows/sentinel-document.yml`](../../.github/workflows/sentinel-document.yml)
 - Azure DevOps: [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml)
 
+On Azure DevOps the one pipeline carries all three documentation outputs as
+tick boxes at queue time: the Markdown pack as a review-only pull request,
+the Word report, and the SharePoint site, in any mixture. GitHub keeps the
+SharePoint publish as a separate chained workflow
+([SharePoint-Publish.md](SharePoint-Publish.md)) and has no Word report
+([Word-Report.md](Word-Report.md)).
+
 This page covers **pipeline mechanics** only: triggers, inputs, jobs and
 steps, the secrets and variables consumed, authentication, artefacts, and
 the GitHub / ADO mapping. For what the invoked collector and renderer
@@ -168,7 +175,11 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
 | Parameter | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `includePreview` | boolean | `false` | Compiled to the `flagIncludePreview` variable (`-IncludePreview` or empty), passed to the collector. |
-| `openPullRequest` | boolean | `true` | Condition on the "Push docs branch and open / refresh PR" step. |
+| `openPullRequest` | boolean | `true` | Markdown pack: condition on the "Push docs branch and open / refresh PR" step. |
+| `publishWordReport` | boolean | `false` | Word report: includes the `WordReport` stage (compile-time `${{ if }}`), which renders the run's artefact to a `.docx`. See [Word-Report.md](Word-Report.md). |
+| `publishSharePointSite` | boolean | `false` | SharePoint site: includes the `SharePoint` stage, which builds the site bundle from the run's artefact and publishes it. See [SharePoint-Publish.md](SharePoint-Publish.md). |
+| `sharePointWhatIf` | boolean | `false` | SharePoint stage: sign in, read the site and print the plan; change nothing. Compiled to the `flagWhatIf` variable. |
+| `deployAppPackage` | boolean | `true` | SharePoint stage: deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
 | `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG. GitHub renders Mermaid natively and has no equivalent. |
 | `playbookResourceGroup` | string | `""` | Optional override; when set, passed to the collector as `-PlaybookResourceGroup`. Blank means enumerate playbooks from the workspace RG. |
 | `targetMaturityLevel` | number (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against. |
@@ -186,6 +197,13 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
   `includePreview` parameter).
 - `docsBranch: auto/sentinel-docs/$(sentinelWorkspaceName)`,
   `targetBranch: main` (bot-managed, not hand-edited).
+- `docsRoot: $(Pipeline.Workspace)/sentinel-docs`: where the two publish
+  stages find this run's artefact after `download: current`.
+- `pandocVersion: 3.10` (Word report stage).
+- `sharePointServiceConnection: sc-sentinel-sharepoint`, `pnpVersion: 3.4.1`,
+  `nodeVersion: 22.x`, `mermaidCliVersion: 11`, `npm_config_cache`,
+  `webPartDir`, and `flagWhatIf` (compile-time mapping of `sharePointWhatIf`)
+  for the SharePoint stage.
 
 ### Stage `Document` / job `Run`
 
@@ -222,6 +240,39 @@ Sentinel Reader and Log Analytics Reader (workspace scope), Reader
    `az repos pr create` / `az repos pr update` to open or refresh a
    review-only PR into `$(targetBranch)`.
 
+### Stage `WordReport` (only when `publishWordReport` is ticked)
+
+`dependsOn: Document`, `pool: ubuntu-latest`, `timeoutInMinutes: 30`, one
+job `Render`. Checks the repository out (`fetchDepth: 1`), downloads this
+run's `sentinel-docs` artefact (`download: current`), installs LibreOffice
+Writer, `python3-uno` and pandoc `$(pandocVersion)`, runs
+`Convert-MarkdownToWord.ps1` on `<docsRoot>/<workspace>` with the title
+`<workspace> - Sentinel Documentation` and `-Toc Baked`, verifies the baked
+table of contents, and publishes `<workspace>.docx` as the
+`sentinel-word-report` artefact. It warns when `prerenderChartsToPng` was
+off, because pandoc drops Mermaid fences and the report would carry no
+charts. No Azure sign-in. See [Word-Report.md](Word-Report.md).
+
+### Stage `SharePoint` (only when `publishSharePointSite` is ticked)
+
+`dependsOn: Document`, `pool: ubuntu-latest`, `timeoutInMinutes: 45`, one
+job `Publish`. Downloads this run's `sentinel-docs` artefact, checks that
+`<workspace>/_raw` is in it, builds the dashboard web part package (Node
+22, `npm ci`, `npm run package`), pre-renders any Mermaid still in the
+Markdown, installs PnP.PowerShell, builds the site bundle with
+`Build-SentinelDocsSite.ps1`, then signs in through the
+`sc-sentinel-sharepoint` service connection inside one `AzureCLI@2` task,
+requests a SharePoint token for the site's host and runs
+`Publish-SentinelDocsSite.ps1` (with `-WhatIf` when `sharePointWhatIf` is
+ticked, and the `.sppkg` path when `deployAppPackage` is). The bundle and
+package are kept as the `sharepoint-site` artefact even when the publish
+failed. See [SharePoint-Publish.md](SharePoint-Publish.md).
+
+Both publish stages run in parallel after `Document` and read the artefact
+that run produced, so a failed publish never costs a collection: use
+"Rerun failed stages" on the run page and it publishes the same snapshot
+again.
+
 ### Secrets and auth
 
 Authentication is the ADO **service connection** `sc-sentinel-as-code`
@@ -231,12 +282,20 @@ and Log Analytics Reader (workspace scope), Reader (resource-group scope),
 Monitoring Reader and Reader (subscription scope). The Azure Retail Prices
 API used for cost estimation is anonymous and needs no grant. The git push
 and PR calls use the pipeline's built-in `System.AccessToken`, not the
-service connection.
+service connection. The SharePoint stage signs in with its own connection,
+`sc-sentinel-sharepoint`, bound to the publisher app registration that holds
+SharePoint `Sites.Selected` with FullControl on the one site and no Azure
+role; the Word report stage signs in nowhere.
 
 ### Outputs
 
 - **Artefact** `sentinel-docs` (the `SecurityDocs/<workspace>/` tree).
   Always produced.
+- **Artefact** `sentinel-word-report` (`<workspace>.docx`) when
+  `publishWordReport` was ticked.
+- **Artefact** `sharepoint-site` (the bundle and the `.sppkg`) and the
+  **SharePoint site** updated in place, when `publishSharePointSite` was
+  ticked.
 - **Rolling PR** from `auto/sentinel-docs/<workspace>` into `main` in the
   private ADO repo, force-pushed each run. Default on, disable per-run
   with `openPullRequest: false`. Safe in ADO because the checkout sets
@@ -263,6 +322,8 @@ service connection.
 | Extra git guard | "Confirm `SecurityDocs/` is not git-tracked" step | None (origin is the private ADO repo) |
 | PR mechanism | `peter-evans/create-pull-request@v8` | `git push` + `az repos pr create` / `update` |
 | Artefact name | `sentinel-docs-<workspace>-<runId>` | `sentinel-docs` |
+| Word report | None | `publishWordReport` stage in the same run |
+| SharePoint site | Separate workflow `sentinel-sharepoint-publish.yml`, chained with `workflow_run` | `publishSharePointSite` stage in the same run |
 
 Both pipelines share the same rolling-branch convention
 (`auto/sentinel-docs/<workspace>`, force-pushed into `main`) and the same
@@ -278,7 +339,10 @@ permanently).
   gap analysis, and full topology options.
 - [Documenter Renderer Design](../Tools/Documenter/Documenter-Renderer-Design.md) -
   renderer internals and the chart / Mermaid-safety system.
-- [Pipelines overview](README.md) - the full set of seven ADO
-  pipelines and seven GitHub workflows, and where this one sits.
+- [Pipelines overview](README.md) - the full set of ADO pipelines and
+  GitHub workflows, and where this one sits.
+- [Word-Report.md](Word-Report.md) and
+  [SharePoint-Publish.md](SharePoint-Publish.md) - the two optional
+  stages of this pipeline on ADO.
 - [Sentinel Word Report](../Tools/Documenter/Sentinel-Word-Report.md) -
-  the ADO-only pipeline that renders the Documenter Markdown to `.docx`.
+  what the `.docx` converter does and how to run it locally.

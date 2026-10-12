@@ -11,9 +11,9 @@ API), so the document opens fully paginated with no "update fields" prompt.
 > takes that folder and renders it into a shareable `.docx`.
 
 > [!NOTE]
-> **This toolchain has an ADO pipeline only.** Unlike the Documenter (which has
-> both a GitHub Actions workflow and an Azure DevOps pipeline), the Word Report
-> is wired up as `Pipelines/Sentinel-Word-Report.yml` with **no GitHub mirror**.
+> **This toolchain runs on ADO only.** The Word report is the `WordReport`
+> stage of `Pipelines/Sentinel-Documenter.yml`, switched on by the
+> `publishWordReport` tick box at queue time, with **no GitHub mirror**.
 > The reason is practical: the page-numbered contents needs LibreOffice plus
 > `python3-uno` on the agent, which the Ubuntu ADO image installs cleanly, and
 > the Documenter Markdown it consumes is committed to the private ADO mirror in
@@ -56,8 +56,8 @@ Everything lives under
 | [`Convert-FolderToWordReport.ps1`](../../../Tools/Documenter/Report/Convert-FolderToWordReport.ps1) | A generic, sibling converter that renders *any* folder tree (JSON, CSV, code, logs, Markdown) into a single `.docx`. Handy for turning the Documenter's `_raw/` JSON snapshot into a browsable document. Not used by the pipeline. |
 | [`templates/sentinel-report-reference.docx`](../../../Tools/Documenter/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
-The pipeline that stitches these together is
-[`Pipelines/Sentinel-Word-Report.yml`](../../../Pipelines/Sentinel-Word-Report.yml).
+The stage that stitches these together lives in
+[`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml).
 
 ---
 
@@ -237,11 +237,13 @@ To turn the Documenter's raw JSON snapshot into a browsable document instead:
 
 ### Azure DevOps pipeline
 
-[`Pipelines/Sentinel-Word-Report.yml`](../../../Pipelines/Sentinel-Word-Report.yml)
-is **manual-only** (`trigger: none`, `pr: none`) and runs on `ubuntu-latest`. To run
-it: **Pipelines -> Sentinel Word Report -> Run pipeline**, adjust the parameters if
-they differ from the defaults, then download the artefact from **Build summary ->
-Published artefacts -> `sentinel-word-report`**.
+The `WordReport` stage of
+[`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml)
+runs on `ubuntu-latest` after the `Document` stage and renders that run's
+artefact. To run it: **Pipelines -> Sentinel-Documenter -> Run pipeline**,
+tick **Word report** (and leave the Mermaid pre-render on), then download
+the artefact from **Build summary -> Published artefacts ->
+`sentinel-word-report`**. See [Word-Report.md](../../Pipelines/Word-Report.md).
 
 | Parameter | Default | Purpose |
 |---|---|---|

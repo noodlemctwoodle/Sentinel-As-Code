@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **One Documenter pipeline on Azure DevOps, with a tick box per output** -
+  `Pipelines/Sentinel-Documenter.yml` now carries the three documentation
+  outputs as queue-time options that can be combined freely: the Markdown
+  pack as a review-only pull request (`openPullRequest`), the Word report
+  (`publishWordReport`, a new `WordReport` stage) and the iSOC Blueprint
+  SharePoint site (`publishSharePointSite`, a new `SharePoint` stage with
+  `sharePointWhatIf` and `deployAppPackage`). The two publish stages run
+  after `Document`, read the artefact of the same run and sign in with
+  their own identities, so a failed publish can be rerun without
+  collecting again. `Pipelines/Sentinel-SharePoint-Publish.yml` and
+  `Pipelines/Sentinel-Word-Report.yml` are removed; the GitHub SharePoint
+  workflow is unchanged.
 - **Sentinel health check folded into the Documenter and the iSOC Blueprint
   site** - the content of the Sentinel health-check script written by
   Lasitha R, who gave it to the project, now lands on the Documenter's own

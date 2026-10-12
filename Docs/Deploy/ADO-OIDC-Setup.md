@@ -159,7 +159,7 @@ working end-to-end. Red error = check that:
 
 ## Step 5: register the pipelines
 
-There are eight ADO pipeline YAMLs under `Pipelines/`. Not all of
+There are six ADO pipeline YAMLs under `Pipelines/`. Not all of
 them need the `sc-sentinel-as-code` service connection:
 
 - `Sentinel-PR-Validation.yml` and `Sentinel-Dependency-Update.yml`
@@ -169,28 +169,25 @@ them need the `sc-sentinel-as-code` service connection:
   `Sentinel-Deploy.yml`, and `Sentinel-Documenter.yml` all
   authenticate via `azureSubscription: $(serviceConnection)` and
   depend on the federation set up in Steps 1-4.
-- `Sentinel-Word-Report.yml` does no Azure authentication at all
-  (pure document conversion) but is still worth registering so the
-  full pipeline set is visible under Pipelines → All.
-- `Sentinel-SharePoint-Publish.yml` uses its **own** service connection,
-  `sc-sentinel-sharepoint`, for a separate publisher identity that can
-  write to one SharePoint site and nothing in Azure. Create it with
-  Steps 1-4 against that app, scoped to a management group; see
-  [SharePoint Publish](../Pipelines/SharePoint-Publish.md). Register it
-  after `Sentinel-Documenter.yml`, keeping the Documenter's registered
-  name, because its pipeline resource trigger refers to it by name.
+- `Sentinel-Documenter.yml` also carries two optional stages, ticked at
+  queue time. The Word report stage does no Azure authentication at all
+  (pure document conversion). The SharePoint stage uses its **own**
+  service connection, `sc-sentinel-sharepoint`, for a separate publisher
+  identity that can write to one SharePoint site and nothing in Azure.
+  Create that connection with Steps 1-4 against the publisher app, scoped
+  to a management group; see
+  [SharePoint Publish](../Pipelines/SharePoint-Publish.md). Until it
+  exists, leave the SharePoint tick box clear.
 
-Once Verify passes, register all eight (in this order to keep the
+Once Verify passes, register all six (in this order to keep the
 blast radius growing gradually):
 
 1. `Pipelines/Sentinel-PR-Validation.yml` (offline; safest test)
 2. `Pipelines/Sentinel-Dependency-Update.yml` (offline + Build Service git permissions)
-3. `Pipelines/Sentinel-Word-Report.yml` (no Azure auth; document conversion only)
-4. `Pipelines/Sentinel-DCR-Inventory.yml`
-5. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
-6. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow)
-7. `Pipelines/Sentinel-SharePoint-Publish.yml` (own service connection; run with What-if first)
-8. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
+3. `Pipelines/Sentinel-DCR-Inventory.yml`
+4. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
+5. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow; tick the SharePoint site with What-if first once `sc-sentinel-sharepoint` exists)
+6. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
 
 For each:
 
