@@ -1,9 +1,9 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "sentinel-navigator-client-side-solution",
+    "name": "isoc-blueprint-client-side-solution",
     "id": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
-    "version": "1.1.0.0",
+    "version": "1.2.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -27,14 +27,14 @@
     },
     "features": [
       {
-        "title": "sentinel-navigator Feature",
+        "title": "isoc-blueprint Feature",
         "description": "Activates the Sentinel workspace dashboard web part.",
         "id": "9263dd27-c9d1-46fa-9f98-8afa37475bb2",
-        "version": "1.1.0.0"
+        "version": "1.2.0.0"
       }
     ]
   },
   "paths": {
-    "zippedPackage": "solution/sentinel-navigator.sppkg"
+    "zippedPackage": "solution/isoc-blueprint.sppkg"
   }
 }

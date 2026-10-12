@@ -211,7 +211,7 @@ variables:
   - name: npm_config_cache
     value: "$(Pipeline.Workspace)/.npm"
   - name: webPartDir
-    value: "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/webpart/sentinel-navigator"
+    value: "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/webpart/isoc-blueprint"
   - name: flagWhatIf
     ${{ if eq(parameters.sharePointWhatIf, true) }}:
       value: "-WhatIf"
@@ -622,7 +622,7 @@ stages:
   # this run's artefact. Included only when 'publishSharePointSite' is
   # ticked. Steps:
   #   1. Download this run's 'sentinel-docs' artefact.
-  #   2. Build the dashboard web part package (sentinel-navigator.sppkg).
+  #   2. Build the dashboard web part package (isoc-blueprint.sppkg).
   #   3. Build the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
   #      page per section, findings. Nothing here renders Mermaid: the
   #      dashboard draws its own charts, and the section pages carry a
@@ -680,7 +680,7 @@ stages:
             - task: Cache@2
               displayName: "Cache npm"
               inputs:
-                key: 'npm | "$(Agent.OS)" | Tools/Documenter/SharePoint/webpart/sentinel-navigator/package-lock.json'
+                key: 'npm | "$(Agent.OS)" | Tools/Documenter/SharePoint/webpart/isoc-blueprint/package-lock.json'
                 restoreKeys: |
                   npm | "$(Agent.OS)"
                 path: $(npm_config_cache)
@@ -697,7 +697,7 @@ stages:
                   if ($LASTEXITCODE -ne 0) { throw "npm ci failed ($LASTEXITCODE)" }
                   npm run package
                   if ($LASTEXITCODE -ne 0) { throw "npm run package failed ($LASTEXITCODE)" }
-                  $pkg = Join-Path (Get-Location) 'sharepoint/solution/sentinel-navigator.sppkg'
+                  $pkg = Join-Path (Get-Location) 'sharepoint/solution/isoc-blueprint.sppkg'
                   if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
                   Write-Host "##[section]Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
 
@@ -749,7 +749,7 @@ stages:
                       AccessToken = $token
                   }
                   if ('${{ parameters.deployAppPackage }}' -eq 'True') {
-                      $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+                      $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
                   }
                   & "$(Build.SourcesDirectory)/Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1" @publish $(flagWhatIf)
 
@@ -768,7 +768,7 @@ stages:
                   New-Item -ItemType Directory -Path $dst -Force | Out-Null
                   $bundle = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
                   if (Test-Path $bundle) { Copy-Item -Path "$bundle/*" -Destination $dst -Recurse -Force }
-                  $pkg = "$(webPartDir)/sharepoint/solution/sentinel-navigator.sppkg"
+                  $pkg = "$(webPartDir)/sharepoint/solution/isoc-blueprint.sppkg"
                   if (Test-Path $pkg) { Copy-Item $pkg $dst }
 
             - task: PublishPipelineArtifact@1

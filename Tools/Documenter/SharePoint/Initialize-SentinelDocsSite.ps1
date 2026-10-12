@@ -67,7 +67,7 @@
     derived from -SiteUrl.
 
 .PARAMETER AppPackagePath
-    Optional path to sentinel-navigator.sppkg to deploy now.
+    Optional path to isoc-blueprint.sppkg to deploy now.
 
 .EXAMPLE
     ./Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1 `

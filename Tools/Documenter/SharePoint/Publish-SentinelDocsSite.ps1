@@ -68,7 +68,7 @@
     Tenant for interactive sign-in, for example contoso.onmicrosoft.com.
 
 .PARAMETER AppPackagePath
-    Path to sentinel-navigator.sppkg. When given, the package is deployed
+    Path to isoc-blueprint.sppkg. When given, the package is deployed
     to the site collection app catalog if its version differs from the one
     already there. When omitted, the deployed package is used as-is.
 
@@ -90,7 +90,7 @@
 .EXAMPLE
     ./Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1 `
         -SiteUrl $env:SHAREPOINT_SITE_URL -Bundle $bundle `
-        -AccessToken $token -AppPackagePath ./sentinel-navigator.sppkg
+        -AccessToken $token -AppPackagePath ./isoc-blueprint.sppkg
 
     What the pipelines run.
 

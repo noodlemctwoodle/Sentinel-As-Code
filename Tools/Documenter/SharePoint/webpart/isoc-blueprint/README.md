@@ -25,7 +25,7 @@ npm ci
 npm run package
 ```
 
-The package lands at `sharepoint/solution/sentinel-navigator.sppkg`.
+The package lands at `sharepoint/solution/isoc-blueprint.sppkg`.
 `npm run package` cleans first, so the package never carries stale bundles
 from earlier builds. `.npmrc` pins the public npm registry so the lockfile
 resolves the same way everywhere.

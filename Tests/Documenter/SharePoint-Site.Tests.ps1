@@ -375,14 +375,14 @@ Describe 'SharePoint helpers' {
         New-Item -ItemType Directory -Path $dir | Out-Null
         try {
             $src = Join-Path $dir 'src'; New-Item -ItemType Directory -Path $src | Out-Null
-            Set-Content -Path (Join-Path $src 'AppManifest.xml') -Value '<?xml version="1.0" encoding="utf-8"?><App xmlns="http://schemas.microsoft.com/sharepoint/2012/app/manifest" Name="sentinel-navigator" ProductID="{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}" Version="1.1.0.0"><Properties><Title>sentinel-navigator-client-side-solution</Title></Properties></App>'
+            Set-Content -Path (Join-Path $src 'AppManifest.xml') -Value '<?xml version="1.0" encoding="utf-8"?><App xmlns="http://schemas.microsoft.com/sharepoint/2012/app/manifest" Name="isoc-blueprint" ProductID="{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}" Version="1.1.0.0"><Properties><Title>isoc-blueprint-client-side-solution</Title></Properties></App>'
             $pkg = Join-Path $dir 'test.sppkg'
             Compress-Archive -Path (Join-Path $src '*') -DestinationPath "$pkg.zip"
             Move-Item "$pkg.zip" $pkg
             $info = Get-SacAppPackageInfo -Path $pkg
             $info.ProductId | Should -Be '7f7eb9c2-a720-45f1-ab47-7772da011e1d'
             $info.Version | Should -Be '1.1.0.0'
-            $info.Title | Should -Be 'sentinel-navigator-client-side-solution'
+            $info.Title | Should -Be 'isoc-blueprint-client-side-solution'
         }
         finally { Remove-Item $dir -Recurse -Force }
     }

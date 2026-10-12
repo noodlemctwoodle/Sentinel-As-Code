@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
   "id": "a2fd5aa3-01c5-431e-8c98-66f76c89803a",
-  "alias": "SentinelNavigatorWebPart",
+  "alias": "IsocBlueprintWebPart",
   "componentType": "WebPart",
 
   // The "*" signifies that the version should be taken from the package.json

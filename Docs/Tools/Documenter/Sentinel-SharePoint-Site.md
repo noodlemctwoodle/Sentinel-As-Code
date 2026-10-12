@@ -51,7 +51,7 @@ All under [`Tools/Documenter/SharePoint/`](../../../Tools/Documenter/SharePoint)
 | [`Publish-SentinelDocsSite.ps1`](../../../Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | [`Initialize-SentinelDocsSite.ps1`](../../../Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/sharepoint-dashboard.html`](../../../Tools/Documenter/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
-| [`webpart/sentinel-navigator/`](../../../Tools/Documenter/SharePoint/webpart/sentinel-navigator) | The SPFx web part that hosts the dashboard on the home page. See its [README](../../../Tools/Documenter/SharePoint/webpart/sentinel-navigator/README.md). |
+| [`webpart/isoc-blueprint/`](../../../Tools/Documenter/SharePoint/webpart/isoc-blueprint) | The SPFx web part that hosts the dashboard on the home page. See its [README](../../../Tools/Documenter/SharePoint/webpart/isoc-blueprint/README.md). |
 | `Private/` | Section families, Markdown-to-page conversion, the sync planners and the PnP wrappers. |
 
 ### The bundle
@@ -276,7 +276,7 @@ From the repository root, against a downloaded Documenter artefact:
 
 The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its
-[README](../../../Tools/Documenter/SharePoint/webpart/sentinel-navigator/README.md).
+[README](../../../Tools/Documenter/SharePoint/webpart/isoc-blueprint/README.md).
 
 ## Privacy
 

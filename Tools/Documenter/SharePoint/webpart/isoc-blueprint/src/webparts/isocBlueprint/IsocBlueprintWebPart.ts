@@ -6,15 +6,15 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
-import * as strings from 'SentinelNavigatorWebPartStrings';
+import * as strings from 'IsocBlueprintWebPartStrings';
 
-export interface ISentinelNavigatorWebPartProps {
+export interface IIsocBlueprintWebPartProps {
   fileRelativeUrl: string;
 }
 
 const DEFAULT_FILE: string = 'DocumenterAssets/dashboard/index.html';
 
-export default class SentinelNavigatorWebPart extends BaseClientSideWebPart<ISentinelNavigatorWebPartProps> {
+export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlueprintWebPartProps> {
 
   private _onWindowResize: (() => void) | undefined;
   private _resizeObserver: ResizeObserver | undefined;

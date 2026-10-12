@@ -12,7 +12,7 @@
 #
 # What it does:
 #   1. Downloads the Documenter run's 'sentinel-docs-<ws>-<runId>' artefact.
-#   2. Builds the dashboard web part package (sentinel-navigator.sppkg).
+#   2. Builds the dashboard web part package (isoc-blueprint.sppkg).
 #   3. Pre-renders the Mermaid diagrams (the GitHub Documenter leaves them as
 #      fences, since GitHub renders Mermaid natively; SharePoint does not).
 #   4. Builds the site bundle (Build-SentinelDocsSite.ps1).
@@ -87,7 +87,7 @@ env:
   PNP_VERSION:         "3.4.1"
   NODE_VERSION:        "22"
   MERMAID_CLI_VERSION: "11"
-  WEB_PART_DIR:        Tools/Documenter/SharePoint/webpart/sentinel-navigator
+  WEB_PART_DIR:        Tools/Documenter/SharePoint/webpart/isoc-blueprint
 
 jobs:
   publish:
@@ -179,7 +179,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "npm ci failed ($LASTEXITCODE)" }
           npm run package
           if ($LASTEXITCODE -ne 0) { throw "npm run package failed ($LASTEXITCODE)" }
-          $pkg = Join-Path (Get-Location) 'sharepoint/solution/sentinel-navigator.sppkg'
+          $pkg = Join-Path (Get-Location) 'sharepoint/solution/isoc-blueprint.sppkg'
           if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
           Write-Host "Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
 
@@ -239,7 +239,7 @@ jobs:
               AccessToken = $token
           }
           if ($env:DEPLOY_APP_PACKAGE -eq 'true') {
-              $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+              $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
           }
           if ($env:WHAT_IF -eq 'true') { $publish.WhatIf = $true }
           ./Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1 @publish
@@ -254,7 +254,7 @@ jobs:
           New-Item -ItemType Directory -Path $dst -Force | Out-Null
           $bundle = Join-Path (Join-Path 'documenter' $env:WORKSPACE_NAME) 'sharepoint'
           if (Test-Path $bundle) { Copy-Item -Path "$bundle/*" -Destination $dst -Recurse -Force }
-          $pkg = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/sentinel-navigator.sppkg'
+          $pkg = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
           if (Test-Path $pkg) { Copy-Item $pkg $dst }
 
       - name: Upload the site bundle

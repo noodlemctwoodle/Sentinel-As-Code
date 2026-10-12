@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The dashboard web part is called isoc-blueprint** - the SPFx project
+  moves from `Tools/Documenter/SharePoint/webpart/sentinel-navigator/` to
+  `webpart/isoc-blueprint/` and builds `isoc-blueprint.sppkg`
+  (`isoc-blueprint-client-side-solution`, web part `IsocBlueprintWebPart`),
+  version 1.2.0. The solution and web part ids are unchanged, so a site
+  that already has the old package upgrades in place and its dashboard
+  page keeps working. The Documenter pipeline, the GitHub SharePoint
+  workflow, the site scripts' help and the docs use the new path.
 - **The SharePoint stage no longer renders Mermaid** - the dashboard draws
   its own charts, so the `SharePoint` stage of
   `Pipelines/Sentinel-Documenter.yml` drops its mermaid-cli install and

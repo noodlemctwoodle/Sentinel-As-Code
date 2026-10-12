@@ -1,6 +1,6 @@
 {
-  "name": "sentinel-navigator",
-  "version": "1.1.0",
+  "name": "isoc-blueprint",
+  "version": "1.2.0",
   "private": true,
   "engines": {
     "node": ">=22.14.0 < 23.0.0"
