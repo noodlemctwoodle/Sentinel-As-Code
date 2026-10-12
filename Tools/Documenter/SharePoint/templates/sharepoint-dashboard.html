@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#f5f6fb; --bg-2:#eef1f9;
-    --panel:#ffffff; --panel-soft:#fbfcff; --canvas:#fcfdff;
+    --panel:#ffffff; --panel-soft:#fbfcff; --canvas:#fcfdff; --grid-line:rgba(16,24,40,.03);
     --ink:#0f1222; --ink-2:#2b3147; --muted:#667087; --faint:#8b93a7;
     --line:#e7eaf3; --line-2:#eef1f8; --chip:#eef2fb;
     --brand:#2563eb; --brand-ink:#1d4ed8; --accent:#6d5efc;
@@ -25,7 +25,7 @@
   }
   html[data-theme="dark"]{
     --bg:#0a0d16; --bg-2:#0c1120;
-    --panel:#141a2b; --panel-soft:#111626; --canvas:#f7f9ff;
+    --panel:#141a2b; --panel-soft:#111626; --canvas:#0f1424; --grid-line:rgba(255,255,255,.035);
     --ink:#eef1fb; --ink-2:#cdd3e6; --muted:#9aa3bd; --faint:#7e87a0;
     --line:#232b41; --line-2:#1b2235; --chip:#1a2338;
     --brand:#6ea8fe; --brand-ink:#a9c7ff; --accent:#9d8cff;
@@ -166,11 +166,14 @@
   .outcome .big{font-size:30px;font-weight:850;letter-spacing:-.02em;margin-top:12px;line-height:1}
   .outcome .unit{font-size:12.5px;opacity:.9;font-weight:600;margin-top:4px}
   .outcome .s{font-size:12.5px;opacity:.92;margin-top:12px;border-top:1px solid rgba(255,255,255,.22);padding-top:11px}
-  .ring{flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;
+  /* The ring is a conic gradient cut into a donut by a radial mask, so the
+     percentage sits in a real hole that shows the card behind it instead of
+     a translucent disc with the wedge visible through it. */
+  .ring{position:relative;flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center}
+  .ring::before{content:"";position:absolute;inset:0;border-radius:50%;
     background:conic-gradient(#fff calc(var(--p,0)*1%),rgba(255,255,255,.26) 0);
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
-  .ring span{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.14);display:grid;place-items:center;
-    font-size:12.5px;font-weight:800;color:#fff}
+    -webkit-mask:radial-gradient(circle,transparent 21px,#000 22px);mask:radial-gradient(circle,transparent 21px,#000 22px)}
+  .ring span{position:relative;font-size:12.5px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
 
   /* ---------- insights board (Sections) ---------- */
   .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:var(--gap);margin:var(--gap) 0}
@@ -262,8 +265,8 @@
   .outcome.ringcard .s{border-top-color:var(--line-2)}
   .outcome.ringcard .oic{background:var(--chip);border-color:var(--line-2)}
   .outcome.ringcard .oic svg{color:var(--muted)}
-  .ring.tone{background:conic-gradient(var(--rc,var(--brand)) calc(var(--p,0)*1%),var(--ring-track) 0);box-shadow:none}
-  .ring.tone span{background:var(--panel);color:var(--ink)}
+  .ring.tone::before{background:conic-gradient(var(--rc,var(--brand)) calc(var(--p,0)*1%),var(--ring-track) 0)}
+  .ring.tone span{color:var(--ink)}
   .estate{display:block;width:100%;height:auto;max-width:1200px;margin:0 auto}
   .flowbox.estatebox{background:var(--panel-soft)}
   .mat-band{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0 10px}
@@ -422,7 +425,7 @@
 
   /* ---------- flow ---------- */
   .flowbox{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--canvas);
-    background-image:repeating-linear-gradient(0deg,transparent,transparent 23px,rgba(16,24,40,.03) 23px,rgba(16,24,40,.03) 24px);
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 23px,var(--grid-line) 23px,var(--grid-line) 24px);
     padding:6px}
   svg.sankey{display:block;margin:0 auto}
   .flowwrap{display:grid;grid-template-columns:1fr;gap:4px}
@@ -575,15 +578,6 @@
 
     <div class="panel">
       <div class="phead"><div>
-        <h2>Sentinel data &amp; billing flow</h2>
-        <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs Defender benefit. Ribbon width = GB / 30 days.</p>
-      </div></div>
-      <div class="flowbox"><svg class="sankey" id="sankeyMini"></svg></div>
-      <div class="legend" id="legend"></div>
-    </div>
-
-    <div class="panel">
-      <div class="phead"><div>
         <h2>Top findings</h2>
         <p class="note">Highest-severity items from the best-practice gap analysis.</p>
       </div></div>
@@ -599,7 +593,7 @@
     <div class="panel">
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
-          <p class="note">Every ribbon is a real measure from the cost estimate (GB over the last 30 days).</p></div>
+          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs Defender benefit. Every ribbon is a real measure from the cost estimate (GB over the last 30 days).</p></div>
         <div class="zoom"><button id="zoomOut">&minus;</button><span id="zoomPct">100%</span><button id="zoomIn">+</button><button class="fit" id="zoomFit">Fit</button></div>
       </div>
       <div class="flowbox"><svg class="sankey" id="sankeyBig"></svg></div>
@@ -698,6 +692,7 @@
   document.getElementById('themeBtn').onclick=()=>{
     const next=root.dataset.theme==='dark'?'light':'dark';
     root.dataset.theme=next; localStorage.setItem(TK,next);
+    window.dispatchEvent(new Event('sac-theme'));
   };
 
   // ---- header ----
@@ -973,6 +968,7 @@
     if(opts.fit){ svgEl.setAttribute('width','100%'); svgEl.removeAttribute('height'); svgEl.style.maxWidth=W+'px'; }
     else { svgEl.setAttribute('width',W); svgEl.setAttribute('height',H); }
     const ns='http://www.w3.org/2000/svg';
+    const dark=document.documentElement.dataset.theme==='dark';
     while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
     cols.forEach((arr,ci)=>{
       const totalH=arr.length*(slotH+slotGap)-slotGap;
@@ -1000,13 +996,13 @@
       const col = nodeFill(n);
       const r=document.createElementNS(ns,'rect');
       r.setAttribute('x',n._x); r.setAttribute('y',n._y); r.setAttribute('width',n._w); r.setAttribute('height',n._h);
-      r.setAttribute('rx','6'); r.setAttribute('fill',col); r.setAttribute('fill-opacity', n.col===1?'.12':'.9');
+      r.setAttribute('rx','6'); r.setAttribute('fill',col); r.setAttribute('fill-opacity', n.col===1?(dark?'.22':'.12'):'.9');
       r.setAttribute('stroke',col); r.setAttribute('stroke-opacity','.5'); svgEl.appendChild(r);
       const hasVal=showVal(n), stacked=hasVal && stackCol[n.col], vt=valTxt(n);
       const label=document.createElementNS(ns,'text');
       label.setAttribute('x', n._x+PAD_L); label.setAttribute('y', stacked? n._y+n._h/2-2 : n._y+n._h/2+4);
       label.setAttribute('font-size','11.5'); label.setAttribute('font-weight','600');
-      label.setAttribute('fill', n.col===1? '#1f2430':'#ffffff');
+      label.setAttribute('fill', n.col===1? (dark?'#e8ecf7':'#1f2430'):'#ffffff');
       const availPx=n._w-PAD_L-PAD_R-((hasVal&&!stacked)? vt.length*VW+GAPX : 0);
       let txt=n.label;
       if(estText(txt)>availPx){ while(txt.length>1 && estText(txt+'…')>availPx) txt=txt.slice(0,-1); txt+='…'; }
@@ -1025,13 +1021,18 @@
   }
   const legendHtml = Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
      '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
-  document.getElementById('legend').innerHTML=legendHtml;
   document.getElementById('legendBig').innerHTML=legendHtml;
-  drawSankey(document.getElementById('sankeyMini'),{nodeW:150,colGap:70,slotGap:8,slotH:34,labelPad:0,fit:true});
   let zoom=1; const big=document.getElementById('sankeyBig');
-  const dim=drawSankey(big,{nodeW:190,colGap:110,slotGap:10,slotH:40,labelPad:0});
+  let dim=null;
+  // Both copies read the theme when drawn, so a theme toggle redraws them.
+  function drawSankeys(){
+    dim=drawSankey(big,{nodeW:190,colGap:110,slotGap:10,slotH:40,labelPad:0});
+    applyZoom();
+  }
   function applyZoom(){ if(!dim)return; big.setAttribute('width',dim.W*zoom); big.setAttribute('height',dim.H*zoom);
     document.getElementById('zoomPct').textContent=Math.round(zoom*100)+'%'; }
+  drawSankeys();
+  window.addEventListener('sac-theme',drawSankeys);
   document.getElementById('zoomIn').onclick=()=>{zoom=Math.min(2,zoom+.1);applyZoom();};
   document.getElementById('zoomOut').onclick=()=>{zoom=Math.max(.5,zoom-.1);applyZoom();};
   document.getElementById('zoomFit').onclick=()=>{zoom=1;applyZoom();};

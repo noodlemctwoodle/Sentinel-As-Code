@@ -16,7 +16,7 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, the billing flow, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Documenter section (35 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. | `Lists/SentinelFindings` |
@@ -83,7 +83,7 @@ pie cards, bar-list cards, table cards), with the full-width panels
 between them, so a long table never shares a row with a short donut.
 Every card grid balances its rows (five cards become three and two,
 never four and one) and a short last row widens to fill the band. The
-two Sankeys size each column to its longest label and stack the GB value
+Sankey sizes each column to its longest label and stacks the GB value
 under the label when the two cannot share a line.
 
 | Model key | Panel | Source captures |
@@ -95,7 +95,7 @@ under the label when the two cannot share a line.
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
 | `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
 | `dataLake`, `dataLakeEnrolled` | Overview: the "Data lake" glance tile. Insights: enrolment status, the tier distribution donut (Analytics only, Analytics + Lake mirror, Analytics + Lake extended, Lake only), the top tables by lake-only retention and the lake cost split; counted over the operational tables through `Private/Get-TableTierProfile.ps1`, the same helper page 88 uses | `sentinel-data-lake`, `workspace`, `workspace-tables`, `tables-with-data`, `cost-estimate` |
-| `flow` | Overview and Data flow: the billing-flow Sankey. Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
+| `flow` | Data flow: the billing-flow Sankey. Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
 | `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
 | `familyOrder`, `sections[].headline` | Overview: the contents cards, one per family, each page linking to its native page | the rendered sections |
 

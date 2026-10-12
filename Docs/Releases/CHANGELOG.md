@@ -48,7 +48,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   table never shares a row with a short donut; a short last row widens to
   fill its band. Sankey columns size to their longest label, stacking the
   value under the label when the two cannot share a line, so names neither
-  overlap nor truncate, and the Overview copy scales to fit its box.
+  overlap nor truncate. The Sankey lives on the Data flow tab only; the
+  Overview no longer carries a second copy. The posture-card percentage
+  rings are masked donuts, so the value sits in a real hole instead of
+  behind a translucent disc, and the flow box, grid lines and table-node
+  labels follow the dark theme.
 - **One analytics page** - the four analytics deep-dives (by alert volume,
   Microsoft-managed rules, recent modifications, by Content Hub solution)
   are now subsections of `20-analytics-rules.md` rather than separate
