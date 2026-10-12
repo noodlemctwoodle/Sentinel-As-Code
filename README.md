@@ -158,6 +158,7 @@ Documenter (`Docs/Tools/Documenter/`): [Sentinel Documenter](Docs/Tools/Document
 [References](Docs/Tools/Documenter/Documenter-References.md),
 [Data Lake Coverage](Docs/Tools/Documenter/Sentinel-Data-Lake-Coverage.md),
 [Maturity Model](Docs/Tools/Documenter/Sentinel-Maturity-Model.md),
+[Health check cross-reference](Docs/Tools/Documenter/Health-Check-Coverage.md),
 [SharePoint Site](Docs/Tools/Documenter/Sentinel-SharePoint-Site.md), and
 [Word Report](Docs/Tools/Documenter/Sentinel-Word-Report.md).
 

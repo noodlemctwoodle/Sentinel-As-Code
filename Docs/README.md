@@ -137,6 +137,7 @@ The read-only documentation generator.
 | [Renderer Design](Tools/Documenter/Documenter-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
 | [References & Conventions](Tools/Documenter/Documenter-References.md) | Durable record of every API version, module, KQL query, and Learn page the Documenter relies on (rendered as `99-references.md`) |
 | [Maturity Model](Tools/Documenter/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
+| [Health check cross-reference](Tools/Documenter/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Documenter, page by page, with the gap rule that covers it |
 | [Data Lake Coverage](Tools/Documenter/Sentinel-Data-Lake-Coverage.md) | What the Documenter captures and renders for the Microsoft Sentinel data lake tier |
 | [Word Report](Tools/Documenter/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
 | [SharePoint Site](Tools/Documenter/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |

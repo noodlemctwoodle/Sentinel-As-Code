@@ -1421,3 +1421,33 @@ function Test-HuntingActivityRecorded {
     if (@($Inventory.Hunts).Count -gt 0 -or $bookmarkCount -gt 0) { return $null }
     return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
 }
+
+# ------------------------------------------------------------
+# SENT-059, Analytics rule runs are failing (SentinelHealth, last 7 days)
+# ------------------------------------------------------------
+function Test-AnalyticsRuleRunFailures {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (@($Inventory.RuleHealth).Count -eq 0) { return $null }
+    $failing = @($Inventory.RuleHealth | Where-Object {
+        $null -ne $_ -and (_ToInt (Get-PropOrDefault $_ 'Failures' 0)) -gt 0
+    } | Sort-Object { -(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) })
+    if ($failing.Count -eq 0) { return $null }
+    $sample = ($failing | Select-Object -First 5 | ForEach-Object {
+        $reason = [string](Get-PropOrDefault $_ 'Reason' '')
+        if ($reason.Length -gt 80) { $reason = $reason.Substring(0, 77) + '...' }
+        $why = if ($reason) { ": $reason" } else { '' }
+        "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
+    }) -join '; '
+    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last 7 days: $sample$(_SampleSuffix $failing.Count)." -Detail @{
+        Count = $failing.Count
+        Rules = @($failing | ForEach-Object {
+            [pscustomobject]@{
+                RuleName    = [string](Get-PropOrDefault $_ 'RuleName' '')
+                Status      = [string](Get-PropOrDefault $_ 'Status' '')
+                Failures    = _ToInt (Get-PropOrDefault $_ 'Failures' 0)
+                LastFailure = _ToIsoTime (Get-PropOrDefault $_ 'LastFailure' $null)
+                Reason      = [string](Get-PropOrDefault $_ 'Reason' '')
+            }
+        })
+    }
+}

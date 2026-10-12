@@ -132,7 +132,7 @@ call shape is non-obvious enough to be worth pinning down here:
 
 ## Recurring KQL queries
 
-The collector runs **28 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
+The collector runs **34 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
 each inside its own `Try-Capture` block that writes one `_raw/<name>.json` file. They are
 **not** all cheap billing-metadata reads: a good half of them query raw operational and
 security tables directly (`CommonSecurityLog`, `Syslog`, `SecurityEvent`, `SecurityAlert`,
@@ -153,10 +153,17 @@ Grouped by purpose:
 - `azure-diagnostics-categories` - `AzureDiagnostics` row counts by resource provider and
   category over 7 days, the input to the duplicate-firewall-logging rule.
 - `la-query-logs` - Log Analytics query-audit activity.
+- `table-query-usage` - audited queries, distinct users and the last query per lake-retained
+  table over 30 days (`LAQueryLogs` matched against up to 60 table names taken from the
+  `workspace-tables` capture written earlier in the run); the usage evidence on the data lake
+  page. Empty when no table keeps data in the lake beyond its analytics retention.
 
 **Sentinel health and posture**
 
 - `sentinel-health` and `sentinel-health-summary` - `SentinelHealth`-based connector/rule health.
+- `rule-health` - analytics rules whose scheduled runs failed in the last 7 days, with the
+  failure count, last failure and recorded reason (`SentinelHealth`, resource type
+  "Analytics Rule"); the input to SENT-059 and the rule-run-failures table.
 - `ueba-data-presence` - infers whether UEBA is producing data (row presence in
   `BehaviorAnalytics` / `IdentityInfo` / `UserPeerAnalytics`), the operational counterpart to
   the `settings/Ueba` configuration signal.
@@ -180,6 +187,9 @@ Grouped by purpose:
   other products (Defender XDR, Entra ID Protection, Purview) have no rule id, are keyed on
   the alert name and carry the product as `Source`. Sentinel rules sort first, then the
   300-row cap applies, so a busy XDR tenant never pushes its own rules off the list.
+- `incident-title-stats` - incident titles seen five or more times in 30 days, with totals,
+  closures, average minutes to close, closures within an hour and the verdict split
+  (aggregates only, no per-incident rows); the input to the automation-opportunities table.
 
 **Analytics and threat intelligence**
 
@@ -190,6 +200,9 @@ Grouped by purpose:
 - `threat-intel-counts` - threat-intelligence indicator counts from KQL. (The related
   `threat-intel-metrics` capture is REST, from `.../threatIntelligence/main/metrics`.)
 - `threat-intel-objects` - `ThreatIntelObjects` rows by STIX type over 30 days.
+- `threat-intel-by-type` - indicators by observable type (IP, domain, URL, file hash, email)
+  over 30 days from `ThreatIntelIndicators` (`ObservableKey`), falling back to the retired
+  `ThreatIntelligenceIndicator` table when the current one is absent.
 
 **Table hygiene, agent migration and connector misrouting**
 
@@ -198,6 +211,8 @@ Grouped by purpose:
   should be split into a dedicated `CommonSecurityLog` stream.
 - `security-event-duplicates` - duplicate `SecurityEvent` records, typically MMA + AMA
   dual-collection.
+- `syslog-contributors` - `Syslog` records and billed size by host and facility over 7 days.
+- `securityevent-top-hosts` - `SecurityEvent` records and billed size by host over 7 days.
 - `ama-agents` and `ama-mma-migration` - Azure Monitor Agent inventory and MMA→AMA migration
   status.
 - `top-event-ids` - top billable Windows event IDs across `Event`/`SecurityEvent` (via `find`),

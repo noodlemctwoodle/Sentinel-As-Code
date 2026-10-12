@@ -107,7 +107,7 @@ SecurityDocs/
     │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
     │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
     │   ├── playbook-runs.json          runs and failures per playbook (7d)
-    │   ├── ... (≈79 files)
+    │   ├── ... (≈85 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   ├── gap-analysis.json          findings that fired
@@ -119,13 +119,13 @@ SecurityDocs/
     ├── 10-data-connectors.md          classic + CCF + synthesised effective view, Defender XDR unification
     ├── 11-sentinel-health.md          SentinelHealth events (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
-    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events
+    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events, Syslog and SecurityEvent contributors
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source, Entra ID table presence
     ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
-    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity
+    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
-    ├── 27-threat-intelligence.md      indicator counts by source
+    ├── 27-threat-intelligence.md      indicator counts by source, indicators by type
     ├── 28-detection-opportunities.md  tables with data but no detection, templates ready to enable
     ├── 30-hunting-queries.md
     ├── 35-parsers-functions.md
@@ -134,7 +134,7 @@ SecurityDocs/
     ├── 38-summary-rules.md            summary rules
     ├── 40-workbooks.md                saved workbooks + templates available
     ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
-    ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants
+    ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants, automation opportunities
     ├── 70-content-hub.md              installed solutions + repos
     ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
     ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
@@ -332,7 +332,7 @@ reads `(ConvertFrom-Json).rules`. Each entry looks like:
 ```json
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "rules": [
     {
       "id": "SENT-001",
@@ -354,7 +354,8 @@ returns `$null` on pass or an Evidence/Detail object on fail; the engine wires t
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
 
-The catalogue holds 58 rules. Version 2.2.0 added thirteen that port the
+The catalogue holds 59 rules. Version 2.3.0 added SENT-059 (analytics rule
+runs failing, from `SentinelHealth`). Version 2.2.0 added thirteen that port the
 checks from the Sentinel health-check script contributed to the project:
 
 | Rule | What it reads | Fires when |

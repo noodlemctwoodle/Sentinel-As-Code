@@ -1439,6 +1439,172 @@ ThreatIntelObjects
     }
 }
 
+# Rule run health: analytics rules whose scheduled runs failed in the last
+# 7 days, from SentinelHealth. Empty is the healthy case.
+Try-Capture 'rule-health' {
+    $kql = @'
+SentinelHealth
+| where TimeGenerated > ago(7d)
+| where SentinelResourceType == "Analytics Rule" and Status != "Success"
+| summarize Failures = count(), LastFailure = max(TimeGenerated), Reason = any(Description) by RuleName = SentinelResourceName, Status
+| order by Failures desc
+| take 200
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'rule-health.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'rule-health.json' -Data @()
+    }
+}
+
+# Incident titles over 30 days with volume, closure speed and verdicts:
+# the input to the automation-opportunities table (frequent, fast-closing
+# or mostly-false-positive titles). Aggregates only, no per-incident rows.
+Try-Capture 'incident-title-stats' {
+    $kql = @'
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| extend MinsToClose = iff(Status == "Closed", datetime_diff("minute", ClosedTime, CreatedTime), int(null))
+| summarize Total = count(), Closed = countif(Status == "Closed"), Severity = any(Severity),
+    AvgMinsToClose = round(avg(MinsToClose), 1), ClosedWithinHour = countif(Status == "Closed" and MinsToClose <= 60),
+    FP = countif(Classification == "FalsePositive"), TP = countif(Classification == "TruePositive"), BP = countif(Classification == "BenignPositive")
+    by Title
+| where Total >= 5
+| order by Total desc
+| take 100
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'incident-title-stats.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'incident-title-stats.json' -Data @()
+    }
+}
+
+# Indicators by observable type over 30 days: the current ThreatIntelIndicators
+# schema first, the retired ThreatIntelligenceIndicator table when the
+# current one is absent.
+Try-Capture 'threat-intel-by-type' {
+    $kqlModern = @'
+ThreatIntelIndicators
+| where TimeGenerated > ago(30d)
+| extend ObservableType = tostring(split(tostring(ObservableKey), ':')[0])
+| extend Type = case(
+    ObservableType startswith "ipv4" or ObservableType startswith "ipv6", "IP",
+    ObservableType == "domain-name", "Domain",
+    ObservableType == "url", "URL",
+    ObservableType == "file", "FileHash",
+    ObservableType == "email-addr" or ObservableType == "email-message", "Email",
+    isempty(ObservableType), "Unspecified",
+    ObservableType)
+| summarize Count = count(), Indicators = dcount(Id) by Type
+| order by Count desc
+'@
+    $kqlLegacy = @'
+ThreatIntelligenceIndicator
+| where TimeGenerated > ago(30d)
+| extend Type = case(
+    isnotempty(NetworkIP) or isnotempty(NetworkSourceIP) or isnotempty(NetworkDestinationIP), "IP",
+    isnotempty(DomainName), "Domain",
+    isnotempty(Url), "URL",
+    isnotempty(FileHashValue), "FileHash",
+    isnotempty(EmailSenderAddress), "Email",
+    "Other")
+| summarize Count = count(), Indicators = dcount(IndicatorId) by Type
+| order by Count desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kqlModern -ErrorAction Stop
+        Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
+    } catch {
+        try {
+            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kqlLegacy -ErrorAction Stop
+            Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
+        } catch {
+            Save-Json -FileName 'threat-intel-by-type.json' -Data @()
+        }
+    }
+}
+
+# Log composition: who writes Syslog and SecurityEvent, by host (and
+# facility for Syslog), with billed size, over 7 days.
+Try-Capture 'syslog-contributors' {
+    $kql = @'
+Syslog
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer, Facility
+| order by LogCount desc
+| take 100
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'syslog-contributors.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'syslog-contributors.json' -Data @()
+    }
+}
+
+Try-Capture 'securityevent-top-hosts' {
+    $kql = @'
+SecurityEvent
+| where TimeGenerated > ago(7d)
+| summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer
+| order by LogCount desc
+| take 50
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'securityevent-top-hosts.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'securityevent-top-hosts.json' -Data @()
+    }
+}
+
+# Audited queries per lake-retained table (LAQueryLogs, 30 days): the
+# usage evidence for tables that keep data in the lake beyond analytics
+# retention or route to the lake only. Targets come from the
+# workspace-tables capture written earlier in this run; up to 60 tables.
+Try-Capture 'table-query-usage' {
+    $targets = @()
+    $tablesPath = Join-Path $rawOut 'workspace-tables.json'
+    if (Test-Path -LiteralPath $tablesPath) {
+        $wsTables = @(Get-Content -LiteralPath $tablesPath -Raw | ConvertFrom-Json -Depth 32)
+        foreach ($t in $wsTables) {
+            if (-not $t -or -not $t.PSObject.Properties['properties'] -or -not $t.properties) { continue }
+            $pr = $t.properties
+            $plan = if ($pr.PSObject.Properties['plan']) { [string]$pr.plan } else { '' }
+            $r = if ($pr.PSObject.Properties['retentionInDays'] -and $pr.retentionInDays) { [int]$pr.retentionInDays } else { 0 }
+            $tr = if ($pr.PSObject.Properties['totalRetentionInDays'] -and $pr.totalRetentionInDays) { [int]$pr.totalRetentionInDays } else { 0 }
+            if ($plan -eq 'DataLake' -or $tr -gt $r) { $targets += [string]$t.name }
+        }
+    }
+    $targets = @($targets | Where-Object { $_ -match '^[A-Za-z0-9_]+$' } | Select-Object -First 60)
+    if ($targets.Count -eq 0) {
+        Save-Json -FileName 'table-query-usage.json' -Data @()
+    } else {
+        $list = ($targets | ForEach-Object { '"' + $_ + '"' }) -join ','
+        $kql = @"
+LAQueryLogs
+| where TimeGenerated > ago(30d)
+| extend Q = tolower(tostring(QueryText))
+| mv-apply T = dynamic([$list]) to typeof(string) on (
+    where Q contains tolower(T)
+    | project T
+)
+| summarize Queries = count(), Users = dcount(AADEmail), LastQuery = max(TimeGenerated) by Table = T
+| order by Queries desc
+"@
+        try {
+            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+            Save-Json -FileName 'table-query-usage.json' -Data ($result.Results)
+        } catch {
+            Save-Json -FileName 'table-query-usage.json' -Data @()
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Cost estimate
 # ---------------------------------------------------------------------------
@@ -1514,6 +1680,7 @@ $expectIfActive = @(
     'cost-estimate.json',
     'rule-effectiveness.json',
     'rules-fired.json',
+    'incident-title-stats.json',
     'playbook-runs.json',
     'workspace-usage-daily.json'
 )

@@ -419,6 +419,41 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '13-data-source-hygiene.md lists log contributors' {
+        It 'shows Syslog contributors by facility and the top SecurityEvent hosts' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '13-data-source-hygiene.md') -Raw
+            $md | Should -Match '## Syslog contributors \(last 7d\)[\s\S]*\| fw-edge-01 \| local4 \| 182000 \| 540.2 \|'
+            $md | Should -Match '## SecurityEvent top hosts \(last 7d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
+        }
+    }
+
+    Context '20-analytics-rules.md reports rule run failures' {
+        It 'lists the failing rule with its reason' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $md | Should -Match '## Rule run failures \(last 7d\)'
+            $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 2026-05-06 06:15 \| Query execution exceeded the 2 minute timeout. \|'
+        }
+    }
+
+    Context '27-threat-intelligence.md breaks indicators down by type' {
+        It 'renders the pie and the table' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '27-threat-intelligence.md') -Raw
+            $md | Should -Match '## Indicators by type \(last 30d\)'
+            $md | Should -Match 'pie showData title Indicators by type \(last 30d\)[\s\S]*"IP" : 4200'
+            $md | Should -Match '\| Domain \| 1800 \| 1750 \|'
+        }
+    }
+
+    Context '60-automation-rules-playbooks.md suggests automation per incident title' {
+        It 'classifies the titles and maps the phishing title to a response' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
+            $md | Should -Match '## Automation opportunities \(incident titles, last 30d\)'
+            $md | Should -Match '\| Phishing email reported by user \| Medium \| 48 \| 46 \| 22.5 \| 41 \| 30 \| 9 \| Mostly false positive \| Soft-delete similar messages'
+            $md | Should -Match '\| Brute force attempt against Entra ID \|[^\n]*\| Fast-closing \|[^\n]*\| Disable-AADUser / Confirm-AADRiskyUser \|'
+            $md | Should -Match '\| Suspicious sign-in from rare country \|[^\n]*\| Mostly false positive \|'
+        }
+    }
+
     Context '81-table-plans-retention.md tables detection coverage' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw

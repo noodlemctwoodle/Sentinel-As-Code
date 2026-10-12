@@ -1,0 +1,35 @@
+[
+  {
+    "Title": "Phishing email reported by user",
+    "Severity": "Medium",
+    "Total": 48,
+    "Closed": 46,
+    "AvgMinsToClose": 22.5,
+    "ClosedWithinHour": 41,
+    "FP": 30,
+    "TP": 9,
+    "BP": 4
+  },
+  {
+    "Title": "Suspicious sign-in from rare country",
+    "Severity": "High",
+    "Total": 24,
+    "Closed": 20,
+    "AvgMinsToClose": 310.0,
+    "ClosedWithinHour": 2,
+    "FP": 19,
+    "TP": 1,
+    "BP": 0
+  },
+  {
+    "Title": "Brute force attempt against Entra ID",
+    "Severity": "Medium",
+    "Total": 12,
+    "Closed": 12,
+    "AvgMinsToClose": 15.0,
+    "ClosedWithinHour": 12,
+    "FP": 2,
+    "TP": 0,
+    "BP": 10
+  }
+]

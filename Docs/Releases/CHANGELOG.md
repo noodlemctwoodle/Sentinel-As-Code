@@ -43,6 +43,20 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **Six new captures close the last health-check gaps** - `rule-health`
+  (analytics rules whose runs failed, with the recorded reason; new rule
+  SENT-059 and a "Rule run failures" table on the analytics page),
+  `incident-title-stats` (frequent incident titles with closure speed and
+  verdicts, rendered as "Automation opportunities" on the automation page
+  with a suggested response per title family), `threat-intel-by-type`
+  (indicators by observable type on the threat-intelligence page),
+  `syslog-contributors` and `securityevent-top-hosts` (log composition by
+  host on the data-source hygiene page) and `table-query-usage` (audited
+  queries per lake-retained table, the last column of the lake usage
+  evidence). `best-practices.json` is 2.3.0 with 59 rules. A new
+  [Health-Check-Coverage.md](../Tools/Documenter/Health-Check-Coverage.md)
+  maps every section of the contributed health check to its Documenter
+  page.
 - **Sections cross-referenced with the health check** - six subsections
   the health check had and the pages did not, all from captures already
   taken: Defender XDR unification and the Defender for Cloud connectors on

@@ -1,6 +1,6 @@
 {
   "$schema": "best-practices.schema.json",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "rules": [
     {
       "id": "SENT-001",
@@ -523,6 +523,15 @@
       "check": "Test-HuntingActivityRecorded",
       "remediation": "No hunts and no bookmarks means hunting is either not happening or is happening outside Sentinel, where its findings are not linked to incidents or entities. Record hunts in the Hunts feature so hypotheses, queries and outcomes are tracked, and bookmark notable results so they can be promoted to incidents and feed detection engineering.",
       "learn": "https://learn.microsoft.com/azure/sentinel/hunts"
+    },
+    {
+      "id": "SENT-059",
+      "title": "Analytics rule runs are failing",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-AnalyticsRuleRunFailures",
+      "remediation": "A rule whose scheduled runs fail is a detection that has stopped without an alert. Open the rule's health events in SentinelHealth, read the recorded reason (query timeout, a table or column that no longer exists, a removed KQL function, a lookback that exceeds the limit), fix the query or the data it depends on, then confirm the next runs succeed. Enable the health data connector and an automation or alert on SentinelHealth failures so the next one is noticed on the day.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-analytics-rule-integrity"
     }
   ]
 }

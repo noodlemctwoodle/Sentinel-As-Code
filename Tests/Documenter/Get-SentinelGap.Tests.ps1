@@ -43,6 +43,7 @@
       SENT-056  AzFW logged twice                 (AzureFirewall* categories + AZFWNetworkRule table)
       SENT-057  Closed unclassified               (incidents-summary.json: 20 of 32 closed Undetermined/Unclassified)
       SENT-058  No hunting activity               (hunts.json and bookmarks.json both [])
+      SENT-059  Rule run failures                 (rule-health.json: Suspicious sign-in from rare country, 3 failed runs)
 
     Rules that read a capture file the collector only writes on success
     (051, 052, 058) stay quiet when the file is absent; the second Describe
@@ -413,6 +414,13 @@ Describe 'Sentinel gap-analysis engine' {
             $f.Evidence | Should -Match '20 of 32 closed incidents \(62%\)'
         }
 
+        It 'fires SENT-059 because a rule run failed three times' {
+            $f = $findings | Where-Object Id -eq 'SENT-059'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'Suspicious sign-in from rare country \(3 failed run\(s\): Query execution exceeded'
+            $f.Detail.Rules[0].Status | Should -Be 'Failure'
+        }
+
         It 'fires SENT-058 because hunts.json and bookmarks.json are both empty' {
             ($findings | Where-Object Id -eq 'SENT-058').Count | Should -Be 1
         }
@@ -443,7 +451,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
         $script:trimmed = Join-Path ([System.IO.Path]::GetTempPath()) "gap-absent-$(New-Guid)"
         New-Item -ItemType Directory -Path $script:trimmed -Force | Out-Null
         Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $script:trimmed
-        foreach ($name in 'rule-table-references.json', 'template-table-references.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json', 'azure-diagnostics-categories.json') {
+        foreach ($name in 'rule-table-references.json', 'template-table-references.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json', 'rule-health.json', 'azure-diagnostics-categories.json') {
             Remove-Item (Join-Path $script:trimmed $name) -Force
         }
         $script:absentOutcomes = [System.Collections.Generic.List[object]]::new()
@@ -460,7 +468,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
     }
 
     It 'does not fire the rules whose input capture is absent' {
-        foreach ($id in 'SENT-036', 'SENT-050', 'SENT-051', 'SENT-052', 'SENT-053', 'SENT-056', 'SENT-058') {
+        foreach ($id in 'SENT-036', 'SENT-050', 'SENT-051', 'SENT-052', 'SENT-053', 'SENT-056', 'SENT-058', 'SENT-059') {
             ($absentOutcomes | Where-Object Id -eq $id).Outcome | Should -Be 'Passed' -Because "$id has no input to judge"
         }
     }

@@ -1,0 +1,12 @@
+[
+  {
+    "Computer": "DC01.example.test",
+    "LogCount": 410000,
+    "SizeMB": 1120.5
+  },
+  {
+    "Computer": "FS02.example.test",
+    "LogCount": 58000,
+    "SizeMB": 140.0
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "Computer": "fw-edge-01",
+    "Facility": "local4",
+    "LogCount": 182000,
+    "SizeMB": 540.2
+  },
+  {
+    "Computer": "lnx-app-07",
+    "Facility": "auth",
+    "LogCount": 9100,
+    "SizeMB": 12.4
+  }
+]
