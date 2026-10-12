@@ -13,6 +13,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   SharePoint export for a workspace with no site or no
   `sc-sentinel-sharepoint` connection. The GitHub workflow's
   `include-preview` input is unchanged (off).
+- **PR validation installs PnP.PowerShell for the SharePoint call check**
+  - both PR validation jobs install the PnP.PowerShell version the
+  Documenter pipeline pins (`pnpVersion`, read from
+  `Pipelines/Sentinel-Documenter.yml` so the two cannot drift): inline in
+  `Pipelines/Sentinel-PR-Validation.yml`, and through a new `pnp-version`
+  input on the `setup-pwsh-modules` composite action on GitHub (empty by
+  default, so other callers and their cache keys are unchanged).
+  `SharePoint-PnPCalls.Tests.ps1` now fails in CI when that version is
+  missing instead of skipping, so the check cannot silently drop out.
 - **SharePoint navigation publishes, and PnP calls are checked before a
   run** - the first publish to reach the navigation step failed: it
   cleared the top navigation with `Remove-PnPNavigationNode -Location

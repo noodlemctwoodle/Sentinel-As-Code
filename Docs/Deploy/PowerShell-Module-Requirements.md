@@ -27,6 +27,7 @@ exact versions in
 | `Pester` | 5.7.1 | 5.0.0 | Runs every `Tests/*.Tests.ps1` suite |
 | `powershell-yaml` | 0.4.12 | any | YAML schema tests, dependency-manifest gate, content parsing |
 | `Az.Accounts` | 2.0.0+ | 2.0.0 | Hard dependency of `Sentinel.Common`, imported transitively by the module-unit tests |
+| `PnP.PowerShell` | `pnpVersion` in `Pipelines/Sentinel-Documenter.yml` (3.4.1) | optional, exact version | `Tests/Documenter/SharePoint-PnPCalls.Tests.ps1` checks every PnP call in the SharePoint scripts against it. CI installs it and fails the suite without it; locally the suite is skipped when that version is missing |
 
 All other Az / Microsoft.Graph cmdlets used by the deploy scripts are **mocked**
 in the test suite (`Mock -ModuleName Sentinel.Common ...`), so they are not

@@ -77,9 +77,13 @@ status check that the branch-protection ruleset can require independently.
   marks the job red even on a clean test run.
 - **Steps:**
   1. Checkout (`fetch-depth: 1`).
-  2. [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
-     with the pinned Pester + powershell-yaml versions.
-  3. Run `Tools/Invoke-PRValidation.ps1` with `-InstallModules:$false` (the
+  2. Read `pnpVersion` from `Pipelines/Sentinel-Documenter.yml` (the
+     PnP.PowerShell version the SharePoint stage pins).
+  3. [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
+     with the pinned Pester + powershell-yaml versions and that PnP.PowerShell
+     version, for the SharePoint PnP call check
+     (`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`).
+  4. Run `Tools/Invoke-PRValidation.ps1` with `-InstallModules:$false` (the
      composite action already installed the modules). This is the single
      cross-platform entrypoint that both CI systems call, so test discovery,
      report emission and exit-code logic live in one place.
@@ -176,7 +180,7 @@ status check that the branch-protection ruleset can require independently.
 
 | Action | Purpose |
 | --- | --- |
-| [`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules) | Cache + pin-install Pester and powershell-yaml (exact versions); `install-pester: 'false'` skips Pester for YAML-only jobs |
+| [`.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules) | Cache + pin-install Pester and powershell-yaml (exact versions); `install-pester: 'false'` skips Pester for YAML-only jobs; `pnp-version` also installs PnP.PowerShell at that exact version (empty by default, leaving other callers and their cache key unchanged) |
 | [`.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc) | Federated Azure login via `Azure/login@v3`; used only by `arm-validate` |
 
 ### Secrets and repository variables
@@ -251,10 +255,13 @@ Azure authentication - every gate here is offline.
 Steps, in order:
 
 1. **Checkout** `self` with `fetchDepth: 1`.
-2. **Install Pester and powershell-yaml** (inline `pwsh`): installs Pester
-   (minimum `5.0.0`) if a suitable version is not already present, plus
-   powershell-yaml if missing. Note this is a **minimum-version** install,
-   not the exact pin the GitHub composite action enforces.
+2. **Install Pester, powershell-yaml and PnP.PowerShell** (inline `pwsh`):
+   installs Pester (minimum `5.0.0`) if a suitable version is not already
+   present, plus powershell-yaml if missing. Note this is a
+   **minimum-version** install, not the exact pin the GitHub composite
+   action enforces. PnP.PowerShell is the exception: it is installed at
+   exactly the `pnpVersion` read from `Pipelines/Sentinel-Documenter.yml`,
+   for the SharePoint PnP call check.
 3. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
    `-InstallModules:$false` - the same entrypoint the GitHub `validate` job
@@ -289,7 +296,7 @@ the latest commit.
 | Azure auth | `arm-validate` uses OIDC; rest offline | None (all gates offline) |
 | Path filter | None (runs on every PR / push to `main`) | Path-filtered on both `pr` and `trigger` |
 | PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` | `pr` branches `main` |
-| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest |
+| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Documenter's `pnpVersion`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest, PnP.PowerShell at the Documenter's `pnpVersion` |
 | Test report | NUnit 2.5 XML (published to check UI + artefact) | NUnit 2.5 XML (published via `PublishTestResults@2` + artefact) |
 | Concurrency | Cancels superseded PR runs | Handled by ADO's own PR-run behaviour |
 

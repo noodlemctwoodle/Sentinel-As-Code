@@ -26,9 +26,11 @@
     Splatted calls and cmdlets with dynamic parameters are not judged.
 
     The PnP.PowerShell version is read from the pnpVersion variable in
-    Pipelines/Sentinel-Documenter.yml. When that version is not installed
-    the suite is skipped (Install-Module PnP.PowerShell -RequiredVersion
-    <version> -Scope CurrentUser to run it).
+    Pipelines/Sentinel-Documenter.yml. Both PR validation jobs install that
+    version, and in CI (TF_BUILD or GITHUB_ACTIONS set) a missing version
+    fails the suite. Locally the suite is skipped without it
+    (Install-Module PnP.PowerShell -RequiredVersion <version> -Scope
+    CurrentUser to run it).
 
 .EXAMPLE
     Invoke-Pester -Path Tests/Documenter/SharePoint-PnPCalls.Tests.ps1 -Output Detailed
@@ -39,7 +41,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-12
     Requires:     PowerShell 7.4+, Pester 5+, PnP.PowerShell (pinned version)
 #>
@@ -49,6 +51,7 @@ BeforeDiscovery {
     $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Documenter.yml')
     $script:pnpVersion = if ($pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') { $Matches['v'] } else { '' }
     $script:pnpAvailable = [bool]($script:pnpVersion -and (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
+    $script:inCi = [bool]($env:TF_BUILD -or $env:GITHUB_ACTIONS)
     $sp = Join-Path $repoRoot 'Tools/Documenter/SharePoint'
     $script:scriptFiles = @(
         Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
@@ -56,13 +59,15 @@ BeforeDiscovery {
     ) | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } }
 }
 
-Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pnpAvailable) {
+Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pnpAvailable -and -not $script:inCi) {
 
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Documenter.yml')
         $null = $pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?'
-        Import-Module PnP.PowerShell -RequiredVersion $Matches['v'] -ErrorAction Stop
+        $script:pinnedPnP = $Matches['v']
+        $script:pnpReady = [bool](Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pinnedPnP })
+        if ($script:pnpReady) { Import-Module PnP.PowerShell -RequiredVersion $script:pinnedPnP -ErrorAction Stop }
 
         # The scripts' own functions, and the Documenter helpers the build
         # script uses, defined in a throwaway module so Get-Command sees
@@ -163,7 +168,12 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
         if ($script:defsModule) { Remove-Module -ModuleInfo $script:defsModule -Force -ErrorAction SilentlyContinue }
     }
 
+    It 'has the pinned PnP.PowerShell installed' {
+        $script:pnpReady | Should -BeTrue -Because "the PR validation job installs PnP.PowerShell $script:pinnedPnP (pnpVersion in Pipelines/Sentinel-Documenter.yml)"
+    }
+
     It 'every call in <Name> binds' -ForEach $script:scriptFiles {
+        if (-not $script:pnpReady) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinnedPnP is not installed"; return }
         $problems = @(Test-SacCommandCall -Path $Path)
         $problems | Should -BeNullOrEmpty -Because ("in ${Name}:`n  " + ($problems -join "`n  "))
     }

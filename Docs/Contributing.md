@@ -43,6 +43,8 @@ or JSON against the schemas described under [Docs/README.md](README.md) (see the
   is not supported).
 - **To validate locally you need very little**: Pester, powershell-yaml, and
   Az.Accounts. Everything else the deploy scripts use is mocked in the test suite.
+  With PnP.PowerShell 3.4.1 installed, the SharePoint PnP call check runs too;
+  without it that one suite is skipped locally (CI always runs it).
   Run the whole gate with:
 
   ```powershell

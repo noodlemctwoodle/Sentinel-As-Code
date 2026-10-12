@@ -31,6 +31,12 @@
 #   # Skip-Pester variant for jobs that only need powershell-yaml (the
 #   # dependency-manifest gate does not run any tests):
 #       install-pester: 'false'
+#
+#   # Also install PnP.PowerShell at an exact version (the PR-validation
+#   # gate passes the pnpVersion the Documenter pipeline pins, for the
+#   # SharePoint PnP call check). Left empty, nothing changes for callers
+#   # that do not need it, including the cache key:
+#       pnp-version: '3.4.1'
 # ---------------------------------------------------------------------------
 
 name: Set up PowerShell modules
@@ -49,6 +55,10 @@ inputs:
     description: Set 'false' to skip the Pester install. Useful for jobs that only consume YAML (e.g. dependency-manifest gate).
     required: false
     default: 'true'
+  pnp-version:
+    description: When set, also install PnP.PowerShell at exactly this version. Empty (the default) skips it.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -61,7 +71,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.local/share/powershell/Modules
-        key: pwsh-modules-${{ runner.os }}-pester${{ inputs.pester-version }}-yaml${{ inputs.yaml-version }}
+        key: pwsh-modules-${{ runner.os }}-pester${{ inputs.pester-version }}-yaml${{ inputs.yaml-version }}${{ inputs.pnp-version != '' && format('-pnp{0}', inputs.pnp-version) || '' }}
 
     - name: Install Pester and powershell-yaml (pinned)
       shell: pwsh
@@ -88,6 +98,20 @@ runs:
                 -Force -Scope CurrentUser -AllowClobber
         }
 
+        $pnpVersion = '${{ inputs.pnp-version }}'
+        if ($pnpVersion) {
+            $havePnP = Get-Module -ListAvailable -Name PnP.PowerShell |
+                Where-Object { $_.Version -eq [version]$pnpVersion }
+            if (-not $havePnP) {
+                Install-Module -Name PnP.PowerShell `
+                    -RequiredVersion $pnpVersion `
+                    -Force -Scope CurrentUser -AllowClobber
+            }
+            Get-Module -ListAvailable PnP.PowerShell |
+                Where-Object { $_.Version -eq [version]$pnpVersion } |
+                Format-Table Name, Version
+        }
+
         $listed = if ($installPester) {
             Get-Module -ListAvailable Pester, powershell-yaml
         } else {
@@ -111,6 +135,13 @@ runs:
             Import-Module Pester -RequiredVersion $pesterVersion -ErrorAction Stop
         }
         Import-Module powershell-yaml -RequiredVersion $yamlVersion -ErrorAction Stop
+
+        # PnP.PowerShell is large and only the PnP call check imports it, so
+        # check the pinned version is present rather than importing it here.
+        $pnpVersion = '${{ inputs.pnp-version }}'
+        if ($pnpVersion -and -not (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { $_.Version -eq [version]$pnpVersion })) {
+            throw "PnP.PowerShell $pnpVersion is not installed"
+        }
 
         $msg = if ($installPester) {
             "Pinned versions verified: Pester $pesterVersion, powershell-yaml $yamlVersion"
