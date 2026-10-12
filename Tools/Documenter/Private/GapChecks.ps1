@@ -1148,7 +1148,7 @@ function Test-NoisyFalsePositiveRule {
 # ------------------------------------------------------------
 function Test-RuleEntityMappingsPresent {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    $rules = _GetEnabledQueryRules $Inventory
+    $rules = @(_GetEnabledQueryRules $Inventory)
     if ($rules.Count -eq 0) { return $null }
     $unmapped = @($rules | Where-Object {
         @(Get-PropOrDefault $_ 'properties.entityMappings' @() | Where-Object { $null -ne $_ }).Count -eq 0
@@ -1164,7 +1164,7 @@ function Test-RuleEntityMappingsPresent {
 # ------------------------------------------------------------
 function Test-RuleCreatesIncidents {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    $rules = _GetEnabledQueryRules $Inventory
+    $rules = @(_GetEnabledQueryRules $Inventory)
     if ($rules.Count -eq 0) { return $null }
     # createIncident defaults to true when the block is absent, so only an
     # explicit false counts.

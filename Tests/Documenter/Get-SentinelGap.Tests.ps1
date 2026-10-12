@@ -474,6 +474,29 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     }
 }
 
+Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT rules' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1')
+        $script:quiet = [pscustomobject]@{
+            AlertRules = @(
+                [pscustomobject]@{ name = 'off'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Switched off'; enabled = $false } },
+                [pscustomobject]@{ name = 'fusion'; kind = 'Fusion'; properties = [pscustomobject]@{ displayName = 'Advanced Multistage Attack Detection'; enabled = $true } }
+            )
+        }
+    }
+
+    It 'returns no finding from the entity-mapping check under strict mode' {
+        Set-StrictMode -Version Latest
+        Test-RuleEntityMappingsPresent -Inventory $script:quiet | Should -BeNullOrEmpty
+    }
+
+    It 'returns no finding from the incident-creation check under strict mode' {
+        Set-StrictMode -Version Latest
+        Test-RuleCreatesIncidents -Inventory $script:quiet | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'No-detection check counts Defender custom detections as coverage' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
