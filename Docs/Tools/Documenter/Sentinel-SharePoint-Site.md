@@ -87,11 +87,13 @@ dashed into the pool. The model's `estate.tables` carries every table
 receiving data with its family, GB, rule count and coverage.
 
 Findings (on their tab and on the Overview) and the maturity criteria use
-one card layout: a card per item with a severity- or status-coloured edge,
-the pill, id and title on the first line, chips beneath (category, area and
-retired id; area, kind and effort for criteria), the criterion's impact
-line, then Evidence beside Remediation (or Guidance), each clamped to four
-lines with an Expand control. Findings
+one card layout: a card per item with the pill, id and title on the first
+line, chips beneath (category, area and retired id; area, kind and effort
+for criteria), the criterion's impact line, then Evidence beside
+Remediation (or Guidance), each clamped to four lines with an Expand
+control. Every card is the same height when collapsed: each block reserves
+its four lines and the Expand slot is always present, invisible when the
+text fits, so Expand sits in the same place on every card. Findings
 filter by severity, category and free text; criteria by status, area and
 free text, and a criterion whose id a fired finding shares carries an
 "Open finding" link.

@@ -531,24 +531,28 @@
      pill, id and title on the first line, chips beneath, then Evidence and
      Remediation (or Guidance) side by side. */
   .fcards{display:flex;flex-direction:column;gap:12px}
-  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:15px 18px 14px 20px;box-shadow:var(--shadow-sm)}
-  .fcard::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 4px 4px 0;background:var(--edge,var(--slate))}
-  .fcard.e-Critical{--edge:var(--red)} .fcard.e-Error{--edge:var(--orange)} .fcard.e-Warning{--edge:var(--amber)} .fcard.e-Info,.fcard.e-Informational{--edge:var(--slate)}
-  .fcard.e-Met{--edge:var(--green)} .fcard.e-Gap{--edge:var(--red)} .fcard.e-Unknown{--edge:var(--slate)}
+  /* Every card is the same height when collapsed: the title row, chip row
+     and impact line reserve their space, each text block reserves four
+     lines, and the Expand slot is always present (invisible when the text
+     fits), so Expand sits in the same place on every card. */
+  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:15px 18px 12px;box-shadow:var(--shadow-sm)}
   #findList .fcard{background:var(--panel)}
-  .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:28px}
   .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
   .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
   .fc-actions{margin-left:auto;display:flex;gap:14px;align-items:center;white-space:nowrap}
   .fc-actions a{font-weight:700;font-size:12.5px;cursor:pointer}
-  .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+  .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;min-height:22px}
   .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
-  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5;min-height:calc(1.5em * 2)}
   .fc-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px 28px;margin-top:12px}
   @media(max-width:900px){.fc-body{grid-template-columns:1fr}}
   .fc-block{font-size:13px;color:var(--ink-2);line-height:1.55;min-width:0}
   .fc-block .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
-  .fc-block .ltx .ltx-body{-webkit-line-clamp:4}
+  .fc-block .ltx .ltx-body{-webkit-line-clamp:4;min-height:calc(1.55em * 4)}
+  .fc-block .ltx .ltx-btn{display:inline-block;visibility:hidden}
+  .fc-block .ltx.clamped .ltx-btn,.fc-block .ltx.open .ltx-btn{visibility:visible}
+  .fc-block .fc-empty{color:var(--faint)}
   table.tbl th.num{text-align:right}
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
@@ -745,8 +749,8 @@
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
       '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
-      '<div class="fc-body">'+(f.evidence?'<div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence)+'</div>':'')+
-      (f.remediation?'<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation)+'</div>':'')+'</div></div>';
+      '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'</div>'+
+      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div></div>';
   }
   const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
@@ -1662,9 +1666,9 @@
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
         '<span class="fc-actions">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
-        (c.impact?'<p class="fc-impact">'+esc(c.impact)+'</p>':'')+
-        '<div class="fc-body">'+(c.evidence?'<div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence)+'</div>':'')+
-        (c.guidance&&c.status!=='Met'?'<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance)+'</div>':'')+'</div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+        '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
+        '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'</div>'+
+        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
       tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
