@@ -90,10 +90,11 @@ Findings (on their tab and on the Overview) and the maturity criteria use
 one card layout: a card per item with the pill, id and title on the first
 line, chips beneath (category, area and retired id; area, kind and effort
 for criteria), the criterion's impact line, then Evidence beside
-Remediation (or Guidance), each clamped to four lines with an Expand
-control. Every card is the same height when collapsed: each block reserves
-its four lines and the Expand slot is always present, invisible when the
-text fits, so Expand sits in the same place on every card. Findings
+Remediation (or Guidance), each clamped to three lines. Every card is the
+same height when collapsed: each block reserves its three lines, and one
+Expand button per card sits bottom right in a slot
+that is always reserved (invisible when both blocks fit), opening both
+blocks together. Findings
 filter by severity, category and free text; criteria by status, area and
 free text, and a criterion whose id a fired finding shares carries an
 "Open finding" link.

@@ -126,8 +126,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   item with the pill, id and title on one line and the Learn or "Open
   finding" link at the right, chips beneath (category, area, the retired
   id; area, kind and effort for criteria), then Evidence beside Remediation
-  or Guidance, each clamped to four lines with Expand. Every card is the
-  same height when collapsed and Expand sits in the same place. Findings filter by severity, category and
+  or Guidance, each clamped to three lines. Every card is the same height
+  when collapsed, and one Expand button per card, bottom right, opens both
+  blocks. Findings filter by severity, category and
   search; criteria by status, area and search, and a criterion that shares
   its id with a fired finding links to it.
 - **Dashboard reading comfort** - long evidence, remediation and guidance

@@ -535,8 +535,7 @@
      and impact line reserve their space, each text block reserves four
      lines, and the Expand slot is always present (invisible when the text
      fits), so Expand sits in the same place on every card. */
-  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:15px 18px 12px;box-shadow:var(--shadow-sm)}
-  #findList .fcard{background:var(--panel)}
+  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 18px 10px;box-shadow:var(--shadow-sm)}
   .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:28px}
   .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
   .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
@@ -544,15 +543,19 @@
   .fc-actions a{font-weight:700;font-size:12.5px;cursor:pointer}
   .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;min-height:22px}
   .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
-  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5;min-height:calc(1.5em * 2)}
-  .fc-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px 28px;margin-top:12px}
+  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5;min-height:1.5em}
+  .fc-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px 28px;margin-top:10px}
   @media(max-width:900px){.fc-body{grid-template-columns:1fr}}
   .fc-block{font-size:13px;color:var(--ink-2);line-height:1.55;min-width:0}
   .fc-block .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
-  .fc-block .ltx .ltx-body{-webkit-line-clamp:4;min-height:calc(1.55em * 4)}
-  .fc-block .ltx .ltx-btn{display:inline-block;visibility:hidden}
-  .fc-block .ltx.clamped .ltx-btn,.fc-block .ltx.open .ltx-btn{visibility:visible}
-  .fc-block .fc-empty{color:var(--faint)}
+  .fc-block .ltx .ltx-body{-webkit-line-clamp:3;min-height:calc(1.55em * 3)}
+  .fc-block .ltx .ltx-btn{display:none}
+  /* One Expand per card, bottom right, in a slot that is always reserved so
+     it sits in the same place on every card; it opens both text blocks. */
+  .fc-foot{display:flex;justify-content:flex-end;align-items:center;min-height:24px;margin-top:2px}
+  .fc-expand{visibility:hidden;font:inherit;font-size:12px;font-weight:700;color:var(--brand-ink);background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer}
+  .fc-expand:hover{background:var(--chip)}
+  .fcard.has-more .fc-expand,.fcard.open .fc-expand{visibility:visible}
   table.tbl th.num{text-align:right}
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
@@ -750,7 +753,8 @@
       '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'</div>'+
-      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div></div>';
+      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div>'+
+      '<div class="fc-foot"><button type="button" class="fc-expand" data-fcx>Expand</button></div></div>';
   }
   const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
@@ -759,7 +763,16 @@
       const b=w.querySelector('.ltx-body'); if(!b||!b.clientHeight) return;
       w.classList.toggle('clamped', b.scrollHeight>b.clientHeight+2);
     });
+    (root||document).querySelectorAll('.fcard').forEach(c=>c.classList.toggle('has-more', !!c.querySelector('.ltx.clamped')));
   }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-fcx]'); if(!b) return;
+    const card=b.closest('.fcard'); const open=card.classList.toggle('open');
+    card.querySelectorAll('.ltx').forEach(w=>{ w.classList.toggle('open',open); if(open) w.classList.add('clamped'); });
+    if(!open) markClamped(card);
+    b.textContent=open?'Collapse':'Expand';
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  });
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-ltx]'); if(!b) return;
     const w=b.closest('.ltx'); const open=w.classList.toggle('open');
@@ -1668,7 +1681,8 @@
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
         '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'</div>'+
-        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div>'+
+        '<div class="fc-foot"><button type="button" class="fc-expand" data-fcx>Expand</button></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
       tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
