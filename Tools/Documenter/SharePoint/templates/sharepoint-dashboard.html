@@ -177,6 +177,11 @@
   .ipanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     box-shadow:var(--shadow);padding:20px 22px;animation:rise .45s cubic-bezier(.22,.8,.3,1) both;min-width:0}
   .ipanel.full{grid-column:1/-1}
+  /* The Insights board is a column of bands. Each band is a grid of cards
+     with similar heights (donuts, bar lists, tables), so a tall table never
+     shares a row with a short donut; full-width panels sit between bands. */
+  #insightsBoard{display:flex;flex-direction:column;gap:var(--gap)}
+  .iband{margin:0}
   @media(max-width:440px){.insights{grid-template-columns:1fr}}
   .ipanel h3{margin:0;font-size:15px;font-weight:750;letter-spacing:-.01em}
   .ipanel .note{color:var(--muted);font-size:12.5px;margin:4px 0 16px}
@@ -939,31 +944,52 @@
     const cols=[[],[],[],[]];
     nodes.forEach(n=>cols[n.col].push(n));
     const byId={}; nodes.forEach(n=>byId[n.id]=n);
-    const padX=20, padY=18, nodeW=opts.nodeW, colGap=opts.colGap, slotGap=opts.slotGap;
+    const padX=20, padY=18, colGap=opts.colGap, slotGap=opts.slotGap, slotH=opts.slotH;
+    // Each column is as wide as its longest label needs (estimated per
+    // character: capitals about 8.4px, narrow glyphs 3.8px, the rest 6.6px at
+    // 11.5px semi-bold; values 5.9px per character at 10px), between
+    // opts.nodeW and opts.maxNodeW. A column whose label plus value would
+    // exceed the cap stacks the value under the label; a label that still
+    // does not fit is truncated and keeps its full name in a tooltip. With
+    // opts.fit the SVG scales down to its container instead of scrolling.
+    const PAD_L=8, PAD_R=6, GAPX=6, VW=5.9;
+    const estText=s=>[...String(s)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?8.4:/[ijl.,'| ]/.test(ch)?3.8:6.6),0);
+    const showVal=n=>n.col!==1 && n.value>=0.01;
+    const valTxt=n=>showVal(n)? n.value+'GB' : '';
+    const maxNodeW=opts.maxNodeW||Math.round(opts.nodeW*1.7);
+    const colW=[], stackCol=[];
+    cols.forEach((arr,ci)=>{
+      const inline=arr.reduce((m,n)=>Math.max(m, estText(n.label)+PAD_L+PAD_R+(showVal(n)? valTxt(n).length*VW+GAPX : 0)),0);
+      const labelOnly=arr.reduce((m,n)=>Math.max(m, estText(n.label)+PAD_L+PAD_R),0);
+      const stack=inline>maxNodeW && arr.some(showVal);
+      stackCol[ci]=stack;
+      colW[ci]=Math.min(maxNodeW, Math.max(opts.nodeW, stack? labelOnly : inline));
+    });
+    const colX=[]; let xAcc=padX; cols.forEach((arr,ci)=>{ colX[ci]=xAcc; xAcc+=colW[ci]+colGap; });
     const maxCount=Math.max(...cols.map(c=>c.length));
-    const slotH=opts.slotH;
     const H = padY*2 + maxCount*(slotH+slotGap) - slotGap;
-    const W = padX*2 + 4*nodeW + 3*colGap + opts.labelPad;
+    const W = xAcc - colGap + padX + (opts.labelPad||0);
     svgEl.setAttribute('viewBox','0 0 '+W+' '+H);
-    svgEl.setAttribute('width',W); svgEl.setAttribute('height',H);
+    if(opts.fit){ svgEl.setAttribute('width','100%'); svgEl.removeAttribute('height'); svgEl.style.maxWidth=W+'px'; }
+    else { svgEl.setAttribute('width',W); svgEl.setAttribute('height',H); }
     const ns='http://www.w3.org/2000/svg';
     while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
     cols.forEach((arr,ci)=>{
       const totalH=arr.length*(slotH+slotGap)-slotGap;
       let y=(H-totalH)/2;
-      arr.forEach(n=>{ n._x=padX+ci*(nodeW+colGap); n._y=y; n._h=slotH; n._outOff=0; n._inOff=0;
+      arr.forEach(n=>{ n._x=colX[ci]; n._w=colW[ci]; n._y=y; n._h=slotH; n._outOff=0; n._inOff=0;
         n._out=links.filter(l=>l.source===n.id).reduce((a,l)=>a+l.value,0);
         n._in =links.filter(l=>l.target===n.id).reduce((a,l)=>a+l.value,0); y+=slotH+slotGap; });
     });
     const colHdr=['Data source','Workspace table','Plan and tier','Outcome'];
     cols.forEach((arr,ci)=>{ if(!arr.length)return; const t=document.createElementNS(ns,'text');
-      t.setAttribute('x',padX+ci*(nodeW+colGap)); t.setAttribute('y',12); t.setAttribute('fill','#9aa3af');
+      t.setAttribute('x',colX[ci]); t.setAttribute('y',12); t.setAttribute('fill','#9aa3af');
       t.setAttribute('font-size','11'); t.setAttribute('font-weight','700'); t.textContent=colHdr[ci].toUpperCase(); svgEl.appendChild(t); });
     links.forEach(l=>{
       const s=byId[l.source], t=byId[l.target]; if(!s||!t)return;
       const sh=(l.value/(s._out||1))*s._h, th=(l.value/(t._in||1))*t._h;
       const sy0=s._y+s._outOff, ty0=t._y+t._inOff; s._outOff+=sh; t._inOff+=th;
-      const x0=s._x+nodeW, x1=t._x, xm=(x0+x1)/2;
+      const x0=s._x+s._w, x1=t._x, xm=(x0+x1)/2;
       const col = nodeFill(s);
       const path=document.createElementNS(ns,'path');
       const d='M'+x0+','+sy0+' C'+xm+','+sy0+' '+xm+','+ty0+' '+x1+','+ty0+
@@ -973,21 +999,26 @@
     nodes.forEach(n=>{
       const col = nodeFill(n);
       const r=document.createElementNS(ns,'rect');
-      r.setAttribute('x',n._x); r.setAttribute('y',n._y); r.setAttribute('width',nodeW); r.setAttribute('height',n._h);
+      r.setAttribute('x',n._x); r.setAttribute('y',n._y); r.setAttribute('width',n._w); r.setAttribute('height',n._h);
       r.setAttribute('rx','6'); r.setAttribute('fill',col); r.setAttribute('fill-opacity', n.col===1?'.12':'.9');
       r.setAttribute('stroke',col); r.setAttribute('stroke-opacity','.5'); svgEl.appendChild(r);
+      const hasVal=showVal(n), stacked=hasVal && stackCol[n.col], vt=valTxt(n);
       const label=document.createElementNS(ns,'text');
-      label.setAttribute('x', n._x+8); label.setAttribute('y', n._y+n._h/2+4);
+      label.setAttribute('x', n._x+PAD_L); label.setAttribute('y', stacked? n._y+n._h/2-2 : n._y+n._h/2+4);
       label.setAttribute('font-size','11.5'); label.setAttribute('font-weight','600');
       label.setAttribute('fill', n.col===1? '#1f2430':'#ffffff');
-      let txt=n.label; const mc = n.col===1? opts.maxChars-4 : opts.maxChars;
-      if(txt.length>mc) txt=txt.slice(0,mc-1)+'…';
-      label.textContent=txt; svgEl.appendChild(label);
-      if(n.col!==1 && n.value>=0.01){
+      const availPx=n._w-PAD_L-PAD_R-((hasVal&&!stacked)? vt.length*VW+GAPX : 0);
+      let txt=n.label;
+      if(estText(txt)>availPx){ while(txt.length>1 && estText(txt+'…')>availPx) txt=txt.slice(0,-1); txt+='…'; }
+      label.textContent=txt;
+      if(txt!==n.label){ const tt=document.createElementNS(ns,'title'); tt.textContent=n.label; label.appendChild(tt); }
+      svgEl.appendChild(label);
+      if(hasVal){
         const val=document.createElementNS(ns,'text');
-        val.setAttribute('x', n._x+nodeW-6); val.setAttribute('y', n._y+n._h/2+4); val.setAttribute('text-anchor','end');
+        if(stacked){ val.setAttribute('x', n._x+PAD_L); val.setAttribute('y', n._y+n._h/2+10); }
+        else { val.setAttribute('x', n._x+n._w-PAD_R); val.setAttribute('y', n._y+n._h/2+4); val.setAttribute('text-anchor','end'); }
         val.setAttribute('font-size','10'); val.setAttribute('fill','rgba(255,255,255,.85)');
-        val.textContent=n.value+'GB'; svgEl.appendChild(val);
+        val.textContent=vt; svgEl.appendChild(val);
       }
     });
     return {W,H};
@@ -996,9 +1027,9 @@
      '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
   document.getElementById('legend').innerHTML=legendHtml;
   document.getElementById('legendBig').innerHTML=legendHtml;
-  drawSankey(document.getElementById('sankeyMini'),{nodeW:150,colGap:70,slotGap:8,slotH:34,labelPad:0,maxChars:22});
+  drawSankey(document.getElementById('sankeyMini'),{nodeW:150,colGap:70,slotGap:8,slotH:34,labelPad:0,fit:true});
   let zoom=1; const big=document.getElementById('sankeyBig');
-  const dim=drawSankey(big,{nodeW:190,colGap:110,slotGap:10,slotH:40,labelPad:0,maxChars:30});
+  const dim=drawSankey(big,{nodeW:190,colGap:110,slotGap:10,slotH:40,labelPad:0});
   function applyZoom(){ if(!dim)return; big.setAttribute('width',dim.W*zoom); big.setAttribute('height',dim.H*zoom);
     document.getElementById('zoomPct').textContent=Math.round(zoom*100)+'%'; }
   document.getElementById('zoomIn').onclick=()=>{zoom=Math.min(2,zoom+.1);applyZoom();};
@@ -1312,7 +1343,32 @@
       '<div class="wn">'+wn+'</div></div>');
   }
 
-  board.innerHTML = cards.join('');
+  // Bands group cards of similar height so a long table never shares a row
+  // with a short donut. Full-width panels separate the bands. A card whose
+  // title is not listed lands in a trailing band rather than disappearing.
+  const BANDS=[
+    {full:'Detection coverage by MITRE'},
+    {titles:['Analytics rules enabled','Findings by severity','Findings by category','Incident outcomes','Billed vs Defender free benefit','Ingestion by billing plan','Alert volume by severity','Threat intelligence by source']},
+    {full:'Content inventory'},
+    {titles:['Top tables by volume','Alerts by detection source','Operational health event mix','Playbook health','Daily ingestion']},
+    {full:'Detection opportunities'},
+    {titles:['Rule effectiveness','Top alerting rules','Sentinel data lake']},
+    {full:'What'}
+  ];
+  const titleOf=h=>{ const m=/<h3>(.*?)<\/h3>/.exec(h); return m? m[1].replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&rsquo;/g,'\u2019') : ''; };
+  const pool=cards.map(h=>({h,t:titleOf(h),used:false}));
+  const take=pred=>pool.filter(c=>!c.used&&pred(c.t)).map(c=>{ c.used=true; return c.h; });
+  const out=[];
+  BANDS.forEach(b=>{
+    if(b.full){ out.push(...take(t=>t.startsWith(b.full))); return; }
+    const members=[]; b.titles.forEach(tt=>members.push(...take(t=>t.startsWith(tt))));
+    if(members.length) out.push('<div class="insights iband">'+members.join('')+'</div>');
+  });
+  const rest=pool.filter(c=>!c.used);
+  const restFull=rest.filter(c=>/class="ipanel full"/.test(c.h)).map(c=>c.h), restCards=rest.filter(c=>!/class="ipanel full"/.test(c.h)).map(c=>c.h);
+  if(restCards.length) out.push('<div class="insights iband">'+restCards.join('')+'</div>');
+  out.push(...restFull);
+  board.innerHTML = out.join('');
   board.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
 
   // ---- maturity board ----
@@ -1591,18 +1647,29 @@
   // over those rows instead: ten cards at six wide become five and five.
   // Full-width panels (.full) span every column and are left out of the
   // count. Re-run on resize and when a hidden tab is shown.
-  const BALANCED=[['#contents',250],['#heroPills',150],['#estateRings',220],['#outcomes',290],['#insightsBoard',380],['.csfgrid',200],['.invg',130]];
+  const BALANCED=[['#contents',250],['#heroPills',150],['#estateRings',220],['#outcomes',290],['.iband',380],['.csfgrid',200],['.invg',130]];
+  // Rows are balanced (5 cards become 3 + 2, never 4 + 1), and when the last
+  // row is still short by two or more cards, its cards widen to fill the row
+  // instead of leaving a hole: the grid uses lcm(cols, k) tracks, regular
+  // cards span lcm/cols and last-row cards span lcm/k. A single leftover card
+  // keeps its normal width.
+  const gcd=(a,b)=>b? gcd(b,a%b) : a;
   function balanceGrids(){
     BALANCED.forEach(([sel,min])=>{
       document.querySelectorAll(sel).forEach(el=>{
         const w=el.clientWidth; if(!w) return;                     // hidden tab, measure when shown
-        const n=[...el.children].filter(c=>!c.classList.contains('full')).length;
+        const kids=[...el.children].filter(c=>!c.classList.contains('full'));
+        const n=kids.length;
         if(!n) return;
         const gap=parseFloat(getComputedStyle(el).columnGap)||12;
         const maxCols=Math.max(1,Math.floor((w+gap)/(min+gap)));
         const rows=Math.ceil(n/maxCols);
         const cols=Math.max(1,Math.ceil(n/rows));
-        el.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
+        const k=n%cols;
+        const justify=k>=2;
+        const L=justify? cols*k/gcd(cols,k) : cols;
+        el.style.gridTemplateColumns='repeat('+L+',minmax(0,1fr))';
+        kids.forEach((c,i)=>{ c.style.gridColumn = L===cols? '' : 'span '+((justify && i>=n-k)? L/k : L/cols); });
       });
     });
   }

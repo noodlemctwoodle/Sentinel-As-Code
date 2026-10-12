@@ -77,6 +77,15 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Documenter computes:
 
+The Insights tab lays its cards out in bands of similar height (donut and
+pie cards, bar-list cards, table cards), with the full-width panels
+(MITRE matrix, content inventory, detection opportunities, what's new)
+between them, so a long table never shares a row with a short donut.
+Every card grid balances its rows (five cards become three and two,
+never four and one) and a short last row widens to fill the band. The
+two Sankeys size each column to its longest label and stack the GB value
+under the label when the two cannot share a line.
+
 | Model key | Panel | Source captures |
 | --- | --- | --- |
 | `estate` | Overview: the four pipeline rings (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed) and the estate flow (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |

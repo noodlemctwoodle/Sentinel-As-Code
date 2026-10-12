@@ -43,6 +43,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **Dashboard layout** - Insights cards sit in bands of similar height
+  (donuts, bar lists, tables) separated by the full-width panels, so a long
+  table never shares a row with a short donut; a short last row widens to
+  fill its band. Sankey columns size to their longest label, stacking the
+  value under the label when the two cannot share a line, so names neither
+  overlap nor truncate, and the Overview copy scales to fit its box.
 - **One analytics page** - the four analytics deep-dives (by alert volume,
   Microsoft-managed rules, recent modifications, by Content Hub solution)
   are now subsections of `20-analytics-rules.md` rather than separate
