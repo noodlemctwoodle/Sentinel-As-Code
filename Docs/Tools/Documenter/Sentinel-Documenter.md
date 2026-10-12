@@ -116,13 +116,13 @@ SecurityDocs/
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
-    ├── 10-data-connectors.md          classic + CCF + synthesised effective view
+    ├── 10-data-connectors.md          classic + CCF + synthesised effective view, Defender XDR unification
     ├── 11-sentinel-health.md          SentinelHealth events (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events
-    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source
+    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source, Entra ID table presence
     ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
-    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution
+    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source
@@ -136,15 +136,15 @@ SecurityDocs/
     ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
     ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants
     ├── 70-content-hub.md              installed solutions + repos
-    ├── 80-workspace.md                SKU, retention, networking, CMK, feature flags
-    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix
+    ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
+    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
     ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
     ├── 83-data-collection.md          DCRs, DCEs, transforms
     ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if
     ├── 85-rbac.md                     role assignments
     ├── 86-subscription-context.md     subscription, tenant, RPs, locks, policy
     ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace
-    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, migration candidates
+    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, usage evidence, migration candidates
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
     ├── 91-maturity-assessment.md     maturity by area, roadmap, quick wins, NIST CSF rollup
     ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)

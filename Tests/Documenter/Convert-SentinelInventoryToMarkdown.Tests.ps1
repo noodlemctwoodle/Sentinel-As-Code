@@ -353,6 +353,72 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '10-data-connectors.md reports Defender XDR unification' {
+        It 'lists the XDR connector data types and the Defender for Cloud connectors' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '10-data-connectors.md') -Raw
+            $md | Should -Match '## Defender XDR unification'
+            $md | Should -Match '\| Defender XDR connector \(MicrosoftThreatProtection\) \| Present \|'
+            $md | Should -Match '\| XDR incidents data type \| enabled \|'
+            $md | Should -Match '\| Legacy Microsoft incident-creation rules enabled \| 1 \|'
+            $md | Should -Match '\| Defender for Cloud connector \(subscription level\) \| Not configured \|'
+            $md | Should -Match '\| Defender portal onboarding \| Not observable \|'
+        }
+    }
+
+    Context '14-coverage-breakdowns.md lists Entra ID table presence' {
+        It 'marks the tables receiving data and the catalogue-only ones' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '14-coverage-breakdowns.md') -Raw
+            $md | Should -Match '## Entra ID table presence \(last 7d\)'
+            $md | Should -Match '\| SigninLogs \|[^\n]*\| 25 \| Receiving data \|'
+            $md | Should -Match '\| AuditLogs \| Analytics \| 30 \| 0 \| Catalogue only \|'
+            $md | Should -Match '\| AADProvisioningLogs \|[^\n]*\| Not in catalogue \|'
+        }
+    }
+
+    Context '20-analytics-rules.md scores rule complexity' {
+        It 'scores the fixture rule from its query shape' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $md | Should -Match '## Rule complexity'
+            $md | Should -Match '\| Suspicious sign-in from rare country \| Scheduled \| 4 \| 159 \| 1 \| 1 \| 1 \| 1 \|  \| Yes \|'
+        }
+    }
+
+    Context '80-workspace.md carries a resilience summary' {
+        It 'reports replication, keys, the daily cap and locks in one table' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+            $md | Should -Match '## Resilience summary'
+            $md | Should -Match '\| Customer-managed key \| No \(platform-managed keys\) \|'
+            $md | Should -Match '\| Daily cap \|'
+            $md | Should -Match '\| Resource locks \|'
+        }
+    }
+
+    Context '81-table-plans-retention.md details silent and classic tables' {
+        BeforeAll { $script:plansMd = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw }
+
+        It 'splits silent tables by detection impact' {
+            $script:plansMd | Should -Match '1 of these are read by enabled analytics rules'
+            $script:plansMd | Should -Match '\| AuditLogs \| Analytics \| 50 \| 2026-04-25 07:50 \| 11 \| 1 \| Detection outage \|'
+        }
+
+        It 'inventories the classic (Data Collector API) custom tables' {
+            $script:plansMd | Should -Match '## Classic custom tables \(legacy Data Collector API\)'
+            $script:plansMd | Should -Match '\*\*1\*\* classic table\(s\): \*\*1\*\* still ingesting'
+            $script:plansMd | Should -Match '\| LegacyCLv1_CL \| Analytics \| 30 \| 30 \| 30 \| 2026-05-06 07:00 \| Active \(last 24h\) \| 0 \|'
+        }
+    }
+
+    Context '88-sentinel-data-lake.md assesses lake usage' {
+        It 'explains there is nothing to assess when no table extends into the lake, and lists the tables without extension' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '88-sentinel-data-lake.md') -Raw
+            $md | Should -Match '## Lake usage evidence'
+            $md | Should -Match 'No table keeps data in the lake beyond its analytics retention'
+            $md | Should -Match '## Analytics tables without extended lake retention'
+            $md | Should -Match '\| SecurityEvent \| 30 \| 30 \| 1500 \| 0 \|'
+            $md | Should -Match '\| AuditLogs \| 30 \| 30 \| 50 \| 1 \|'
+        }
+    }
+
     Context '81-table-plans-retention.md tables detection coverage' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw

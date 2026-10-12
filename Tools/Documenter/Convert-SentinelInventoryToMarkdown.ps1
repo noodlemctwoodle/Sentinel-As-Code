@@ -343,6 +343,14 @@ $maturityOk = ($null -ne $maturity -and $null -ne $maturity.PSObject.Properties[
 
 # KQL result cells arrive as strings; fixtures carry typed values. Parse
 # rather than cast so neither shape throws.
+function _RProp {
+    # StrictMode-safe property read: $Default when the object or property is absent or null.
+    param($Object, [string]$Name, $Default = $null)
+    if ($null -eq $Object) { return $Default }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -and $null -ne $prop.Value) { return $prop.Value }
+    return $Default
+}
 function _RendererNumber {
     param($Value)
     if ($null -eq $Value) { return 0.0 }
@@ -887,6 +895,32 @@ $kindPieRows = $kindCounts.GetEnumerator() | Sort-Object Value -Descending | For
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
+# Defender XDR unification and Defender for Cloud: read from the classic
+# connector list, the XDR table presence capture, the rules and the
+# workspace. Defender-portal onboarding itself is not observable from the
+# workspace API, so the table says so rather than guessing.
+$mtpConnector = @($connectors | Where-Object { $_ -and (_RProp $_ 'kind') -eq 'MicrosoftThreatProtection' }) | Select-Object -First 1
+$mtpTypes = _RProp (_RProp $mtpConnector 'properties') 'dataTypes'
+$mtpState = { param($name) $dt = _RProp $mtpTypes $name; if ($dt) { [string](_RProp $dt 'state' 'unknown') } else { 'not configured' } }
+$xdrPresenceRows = @(Read-RawArray 'xdr-table-presence.json' | Where-Object { $_ })
+$xdrActive = @($xdrPresenceRows | Where-Object { (_RendererNumber (_RProp $_ 'RecordCount' 0)) -gt 0 }).Count
+$legacyIncidentRulesEnabled = @($rules | Where-Object { $_ -and $_.kind -eq 'MicrosoftSecurityIncidentCreation' -and (_RProp (_RProp $_ 'properties') 'enabled' $false) }).Count
+$mdcSubscription = @($connectors | Where-Object { $_ -and (_RProp $_ 'kind') -eq 'AzureSecurityCenter' }).Count
+$mdcTenant = @($connectors | Where-Object { $_ -and (_RProp $_ 'kind') -eq 'MicrosoftDefenderForCloudTenantBased' }).Count
+$unifiedBillingFlag = [bool](_RProp (_RProp (_RProp $workspace 'properties') 'features') 'unifiedSentinelBillingOnly' $false)
+$onboardingRow = @(Read-RawArray 'onboarding-state.json' | Where-Object { $_ }) | Select-Object -First 1
+$unificationRows = @(
+    [pscustomobject]@{ Check = 'Defender XDR connector (MicrosoftThreatProtection)'; Value = $(if ($mtpConnector) { 'Present' } else { 'Not configured' }); Meaning = 'Brings XDR incidents and alerts into the workspace; without it Sentinel and Defender run separate queues' }
+    [pscustomobject]@{ Check = 'XDR incidents data type'; Value = (& $mtpState 'incidents'); Meaning = 'Enabled means Defender incidents (and their alerts) are synchronised, the unified-queue path' }
+    [pscustomobject]@{ Check = 'XDR alerts data type'; Value = (& $mtpState 'alerts'); Meaning = 'Enabled means raw XDR alerts also land in SecurityAlert' }
+    [pscustomobject]@{ Check = 'XDR advanced-hunting tables with data (7d)'; Value = "$xdrActive of $($xdrPresenceRows.Count) checked"; Meaning = 'Device, Email, Identity and CloudApp tables streaming into the workspace; see 14-coverage-breakdowns.md' }
+    [pscustomobject]@{ Check = 'Legacy Microsoft incident-creation rules enabled'; Value = $legacyIncidentRulesEnabled; Meaning = 'The pre-unification way of promoting Defender alerts; with the incidents data type enabled they duplicate work ([SENT-041])' }
+    [pscustomobject]@{ Check = 'Unified Sentinel and Defender billing'; Value = $(if ($unifiedBillingFlag) { 'true' } else { 'false / absent' }); Meaning = 'features.unifiedSentinelBillingOnly on the workspace, set once the workspace is on the unified billing model' }
+    [pscustomobject]@{ Check = 'Sentinel onboarding state resource'; Value = $(if ($onboardingRow) { 'Present' } else { 'Not captured' }); Meaning = 'Microsoft.SecurityInsights/onboardingStates/default exists on every Sentinel-enabled workspace; it does not prove Defender-portal onboarding' }
+    [pscustomobject]@{ Check = 'Defender portal onboarding'; Value = 'Not observable'; Meaning = 'No workspace-scope API reports it; confirm under Defender portal, System, Settings, Microsoft Sentinel' }
+    [pscustomobject]@{ Check = 'Defender for Cloud connector (subscription level)'; Value = $(if ($mdcSubscription -gt 0) { "Configured ($mdcSubscription)" } else { 'Not configured' }); Meaning = 'AzureSecurityCenter connector per subscription' }
+    [pscustomobject]@{ Check = 'Defender for Cloud connector (tenant level)'; Value = $(if ($mdcTenant -gt 0) { 'Configured' } else { 'Not configured' }); Meaning = 'MicrosoftDefenderForCloudTenantBased connector, the newer tenant-wide path' }
+)
 $connectorBody = @"
 $(Format-Banner -Title "Data Connectors")
 
@@ -926,6 +960,12 @@ $(Format-Table -Items $effective -Columns 'Source','Identifier','Table','Last24h
 Last ingested and 24-hour billable volume per **classic** data-connector's data type, joined against the workspace ``Usage`` summary. Rows with a blank Table column have no known data-type-to-table mapping in the renderer; cross-reference [83-data-collection.md](83-data-collection.md) for DCRs and [81-table-plans-retention.md](81-table-plans-retention.md) for the full per-table view.
 
 $(Format-Table -Items $healthRows -Columns 'Connector','DataType','Table','LastIngested','BillableLast24hGB')
+
+## Defender XDR unification
+
+How far this workspace is on the unified Sentinel and Defender model: the XDR connector and its data types, the advanced-hunting tables actually streaming, the legacy incident-creation rules that the unified queue makes redundant, and the Defender for Cloud connectors.
+
+$(Format-Table -Items $unificationRows -Columns 'Check','Value','Meaning')
 
 [Connector reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/data-connectors-reference) · [Connector health monitoring](https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health)
 "@
@@ -1959,6 +1999,28 @@ $usageTrendBlock
 | Replication enabled | $(if ($null -eq $workspace.properties.replication -or $null -eq $workspace.properties.replication.enabled) { 'False (not configured)' } else { [string]$workspace.properties.replication.enabled }) |
 | Replication location | $(if ($workspace.properties.replication -and $workspace.properties.replication.location) { "``$($workspace.properties.replication.location)``" } else { '_(n/a)_' }) |
 
+## Resilience summary
+
+$( $wsProps80 = _RProp $workspace 'properties'
+   $repl = _RProp $wsProps80 'replication'
+   $replOn = [bool](_RProp $repl 'enabled' $false)
+   $plsr = @(_RProp $wsProps80 'privateLinkScopedResources' @()).Count
+   $capGb = _RProp (_RProp $wsProps80 'workspaceCapping') 'dailyQuotaGb' -1
+   $identityType = [string](_RProp (_RProp $workspace 'identity') 'type' 'None')
+   $onb80 = @(Read-RawArray 'onboarding-state.json' | Where-Object { $_ }) | Select-Object -First 1
+   $cmk80 = _RProp (_RProp $onb80 'properties') 'customerManagedKey'
+   $locks80 = @(Read-RawArray 'workspace-locks.json' | Where-Object { $_ }).Count
+   $resRows = @(
+       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + [string](_RProp $repl 'location' '?') + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SENT-020]' }
+       [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$plsr linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SENT-021] covers public access' }
+       [pscustomobject]@{ Control = 'Public ingestion / query'; State = "$(_RProp $wsProps80 'publicNetworkAccessForIngestion' 'Enabled') / $(_RProp $wsProps80 'publicNetworkAccessForQuery' 'Enabled')"; Note = 'Disabled on both means every path goes through Private Link' }
+       [pscustomobject]@{ Control = 'Customer-managed key'; State = $(if ($null -eq $cmk80) { 'Unknown (onboarding state not captured)' } elseif ($cmk80) { 'Yes' } else { 'No (platform-managed keys)' }); Note = 'From the Sentinel onboarding state; CMK also needs a dedicated cluster' }
+       [pscustomobject]@{ Control = 'Managed identity'; State = $identityType; Note = 'Identity on the workspace resource itself' }
+       [pscustomobject]@{ Control = 'Daily cap'; State = $(if ($null -eq $capGb -or [double]$capGb -eq -1) { 'Unlimited' } else { "$capGb GB / day" }); Note = 'A cap protects spend and drops data once hit; [SENT-001]' }
+       [pscustomobject]@{ Control = 'Resource locks'; State = $(if ($locks80 -gt 0) { "$locks80 lock(s)" } else { 'None' }); Note = 'CanNotDelete on the workspace; [SENT-042]' }
+   )
+   Format-Table -Items $resRows -Columns 'Control','State','Note' )
+
 ## Feature flags
 
 | Flag | Value |
@@ -2074,6 +2136,55 @@ $coverageBlock = if ($ruleTableRefs.Count -eq 0) {
     Format-Table -Items $coverageRows -Columns 'Name','Plan','Gb90d','Rules','Coverage'
 }
 
+# Silent tables in detail, split by whether an enabled rule reads them: a
+# silent table nobody detects on is a cost question, one that rules depend
+# on is a detection outage ([SENT-052]).
+$docNow = $(if ($run -and (_RProp $run 'CompletedAtUtc')) { ([datetime]::Parse([string]$run.CompletedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)).ToUniversalTime() } else { [datetime]::UtcNow })
+$silentRows = @($silent | ForEach-Object {
+    $name = $_.Name
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $lastRaw = _RProp $use 'LastIngested'
+    $days = ''
+    if ($lastRaw) { $parsed = [datetime]::MinValue; if ([datetime]::TryParse([string]$lastRaw, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { $days = [int][math]::Floor(($docNow - $parsed.ToUniversalTime()).TotalDays) } }
+    $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
+    [pscustomobject]@{ Name = $name; Plan = $_.Plan; Gb90d = $_.Gb90d; LastIngested = $_.LastIngested; DaysSilent = $days; Rules = $n; Impact = if ($n -gt 0) { 'Detection outage' } else { 'Cost only' } }
+} | Sort-Object -Property @{ Expression = 'Rules'; Descending = $true }, @{ Expression = 'Gb90d'; Descending = $true })
+$silentWithRules = @($silentRows | Where-Object { $_.Rules -gt 0 })
+$silentDetail = if ($silentRows.Count -eq 0) { '' } else { @"
+
+$($silentWithRules.Count) of these are read by enabled analytics rules; those rules still run on schedule and return nothing, so the detection has gone dark without an alert. The rest are cost-only questions: confirm the source was retired on purpose, then stop the collection or delete the table.
+
+$(Format-Table -Items $silentRows -Columns 'Name','Plan','Gb90d','LastIngested','DaysSilent','Rules','Impact')
+"@ }
+
+# Classic custom tables: created through the legacy HTTP Data Collector API
+# (or the MMA custom-log path) rather than a DCR. The API retires on
+# 14 September 2026; every table still written through it needs a DCR
+# before then. tableSubType is the authoritative marker when present.
+$classicTables = @($workspaceTables | Where-Object {
+    $_ -and (_RProp (_RProp (_RProp $_ 'properties') 'schema') 'tableType') -eq 'CustomLog' -and (_RProp (_RProp (_RProp $_ 'properties') 'schema') 'tableSubType') -eq 'Classic'
+})
+$dcrBasedCustom = @($workspaceTables | Where-Object { $_ -and (_RProp (_RProp (_RProp $_ 'properties') 'schema') 'tableSubType') -eq 'DataCollectionRuleBased' }).Count
+$classicRows = @($classicTables | ForEach-Object {
+    $name = [string]$_.name
+    $props = _RProp $_ 'properties'
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $gb24 = _RendererNumber (_RProp $use 'BillableLast24h' 0); $gb7 = _RendererNumber (_RProp $use 'BillableLast7d' 0); $gb30 = _RendererNumber (_RProp $use 'BillableLast30d' 0); $gb90 = _RendererNumber (_RProp $use 'BillableLast90d' 0)
+    $status = if ($gb24 -gt 0) { 'Active (last 24h)' } elseif ($gb7 -gt 0) { 'Active (last 7d)' } elseif ($gb30 -gt 0) { 'Intermittent' } elseif ($gb90 -gt 0) { 'Stale' } else { 'No data in 90d' }
+    $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
+    $action = if ($gb90 -le 0) { 'Confirm the source is retired, then delete the table' } elseif ($n -eq 0) { 'Still ingesting with no rule reading it: migrate to a DCR-based table or stop the collection' } else { 'Rules depend on it: migrate to the Logs Ingestion API and a DCR before the retirement date' }
+    [pscustomobject]@{ Name = $name; Plan = [string](_RProp $props 'plan' ''); Interactive = _RProp $props 'retentionInDays' ''; Total = _RProp $props 'totalRetentionInDays' ''; Gb90d = [math]::Round($gb90, 2); LastIngested = $(if ($use) { Format-DateUtc (_RProp $use 'LastIngested') } else { '' }); Status = $status; Rules = $n; Action = $action }
+} | Sort-Object -Property @{ Expression = { $_.Status -eq 'No data in 90d' } }, @{ Expression = 'Gb90d'; Descending = $true })
+$classicActiveCount = @($classicRows | Where-Object { $_.Status -like 'Active*' }).Count
+$classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 'No data in 90d') }).Count
+$classicBlock = if ($classicRows.Count -eq 0) {
+    "_No classic custom tables: every custom table in this workspace is DCR-based ($dcrBasedCustom table(s)), so nothing is exposed to the Data Collector API retirement._"
+} else { @"
+**$($classicRows.Count)** classic table(s): **$classicActiveCount** still ingesting, **$classicDormantCount** stale or empty, beside **$dcrBasedCustom** DCR-based custom table(s). [SENT-047] fires for the ones still receiving data.
+
+$(Format-Table -Items $classicRows -Columns 'Name','Plan','Interactive','Total','Gb90d','LastIngested','Status','Rules','Action')
+"@ }
+
 # Plan pie inputs.
 $planPieAnalytics  = ($gbByPlan | Where-Object { $_.Plan -eq 'Analytics' }  | Measure-Object -Property Tables -Sum).Sum
 $planPieBasic      = ($gbByPlan | Where-Object { $_.Plan -eq 'Basic' }      | Measure-Object -Property Tables -Sum).Sum
@@ -2119,6 +2230,7 @@ Total: **$($active.Count)** table(s).
 ## Silent (had data in 90d, nothing in last 24h)
 
 Total: **$($silent.Count)** table(s) — likely connector breakage.
+$silentDetail
 
 ## Orphan custom tables (no data in 90d)
 
@@ -2127,6 +2239,12 @@ Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or ne
 ## Catalogue-only Microsoft schemas
 
 $($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem; first 20 names: ``$catalogueSample$(if ($catalogueOnly.Count -gt 20) { ', …' })``.
+
+## Classic custom tables (legacy Data Collector API)
+
+Custom tables created through the HTTP Data Collector API or the Microsoft Monitoring Agent custom-log path (``tableSubType = Classic``) rather than a data collection rule. The Data Collector API retires on 14 September 2026; a classic table that still receives data needs a DCR and the Logs Ingestion API before then, and one that rules depend on is a detection outage waiting to happen.
+
+$classicBlock
 
 ## Tables by detection coverage
 
@@ -3511,6 +3629,22 @@ $azActRows = $azAct | ForEach-Object {
 $azDiagRows = $azDiag | ForEach-Object {
     [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; LogCount = $_.LogCount }
 }
+# Entra ID tables: which of the well-known identity tables exist in the
+# catalogue and which received data in the last 7 days.
+$entraTableNames = @('SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs','AADServicePrincipalSignInLogs','AADManagedIdentitySignInLogs','AADProvisioningLogs','ADFSSignInLogs','AADRiskyUsers','AADUserRiskEvents','AADRiskyServicePrincipals','AADServicePrincipalRiskEvents','MicrosoftGraphActivityLogs','IdentityInfo')
+$entraRows = @(foreach ($name in $entraTableNames) {
+    $cat = @($workspaceTables | Where-Object { $_ -and (_RProp $_ 'name') -eq $name }) | Select-Object -First 1
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $gb7 = if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast7d' 0)), 2) } else { 0 }
+    $props = _RProp $cat 'properties'
+    [pscustomobject]@{
+        Table     = $name
+        Plan      = if ($props) { [string](_RProp $props 'plan' '') } else { '' }
+        Retention = if ($props) { [string](_RProp $props 'retentionInDays' '') } else { '' }
+        Gb7d      = $gb7
+        Status    = if ($gb7 -gt 0) { 'Receiving data' } elseif ($cat) { 'Catalogue only' } else { 'Not in catalogue' }
+    }
+})
 $xdrRows = $xdrPres | ForEach-Object {
     [pscustomobject]@{ Table = $_.Type; RecordCount = $_.RecordCount }
 }
@@ -3570,6 +3704,12 @@ $(Format-Table -Items $azDiagRows -Columns 'ResourceProvider','LogCount')
 Subset of well-known Defender XDR tables that have received data in the last 7 days. Empty rows would suggest XDR is connected but a particular surface (email, identity, device) is not producing data.
 
 $(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
+
+## Entra ID table presence (last 7d)
+
+The well-known Microsoft Entra ID tables, with their plan and retention and whether they received billable data in the last 7 days. "Catalogue only" means the schema exists but nothing is writing to it, usually a connector data type that was never enabled.
+
+$(Format-Table -Items $entraRows -Columns 'Table','Plan','Retention','Gb7d','Status')
 
 [Microsoft Sentinel data connector reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/data-connectors-reference)
 "@)
@@ -3956,6 +4096,44 @@ Rules grouped by the Content Hub solution that ships them, derived from the meta
 $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
 "@
 
+# Rule complexity: a heuristic over each Scheduled or NRT rule's query, so
+# the longest, most joined queries (the ones that time out or quietly
+# return nothing after a schema change) are easy to find. Idea from the
+# health check contributed by Lasitha R; the scoring here is this project's.
+$complexityRows = @($(foreach ($r in $rules) {
+    if (-not $r -or $r.kind -notin @('Scheduled', 'NRT')) { continue }
+    $props = _RProp $r 'properties'
+    $q = [string](_RProp $props 'query' '')
+    if ([string]::IsNullOrWhiteSpace($q)) { continue }
+    $lets   = ([regex]::Matches($q, '(?im)^\s*let\s')).Count
+    $joins  = ([regex]::Matches($q, '(?i)\bjoin\b')).Count
+    $unions = ([regex]::Matches($q, '(?i)\bunion\b')).Count
+    $ents   = @(_RProp $props 'entityMappings' @()).Count
+    $ti     = [bool]($q -match '(?i)ThreatIntel')
+    $incOn  = [bool](_RProp (_RProp $props 'incidentConfiguration') 'createIncident' $true)
+    $score  = [math]::Min(10, [math]::Round($q.Length / 400.0) + $lets + 2 * $joins + $unions + $(if ($ti) { 1 } else { 0 }) + $(if ($ents -eq 0) { 1 } else { 0 }))
+    [pscustomobject]@{
+        Rule       = [string](_RProp $props 'displayName' $r.name)
+        Kind       = $r.kind
+        Complexity = [int]$score
+        Chars      = $q.Length
+        Lets       = $lets
+        Joins      = $joins
+        Unions     = $unions
+        Entities   = $ents
+        TI         = if ($ti) { 'Yes' } else { '' }
+        Incident   = if ($incOn) { 'Yes' } else { 'No' }
+    }
+}) | Sort-Object -Property @{ Expression = 'Complexity'; Descending = $true }, @{ Expression = 'Chars'; Descending = $true })
+$complexitySection = @"
+
+## Rule complexity
+
+A heuristic per Scheduled or NRT rule with a query: one point per 400 characters, one per ``let``, two per ``join``, one per ``union``, one when the query reads a threat-intelligence table and one when the rule maps no entities, capped at 10. A score of 8 or more marks a query to run by hand against its lookback before trusting it; it is the first place to look when a rule times out or starts returning nothing after a schema change.
+
+$(Format-Table -Items $complexityRows -Columns 'Rule','Kind','Complexity','Chars','Lets','Joins','Unions','Entities','TI','Incident')
+"@
+
 # One page for the rule estate: the core view built in the section-20 block
 # above, then the alert-volume, Microsoft-managed, modifications and
 # solution subsections (formerly 21 to 24).
@@ -3965,7 +4143,7 @@ $analyticsLinks = @"
 "@
 # Each part begins with a newline and ends without one; joining with a
 # newline keeps a blank line between a table and the next heading.
-Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $analyticsLinks) -join [Environment]::NewLine)
+Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $complexitySection, $analyticsLinks) -join [Environment]::NewLine)
 
 # Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
@@ -4719,6 +4897,60 @@ $(Format-Table -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetent
 _No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention — see the tier distribution above. *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
 "@ }
 
+# Usage evidence for the tables that keep data in the lake beyond analytics
+# retention: enabled rules reading the table, summary rules whose query
+# names it, search or restore output tables derived from it, and audited
+# queries from table-query-usage.json when the collector captured it.
+$summaryRuleQueries = @($summaryRules | Where-Object { $_ } | ForEach-Object { [string](_RProp (_RProp $_ 'properties') 'query' '') })
+$derivedSources = @{}
+foreach ($t in $workspaceTables) {
+    $n = [string](_RProp $t 'name' '')
+    if ($n -match '^(.+?)_(SRCH|RST|KQL_CL)$') { $derivedSources[$matches[1]] = $true }
+}
+$tableQueryUsage = @{}
+foreach ($row in @(Read-RawArray 'table-query-usage.json' | Where-Object { $_ })) { $tn = [string](_RProp $row 'Table' ''); if ($tn) { $tableQueryUsage[$tn] = $row } }
+$queryUsageCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'table-query-usage.json')
+$lakeUsageRows = @($retentionRows | ForEach-Object {
+    $name = [string]$_.Table
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
+    $inSummary = [bool]($summaryRuleQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($name) + '\b') } | Select-Object -First 1)
+    $inDerived = $derivedSources.ContainsKey($name)
+    $q = if ($tableQueryUsage.ContainsKey($name)) { $tableQueryUsage[$name] } else { $null }
+    $queries = if ($q) { [int](_RendererNumber (_RProp $q 'Queries' 0)) } else { 0 }
+    $used = ($n -gt 0) -or $inSummary -or $inDerived -or ($queries -gt 0)
+    [pscustomobject]@{
+        Table = $name; Tier = $(if ($_.Plan -eq 'DataLake') { 'Lake only' } else { 'Analytics + Lake extended' }); LakeOnlyDays = $_.LakeOnlyDays
+        Gb90d = $(if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 })
+        Rules = $n; SummaryRule = $(if ($inSummary) { 'Yes' } else { 'No' }); SearchRestore = $(if ($inDerived) { 'Yes' } else { 'No' })
+        AuditedQueries = $(if ($queryUsageCaptured) { $queries } else { 'not captured' })
+        Verdict = $(if ($used) { 'In use' } else { 'No usage evidence' })
+    }
+} | Sort-Object -Property @{ Expression = { $_.Verdict -eq 'In use' } }, @{ Expression = 'Gb90d'; Descending = $true })
+$noExtensionRows = @($operationalTables | Where-Object {
+    $_ -and (_RProp (_RProp $_ 'properties') 'plan') -eq 'Analytics' -and (Get-TableTier -Table $_ -LakeEnrolled $hasDataLake) -eq 'MirroredOnly'
+} | ForEach-Object {
+    $name = [string]$_.name
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $gb = if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 }
+    if ($gb -le 0) { return }
+    [pscustomobject]@{ Table = $name; AnalyticsDays = _RProp (_RProp $_ 'properties') 'retentionInDays' ''; TotalDays = _RProp (_RProp $_ 'properties') 'totalRetentionInDays' ''; Gb90d = $gb; Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }) }
+} | Sort-Object -Property Gb90d -Descending)
+$lakeUsageBlock = if (-not $hasDataLake) { '' } else { @"
+
+## Lake usage evidence
+
+For every table that keeps data in the lake beyond its analytics retention (or routes to the lake only): is anything reading it? The signals are enabled analytics rules that reference the table, summary rules whose query names it, search or restore output tables derived from it, and audited queries from ``LAQueryLogs`` over the last 30 days where the collector captured them. A table with no evidence is not wrong, but its extended retention is a cost nobody has justified yet.
+
+$(if ($lakeUsageRows.Count -gt 0) { Format-Table -Items $lakeUsageRows -Columns 'Table','Tier','LakeOnlyDays','Gb90d','Rules','SummaryRule','SearchRestore','AuditedQueries','Verdict' } else { '_No table keeps data in the lake beyond its analytics retention, so there is nothing to assess._' })
+
+## Analytics tables without extended lake retention
+
+Tables receiving data whose total retention equals their analytics retention: on an enrolled workspace they are mirrored to the lake for the same period and nothing is kept once analytics retention expires. Confirm that matches the evidence-retention policy, especially for the tables rules depend on.
+
+$(Format-Table -Items $noExtensionRows -Columns 'Table','AnalyticsDays','TotalDays','Gb90d','Rules')
+"@ }
+
 # Asset-data block — present when at least one asset-family table is
 # detected. Helps confirm the Lake's auto-onboarded system tables
 # (Entra, M365, Azure Resource Graph) are flowing.
@@ -4746,6 +4978,7 @@ $lakeArchitectureBlock
 $tierChartBlock
 $retentionChartBlock
 $lakeTablesBlock
+$lakeUsageBlock
 $assetDataBlock
 
 ## Cost split — Analytics vs Lake (last 30d)

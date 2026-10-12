@@ -393,7 +393,7 @@ assets root).
 | [`Tools/Documenter/Private/Resources/mitre-attack.json`](../../../Tools/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Documenter/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Documenter/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Documenter/Private/Resources/commitment-tiers.json`](../../../Tools/Documenter/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~188 tests) |
+| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~197 tests) |
 | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (64 tests) |
 | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (32 tests) |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |

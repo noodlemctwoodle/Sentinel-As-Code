@@ -126,6 +126,22 @@ one table has `totalRetentionInDays > retentionInDays`.
 Explicit `plan = DataLake` table list with retention columns. When empty,
 the prose explains how to switch a table's tier in the Defender portal.
 
+### 7b. Lake usage evidence and tables without extension
+
+Rendered only when the lake is enrolled. "Lake usage evidence" lists every
+table from the retention split (extended or lake-only) with the signals
+that something reads it: enabled analytics rules referencing the table
+(from `rule-table-references.json`), summary rules whose query names it,
+search or restore output tables derived from it (`_SRCH`, `_RST`,
+`_KQL_CL` names in the catalogue), and audited queries from
+`table-query-usage.json` when the collector captured it (otherwise the
+column reads "not captured"). The verdict is "In use" or "No usage
+evidence". "Analytics tables without extended lake retention" lists the
+ingesting Analytics-plan tables whose total retention equals their
+analytics retention, with their rule count, so a team can confirm that
+nothing is kept past analytics retention on purpose. Both ideas come from
+the health check contributed by Lasitha R.
+
 ### 8. Auto-ingested asset data
 
 Detects asset-family system tables that Lake auto-creates on tenant

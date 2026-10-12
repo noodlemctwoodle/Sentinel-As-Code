@@ -43,6 +43,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **Sections cross-referenced with the health check** - six subsections
+  the health check had and the pages did not, all from captures already
+  taken: Defender XDR unification and the Defender for Cloud connectors on
+  the connectors page; Entra ID table presence on the coverage page; a
+  rule-complexity heuristic on the analytics page; a resilience summary
+  (replication, Private Link, public access, customer-managed key, managed
+  identity, daily cap, locks) on the workspace page; the silent tables in
+  detail, split by detection impact, and a classic (Data Collector API)
+  custom-table inventory with last ingestion and an action per table on
+  the table-plans page; lake usage evidence and the tables without extended
+  lake retention on the data lake page.
 - **Interactive billing flow and nothing hidden behind "N more"** - the
   Data flow Sankey is rebuilt in the browser from every ingesting table:
   click a source family (or its chip) to see every table in that family,
