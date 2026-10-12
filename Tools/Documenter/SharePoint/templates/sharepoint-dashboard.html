@@ -526,25 +526,30 @@
   table.tbl tbody tr:hover{background:color-mix(in srgb,var(--brand) 5%,transparent)}
   table.tbl tbody tr:last-child td{border-bottom:0}
   .tablewrap{padding:6px 8px}
-  /* Card list shared by the Findings tab, the Overview findings and the
-     maturity criteria: a rail with the id and its pill, a main column with
-     the title, chips and full-width text blocks, actions on the right. */
-  .flist{display:flex;flex-direction:column}
-  .frow{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:10px 20px;padding:16px 18px;border-top:1px solid var(--line-2);align-items:start}
-  .frow:first-child{border-top:0}
-  .frow:hover{background:color-mix(in srgb,var(--brand) 4%,transparent)}
-  .frail{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
-  .frail .fid{font-weight:800;font-size:13px;letter-spacing:.01em;white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums}
-  .fmain{min-width:0}
-  .ftitle{font-weight:750;font-size:14px;color:var(--ink);line-height:1.35}
-  .fmeta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  /* Cards shared by the Findings tab, the Overview findings and the
+     maturity criteria: one card per item with a status-coloured edge, the
+     pill, id and title on the first line, chips beneath, then Evidence and
+     Remediation (or Guidance) side by side. */
+  .fcards{display:flex;flex-direction:column;gap:12px}
+  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:15px 18px 14px 20px;box-shadow:var(--shadow-sm)}
+  .fcard::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 4px 4px 0;background:var(--edge,var(--slate))}
+  .fcard.e-Critical{--edge:var(--red)} .fcard.e-Error{--edge:var(--orange)} .fcard.e-Warning{--edge:var(--amber)} .fcard.e-Info,.fcard.e-Informational{--edge:var(--slate)}
+  .fcard.e-Met{--edge:var(--green)} .fcard.e-Gap{--edge:var(--red)} .fcard.e-Unknown{--edge:var(--slate)}
+  #findList .fcard{background:var(--panel)}
+  .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
+  .fc-actions{margin-left:auto;display:flex;gap:14px;align-items:center;white-space:nowrap}
+  .fc-actions a{font-weight:700;font-size:12.5px;cursor:pointer}
+  .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
   .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
-  .fsub{font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.5}
-  .fblock{margin-top:10px;font-size:12.5px;color:var(--ink-2);line-height:1.55}
-  .fblock .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:3px}
-  .fact{display:flex;flex-direction:column;gap:8px;align-items:flex-end;white-space:nowrap}
-  .fact a{font-weight:700;font-size:12.5px;cursor:pointer}
-  @media(max-width:760px){.frow{grid-template-columns:1fr}.fact{align-items:flex-start}}
+  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+  .fc-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px 28px;margin-top:12px}
+  @media(max-width:900px){.fc-body{grid-template-columns:1fr}}
+  .fc-block{font-size:13px;color:var(--ink-2);line-height:1.55;min-width:0}
+  .fc-block .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
+  .fc-block .ltx .ltx-body{-webkit-line-clamp:4}
+  table.tbl th.num{text-align:right}
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
   .sev.Info,.sev.Informational{background:var(--slate)}
@@ -694,7 +699,7 @@
       <input type="search" class="docsearch" id="findSearch" placeholder="Search findings…" style="margin:0;width:260px">
       <span class="note" id="findCount" style="margin-left:auto"></span>
     </div>
-    <div class="panel flist" id="findList" style="padding:0"></div>
+    <div class="fcards" id="findList" style="margin-top:var(--gap)"></div>
   </section>
 
   <div class="foot" id="foot"></div>
@@ -736,12 +741,12 @@
   }
   // One card per finding; used by the Findings tab and the Overview.
   function findingCard(f){
-    return '<div class="frow" data-fid="'+esc(f.id)+'"><div class="frail"><b class="fid">'+esc(f.id)+'</b><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></div>'+
-      '<div class="fmain"><div class="ftitle">'+esc(f.title)+'</div>'+
-      '<div class="fmeta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
-      (f.evidence?'<div class="fblock"><div class="flabel">Evidence</div>'+longText(f.evidence)+'</div>':'')+
-      (f.remediation?'<div class="fblock"><div class="flabel">Remediation</div>'+longText(f.remediation)+'</div>':'')+'</div>'+
-      '<div class="fact">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</div></div>';
+    return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
+      '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
+      '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</span></div>'+
+      '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
+      '<div class="fc-body">'+(f.evidence?'<div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence)+'</div>':'')+
+      (f.remediation?'<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation)+'</div>':'')+'</div></div>';
   }
   const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
@@ -1273,7 +1278,7 @@
 
   // ---- top findings ----
   const topF = M.findings.items;
-  document.getElementById('topFindings').innerHTML=moreWrap('<div class="flist">'+rowsMore(topF.map(findingCard),6,'div')+'</div>', topF.length, 6, 'findings');
+  document.getElementById('topFindings').innerHTML=moreWrap('<div class="fcards">'+rowsMore(topF.map(findingCard),6,'div')+'</div>', topF.length, 6, 'findings');
   markClamped(document.getElementById('topFindings'));
 
   // ---- insights board (visual Sections) ----
@@ -1646,20 +1651,20 @@
       '<div class="filters" style="margin:0"><select id="matStatus"><option value="">All statuses</option><option>Met</option><option>Gap</option><option>Unknown</option></select>'+
       '<select id="matArea"><option value="">All areas</option>'+(MAT.areas||[]).map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('')+'</select>'+
       '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px"></div></div>'+
-      '<div class="flist" id="matList" style="margin:0 -22px -20px"></div></div>';
+      '<div class="fcards" id="matList" style="margin-top:14px"></div></div>';
     el.innerHTML=html;
     const tb=el.querySelector('#matList'), sel=el.querySelector('#matStatus'), ar=el.querySelector('#matArea'), q=el.querySelector('#matSearch');
     const findingIds=new Set((M.findings&&M.findings.items||[]).map(f=>f.id));
     function renderCriteria(){
       const st=sel.value, av=ar.value, s=(q.value||'').toLowerCase();
       const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
-      tb.innerHTML=rows.map(c=>'<div class="frow"><div class="frail"><b class="fid">'+esc(c.id)+'</b><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span>'+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
-        '<div class="fmain"><div class="ftitle">'+esc(c.name)+'</div>'+
-        '<div class="fmeta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+'</div>'+
-        (c.impact?'<div class="fsub">'+esc(c.impact)+'</div>':'')+
-        (c.evidence?'<div class="fblock"><div class="flabel">Evidence</div>'+longText(c.evidence)+'</div>':'')+
-        (c.guidance&&c.status!=='Met'?'<div class="fblock"><div class="flabel">Guidance</div>'+longText(c.guidance)+'</div>':'')+'</div>'+
-        '<div class="fact">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+      tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'">'+
+        '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
+        '<span class="fc-actions">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</span></div>'+
+        '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
+        (c.impact?'<p class="fc-impact">'+esc(c.impact)+'</p>':'')+
+        '<div class="fc-body">'+(c.evidence?'<div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence)+'</div>':'')+
+        (c.guidance&&c.status!=='Met'?'<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance)+'</div>':'')+'</div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
       tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();

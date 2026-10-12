@@ -122,11 +122,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   legend reads by family at both ends. Report tables right-align the header
   of every numeric column with its figures.
 - **Findings and criteria as cards** - the Findings tab, the Overview
-  findings and the maturity criteria share one card layout: a rail with
-  the id and its severity or status pill, a main column with the title,
-  chips (category, area, the retired id) and full-width Evidence and
-  Remediation or Guidance blocks that clamp to three lines with Expand, and
-  the Learn link on the right. Findings filter by severity, category and
+  findings and the maturity criteria share one card layout: a card per
+  item with a severity- or status-coloured edge, the pill, id and title on
+  one line with the Learn or "Open finding" link at the right, chips
+  beneath (category, area, the retired id; area, kind and effort for
+  criteria), then Evidence beside Remediation or Guidance, each clamped to
+  four lines with Expand. Findings filter by severity, category and
   search; criteria by status, area and search, and a criterion that shares
   its id with a fired finding links to it.
 - **Dashboard reading comfort** - long evidence, remediation and guidance
