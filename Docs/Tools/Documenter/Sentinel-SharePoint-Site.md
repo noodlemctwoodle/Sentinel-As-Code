@@ -64,7 +64,7 @@ All under [`Tools/Documenter/SharePoint/`](../../../Tools/Documenter/SharePoint)
 | `model.json` | The dashboard's data model |
 | `site.json` | Product name, workspace, section list with page names, families and content hashes, diagrams, build warnings |
 | `pages/<page>.json` | Per section: title and ordered segments (HTML for text web parts, image references for image web parts) |
-| `diagrams/*.png` | The pre-rendered diagrams the pages use |
+| `diagrams/*.png` | The pre-rendered diagrams the pages use, when the snapshot has any |
 | `findings.json` | Findings plus per-check outcomes |
 
 Nothing in the build contacts SharePoint or Azure, so you can inspect a
@@ -162,8 +162,8 @@ then cut down to what a SharePoint text web part keeps:
   removed.
 - Tables use the SharePoint editor's responsive table markup and are capped
   at 500 rows (`-MaxTableRows`), with a note pointing at the Markdown output.
-- Links to other sections go to their page. `SENT-NNN` links go to the
-  findings list filtered on that id. Repository-relative links become plain
+- Links to other sections go to their page. Finding links (`SAC-<AREA>-NN`)
+  go to the findings list filtered on that id. Repository-relative links become plain
   text.
 - The content is split into one text web part per H2, with an image web part
   wherever a diagram sits.
@@ -175,7 +175,8 @@ In this order, so a failure part-way leaves the site consistent:
 1. **Structure.** Ensure the `DocumenterAssets` library and the
    `Sentinel Findings` list and columns exist.
 2. **App.** Deploy the web part package to the site collection app catalog,
-   only when its version differs from the deployed one.
+   only when its version differs from the deployed one (and, on ADO, when
+   **SharePoint: deploy the web part if it changed** is ticked).
 3. **Assets.** Upload the dashboard and any new diagrams. When the bundle
    carries a maturity assessment, append its score to the history (see
    below).
@@ -184,7 +185,10 @@ In this order, so a failure part-way leaves the site consistent:
    and refilled, then published once), so URLs and version history survive
    and a failed publish leaves the last good version live.
 5. **Dashboard.** Point the home page's web part at the uploaded dashboard,
-   publish, and set it as the home page.
+   publish, and set it as the home page. On the first publish the web part
+   is added to a full-width section; the publisher looks it up in the
+   site's component list by id (ignoring braces and case) and waits up to
+   five minutes for a freshly deployed package to appear there.
 6. **Findings.** Add, update, reopen, resolve and retire list items in one
    batch.
 7. **Navigation.** Rebuild the top navigation from the pages that exist,
@@ -229,8 +233,20 @@ it sets up; on GitHub the federated credential is added by hand as the
 
 | App | Used by | Needs |
 | --- | --- | --- |
-| **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../../Pipelines/SharePoint-Publish.md)). No secrets, no Azure roles. |
+| **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../../Pipelines/SharePoint-Publish.md)). No secrets. On ADO, Reader on one empty resource group so the `AzureCLI@2` task can select a subscription; no other Azure role. |
 | **Your PnP sign-in app** | You, for the bootstrap and local runs | Delegated SharePoint `AllSites.FullControl` and Microsoft Graph `Sites.FullControl.All` (to grant the publisher access), with admin consent. |
+
+If you do not have a PnP sign-in app yet, PnP.PowerShell creates one and
+opens a browser for consent:
+
+```powershell
+Register-PnPEntraIDAppForInteractiveLogin -ApplicationName 'PnP PowerShell (Sentinel docs site)' `
+    -Tenant 'contoso.onmicrosoft.com' `
+    -GraphDelegatePermissions 'Sites.FullControl.All' -SharePointDelegatePermissions 'AllSites.FullControl'
+```
+
+Use the `AzureAppId/ClientId` it prints as `-ClientId` below. A placeholder
+left in `-ClientId` fails sign-in with `AADSTS90013`.
 
 ### 2. Bootstrap the site (once, as a SharePoint administrator)
 
@@ -252,9 +268,12 @@ away. It is safe to re-run.
 
 ### 3. Point the pipeline at the site
 
-Set the site URL for the workspace (`sharePointSiteUrl` in ADO,
-`SHAREPOINT_SITE_URL` on GitHub) and run the pipeline with **What-if**
-ticked first. See [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md).
+Set the site URL for the workspace: `sharePointSiteUrl` in the ADO variable
+group (the publisher bootstrap sets it when given `-SharePointSiteUrl`), or
+`SHAREPOINT_SITE_URL` on GitHub. On ADO, queue `Sentinel-Documenter` with
+**Export: SharePoint site** and **SharePoint: what-if** ticked, read the
+plan, then queue it again without what-if; on GitHub, run the workflow with
+`what-if` first. See [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md).
 
 ## Running it locally
 

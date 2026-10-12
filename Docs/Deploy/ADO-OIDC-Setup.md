@@ -173,13 +173,14 @@ them need the `sc-sentinel-as-code` service connection:
   queue time. The Word report stage does no Azure authentication at all
   (pure document conversion). The SharePoint stage uses its **own**
   service connection, `sc-sentinel-sharepoint`, for a separate publisher
-  identity that can write to one SharePoint site and nothing in Azure.
+  identity that can write to one SharePoint site and holds nothing in
+  Azure beyond Reader on one empty resource group.
   `Deploy/setup/Setup-SharePointPublisher.ps1` creates the publisher
   app, its SharePoint permission, that connection and the federated
   credential in one run (see
   [Scripts.md](Scripts.md#setup-sharepointpublisherps1)); Steps 1-4 by
   hand against the publisher app give the same result. Until the
-  connection exists, leave the SharePoint tick box clear.
+  connection exists, leave **Export: SharePoint site** clear.
 
 Once Verify passes, register all six (in this order to keep the
 blast radius growing gradually):
@@ -188,7 +189,7 @@ blast radius growing gradually):
 2. `Pipelines/Sentinel-Dependency-Update.yml` (offline + Build Service git permissions)
 3. `Pipelines/Sentinel-DCR-Inventory.yml`
 4. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
-5. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow; tick the SharePoint site with What-if first once `sc-sentinel-sharepoint` exists)
+5. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow; tick **Export: SharePoint site** and **SharePoint: what-if** first once `sc-sentinel-sharepoint` exists)
 6. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
 
 For each:

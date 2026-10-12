@@ -5,9 +5,10 @@ CI/CD wiring for the Sentinel Documenter across both CI systems:
 - GitHub Actions: [`.github/workflows/sentinel-document.yml`](../../.github/workflows/sentinel-document.yml)
 - Azure DevOps: [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml)
 
-On Azure DevOps the one pipeline carries all three documentation outputs as
-tick boxes at queue time: the Markdown pack as a review-only pull request,
-the Word report, and the SharePoint site, in any mixture. GitHub keeps the
+On Azure DevOps the one pipeline carries the three exports as tick boxes at
+queue time, in any combination: **Export: SharePoint site**, **Export:
+Markdown** (the pack as a review-only pull request) and **Export: Word
+report**. GitHub keeps the
 SharePoint publish as a separate chained workflow
 ([SharePoint-Publish.md](SharePoint-Publish.md)) and has no Word report
 ([Word-Report.md](Word-Report.md)).

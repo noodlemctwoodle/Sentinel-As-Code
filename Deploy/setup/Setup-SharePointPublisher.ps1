@@ -86,11 +86,12 @@
     Sentinel-Documenter. Pass an empty string to skip.
 
 .PARAMETER AdoPersonalAccessToken
-    A personal access token for the organisation (Service Connections
-    read, query and manage; Variable Groups read and manage; Build read
-    and execute). When omitted the script uses the Azure DevOps token of
-    the signed-in Azure account, which works when that account is a
-    member of the organisation.
+    Only needed when your own sign-in cannot reach the organisation. By
+    default the script uses an Azure DevOps OAuth token for the signed-in
+    Azure account, which works when the organisation is connected to the
+    same Entra tenant and the account is a member. A personal access token
+    needs Project and Team read; Service Connections read, query and
+    manage; Variable Groups read and manage; Build read and execute.
 
 .EXAMPLE
     ./Deploy/setup/Setup-SharePointPublisher.ps1 `
@@ -119,7 +120,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.1.2
+    Version:        0.1.3
     Last Updated:   2026-10-12
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role

@@ -162,7 +162,7 @@ function Write-Section([string]$FileName, [string]$Body) {
     $target = Join-Path $OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
     # Auto-link finding mentions. Two passes:
-    #   1. `[SENT-NNN]` text-in-brackets NOT followed by `(` → wrap with URL.
+    #   1. `[SAC-<AREA>-NN]` text-in-brackets NOT followed by `(` → wrap with URL.
     #      This catches the bullet-list format already used in 00-overview
     #      and 01-live-snapshot's "Top recommendations" blocks where the
     #      square brackets are literal (Markdown treats `[X]` without a

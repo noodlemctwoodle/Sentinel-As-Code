@@ -19,13 +19,13 @@ bootstrap and running the scripts locally, see the tool page:
 
 | Property | Azure DevOps | GitHub Actions |
 | --- | --- | --- |
-| Trigger | The `publishSharePointSite` tick box on a `Sentinel-Documenter` run; the stage follows `Document` in the same run | `workflow_run`: every successful "Sentinel Documenter" run on `main`, plus `workflow_dispatch` |
+| Trigger | **Export: SharePoint site** (`publishSharePointSite`) on a `Sentinel-Documenter` run; the stage follows `Document` in the same run | `workflow_run`: every successful "Sentinel Documenter" run on `main`, plus `workflow_dispatch` |
 | Schedule | None (the ADO Documenter is manual) | None of its own (follows the Documenter's 06:00 UTC cron) |
 | Input | The same run's `sentinel-docs` artefact (`download: current`) | The Documenter run's `sentinel-docs-<ws>-<runId>` artefact |
 | Agent | `ubuntu-latest`, its own job | `ubuntu-latest`, environment `sharepoint-publish` |
 | Identity | Service connection `sc-sentinel-sharepoint` (workload identity federation) | `SHAREPOINT_CLIENT_ID` via OIDC |
 | SharePoint rights | `Sites.Selected` with FullControl on the one site | Same app or a second one, same rights |
-| Azure roles | None | None |
+| Azure roles | Reader on one empty resource group (so `AzureCLI@2` can select a subscription) | None (`allow-no-subscriptions`) |
 | Published artefact | `sharepoint-site` | `sharepoint-site-<ws>-<runId>` (30 days) |
 | Concurrency | `lockBehavior: sequential` on the Documenter pipeline | `concurrency: sentinel-sharepoint-publish` |
 
@@ -73,9 +73,9 @@ latest snapshot.
 
 | ADO parameter | GitHub input | Default | Effect |
 | --- | --- | --- | --- |
-| `publishSharePointSite` | (the workflow itself) | `false` | Include the `SharePoint` stage in the Documenter run. |
-| `sharePointWhatIf` | `what-if` | `false` | Sign in, read the site and print the plan; change nothing. |
-| `deployAppPackage` | `deploy-app-package` | `true` | Deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
+| `publishSharePointSite` (**Export: SharePoint site**) | (the workflow itself) | `false` | Include the `SharePoint` stage in the Documenter run. |
+| `sharePointWhatIf` (**SharePoint: what-if**) | `what-if` | `false` | Sign in, read the site and print the plan; change nothing. |
+| `deployAppPackage` (**SharePoint: deploy the web part if it changed**) | `deploy-app-package` | `true` | Deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
 | (the same run) | `documenter-run-id` | latest successful | Which Documenter run to publish. |
 
 Chained runs get the defaults, so they behave exactly like an untouched
@@ -124,13 +124,17 @@ manual run.
 | `sharePointSiteUrl` | Variable group `sentinel-deployment` | The site for this workspace |
 | `sc-sentinel-sharepoint` | Service connection (the `sharePointServiceConnection` variable) | Azure Resource Manager connection, workload identity federation (manual), for the publisher app |
 
-Create the service connection the same way as `sc-sentinel-as-code` in
-[ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md), with two differences:
+[`Deploy/setup/Setup-SharePointPublisher.ps1`](../Deploy/Scripts.md#setup-sharepointpublisherps1)
+creates the connection (and everything behind it) in one run; that is the
+recommended route. To create it by hand instead, follow
+`sc-sentinel-as-code` in [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md),
+with two differences:
 
 - Use the **publisher** app registration, not the deploy identity.
-- Scope it to a **management group** (or give the app Reader on one empty
-  resource group). `AzureCLI@2` selects the connection's subscription after
-  signing in, which fails for an identity that can see no subscription.
+- Give the app Reader on one empty resource group (what the script does)
+  or scope it to a management group. `AzureCLI@2` selects the connection's
+  subscription after signing in, which fails for an identity that can see
+  no subscription.
 
 ### GitHub
 
@@ -169,13 +173,16 @@ One app registration (or one per platform, if you prefer) with:
   [`Initialize-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1).
   FullControl is what the site collection app catalog, the home page and the
   navigation changes need. It covers nothing outside that site.
-- **No Azure role assignments** and no client secret or certificate. The
-  token comes from the pipeline's federated credential.
+- **No client secret or certificate.** The token comes from the pipeline's
+  federated credential. On ADO the app also holds Reader on one empty
+  resource group (see above) and no other Azure role; on GitHub it holds
+  none.
 
 SharePoint rejects app-only tokens obtained with a client secret. Tokens
 obtained with a federated credential are assertion-based, like certificate
-tokens. Check this in your tenant with the bootstrap's first `-WhatIf`
-publish before relying on it.
+tokens, and SharePoint accepts them: an ADO what-if run signs in through
+the service connection and reads the site with the same token the real
+publish uses. Run that what-if first in your own tenant.
 
 ## Outputs
 

@@ -224,8 +224,13 @@ credential) with one idempotent run, and prints the
   Administrator), assign roles on the resource group, and create service
   connections in the ADO project. Microsoft Graph sign-in is prompted when
   needed (`Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`).
-- The Azure account is a member of the ADO organisation, or a personal
-  access token is passed with `-AdoPersonalAccessToken`.
+- Azure DevOps access. By default the script uses your own sign-in: it
+  asks the signed-in Azure account for an Azure DevOps OAuth token, which
+  works when the organisation is connected to the same Entra tenant and the
+  account is a member. Otherwise pass a personal access token with
+  `-AdoPersonalAccessToken` (scopes: Project and Team read; Service
+  Connections read, query and manage; Variable Groups read and manage;
+  Build read and execute).
 - An existing, preferably empty, resource group for the Reader grant.
 - Modules: Az.Accounts, Az.Resources, Microsoft.Graph.Applications
   (auto-installed when missing).
@@ -244,7 +249,7 @@ credential) with one idempotent run, and prints the
 | `-SharePointSiteUrl` | No | Written to `sharePointSiteUrl` in the variable group. |
 | `-VariableGroupName` | No | Defaults to `sentinel-deployment`. |
 | `-AuthorizePipeline` | No | Pipeline to authorise for the connection. Default `Sentinel-Documenter`; empty string skips. |
-| `-AdoPersonalAccessToken` | No | SecureString PAT when the Azure account is not an organisation member. |
+| `-AdoPersonalAccessToken` | No | SecureString PAT, only when your own sign-in cannot reach the organisation (different tenant, or not a member). |
 | `-WhatIf` | No | Print every change without making it. |
 
 ### Usage Examples
@@ -283,20 +288,32 @@ credential) with one idempotent run, and prints the
    `Sites.Selected` (`20d37865-089c-4dee-8c41-6967602d4ac8`) to the app's
    required permissions and creates the app role assignment that is admin
    consent.
-4. Assigns Reader on the resource group with `New-AzRoleAssignment`.
+4. Assigns Reader on the resource group with `New-AzRoleAssignment
+   -ObjectType ServicePrincipal`, which skips the directory lookup, so a
+   service principal created seconds earlier is not rejected while it
+   replicates.
 5. Calls the ADO REST API: looks the project up, creates the `azurerm`
    endpoint with `authorization.scheme = WorkloadIdentityFederation`,
    `creationMode = Manual` and subscription scope, then reads
    `workloadIdentityFederationIssuer` and `workloadIdentityFederationSubject`
-   back (falling back to `https://vstoken.dev.azure.com/<org id>` and
-   `sc://<org>/<project>/<name>` when the API does not return them).
+   back. New connections get Entra-issued values
+   (`https://login.microsoftonline.com/<tenant id>/v2.0` and
+   `/eid1/c/pub/t/.../sc/<org id>/<connection id>`); the script falls back
+   to `https://vstoken.dev.azure.com/<org id>` and
+   `sc://<org>/<project>/<name>` only when the API returns neither.
 6. Adds the federated credential with `New-MgApplicationFederatedIdentityCredential`.
-7. Authorises the pipeline through the `pipelinepermissions` API and
-   updates the variable group, when asked.
+7. Authorises the pipeline through the `pipelinepermissions` API and, when
+   `-SharePointSiteUrl` is given, sets `sharePointSiteUrl` in the variable
+   group, keeping its other variables.
 
-What it leaves to you: clicking Verify on the connection, and preparing
-the site with `Initialize-SentinelDocsSite.ps1`, which grants this app
-FullControl on that one site. See
+Re-running is safe: every step that is already done reports so and is
+skipped, which is also how you set the site URL later.
+
+What it leaves to you: clicking Verify on the connection; preparing the
+site with `Initialize-SentinelDocsSite.ps1`, which needs your own PnP
+sign-in app and grants this app FullControl on that one site; and the first
+pipeline run, queued with **Export: SharePoint site** and **SharePoint:
+what-if** ticked. See
 [Sentinel SharePoint Site](../Tools/Documenter/Sentinel-SharePoint-Site.md#setting-it-up).
 
 ## Deploy-SentinelContentHub.ps1

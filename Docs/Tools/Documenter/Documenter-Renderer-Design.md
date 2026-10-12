@@ -52,7 +52,7 @@ The renderer is a single PowerShell script organised as:
 4. **Section emit blocks**: one block per `.md` file. Each block builds
    its data, optionally builds a Mermaid chart, then calls
    `Write-Section <filename> <body>` which writes to disk + applies the
-   `SENT-NNN` auto-link pass.
+   finding-id auto-link pass.
 5. **Index page**: the final `Write-Section 'index.md'` call emits the
    navigation TOC.
 
@@ -166,7 +166,7 @@ grouped in one block.
 |---|---|---|
 | `Read-Raw` | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
 | `Read-RawArray` | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
-| `Write-Section` | Writes a body to `<OutputRoot>/<FileName>` AND runs the fence-aware, two-pass SENT-NNN auto-link regex on the body before writing. | Every section block |
+| `Write-Section` | Writes a body to `<OutputRoot>/<FileName>` AND runs the fence-aware, two-pass finding-id (`SAC-<AREA>-NN`) auto-link regex on the body before writing. | Every section block |
 | `Format-DateUtc` | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
 | `Format-Gb` | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
 | `Format-Banner` | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
@@ -343,24 +343,27 @@ must respect these:
 `Write-Section` runs every section's body through two regex passes
 before writing to disk. It walks the body line-by-line tracking
 fenced-code state (any line matching `^\s*```` toggles the fence flag),
-and rewrites **only outside fences**, so `SENT-NNN` mentions inside
+and rewrites **only outside fences**, so finding ids inside
 `mermaid` / `kusto` blocks (for example the `click` tooltips in 85-rbac)
 render literally rather than being turned into broken links:
 
-1. **Pass 1**: `\[(SENT-\d{3,})\](?!\()`, bracketed-but-unlinked IDs.
-   Catches the existing `[SENT-NNN]` bullet shape in 00-overview's
-   "Top recommendations" lists and turns them into Markdown links.
-2. **Pass 2**: `(?<![\[\(#\-])\b(SENT-\d{3,})\b(?![\]\)])`, bare IDs not
-   already inside a Markdown link. Catches mentions in prose. The leading
-   `-` exclusion reserves room for future composite IDs (`SENT-AUTH-001`).
+1. **Pass 1**: `\[(SAC-[A-Z]{2,4}-\d{2})\](?!\()`, bracketed-but-unlinked
+   IDs. Catches the `[SAC-LOG-03]` bullet shape in 00-overview's "Top
+   recommendations" lists and turns them into Markdown links. Only ids the
+   rule catalogue knows are linked.
+2. **Pass 2**: `(?<![\[\(#\-\w])(SAC-[A-Z]{2,4}-\d{2})(?![\]\)\-\w])`, bare
+   IDs not already inside a Markdown link. Catches mentions in prose. On
+   91-maturity-assessment.md the same ids name maturity criteria, so only
+   ids whose finding fired in this run (and so has an anchor on 90) are
+   linked there.
 
-Both rewrite to `[SENT-NNN](90-gap-analysis.md#sent-nnn)`. Within
+Both rewrite to `[SAC-LOG-03](90-gap-analysis.md#sac-log-03)`. Within
 90-gap-analysis.md itself the relative path collapses to just the
-anchor (`(#sent-nnn)`).
+anchor (`(#sac-log-03)`).
 
 Anchor targets are written in the same section's
-remediation-detail block as `<a id="sent-nnn"></a>` immediately above
-each `### SENT-NNN, Title` H3 heading. HTML anchors render to nothing
+remediation-detail block as `<a id="sac-log-03"></a>` immediately above
+each finding's H3 heading (`### SAC-LOG-03` followed by its title). HTML anchors render to nothing
 on every Markdown host but provide stable link targets that don't shift
 when titles change.
 
@@ -379,8 +382,11 @@ is the ADO-only third stage that closes that gap. In the ADO pipeline
 ([`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml))
 it runs immediately after the renderer, gated behind the pipeline's
 `prerenderChartsToPng` parameter (default on, so it can be switched off
-per-run). When enabled the pipeline installs Node 20 and
-`@mermaid-js/mermaid-cli@11` (`mmdc`) before invoking it. There is **no
+per-run, labelled **Charts: Mermaid to PNG** in the run panel). When
+enabled the pipeline installs Node 20 and `@mermaid-js/mermaid-cli@11`
+(`mmdc`) before invoking it. The SharePoint stage does not render Mermaid
+itself: the site's dashboard draws its own charts, and its section pages
+reuse these PNGs when this pass ran. There is **no
 GitHub equivalent** (the ADO Documenter is manual-trigger-only; the
 GitHub Documenter runs on a daily schedule plus `workflow_dispatch`).
 
@@ -538,8 +544,9 @@ diagram" messages. Particular attention to:
   prevent this).
 
 ### 4. Auto-link round-trip
-Open any section that mentions `SENT-NNN` (00, 01, 90, 38). Click the
-link, it must navigate to the matching `<a id="sent-nnn">` anchor in
+Open any section that mentions a finding id such as `SAC-LOG-03` (00, 01,
+90, 38). Click the link, it must navigate to the matching
+`<a id="sac-log-03">` anchor in
 90-gap-analysis.md.
 
 ## Outstanding work (forward-looking)
