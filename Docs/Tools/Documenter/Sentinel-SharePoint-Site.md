@@ -92,9 +92,9 @@ line, chips beneath (category, area and retired id; area, kind and effort
 for criteria), the criterion's impact line, then Evidence beside
 Remediation (or Guidance), each clamped to three lines. Every card is the
 same height when collapsed: each block reserves its three lines, and one
-Expand button per card sits bottom right in a slot
-that is always reserved (invisible when both blocks fit), opening both
-blocks together. Findings
+chevron at the far right of the title row (beside Learn, in the same
+place on every card, shown only when a block is clamped) opens both
+blocks; clicking the clamped text does the same. Findings
 filter by severity, category and free text; criteria by status, area and
 free text, and a criterion whose id a fired finding shares carries an
 "Open finding" link.

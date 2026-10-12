@@ -535,7 +535,7 @@
      and impact line reserve their space, each text block reserves four
      lines, and the Expand slot is always present (invisible when the text
      fits), so Expand sits in the same place on every card. */
-  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 18px 10px;box-shadow:var(--shadow-sm)}
+  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 18px 14px;box-shadow:var(--shadow-sm)}
   .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:28px}
   .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
   .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
@@ -550,12 +550,16 @@
   .fc-block .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
   .fc-block .ltx .ltx-body{-webkit-line-clamp:3;min-height:calc(1.55em * 3)}
   .fc-block .ltx .ltx-btn{display:none}
-  /* One Expand per card, bottom right, in a slot that is always reserved so
-     it sits in the same place on every card; it opens both text blocks. */
-  .fc-foot{display:flex;justify-content:flex-end;align-items:center;min-height:24px;margin-top:2px}
-  .fc-expand{visibility:hidden;font:inherit;font-size:12px;font-weight:700;color:var(--brand-ink);background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer}
+  /* One toggle per card: a chevron at the far right of the title row, in
+     the same place on every card, visible only when a block is clamped;
+     it opens both blocks, and clicking clamped text does the same. */
+  .fc-expand{visibility:hidden;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--brand-ink);
+    display:inline-grid;place-items:center;cursor:pointer;padding:0;transition:transform .15s}
+  .fc-expand svg{width:15px;height:15px}
   .fc-expand:hover{background:var(--chip)}
   .fcard.has-more .fc-expand,.fcard.open .fc-expand{visibility:visible}
+  .fcard.open .fc-expand{transform:rotate(180deg)}
+  .fcard.has-more .fc-block .ltx.clamped .ltx-body{cursor:pointer}
   table.tbl th.num{text-align:right}
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
@@ -750,11 +754,10 @@
   function findingCard(f){
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
-      '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</span></div>'+
+      '<span class="fc-actions">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'<button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'</div>'+
-      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div>'+
-      '<div class="fc-foot"><button type="button" class="fc-expand" data-fcx>Expand</button></div></div>';
+      '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'</div></div></div>';
   }
   const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
@@ -765,13 +768,18 @@
     });
     (root||document).querySelectorAll('.fcard').forEach(c=>c.classList.toggle('has-more', !!c.querySelector('.ltx.clamped')));
   }
-  document.addEventListener('click',e=>{
-    const b=e.target.closest('[data-fcx]'); if(!b) return;
-    const card=b.closest('.fcard'); const open=card.classList.toggle('open');
+  function toggleCard(card){
+    const open=card.classList.toggle('open');
     card.querySelectorAll('.ltx').forEach(w=>{ w.classList.toggle('open',open); if(open) w.classList.add('clamped'); });
     if(!open) markClamped(card);
-    b.textContent=open?'Collapse':'Expand';
+    const b=card.querySelector('.fc-expand'); if(b){ const t=open?'Show less':'Show the full text'; b.setAttribute('aria-label',t); b.setAttribute('title',t); }
     if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-fcx]');
+    if(b){ toggleCard(b.closest('.fcard')); return; }
+    const body=e.target.closest('.fcard.has-more:not(.open) .fc-block .ltx.clamped .ltx-body');
+    if(body && !e.target.closest('a')) toggleCard(body.closest('.fcard'));
   });
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-ltx]'); if(!b) return;
@@ -1677,12 +1685,11 @@
       const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
       tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'">'+
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
-        '<span class="fc-actions">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</span></div>'+
+        '<span class="fc-actions">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'<button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
         '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'</div>'+
-        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div>'+
-        '<div class="fc-foot"><button type="button" class="fc-expand" data-fcx>Expand</button></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+        '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'</div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
       tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
