@@ -73,8 +73,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.2.0
-    Last Updated:   2026-10-09
+    Version:        0.3.0
+    Last Updated:   2026-10-12
     Component:      Sentinel Documenter
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -142,7 +142,7 @@ $apiVersions = @{
     Tables                = '2023-09-01'
     DataCollection        = '2023-03-11'
 }
-$documenterVersion = '0.1.0'
+$documenterVersion = '0.2.0'
 
 . (Join-Path $PSScriptRoot 'Private/Invoke-SentinelRest.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AzureRetailPrice.ps1')

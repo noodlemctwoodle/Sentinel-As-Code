@@ -43,6 +43,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **Dashboard reading comfort** - long evidence, remediation and guidance
+  cells clamp to three lines with an Expand control (semicolon lists open
+  as bullets), so table rows stay uniform and nothing is cut; the Overview
+  alerting-rules table shows eight with "Show all"; finding ids never wrap;
+  the per-section view is the "Report" tab and sits before Maturity; Report
+  section titles and subsection headings are more prominent; doc-table
+  cells longer than 40 characters wrap instead of overflowing; the estate
+  flow and Sankey no longer shorten any label. Documenter version 0.2.0.
 - **Six new captures close the last health-check gaps** - `rule-health`
   (analytics rules whose runs failed, with the recorded reason; new rule
   SENT-059 and a "Rule run failures" table on the analytics page),

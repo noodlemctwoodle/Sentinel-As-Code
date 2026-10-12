@@ -20,8 +20,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.2.0
-    Last Updated:   2026-10-09
+    Version:        0.3.0
+    Last Updated:   2026-10-12
     Component:      Sentinel Documenter, Gap Engine
     Requires:       PowerShell 7.2+
 

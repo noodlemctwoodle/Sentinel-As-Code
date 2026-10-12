@@ -52,8 +52,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.3.0
-    Last Updated: 2026-10-09
+    Version:      0.4.0
+    Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail

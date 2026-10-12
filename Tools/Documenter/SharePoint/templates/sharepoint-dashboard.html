@@ -311,6 +311,18 @@
   .abar .av{font-size:12.5px;font-weight:800;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
   .matbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--muted);white-space:nowrap;min-width:92px;text-align:center}
   .cid{white-space:nowrap}
+  /* Long text (evidence, remediation, guidance) is clamped to three lines so
+     rows stay uniform; Expand shows everything, as a list when the text is a
+     semicolon-separated list. Nothing is cut: the full text is always in
+     the DOM. */
+  .ltx .ltx-body{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+  .ltx.open .ltx-body{display:block;-webkit-line-clamp:unset;overflow:visible}
+  .ltx .ltx-list{display:none;margin:4px 0 0;padding-left:18px}
+  .ltx .ltx-list li{margin:2px 0;overflow-wrap:anywhere}
+  .ltx.open.aslist .ltx-body{display:none}
+  .ltx.open.aslist .ltx-list{display:block}
+  .ltx .ltx-btn{display:none;margin-top:4px;font:inherit;font-size:11.5px;font-weight:700;color:var(--brand-ink);background:none;border:0;padding:0;cursor:pointer}
+  .ltx.clamped .ltx-btn{display:inline-block}
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
@@ -361,8 +373,9 @@
   .docpanel .dbadge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-ink);
     background:color-mix(in srgb,var(--brand) 11%,transparent);border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));
     padding:4px 10px;border-radius:999px}
-  .docpanel h2.dtitle{margin:0;font-size:21px;font-weight:800;letter-spacing:-.02em}
-  .docbody h3{margin:24px 0 8px;font-size:15.5px;font-weight:750;letter-spacing:-.01em}
+  .docpanel h2.dtitle{margin:0;font-size:26px;font-weight:850;letter-spacing:-.025em;line-height:1.15}
+  .docpanel .dhead{padding-bottom:12px;border-bottom:2px solid var(--line);margin-bottom:14px}
+  .docbody h3{margin:30px 0 10px;font-size:17px;font-weight:800;letter-spacing:-.015em;padding-left:11px;border-left:3px solid var(--brand)}
   .docbody h4{margin:18px 0 6px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
   .docbody p{margin:9px 0;color:var(--ink-2);font-size:13.5px;line-height:1.6}
   .docbody ul{margin:9px 0;padding-left:20px;color:var(--ink-2);font-size:13.5px;line-height:1.6}
@@ -537,8 +550,8 @@
       <div class="tab active" data-tab="overview" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</div>
       <div class="tab" data-tab="flow" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M4 7a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 10h-7m7 0a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM11 7h2a4 4 0 0 1 4 4v0M13 17h-2a4 4 0 0 1-4-4v0"/></svg>Data flow</div>
       <div class="tab" data-tab="sections" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>Insights</div>
+      <div class="tab" data-tab="sectionsdoc" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z"/></svg>Report</div>
       <div class="tab" data-tab="maturity" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Maturity</div>
-      <div class="tab" data-tab="sectionsdoc" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z"/></svg>Sections</div>
       <div class="tab" data-tab="findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".6"/></svg>Findings</div>
     </nav>
     <div class="spacer"></div>
@@ -683,12 +696,35 @@
     return '<div class="morewrap">'+inner+btn+'</div>';
   }
   const trRows=(rows,show)=>rows.map((r,i)=> i<show ? r : r.replace(/^<tr\b/,'<tr data-mr hidden')).join('');
+  // longText(text): three visible lines and an Expand control when there is
+  // more; semicolon-separated lists expand as a bulleted list.
+  function longText(t){
+    t=String(t==null?'':t); const parts=t.split(/;\s+/); const list=parts.length>=4;
+    return '<div class="ltx'+(list?' aslist':'')+'"><div class="ltx-body">'+esc(t)+'</div>'+
+      (list?'<ul class="ltx-list">'+parts.map(x=>'<li>'+esc(x.trim())+'</li>').join('')+'</ul>':'')+
+      '<button type="button" class="ltx-btn" data-ltx>Expand</button></div>';
+  }
+  function markClamped(root){
+    (root||document).querySelectorAll('.ltx').forEach(w=>{
+      if(w.classList.contains('open')) return;
+      const b=w.querySelector('.ltx-body'); if(!b||!b.clientHeight) return;
+      w.classList.toggle('clamped', b.scrollHeight>b.clientHeight+2);
+    });
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-ltx]'); if(!b) return;
+    const w=b.closest('.ltx'); const open=w.classList.toggle('open');
+    b.textContent=open?'Collapse':'Expand'; if(open) w.classList.add('clamped');
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  });
+  window.addEventListener('resize',()=>markClamped());
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-more]'); if(!b) return;
     const wrap=b.closest('.morewrap'); if(!wrap) return;
     const open=wrap.classList.toggle('open');
     wrap.querySelectorAll('[data-mr]').forEach(el=>{ if(el.closest('.morewrap')===wrap) el.hidden=!open; });
     b.textContent=open ? (b.dataset.less||'Show fewer') : b.dataset.all;
+    markClamped(wrap);
     if(typeof window.fitIframe==='function') window.fitIframe();
   });
   const fmtN = n => (Math.round((+n||0)*100)/100).toLocaleString();
@@ -791,7 +827,7 @@
   const goArrow = '<svg class="pgo" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
   document.getElementById('heroPills').innerHTML = pills.map(p=>
     '<div class="pill'+(p.badge?' '+p.badge:'')+(p.sec!=null?' clickable':'')+'"'+
-      (p.sec!=null?' role="button" tabindex="0" data-sec="'+p.sec+'" title="Open in Sections"':'')+'>'+
+      (p.sec!=null?' role="button" tabindex="0" data-sec="'+p.sec+'" title="Open in the Report tab"':'')+'>'+
       (p.sec!=null?goArrow:'')+
       '<span class="kic">'+p.ic+'</span>'+
       '<div class="k">'+esc(p.k)+'</div>'+
@@ -868,7 +904,7 @@
     const strand=gb=>Math.max(2,Math.min(28,28*Math.sqrt(gb/maxGb)));
     const srcX=230, poolX=560, poolY=380, cy=200, r=36;
     const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,label:'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
-    const trunc=s=>{ s=String(s||''); return s.length>34? s.slice(0,33)+'…':s; };
+    const trunc=s=>String(s||'');
     const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
     const gap=Math.min(44,(H-90)/Math.max(sources.length,1));
     const top=cy-(sources.length-1)*gap/2;
@@ -940,7 +976,7 @@
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
       qw.innerHTML='<div class="qw">'+MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
-        '<div class="qwg">'+esc(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>').join('')+'</div>';
+        '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>').join('')+'</div>';
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
   })();
 
@@ -957,9 +993,9 @@
       const head=(items.find(s=>s.headline)||{}).headline||(items.length+' page'+(items.length===1?'':'s'));
       return '<div class="ctcard"><div class="ctt">'+esc(f)+'</div><div class="cth">'+esc(head)+'</div>'+
         items.map(s=>{ const u=sitePageUrl(s.page);
-          return '<div class="cti"><a class="sec" data-num="'+s.num+'" title="Open in Sections">'+esc(clean(s.title))+'</a>'+(u?'<a class="pg" href="'+esc(u)+'" target="_top">page &rarr;</a>':'')+'</div>'; }).join('')+'</div>';
+          return '<div class="cti"><a class="sec" href="#report-'+s.num+'" role="button" data-num="'+s.num+'" title="Open in the Report tab">'+esc(clean(s.title))+'</a>'+(u?'<a class="pg" href="'+esc(u)+'" target="_top">page &rarr;</a>':'')+'</div>'; }).join('')+'</div>';
     }).join('');
-    el.querySelectorAll('a.sec').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.num)));
+    el.querySelectorAll('a.sec').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); jumpTo(+a.dataset.num); }));
   })();
 
   // ---- SANKEY ----
@@ -1036,7 +1072,7 @@
     const estText=s=>[...String(s)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?8.4:/[ijl.,'| ]/.test(ch)?3.8:6.6),0);
     const showVal=n=>n.col!==1 && n.value>=0.01;
     const valTxt=n=>showVal(n)? n.value+'GB' : '';
-    const maxNodeW=opts.maxNodeW||Math.round(opts.nodeW*1.7);
+    const maxNodeW=opts.maxNodeW||Math.round(opts.nodeW*2.4);
     const colW=[], stackCol=[];
     cols.forEach((arr,ci)=>{
       const inline=arr.reduce((m,n)=>Math.max(m, estText(n.label)+PAD_L+PAD_R+(showVal(n)? valTxt(n).length*VW+GAPX : 0)),0);
@@ -1140,15 +1176,14 @@
     document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th>GB/30d</th><th>'+esc(cost.currency)+'/mo</th></tr></thead><tbody>'+
       cost.topTables.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.plan)+'</td><td>'+t.gb30d+'</td><td>'+t.cost+'</td></tr>').join('')+'</tbody></table>';
   }
-  document.getElementById('topRules').innerHTML='<table class="tbl"><thead><tr><th>Rule</th><th>Product</th><th>Sev</th><th>Alerts</th></tr></thead><tbody>'+
-    M.topRules.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.product)+'</td><td><span class="sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td>'+r.alerts+'</td></tr>').join('')+'</tbody></table>';
+  document.getElementById('topRules').innerHTML=moreWrap('<table class="tbl"><thead><tr><th>Rule</th><th>Product</th><th>Sev</th><th>Alerts</th></tr></thead><tbody>'+
+    trRows(M.topRules.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.product)+'</td><td><span class="sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="num">'+r.alerts+'</td></tr>'),8)+'</tbody></table>', M.topRules.length, 8, 'rules');
 
   // ---- top findings ----
   const topF = M.findings.items;
-  const clip = (s,n)=>{ s=s||''; return s.length>n? s.slice(0,n-1)+'…':s; };
   document.getElementById('topFindings').innerHTML=moreWrap('<table class="tbl"><tbody>'+trRows(topF.map(f=>
     '<tr><td style="white-space:nowrap;width:1%"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></td>'+
-    '<td><b>'+esc(f.id)+'</b> '+esc(f.title)+'<div class="note" style="margin:3px 0 0">'+esc(clip(f.evidence,200))+'</div></td>'+
+    '<td><b class="cid">'+esc(f.id)+'</b> '+esc(f.title)+'<div class="note" style="margin:3px 0 0">'+longText(f.evidence)+'</div></td>'+
     '<td style="white-space:nowrap">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank">Learn &rarr;</a>':'')+'</td></tr>'),6)+'</tbody></table>', topF.length, 6, 'findings');
 
   // ---- insights board (visual Sections) ----
@@ -1507,7 +1542,7 @@
     if(MAT.roadmap&&MAT.roadmap.length){
       html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
         moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
-        trRows(MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+esc(r.guidance||'')+'</div></td>'+
+        trRows(MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
           '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">+'+(+r.overallLift||0).toFixed(2)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
         '</tbody></table>',MAT.roadmap.length,10,'gaps')+'</div>';
     }
@@ -1527,7 +1562,8 @@
       const st=sel.value, s=(q.value||'').toLowerCase();
       const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
       tb.innerHTML=rows.map(c=>'<tr><td class="cid"><b>'+esc(c.id)+'</b></td><td>'+esc(areaName[c.area]||c.area)+'</td><td>'+esc(c.name)+'<div class="note" style="margin:2px 0 0">'+esc(c.impact||'')+'</div></td>'+
-        '<td><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span></td><td>'+esc(c.effort)+'</td><td>'+esc(c.evidence||'')+'</td></tr>').join('')||'<tr><td colspan="6" class="note">No criteria match.</td></tr>';
+        '<td><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span></td><td>'+esc(c.effort)+'</td><td>'+longText(c.evidence||'')+'</td></tr>').join('')||'<tr><td colspan="6" class="note">No criteria match.</td></tr>';
+      markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
     sel.addEventListener('change',renderCriteria); q.addEventListener('input',renderCriteria); renderCriteria();
@@ -1640,7 +1676,8 @@
       const body=b.rows.map(r=>'<tr>'+r.map((c,ci)=>{
           const num = isNum(c) && !wrapCols[ci];
           const cell = formatCell(c);
-          return '<td class="'+(wrapCols[ci]?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
+          const wrap = wrapCols[ci] || cell.replace(/<[^>]+>/g,'').length>40;   // long cells wrap rather than overflow
+          return '<td class="'+(wrap?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
         }).join('')+'</tr>').join('');
       const tid='dt'+idx;
       return '<div class="doctable-wrap">'+
@@ -1735,11 +1772,12 @@
   function renderFindings(){
     const sv=sevSel.value; const rows=M.findings.items.filter(f=>!sv||f.severity===sv);
     document.querySelector('#findTable tbody').innerHTML=rows.map(f=>
-      '<tr><td><b>'+esc(f.id)+'</b></td><td><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></td>'+
-      '<td><b>'+esc(f.title)+'</b><div class="note" style="margin:3px 0 0">'+esc(f.evidence||'')+'</div></td>'+
-      '<td>'+esc(f.category)+'</td><td>'+esc(f.remediation||'')+'</td>'+
+      '<tr><td class="cid"><b>'+esc(f.id)+'</b></td><td><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></td>'+
+      '<td><b>'+esc(f.title)+'</b><div class="note" style="margin:3px 0 0">'+longText(f.evidence||'')+'</div></td>'+
+      '<td>'+esc(f.category)+'</td><td>'+longText(f.remediation||'')+'</td>'+
       '<td style="white-space:nowrap">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank">Learn &rarr;</a>':'')+'</td></tr>').join('');
     document.getElementById('findCount').textContent=rows.length+' of '+M.findings.items.length+' findings';
+    markClamped(document.getElementById('findTable'));
   }
   sevSel.onchange=renderFindings; renderFindings();
 
@@ -1760,7 +1798,12 @@
   function balanceGrids(){
     BALANCED.forEach(([sel,min])=>{
       document.querySelectorAll(sel).forEach(el=>{
-        const w=el.clientWidth; if(!w) return;                     // hidden tab, measure when shown
+        const w=el.clientWidth;
+        if(!w){                                                    // hidden tab, measure when shown
+          const view=el.closest('[data-view]');
+          if(!(view&&view.classList.contains('hidden')) && !el._bgRetry){ el._bgRetry=true; requestAnimationFrame(()=>{ el._bgRetry=false; balanceGrids(); }); }
+          return;
+        }
         const kids=[...el.children].filter(c=>!c.classList.contains('full'));
         const n=kids.length;
         if(!n) return;
@@ -1776,7 +1819,7 @@
       });
     });
   }
-  balanceGrids();
+  balanceGrids(); markClamped();
   window.addEventListener('resize',balanceGrids);
   if(window.ResizeObserver){
     const ro=new ResizeObserver(()=>balanceGrids());
@@ -1787,7 +1830,7 @@
   activateTab = function(name){
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===name));
     document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==name));
-    balanceGrids();
+    balanceGrids(); markClamped();
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{

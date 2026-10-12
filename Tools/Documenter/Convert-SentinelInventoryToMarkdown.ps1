@@ -68,8 +68,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.0
-    Last Updated:   2026-09-01
+    Version:        0.2.0
+    Last Updated:   2026-10-12
     Component:      Sentinel Documenter, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
 #>
