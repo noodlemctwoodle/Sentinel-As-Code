@@ -43,6 +43,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   extended-retention tables and lake cost split, counted by the same helper
   as the data lake page, and the billing-flow Sankey's plan column now names
   the lake tier each table lands in instead of one "Analytics plan" box.
+- **Interactive billing flow and nothing hidden behind "N more"** - the
+  Data flow Sankey is rebuilt in the browser from every ingesting table:
+  click a source family (or its chip) to see every table in that family,
+  click "Other" or "Every table" to see them all. Every dashboard list
+  (findings, tables by volume, alerting rules, health operations, rule
+  effectiveness, detection opportunities and their templates, extended-
+  retention tables, failing playbooks, the roadmap) shows its first entries
+  with a "Show all N" control, and the model carries the full lists.
 - **Dashboard layout** - Insights cards sit in bands of similar height
   (donuts, bar lists, tables) separated by the full-width panels, so a long
   table never shares a row with a short donut; a short last row widens to

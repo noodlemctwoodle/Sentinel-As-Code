@@ -77,6 +77,15 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Documenter computes:
 
+Every list on the dashboard is complete. Panels show their first entries
+(eight bars, eight table rows, twelve opportunity tables with three
+templates each, six findings on the Overview, ten roadmap gaps) and a
+"Show all N" control reveals the rest; nothing is folded into an "N more"
+badge that cannot be opened. The model carries the full lists (every
+effectiveness row, every uncovered table with every template that reads
+it, every alerting rule, every extended-retention table, every roadmap
+entry, every table by cost).
+
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels
 (MITRE matrix, content inventory, detection opportunities, what's new)
@@ -95,7 +104,8 @@ under the label when the two cannot share a line.
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
 | `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
 | `dataLake`, `dataLakeEnrolled` | Overview: the "Data lake" glance tile. Insights: enrolment status, the tier distribution donut (Analytics only, Analytics + Lake mirror, Analytics + Lake extended, Lake only), the top tables by lake-only retention and the lake cost split; counted over the operational tables through `Private/Get-TableTierProfile.ps1`, the same helper page 88 uses | `sentinel-data-lake`, `workspace`, `workspace-tables`, `tables-with-data`, `cost-estimate` |
-| `flow` | Data flow: the billing-flow Sankey. Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
+| `flowTables` | Data flow: every ingesting table with its family, plan label, GB and billed GB. The dashboard rebuilds the Sankey from this list: the default view keeps the nine largest tables and folds the rest into "Other"; clicking a source family (or its chip above the chart) shows every table in that family, clicking "Other" or the "Every table" chip shows them all | `cost-estimate`, `workspace-tables` |
+| `flow` | Data flow: the billing-flow Sankey as built by the site (the default view; kept for bundles built before `flowTables` existed). Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
 | `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
 | `familyOrder`, `sections[].headline` | Overview: the contents cards, one per family, each page linking to its native page | the rendered sections |
 

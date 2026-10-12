@@ -494,6 +494,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
         @($model.effectiveness).Count | Should -Be 2
+        # Lists are carried in full; the dashboard shows the first few with a
+        # "Show all" control instead of dropping the rest.
+        ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').PSObject.Properties.Name | Should -Not -Contain 'more'
+        @($model.flowTables).Count | Should -Be 0
+        $html | Should -Match 'function moreWrap'
         @($model.usageDaily).Count | Should -Be 3
         $model.playbookHealth.failed7d | Should -Be 5
         ($model.incidentsByClassification | Where-Object label -eq 'Undetermined').value | Should -Be 15
@@ -586,6 +591,17 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         ($outcomes | Where-Object label -eq 'Free benefit').value | Should -Be 500
         ($outcomes | Where-Object label -eq 'Billed').value | Should -Be 2400
         @($model.flow.links | Where-Object { $_.source -eq 't:ColdStore_CL' -and $_.target -eq 'p:Data lake only' }).Count | Should -Be 1
+        # Every ingesting table travels with the model so the dashboard can
+        # rebuild the flow per family or for every table on click.
+        @($model.flowTables).Count | Should -Be 4
+        $model.flowTables[0].table | Should -Be 'FirewallLogs_CL'
+        $model.flowTables[0].family | Should -Be 'Custom logs'
+        $model.flowTables[0].billedGb | Should -Be 2000
+        ($model.flowTables | Where-Object table -eq 'SecurityEvent').billedGb | Should -Be 0
+        ($model.flowTables | Where-Object table -eq 'ColdStore_CL').plan | Should -Be 'Data lake only'
+        @($model.cost.allTables).Count | Should -Be 4
+        $html | Should -Match 'id="flowFilter"'
+        $html | Should -Match 'function buildFlowGraph'
     }
 
     It 'writes nothing with -WhatIf' {

@@ -480,6 +480,7 @@ if ($cost) {
         asOf         = if ($cost.AsOfUtc) { ([datetime]$cost.AsOfUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC' } else { '' }
         byPlan       = @()
         topTables    = @()
+        allTables    = @()
     }
     if ($cost.ByPlan) {
         foreach ($p in $cost.ByPlan.PSObject.Properties) {
@@ -488,6 +489,11 @@ if ($cost) {
     }
     foreach ($t in @($cost.Top10TablesByCost | Where-Object { $_ })) {
         $costModel.topTables += [ordered]@{ table = $t.Table; plan = $t.Plan; gb30d = [math]::Round([double]$t.Gb30d, 2); cost = [math]::Round([double]$t.MonthlyCost, 2) }
+    }
+    if ($cost.PSObject.Properties['AllTablesByCost']) {
+        foreach ($t in @($cost.AllTablesByCost | Where-Object { $_ -and [double]$_.Gb30d -gt 0 } | Sort-Object { [double]$_.Gb30d } -Descending)) {
+            $costModel.allTables += [ordered]@{ table = $t.Table; plan = $t.Plan; gb30d = [math]::Round([double]$t.Gb30d, 2); cost = [math]::Round([double]$t.MonthlyCost, 2) }
+        }
     }
 }
 
@@ -636,10 +642,26 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
     }
 }
 $flow = [ordered]@{ nodes = $flowNodes; links = $flowLinks }
+# Every ingesting table with its family, plan label and billed share, so the
+# dashboard can rebuild the flow for one family or for every table on click
+# instead of folding the long tail into an "Other" node for good.
+$flowTables = @()
+if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
+    foreach ($t in @($cost.AllTablesByCost | Where-Object { $_ -and [double]$_.Gb30d -gt 0 } | Sort-Object { [double]$_.Gb30d } -Descending)) {
+        $gb = [math]::Round([double]$t.Gb30d, 3)
+        $flowTables += [ordered]@{
+            table    = [string]$t.Table
+            family   = (Get-TableFamily $t.Table)
+            plan     = (Get-FlowPlanLabel -Table ([string]$t.Table) -Plan ([string]$t.Plan))
+            gb       = $gb
+            billedGb = $(if ([double]$t.MonthlyCost -gt 0) { $gb } else { 0.0 })
+        }
+    }
+}
 
 # ---- Top alerting rules (by 30d volume) ----
 $topRules = @()
-foreach ($v in ($volumes | Where-Object { $_ } | Select-Object -First 10)) {
+foreach ($v in ($volumes | Where-Object { $_ })) {
     $topRules += [ordered]@{ name = $v.AlertName; product = $v.ProductName; severity = $v.AlertSeverity; alerts = [int]$v.Alerts }
 }
 
@@ -716,14 +738,8 @@ foreach ($t in $tablesData) {
 }
 $sortedFams = @($famAgg2.Values | Sort-Object { $_.gb } -Descending)
 $estateSources = @()
-foreach ($f in @($sortedFams | Select-Object -First 7)) {
+foreach ($f in $sortedFams) {
     $estateSources += [ordered]@{ category = $f.category; tables = $f.tables; gb = [math]::Round($f.gb, 2); coveredGb = [math]::Round($f.coveredGb, 2); covered = $f.covered }
-}
-$famTail = @($sortedFams | Select-Object -Skip 7)
-if ($famTail.Count -gt 0) {
-    $other = $estateSources | Where-Object { $_.category -eq 'Other' } | Select-Object -First 1
-    if (-not $other) { $other = [ordered]@{ category = 'Other'; tables = 0; gb = 0.0; coveredGb = 0.0; covered = 0 }; $estateSources += $other }
-    foreach ($f in $famTail) { $other.tables += $f.tables; $other.gb = [math]::Round($other.gb + $f.gb, 2); $other.coveredGb = [math]::Round($other.coveredGb + $f.coveredGb, 2); $other.covered += $f.covered }
 }
 $alerts30d = [long]0
 foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumber $f.Alerts) } }
@@ -757,7 +773,7 @@ $estate = [ordered]@{
 $effectiveness = @()
 # Sentinel rules first, then other products' alerts by name.
 $effectSorted = @($effectRows | Where-Object { $_ } | Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable)
-foreach ($e in ($effectSorted | Select-Object -First 15)) {
+foreach ($e in $effectSorted) {
     $src = if ($e.PSObject.Properties['Source'] -and $e.Source) { [string]$e.Source } elseif ($e.PSObject.Properties['AlertRuleId'] -and $e.AlertRuleId) { 'Analytics rule' } else { 'Other' }
     $effectiveness += [ordered]@{
         rule = $e.RuleName; source = $src; incidents = [int](ConvertTo-BuildNumber $e.Incidents); closed = [int](ConvertTo-BuildNumber $e.Closed)
@@ -784,15 +800,14 @@ if ($ruleRefs.Count -gt 0) {
         -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
     } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
     $uncoveredTotal = $uncovered.Count
-    foreach ($t in ($uncovered | Select-Object -First 12)) {
+    foreach ($t in $uncovered) {
         $name = [string]$t.DataType
         $cands = @($undeployed | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName)
         $detectionOpportunities += [ordered]@{
             table     = $name
             family    = (Get-TableFamily $name)
             gb30d     = [math]::Round((ConvertTo-BuildNumber $t.BillableLast30d), 2)
-            templates = @($cands | Select-Object -First 3 | ForEach-Object { [ordered]@{ name = $_.DisplayName; severity = $_.Severity } })
-            more      = [math]::Max(0, $cands.Count - 3)
+            templates = @($cands | ForEach-Object { [ordered]@{ name = $_.DisplayName; severity = $_.Severity } })
         }
     }
 }
@@ -825,7 +840,7 @@ foreach ($r in ($runRows | Where-Object { $_ })) {
 $playbookHealth = [ordered]@{ runs7d = $pbRuns; failed7d = $pbFailed; playbooks = @($runRows | Where-Object { $_ }).Count; unavailable = $pbUnavailable; failing = @($pbFailing | Sort-Object { $_.failed } -Descending) }
 
 $tiBySource = @()
-foreach ($row in ($tiCountRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending | Select-Object -First 6)) {
+foreach ($row in ($tiCountRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending)) {
     $tiBySource += [ordered]@{ source = [string]$row.SourceSystem; count = [long](ConvertTo-BuildNumber $row.Count) }
 }
 $tiObjects = @()
@@ -862,7 +877,7 @@ $dataLakeModel = [ordered]@{
     operationalTables = $operationalTables.Count
     tiers             = $tierProfile.Tiers
     extendedCount     = @($tierProfile.RetentionRows).Count
-    extendedTables    = @($tierProfile.RetentionRows | Sort-Object { $_.LakeOnlyDays } -Descending | Select-Object -First 10 | ForEach-Object {
+    extendedTables    = @($tierProfile.RetentionRows | Sort-Object { $_.LakeOnlyDays } -Descending | ForEach-Object {
         [ordered]@{ table = $_.Table; plan = $_.Plan; analyticsDays = $_.AnalyticsDays; lakeOnlyDays = $_.LakeOnlyDays; totalDays = $_.TotalDays }
     })
     cost              = [ordered]@{
@@ -892,7 +907,7 @@ if ($maturityOk) {
         criteria         = @(foreach ($a in @($maturityRaw.areas)) { foreach ($c in @($a.criteria)) {
             [ordered]@{ id = $c.id; area = $a.id; kind = $c.kind; name = $c.name; status = $c.status; effort = $c.effort; impact = $c.impact; evidence = $c.evidence }
         } })
-        roadmap          = @(@($maturityRaw.roadmap) | Select-Object -First 20 | ForEach-Object {
+        roadmap          = @(@($maturityRaw.roadmap) | ForEach-Object {
             [ordered]@{ priority = $_.priority; criterionId = $_.criterionId; area = $_.area; name = $_.name; effort = $_.effort; overallLift = $_.overallLift; projectedScore = $_.projectedScore; guidance = $_.guidance }
         })
         quickWins        = @(@($maturityRaw.quickWins) | ForEach-Object { [ordered]@{ criterionId = $_.criterionId; area = $_.area; name = $_.name; guidance = $_.guidance; overallLift = $_.overallLift } })
@@ -1026,6 +1041,7 @@ $model = [ordered]@{
     mitreCovered = $mitreCovered
     mitreCoveredThreshold = $script:MitreCoveredThreshold
     flow         = $flow
+    flowTables   = $flowTables
     topRules     = $topRules
     health       = [ordered]@{ pct = $healthPct; totalEvents = [int]$healthTotal; rows = @($healthSum | Where-Object { $_ }) }
     estate       = $estate
