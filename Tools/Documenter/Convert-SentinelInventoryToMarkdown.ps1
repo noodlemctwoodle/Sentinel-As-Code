@@ -3415,7 +3415,7 @@ $(Format-Banner -Title "Maturity Assessment")
 
 **Overall:** $overallText  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $($mAreas.Count)  ·  **Criteria:** $($maturity.totals.met) met · $($maturity.totals.gap) gaps · $($maturity.totals.unknown) unknown
 
-Unknown criteria are those whose input was not captured in this run; they never count against the workspace. Confidence says how much of an area could be evaluated. The scoring, and every criterion's source, is in [Sentinel-Maturity-Model.md](../../Docs/Tools/Documenter/Sentinel-Maturity-Model.md).
+Unknown criteria are those whose input was not captured or could not be measured in this run; they never count against the workspace. Confidence says how much of an area could be evaluated. The scoring, and every criterion's source, is in [Sentinel-Maturity-Model.md](../../Docs/Tools/Documenter/Sentinel-Maturity-Model.md).
 
 ## Area scores
 

@@ -258,7 +258,13 @@ function New-MaturityMetrics {
     $mttaMinutes = $null
     if ($null -ne $mttr -and @($mttr).Count -gt 0) {
         $raw = Get-MaturityPropertyValue $mttr[0] 'MTTAMinutes' $null
-        if ($null -ne $raw) { $mttaMinutes = [math]::Round((ConvertTo-MaturityNumber $raw), 1) }
+        if ($null -ne $raw) {
+            # avg() over zero acknowledged incidents comes back as the string
+            # "NaN"; there is nothing to measure, so the metric stays null and
+            # the criterion resolves to Unknown instead of a Gap.
+            $parsed = ConvertTo-MaturityNumber $raw
+            if (-not [double]::IsNaN($parsed) -and -not [double]::IsInfinity($parsed)) { $mttaMinutes = [math]::Round($parsed, 1) }
+        }
     }
 
     $searchJobs = Get-RowCount 'search-jobs.json'
@@ -444,7 +450,7 @@ function Resolve-MaturitySource {
         'metric' {
             $path = [string](Get-MaturityPropertyValue $Source 'path' '')
             $value = $Metrics[$path]
-            if ($null -eq $value) { return [pscustomobject]@{ Status = 'Unknown'; Metric = $null; Rule = $null; Evidence = "Metric '$path' was not captured in this run." } }
+            if ($null -eq $value) { return [pscustomobject]@{ Status = 'Unknown'; Metric = $null; Rule = $null; Evidence = "Metric '$path' has no value in this run (not captured, or nothing to measure)." } }
             $expected = Get-MaturityPropertyValue $Source 'value' $null
             $op = [string](Get-MaturityPropertyValue $Source 'op' '')
             $pass = if ($expected -is [bool]) {

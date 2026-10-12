@@ -214,6 +214,19 @@ Describe 'Maturity assessment over the sample fixture' {
         (New-MaturityMetrics -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
     }
 
+    It 'leaves mean time to acknowledge Unknown when no incident was acknowledged (KQL avg returns NaN)' {
+        $dir = Join-Path $TestDrive 'nan-mtta-raw'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
+        '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' | Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
+        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
+        $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
+        $c = $m.areas.criteria | Where-Object id -eq 'SAC-INC-03'
+        $c.status | Should -Be 'Unknown'
+        $c.evidence | Should -Match 'has no value in this run'
+        $c.evidence | Should -Not -Match 'NaN'
+    }
+
     It 'marks every rule-backed criterion Unknown when there are no outcomes and no captures' {
         $empty = Join-Path $TestDrive 'empty-raw'
         New-Item -ItemType Directory -Path $empty -Force | Out-Null

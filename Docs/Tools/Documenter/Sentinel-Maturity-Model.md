@@ -76,8 +76,8 @@ Each criterion's `source` resolves to **Met**, **Gap** or **Unknown**:
 
 | Source kind | Resolves from | Met | Gap | Unknown |
 |---|---|---|---|---|
-| `gapRule` | the SENT rule's outcome in `gap-checks.json` | `Passed` | `Fired` | `Errored`, `Undefined` or not evaluated |
-| `metric` | a value computed from the `_raw` captures, compared with `op` and `value` | comparison holds | comparison fails | the metric is null because its file was not captured |
+| `gapRule` | the SAC rule's outcome in `gap-checks.json` | `Passed` | `Fired` | `Errored`, `Undefined` or not evaluated |
+| `metric` | a value computed from the `_raw` captures, compared with `op` and `value` | comparison holds | comparison fails | the metric is null because its file was not captured or its value cannot be computed (mean time to acknowledge when no incident was acknowledged) |
 | `allOf` | its sources | all Met | any Gap | otherwise |
 | `anyOf` | its sources | any Met | all Gap | otherwise |
 
@@ -157,7 +157,7 @@ Unknown), and `0` or `false` when the file exists but holds nothing.
 | `playbooks` | `playbooks.json` | Logic App playbooks |
 | `watchlists` | `watchlists.json` | watchlists |
 | `incidents30d`, `closedIncidents30d` | `incidents-summary.json` | incidents and closures in 30 days |
-| `mttaMinutes` | `incidents-mttr.json` | mean time to acknowledge |
+| `mttaMinutes` | `incidents-mttr.json` | mean time to acknowledge; null when no incident was acknowledged in the window |
 | `searchOrRestoreJobs` | `search-jobs.json`, `restore-logs.json` | search jobs plus restores |
 | `lakeExtendedTables` | `workspace-tables.json` | tables on the DataLake or Auxiliary plan, or with total retention beyond interactive |
 | `tablesWithCustomRetention` | `workspace-tables.json`, `workspace.json` | tables whose retention differs from the workspace default |
@@ -193,7 +193,7 @@ csf                {source, functions[{id, name, criteria, met, gap, unknown}],
                     subcategories[{id, function, outcome, met, gap, unknown, criteriaIds[]}]}
 outOfScope         [{area, reason}]
 totals             {criteria, met, gap, unknown}
-metrics            every computed metric, null where not captured
+metrics            every computed metric, null where not captured or not computable
 ```
 
 ## Adding a criterion
