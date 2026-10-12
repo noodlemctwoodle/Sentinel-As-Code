@@ -228,7 +228,7 @@ function Test-RulesDisabledOrFailing {
         # least ten rules and a third of the disabled set.
         $byDay = @{}
         foreach ($r in $bad) {
-            $lm = [string](Get-PropOrDefault $r 'properties.lastModifiedUtc' '')
+            $lm = _ToIsoTime (Get-PropOrDefault $r 'properties.lastModifiedUtc' $null)
             if ($lm.Length -ge 10) { $d = $lm.Substring(0, 10); if (-not $byDay.ContainsKey($d)) { $byDay[$d] = 0 }; $byDay[$d]++ }
         }
         $bulkDay = $null; $bulkCount = 0
@@ -246,7 +246,7 @@ function Test-RulesDisabledOrFailing {
             [pscustomobject]@{
                 Rule         = [string](Get-PropOrDefault $_ 'properties.displayName' (Get-PropOrDefault $_ 'name' '?'))
                 Alerts30d    = $firedById[([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()]
-                LastModified = [string](Get-PropOrDefault $_ 'properties.lastModifiedUtc' '')
+                LastModified = _ToIsoTime (Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null)
             }
         } | Sort-Object { -$_.Alerts30d })
         $extra = ''
