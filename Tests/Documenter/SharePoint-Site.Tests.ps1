@@ -423,6 +423,69 @@ Describe 'Add-SacMaturityHistoryEntry' {
     }
 }
 
+Describe 'Publish-SacDashboardPage' {
+
+    BeforeAll {
+        # Functions win over cmdlets of the same name, so these stand in for
+        # PnP.PowerShell whether or not it is installed, and Mock replaces them.
+        $stubParams = [ordered]@{
+            'Get-PnPPage'                    = '$Identity'
+            'Get-PnPPageComponent'           = '$Page'
+            'Add-PnPPage'                    = '$Name, $LayoutType, $Title'
+            'Set-PnPPage'                    = '$Identity, $HeaderType, $Title, [switch] $Publish'
+            'Set-PnPPageWebPart'             = '$Page, $Identity, $PropertiesJson'
+            'Add-PnPPageSection'             = '$Page, $SectionTemplate, $Order'
+            'Get-PnPAvailablePageComponents' = '$Page'
+            'Add-PnPPageWebPart'             = '$Page, $Component, $WebPartProperties, $Section, $Column'
+            'Set-PnPHomePage'                = '$RootFolderRelativeUrl'
+        }
+        $script:pnpStubs = @($stubParams.Keys)
+        foreach ($name in $script:pnpStubs) {
+            Set-Item -Path "function:global:$name" -Value ([scriptblock]::Create("[CmdletBinding()] param($($stubParams[$name]))"))
+        }
+        # SharePoint can return the component id in braces and upper case.
+        $script:dashboardComponent = [pscustomobject]@{ Id = '{A2FD5AA3-01C5-431E-8C98-66F76C89803A}'; Name = 'IsocBlueprintWebPart' }
+    }
+    AfterAll {
+        foreach ($name in $script:pnpStubs) { Remove-Item -Path "function:global:$name" -ErrorAction SilentlyContinue }
+    }
+    BeforeEach {
+        Mock Get-PnPPageComponent { }
+        Mock Add-PnPPage { }
+        Mock Set-PnPPage { }
+        Mock Set-PnPPageWebPart { }
+        Mock Add-PnPPageSection { }
+        Mock Add-PnPPageWebPart { }
+        Mock Set-PnPHomePage { }
+        Mock Start-Sleep { }
+        Mock Write-Host { }
+        Mock Get-PnPAvailablePageComponents { $script:dashboardComponent }
+    }
+
+    It 'passes the component object, not its id, even when SharePoint returns the id in braces' {
+        Mock Get-PnPPage { $null }
+        Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'DocumenterAssets/dashboard/index.html'
+        Should -Invoke Add-PnPPageSection -Times 1 -Exactly -ParameterFilter { $SectionTemplate -eq 'OneColumnFullWidth' }
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { [object]::ReferenceEquals($Component, $script:dashboardComponent) -and $Section -eq 1 }
+        Should -Invoke Set-PnPHomePage -Times 1 -Exactly
+    }
+
+    It 'reuses the full-width section a failed run left behind instead of adding another' {
+        Mock Get-PnPPage { [pscustomobject]@{ Sections = @([pscustomobject]@{ Type = 'OneColumn' }, [pscustomobject]@{ Type = 'OneColumnFullWidth' }) } }
+        Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'DocumenterAssets/dashboard/index.html'
+        Should -Invoke Add-PnPPageSection -Times 0 -Exactly
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { $Section -eq 2 }
+    }
+
+    It 'says the web part is missing, without adding an empty one, when it never appears' {
+        Mock Get-PnPPage { $null }
+        Mock Get-PnPAvailablePageComponents { [pscustomobject]@{ Id = '{11111111-2222-3333-4444-555555555555}' } }
+        { Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'x' -WebPartWaitSeconds 0 } |
+            Should -Throw '*not in the site*component list*'
+        Should -Invoke Add-PnPPageWebPart -Times 0 -Exactly
+    }
+}
+
 Describe 'Build-SentinelDocsSite against the fixture' {
 
     BeforeAll {

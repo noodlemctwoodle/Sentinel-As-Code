@@ -200,6 +200,9 @@ The run fails when:
 - `npm ci` or the package build fails;
 - the SharePoint token cannot be obtained (federated credential, consent or
   service connection scope);
+- the dashboard web part is still not in the site's component list five
+  minutes after its package was deployed (the error names the web part id
+  and says to check the site's app catalog);
 - a publish step fails outright. A failure on an individual section page
   does not stop the run: the other pages, the dashboard, the findings and
   the navigation still publish, nothing is pruned, and the run fails at the

@@ -25,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.0
-    Last Updated: 2026-10-09
+    Version:      0.2.1
+    Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file defines functions rather than running. Per-parameter detail
@@ -513,20 +513,40 @@ function Publish-SacDashboardPage {
         Set-PnPPageWebPart -Page $PageName -Identity $existing.InstanceId -PropertiesJson ($properties | ConvertTo-Json -Compress) | Out-Null
     }
     else {
-        Add-PnPPageSection -Page $PageName -SectionTemplate OneColumnFullWidth -Order 1 | Out-Null
-        # A web part deployed moments ago can take a few minutes to show up
-        # in the site's toolbox.
+        # Reuse a full-width section an earlier, failed run left on the page,
+        # so a re-run does not stack a second one.
+        $sectionIndex = 0
+        if ($page) {
+            $sections = @($page.Sections)
+            for ($i = 0; $i -lt $sections.Count; $i++) {
+                if ([string]$sections[$i].Type -eq 'OneColumnFullWidth') { $sectionIndex = $i + 1; break }
+            }
+        }
+        if ($sectionIndex -eq 0) {
+            Add-PnPPageSection -Page $PageName -SectionTemplate OneColumnFullWidth -Order 1 | Out-Null
+            $sectionIndex = 1
+        }
+
+        # Pass the component object, not its id. Add-PnPPageWebPart matches an
+        # id string exactly, SharePoint can return the id in braces or another
+        # case, and a miss becomes an empty web part that PnP refuses in a
+        # full-width section ("You cannot host text controls inside a one
+        # column full width section"). A web part deployed moments ago can take
+        # a few minutes to show up in the site's component list.
         $deadline = (Get-Date).AddSeconds($WebPartWaitSeconds)
         while ($true) {
-            try {
-                Add-PnPPageWebPart -Page $PageName -Component $script:SacWebPartComponentId -WebPartProperties $properties -Section 1 -Column 1 -ErrorAction Stop | Out-Null
+            $component = Get-PnPAvailablePageComponents -Page $PageName -ErrorAction SilentlyContinue |
+                Where-Object { ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $script:SacWebPartComponentId } |
+                Select-Object -First 1
+            if ($component) {
+                Add-PnPPageWebPart -Page $PageName -Component $component -WebPartProperties $properties -Section $sectionIndex -Column 1 -ErrorAction Stop | Out-Null
                 break
             }
-            catch {
-                if ((Get-Date) -ge $deadline) { throw "Dashboard web part $script:SacWebPartComponentId is not available on the site: $($_.Exception.Message)" }
-                Write-Host '  Dashboard web part not available yet; retrying in 20 seconds...'
-                Start-Sleep -Seconds 20
+            if ((Get-Date) -ge $deadline) {
+                throw "Dashboard web part $script:SacWebPartComponentId is not in the site's component list after $WebPartWaitSeconds seconds. Check that the app package is deployed to this site's app catalog."
             }
+            Write-Host '  Dashboard web part not available yet; retrying in 20 seconds...'
+            Start-Sleep -Seconds 20
         }
     }
 

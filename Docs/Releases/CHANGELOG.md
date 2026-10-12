@@ -6,6 +6,16 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The dashboard web part lands on a new site's home page** - the first
+  real publish to a new site failed with "You cannot host text controls
+  inside a one column full width section". `Add-PnPPageWebPart -Component
+  <id>` matches the id string exactly, SharePoint returned it in another
+  form, and the miss became an empty web part that PnP refuses in a
+  full-width section. `Publish-SacDashboardPage` now finds the component
+  in `Get-PnPAvailablePageComponents` with the id normalised and passes
+  the object, reuses a full-width section an earlier failed run left on
+  the page, and when the web part never appears says so instead of
+  retrying an unrelated error for five minutes.
 - **The dashboard web part is called isoc-blueprint** - the SPFx project
   moves from `Tools/Documenter/SharePoint/webpart/sentinel-navigator/` to
   `webpart/isoc-blueprint/` and builds `isoc-blueprint.sppkg`
