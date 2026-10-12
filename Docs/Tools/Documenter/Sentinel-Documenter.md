@@ -211,21 +211,24 @@ pipelines already depend on. Pushes to `origin` on the ADO agent, which is
 the **ADO repo only**, never GitHub.
 
 > Pipelines → **Sentinel Documenter** → Run pipeline → optionally tick
-> *Include preview API surface*. To skip the PR step and get only the
-> artefact, untick *Open / refresh an ADO PR with the rendered docs*.
+> *Collector: include preview APIs*. To skip the PR step and get only the
+> artefact, untick *Pull request: open or refresh the docs review PR*. The
+> Markdown is rendered either way: the artefact, the Word report and the
+> SharePoint site are all built from it.
 
-The run-pipeline panel exposes two further parameters:
+The run-pipeline panel exposes three further parameters:
 
-- *Pre-render Mermaid charts to PNG* (`prerenderChartsToPng`, **default ON**):
+- *Charts: pre-render Mermaid to PNG* (`prerenderChartsToPng`, **default ON**):
   ADO Repos and wiki render `mermaid` fences as plain code and block inline SVG,
   so the pipeline installs `@mermaid-js/mermaid-cli` and converts each fenced chart
   to a PNG via `Convert-MermaidToImage.ps1`. This step is ADO-only; the GitHub
   workflow ships the raw fences because GitHub renders Mermaid natively. Untick it
   to skip the Node/mmdc install on a fast run.
-- *Playbook resource group* (`playbookResourceGroup`, default blank): set this when
-  Logic App playbooks live in a dedicated RG separate from the workspace RG (the
+- *Collector: playbook resource group* (`playbookResourceGroup`, default blank): set this when
+  Logic App playbooks live in a dedicated RG separate from the Sentinel RG (the
   Sentinel-As-Code convention). It maps to the collector's `-PlaybookResourceGroup`
-  parameter; leave it blank to enumerate playbooks from the workspace RG.
+  parameter; leave it blank and the pipeline uses the Sentinel RG
+  (`sentinelResourceGroup` from the variable group).
 - *Target maturity level* (`targetMaturityLevel`, default `3`): the level the
   maturity assessment measures the workspace against. Maps to the collector's
   `-TargetMaturityLevel`; see

@@ -60,8 +60,8 @@
 #
 # Manual run:
 #   Pipelines -> Sentinel-Documenter -> Run pipeline. Tick the outputs you
-#   want. 'Include preview API surface' adds Content Hub product packages,
-#   summary rules, pricings and the Sentinel Data Lake feature flag.
+#   want. 'Collector: include preview APIs' adds Content Hub product
+#   packages, summary rules, pricings and the Sentinel Data Lake feature flag.
 #
 # Output review:
 #   1. Build summary -> Related -> Published artefacts: 'sentinel-docs'
@@ -89,56 +89,73 @@ pr: none
 lockBehavior: sequential
 
 parameters:
+  # The run panel lists parameters in this order and has no headings, so each
+  # label starts with its group and stays short enough for one line. The tick
+  # boxes come first (what to publish, then how), the two inputs last.
+
   # ---- What to publish: one tick box per documentation output ----
+  # The Markdown pack itself is always rendered and published as the
+  # 'sentinel-docs' artefact: the Word report converts it and the SharePoint
+  # site builds its section pages from it. This box only adds the review
+  # pull request, so its label says pull request, not Markdown pack.
   - name: openPullRequest
-    displayName: "Markdown pack: open / refresh the docs pull request in this repo (private ADO repo only)"
+    displayName: "Pull request: open or refresh the docs review PR"
     type: boolean
     default: true
 
   - name: publishWordReport
-    displayName: "Word report: render the Markdown pack to a page-numbered .docx artefact"
+    displayName: "Word report: build the page-numbered .docx"
     type: boolean
     default: false
 
   - name: publishSharePointSite
-    displayName: "SharePoint site: build the iSOC Blueprint bundle and publish it to the workspace's site"
+    displayName: "SharePoint site: publish the iSOC Blueprint site"
     type: boolean
     default: false
 
   - name: sharePointWhatIf
-    displayName: "SharePoint site: what-if (read the site and print the plan, change nothing)"
+    displayName: "SharePoint site: what-if (print the plan, change nothing)"
     type: boolean
     default: false
 
   - name: deployAppPackage
-    displayName: "SharePoint site: deploy the dashboard web part package when its version changed"
+    displayName: "SharePoint site: deploy the web part if it changed"
     type: boolean
     default: true
 
   # ---- Collector and renderer options ----
-  - name: includePreview
-    displayName: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
-    type: boolean
-    default: false
-
+  # Mermaid fences do not render in ADO Repos preview or in pandoc, so the
+  # Markdown pack and the Word report both need the PNGs. GitHub renders
+  # Mermaid natively and its workflow has no equivalent.
   - name: prerenderChartsToPng
-    displayName: "Pre-render Mermaid charts to PNG (ADO Markdown preview and the Word report need it; GitHub renders Mermaid natively)"
+    displayName: "Charts: pre-render Mermaid to PNG (Word report needs it)"
     type: boolean
     default: true
 
+  # Content Hub product packages, summary rules, pricings and the Sentinel
+  # Data Lake feature flag.
+  - name: includePreview
+    displayName: "Collector: include preview APIs"
+    type: boolean
+    default: false
+
   # Optional override. Sentinel-As-Code's convention is that Logic App
   # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
-  # from the workspace's RG. When unset, the exporter enumerates playbooks
-  # from the workspace RG (current default behaviour).
+  # from the Sentinel RG. Left blank, the collector step uses
+  # $(sentinelResourceGroup) from the variable group. The default is a
+  # single space, not "": the run panel treats an empty default as no
+  # default, marks the field Required and disables Next. The collector
+  # step trims it.
   - name: playbookResourceGroup
-    displayName: "Playbook resource group (leave blank to use the workspace RG)"
+    displayName: "Collector: playbook resource group (blank = Sentinel RG)"
     type: string
-    default: ""
+    default: " "
 
   # The level the maturity assessment measures the workspace against
-  # (Docs/Tools/Documenter/Sentinel-Maturity-Model.md). 3 is "Established".
+  # (Docs/Tools/Documenter/Sentinel-Maturity-Model.md): 1 Initial,
+  # 2 Developing, 3 Established, 4 Measured, 5 Optimised.
   - name: targetMaturityLevel
-    displayName: "Target maturity level (1 to 5)"
+    displayName: "Maturity: target level (3 = Established)"
     type: number
     default: 3
     values: [1, 2, 3, 4, 5]
@@ -259,8 +276,10 @@ stages:
                 }
                 if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
 
-                $playbookRg = "${{ parameters.playbookResourceGroup }}"
-                if ($playbookRg) { $params['PlaybookResourceGroup'] = $playbookRg }
+                # Blank (the panel's default is a single space) means the Sentinel RG.
+                $playbookRg = "${{ parameters.playbookResourceGroup }}".Trim()
+                if (-not $playbookRg) { $playbookRg = "$(sentinelResourceGroup)" }
+                $params['PlaybookResourceGroup'] = $playbookRg
                 $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
 
                 Write-Host "##[section]Sentinel Documenter - Collector"
@@ -268,7 +287,7 @@ stages:
                 Write-Host "  Subscription : $(azureSubscriptionId)"
                 Write-Host "  Resource Grp : $(sentinelResourceGroup)"
                 Write-Host "  Workspace    : $(sentinelWorkspaceName)"
-                Write-Host "  Playbook RG  : $(if ($playbookRg) { $playbookRg } else { '(workspace RG)' })"
+                Write-Host "  Playbook RG  : $playbookRg"
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "  Target level : $($params['TargetMaturityLevel'])"
                 Write-Host "============================================================"
