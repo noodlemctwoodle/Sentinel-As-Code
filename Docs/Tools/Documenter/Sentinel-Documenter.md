@@ -179,8 +179,8 @@ headline. The five most important pages day-to-day are:
 
 Beyond those headline pages the report groups into families:
 
-- **Operational health**: `11-sentinel-health.md` (SentinelHealth events, last 7
-  days), `12-soc-optimization.md` (SOC Optimization recommendations),
+- **Operational health**: `11-sentinel-health.md` (SentinelHealth events and
+  failed ingestion or schema operations, last 7 days), `12-soc-optimization.md` (SOC Optimization recommendations),
   `13-data-source-hygiene.md` (CEF/Syslog hygiene, agent dual-collection, noisy
   events) and `15-incidents.md` (MTTA/MTTR and the loudest rules).
 - **Analytics**: `20-analytics-rules.md` holds the whole rule estate on one

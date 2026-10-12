@@ -114,6 +114,7 @@ if (-not (Test-Path $OutputRoot)) {
 # Dot-source private helpers.
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -1743,6 +1744,17 @@ $cpRows = $contentPackages | ForEach-Object {
         Source          = $_.properties.source.kind
     }
 }
+$omsSolutionRows = @(Read-RawArray 'solutions-installed.json' | Where-Object { $_ } | ForEach-Object {
+    $plan = if ($_.PSObject.Properties['plan'] -and $_.plan) { $_.plan } else { $null }
+    $sp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
+    [pscustomobject]@{
+        Name         = $_.name
+        Product      = if ($plan -and $plan.PSObject.Properties['product']) { $plan.product } else { '' }
+        Publisher    = if ($plan -and $plan.PSObject.Properties['publisher']) { $plan.publisher } else { '' }
+        Provisioning = if ($sp -and $sp.PSObject.Properties['provisioningState']) { $sp.provisioningState } else { '' }
+        LastModified = if ($sp -and $sp.PSObject.Properties['lastModifiedTime']) { Format-DateUtc $sp.lastModifiedTime } else { '' }
+    }
+})
 $repoRows = $repos | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
 }
@@ -1801,6 +1813,12 @@ $(Format-Table -Items $deprecatedRows -Columns 'Name','ContentId','Reason')
 ## Repositories
 
 $(Format-Table -Items $repoRows -Columns 'Name','Type','Url')
+
+## Legacy management solutions
+
+``Microsoft.OperationsManagement/solutions`` resources linked to the workspace: the pre-Content-Hub way Sentinel (``SecurityInsights``), Security and other packs were installed. They are harmless once Content Hub is in use, but they are the first place to look when a solution appears installed that Content Hub does not list.
+
+$(Format-Table -Items $omsSolutionRows -Columns 'Name','Product','Publisher','Provisioning','LastModified')
 
 [Sentinel solutions (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/sentinel-solutions)
 "@)
@@ -1950,6 +1968,20 @@ $usageTrendBlock
 | enableDataExport | $(Format-FeatureFlag $features 'enableDataExport') |
 | immediatePurgeDataOn30Days | $(Format-FeatureFlag $features 'immediatePurgeDataOn30Days') |
 | clusterResourceId | $(if ($features -and $features.PSObject.Properties.Name -contains 'clusterResourceId' -and $features.clusterResourceId) { "``$($features.clusterResourceId)`` — see [82-dedicated-cluster.md](82-dedicated-cluster.md)" } else { '_(none)_' }) |
+
+## Sentinel onboarding
+
+$( $onboarding = @(Read-RawArray 'onboarding-state.json' | Where-Object { $_ }) | Select-Object -First 1
+   if ($onboarding) {
+       $obProps = if ($onboarding.PSObject.Properties['properties']) { $onboarding.properties } else { $null }
+       $cmk = if ($obProps -and $obProps.PSObject.Properties['customerManagedKey'] -and $null -ne $obProps.customerManagedKey) { [string]$obProps.customerManagedKey } else { 'not set (platform-managed keys)' }
+@"
+| Property | Value |
+|---|---|
+| Onboarding state resource | ``$($onboarding.name)`` |
+| Customer-managed key | $cmk |
+"@
+   } else { '_No Sentinel onboarding state resource was captured; either Sentinel is not enabled on this workspace or the identity cannot read it._' } )
 
 ## Resource locks
 
@@ -3255,6 +3287,9 @@ $healthSummaryRows = $healthSummary | ForEach-Object {
     [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; LogCount = $_.LogCount }
 }
 $laQueryLogs = Read-RawArray 'la-query-logs.json' | Select-Object -First 1
+$ingestionFailureRows = @(Read-RawArray 'ingestion-latency.json' | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; Last = Format-DateUtc $_.Last }
+} | Sort-Object { _RendererNumber $_.Failures } -Descending)
 $laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
     "**LAQueryLogs activity (7d):** $($laQueryLogs.QueryCount) query records (query logging is active)."
 } elseif ($laQueryLogs) {
@@ -3297,6 +3332,12 @@ $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','St
 ## Operations summary (per OperationName + Status)
 
 $(Format-Table -Items $healthSummaryRows -Columns 'OperationName','Status','LogCount')
+
+## Ingestion and schema failures (last 7d)
+
+Failed ingestion and schema operations from the ``Operation`` table, grouped by operation detail and category. A row here is a broken pipeline: a DCR transform that rejects records, a custom table whose schema no longer matches what is sent, or a connector writing to a table that cannot accept it. Empty means every ingestion and schema operation in the last 7 days succeeded.
+
+$(Format-Table -Items $ingestionFailureRows -Columns 'OperationKey','Resource','Failures','Last')
 
 ## Query logging activity
 
@@ -4416,35 +4457,12 @@ $dlTableRows = $dlTables | ForEach-Object {
 # Catalogue-only tables (zero ingest in the workspace) are excluded
 # from the tier-distribution chart because they don't contribute to
 # the Lake state.
-$tierStats = @{ AnalyticsOnly = 0; MirroredOnly = 0; MirroredExtended = 0; LakeOnly = 0 }
-$retentionRows = New-Object System.Collections.Generic.List[object]
-foreach ($t in $operationalTables) {
-    $plan = [string]$t.properties.plan
-    $r  = [int]($t.properties.retentionInDays   | ForEach-Object { if ($_) { $_ } else { 0 } })
-    $tr = [int]($t.properties.totalRetentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
-    $lakeOnlyDays = if ($tr -gt $r) { $tr - $r } else { 0 }
-
-    $tierCategory = if ($plan -eq 'DataLake') {
-        'LakeOnly'
-    } elseif ($hasDataLake -and $lakeOnlyDays -gt 0) {
-        'MirroredExtended'
-    } elseif ($hasDataLake) {
-        'MirroredOnly'
-    } else {
-        'AnalyticsOnly'
-    }
-    $tierStats[$tierCategory]++
-
-    if ($lakeOnlyDays -gt 0 -or $plan -eq 'DataLake') {
-        $retentionRows.Add([pscustomobject]@{
-            Table          = $t.name
-            Plan           = $plan
-            AnalyticsDays  = $r
-            LakeOnlyDays   = $lakeOnlyDays
-            TotalDays      = $tr
-        })
-    }
-}
+# Shared with the SharePoint build (Private/Get-TableTierProfile.ps1) so
+# the page's pie and the dashboard's lake panel count the same tables the
+# same way.
+$tierProfile   = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $hasDataLake
+$tierStats     = $tierProfile.Tiers
+$retentionRows = $tierProfile.RetentionRows
 
 # Asset-data system tables that Sentinel Data Lake auto-ingests on
 # tenant onboarding. Detecting these by name confirms the Lake's

@@ -85,6 +85,8 @@ carries the health-check views the Documenter computes:
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
 | `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
+| `dataLake`, `dataLakeEnrolled` | Overview: the "Data lake" glance tile. Insights: enrolment status, the tier distribution donut (Analytics only, Analytics + Lake mirror, Analytics + Lake extended, Lake only), the top tables by lake-only retention and the lake cost split; counted over the operational tables through `Private/Get-TableTierProfile.ps1`, the same helper page 88 uses | `sentinel-data-lake`, `workspace`, `workspace-tables`, `tables-with-data`, `cost-estimate` |
+| `flow` | Overview and Data flow: the billing-flow Sankey. Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
 | `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
 | `familyOrder`, `sections[].headline` | Overview: the contents cards, one per family, each page linking to its native page | the rendered sections |
 

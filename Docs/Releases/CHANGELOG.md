@@ -34,6 +34,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   third-party model's name. Also fixed on the way: the live-snapshot MITRE
   headline counted hunting-query tags instead of the 14-tactic catalogue,
   and `incidents-summary` returned presence flags where counts were meant.
+- **Every capture reaches a page, and the lake reaches the dashboard** -
+  three captures that nothing rendered now do: failed ingestion and schema
+  operations on the health page, the legacy management solutions on the
+  Content Hub page, and the Sentinel onboarding state (customer-managed key)
+  on the workspace page. The dashboard gains a "Data lake" glance tile and
+  an Insights panel with the enrolment status, tier distribution, top
+  extended-retention tables and lake cost split, counted by the same helper
+  as the data lake page, and the billing-flow Sankey's plan column now names
+  the lake tier each table lands in instead of one "Analytics plan" box.
 - **One analytics page** - the four analytics deep-dives (by alert volume,
   Microsoft-managed rules, recent modifications, by Content Hub solution)
   are now subsections of `20-analytics-rules.md` rather than separate

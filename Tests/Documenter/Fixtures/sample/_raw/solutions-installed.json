@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationsManagement/solutions/SecurityInsights(law-sentinel-test)",
+    "name": "SecurityInsights(law-sentinel-test)",
+    "type": "Microsoft.OperationsManagement/solutions",
+    "location": "uksouth",
+    "plan": { "name": "SecurityInsights(law-sentinel-test)", "product": "OMSGallery/SecurityInsights", "publisher": "Microsoft", "promotionCode": "" },
+    "properties": { "workspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test", "provisioningState": "Succeeded", "creationTime": "2026-02-06T00:00:00Z", "lastModifiedTime": "2026-02-06T00:00:00Z", "containedResources": [], "workbookTemplates": [] },
+    "tags": {}
+  }
+]

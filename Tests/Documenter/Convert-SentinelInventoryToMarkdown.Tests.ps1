@@ -315,6 +315,44 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '11-sentinel-health.md tables ingestion and schema failures' {
+        It 'lists the failed DCR transform from the fixture' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '11-sentinel-health.md') -Raw
+            $md | Should -Match '## Ingestion and schema failures \(last 7d\)[\s\S]*Custom-FirewallLogs_CL \| Ingestion \| 14 \| 2026-05-06 07:12 \|'
+        }
+    }
+
+    Context '70-content-hub.md lists the legacy management solutions' {
+        It 'shows the OMS SecurityInsights solution with its product and publisher' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
+            $md | Should -Match '## Legacy management solutions[\s\S]*\| SecurityInsights\(law-sentinel-test\) \| OMSGallery/SecurityInsights \| Microsoft \| Succeeded \| 2026-02-06 00:00 \|'
+        }
+    }
+
+    Context '80-workspace.md surfaces the Sentinel onboarding state' {
+        It 'shows the onboarding resource and the customer-managed key flag' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
+            $md | Should -Match '## Sentinel onboarding[\s\S]*\| Customer-managed key \| False \|'
+        }
+    }
+
+    Context '88-sentinel-data-lake.md reflects the enrolled fixture' {
+        BeforeAll {
+            $script:lakeMd = Get-Content (Join-Path $script:tempWsRoot '88-sentinel-data-lake.md') -Raw
+        }
+
+        It 'reports the lake as enrolled with no lake-only tables' {
+            $script:lakeMd | Should -Match 'Sentinel Data Lake is enrolled on this workspace'
+            $script:lakeMd | Should -Match 'Lake provisioned at tenant scope'
+        }
+
+        It 'skips the tier pie when every table sits in one tier (the fixture has no extended retention)' {
+            $script:lakeMd | Should -Not -Match '## Tier distribution'
+            $script:lakeMd | Should -Not -Match 'Analytics \+ Lake extended'
+            $script:lakeMd | Should -Match 'No tables currently route to the Lake-only tier'
+        }
+    }
+
     Context '81-table-plans-retention.md tables detection coverage' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw

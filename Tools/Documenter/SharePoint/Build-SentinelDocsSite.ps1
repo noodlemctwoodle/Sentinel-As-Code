@@ -129,6 +129,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
 
 $script:DashboardPage   = 'Dashboard'
 $script:FindingsListUrl = 'Lists/SentinelFindings'
@@ -538,31 +539,76 @@ foreach ($k in $script:MitreTactics.Keys) {
 }
 $mitreCovered = @($mitre | Where-Object { $_.status -eq 'Covered' }).Count
 
+# ---- Data lake enrolment (shared by the billing flow and the lake panel) ----
+$wsProps = if ($wsRaw -and $wsRaw.PSObject.Properties['properties']) { $wsRaw.properties } else { $null }
+$wsTablesRaw = Read-RawArray 'workspace-tables.json'
+$wsTableByName = @{}
+foreach ($t in $wsTablesRaw) { if ($t -and $t.PSObject.Properties['name'] -and $t.name) { $wsTableByName[[string]$t.name] = $t } }
+$unifiedBilling = [bool]($wsProps -and $wsProps.PSObject.Properties['features'] -and $wsProps.features -and $wsProps.features.PSObject.Properties['unifiedSentinelBillingOnly'] -and $wsProps.features.unifiedSentinelBillingOnly)
+$lakePlanTables = @($wsTablesRaw | Where-Object { $_ -and $_.PSObject.Properties['properties'] -and $_.properties -and $_.properties.PSObject.Properties['plan'] -and $_.properties.plan -eq 'DataLake' }).Count
+$lakeEnrolled = ($dataLake.Count -gt 0) -or $unifiedBilling -or ($lakePlanTables -gt 0)
+# The flow's plan column names the lake tier a table lands in, so an
+# enrolled workspace shows its lake instead of a single "Analytics plan"
+# box. Basic and Auxiliary tables keep their plan name: they are neither
+# analytics-tier nor lake-mirrored.
+$script:FlowTierLabel = @{ AnalyticsOnly = 'Analytics plan'; MirroredOnly = 'Analytics + Lake mirror'; MirroredExtended = 'Analytics + Lake extended'; LakeOnly = 'Data lake only' }
+function Get-FlowPlanLabel {
+    param([string]$Table, [string]$Plan)
+    if ($Plan -in @('Basic', 'Auxiliary')) { return "$Plan plan" }
+    if ($Plan -eq 'DataLake') { return $script:FlowTierLabel.LakeOnly }
+    $res = if ($Table -and $wsTableByName.ContainsKey($Table)) { $wsTableByName[$Table] } else { $null }
+    if ($null -eq $res) { return $(if ($lakeEnrolled) { $script:FlowTierLabel.MirroredOnly } else { $script:FlowTierLabel.AnalyticsOnly }) }
+    return $script:FlowTierLabel[(Get-TableTier -Table $res -LakeEnrolled $lakeEnrolled)]
+}
+
 # ---- Ingest / billing flow (grounded in cost-estimate) ----
 $flowNodes = @()
 $flowLinks = @()
-if ($cost) {
+if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
     $ingest = @($cost.AllTablesByCost | Where-Object { $_ -and [double]$_.Gb30d -gt 0 } | Sort-Object { [double]$_.Gb30d } -Descending)
     $topN = 9
     $top = @($ingest | Select-Object -First $topN)
     $rest = @($ingest | Select-Object -Skip $topN)
 
+    # Each table row carries one or more parts: (plan label, gb, billed gb).
+    # A named table has one part; the long-tail node has one part per plan
+    # label so its ribbons fan out to every tier the tail lands in.
     $tableRows = @()
     foreach ($t in $top) {
-        $tableRows += [ordered]@{ table = $t.Table; family = (Get-TableFamily $t.Table); plan = $t.Plan; gb = [math]::Round([double]$t.Gb30d, 3); billed = ([double]$t.MonthlyCost -gt 0) }
+        $gb = [math]::Round([double]$t.Gb30d, 3)
+        $billedGb = if ([double]$t.MonthlyCost -gt 0) { $gb } else { 0.0 }
+        $tableRows += [ordered]@{ table = $t.Table; family = (Get-TableFamily $t.Table); gb = $gb; parts = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb }) }
     }
     if ($rest.Count -gt 0) {
-        $restGb = ($rest | Measure-Object -Property Gb30d -Sum).Sum
-        $restBilled = (@($rest | Where-Object { [double]$_.MonthlyCost -gt 0 } | Measure-Object -Property Gb30d -Sum).Sum)
-        # Represent the long tail as one synthetic table node, split billed/free by Gb.
-        $tableRows += [ordered]@{ table = "Other (+$($rest.Count))"; family = 'Other'; plan = 'Analytics'; gb = [math]::Round([double]$restGb, 3); billed = ($restBilled -gt ($restGb / 2)) }
+        $restParts = [ordered]@{}
+        foreach ($t in $rest) {
+            $label = Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)
+            if (-not $restParts.Contains($label)) { $restParts[$label] = [ordered]@{ plan = $label; gb = 0.0; billedGb = 0.0 } }
+            $restParts[$label].gb += [double]$t.Gb30d
+            if ([double]$t.MonthlyCost -gt 0) { $restParts[$label].billedGb += [double]$t.Gb30d }
+        }
+        $restGb = 0.0; foreach ($pt in $restParts.Values) { $pt.gb = [math]::Round($pt.gb, 3); $pt.billedGb = [math]::Round($pt.billedGb, 3); $restGb += $pt.gb }
+        $tableRows += [ordered]@{ table = "Other (+$($rest.Count))"; family = 'Other'; gb = [math]::Round($restGb, 3); parts = @($restParts.Values) }
     }
 
-    # Nodes: families (col0), tables (col1), plans (col2), billed buckets (col3)
+    # Nodes: families (col0), tables (col1), plans and lake tiers (col2), billed buckets (col3)
     $famAgg = @{}; foreach ($row in $tableRows) { if (-not $famAgg.ContainsKey($row.family)) { $famAgg[$row.family] = 0.0 }; $famAgg[$row.family] += $row.gb }
-    $planAgg = @{}; foreach ($row in $tableRows) { if (-not $planAgg.ContainsKey($row.plan)) { $planAgg[$row.plan] = 0.0 }; $planAgg[$row.plan] += $row.gb }
+    $planAgg = @{}; $planBucket = @{}
     $bucketAgg = @{ 'Billed' = 0.0; 'Free benefit' = 0.0 }
-    foreach ($row in $tableRows) { $bucketAgg[$(if ($row.billed) { 'Billed' } else { 'Free benefit' })] += $row.gb }
+    foreach ($row in $tableRows) {
+        foreach ($pt in $row.parts) {
+            if (-not $planAgg.ContainsKey($pt.plan)) { $planAgg[$pt.plan] = 0.0 }
+            $planAgg[$pt.plan] += $pt.gb
+            $freeGb = [math]::Round($pt.gb - $pt.billedGb, 3)
+            $bucketAgg['Billed'] += $pt.billedGb; $bucketAgg['Free benefit'] += $freeGb
+            foreach ($pair in @(@('Billed', $pt.billedGb), @('Free benefit', $freeGb))) {
+                if ($pair[1] -le 0) { continue }
+                $key = "$($pt.plan)|$($pair[0])"
+                if (-not $planBucket.ContainsKey($key)) { $planBucket[$key] = 0.0 }
+                $planBucket[$key] += $pair[1]
+            }
+        }
+    }
 
     foreach ($fam in ($famAgg.Keys | Sort-Object { $famAgg[$_] } -Descending)) {
         $flowNodes += [ordered]@{ id = "f:$fam"; col = 0; label = $fam; value = [math]::Round($famAgg[$fam], 3) }
@@ -571,7 +617,7 @@ if ($cost) {
         $flowNodes += [ordered]@{ id = "t:$($row.table)"; col = 1; label = $row.table; value = $row.gb }
     }
     foreach ($pl in ($planAgg.Keys | Sort-Object { $planAgg[$_] } -Descending)) {
-        $flowNodes += [ordered]@{ id = "p:$pl"; col = 2; label = "$pl plan"; value = [math]::Round($planAgg[$pl], 3) }
+        $flowNodes += [ordered]@{ id = "p:$pl"; col = 2; label = $pl; value = [math]::Round($planAgg[$pl], 3); lake = ($pl -like '*Lake*') }
     }
     foreach ($bk in 'Billed', 'Free benefit') {
         if ($bucketAgg[$bk] -gt 0) { $flowNodes += [ordered]@{ id = "b:$bk"; col = 3; label = $bk; value = [math]::Round($bucketAgg[$bk], 3) } }
@@ -580,14 +626,9 @@ if ($cost) {
     # Links
     foreach ($row in $tableRows) {
         $flowLinks += [ordered]@{ source = "f:$($row.family)"; target = "t:$($row.table)"; value = $row.gb }
-        $flowLinks += [ordered]@{ source = "t:$($row.table)"; target = "p:$($row.plan)"; value = $row.gb }
-    }
-    $planBucket = @{}
-    foreach ($row in $tableRows) {
-        $bk = if ($row.billed) { 'Billed' } else { 'Free benefit' }
-        $key = "$($row.plan)|$bk"
-        if (-not $planBucket.ContainsKey($key)) { $planBucket[$key] = 0.0 }
-        $planBucket[$key] += $row.gb
+        foreach ($pt in $row.parts) {
+            $flowLinks += [ordered]@{ source = "t:$($row.table)"; target = "p:$($pt.plan)"; value = $pt.gb }
+        }
     }
     foreach ($key in $planBucket.Keys) {
         $parts = $key -split '\|', 2
@@ -798,6 +839,41 @@ if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ByClassification']) 
     foreach ($k in ($bag.Keys | Sort-Object { $bag[$_] } -Descending)) { if ($bag[$k] -gt 0) { $incidentsByClassification += [ordered]@{ label = [string]$k; value = [long]$bag[$k] } } }
 }
 
+# Sentinel data lake: enrolment signals, tier distribution and the tables
+# that keep data in the lake beyond analytics retention, counted over the
+# operational tables (data in 90 days, plus custom logs) exactly as section
+# 88 counts them, through the shared helper.
+$populatedNames = @{}
+foreach ($t in $tablesData) { if ($t -and $t.PSObject.Properties['DataType'] -and $t.DataType -and (ConvertTo-BuildNumber $t.BillableLast90d) -gt 0) { $populatedNames[[string]$t.DataType] = $true } }
+$operationalTables = @($wsTablesRaw | Where-Object {
+    $_ -and $_.PSObject.Properties['name'] -and $_.name -and $_.PSObject.Properties['properties'] -and $_.properties -and (
+        ($_.properties.PSObject.Properties['schema'] -and $_.properties.schema -and $_.properties.schema.PSObject.Properties['tableType'] -and $_.properties.schema.tableType -eq 'CustomLog') -or
+        $populatedNames.ContainsKey([string]$_.name))
+})
+$tierProfile = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $lakeEnrolled
+$lakeResource = @($dataLake | Where-Object { $_ }) | Select-Object -First 1
+$lakeCostRow = if ($costModel) { $costModel.byPlan | Where-Object { $_.plan -eq 'DataLake' } | Select-Object -First 1 } else { $null }
+$analyticsCostRow = if ($costModel) { $costModel.byPlan | Where-Object { $_.plan -eq 'Analytics' } | Select-Object -First 1 } else { $null }
+$dataLakeModel = [ordered]@{
+    enrolled          = $lakeEnrolled
+    signals           = [ordered]@{ resource = ($dataLake.Count -gt 0); unifiedBilling = $unifiedBilling; lakeOnlyTables = $lakePlanTables }
+    provisioningState = if ($lakeResource -and $lakeResource.properties -and $lakeResource.properties.PSObject.Properties['provisioningState']) { [string]$lakeResource.properties.provisioningState } else { '' }
+    region            = if ($lakeResource -and $lakeResource.PSObject.Properties['location']) { [string]$lakeResource.location } else { '' }
+    operationalTables = $operationalTables.Count
+    tiers             = $tierProfile.Tiers
+    extendedCount     = @($tierProfile.RetentionRows).Count
+    extendedTables    = @($tierProfile.RetentionRows | Sort-Object { $_.LakeOnlyDays } -Descending | Select-Object -First 10 | ForEach-Object {
+        [ordered]@{ table = $_.Table; plan = $_.Plan; analyticsDays = $_.AnalyticsDays; lakeOnlyDays = $_.LakeOnlyDays; totalDays = $_.TotalDays }
+    })
+    cost              = [ordered]@{
+        currency     = if ($costModel) { $costModel.currency } else { '' }
+        analyticsGb  = if ($analyticsCostRow) { $analyticsCostRow.gb30d } else { 0 }
+        analyticsCost = if ($analyticsCostRow) { $analyticsCostRow.cost } else { 0 }
+        lakeGb       = if ($lakeCostRow) { $lakeCostRow.gb30d } else { 0 }
+        lakeCost     = if ($lakeCostRow) { $lakeCostRow.cost } else { 0 }
+    }
+}
+
 # Maturity: the page carries evidence and guidance; the dashboard keeps the
 # scores, the criteria statuses, the roadmap and the rollup.
 $maturityModel = $null
@@ -964,7 +1040,8 @@ $model = [ordered]@{
     incidentsByClassification = $incidentsByClassification
     familyOrder  = @(Get-SectionFamilyOrder)
     sections     = $sections
-    dataLakeEnrolled = ($dataLake.Count -gt 0)
+    dataLakeEnrolled = $lakeEnrolled
+    dataLake     = $dataLakeModel
     whatsNew     = $whatsNew
     generatedBlueprintUtc = $generatedBuildUtc
 }

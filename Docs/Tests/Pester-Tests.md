@@ -159,6 +159,7 @@ workbook-export suites.
 | Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
 | Documenter table references | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
 | Documenter maturity engine | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
+| Documenter lake tiers | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -403,6 +404,11 @@ them against a fixed JSON fixture corpus rather than mocking Azure:
   [`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../Tools/Documenter/Private/Get-SentinelMaturity.ps1),
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
+- [`Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1)
+  dot-sources
+  [`Tools/Documenter/Private/Get-TableTierProfile.ps1`](../../Tools/Documenter/Private/Get-TableTierProfile.ps1)
+  and classifies a hand-built set of five tables with and without lake
+  enrolment; no fixture, no Azure modules.
 - [`SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1)
   dot-sources the helpers under [`Tools/Documenter/SharePoint/Private/`](../../Tools/Documenter/SharePoint/Private)
   and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1)
@@ -596,12 +602,13 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
-| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections and empty-state safety | ~183 |
-| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour | 63 |
+| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables and empty-state safety | ~188 |
+| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour | 64 |
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
-| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, offline bundle build | 66 |
+| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, offline bundle build | 68 |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
-| [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards | 31 |
+| [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
+| [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards | 32 |
 
 Add new entries to this table as you cover more scripts.
 

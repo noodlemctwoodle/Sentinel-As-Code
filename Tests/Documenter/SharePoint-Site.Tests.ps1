@@ -500,6 +500,20 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.familyOrder) | Should -Contain 'Maturity'
     }
 
+    It 'carries the data lake model from the shared tier profile' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $model.dataLakeEnrolled | Should -BeTrue
+        $model.dataLake.enrolled | Should -BeTrue
+        $model.dataLake.signals.resource | Should -BeTrue
+        $model.dataLake.signals.unifiedBilling | Should -BeFalse
+        $model.dataLake.tiers.MirroredOnly | Should -BeGreaterThan 0
+        $model.dataLake.tiers.AnalyticsOnly | Should -Be 0
+        $model.dataLake.tiers.LakeOnly | Should -Be 0
+        $model.dataLake.extendedCount | Should -Be 0
+        $model.dataLake.operationalTables | Should -Be ($model.dataLake.tiers.MirroredOnly + $model.dataLake.tiers.MirroredExtended + $model.dataLake.tiers.LakeOnly + $model.dataLake.tiers.AnalyticsOnly)
+        $html | Should -Match 'id="dataLakePanel"'
+    }
+
     It 'gives the new pages a family and a headline' {
         ($site.sections | Where-Object num -eq 91).family | Should -Be 'Maturity'
         ($site.sections | Where-Object num -eq 28).family | Should -Be 'Detection'
@@ -532,6 +546,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.findings.total | Should -Be 0
         @($model.health.rows).Count | Should -Be 0
         $model.dataLakeEnrolled | Should -BeFalse
+        $model.dataLake.enrolled | Should -BeFalse
+        $model.dataLake.operationalTables | Should -Be 0
         (Get-Content (Join-Path $b2 'findings.json') -Raw | ConvertFrom-Json).analysisAvailable | Should -BeFalse
         $model.maturity | Should -BeNullOrEmpty
         @($model.estate.sources).Count | Should -Be 0
@@ -540,6 +556,36 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.detectionOpportunities).Count | Should -Be 0
         $model.playbookHealth.runs7d | Should -Be 0
         ($model.sections | Where-Object num -eq 91) | Should -BeNullOrEmpty
+    }
+
+    It 'names the lake tier in the billing flow when the workspace is enrolled' {
+        $ws4 = Join-Path $outDir 'law-lake'
+        New-Item -ItemType Directory -Path (Join-Path $ws4 '_raw') -Force | Out-Null
+        Copy-Item (Join-Path $ws '_raw/*') (Join-Path $ws4 '_raw') -Recurse -Force
+        $costPath = Join-Path $ws4 '_raw/cost-estimate.json'
+        $costDoc = Get-Content $costPath -Raw | ConvertFrom-Json
+        $costDoc | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue @(
+            [pscustomobject]@{ Table = 'FirewallLogs_CL'; Plan = 'Analytics'; Gb30d = 2000.0; MonthlyCost = 4600.0 },
+            [pscustomobject]@{ Table = 'SecurityEvent';   Plan = 'Analytics'; Gb30d = 500.0;  MonthlyCost = 0.0 },
+            [pscustomobject]@{ Table = 'Syslog';          Plan = 'Analytics'; Gb30d = 280.0;  MonthlyCost = 644.0 },
+            [pscustomobject]@{ Table = 'ColdStore_CL';    Plan = 'DataLake';  Gb30d = 120.0;  MonthlyCost = 6.0 }
+        ) -Force
+        $costDoc | ConvertTo-Json -Depth 16 | Set-Content -Path $costPath
+        $b4 = & (Join-Path $repoRoot 'Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws4 -SkipWhatsNew 6> $null
+        $model = Get-Content (Join-Path $b4 'model.json') -Raw | ConvertFrom-Json
+        $model.dataLake.enrolled | Should -BeTrue
+        $plans = @($model.flow.nodes | Where-Object col -eq 2)
+        $plans.label | Should -Contain 'Analytics + Lake mirror'
+        $plans.label | Should -Contain 'Data lake only'
+        $plans.label | Should -Not -Contain 'Analytics plan'
+        ($plans | Where-Object label -eq 'Data lake only').lake | Should -BeTrue
+        ($plans | Where-Object label -eq 'Data lake only').value | Should -Be 120
+        $tableGb = (@($model.flow.nodes | Where-Object col -eq 1) | Measure-Object -Property value -Sum).Sum
+        ($plans | Measure-Object -Property value -Sum).Sum | Should -Be $tableGb
+        $outcomes = @($model.flow.nodes | Where-Object col -eq 3)
+        ($outcomes | Where-Object label -eq 'Free benefit').value | Should -Be 500
+        ($outcomes | Where-Object label -eq 'Billed').value | Should -Be 2400
+        @($model.flow.links | Where-Object { $_.source -eq 't:ColdStore_CL' -and $_.target -eq 'p:Data lake only' }).Count | Should -Be 1
     }
 
     It 'writes nothing with -WhatIf' {

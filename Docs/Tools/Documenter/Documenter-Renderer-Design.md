@@ -386,16 +386,18 @@ assets root).
 | [`Pipelines/Sentinel-Documenter.yml`](../../../Pipelines/Sentinel-Documenter.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Tools/Documenter/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Documenter/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Tools/Documenter/Private/Get-TableFamily.ps1`](../../../Tools/Documenter/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
+| [`Tools/Documenter/Private/Get-TableTierProfile.ps1`](../../../Tools/Documenter/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
 | [`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../../Tools/Documenter/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Tools/Documenter/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
 | [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../../Tools/Documenter/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Tools/Documenter/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Tools/Documenter/Private/Resources/best-practices.json`](../../../Tools/Documenter/Private/Resources/best-practices.json) | 58-rule catalogue driving the gap engine |
 | [`Tools/Documenter/Private/Resources/mitre-attack.json`](../../../Tools/Documenter/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Documenter/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Documenter/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Documenter/Private/Resources/commitment-tiers.json`](../../../Tools/Documenter/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~183 tests) |
-| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (63 tests) |
-| [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (31 tests) |
+| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~188 tests) |
+| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (64 tests) |
+| [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (32 tests) |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
+| [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | `Tests/Documenter/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 

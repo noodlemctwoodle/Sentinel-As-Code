@@ -1,0 +1,12 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.SentinelPlatformServices/sentinelPlatformServices/default",
+    "name": "default",
+    "location": "uksouth",
+    "resourceGroup": "rg-sentinel-test",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "identity": { "type": "SystemAssigned", "principalId": "00000000-0000-0000-0000-00000000aaaa", "tenantId": "00000000-0000-0000-0000-00000000bbbb" },
+    "properties": { "provisioningState": "Succeeded" },
+    "systemData": { "createdBy": "soc-admin@example.test", "createdAt": "2026-03-01T09:00:00Z", "lastModifiedBy": "soc-admin@example.test", "lastModifiedAt": "2026-03-01T09:00:00Z" }
+  }
+]

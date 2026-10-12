@@ -571,7 +571,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Sentinel data &amp; billing flow</h2>
-        <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan &rarr; billed vs Defender benefit. Ribbon width = GB / 30 days.</p>
+        <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs Defender benefit. Ribbon width = GB / 30 days.</p>
       </div></div>
       <div class="flowbox"><svg class="sankey" id="sankeyMini"></svg></div>
       <div class="legend" id="legend"></div>
@@ -657,6 +657,10 @@
     'Azure / Syslog':'#c2912b','Custom logs':'#8a6d3b','Other':'#64748b'
   };
   const colColor = ['#3b6fb0','#94a3b8','#4f5bd5','#2e8b64'];
+  const lakeColor = '#0d9488';
+  const nodeFill = n => n.col===0 ? (famColor[n.label]||'#64748b')
+    : n.col===3 ? (n.label==='Billed'?'#c2912b':'#2e8b64')
+    : (n.col===2 && n.lake) ? lakeColor : colColor[n.col];
   const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const fmtN = n => (Math.round((+n||0)*100)/100).toLocaleString();
   const svg = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
@@ -751,7 +755,8 @@
       badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
     {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
       sec:((M.sections||[]).some(s=>s.num===91)?91:secOverview)},
-    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/^analytics rules/i, secOverview)}
+    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/^analytics rules/i, secOverview)},
+    {k:'Data lake', v:(M.dataLake? (M.dataLake.enrolled?'Enrolled':'Not enrolled'):'n/a'), ic:ICON.database, sec:findSecNum(/data lake/i, secOverview)}
   ];
   const goArrow = '<svg class="pgo" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
   document.getElementById('heroPills').innerHTML = pills.map(p=>
@@ -950,7 +955,7 @@
         n._out=links.filter(l=>l.source===n.id).reduce((a,l)=>a+l.value,0);
         n._in =links.filter(l=>l.target===n.id).reduce((a,l)=>a+l.value,0); y+=slotH+slotGap; });
     });
-    const colHdr=['Data source','Workspace table','Billing plan','Outcome'];
+    const colHdr=['Data source','Workspace table','Plan and tier','Outcome'];
     cols.forEach((arr,ci)=>{ if(!arr.length)return; const t=document.createElementNS(ns,'text');
       t.setAttribute('x',padX+ci*(nodeW+colGap)); t.setAttribute('y',12); t.setAttribute('fill','#9aa3af');
       t.setAttribute('font-size','11'); t.setAttribute('font-weight','700'); t.textContent=colHdr[ci].toUpperCase(); svgEl.appendChild(t); });
@@ -959,14 +964,14 @@
       const sh=(l.value/(s._out||1))*s._h, th=(l.value/(t._in||1))*t._h;
       const sy0=s._y+s._outOff, ty0=t._y+t._inOff; s._outOff+=sh; t._inOff+=th;
       const x0=s._x+nodeW, x1=t._x, xm=(x0+x1)/2;
-      const col = famColor[(s.col===0? s.label : (byId[l.source].col===0?s.label:null))] || colColor[s.col];
+      const col = nodeFill(s);
       const path=document.createElementNS(ns,'path');
       const d='M'+x0+','+sy0+' C'+xm+','+sy0+' '+xm+','+ty0+' '+x1+','+ty0+
               ' L'+x1+','+(ty0+th)+' C'+xm+','+(ty0+th)+' '+xm+','+(sy0+sh)+' '+x0+','+(sy0+sh)+' Z';
       path.setAttribute('d',d); path.setAttribute('fill',col); path.setAttribute('fill-opacity','.32'); svgEl.appendChild(path);
     });
     nodes.forEach(n=>{
-      const col = n.col===0? (famColor[n.label]||'#64748b') : (n.col===3? (n.label==='Billed'?'#c2912b':'#2e8b64') : colColor[n.col]);
+      const col = nodeFill(n);
       const r=document.createElementNS(ns,'rect');
       r.setAttribute('x',n._x); r.setAttribute('y',n._y); r.setAttribute('width',nodeW); r.setAttribute('height',n._h);
       r.setAttribute('rx','6'); r.setAttribute('fill',col); r.setAttribute('fill-opacity', n.col===1?'.12':'.9');
@@ -988,7 +993,7 @@
     return {W,H};
   }
   const legendHtml = Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
-     '<span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
+     '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
   document.getElementById('legend').innerHTML=legendHtml;
   document.getElementById('legendBig').innerHTML=legendHtml;
   drawSankey(document.getElementById('sankeyMini'),{nodeW:150,colGap:70,slotGap:8,slotH:34,labelPad:0,maxChars:22});
@@ -1272,6 +1277,27 @@
     cards.push('<div class="ipanel"><h3>Threat intelligence by source (30d)</h3>'+
       '<p class="note">Indicators observed per feed. One feed is a single point of failure for every TI detection.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
+  }
+
+  // 7g. Sentinel data lake: enrolment, tier distribution, extended-retention tables
+  if(M.dataLake){
+    const DL=M.dataLake, T=DL.tiers||{};
+    const lakeNum=findSecNum(/data lake/i, null);
+    const tierItems=[
+      {label:'Analytics only',value:+T.AnalyticsOnly||0,color:'#64748b'},
+      {label:'Analytics + Lake mirror',value:+T.MirroredOnly||0,color:'#3b6fb0'},
+      {label:'Analytics + Lake extended',value:+T.MirroredExtended||0,color:'#7c3aed'},
+      {label:'Lake only',value:+T.LakeOnly||0,color:'#0d9488'}
+    ].filter(i=>i.value>0).map(i=>({...i,display:i.value.toLocaleString()}));
+    const ext=(DL.extendedTables||[]).slice(0,8).map(t=>({label:t.table,value:t.lakeOnlyDays,display:t.lakeOnlyDays.toLocaleString()+' d'}));
+    const status=DL.enrolled
+      ? 'Enrolled'+(DL.region?' ('+esc(DL.region)+')':'')+': every Analytics-plan table is mirrored to the lake; '+(DL.extendedCount||0)+' table'+(DL.extendedCount===1?'':'s')+' keep data beyond analytics retention and '+((DL.signals&&DL.signals.lakeOnlyTables)||0)+' route to the lake only.'
+      : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
+    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB / 30d ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
+    cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
+      '<p class="note">'+status+(lakeNum!=null?' <a class="link-muted" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
+      (tierItems.length? donutMultiHtml(tierItems,String(DL.operationalTables||0),'tables') : '<p class="note">No operational tables to classify.</p>')+
+      (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet'}):'')+costLine+'</div>');
   }
 
   // 8. What's new (Microsoft release communications, security-filtered)

@@ -212,6 +212,21 @@ overview, KQL jobs, notebooks-overview, sentinel-graph-overview.
 
 ---
 
+## Dashboard
+
+The iSOC Blueprint dashboard shows the lake in three places: a "Data lake"
+glance tile on the Overview (Enrolled or Not enrolled, opening page 88),
+the billing-flow Sankey, whose "Plan and tier" column names the lake tier
+each table lands in (so an enrolled workspace shows "Analytics + Lake
+mirror", "Analytics + Lake extended" and "Data lake only" boxes instead of
+one "Analytics plan" box), and a "Sentinel data lake" panel on the Insights
+tab with the enrolment status, the tier distribution donut, the top tables
+by lake-only retention and the lake cost split. The tier counts come from
+[`Tools/Documenter/Private/Get-TableTierProfile.ps1`](../../../Tools/Documenter/Private/Get-TableTierProfile.ps1),
+which section 88 also calls, so the page's pie and the dashboard's donut
+are the same numbers. The build's `dataLake` model key carries them; see
+[Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
+
 ## Topology + cost integration
 
 Section 88 is the deep-dive, but Lake state also flows into two other
