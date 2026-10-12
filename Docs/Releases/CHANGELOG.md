@@ -114,6 +114,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   | SENT-058 | SAC-HNT-01 |
   | SENT-059 | SAC-DET-14 |
 
+- **Findings and criteria as cards** - the Findings tab, the Overview
+  findings and the maturity criteria share one card layout: a rail with
+  the id and its severity or status pill, a main column with the title,
+  chips (category, area, the retired id) and full-width Evidence and
+  Remediation or Guidance blocks that clamp to three lines with Expand, and
+  the Learn link on the right. Findings filter by severity, category and
+  search; criteria by status, area and search, and a criterion that shares
+  its id with a fired finding links to it.
 - **Dashboard reading comfort** - long evidence, remediation and guidance
   cells clamp to three lines with an Expand control (semicolon lists open
   as bullets), so table rows stay uniform and nothing is cut; the Overview

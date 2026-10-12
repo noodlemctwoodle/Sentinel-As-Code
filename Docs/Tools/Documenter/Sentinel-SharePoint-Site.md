@@ -77,6 +77,14 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Documenter computes:
 
+Findings (on their tab and on the Overview) and the maturity criteria use
+one card layout: a rail with the id and its pill, the title with category,
+area and retired-id chips, and full-width Evidence and Remediation (or
+Guidance) blocks clamped to three lines with an Expand control. Findings
+filter by severity, category and free text; criteria by status, area and
+free text, and a criterion whose id a fired finding shares carries an
+"Open finding" link.
+
 Every list on the dashboard is complete. Panels show their first entries
 (eight bars, eight table rows, twelve opportunity tables with three
 templates each, six findings on the Overview, ten roadmap gaps) and a

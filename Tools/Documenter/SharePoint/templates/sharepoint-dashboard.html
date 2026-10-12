@@ -513,6 +513,25 @@
   table.tbl tbody tr:hover{background:color-mix(in srgb,var(--brand) 5%,transparent)}
   table.tbl tbody tr:last-child td{border-bottom:0}
   .tablewrap{padding:6px 8px}
+  /* Card list shared by the Findings tab, the Overview findings and the
+     maturity criteria: a rail with the id and its pill, a main column with
+     the title, chips and full-width text blocks, actions on the right. */
+  .flist{display:flex;flex-direction:column}
+  .frow{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:10px 20px;padding:16px 18px;border-top:1px solid var(--line-2);align-items:start}
+  .frow:first-child{border-top:0}
+  .frow:hover{background:color-mix(in srgb,var(--brand) 4%,transparent)}
+  .frail{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+  .frail .fid{font-weight:800;font-size:13px;letter-spacing:.01em;white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums}
+  .fmain{min-width:0}
+  .ftitle{font-weight:750;font-size:14px;color:var(--ink);line-height:1.35}
+  .fmeta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
+  .fsub{font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.5}
+  .fblock{margin-top:10px;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+  .fblock .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:3px}
+  .fact{display:flex;flex-direction:column;gap:8px;align-items:flex-end;white-space:nowrap}
+  .fact a{font-weight:700;font-size:12.5px;cursor:pointer}
+  @media(max-width:760px){.frow{grid-template-columns:1fr}.fact{align-items:flex-start}}
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
   .sev.Info,.sev.Informational{background:var(--slate)}
@@ -657,14 +676,11 @@
   <section data-view="findings" class="hidden">
     <div class="filters">
       <select id="sevSelect"><option value="">All severities</option></select>
+      <select id="catSelect"><option value="">All categories</option></select>
+      <input type="search" class="docsearch" id="findSearch" placeholder="Search findings…" style="margin:0;width:260px">
       <span class="note" id="findCount" style="margin-left:auto"></span>
     </div>
-    <div class="panel tablewrap">
-      <table class="tbl" id="findTable">
-        <thead><tr><th>ID</th><th>Severity</th><th>Finding</th><th>Category</th><th>Remediation</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <div class="panel flist" id="findList" style="padding:0"></div>
   </section>
 
   <div class="foot" id="foot"></div>
@@ -704,6 +720,16 @@
       (list?'<ul class="ltx-list">'+parts.map(x=>'<li>'+esc(x.trim())+'</li>').join('')+'</ul>':'')+
       '<button type="button" class="ltx-btn" data-ltx>Expand</button></div>';
   }
+  // One card per finding; used by the Findings tab and the Overview.
+  function findingCard(f){
+    return '<div class="frow" data-fid="'+esc(f.id)+'"><div class="frail"><b class="fid">'+esc(f.id)+'</b><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></div>'+
+      '<div class="fmain"><div class="ftitle">'+esc(f.title)+'</div>'+
+      '<div class="fmeta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
+      (f.evidence?'<div class="fblock"><div class="flabel">Evidence</div>'+longText(f.evidence)+'</div>':'')+
+      (f.remediation?'<div class="fblock"><div class="flabel">Remediation</div>'+longText(f.remediation)+'</div>':'')+'</div>'+
+      '<div class="fact">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Learn &rarr;</a>':'')+'</div></div>';
+  }
+  const rowsMore=(rows,show,tag)=>rows.map((r,i)=> i<show ? r : r.replace(new RegExp('^<'+tag+'\\b'),'<'+tag+' data-mr hidden')).join('');
   function markClamped(root){
     (root||document).querySelectorAll('.ltx').forEach(w=>{
       if(w.classList.contains('open')) return;
@@ -1192,10 +1218,8 @@
 
   // ---- top findings ----
   const topF = M.findings.items;
-  document.getElementById('topFindings').innerHTML=moreWrap('<table class="tbl"><tbody>'+trRows(topF.map(f=>
-    '<tr><td style="white-space:nowrap;width:1%"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></td>'+
-    '<td><b class="cid">'+esc(f.id)+'</b> '+esc(f.title)+'<div class="note" style="margin:3px 0 0">'+longText(f.evidence)+'</div></td>'+
-    '<td style="white-space:nowrap">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank">Learn &rarr;</a>':'')+'</td></tr>'),6)+'</tbody></table>', topF.length, 6, 'findings');
+  document.getElementById('topFindings').innerHTML=moreWrap('<div class="flist">'+rowsMore(topF.map(findingCard),6,'div')+'</div>', topF.length, 6, 'findings');
+  markClamped(document.getElementById('topFindings'));
 
   // ---- insights board (visual Sections) ----
   const board = document.getElementById('insightsBoard');
@@ -1565,19 +1589,27 @@
     }
     html+='<div class="panel"><div class="phead"><div><h2>Criteria</h2><p class="note">Every criterion with its status and the evidence that decided it.</p></div>'+
       '<div class="filters" style="margin:0"><select id="matStatus"><option value="">All statuses</option><option>Met</option><option>Gap</option><option>Unknown</option></select>'+
+      '<select id="matArea"><option value="">All areas</option>'+(MAT.areas||[]).map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('')+'</select>'+
       '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px"></div></div>'+
-      '<div class="tablewrap"><table class="tbl" id="matTable"><thead><tr><th>Id</th><th>Area</th><th>Criterion</th><th>Status</th><th>Effort</th><th>Evidence</th></tr></thead><tbody></tbody></table></div></div>';
+      '<div class="flist" id="matList" style="margin:0 -22px -20px"></div></div>';
     el.innerHTML=html;
-    const tb=el.querySelector('#matTable tbody'), sel=el.querySelector('#matStatus'), q=el.querySelector('#matSearch');
+    const tb=el.querySelector('#matList'), sel=el.querySelector('#matStatus'), ar=el.querySelector('#matArea'), q=el.querySelector('#matSearch');
+    const findingIds=new Set((M.findings&&M.findings.items||[]).map(f=>f.id));
     function renderCriteria(){
-      const st=sel.value, s=(q.value||'').toLowerCase();
-      const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
-      tb.innerHTML=rows.map(c=>'<tr><td class="cid"><b>'+esc(c.id)+'</b></td><td>'+esc(areaName[c.area]||c.area)+'</td><td>'+esc(c.name)+'<div class="note" style="margin:2px 0 0">'+esc(c.impact||'')+'</div></td>'+
-        '<td><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span></td><td>'+esc(c.effort)+'</td><td>'+longText(c.evidence||'')+'</td></tr>').join('')||'<tr><td colspan="6" class="note">No criteria match.</td></tr>';
+      const st=sel.value, av=ar.value, s=(q.value||'').toLowerCase();
+      const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
+      tb.innerHTML=rows.map(c=>'<div class="frow"><div class="frail"><b class="fid">'+esc(c.id)+'</b><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span>'+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
+        '<div class="fmain"><div class="ftitle">'+esc(c.name)+'</div>'+
+        '<div class="fmeta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+'</div>'+
+        (c.impact?'<div class="fsub">'+esc(c.impact)+'</div>':'')+
+        (c.evidence?'<div class="fblock"><div class="flabel">Evidence</div>'+longText(c.evidence)+'</div>':'')+
+        (c.guidance&&c.status!=='Met'?'<div class="fblock"><div class="flabel">Guidance</div>'+longText(c.guidance)+'</div>':'')+'</div>'+
+        '<div class="fact">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
+      tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
-    sel.addEventListener('change',renderCriteria); q.addEventListener('input',renderCriteria); renderCriteria();
+    sel.addEventListener('change',renderCriteria); ar.addEventListener('change',renderCriteria); q.addEventListener('input',renderCriteria); renderCriteria();
     // Score history: the publisher writes maturity-history.json beside this
     // file on the site. From disk the fetch cannot run and nothing changes.
     try{
@@ -1776,21 +1808,22 @@
     };
   })();
 
-  // ---- findings table ----
+  // ---- findings list ----
   const sevs=[...new Set(M.findings.items.map(f=>f.severity))];
-  const sevSel=document.getElementById('sevSelect');
+  const sevSel=document.getElementById('sevSelect'), catSel=document.getElementById('catSelect'), findQ=document.getElementById('findSearch');
   sevs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sevSel.appendChild(o);});
+  [...new Set(M.findings.items.map(f=>f.category).filter(Boolean))].sort().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;catSel.appendChild(o);});
   function renderFindings(){
-    const sv=sevSel.value; const rows=M.findings.items.filter(f=>!sv||f.severity===sv);
-    document.querySelector('#findTable tbody').innerHTML=rows.map(f=>
-      '<tr><td class="cid"><b>'+esc(f.id)+'</b></td><td><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span></td>'+
-      '<td><b>'+esc(f.title)+'</b><div class="note" style="margin:3px 0 0">'+longText(f.evidence||'')+'</div></td>'+
-      '<td>'+esc(f.category)+'</td><td>'+longText(f.remediation||'')+'</td>'+
-      '<td style="white-space:nowrap">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank">Learn &rarr;</a>':'')+'</td></tr>').join('');
+    const sv=sevSel.value, cv=catSel.value, q=(findQ.value||'').trim().toLowerCase();
+    const rows=M.findings.items.filter(f=>(!sv||f.severity===sv)&&(!cv||f.category===cv)&&(!q||(f.id+' '+(f.legacyId||'')+' '+f.title+' '+(f.evidence||'')+' '+(f.remediation||'')).toLowerCase().includes(q)));
+    const list=document.getElementById('findList');
+    list.innerHTML=rows.length? rows.map(findingCard).join('') : '<p class="note" style="padding:16px 18px">No findings match.</p>';
     document.getElementById('findCount').textContent=rows.length+' of '+M.findings.items.length+' findings';
-    markClamped(document.getElementById('findTable'));
+    markClamped(list);
   }
-  sevSel.onchange=renderFindings; renderFindings();
+  sevSel.onchange=renderFindings; catSel.onchange=renderFindings; findQ.addEventListener('input',renderFindings); renderFindings();
+  // Open the Findings tab on one finding (used by the criteria cards).
+  window.showFinding=function(id){ sevSel.value=''; catSel.value=''; findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
 
   // ---- balanced card grids ----
   // auto-fill packs as many columns as fit and leaves a short last row
