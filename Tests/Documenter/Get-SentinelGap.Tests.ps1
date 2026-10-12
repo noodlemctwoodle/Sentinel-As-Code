@@ -474,6 +474,31 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     }
 }
 
+Describe 'No-detection check counts Defender custom detections as coverage' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Documenter/Private/GapChecks.ps1')
+        $script:tables = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
+    }
+
+    It 'fires when nothing reads a high-volume table' {
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @(); CustomDetectionRefs = @() }
+        (Test-HighVolumeTableWithoutDetection -Inventory $inv).Evidence | Should -Match 'DeviceProcessEvents 40 GB'
+    }
+
+    It 'stays quiet when an enabled custom detection reads the table' {
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @();
+            CustomDetectionRefs = @([pscustomobject]@{ RuleId = 'cd-1'; RuleName = 'LSASS'; Enabled = $true; Tables = @('DeviceProcessEvents') }) }
+        Test-HighVolumeTableWithoutDetection -Inventory $inv | Should -BeNullOrEmpty
+    }
+
+    It 'ignores a disabled custom detection' {
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @();
+            CustomDetectionRefs = @([pscustomobject]@{ RuleId = 'cd-1'; RuleName = 'LSASS'; Enabled = $false; Tables = @('DeviceProcessEvents') }) }
+        (Test-HighVolumeTableWithoutDetection -Inventory $inv).Evidence | Should -Match 'no enabled Sentinel rule or Defender custom detection'
+    }
+}
+
 Describe 'Sentinel gap-analysis rule catalogue' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)

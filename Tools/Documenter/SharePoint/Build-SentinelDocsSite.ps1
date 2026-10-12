@@ -702,6 +702,9 @@ function New-EstateRing {
 
 $ruleRefs      = Read-RawArray 'rule-table-references.json'
 $templateRefs  = Read-RawArray 'template-table-references.json'
+$customDetRefs = Read-RawArray 'custom-detection-table-references.json'
+$customDetCaptured = Test-Path -LiteralPath (Join-Path $script:RawRoot 'defender-custom-detections.json')
+$customDetRaw = Read-RawArray 'defender-custom-detections.json'
 $effectRows    = Read-RawArray 'rule-effectiveness.json'
 $firedRows     = Read-RawArray 'rules-fired.json'
 $runRows       = Read-RawArray 'playbook-runs.json'
@@ -725,6 +728,12 @@ $referencedTables = @{}
 foreach ($r in $ruleRefs) {
     if (-not $r -or $r.Enabled -ne $true) { continue }
     foreach ($t in @($r.Tables)) { if ($t) { $referencedTables[[string]$t] = $true } }
+}
+# Enabled Defender XDR custom detections count as coverage too.
+$customDetPerTable = @{}
+foreach ($r in $customDetRefs) {
+    if (-not $r -or $r.Enabled -ne $true) { continue }
+    foreach ($t in @($r.Tables)) { if ($t) { $k = [string]$t; $referencedTables[$k] = $true; if (-not $customDetPerTable.ContainsKey($k)) { $customDetPerTable[$k] = 0 }; $customDetPerTable[$k]++ } }
 }
 $famAgg2 = [ordered]@{}
 $tablesActive = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
@@ -750,6 +759,7 @@ foreach ($t in $tablesData) {
         family  = $fam
         gb      = [math]::Round($gb, 2)
         rules   = $(if ($rulesPerTableBuild.ContainsKey([string]$t.DataType)) { $rulesPerTableBuild[[string]$t.DataType] } else { 0 })
+        customDetections = $(if ($customDetPerTable.ContainsKey([string]$t.DataType)) { $customDetPerTable[[string]$t.DataType] } else { 0 })
         covered = $isCovered
     }
 }
@@ -803,12 +813,13 @@ $estate = [ordered]@{
     sources         = $estateSources
     tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
     productAlerts   = $productAlerts
+    customDetections = [ordered]@{ captured = $customDetCaptured; total = @($customDetRaw | Where-Object { $_ }).Count; enabled = @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true }).Count }
     totalGb         = [math]::Round($estateTotalGb, 2)
     coveredGb       = [math]::Round($estateCoveredGb, 2)
     uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
     rings           = [ordered]@{
         ingestion = New-EstateRing 'Tables still receiving data (30d of 90d)' $tablesActive (@($tablesData | Where-Object { $_ }).Count)
-        detection = New-EstateRing 'Active tables read by an enabled Sentinel rule' $tablesCovered $tablesActive
+        detection = New-EstateRing 'Active tables read by an enabled Sentinel rule or custom detection' $tablesCovered $tablesActive
         alerts    = New-EstateRing 'Enabled Scheduled/NRT Sentinel rules that fired' $rulesFiredCount $rulesQueryEnabled
         incidents = New-EstateRing 'Incidents closed, of those created' $closed30d $incidents30d
     }

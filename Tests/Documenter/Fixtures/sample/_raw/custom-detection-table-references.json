@@ -1,0 +1,25 @@
+[
+  {
+    "RuleId": "cd-0001",
+    "RuleName": "Suspicious LSASS access",
+    "Enabled": true,
+    "Severity": "high",
+    "Period": "1H",
+    "LastModified": "2026-04-02T10:00:00Z",
+    "Tables": [
+      "DeviceProcessEvents",
+      "EmailEvents"
+    ]
+  },
+  {
+    "RuleId": "cd-0002",
+    "RuleName": "Legacy auth sign-in (paused)",
+    "Enabled": false,
+    "Severity": "medium",
+    "Period": "24H",
+    "LastModified": "2026-03-15T09:30:00Z",
+    "Tables": [
+      "IdentityLogonEvents"
+    ]
+  }
+]

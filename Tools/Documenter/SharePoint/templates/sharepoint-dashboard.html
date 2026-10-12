@@ -641,7 +641,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
-        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Rings count Sentinel analytics rules only; detections raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables and are listed per family when you click one. Strand width = GB; dashed strands are ingested and billed but read by no enabled analytics rule.</p>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Rings count enabled Sentinel analytics rules and Defender XDR custom detections that read a table; product alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud are listed per family when you click one. Strand width = GB; dashed strands are ingested and billed but read by no enabled analytics rule.</p>
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
@@ -983,7 +983,7 @@
     // The "Not monitored" pool sits low and right of the ingestion ring, sized
     // to its own text; unmonitored strands drop early and run in from the
     // left, below the rings and their captions, instead of crossing them.
-    const poolTitle='No Sentinel rule', poolText=fmtN(E.uncoveredGb||0)+' GB read by no enabled Sentinel rule';
+    const poolTitle='No detection rule', poolText=fmtN(E.uncoveredGb||0)+' GB read by no Sentinel rule or custom detection';
     const poolW=Math.max(170, Math.round(Math.max(poolTitle.length*7, poolText.length*5.8)+28)), poolCx=620, poolLeft=poolCx-poolW/2;
     const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,label:'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
     const trunc=s=>String(s||'');
@@ -996,7 +996,7 @@
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
       const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
       const fp=(E.productAlerts||[]).filter(p=>p.family===s.category); const fpAlerts=fp.reduce((a,p)=>a+(+p.alerts||0),0);
-      const tipText=s.category+': '+fmtN(s.gb)+' GB in 30 days, '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule'+(unc>0?', '+fmtN(unc)+' GB with no Sentinel rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
+      const tipText=s.category+': '+fmtN(s.gb)+' GB in 30 days, '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
       // Covered strands are solid in the family colour; unmonitored strands
       // keep the family colour but run dashed into the pool.
       if(cov>0) tip(mk('path',{class:'es-strand','data-fam':s.category,d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'}),tipText);
@@ -1006,7 +1006,7 @@
       tip(mk('text',{class:'es-src','data-fam':s.category,x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read'),tipText);
     });
     if(E.uncoveredGb>0){
-      const poolTip='Tables ingested and billed but read by no enabled Sentinel analytics rule. First-party detections are not counted here. Click for the list.';
+      const poolTip='Tables ingested and billed but read by no enabled Sentinel rule or Defender custom detection. Product alerts are not counted here. Click for the list.';
       mk('rect',{x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,style:'fill:var(--panel)'});
       tip(mk('rect',{class:'es-pool',x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.55'}),poolTip);
       tip(mk('text',{class:'es-pool',x:poolCx,y:poolY-3,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},poolTitle),poolTip);
@@ -1054,16 +1054,20 @@
     const all=E.tables||[];
     const rows=sel.family? all.filter(t=>t.family===sel.family) : all.filter(t=>!t.covered);
     const gb=rows.reduce((a,t)=>a+(+t.gb||0),0), covered=rows.filter(t=>t.covered).length;
-    const title=sel.family? sel.family : 'No Sentinel rule';
-    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in 30 days, '+covered+' read by an enabled Sentinel rule')
-                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in 30 days that no enabled Sentinel rule reads');
+    const title=sel.family? sel.family : 'No detection rule';
+    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in 30 days, '+covered+' read by an enabled Sentinel rule or custom detection')
+                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in 30 days that no enabled Sentinel rule or custom detection reads');
+    const cd=E.customDetections||{};
+    const cdLine=cd.captured? '<p class="note" style="margin:0 0 6px">Defender XDR custom detections: '+(cd.enabled||0)+' enabled of '+(cd.total||0)+' defined; an enabled one counts as coverage for the tables it queries.</p>'
+                            : '<p class="note" style="margin:0 0 6px">Defender XDR custom detections were not captured in this run (the identity needs CustomDetection.Read.All), so coverage here counts Sentinel rules only.</p>';
     const fp=(E.productAlerts||[]).filter(p=>sel.family? p.family===sel.family : true);
     const fpLine=fp.length? '<p class="note" style="margin:0 0 10px">First-party detections on '+(sel.family?'this family':'these families')+' in 30 days: '+fp.map(p=>esc(p.product)+' '+(+p.alerts||0).toLocaleString()+' alert'+(p.alerts==1?'':'s')+' from '+p.detections+' detection'+(p.detections==1?'':'s')).join('; ')+'. These run inside the product and do not read workspace tables, so they are not counted as Sentinel coverage.</p>'
                          : '<p class="note" style="margin:0 0 10px">No first-party product alerts on '+(sel.family?'this family':'these families')+' in the last 30 days either.</p>';
     const opNum=findSecNum(/detection opportunities/i,null);
-    const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td>'+(t.covered?'<span class="st Met">Sentinel rule reads it</span>':'<span class="st Gap">No Sentinel rule</span>')+'</td></tr>');
-    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+fpLine+
-      (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules reading it</th><th>Sentinel coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
+    const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
+      ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+cdLine+fpLine+
+      (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
     el.classList.remove('hidden');
     el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
     el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
@@ -1078,7 +1082,7 @@
     onIncidents:()=>{ const n=findSecNum(/^incidents/i,null); if(n!=null) jumpTo(n); }
   });
   document.getElementById('estateLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
-    '<span><i class="dash"></i>No Sentinel rule (dashed, family colour)</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
+    '<span><i class="dash"></i>No detection rule (dashed, family colour)</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
     '<span><i style="background:var(--brand)"></i>Fair (65%+)</span><span><i style="background:var(--amber)"></i>Weak</span>';
 
   // ---- maturity card + quick wins ----

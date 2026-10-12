@@ -355,6 +355,10 @@ $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){
 # ---------------------------------------------------------------------------
 $ruleTableRefs     = Read-RawArray 'rule-table-references.json'
 $templateTableRefs = Read-RawArray 'template-table-references.json'
+$customDetectionRefs = Read-RawArray 'custom-detection-table-references.json'
+$customDetectionsCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'defender-custom-detections.json')
+$customDetectionTableSet = @{}
+foreach ($cd in $customDetectionRefs) { if ($cd -and (_RProp $cd 'Enabled' $false) -eq $true) { foreach ($t in @(_RProp $cd 'Tables' @())) { if ($t) { $customDetectionTableSet[[string]$t] = $true } } } }
 $ruleEffectiveness = Read-RawArray 'rule-effectiveness.json'
 $rulesFired        = Read-RawArray 'rules-fired.json'
 $playbookRuns      = Read-RawArray 'playbook-runs.json'
@@ -416,6 +420,7 @@ function New-EstateModel {
     $enabledRefs = @($ruleTableRefs | Where-Object { $_.Enabled -eq $true })
     $referenced = @{}
     foreach ($r in $enabledRefs) { foreach ($t in @($r.Tables)) { if ($t) { $referenced[[string]$t] = $true } } }
+    foreach ($t in $customDetectionTableSet.Keys) { $referenced[$t] = $true }
     $byFamily = [ordered]@{}
     $tablesActive = 0; $tablesCovered = 0
     foreach ($t in $tablesWithData) {
@@ -2193,14 +2198,20 @@ foreach ($ref in $ruleTableRefs) {
         $rulesPerTable[$t]++
     }
 }
+$customDetectionsPerTable = @{}
+foreach ($cd in $customDetectionRefs) {
+    if (-not $cd -or (_RProp $cd 'Enabled' $false) -ne $true) { continue }
+    foreach ($t in @(_RProp $cd 'Tables' @())) { if ($t) { if (-not $customDetectionsPerTable.ContainsKey($t)) { $customDetectionsPerTable[$t] = 0 }; $customDetectionsPerTable[$t]++ } }
+}
 $coverageRows = @($tableRows | Where-Object { $_.Gb90d -gt 0 } | ForEach-Object {
     $n = if ($rulesPerTable.ContainsKey($_.Name)) { $rulesPerTable[$_.Name] } else { 0 }
-    [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; Coverage = if ($n -gt 0) { '🟢 Covered' } else { '🔴 None' } }
+    $cdn = if ($customDetectionsPerTable.ContainsKey($_.Name)) { $customDetectionsPerTable[$_.Name] } else { 0 }
+    [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; CustomDetections = $cdn; Coverage = if ($n -gt 0 -and $cdn -gt 0) { '🟢 Rule and custom detection' } elseif ($n -gt 0) { '🟢 Sentinel rule' } elseif ($cdn -gt 0) { '🟢 Custom detection' } else { '🔴 None' } }
 } | Sort-Object -Property Gb90d -Descending)
 $coverageBlock = if ($ruleTableRefs.Count -eq 0) {
     '_Table-to-rule mapping was not computed in this run._'
 } else {
-    Format-Table -Items $coverageRows -Columns 'Name','Plan','Gb90d','Rules','Coverage'
+    Format-Table -Items $coverageRows -Columns 'Name','Plan','Gb90d','Rules','CustomDetections','Coverage'
 }
 
 # Silent tables in detail, split by whether an enabled rule reads them: a
@@ -2315,7 +2326,7 @@ $classicBlock
 
 ## Tables by detection coverage
 
-Operational tables with data in the last 90 days and the number of enabled analytics rules that read each one. A high-volume table with no rules is cost without coverage; [28-detection-opportunities.md](28-detection-opportunities.md) lists the templates that would cover it.
+Operational tables with data in the last 90 days, the number of enabled Sentinel analytics rules that read each one and the number of enabled Defender XDR custom detections that query it (from the Graph detection-rules capture; blank when that capture did not run). A high-volume table with no rules is cost without coverage; [28-detection-opportunities.md](28-detection-opportunities.md) lists the templates that would cover it.
 
 $coverageBlock
 
@@ -4235,6 +4246,27 @@ Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the f
 $(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last 7 days._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','LastFailure','Reason' })
 "@
 
+# Defender XDR custom detections from the Graph capture: the other detection
+# logic that reads this data, listed with the tables each one queries.
+$customDetectionRows = @($customDetectionRefs | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{
+        Name         = [string](_RProp $_ 'RuleName' '')
+        Enabled      = $(if ((_RProp $_ 'Enabled' $false) -eq $true) { 'Yes' } else { 'No' })
+        Severity     = [string](_RProp $_ 'Severity' '')
+        Period       = [string](_RProp $_ 'Period' '')
+        Tables       = (@(_RProp $_ 'Tables' @()) -join ', ')
+        LastModified = Format-DateUtc (_RProp $_ 'LastModified')
+    }
+} | Sort-Object -Property @{ Expression = { $_.Enabled -eq 'No' } }, Name)
+$customDetectionSection = @"
+
+## Defender XDR custom detections
+
+Custom detection rules defined in the Defender portal (Microsoft Graph ``security/rules/detectionRules``). They run inside Defender XDR over the same advanced-hunting data the workspace receives, so they count as detection coverage on the tables they query, on this page, on the table-coverage view and in the estate flow. Period ``0`` is near-real-time.
+
+$(if (-not $customDetectionsCaptured) { '_Not captured in this run: the Graph call was not made or was refused. The identity needs the ``CustomDetection.Read.All`` application permission (delegated access through Azure PowerShell does not carry it); until then coverage counts Sentinel rules only._' } elseif ($customDetectionRows.Count -eq 0) { '_No custom detection rules are defined in Defender XDR for this tenant._' } else { Format-Table -Items $customDetectionRows -Columns 'Name','Enabled','Severity','Period','Tables','LastModified' })
+"@
+
 # One page for the rule estate: the core view built in the section-20 block
 # above, then the alert-volume, Microsoft-managed, modifications and
 # solution subsections (formerly 21 to 24).
@@ -4244,7 +4276,7 @@ $analyticsLinks = @"
 "@
 # Each part begins with a newline and ends without one; joining with a
 # newline keeps a blank line between a table and the next heading.
-Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $complexitySection, $ruleHealthSection, $analyticsLinks) -join [Environment]::NewLine)
+Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $complexitySection, $ruleHealthSection, $customDetectionSection, $analyticsLinks) -join [Environment]::NewLine)
 
 # Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
@@ -4463,6 +4495,7 @@ foreach ($ref in $ruleTableRefs) {
     if ($ref.Enabled -ne $true) { continue }
     foreach ($t in @($ref.Tables)) { if ($t) { $enabledTableSet[[string]$t] = $true } }
 }
+foreach ($t in $customDetectionTableSet.Keys) { $enabledTableSet[$t] = $true }
 $dataTableSet = @{}
 foreach ($t in $tablesWithData) { if ($t.DataType -and (_RendererNumber $t.BillableLast30d) -gt 0) { $dataTableSet[[string]$t.DataType] = $true } }
 $sevRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
@@ -4524,7 +4557,7 @@ $headroomChart
 
 ## Tables with data but no detection (last 30d)
 
-"Detection" here means an enabled Sentinel analytics rule whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alert volumes by product in [20-analytics-rules.md](20-analytics-rules.md) before treating a row as unprotected.
+"Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alert volumes by product in [20-analytics-rules.md](20-analytics-rules.md) before treating a row as unprotected.
 
 $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTemplates','MoreTemplates')
 

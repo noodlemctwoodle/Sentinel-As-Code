@@ -1,0 +1,42 @@
+[
+  {
+    "id": "cd-0001",
+    "displayName": "Suspicious LSASS access",
+    "isEnabled": true,
+    "createdBy": "soc-admin@example.test",
+    "lastModifiedDateTime": "2026-04-02T10:00:00Z",
+    "schedule": {
+      "period": "1H"
+    },
+    "queryCondition": {
+      "queryText": "DeviceProcessEvents\n| where FileName =~ 'procdump.exe' and ProcessCommandLine has 'lsass'\n| join kind=inner (EmailEvents | project NetworkMessageId, RecipientEmailAddress) on $left.AccountUpn == $right.RecipientEmailAddress"
+    },
+    "detectionAction": {
+      "alertTemplate": {
+        "title": "LSASS dump",
+        "severity": "high",
+        "category": "CredentialAccess"
+      }
+    }
+  },
+  {
+    "id": "cd-0002",
+    "displayName": "Legacy auth sign-in (paused)",
+    "isEnabled": false,
+    "createdBy": "soc-admin@example.test",
+    "lastModifiedDateTime": "2026-03-15T09:30:00Z",
+    "schedule": {
+      "period": "24H"
+    },
+    "queryCondition": {
+      "queryText": "IdentityLogonEvents | where Protocol == 'Ntlm'"
+    },
+    "detectionAction": {
+      "alertTemplate": {
+        "title": "Legacy auth",
+        "severity": "medium",
+        "category": "InitialAccess"
+      }
+    }
+  }
+]

@@ -431,6 +431,15 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '20-analytics-rules.md lists Defender XDR custom detections' {
+        It 'shows each custom detection with its tables and state' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $md | Should -Match '## Defender XDR custom detections'
+            $md | Should -Match '\| Suspicious LSASS access \| Yes \| high \| 1H \| DeviceProcessEvents, EmailEvents \| 2026-04-02 10:00 \|'
+            $md | Should -Match '\| Legacy auth sign-in \(paused\) \| No \| medium \| 24H \| IdentityLogonEvents \|'
+        }
+    }
+
     Context '20-analytics-rules.md reports rule run failures' {
         It 'lists the failing rule with its reason' {
             $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
@@ -462,7 +471,9 @@ Describe 'Sentinel Documenter renderer' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw
             $md | Should -Match '## Tables by detection coverage'
-            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 🔴 None \|'
+            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 0 \| 🔴 None \|'
+            # AuditLogs is in the fixture catalogue and read by the enabled Scheduled rule
+            $md | Should -Match '\| AuditLogs \| Analytics \| 50 \| 1 \| 0 \| 🟢 Sentinel rule \|'
         }
     }
 

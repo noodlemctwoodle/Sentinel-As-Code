@@ -24,6 +24,12 @@ page does not duplicate that.
 
 ## Trigger comparison
 
+> The collector's `defender-custom-detections` capture reads Defender XDR
+> custom detection rules through Microsoft Graph and needs the
+> `CustomDetection.Read.All` application permission on the pipeline
+> identity. Without it the step still succeeds, the capture is recorded as
+> not taken, and detection coverage counts Sentinel rules only.
+
 | | GitHub (`sentinel-document.yml`) | ADO (`Sentinel-Documenter.yml`) |
 | --- | --- | --- |
 | Schedule | Daily cron `0 6 * * *` (06:00 UTC) | None |

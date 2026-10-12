@@ -510,7 +510,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # first-party product alerts per family, Sentinel's own rules excluded
         ($model.estate.productAlerts | Where-Object family -eq 'Entra ID / Identity').alerts | Should -Be 40
         ($model.estate.productAlerts | Where-Object product -match 'Sentinel') | Should -BeNullOrEmpty
-        $model.estate.rings.detection.label | Should -Match 'Sentinel rule'
+        $model.estate.rings.detection.label | Should -Match 'Sentinel rule or custom detection'
+        # Defender XDR custom detections from the Graph capture
+        $model.estate.customDetections.captured | Should -BeTrue
+        $model.estate.customDetections.total | Should -Be 2
+        $model.estate.customDetections.enabled | Should -Be 1
         ($model.estate.tables | Where-Object table -eq 'SigninLogs').covered | Should -BeTrue
         ($model.estate.tables | Where-Object table -eq 'SigninLogs').rules | Should -BeGreaterThan 0
         ($model.estate.tables | Where-Object table -eq 'FirewallLogs_CL').covered | Should -BeFalse
@@ -578,6 +582,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.findings.total | Should -Be 0
         @($model.health.rows).Count | Should -Be 0
         $model.dataLakeEnrolled | Should -BeFalse
+        $model.estate.customDetections.captured | Should -BeFalse
         $model.dataLake.enrolled | Should -BeFalse
         $model.dataLake.operationalTables | Should -Be 0
         (Get-Content (Join-Path $b2 'findings.json') -Raw | ConvertFrom-Json).analysisAvailable | Should -BeFalse

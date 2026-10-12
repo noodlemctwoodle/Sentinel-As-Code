@@ -209,6 +209,7 @@ function New-InventoryFromRaw {
         PlaybookRuns           = Read-JsonArray 'playbook-runs.json'
         Hunts                  = Read-JsonArray 'hunts.json'
         RuleHealth             = Read-JsonArray 'rule-health.json'
+        CustomDetectionRefs    = Read-JsonArray 'custom-detection-table-references.json'
         Bookmarks              = Read-JsonArray 'bookmarks.json'
         BookmarksCount         = Read-Json 'bookmarks-count.json'
         IncidentsSummary       = Read-JsonArray 'incidents-summary.json'

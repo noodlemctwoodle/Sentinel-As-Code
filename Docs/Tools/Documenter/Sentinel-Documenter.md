@@ -107,7 +107,7 @@ SecurityDocs/
     │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
     │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
     │   ├── playbook-runs.json          runs and failures per playbook (7d)
-    │   ├── ... (≈85 files)
+    │   ├── ... (≈87 files)
     │   ├── retail-prices-uksouth-2026-05-06.json
     │   ├── cost-estimate.json
     │   ├── gap-analysis.json          findings that fired
@@ -122,7 +122,7 @@ SecurityDocs/
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events, Syslog and SecurityEvent contributors
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source, Entra ID table presence
     ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
-    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures
+    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures, Defender XDR custom detections
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source, indicators by type
@@ -353,6 +353,17 @@ function. Every check function takes that single `$Inventory` parameter and
 returns `$null` on pass or an Evidence/Detail object on fail; the engine wires the
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
+
+Detection coverage (the estate flow, the table-coverage view on page 81,
+page 28 and rule SAC-MON-05) counts enabled Sentinel analytics rules and
+enabled Defender XDR custom detections that read a table. Custom detections
+come from Microsoft Graph (`beta/security/rules/detectionRules`), which
+needs the `CustomDetection.Read.All` application permission on the
+collector's identity; without it the capture is recorded as not taken, the
+pages say so and coverage counts Sentinel rules only. Product alerts raised
+inside Defender XDR, Entra ID Protection, Defender for Identity or Defender
+for Cloud never read workspace tables, so they are shown per source family
+on the dashboard rather than counted as coverage.
 
 Finding ids follow the maturity scheme, `SAC-<AREA>-NN`, where the area is
 one of the eleven assessment areas (DET, PLT, COV, AUT, MON, INC, INV, TI,

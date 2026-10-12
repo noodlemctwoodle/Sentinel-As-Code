@@ -1605,6 +1605,43 @@ LAQueryLogs
     }
 }
 
+# Defender XDR custom detections: the other detection logic that reads this
+# data. Microsoft Graph, beta security/rules/detectionRules, needs
+# CustomDetection.Read.All on the identity; a 403 is recorded as "not
+# captured" rather than "none". Table references are resolved with the same
+# extractor as the Sentinel rules so coverage counts both.
+Try-Capture 'defender-custom-detections' {
+    $detections = [System.Collections.Generic.List[object]]::new()
+    $uri = 'https://graph.microsoft.com/beta/security/rules/detectionRules?$top=100'
+    $pages = 0
+    while ($uri -and $pages -lt 50) {
+        $pages++
+        $resp = Invoke-AzRestMethod -Uri $uri -Method GET -ErrorAction Stop
+        if ($resp.StatusCode -eq 403 -or $resp.StatusCode -eq 401) {
+            throw "Graph returned $($resp.StatusCode) for security/rules/detectionRules; grant CustomDetection.Read.All (application) or run with an identity that holds it."
+        }
+        if ($resp.StatusCode -ge 400) { throw "Graph returned $($resp.StatusCode): $($resp.Content)" }
+        $body = $resp.Content | ConvertFrom-Json -Depth 32
+        foreach ($d in @($body.value)) { if ($d) { $detections.Add($d) } }
+        $uri = if ($body.PSObject.Properties['@odata.nextLink']) { [string]$body.'@odata.nextLink' } else { $null }
+    }
+    Save-Json -FileName 'defender-custom-detections.json' -Data $detections.ToArray()
+    $refs = foreach ($d in $detections) {
+        $q = if ($d.PSObject.Properties['queryCondition'] -and $d.queryCondition -and $d.queryCondition.PSObject.Properties['queryText']) { [string]$d.queryCondition.queryText } else { '' }
+        $sev = if ($d.PSObject.Properties['detectionAction'] -and $d.detectionAction -and $d.detectionAction.PSObject.Properties['alertTemplate'] -and $d.detectionAction.alertTemplate) { [string]$d.detectionAction.alertTemplate.severity } else { '' }
+        [pscustomobject]@{
+            RuleId       = [string]$d.id
+            RuleName     = [string]$d.displayName
+            Enabled      = [bool]$(if ($d.PSObject.Properties['isEnabled']) { $d.isEnabled } else { $false })
+            Severity     = $sev
+            Period       = $(if ($d.PSObject.Properties['schedule'] -and $d.schedule -and $d.schedule.PSObject.Properties['period']) { [string]$d.schedule.period } else { '' })
+            LastModified = $(if ($d.PSObject.Properties['lastModifiedDateTime']) { [string]$d.lastModifiedDateTime } else { '' })
+            Tables       = @(Resolve-KqlTableNames -Query $q)
+        }
+    }
+    Save-Json -FileName 'custom-detection-table-references.json' -Data @($refs)
+}
+
 # ---------------------------------------------------------------------------
 # Cost estimate
 # ---------------------------------------------------------------------------

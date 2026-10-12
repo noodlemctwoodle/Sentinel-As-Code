@@ -114,6 +114,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   | SENT-058 | SAC-HNT-01 |
   | SENT-059 | SAC-DET-14 |
 
+- **Defender XDR custom detections count as coverage** - a new
+  `defender-custom-detections` capture reads the tenant's custom detection
+  rules through Microsoft Graph (`CustomDetection.Read.All`) and resolves
+  the tables each one queries; an enabled custom detection now counts as
+  detection coverage in the estate flow, on the table-coverage view, on
+  the detection-opportunities page and in rule SAC-MON-05, and the
+  analytics page lists the rules with their tables, state, severity and
+  period. When the permission is missing the pages and the flow say the
+  capture did not run rather than showing zero.
 - **Coverage means Sentinel rules, and says so** - the estate flow, its
   detail panel and page 28 state that "read by a rule" means an enabled
   Sentinel analytics rule; first-party detections (Defender XDR, Entra ID

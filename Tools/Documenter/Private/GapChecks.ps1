@@ -1234,6 +1234,12 @@ function Test-HighVolumeTableWithoutDetection {
         if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
         foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) { if ($t) { [void]$referenced.Add([string]$t) } }
     }
+    # Defender XDR custom detections read the same data; an enabled one
+    # counts as coverage for the tables it queries.
+    foreach ($ref in @(Get-PropOrDefault $Inventory 'CustomDetectionRefs' @())) {
+        if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
+        foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) { if ($t) { [void]$referenced.Add([string]$t) } }
+    }
     # Sentinel's own operational tables are outputs, not detection sources.
     $operational = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncovered = @($Inventory.TablesWithData | Where-Object {
@@ -1266,7 +1272,7 @@ function Test-HighVolumeTableWithoutDetection {
         $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
         "$($_.Table) $($_.Gb30d) GB$hint"
     }) -join '; '
-    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled analytics rule reading them: $sample$(_SampleSuffix $rows.Count)." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
+    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled Sentinel rule or Defender custom detection reading them: $sample$(_SampleSuffix $rows.Count)." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
 }
 
 # ------------------------------------------------------------
