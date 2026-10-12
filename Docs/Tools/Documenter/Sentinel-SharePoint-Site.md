@@ -146,9 +146,11 @@ The source families used by the estate flow come from
 `Tools/Documenter/Private/Get-TableFamily.ps1`, which the Markdown renderer
 also uses, so the Markdown pack and the dashboard agree.
 
-Run [`Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1)
-against the snapshot before building. Any diagram that was not pre-rendered
-shows on its page as a "diagram not rendered" note, and the build warns.
+Mermaid does not need pre-rendering for the site: the dashboard draws its
+own charts. If [`Convert-MermaidToImage.ps1`](../../../Tools/Documenter/Convert-MermaidToImage.ps1)
+already ran on the snapshot (the ADO Documenter does when **Charts** is
+ticked), the section pages carry those diagrams. Otherwise each Mermaid
+block is left out of its page, and the build log gives the count.
 
 ### How a section becomes a page
 
@@ -259,7 +261,7 @@ ticked first. See [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publi
 From the repository root, against a downloaded Documenter artefact:
 
 ```powershell
-# Diagrams (needs Node and @mermaid-js/mermaid-cli)
+# Optional: diagrams on the section pages (needs Node and @mermaid-js/mermaid-cli)
 ./Tools/Documenter/Convert-MermaidToImage.ps1 -Root ./artefact -Format png
 
 # Build the bundle into ./artefact/law-sentinel-prod/sharepoint

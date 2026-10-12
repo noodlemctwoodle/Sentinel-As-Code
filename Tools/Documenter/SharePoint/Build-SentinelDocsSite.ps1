@@ -21,7 +21,8 @@
       pages/<page>.json   one file per section: title and the ordered
                           segments (HTML for Text web parts, image
                           references for Image web parts)
-      diagrams/*.png      the pre-rendered diagrams the pages reference
+      diagrams/*.png      the pre-rendered diagrams the pages reference,
+                          when the snapshot has any
       findings.json       gap-analysis findings plus per-check outcomes,
                           for the findings list
 
@@ -31,9 +32,11 @@
     Azure release-communications RSS), fetched at build time and baked into
     the dashboard. Pass -SkipWhatsNew to build fully offline.
 
-    Run Convert-MermaidToImage.ps1 against the snapshot first. Pages show a
-    "diagram not rendered" note in place of any Mermaid block that was not
-    pre-rendered, and the build reports a warning for each.
+    Mermaid does not need to be pre-rendered: the dashboard draws its own
+    charts. When Convert-MermaidToImage.ps1 already ran on the snapshot
+    (the ADO Documenter does when its Charts option is ticked), the section
+    pages carry those diagrams; otherwise each Mermaid block is left out of
+    its page and the build log says how many.
 
 .PARAMETER Source
     Documenter workspace folder: the directory that contains _raw/ and the
@@ -991,6 +994,7 @@ $sections = @()
 $siteSections = @()
 $pageDocs = @()
 $diagramFiles = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$unrenderedDiagrams = 0
 
 foreach ($md in (Get-ChildItem -LiteralPath $Source -Filter '*.md' | Where-Object { $_.Name -ne 'index.md' } | Sort-Object Name)) {
     if ($md.BaseName -notmatch '^(\d+)-(.*)$') { continue }
@@ -1001,6 +1005,7 @@ foreach ($md in (Get-ChildItem -LiteralPath $Source -Filter '*.md' | Where-Objec
     $markdown = Get-Content -LiteralPath $md.FullName -Raw -Encoding utf8
     $converted = ConvertTo-SharePointPageSegments -Markdown $markdown -FileName $md.Name -FindingsListUrl $script:FindingsListUrl -MaxTableRows $MaxTableRows
     foreach ($w in $converted.Warnings) { $buildWarnings.Add($w) }
+    $unrenderedDiagrams += $converted.UnrenderedDiagrams
 
     $secTitle = if ($converted.Title) { $converted.Title } else { ($md.BaseName -replace '^\d+-', '' -replace '-', ' ') }
 
@@ -1106,7 +1111,7 @@ $model = [ordered]@{
     generatedBlueprintUtc = $generatedBuildUtc
 }
 
-Write-Log "  Sections   : $($sections.Count)   Diagrams: $($diagramFiles.Count)" Info
+Write-Log "  Sections   : $($sections.Count)   Diagrams: $($diagramFiles.Count)$(if ($unrenderedDiagrams) { " (+$unrenderedDiagrams Mermaid not pre-rendered, left out; the dashboard draws its own charts)" })" Info
 Write-Log "  Findings   : $($findings.total)   Rules enabled: $($counts.rulesEnabled)/$($counts.rulesTotal)   MITRE: $mitreCovered/$($mitre.Count)" Info
 Write-Log "  Maturity   : $(if ($maturityModel -and $null -ne $maturityModel.overall.score) { "$($maturityModel.overall.score) / 5 ($($maturityModel.overall.levelName)), target $($maturityModel.targetLevel)" } else { 'not assessed' })   Uncovered: $(if ($ruleRefs.Count -gt 0) { "$uncoveredTotal table(s), $($estate.uncoveredGb) GB" } else { 'n/a' })" Info
 

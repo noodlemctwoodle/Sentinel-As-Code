@@ -150,9 +150,13 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $html = Join-Html $r
             $html | Should -Not -Match 'pie title'
             $html | Should -Not -Match '-->'
-            $html | Should -Match 'Diagram not rendered'
         }
-        It 'warns about the unrendered diagram' { $r.Warnings -join ' ' | Should -Match 'Mermaid' }
+        It 'leaves the diagram out quietly: no placeholder, no warning' {
+            Join-Html $r | Should -Not -Match 'Diagram not rendered'
+            Join-Html $r | Should -Match 'After\.'
+            $r.Warnings | Should -BeNullOrEmpty
+        }
+        It 'counts the diagram it left out' { $r.UnrenderedDiagrams | Should -Be 1 }
     }
 
     Context 'images and splitting' {

@@ -91,11 +91,14 @@ manual run.
 4. **Build the web part package**: Node 22, `npm ci`, `npm run package`
    (clean, bundle, package). The lock file resolves from the public npm
    registry (`.npmrc`), and the npm cache is keyed on it.
-5. **Pre-render Mermaid** with `@mermaid-js/mermaid-cli@11` and
-   [`Convert-MermaidToImage.ps1`](../../Tools/Documenter/Convert-MermaidToImage.ps1).
-   On ADO this is normally a no-op, because the Documenter already
-   pre-rendered. On GitHub it does the work, because the GitHub Documenter
-   leaves Mermaid fences for GitHub to render.
+5. **Mermaid** (GitHub only): the GitHub workflow pre-renders with
+   `@mermaid-js/mermaid-cli@11` and
+   [`Convert-MermaidToImage.ps1`](../../Tools/Documenter/Convert-MermaidToImage.ps1),
+   because the GitHub Documenter leaves Mermaid fences for GitHub to render.
+   The ADO stage renders nothing: the dashboard draws its own charts, and
+   the section pages reuse the PNGs only when the Document stage already
+   made them (**Charts** ticked). Otherwise each diagram is left out of its
+   page, and the build log gives the count.
 6. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
    has).
 7. **Build the site bundle** with
@@ -211,7 +214,7 @@ forced by the platforms:
 | --- | --- | --- | --- |
 | Chaining | A stage of the Documenter run, ticked at queue time | `workflow_run` after the Documenter | One pipeline with options on ADO; GitHub keeps a separate workflow so the publisher's federated credential binds to its own environment |
 | Sign-in | One `AzureCLI@2` task around token + publish | `azure-login-oidc` with `allow-no-subscriptions`, then a `pwsh` step | `AzureCLI@2` owns the federated sign-in on ADO |
-| Mermaid pre-render | Usually a no-op | Does the work | The ADO Documenter pre-renders by default; the GitHub one does not |
+| Mermaid pre-render | None; reuses the Document stage's PNGs when **Charts** was ticked | Does the work | The dashboard does not need PNGs; the ADO run already has them when the Markdown pack or Word report wanted them |
 | Privacy guard | None needed (ADO repos are private) | Refuses public repositories | Same as the Documenter pair |
 | Federated subject | Service connection subject | `environment:sharepoint-publish` | Platform mechanism |
 

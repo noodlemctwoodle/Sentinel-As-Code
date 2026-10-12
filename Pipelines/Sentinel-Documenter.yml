@@ -208,8 +208,6 @@ variables:
     value: "3.4.1"
   - name: nodeVersion
     value: "22.x"
-  - name: mermaidCliVersion
-    value: "11"
   - name: npm_config_cache
     value: "$(Pipeline.Workspace)/.npm"
   - name: webPartDir
@@ -625,16 +623,17 @@ stages:
   # ticked. Steps:
   #   1. Download this run's 'sentinel-docs' artefact.
   #   2. Build the dashboard web part package (sentinel-navigator.sppkg).
-  #   3. Pre-render any Mermaid diagrams still in the Markdown (a no-op when
-  #      the Document stage already pre-rendered them).
-  #   4. Build the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
-  #      page per section, findings, diagrams.
-  #   5. Sign in as the SharePoint publisher identity through workload
+  #   3. Build the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
+  #      page per section, findings. Nothing here renders Mermaid: the
+  #      dashboard draws its own charts, and the section pages carry a
+  #      diagram only when the Document stage already pre-rendered it
+  #      ('Charts' ticked). Otherwise the diagram is left out.
+  #   4. Sign in as the SharePoint publisher identity through workload
   #      identity federation and publish the bundle
   #      (Publish-SentinelDocsSite.ps1): pages, navigation, findings list,
   #      dashboard home page, and the web part package when its version
   #      changed.
-  #   6. Keep the bundle and package as the 'sharepoint-site' artefact, even
+  #   5. Keep the bundle and package as the 'sharepoint-site' artefact, even
   #      when the publish failed, so you can see what was being published.
   # ───────────────────────────────────────────────────────────────────────
   - ${{ if eq(parameters.publishSharePointSite, true) }}:
@@ -701,17 +700,6 @@ stages:
                   $pkg = Join-Path (Get-Location) 'sharepoint/solution/sentinel-navigator.sppkg'
                   if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
                   Write-Host "##[section]Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
-
-            - task: PowerShell@2
-              displayName: "Pre-render Mermaid -> PNG"
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  $ErrorActionPreference = 'Stop'
-                  npm install -g "@mermaid-js/mermaid-cli@$(mermaidCliVersion)"
-                  if ($LASTEXITCODE -ne 0) { throw "mermaid-cli install failed ($LASTEXITCODE)" }
-                  & "$(Build.SourcesDirectory)/Tools/Documenter/Convert-MermaidToImage.ps1" -Root "$(docsRoot)" -Format png
 
             - task: PowerShell@2
               displayName: "Install PnP.PowerShell $(pnpVersion)"

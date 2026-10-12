@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The SharePoint stage no longer renders Mermaid** - the dashboard draws
+  its own charts, so the `SharePoint` stage of
+  `Pipelines/Sentinel-Documenter.yml` drops its mermaid-cli install and
+  pre-render step (and the `mermaidCliVersion` variable). The section
+  pages reuse the PNGs when the Document stage already made them
+  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegments` leaves
+  each Mermaid block out with no placeholder and no warning, and
+  `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
+  SharePoint workflow still pre-renders.
 - **Tidier Documenter run panel** - the queue-time options of
   `Pipelines/Sentinel-Documenter.yml` now read as groups (`Pull request:`,
   `Word report:`, `SharePoint site:`, `Charts:`, `Collector:`, `Maturity:`)

@@ -205,7 +205,7 @@ starts with its group (`Pull request:`, `Word report:`, `SharePoint site:`,
   stages find this run's artefact after `download: current`.
 - `pandocVersion: 3.10` (Word report stage).
 - `sharePointServiceConnection: sc-sentinel-sharepoint`, `pnpVersion: 3.4.1`,
-  `nodeVersion: 22.x`, `mermaidCliVersion: 11`, `npm_config_cache`,
+  `nodeVersion: 22.x`, `npm_config_cache`,
   `webPartDir`, and `flagWhatIf` (compile-time mapping of `sharePointWhatIf`)
   for the SharePoint stage.
 
@@ -262,8 +262,8 @@ charts. No Azure sign-in. See [Word-Report.md](Word-Report.md).
 `dependsOn: Document`, `pool: ubuntu-latest`, `timeoutInMinutes: 45`, one
 job `Publish`. Downloads this run's `sentinel-docs` artefact, checks that
 `<workspace>/_raw` is in it, builds the dashboard web part package (Node
-22, `npm ci`, `npm run package`), pre-renders any Mermaid still in the
-Markdown, installs PnP.PowerShell, builds the site bundle with
+22, `npm ci`, `npm run package`), installs PnP.PowerShell, builds the
+site bundle with
 `Build-SentinelDocsSite.ps1`, then signs in through the
 `sc-sentinel-sharepoint` service connection inside one `AzureCLI@2` task,
 requests a SharePoint token for the site's host and runs

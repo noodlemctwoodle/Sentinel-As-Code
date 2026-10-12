@@ -23,8 +23,10 @@
          to their generated page, finding links go to the findings
          list filtered on that id, and repository-relative links become
          plain text (they mean nothing on SharePoint).
-      5. Mermaid blocks that were not pre-rendered are replaced with a note
-         rather than leaking unescaped diagram source into the page.
+      5. Mermaid blocks that were not pre-rendered are left out, so
+         unescaped diagram source never reaches the page. The dashboard
+         draws its own charts, so the site does not need the PNGs; a page
+         carries a diagram only when Convert-MermaidToImage.ps1 already ran.
       6. The result is split into one segment per H2 and at every image, so
          each Text web part stays a manageable size and diagrams sit where
          they were in the Markdown.
@@ -219,7 +221,9 @@ function ConvertTo-SharePointPageSegments {
           Segments : ordered array of hashtables, each either
                      @{ type = 'html'; html = '...' } or
                      @{ type = 'image'; file = '<name>.png'; alt = '...' }
-          Warnings : array of strings (truncated tables, unrendered diagrams)
+          Warnings : array of strings (truncated tables, images that are
+                     not pre-rendered assets)
+          UnrenderedDiagrams : number of Mermaid blocks left out
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -265,13 +269,11 @@ function ConvertTo-SharePointPageSegments {
 
     # ---- HTML clean-up ------------------------------------------------------
     # Unrendered Mermaid. Markdig leaves the diagram body unescaped inside
-    # <pre class="mermaid">, so it must never reach the page as-is.
-    $mermaidCount = [regex]::Matches($html, '<pre class="mermaid">.*?</pre>|<pre><code class="language-mermaid">.*?</code></pre>', 'Singleline').Count
-    if ($mermaidCount -gt 0) {
-        $warnings.Add("$FileName : $mermaidCount Mermaid diagram(s) were not pre-rendered; run Convert-MermaidToImage.ps1 before building.")
-        $html = [regex]::Replace($html, '<pre class="mermaid">.*?</pre>|<pre><code class="language-mermaid">.*?</code></pre>',
-            '<p><em>Diagram not rendered for this site. Run Convert-MermaidToImage.ps1 before building to include it.</em></p>', 'Singleline')
-    }
+    # <pre class="mermaid">, so it must never reach the page as-is. Leaving
+    # it out is expected, not a fault: the dashboard draws its own charts.
+    $mermaidPattern = '<pre class="mermaid">.*?</pre>|<pre><code class="language-mermaid">.*?</code></pre>'
+    $mermaidCount = [regex]::Matches($html, $mermaidPattern, 'Singleline').Count
+    if ($mermaidCount -gt 0) { $html = [regex]::Replace($html, $mermaidPattern, '', 'Singleline') }
 
     # Decorative SVG (GitHub alert icons) and horizontal rules.
     $html = [regex]::Replace($html, '<svg\b.*?</svg>', '', 'Singleline')
@@ -350,5 +352,6 @@ function ConvertTo-SharePointPageSegments {
         Title    = $title
         Segments = $segments.ToArray()
         Warnings = $warnings.ToArray()
+        UnrenderedDiagrams = $mermaidCount
     }
 }
