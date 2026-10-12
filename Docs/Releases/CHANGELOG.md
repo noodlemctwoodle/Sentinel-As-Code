@@ -15,7 +15,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   in `Get-PnPAvailablePageComponents` with the id normalised and passes
   the object, reuses a full-width section an earlier failed run left on
   the page, and when the web part never appears says so instead of
-  retrying an unrelated error for five minutes.
+  retrying an unrelated error for five minutes. The web part is also
+  stored with `isFullWidth = true`: PnP reads that property, not the
+  manifest, when it loads a saved page, and without it the publish failed
+  on the next save (`Set-PnPPage -Title -Publish`) with the same message.
+  A dashboard page placed without the property is rebuilt.
 - **The dashboard web part is called isoc-blueprint** - the SPFx project
   moves from `Tools/Documenter/SharePoint/webpart/sentinel-navigator/` to
   `webpart/isoc-blueprint/` and builds `isoc-blueprint.sppkg`

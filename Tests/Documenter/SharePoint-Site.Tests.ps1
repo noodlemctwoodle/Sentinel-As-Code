@@ -436,6 +436,18 @@ Describe 'Add-SacMaturityHistoryEntry' {
     }
 }
 
+Describe 'Test-SacFullWidthProperty' {
+    It 'is true only when isFullWidth is the boolean true' {
+        Test-SacFullWidthProperty -PropertiesJson '{"fileRelativeUrl":"x","isFullWidth":true}' | Should -BeTrue
+        Test-SacFullWidthProperty -PropertiesJson '{"fileRelativeUrl":"x","isFullWidth":false}' | Should -BeFalse
+        Test-SacFullWidthProperty -PropertiesJson '{"fileRelativeUrl":"x"}' | Should -BeFalse
+    }
+    It 'is false for empty or unreadable JSON' {
+        Test-SacFullWidthProperty -PropertiesJson '' | Should -BeFalse
+        Test-SacFullWidthProperty -PropertiesJson '{not json' | Should -BeFalse
+    }
+}
+
 Describe 'Publish-SacDashboardPage' {
 
     BeforeAll {
@@ -449,6 +461,7 @@ Describe 'Publish-SacDashboardPage' {
             'Get-PnPAvailablePageComponents' = '$Page'
             'Add-PnPPageWebPart'             = '$Page, $Component, $WebPartProperties, $Section, $Column'
             'Set-PnPHomePage'                = '$RootFolderRelativeUrl'
+            'Remove-PnPPage'                 = '$Identity, [switch] $Recycle, [switch] $Force'
         })
         # SharePoint can return the component id in braces and upper case.
         $script:dashboardComponent = [pscustomobject]@{ Id = '{A2FD5AA3-01C5-431E-8C98-66F76C89803A}'; Name = 'IsocBlueprintWebPart' }
@@ -462,6 +475,7 @@ Describe 'Publish-SacDashboardPage' {
         Mock Add-PnPPageSection { }
         Mock Add-PnPPageWebPart { }
         Mock Set-PnPHomePage { }
+        Mock Remove-PnPPage { }
         Mock Start-Sleep { }
         Mock Write-Host { }
         Mock Get-PnPAvailablePageComponents { $script:dashboardComponent }
@@ -473,6 +487,32 @@ Describe 'Publish-SacDashboardPage' {
         Should -Invoke Add-PnPPageSection -Times 1 -Exactly -ParameterFilter { $SectionTemplate -eq 'OneColumnFullWidth' }
         Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { [object]::ReferenceEquals($Component, $script:dashboardComponent) -and $Section -eq 1 }
         Should -Invoke Set-PnPHomePage -Times 1 -Exactly
+    }
+
+    It 'stores isFullWidth with the web part, so PnP can save the page again later' {
+        Mock Get-PnPPage { $null }
+        Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'DocumenterAssets/dashboard/index.html'
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { $WebPartProperties.isFullWidth -eq $true -and $WebPartProperties.fileRelativeUrl -eq 'DocumenterAssets/dashboard/index.html' }
+    }
+
+    It 'rebuilds a page whose dashboard web part was placed without isFullWidth' {
+        Mock Get-PnPPage { [pscustomobject]@{ Sections = @([pscustomobject]@{ Type = 'OneColumnFullWidth' }) } }
+        Mock Get-PnPPageComponent { [pscustomobject]@{ WebPartId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'; InstanceId = 'i1'; PropertiesJson = '{"fileRelativeUrl":"DocumenterAssets/dashboard/index.html"}' } }
+        Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'DocumenterAssets/dashboard/index.html'
+        Should -Invoke Remove-PnPPage -Times 1 -Exactly -ParameterFilter { $Identity -eq 'sac-dashboard' -and $Recycle -and $Force }
+        Should -Invoke Add-PnPPage -Times 1 -Exactly
+        Should -Invoke Add-PnPPageSection -Times 1 -Exactly
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly
+        Should -Invoke Set-PnPPageWebPart -Times 0 -Exactly
+    }
+
+    It 'updates a web part that already carries isFullWidth in place' {
+        Mock Get-PnPPage { [pscustomobject]@{ Sections = @([pscustomobject]@{ Type = 'OneColumnFullWidth' }) } }
+        Mock Get-PnPPageComponent { [pscustomobject]@{ WebPartId = '{A2FD5AA3-01C5-431E-8C98-66F76C89803A}'; InstanceId = 'i1'; PropertiesJson = '{"fileRelativeUrl":"old.html","isFullWidth":true}' } }
+        Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'DocumenterAssets/dashboard/index.html'
+        Should -Invoke Remove-PnPPage -Times 0 -Exactly
+        Should -Invoke Add-PnPPageWebPart -Times 0 -Exactly
+        Should -Invoke Set-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { $Identity -eq 'i1' -and $PropertiesJson -match '"isFullWidth":true' -and $PropertiesJson -match 'DocumenterAssets/dashboard/index.html' }
     }
 
     It 'reuses the full-width section a failed run left behind instead of adding another' {

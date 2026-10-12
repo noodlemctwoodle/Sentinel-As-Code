@@ -190,7 +190,11 @@ In this order, so a failure part-way leaves the site consistent:
    publish, and set it as the home page. On the first publish the web part
    is added to a full-width section; the publisher looks it up in the
    site's component list by id (ignoring braces and case) and waits up to
-   five minutes for a freshly deployed package to appear there.
+   five minutes for a freshly deployed package to appear there. The web
+   part is stored with an `isFullWidth` property, which PnP needs before it
+   will save a page with a custom web part in a full-width section; a
+   dashboard page placed without it is rebuilt (the old page goes to the
+   recycle bin).
 6. **Findings.** Add, update, reopen, resolve and retire list items in one
    batch.
 7. **Navigation.** Rebuild the top navigation from the pages that exist,
