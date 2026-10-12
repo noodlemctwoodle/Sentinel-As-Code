@@ -8,7 +8,8 @@
     SharePoint helpers, and an end-to-end bundle build against the fixture.
 
 .DESCRIPTION
-    Nothing here needs SharePoint or PnP.PowerShell. The publisher keeps
+    Nothing here needs SharePoint or PnP.PowerShell: the functions that
+    call PnP are tested against stand-in functions. The publisher keeps
     its decisions in pure planning functions (Get-SacSyncPlan.ps1) and the
     page conversion in ConvertTo-SharePointPageSegments.ps1, so both are
     exercised directly. The build test renders the deliberately-broken
@@ -26,8 +27,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.0
-    Last Updated: 2026-10-09
+    Version:      0.3.0
+    Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -627,6 +628,68 @@ Describe 'Publish-SacAppPackage' {
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
         Should -Invoke Add-PnPApp -Times 1 -Exactly
+    }
+}
+
+Describe 'Site navigation' {
+
+    BeforeAll {
+        $script:pnpStubs = Install-PnPStub ([ordered]@{
+            'Get-PnPNavigationNode'    = '$Location, $Id, [switch] $Tree'
+            'Remove-PnPNavigationNode' = '$Identity, [switch] $Force'
+            'Add-PnPNavigationNode'    = '$Location, $Title, $Url, $Parent'
+        })
+        $script:web = '/sites/isoc-blueprint'
+    }
+    AfterAll { Remove-PnPStub $script:pnpStubs }
+
+    Context 'reading it' {
+        BeforeAll {
+            Mock Get-PnPNavigationNode -ParameterFilter { $Location } {
+                [pscustomobject]@{ Id = 1; Title = 'Home'; Url = '/sites/isoc-blueprint/SitePages/sac-dashboard.aspx' }
+                [pscustomobject]@{ Id = 2; Title = 'Detection'; Url = 'http://linkless.header/' }
+            }
+            Mock Get-PnPNavigationNode -ParameterFilter { $Id -eq 1 } { [pscustomobject]@{ Id = 1; Title = 'Home'; Url = 'https://contoso.sharepoint.com/sites/isoc-blueprint/SitePages/sac-dashboard.aspx'; Children = @() } }
+            Mock Get-PnPNavigationNode -ParameterFilter { $Id -eq 2 } {
+                [pscustomobject]@{ Id = 2; Title = 'Detection'; Url = 'http://linkless.header/'; Children = @(
+                        [pscustomobject]@{ Title = 'Analytics rules'; Url = '/sites/isoc-blueprint/SitePages/sac-20-analytics-rules.aspx' }
+                    ) }
+            }
+            $script:navRead = Get-SacNavigation -WebServerRelativeUrl $script:web
+        }
+        It 'reads nodes, not the printed -Tree text' { Should -Invoke Get-PnPNavigationNode -Scope Context -Times 0 -ParameterFilter { $Tree.IsPresent } }
+        It 'loads each top-level node by id to get its children' { Should -Invoke Get-PnPNavigationNode -Scope Context -Times 2 -Exactly -ParameterFilter { $Id } }
+        It 'returns the planner shape with site-relative links and headings' {
+            @($script:navRead).Count | Should -Be 2
+            $script:navRead[0].title | Should -Be 'Home'
+            $script:navRead[0].url | Should -Be '~site/SitePages/sac-dashboard.aspx'
+            $script:navRead[1].url | Should -BeNullOrEmpty
+            $script:navRead[1].children[0].title | Should -Be 'Analytics rules'
+            $script:navRead[1].children[0].url | Should -Be '~site/SitePages/sac-20-analytics-rules.aspx'
+        }
+    }
+
+    Context 'replacing it' {
+        BeforeAll {
+            Mock Get-PnPNavigationNode { [pscustomobject]@{ Id = 7; Title = 'Old' }; [pscustomobject]@{ Id = 8; Title = 'Older' } }
+            Mock Remove-PnPNavigationNode { }
+            Mock Add-PnPNavigationNode { [pscustomobject]@{ Id = 100 } }
+            $nodes = @(
+                [ordered]@{ title = 'Home'; url = '~site/SitePages/sac-dashboard.aspx'; children = @() },
+                [ordered]@{ title = 'Detection'; url = $null; children = @([ordered]@{ title = 'Analytics rules'; url = '~site/SitePages/sac-20-analytics-rules.aspx' }) }
+            )
+            Set-SacNavigation -Nodes $nodes -WebServerRelativeUrl $script:web
+        }
+        It 'removes the existing top-level nodes one by one, by id, without prompting' {
+            Should -Invoke Remove-PnPNavigationNode -Scope Context -Times 2 -Exactly -ParameterFilter { $Identity -in 7, 8 -and $Force }
+        }
+        It 'adds headings as linkless nodes and resolves page links' {
+            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Detection' -and $Url -eq 'http://linkless.header/' }
+            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Home' -and $Url -eq '/sites/isoc-blueprint/SitePages/sac-dashboard.aspx' }
+        }
+        It 'attaches children to the node it just added' {
+            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Analytics rules' -and $Parent -eq 100 }
+        }
     }
 }
 

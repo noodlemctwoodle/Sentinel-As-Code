@@ -505,9 +505,13 @@ The Pester suite is fully offline:
   scoring arithmetic and guards the criteria file's schema.
 - `SharePoint-Site.Tests.ps1` covers the section families, the
   Markdown-to-page conversion, the publish planners, the maturity history
-  helper and an offline bundle build.
+  helper, the publisher's SharePoint steps against stand-in PnP functions and
+  an offline bundle build.
+- `SharePoint-PnPCalls.Tests.ps1` checks that every PnP.PowerShell call in the
+  SharePoint scripts binds against the pinned PnP version (skipped when that
+  version is not installed).
 
-All six suites live under `Tests/Documenter/` and are picked up automatically
+All the suites live under `Tests/Documenter/` and are picked up automatically
 by the existing PR-validation workflow (`Invoke-PRValidation.ps1` runs every
 suite and emits an NUnit 2.5 report).
 

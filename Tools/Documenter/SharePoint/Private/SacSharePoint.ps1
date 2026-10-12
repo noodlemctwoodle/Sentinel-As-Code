@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.4
+    Version:      0.2.5
     Last Updated: 2026-10-12
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -710,9 +710,23 @@ function Get-SacNavigation {
     [CmdletBinding()]
     [OutputType([object[]])]
     param([Parameter(Mandatory)] [string] $WebServerRelativeUrl)
-    $nodes = Get-PnPNavigationNode -Location TopNavigationBar -Tree -ErrorAction SilentlyContinue
-    if (-not $nodes) { return , @() }
-    $tree = ConvertTo-SacNavigationTree -Nodes @($nodes) -WebServerRelativeUrl $WebServerRelativeUrl
+    # Not -Tree: that writes a printed text tree, not nodes. The top-level
+    # nodes come back without their children; Get-PnPNavigationNode -Id loads
+    # one node with its children. The plan is two levels deep, so the
+    # children's own (unloaded) Children are never read.
+    $top = @(Get-PnPNavigationNode -Location TopNavigationBar -ErrorAction SilentlyContinue)
+    if ($top.Count -eq 0) { return , @() }
+    $shaped = foreach ($t in $top) {
+        $node = Get-PnPNavigationNode -Id $t.Id -ErrorAction Stop
+        [pscustomobject]@{
+            Title    = [string]$node.Title
+            Url      = [string]$node.Url
+            Children = @(@($node.Children) | Where-Object { $null -ne $_ } | ForEach-Object {
+                    [pscustomobject]@{ Title = [string]$_.Title; Url = [string]$_.Url; Children = @() }
+                })
+        }
+    }
+    $tree = ConvertTo-SacNavigationTree -Nodes @($shaped) -WebServerRelativeUrl $WebServerRelativeUrl
     return , $tree
 }
 
@@ -735,7 +749,12 @@ function Set-SacNavigation {
     )
     if (-not $PSCmdlet.ShouldProcess('TopNavigationBar', "Replace with $($Nodes.Count) top-level nodes")) { return }
 
-    Remove-PnPNavigationNode -Location TopNavigationBar -All -Force | Out-Null
+    # Node by node: -Location and -All are in different parameter sets, and
+    # -All on its own clears whichever location the enum defaults to. Removing
+    # a top-level node removes its children with it.
+    foreach ($old in @(Get-PnPNavigationNode -Location TopNavigationBar -ErrorAction SilentlyContinue)) {
+        Remove-PnPNavigationNode -Identity $old.Id -Force | Out-Null
+    }
     foreach ($n in $Nodes) {
         $url = if ($n.url) { Resolve-SacSiteUrl -Text $n.url -WebServerRelativeUrl $WebServerRelativeUrl } else { $script:SacLinklessHeaderUrl }
         $parent = Add-PnPNavigationNode -Location TopNavigationBar -Title $n.title -Url $url

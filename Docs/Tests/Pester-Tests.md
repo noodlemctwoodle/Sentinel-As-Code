@@ -156,7 +156,8 @@ workbook-export suites.
 | Documenter renderer | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Documenter Markdown from the `Tests/Documenter/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
 | Documenter gap engine | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
 | Documenter REST wrapper | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
-| Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
+| Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
+| Documenter SharePoint PnP calls | [`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`. Skipped when that PnP version is not installed |
 | Documenter table references | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
 | Documenter maturity engine | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
 | Documenter custom detections | [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (imports `Sentinel.Common`) |
@@ -414,7 +415,14 @@ them against a fixed JSON fixture corpus rather than mocking Azure:
   dot-sources the helpers under [`Tools/Documenter/SharePoint/Private/`](../../Tools/Documenter/SharePoint/Private)
   and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1)
   offline against the rendered fixture. The publisher's decisions live in pure
-  planning functions, so nothing needs SharePoint or PnP.PowerShell.
+  planning functions, and the functions that call PnP run against stand-in
+  functions (`Install-PnPStub`), so nothing needs SharePoint or PnP.PowerShell.
+- [`SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1)
+  parses the SharePoint scripts and checks every PnP.PowerShell call against
+  the real parameter metadata of the version `Pipelines/Sentinel-Documenter.yml`
+  pins (`pnpVersion`), so a call that cannot bind fails here instead of in a
+  pipeline run. It needs that PnP.PowerShell version installed and is skipped
+  without it: `Install-Module PnP.PowerShell -RequiredVersion 3.4.1 -Scope CurrentUser`.
 
 Because `Invoke-PRValidation.ps1` sets `Run.Path` to the whole `Tests/`
 folder, these run in the PR gate alongside the root suites.
@@ -606,7 +614,8 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections and empty-state safety | ~200 |
 | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour | 74 |
 | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
-| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, offline bundle build | 70 |
+| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, offline bundle build | 94 |
+| [`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1) | Every PnP.PowerShell call in `Tools/Documenter/SharePoint/` binds against the pinned PnP version (skipped without it) | 7 |
 | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
 | [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
 | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |

@@ -6,6 +6,20 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **SharePoint navigation publishes, and PnP calls are checked before a
+  run** - the first publish to reach the navigation step failed: it
+  cleared the top navigation with `Remove-PnPNavigationNode -Location
+  TopNavigationBar -All`, and in PnP.PowerShell 3.4.1 `-Location` and
+  `-All` sit in different parameter sets. It now removes each top-level
+  node by id. Reading the navigation used `Get-PnPNavigationNode -Tree`,
+  which returns a printed text tree rather than nodes, so the comparison
+  never matched and the navigation would have been rebuilt on every run;
+  it now reads the top-level nodes and loads each one's children by id.
+  A new suite, `Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`, checks
+  every PnP call in the SharePoint scripts against the parameter metadata
+  of the pinned PnP.PowerShell version (unknown parameters, parameter-set
+  clashes, missing mandatory parameters, `Remove-PnP*` without `-Force`),
+  so a call that cannot bind fails in Pester rather than in a pipeline.
 - **The dashboard web part lands on a new site's home page** - the first
   real publish to a new site failed with "You cannot host text controls
   inside a one column full width section". `Add-PnPPageWebPart -Component
