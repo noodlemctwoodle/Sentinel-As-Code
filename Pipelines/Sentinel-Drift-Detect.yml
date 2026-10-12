@@ -225,8 +225,12 @@ stages:
               git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
               git stash pop --quiet || true
 
+              # Absorbed rules change the dependency graph. Regenerate the manifest
+              # so the deploy and PR-validation drift gates stay green.
+              pwsh -NoProfile -File ./Tools/Build-DependencyManifest.ps1 -Mode Generate -RepoPath "$PWD"
+
               # Stage only paths the script may legitimately have touched.
-              git add Content/AnalyticalRules reports
+              git add Content/AnalyticalRules reports dependencies.json
 
               # Commit message includes the timestamp; the report filename is
               # also timestamped so multiple runs accumulate without collision.

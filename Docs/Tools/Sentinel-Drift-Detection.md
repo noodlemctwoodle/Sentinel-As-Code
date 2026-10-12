@@ -226,7 +226,10 @@ The `Commit, push, and open / refresh PR` step is guarded by
 (see [Report Only](#running-it)). When it does run it: checks the working tree
 with `git status --porcelain` (exits early and cleanly if empty), stashes the
 script's changes, resets `auto/sentinel-drift-sync` from `origin/main`, pops the
-stash, stages only `Content/AnalyticalRules` and `reports`, commits, and
+stash, regenerates `dependencies.json` with
+`Build-DependencyManifest.ps1 -Mode Generate` (absorbed rules change the
+dependency graph, and the deploy and PR gates fail on a stale manifest), stages
+only `Content/AnalyticalRules`, `reports` and `dependencies.json`, commits, and
 `git push --force-with-lease`. It then uses `gh pr list` to find an existing
 open PR from the sync branch: if found it refreshes the body with
 `gh pr edit --body-file`, otherwise it opens one with `gh pr create`.
