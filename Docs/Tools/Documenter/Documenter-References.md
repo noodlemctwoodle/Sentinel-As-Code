@@ -182,7 +182,7 @@ Grouped by purpose:
 **Incidents**
 
 - `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
-  `incidents-detail-by-provider`, `incidents-by-rule` - incident counts, mean-time-to-respond,
+  `incidents-detail-by-provider`, `incidents-by-rule` (up to 500 rule titles) - incident counts, mean-time-to-respond,
   daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
   row with `Count`, `Closed` and three bags (`ByStatus`, `BySeverity`, `ByClassification`)
   whose values are real counts; closed incidents with an empty classification are reported
@@ -202,7 +202,8 @@ Grouped by purpose:
 **Analytics and threat intelligence**
 
 - `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert` (grouped by
-  `AlertName`, `ProductName`, `AlertSeverity`).
+  `AlertName`, `ProductName`, `AlertSeverity`, up to 500 rows so the pack and the
+  dashboard list every alerting rule rather than a top fifty).
 - `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
   than the alert name, so renamed rules and rules sharing a name are told apart.
 - `threat-intel-counts` - threat-intelligence indicator counts from KQL. (The related

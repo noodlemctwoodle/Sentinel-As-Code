@@ -18,6 +18,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   collecting again. `Pipelines/Sentinel-SharePoint-Publish.yml` and
   `Pipelines/Sentinel-Word-Report.yml` are removed; the GitHub SharePoint
   workflow is unchanged.
+- **The Markdown pack carries everything the dashboard shows** - the
+  estate flow on the overview pages gains a Source families table (tables,
+  GB, tables read by a detection, first-party alerts beside their family)
+  and a Defender XDR custom-detection count; the incidents page gains
+  alert volume by severity and alerts by detection source; the hunting
+  page gains the bookmarks (or the service-reported count when the list
+  was too large to fetch). Tables are no longer cut to a top N: incidents
+  by rule, rule effectiveness, detection opportunities and the maturity
+  roadmap list every row, and the collector keeps up to 500 alerting rules
+  and 500 incident-producing rule titles instead of 50 and 25. The product
+  to family mapping the dashboard uses now lives in the shared
+  `Get-ProductFamily` helper, so both outputs agree.
 - **Sentinel health check folded into the Documenter and the iSOC Blueprint
   site** - the content of the Sentinel health-check script written by
   Lasitha R, who gave it to the project, now lands on the Documenter's own

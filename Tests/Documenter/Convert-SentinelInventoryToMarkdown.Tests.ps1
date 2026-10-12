@@ -243,6 +243,44 @@ Describe 'Sentinel Documenter renderer' {
         }
     }
 
+    Context '15-incidents.md breaks alert volume down the way the dashboard does' {
+        BeforeAll {
+            $script:inc15b = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw
+        }
+
+        It 'tables alert volume by severity with shares that add up' {
+            $script:inc15b | Should -Match '## Alert volume by severity \(last 30d\)'
+            $script:inc15b | Should -Match '\| High \| 430 \| 76\.1% \|'
+            $script:inc15b | Should -Match '\| Medium \| 135 \| 23\.9% \|'
+        }
+
+        It 'tables alerts by detection source with Sentinel rules named as Microsoft Sentinel' {
+            $script:inc15b | Should -Match '## Alerts by detection source \(last 30d\)'
+            $script:inc15b | Should -Match '\| Microsoft Sentinel \| 525 \| 3 \| 92\.9% \|'
+            $script:inc15b | Should -Match '\| Azure Active Directory Identity Protection \| 40 \| 1 \| 7\.1% \|'
+        }
+
+        It 'lists every rule with incidents instead of a top 25' {
+            $script:inc15b | Should -Match '## Incidents by rule \(last 30d\)'
+            $script:inc15b | Should -Not -Match 'top 25'
+        }
+    }
+
+    Context '00-overview.md tables the source families beside the estate flow' {
+        BeforeAll {
+            $script:ov00 = Get-Content (Join-Path $script:tempWsRoot '00-overview.md') -Raw
+        }
+
+        It 'has a Source families table with the first-party alerts beside their family' {
+            $script:ov00 | Should -Match '### Source families'
+            $script:ov00 | Should -Match '\| Entra ID / Identity \|[^\n]*Azure Active Directory Identity Protection 40'
+        }
+
+        It 'states how many custom detections were captured' {
+            $script:ov00 | Should -Match '\*\*Defender XDR custom detections:\*\* \d+ enabled of \d+ defined'
+        }
+    }
+
     Context '20-analytics-rules.md carries the merged analytics subsections' {
         BeforeAll {
             $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
@@ -1276,5 +1314,43 @@ Describe 'Sentinel Documenter renderer — empty-state safety' {
             (Get-Content (Join-Path $script:emptyWsRoot '15-incidents.md') -Raw) | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*?_None\._'
             (Get-Content (Join-Path $script:emptyWsRoot '30-hunting-queries.md') -Raw) | Should -Match '## Hunts[\s\S]*?_None\._'
         }
+    }
+}
+
+Describe 'Sentinel Documenter renderer - bookmarks on the hunting page' {
+    BeforeAll {
+        $script:bmOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "documenter-bookmarks-test-$(New-Guid)"
+        $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
+        $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
+        foreach ($root in $listRoot, $countRoot) {
+            New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
+            Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw') -Force
+        }
+        @'
+[
+  { "name": "bm-1", "properties": { "displayName": "Lateral movement from VPN", "created": "2026-09-30T08:15:00Z", "labels": ["hunt", "vpn"], "notes": "Seen on three hosts" } },
+  { "name": "bm-2", "properties": { "displayName": "Rare parent process", "created": "2026-09-20T10:00:00Z", "labels": [], "notes": "" } }
+]
+'@ | Set-Content (Join-Path $listRoot '_raw/bookmarks.json') -Encoding UTF8
+        Remove-Item (Join-Path $countRoot '_raw/bookmarks.json') -Force
+        '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $countRoot '_raw/bookmarks-count.json') -Encoding UTF8
+        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'))) {
+            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
+        }
+        $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
+        $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
+    }
+
+    AfterAll {
+        if ($script:bmOutDir -and (Test-Path $script:bmOutDir)) { Remove-Item -Recurse -Force -Path $script:bmOutDir -ErrorAction SilentlyContinue }
+    }
+
+    It 'tables the bookmarks newest first with their labels and notes' {
+        $script:bmList | Should -Match '## Bookmarks[\s\S]*\| Lateral movement from VPN \| 2026-09-30[^|]*\| hunt, vpn \| Seen on three hosts \|'
+        ($script:bmList.IndexOf('Lateral movement from VPN')) | Should -BeLessThan ($script:bmList.IndexOf('Rare parent process'))
+    }
+
+    It 'falls back to the service-reported count when the list was too large' {
+        $script:bmCount | Should -Match '## Bookmarks[\s\S]*\*\*350 bookmarks\*\* exist'
     }
 }

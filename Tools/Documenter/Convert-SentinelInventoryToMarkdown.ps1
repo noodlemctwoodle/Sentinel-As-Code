@@ -68,7 +68,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.2.0
+    Version:        0.3.0
     Last Updated:   2026-10-12
     Component:      Sentinel Documenter, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -363,6 +363,10 @@ $ruleEffectiveness = Read-RawArray 'rule-effectiveness.json'
 $rulesFired        = Read-RawArray 'rules-fired.json'
 $playbookRuns      = Read-RawArray 'playbook-runs.json'
 $hunts             = Read-RawArray 'hunts.json'
+$bookmarks         = Read-RawArray 'bookmarks.json'
+$bookmarkCountDoc  = Read-Raw 'bookmarks-count.json'
+$ruleVolumesAll    = Read-RawArray 'analytics-rule-volumes.json'
+$customDetectionsRaw = Read-RawArray 'defender-custom-detections.json'
 $usageDaily        = Read-RawArray 'workspace-usage-daily.json'
 $maturity          = Read-Raw 'maturity.json'
 # A Gap criterion whose id is a finding id means that finding fired, so
@@ -442,8 +446,25 @@ function New-EstateModel {
     foreach ($f in $rulesFired) { $alerts += [long](_RendererNumber $f.Alerts) }
     $incidents = if ($incSummary -and $incSummary.PSObject.Properties['Count'])  { [int](_RendererNumber $incSummary.Count) }  else { 0 }
     $closed    = if ($incSummary -and $incSummary.PSObject.Properties['Closed']) { [int](_RendererNumber $incSummary.Closed) } else { 0 }
+    # First-party alerts by family: raised inside Defender XDR, Entra ID
+    # Protection, Defender for Identity or Defender for Cloud, so they read
+    # no workspace table and sit beside the family instead of in coverage.
+    $productAgg = [ordered]@{}
+    foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) {
+        $prod = [string](_RProp $v 'ProductName' '')
+        if (-not $prod -or $prod -match 'Sentinel') { continue }
+        $famName = Get-ProductFamily -Product $prod
+        $key = "$famName|$prod"
+        if (-not $productAgg.Contains($key)) { $productAgg[$key] = [pscustomobject]@{ Family = $famName; Product = $prod; Alerts = [long]0; Detections = 0 } }
+        $productAgg[$key].Alerts += [long](_RendererNumber (_RProp $v 'Alerts' 0))
+        $productAgg[$key].Detections++
+    }
     [pscustomobject]@{
         Sources             = $sources
+        ProductAlerts       = @($productAgg.Values | Sort-Object { -$_.Alerts })
+        CustomDetectionsCaptured = $customDetectionsCaptured
+        CustomDetectionsTotal    = @($customDetectionsRaw | Where-Object { $_ }).Count
+        CustomDetectionsEnabled  = @($customDetectionRefs | Where-Object { $_ -and (_RProp $_ 'Enabled' $false) -eq $true }).Count
         TablesSeen          = $tablesWithData.Count
         TablesActive        = $tablesActive
         TablesCovered       = $tablesCovered
@@ -461,6 +482,48 @@ function New-EstateModel {
     }
 }
 $estate = New-EstateModel
+
+function Format-EstateFamilyTable {
+    # One row per source family: tables, GB, how many of those tables a
+    # detection reads, and the first-party alerts raised beside the family.
+    param($Estate)
+    $alertsByFamily = @{}
+    foreach ($p in @($Estate.ProductAlerts)) {
+        $fam = [string]$p.Family
+        if (-not $alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] = New-Object System.Collections.Generic.List[string] }
+        $alertsByFamily[$fam].Add("$($p.Product) $($p.Alerts)")
+    }
+    $rows = @($Estate.Sources | ForEach-Object {
+        $fam = [string]$_.Category
+        [pscustomobject]@{
+            Family           = $fam
+            Tables           = $_.Tables
+            Gb30d            = [math]::Round($_.Gb, 2)
+            TablesRead       = $_.Covered
+            GbRead           = [math]::Round($_.CoveredGb, 2)
+            FirstPartyAlerts = $(if ($alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] -join '; ' } else { '' })
+        }
+    })
+    foreach ($fam in @($alertsByFamily.Keys)) {
+        if (-not @($rows | Where-Object { $_.Family -eq $fam }).Count) {
+            $rows += [pscustomobject]@{ Family = $fam; Tables = 0; Gb30d = 0; TablesRead = 0; GbRead = 0; FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ') }
+        }
+    }
+    $customLine = if ($Estate.CustomDetectionsCaptured) {
+        "**Defender XDR custom detections:** $($Estate.CustomDetectionsEnabled) enabled of $($Estate.CustomDetectionsTotal) defined; the tables they read count as covered above."
+    } else {
+        '**Defender XDR custom detections:** not captured in this run (the identity needs the Microsoft Graph permission CustomDetection.Read.All), so coverage counts Sentinel rules only.'
+    }
+@"
+### Source families
+
+Each family's share of the last 30 days of billable data, how many of its tables an enabled Sentinel rule or Defender custom detection reads, and the first-party alerts (Defender XDR, Entra ID Protection, Defender for Identity, Defender for Cloud) raised beside it in the same window. First-party detections run inside their product and read no workspace table, so they never move a table into the covered column.
+
+$(Format-Table -Items $rows -Columns 'Family','Tables','Gb30d','TablesRead','GbRead','FirstPartyAlerts')
+
+$customLine
+"@
+}
 
 function Format-EstateSankey {
     # sankey-beta reads CSV rows: source,target,value. Labels are quoted so
@@ -542,14 +605,19 @@ $(Format-EstateSankey -Estate $estate)
 
 $(Format-EstateRingsTable -Estate $estate)
 
+$(Format-EstateFamilyTable -Estate $estate)
+
 GB that reaches **Not monitored** is ingested and billed but read by no enabled Sentinel analytics rule; detections that run inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables and are not counted here. [28-detection-opportunities.md](28-detection-opportunities.md) lists those tables with the templates that would cover them.
 "@
 } else {
+    # No billable ingestion, so no ribbons to draw; first-party alerts and
+    # the custom-detection count still belong here when they exist.
+    $familyTail = if (@($estate.ProductAlerts).Count -gt 0 -or $estate.CustomDetectionsCaptured) { "`n`n" + (Format-EstateFamilyTable -Estate $estate) } else { '' }
 @"
 
 ## Estate flow
 
-_No billable ingestion in the last 30 days, so there is no flow to draw._
+_No billable ingestion in the last 30 days, so there is no flow to draw._$familyTail
 "@
 }
 
@@ -1467,6 +1535,21 @@ $($hunting.Count) hunting query(ies). Tactic distribution reveals where the SOC'
 "@
 } else { '' }
 
+$bookmarkRows = @($bookmarks | Where-Object { $_ } | ForEach-Object {
+    $p = _RProp $_ 'properties' $null
+    $created = [string](_RProp $p 'created' '')
+    [pscustomobject]@{
+        Name    = [string](_RProp $p 'displayName' (_RProp $_ 'name' ''))
+        Created = $(if ($created) { try { Format-DateUtc $created } catch { $created } } else { '' })
+        Labels  = (@(_RProp $p 'labels' @()) -join ', ')
+        Notes   = [string](_RProp $p 'notes' '')
+    }
+})
+$bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
+    "Bookmarks saved from hunting and investigation, newest first. Their labels are the analyst's own tags.`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object Created -Descending) -Columns 'Name','Created','Labels','Notes')
+} elseif ($bookmarkCountDoc -and [int](_RendererNumber (_RProp $bookmarkCountDoc 'Count' 0)) -gt 0) {
+    "**$([int](_RendererNumber (_RProp $bookmarkCountDoc 'Count' 0))) bookmarks** exist. The list was too large for the API to return, so only the count was captured."
+} else { '_None._' }
 $huntRows = @($hunts | ForEach-Object {
     $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }
     $owner = ''
@@ -1494,6 +1577,10 @@ $(Format-Table -Items $huntingRows -Columns 'Name','Tags')
 Hunts recorded through the Hunts feature, with their hypothesis status. Bookmarks promoted from a hunt show on the incidents they were attached to. [SAC-HNT-01] fires when there are no hunts and no bookmarks at all.
 
 $(Format-Table -Items $huntRows -Columns 'Name','Status','Hypothesis','Tactics','Owner')
+
+## Bookmarks
+
+$bookmarkBlock
 
 [Hunts in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/hunts)
 "@)
@@ -3391,7 +3478,7 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
             GapToTarget = if ($null -eq $_.score) { 'n/a' } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { [math]::Round($maturity.targetLevel - $_.score, 2) }
         }
     })
-    $roadmapRows = @(@($maturity.roadmap) | Select-Object -First 20 | ForEach-Object {
+    $roadmapRows = @(@($maturity.roadmap) | ForEach-Object {
         [pscustomobject]@{ Priority = $_.priority; Criterion = "$($_.criterionId) $($_.name)"; Area = $_.area; Effort = $_.effort; Lift = $_.overallLift; Projected = $_.projectedScore; Guidance = $_.guidance }
     })
     $quickWinLines = if (@($maturity.quickWins).Count -gt 0) {
@@ -3815,6 +3902,35 @@ $(Format-Table -Items $entraRows -Columns 'Table','Plan','Retention','Gb7d','Sta
 # $incSummary and $incMttr are read at the top of the file (the estate flow
 # on 00 and 01 needs them before this section runs).
 $incByRule  = Read-RawArray 'incidents-by-rule.json'
+# Alert volume by severity and by the product that raised it, from the same
+# SecurityAlert aggregate the dashboard uses (every product, not only
+# Sentinel rules).
+$alertVolumeTotal = [long]0
+foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) { $alertVolumeTotal += [long](_RendererNumber (_RProp $v 'Alerts' 0)) }
+$sevOrder = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
+$sevAgg = [ordered]@{}
+foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) {
+    $s = [string](_RProp $v 'AlertSeverity' '')
+    if (-not $s) { $s = 'Other' }
+    if (-not $sevAgg.Contains($s)) { $sevAgg[$s] = [long]0 }
+    $sevAgg[$s] += [long](_RendererNumber (_RProp $v 'Alerts' 0))
+}
+$alertSeverityRows = @($sevAgg.GetEnumerator() | Sort-Object { if ($sevOrder.ContainsKey([string]$_.Key)) { $sevOrder[[string]$_.Key] } else { 9 } } | ForEach-Object {
+    [pscustomobject]@{ Severity = $_.Key; Alerts = $_.Value; Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Value / $alertVolumeTotal, 1))%" } else { '0%' }) }
+})
+$productLabel = @{ 'Microsoft Defender Advanced Threat Protection' = 'Defender for Endpoint'; 'Azure Sentinel' = 'Microsoft Sentinel' }
+$srcAgg = [ordered]@{}
+foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) {
+    $p = [string](_RProp $v 'ProductName' '')
+    if (-not $p) { $p = 'Other' }
+    if ($productLabel.ContainsKey($p)) { $p = $productLabel[$p] }
+    if (-not $srcAgg.Contains($p)) { $srcAgg[$p] = [pscustomobject]@{ Source = $p; Alerts = [long]0; Rules = 0 } }
+    $srcAgg[$p].Alerts += [long](_RendererNumber (_RProp $v 'Alerts' 0))
+    $srcAgg[$p].Rules++
+}
+$alertSourceRows = @($srcAgg.Values | Sort-Object { -$_.Alerts } | ForEach-Object {
+    [pscustomobject]@{ Source = $_.Source; Alerts = $_.Alerts; Rules = $_.Rules; Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Alerts / $alertVolumeTotal, 1))%" } else { '0%' }) }
+})
 $incDaily   = Read-RawArray 'incidents-daily-metrics.json' | Select-Object -First 1
 
 function Format-MinutesScalar {
@@ -3969,16 +4085,30 @@ journey
 
 Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Workspaces firing [SAC-AUT-01] (no automation) see steeper dips because every step is manual.
 
-## Top alerting rules (last 30d, top 25)
+## Incidents by rule (last 30d)
+
+Every rule title that produced an incident in the last 30 days, busiest first. Alert volume per rule is in [20-analytics-rules.md](20-analytics-rules.md#by-alert-volume-last-30d).
 
 $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
+
+## Alert volume by severity (last 30d)
+
+Alerts raised in the last 30 days grouped by severity, from ``SecurityAlert`` across every product, not only Sentinel rules.
+
+$(Format-Table -Items $alertSeverityRows -Columns 'Severity','Alerts','Share')
+
+## Alerts by detection source (last 30d)
+
+Which security product raised the alert volume. Sentinel analytics rules appear as Microsoft Sentinel; the rest are first-party detections that run inside their product. ``Rules`` is the number of distinct detections per product.
+
+$(Format-Table -Items $alertSourceRows -Columns 'Source','Alerts','Rules','Share')
 $incOutcomeBlock
 
 ## Rule effectiveness (last 30d)
 
 Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SAC-DET-06] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
 
-$(Format-Table -Items ($effectivenessRows | Select-Object -First 15) -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
+$(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
 ## Incident detail by provider / product / first rule (last 7d)
 
@@ -4505,7 +4635,7 @@ $uncoveredTables = @($tablesWithData | Where-Object {
     $_.DataType -and (_RendererNumber $_.BillableLast30d) -gt 0 -and
     -not $enabledTableSet.ContainsKey([string]$_.DataType) -and
     ([string]$_.DataType) -notin $operationalOnlyTables
-} | Sort-Object { _RendererNumber $_.BillableLast30d } -Descending | Select-Object -First 25)
+} | Sort-Object { _RendererNumber $_.BillableLast30d } -Descending)
 $opportunityRows = @($uncoveredTables | ForEach-Object {
     $name = [string]$_.DataType
     $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
@@ -4519,7 +4649,7 @@ $opportunityRows = @($uncoveredTables | ForEach-Object {
 $readyTemplates = @($undeployedTemplates | Where-Object {
     $tbls = @($_.Tables)
     @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
-} | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | Select-Object -First 25 | ForEach-Object {
+} | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | ForEach-Object {
     [pscustomobject]@{ Template = $_.DisplayName; Kind = $_.Kind; Severity = $_.Severity; Tactics = (@($_.Tactics) -join ', '); Tables = (@($_.Tables) -join ', ') }
 })
 $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
@@ -4565,7 +4695,7 @@ $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTempla
 
 ## Undeployed templates ready to enable
 
-Templates that are not deployed, not deprecated, and read at least one table that has data. Highest severity first, top 25.
+Templates that are not deployed, not deprecated, and read at least one table that has data. Highest severity first.
 
 $(Format-Table -Items $readyTemplates -Columns 'Template','Kind','Severity','Tactics','Tables')
 

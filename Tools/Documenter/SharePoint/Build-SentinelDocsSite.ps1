@@ -774,31 +774,11 @@ foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumbe
 # Entra ID Protection, Defender for Identity and Defender for Cloud do not
 # read workspace tables, so the rings cannot count them; the flow shows them
 # beside each family instead. Sentinel's own rules are excluded here.
-$productFamily = @{
-    'Azure Active Directory Identity Protection'   = 'Entra ID / Identity'
-    'Microsoft Entra ID Protection'                 = 'Entra ID / Identity'
-    'Azure Advanced Threat Protection'              = 'Entra ID / Identity'
-    'Microsoft Defender for Identity'               = 'Entra ID / Identity'
-    'Microsoft 365 Defender'                        = 'Defender XDR'
-    'Microsoft Defender XDR'                        = 'Defender XDR'
-    'Microsoft Defender Advanced Threat Protection' = 'Defender XDR'
-    'Microsoft Defender for Endpoint'               = 'Defender XDR'
-    'Office 365 Advanced Threat Protection'         = 'Defender XDR'
-    'Microsoft Defender for Office 365'             = 'Defender XDR'
-    'Microsoft Cloud App Security'                  = 'Defender XDR'
-    'Microsoft Defender for Cloud Apps'             = 'Defender XDR'
-    'Microsoft Data Loss Prevention'                = 'Defender XDR'
-    'Microsoft Application Protection'              = 'Defender XDR'
-    'Azure Security Center'                         = 'Azure / Syslog'
-    'Microsoft Defender for Cloud'                  = 'Azure / Syslog'
-    'Azure Security Center for IoT'                 = 'Azure / Syslog'
-    'Microsoft Defender for IoT'                    = 'Azure / Syslog'
-}
 $productAgg = [ordered]@{}
 foreach ($v in @($volumes | Where-Object { $_ })) {
     $prod = [string]$(if ($v.PSObject.Properties['ProductName']) { $v.ProductName } else { '' })
     if (-not $prod -or $prod -match 'Sentinel') { continue }
-    $famName = if ($productFamily.ContainsKey($prod)) { $productFamily[$prod] } else { 'Other' }
+    $famName = Get-ProductFamily -Product $prod
     $key = "$famName|$prod"
     if (-not $productAgg.Contains($key)) { $productAgg[$key] = [ordered]@{ family = $famName; product = $prod; alerts = [long]0; detections = 0 } }
     $productAgg[$key].alerts += [long](ConvertTo-BuildNumber $v.Alerts); $productAgg[$key].detections++

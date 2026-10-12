@@ -229,6 +229,38 @@ block and read back by the section-01 headline.
 - **`$usageTrendBlock`**, the daily-ingestion xychart, built at the top and
   pasted into section 80.
 
+## Dashboard parity
+
+The Markdown pack carries everything the SharePoint dashboard shows, so the
+Word report and the docs pull request stand on their own. Where the
+dashboard folds a list behind "Show all", the Markdown table is complete:
+the renderer never cuts a table to a top N (charts may, because a Mermaid
+pie or bar with fifty slices is unreadable; the table under it holds the
+rest). The panels and the Markdown that carries them:
+
+| Dashboard panel | Markdown |
+| --- | --- |
+| Estate flow, rings, per-family detail, first-party alerts, custom detections | 00 and 01 `## Estate flow` (sankey, rings table, `### Source families`) |
+| Alert volume by severity, alerts by detection source, top alerting rules | 15 `## Alert volume by severity`, `## Alerts by detection source`, `## Incidents by rule`; 20 `## By alert volume` |
+| Rule effectiveness, incident outcomes | 15 `## Rule effectiveness`, `## Incident lifecycle` |
+| Detection opportunities | 28 (every uncovered table, every ready template) |
+| Playbook health | 60 `## Playbook runs (last 7d)` |
+| Operational health event mix | 11 `## Operations summary` |
+| Daily ingestion, ingestion by plan, Defender free benefit, top tables | 80 `### Daily ingestion`, 81 `## Summary by plan`, 84 |
+| Sentinel data lake | 88 |
+| Hunts, bookmarks | 30 `## Hunts`, `## Bookmarks` (the count alone when the list was too large to capture) |
+| Maturity areas, roadmap, quick wins, criteria, CSF rollup | 91 (the whole roadmap, not the first twenty) |
+| Findings by severity and category, finding cards | 90 |
+
+The one dashboard panel without a Markdown twin is "What's new in Microsoft
+security": it is an external news feed fetched at site-build time, not
+workspace state, and would date a Word report the day it was printed.
+
+Both the renderer and the site build map tables and first-party alert
+products to source families through `Private/Get-TableFamily.ps1`
+(`Get-TableFamily`, `Get-ProductFamily`), so the Markdown and the dashboard
+never disagree on which family a table or an alert belongs to.
+
 ## Conventions and gotchas (Mermaid safety)
 
 Codified in inline comments throughout the renderer. New chart emission

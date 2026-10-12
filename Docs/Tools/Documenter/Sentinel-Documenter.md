@@ -121,13 +121,13 @@ SecurityDocs/
     ├── 12-soc-optimization.md         SOC Optimization recommendations
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events, Syslog and SecurityEvent contributors
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source, Entra ID table presence
-    ├── 15-incidents.md                incident MTTA/MTTR + top alerting rules
+    ├── 15-incidents.md                incident MTTA/MTTR, incidents by rule, alert volume by severity and source
     ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures, Defender XDR custom detections
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration
     ├── 27-threat-intelligence.md      indicator counts by source, indicators by type
     ├── 28-detection-opportunities.md  tables with data but no detection, templates ready to enable
-    ├── 30-hunting-queries.md
+    ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
     ├── 35-parsers-functions.md
     ├── 36-data-export.md              data export configuration
     ├── 37-search-restore.md           search jobs / restore logs

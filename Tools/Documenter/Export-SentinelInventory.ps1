@@ -73,7 +73,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.3.0
+    Version:        0.3.1
     Last Updated:   2026-10-12
     Component:      Sentinel Documenter
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -1079,7 +1079,7 @@ SecurityIncident
 | mv-expand AlertIds
 | summarize Incidents = dcount(IncidentNumber) by Title
 | order by Incidents desc
-| take 25
+| take 500
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1311,7 +1311,7 @@ SecurityAlert
 | where TimeGenerated > ago(30d)
 | summarize Alerts = count() by AlertName, ProductName, AlertSeverity
 | order by Alerts desc
-| take 50
+| take 500
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
