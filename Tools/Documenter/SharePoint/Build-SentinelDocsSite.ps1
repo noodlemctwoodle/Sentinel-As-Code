@@ -728,6 +728,13 @@ foreach ($r in $ruleRefs) {
 }
 $famAgg2 = [ordered]@{}
 $tablesActive = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
+# Enabled rules per table, so the estate flow can list what reads each one.
+$rulesPerTableBuild = @{}
+foreach ($r in $ruleRefs) {
+    if (-not $r -or $r.Enabled -ne $true) { continue }
+    foreach ($t in @($r.Tables)) { if ($t) { $k = [string]$t; if (-not $rulesPerTableBuild.ContainsKey($k)) { $rulesPerTableBuild[$k] = 0 }; $rulesPerTableBuild[$k]++ } }
+}
+$estateTableRows = @()
 foreach ($t in $tablesData) {
     if (-not $t -or -not $t.DataType) { continue }
     $gb = ConvertTo-BuildNumber $t.BillableLast30d
@@ -736,7 +743,15 @@ foreach ($t in $tablesData) {
     $fam = Get-TableFamily $t.DataType
     if (-not $famAgg2.Contains($fam)) { $famAgg2[$fam] = [ordered]@{ category = $fam; tables = 0; gb = 0.0; coveredGb = 0.0; covered = 0 } }
     $famAgg2[$fam].tables++; $famAgg2[$fam].gb += $gb
-    if ($referencedTables.ContainsKey([string]$t.DataType)) { $tablesCovered++; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
+    $isCovered = $referencedTables.ContainsKey([string]$t.DataType)
+    if ($isCovered) { $tablesCovered++; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
+    $estateTableRows += [ordered]@{
+        table   = [string]$t.DataType
+        family  = $fam
+        gb      = [math]::Round($gb, 2)
+        rules   = $(if ($rulesPerTableBuild.ContainsKey([string]$t.DataType)) { $rulesPerTableBuild[[string]$t.DataType] } else { 0 })
+        covered = $isCovered
+    }
 }
 $sortedFams = @($famAgg2.Values | Sort-Object { $_.gb } -Descending)
 $estateSources = @()
@@ -752,6 +767,7 @@ $rulesFiredCount = @($firedRows | Where-Object { $_ }).Count
 $estate = [ordered]@{
     window          = '30d'
     sources         = $estateSources
+    tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
     totalGb         = [math]::Round($estateTotalGb, 2)
     coveredGb       = [math]::Round($estateCoveredGb, 2)
     uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)

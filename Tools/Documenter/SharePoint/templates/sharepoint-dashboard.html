@@ -403,7 +403,7 @@
     text-transform:uppercase;letter-spacing:.04em;z-index:1;box-shadow:0 1px 0 var(--line)}
   table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
   table.doct tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
-  table.doct td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.doct td.num,table.doct th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
   .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
   .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
@@ -467,6 +467,19 @@
     justify-content:center}
   .legend span{display:inline-flex;align-items:center}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:6px}
+  .legend i.dash{width:18px;height:0;border-radius:0;border-top:3px dashed var(--red);background:none;vertical-align:middle}
+  /* Estate flow interaction: hover a family to spotlight its strands,
+     click a family, the pool, a ring or an incidents box. */
+  svg.estate .es-src,svg.estate .es-pool,svg.estate [data-ring],svg.estate [data-inc]{cursor:pointer}
+  svg.estate.es-dim .es-strand{opacity:.16;transition:opacity .15s}
+  svg.estate.es-dim .es-strand.es-hot{opacity:1}
+  svg.estate.es-dim .es-src{opacity:.45}
+  svg.estate.es-dim .es-src.es-hot{opacity:1}
+  .esdetail{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:14px 16px}
+  .esdetail .esd-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+  .esdetail .esd-head h3{margin:0;font-size:15px;font-weight:800}
+  .esdetail .esd-head .note{margin:0}
+  .esdetail .esd-head a{margin-left:auto;cursor:pointer;font-weight:700;font-size:12.5px}
   /* Panels inside a grid row keep no stacked-block margin, or the row
      would carry twice the spacing of its neighbours. */
   .flowgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin:var(--gap) 0}
@@ -610,10 +623,11 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
-        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Strand width = GB; red strands are ingested and billed but read by no enabled analytics rule.</p>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Strand width = GB; dashed strands are ingested and billed but read by no enabled analytics rule.</p>
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
+      <div id="estateDetail" class="hidden"></div>
     </div>
 
     <div class="flowgrid">
@@ -945,20 +959,25 @@
     const gap=Math.min(44,(H-90)/Math.max(sources.length,1));
     const top=cy-(sources.length-1)*gap/2;
     mk('text',{x:srcX-22,y:cy-r-14-Math.max(0,(sources.length-1)*gap/2-r),'text-anchor':'end','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},'SOURCE FAMILY (GB / 30D)');
+    const tip=(el,text)=>{ const t=document.createElementNS(ns,'title'); t.textContent=text; el.appendChild(t); return el; };
     sources.forEach((s,i)=>{
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
       const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
-      if(cov>0) mk('path',{d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'});
-      if(unc>0) mk('path',{d:'M'+srcX+','+y+' C'+(srcX+90)+','+y+' '+(poolLeft-120)+','+poolY+' '+poolLeft+','+poolY,fill:'none',stroke:'#dc2626','stroke-opacity':'.26','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'round'});
-      mk('rect',{x:srcX-14,y:y-7,width:10,height:14,rx:3,fill:col});
-      mk('text',{x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},trunc(s.category));
-      mk('text',{x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read');
+      const tipText=s.category+': '+fmtN(s.gb)+' GB in 30 days, '+s.covered+' of '+s.tables+' tables read by an enabled rule'+(unc>0?', '+fmtN(unc)+' GB not monitored':'')+'. Click for the tables.';
+      // Covered strands are solid in the family colour; unmonitored strands
+      // keep the family colour but run dashed into the pool.
+      if(cov>0) tip(mk('path',{class:'es-strand','data-fam':s.category,d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'}),tipText);
+      if(unc>0) tip(mk('path',{class:'es-strand es-unc','data-fam':s.category,d:'M'+srcX+','+y+' C'+(srcX+90)+','+y+' '+(poolLeft-120)+','+poolY+' '+poolLeft+','+poolY,fill:'none',stroke:col,'stroke-opacity':'.34','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'butt','stroke-dasharray':'12 7'}),tipText);
+      tip(mk('rect',{class:'es-src','data-fam':s.category,x:srcX-14,y:y-7,width:10,height:14,rx:3,fill:col}),tipText);
+      tip(mk('text',{class:'es-src','data-fam':s.category,x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},trunc(s.category)),tipText);
+      tip(mk('text',{class:'es-src','data-fam':s.category,x:srcX-22,y:y+17,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(s.gb)+' GB · '+s.covered+' of '+s.tables+' tables read'),tipText);
     });
     if(E.uncoveredGb>0){
+      const poolTip='Tables ingested and billed but read by no enabled analytics rule. Click for the list.';
       mk('rect',{x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,style:'fill:var(--panel)'});
-      mk('rect',{x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.55'});
-      mk('text',{x:poolCx,y:poolY-3,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},poolTitle);
-      mk('text',{x:poolCx,y:poolY+11,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},poolText);
+      tip(mk('rect',{class:'es-pool',x:poolLeft,y:poolY-19,width:poolW,height:38,rx:10,fill:'#dc2626','fill-opacity':'.12',stroke:'#dc2626','stroke-opacity':'.55'}),poolTip);
+      tip(mk('text',{class:'es-pool',x:poolCx,y:poolY-3,'text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#dc2626'},poolTitle),poolTip);
+      tip(mk('text',{class:'es-pool',x:poolCx,y:poolY+11,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},poolText),poolTip);
     }
     const bandW=Math.max(3,strand(+E.coveredGb||0));
     for(let i=0;i<rings.length-1;i++){
@@ -968,10 +987,11 @@
     rings.forEach(rg=>{
       const d=(E.rings&&E.rings[rg.k])||{value:0,max:0,pct:null};
       const frac=d.pct==null?0:Math.max(0,Math.min(1,d.pct/100));
-      mk('circle',{cx:rg.x,cy:cy,r:r,'stroke-width':'8',style:'fill:var(--panel);stroke:var(--ring-track)'});
-      mk('circle',{cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'8','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
-        transform:'rotate(-90 '+rg.x+' '+cy+')',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))});
-      mk('text',{x:rg.x,y:cy+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%');
+      const ringTip=rg.label+': '+(d.pct==null?'not measured':d.pct+'%')+' ('+d.value+' of '+d.max+'). '+(d.label||'')+(opts.ringPage&&opts.ringPage(rg.k)!=null?' Click to open the page.':'');
+      tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:cy,r:r,'stroke-width':'8',style:'fill:var(--panel);stroke:var(--ring-track)'}),ringTip);
+      tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'8','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
+        transform:'rotate(-90 '+rg.x+' '+cy+')',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))}),ringTip);
+      tip(mk('text',{'data-ring':rg.k,x:rg.x,y:cy+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%'),ringTip);
       mk('text',{x:rg.x,y:cy-r-14,'text-anchor':'middle','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},rg.label.toUpperCase());
       mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
       mkLines(rg.x,cy+r+35,wrapLines(d.label||'',24),{'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},12);
@@ -981,13 +1001,48 @@
     boxes.forEach(b=>{
       const share=(+E.incidents||0)>0? b.v/(+E.incidents): .5;
       mk('path',{d:curve(last.x+r,cy,1090,b.y),fill:'none',stroke:b.col,'stroke-opacity':'.35','stroke-width':Math.max(3,bandW*share).toFixed(1)});
-      mk('rect',{x:1090,y:b.y-16,width:96,height:32,rx:9,fill:b.col,'fill-opacity':'.12',stroke:b.col,'stroke-opacity':'.5'});
-      mk('text',{x:1138,y:b.y+4,'text-anchor':'middle','font-size':'12','font-weight':'800',fill:b.col},b.l+' '+b.v);
+      tip(mk('rect',{'data-inc':b.l,x:1090,y:b.y-16,width:96,height:32,rx:9,fill:b.col,'fill-opacity':'.12',stroke:b.col,'stroke-opacity':'.5'}),b.l+' incidents in the last 30 days. Click to open the incidents page.');
+      tip(mk('text',{'data-inc':b.l,x:1138,y:b.y+4,'text-anchor':'middle','font-size':'12','font-weight':'800',fill:b.col},b.l+' '+b.v),b.l+' incidents in the last 30 days. Click to open the incidents page.');
     });
+    // Interaction: spotlight a family on hover; click through on everything.
+    const spot=fam=>{ svgEl.classList.toggle('es-dim',!!fam); svgEl.querySelectorAll('.es-strand,.es-src').forEach(el=>el.classList.toggle('es-hot',!!fam&&el.getAttribute('data-fam')===fam)); };
+    svgEl.querySelectorAll('[data-fam]').forEach(el=>{
+      el.addEventListener('mouseenter',()=>spot(el.getAttribute('data-fam')));
+      el.addEventListener('mouseleave',()=>spot(null));
+      el.addEventListener('click',()=>{ if(opts.onFamily) opts.onFamily(el.getAttribute('data-fam')); });
+    });
+    svgEl.querySelectorAll('.es-pool').forEach(el=>el.addEventListener('click',()=>{ if(opts.onPool) opts.onPool(); }));
+    svgEl.querySelectorAll('[data-ring]').forEach(el=>el.addEventListener('click',()=>{ if(opts.onRing) opts.onRing(el.getAttribute('data-ring')); }));
+    svgEl.querySelectorAll('[data-inc]').forEach(el=>el.addEventListener('click',()=>{ if(opts.onIncidents) opts.onIncidents(el.getAttribute('data-inc')); }));
   }
-  drawEstateFlow(document.getElementById('estateFlow'), E, {});
+  // Detail panel under the flow: the tables behind a family or the pool.
+  function showEstateDetail(sel){
+    const el=document.getElementById('estateDetail'); if(!el||!E) return;
+    const all=E.tables||[];
+    const rows=sel.family? all.filter(t=>t.family===sel.family) : all.filter(t=>!t.covered);
+    const gb=rows.reduce((a,t)=>a+(+t.gb||0),0), covered=rows.filter(t=>t.covered).length;
+    const title=sel.family? sel.family : 'Not monitored';
+    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in 30 days, '+covered+' read by an enabled rule')
+                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in 30 days that no enabled rule reads');
+    const opNum=findSecNum(/detection opportunities/i,null);
+    const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td>'+(t.covered?'<span class="st Met">Monitored</span>':'<span class="st Gap">Not monitored</span>')+'</td></tr>');
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+
+      (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Rules reading it</th><th>Status</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
+    el.classList.remove('hidden');
+    el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
+    el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+  const ringPage=k=>({ingestion:findSecNum(/table plans/i,null),detection:findSecNum(/detection opportunities/i,null),alerts:findSecNum(/^analytics rules/i,null),incidents:findSecNum(/^incidents/i,null)})[k];
+  drawEstateFlow(document.getElementById('estateFlow'), E, {
+    ringPage,
+    onFamily:f=>showEstateDetail({family:f}),
+    onPool:()=>showEstateDetail({uncovered:true}),
+    onRing:k=>{ const n=ringPage(k); if(n!=null) jumpTo(n); },
+    onIncidents:()=>{ const n=findSecNum(/^incidents/i,null); if(n!=null) jumpTo(n); }
+  });
   document.getElementById('estateLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
-    '<span><i style="background:#dc2626;opacity:.5"></i>Not monitored</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
+    '<span><i class="dash"></i>Not monitored (dashed, family colour)</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
     '<span><i style="background:var(--brand)"></i>Fair (65%+)</span><span><i style="background:var(--amber)"></i>Weak</span>';
 
   // ---- maturity card + quick wins ----
@@ -1715,11 +1770,15 @@
     function tableHtml(b, idx){
       const many = b.rows.length>12;
       const wrapCols = b.headers.map(h=>/name|title|datatypes|role|remediation|evidence|finding|description|principal|resource|query|source|identifier|statuses|surface|appliesto|capability|meter|tags/i.test(h));
-      const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+'">'+h+'</th>').join('')+'</tr></thead>';
+      // A column is numeric when every non-empty cell is a number; its header
+      // and cells then right-align together so the figures sit under the title.
+      const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
+      const numCols = b.headers.map((h,ci)=> !wrapCols[ci] && b.rows.some(r=>plain(r[ci])!=='') && b.rows.every(r=>plain(r[ci])===''||isNum(plain(r[ci]))));
+      const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'">'+h+'</th>').join('')+'</tr></thead>';
       const body=b.rows.map(r=>'<tr>'+r.map((c,ci)=>{
-          const num = isNum(c) && !wrapCols[ci];
+          const num = numCols[ci];
           const cell = formatCell(c);
-          const wrap = wrapCols[ci] || cell.replace(/<[^>]+>/g,'').length>40;   // long cells wrap rather than overflow
+          const wrap = wrapCols[ci] || (!num && cell.replace(/<[^>]+>/g,'').length>40);   // long cells wrap rather than overflow
           return '<td class="'+(wrap?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
         }).join('')+'</tr>').join('');
       const tid='dt'+idx;

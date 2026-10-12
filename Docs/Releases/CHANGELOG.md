@@ -114,6 +114,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   | SENT-058 | SAC-HNT-01 |
   | SENT-059 | SAC-DET-14 |
 
+- **Interactive estate flow** - hover a source family to spotlight its
+  strands; click a family or the "Not monitored" pool for the tables behind
+  it (GB, rules reading each, monitored or not); click a ring to open its
+  page and the Closed or Open box to open the incidents page. Unmonitored
+  strands keep their family colour and run dashed into the pool, so the
+  legend reads by family at both ends. Report tables right-align the header
+  of every numeric column with its figures.
 - **Findings and criteria as cards** - the Findings tab, the Overview
   findings and the maturity criteria share one card layout: a rail with
   the id and its severity or status pill, a main column with the title,

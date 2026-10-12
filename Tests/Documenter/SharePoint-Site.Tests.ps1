@@ -505,6 +505,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.estate.rings.incidents.pct | Should -Be 80
         @($model.estate.sources).Count | Should -BeGreaterThan 0
         $model.estate.uncoveredGb | Should -BeGreaterThan 0
+        # every table receiving data travels with the model so the flow can list them on click
+        @($model.estate.tables).Count | Should -BeGreaterThan 0
+        ($model.estate.tables | Where-Object table -eq 'SigninLogs').covered | Should -BeTrue
+        ($model.estate.tables | Where-Object table -eq 'SigninLogs').rules | Should -BeGreaterThan 0
+        ($model.estate.tables | Where-Object table -eq 'FirewallLogs_CL').covered | Should -BeFalse
+        $html | Should -Match 'function showEstateDetail'
         @($model.maturity.areas).Count | Should -Be 11
         $model.maturity.overall.score | Should -Be 1.49
         @($model.maturity.criteria).Count | Should -Be 60

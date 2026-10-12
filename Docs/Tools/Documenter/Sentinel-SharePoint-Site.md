@@ -77,6 +77,15 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Documenter computes:
 
+The estate flow is interactive: hovering a source family spotlights its
+strands, clicking a family or the "Not monitored" pool opens a table of the
+tables behind it (GB, rules reading each, monitored or not, with "Show all"),
+clicking a ring opens the matching page (table plans, detection
+opportunities, analytics rules, incidents) and the Closed and Open boxes open
+the incidents page. Unmonitored strands keep their family colour and run
+dashed into the pool. The model's `estate.tables` carries every table
+receiving data with its family, GB, rule count and coverage.
+
 Findings (on their tab and on the Overview) and the maturity criteria use
 one card layout: a rail with the id and its pill, the title with category,
 area and retired-id chips, and full-width Evidence and Remediation (or
