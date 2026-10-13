@@ -1,0 +1,787 @@
+# ---------------------------------------------------------------------------
+# Azure DevOps Pipeline: Sentinel Blueprint (manual)
+# ---------------------------------------------------------------------------
+# Read-only inventory, gap analysis and maturity assessment of a Microsoft
+# Sentinel workspace, with the three documentation outputs as tick boxes at
+# queue time:
+#
+#   Markdown pack    the SecurityDocs/<workspace>/ tree. Always published as
+#                    the 'sentinel-docs' artefact; optionally pushed to a
+#                    rolling branch and opened as a review-only PR.
+#   Word report      the same Markdown rendered to one page-numbered .docx
+#                    (the 'sentinel-word-report' artefact).
+#   SharePoint site  the iSOC Blueprint site (dashboard home page, a page per
+#                    section, findings list) built from this run's artefact
+#                    and published to the workspace's site (also kept as the
+#                    'sharepoint-site' artefact).
+#
+# Stages:
+#   Document     collect -> render -> Mermaid to PNG -> artefact -> docs PR
+#   WordReport   only when 'publishWordReport' is ticked
+#   SharePoint   only when 'publishSharePointSite' is ticked
+#
+# The two publish stages depend on Document, run in parallel with each other
+# and read the 'sentinel-docs' artefact this run produced, so a failed publish
+# never costs a collection: rerun the failed stage from the run page and it
+# publishes the same snapshot again. Each stage signs in with its own
+# identity: Document reads Azure through $(serviceConnection); SharePoint
+# writes one site through $(sharePointServiceConnection) and holds no Azure
+# role; WordReport signs in nowhere.
+#
+# Prerequisites:
+#   - Variable group 'sentinel-deployment' (shared with the deploy + drift
+#     pipelines) supplying:
+#       azureSubscriptionId
+#       sentinelResourceGroup
+#       sentinelWorkspaceName
+#       sentinelRegion
+#       sharePointSiteUrl        (SharePoint stage only)
+#   - Azure Service Connection $(serviceConnection) with the read-only role
+#     set documented in Docs/Tools/Blueprint/Sentinel-Blueprint.md:
+#       - Microsoft Sentinel Reader   (workspace scope)
+#       - Log Analytics Reader        (workspace scope)
+#       - Reader                      (resource group scope)
+#       - Monitoring Reader           (subscription scope)
+#       - Reader                      (subscription scope)
+#     The Azure Retail Prices API is anonymous: no extra grant. The Defender
+#     XDR custom-detection capture needs the Microsoft Graph application
+#     permission CustomDetection.Read.All on the same identity; without it
+#     that one capture is recorded as not taken and the run still succeeds.
+#   - SharePoint stage only: the site prepared once by
+#     Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1, and an
+#     Azure Resource Manager service connection $(sharePointServiceConnection)
+#     (workload identity federation, manual) for the publisher app
+#     registration that holds the SharePoint application permission
+#     Sites.Selected with FullControl on this one site. Create it at
+#     management-group scope (or give the app Reader on one empty resource
+#     group): the AzureCLI task selects a subscription after login, which
+#     fails for an identity that can see none. See
+#     Docs/Pipelines/SharePoint-Publish.md.
+#
+# Manual run:
+#   Pipelines -> Sentinel-Blueprint -> Run pipeline. Tick the outputs you
+#   want; the SharePoint site and the Markdown pull request are ticked by
+#   default. 'Collector: include preview APIs' (on by default) adds Content
+#   Hub product packages, summary rules, pricings and the Sentinel Data Lake
+#   feature flag. Untick 'Export: SharePoint site' for a workspace that has
+#   no site or no sc-sentinel-sharepoint connection.
+#
+# Output review:
+#   1. Build summary -> Related -> Published artefacts: 'sentinel-docs'
+#      (every run), 'sentinel-word-report' and 'sharepoint-site' (when
+#      their stage ran).
+#   2. (Markdown pack, default ON) An ADO PR is opened/refreshed against
+#      $(targetBranch) showing the rendered docs in-line. The PR is intended
+#      for review only; merging it would commit tenant configuration to
+#      $(targetBranch) which the gitignore is meant to prevent. Treat the PR
+#      as a viewer, not a merge candidate.
+#
+# Why the PR is safe in ADO and would not be safe in GitHub:
+#   This repository's source-of-truth is a public GitHub repo, but pipeline
+#   testing happens in a private ADO mirror. The ADO checkout step sets the
+#   pipeline's 'origin' remote to the ADO repo, NOT to GitHub. A push from
+#   this pipeline therefore lands in the private ADO repo only, and the
+#   committed SecurityDocs/ tree never reaches the public GitHub copy. The
+#   .gitignore stays in place so a developer on a workstation cannot add
+#   SecurityDocs/ via a normal `git add`; the commit step here uses
+#   `git add -f` to force-add, which only the pipeline does.
+# ---------------------------------------------------------------------------
+
+trigger: none
+pr: none
+lockBehavior: sequential
+
+parameters:
+  # The run panel lists parameters in this order and has no headings, so each
+  # label starts with its group and stays short enough for one line. The tick
+  # boxes come first (what to publish, then how), the two inputs last.
+
+  # ---- Exports: any combination, one to many ----
+  # Each export is its own stage and they share nothing but the collected
+  # snapshot, so any mix can be ticked; with none ticked the run still
+  # collects, renders and keeps the 'sentinel-docs' artefact. The Markdown
+  # is always rendered because the other two are built from it: the
+  # Markdown export is the review pull request in this repo, where ADO
+  # Repos renders the pack.
+  - name: publishSharePointSite
+    displayName: "Export: SharePoint site (the iSOC Blueprint site)"
+    type: boolean
+    default: true
+
+  - name: openPullRequest
+    displayName: "Export: Markdown (docs pull request in this repo)"
+    type: boolean
+    default: true
+
+  - name: publishWordReport
+    displayName: "Export: Word report (page-numbered .docx)"
+    type: boolean
+    default: false
+
+  # ---- SharePoint export options ----
+  - name: sharePointWhatIf
+    displayName: "SharePoint: what-if (print the plan, change nothing)"
+    type: boolean
+    default: false
+
+  - name: deployAppPackage
+    displayName: "SharePoint: deploy the web part if it changed"
+    type: boolean
+    default: true
+
+  # ---- Collector and renderer options ----
+  # Mermaid fences do not render in ADO Repos preview or in pandoc, so the
+  # Markdown and Word exports both need the PNGs; the SharePoint section
+  # pages use them when present. GitHub renders Mermaid natively and its
+  # workflow has no equivalent.
+  - name: prerenderChartsToPng
+    displayName: "Charts: Mermaid to PNG (Markdown and Word need it)"
+    type: boolean
+    default: true
+
+  # Content Hub product packages, summary rules, pricings and the Sentinel
+  # Data Lake feature flag.
+  - name: includePreview
+    displayName: "Collector: include preview APIs"
+    type: boolean
+    default: true
+
+  # Optional override. Sentinel-As-Code's convention is that Logic App
+  # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
+  # from the Sentinel RG. Left blank, the collector step uses
+  # $(sentinelResourceGroup) from the variable group. The default is a
+  # single space, not "": the run panel treats an empty default as no
+  # default, marks the field Required and disables Next. The collector
+  # step trims it.
+  - name: playbookResourceGroup
+    displayName: "Collector: playbook resource group (blank = Sentinel RG)"
+    type: string
+    default: " "
+
+  # The level the maturity assessment measures the workspace against
+  # (Docs/Tools/Blueprint/Sentinel-Maturity-Model.md): 1 Initial,
+  # 2 Developing, 3 Established, 4 Measured, 5 Optimised.
+  - name: targetMaturityLevel
+    displayName: "Maturity: target level (3 = Established)"
+    type: number
+    default: 3
+    values: [1, 2, 3, 4, 5]
+
+variables:
+  - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion, sharePointSiteUrl
+  - name: serviceConnection
+    value: "sc-sentinel-as-code"
+  - name: SuppressAzurePowerShellBreakingChangeWarnings
+    value: "true"
+
+  # Pinned module versions. Keep in sync with Tools/Blueprint/Blueprint.psd1
+  # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
+  # with the Blueprint pipeline on what 'works'.
+  - name: pesterVersion
+    value: "5.7.1"
+  - name: yamlVersion
+    value: "0.4.12"
+
+  # Map preview switch to a flag string at compile time. Mirrors the pattern in
+  # Sentinel-Drift-Detect.yml.
+  - name: flagIncludePreview
+    ${{ if eq(parameters.includePreview, true) }}:
+      value: "-IncludePreview"
+    ${{ else }}:
+      value: ""
+
+  # Rolling docs branch + PR target: bot-managed, never hand-edited. The
+  # branch is per-workspace so multi-workspace runs don't collide on the same
+  # ref. Keep these as variables (not parameters) so the run-pipeline panel
+  # stays minimal.
+  - name: docsBranch
+    value: "auto/sentinel-docs/$(sentinelWorkspaceName)"
+  - name: targetBranch
+    value: "main"
+
+  # Where the publish stages find this run's 'sentinel-docs' artefact after
+  # 'download: current'.
+  - name: docsRoot
+    value: "$(Pipeline.Workspace)/sentinel-docs"
+
+  # Word report stage: pandoc release to install (LibreOffice comes from apt).
+  - name: pandocVersion
+    value: "3.10"
+
+  # SharePoint stage.
+  - name: sharePointServiceConnection
+    value: "sc-sentinel-sharepoint"
+  - name: pnpVersion
+    value: "3.4.1"
+  - name: nodeVersion
+    value: "22.x"
+  - name: npm_config_cache
+    value: "$(Pipeline.Workspace)/.npm"
+  - name: webPartDir
+    value: "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/webpart/isoc-blueprint"
+  - name: flagWhatIf
+    ${{ if eq(parameters.sharePointWhatIf, true) }}:
+      value: "-WhatIf"
+    ${{ else }}:
+      value: ""
+
+stages:
+  - stage: Document
+    displayName: "Inventory and Render"
+    jobs:
+      - job: Run
+        displayName: "Collect → Render → Publish"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          # persistCredentials exposes System.AccessToken to the git CLI so the
+          # 'Push docs branch' step below can push back to the ADO repo using
+          # the Build Service identity. Required for the rolling docs branch +
+          # PR pattern (mirrors Sentinel-Drift-Detect.yml).
+          - checkout: self
+            persistCredentials: true
+
+          - task: PowerShell@2
+            displayName: "Install pinned PowerShell modules"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing pinned modules"
+
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
+
+          - task: AzurePowerShell@5
+            displayName: "Run collector - Export-SentinelInventory.ps1"
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: LatestVersion
+              pwsh: true
+              errorActionPreference: "Stop"
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+
+                $params = @{
+                    SubscriptionId = "$(azureSubscriptionId)"
+                    ResourceGroup  = "$(sentinelResourceGroup)"
+                    WorkspaceName  = "$(sentinelWorkspaceName)"
+                }
+                if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
+
+                # Blank (the panel's default is a single space) means the Sentinel RG.
+                $playbookRg = "${{ parameters.playbookResourceGroup }}".Trim()
+                if (-not $playbookRg) { $playbookRg = "$(sentinelResourceGroup)" }
+                $params['PlaybookResourceGroup'] = $playbookRg
+                $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
+
+                Write-Host "##[section]Sentinel Blueprint - Collector"
+                Write-Host "============================================================"
+                Write-Host "  Subscription : $(azureSubscriptionId)"
+                Write-Host "  Resource Grp : $(sentinelResourceGroup)"
+                Write-Host "  Workspace    : $(sentinelWorkspaceName)"
+                Write-Host "  Playbook RG  : $playbookRg"
+                Write-Host "  Preview API  : $(flagIncludePreview)"
+                Write-Host "  Target level : $($params['TargetMaturityLevel'])"
+                Write-Host "============================================================"
+
+                & "$(Build.SourcesDirectory)/Tools/Blueprint/Export-SentinelInventory.ps1" @params
+
+          - task: PowerShell@2
+            displayName: "Run renderer - Convert-SentinelInventoryToMarkdown.ps1"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                Write-Host "##[section]Sentinel Blueprint - Renderer"
+                & "$(Build.SourcesDirectory)/Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1" `
+                    -WorkspaceName "$(sentinelWorkspaceName)"
+
+          # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
+          # "publish code as wiki" treat ```mermaid``` as plain code, and ADO
+          # blocks inline SVG for security (an SVG <img> shows as a broken
+          # image). PNG renders on every ADO markdown surface. This is an
+          # ADO-only workaround - GitHub renders Mermaid fences natively, so
+          # its workflow ships the raw fences and skips this step. Gated on the
+          # prerenderChartsToPng parameter so it can be turned off per-run.
+          - ${{ if eq(parameters.prerenderChartsToPng, true) }}:
+            - task: UseNode@1
+              displayName: "Install Node 20 (for mmdc)"
+              inputs:
+                version: "20.x"
+
+            - task: PowerShell@2
+              displayName: "Install @mermaid-js/mermaid-cli"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  Write-Host "##[section]Installing mermaid-cli (mmdc)"
+                  # v11+ sizes the SVG viewBox to the full content bounds
+                  # (incl. titles/labels that overflow the chart area). v10
+                  # clipped overflow at the left edge, cutting wide titles.
+                  npm install -g '@mermaid-js/mermaid-cli@11'
+                  mmdc --version
+
+            - task: PowerShell@2
+              displayName: "Pre-render Mermaid → PNG"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+
+                  Write-Host "##[section]Sentinel Blueprint - Mermaid pre-render (PNG)"
+                  & "$(Build.SourcesDirectory)/Tools/Blueprint/Convert-MermaidToImage.ps1" `
+                      -Root "$(Build.SourcesDirectory)/SecurityDocs" `
+                      -Format png
+
+          - task: PowerShell@2
+            displayName: "Stage SecurityDocs/ for artefact publish"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+
+                $src = Join-Path "$(Build.SourcesDirectory)" 'SecurityDocs'
+                $dst = Join-Path "$(Build.ArtifactStagingDirectory)" 'sentinel-docs'
+
+                if (-not (Test-Path $src)) {
+                    Write-Error "SecurityDocs/ was not produced. The collector or renderer failed silently - check the previous task logs."
+                    exit 1
+                }
+
+                # Mirror the workspace tree into the artefact staging directory.
+                # Keep the workspace folder so multiple runs against different
+                # workspaces stay separated when downloaded together.
+                New-Item -ItemType Directory -Path $dst -Force | Out-Null
+                Copy-Item -Path "$src/*" -Destination $dst -Recurse -Force
+
+                $rawCount = (Get-ChildItem -Path $dst -Recurse -Filter '*.json' | Measure-Object).Count
+                $mdCount  = (Get-ChildItem -Path $dst -Recurse -Filter '*.md'   | Measure-Object).Count
+                Write-Host "##[section]Artefact staged"
+                Write-Host "  Raw JSON files : $rawCount"
+                Write-Host "  Markdown files : $mdCount"
+                Write-Host "  Path           : $dst"
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish 'sentinel-docs' artefact"
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/sentinel-docs"
+              artifact: "sentinel-docs"
+              publishLocation: "pipeline"
+
+          # ───────────────────────────────────────────────────────────────
+          # Open / refresh a PR in ADO with the rendered docs.
+          #
+          # Force-adds SecurityDocs/ despite the .gitignore. This is safe in
+          # this pipeline because:
+          #   - 'origin' on the agent is the private ADO repo (not GitHub).
+          #     The ADO checkout step never adds GitHub as a remote, so a
+          #     `git push origin` here cannot reach the public mirror.
+          #   - The .gitignore stays in place so a developer doing a normal
+          #     `git add` on their workstation does not pick up
+          #     SecurityDocs/. Force-add (`-f`) is a deliberate, contained
+          #     pipeline-only operation.
+          #   - The branch name is namespaced under auto/sentinel-docs/<ws>
+          #     and force-pushed each run, so there is no growing history
+          #     of tenant snapshots.
+          #
+          # The PR target is $(targetBranch). It is intended for review,
+          # not merge - merging would commit SecurityDocs/ to the target
+          # branch permanently. Reviewers should view the diff and close.
+          # ───────────────────────────────────────────────────────────────
+          - bash: |
+              set -euo pipefail
+              cd "$(Build.SourcesDirectory)"
+
+              if [ ! -d SecurityDocs ]; then
+                echo "##[error]SecurityDocs/ missing - collector or renderer must run first."
+                exit 1
+              fi
+
+              git config user.email "noreply@sentinel-as-code.local"
+              git config user.name  "Sentinel Blueprint"
+
+              # Reset the rolling docs branch from the LATEST target tip so
+              # the branch always descends from the current target. Mirrors
+              # the pattern in Sentinel-Drift-Detect.yml.
+              #
+              # Fetch the docs branch too so --force-with-lease has a current
+              # remote-tracking ref to compare against. Without this fetch
+              # the lease check sees 'stale info' on every run after the
+              # first one and rejects the push. Allowed to fail on the very
+              # first run when the branch doesn't yet exist server-side.
+              git fetch origin "$(targetBranch)"
+              git fetch origin "$(docsBranch)" || true
+              git checkout -B "$(docsBranch)" "origin/$(targetBranch)"
+
+              # Force-add despite .gitignore. The exclusion is a workstation
+              # safety net; this pipeline-only push is the intended channel.
+              git add -f SecurityDocs
+
+              if git diff --cached --quiet; then
+                echo "##[section]No SecurityDocs changes to publish - nothing to PR."
+                exit 0
+              fi
+
+              git commit -m "docs(sentinel): snapshot for $(sentinelWorkspaceName) $(date -u +%Y-%m-%dT%H:%MZ)" \
+                         -m "Auto-generated by Pipelines/Sentinel-Blueprint.yml. Review only, do not merge: merging would commit tenant configuration to $(targetBranch)."
+
+              git push --force-with-lease origin "$(docsBranch)"
+
+              echo "##[section]Opening / refreshing PR"
+              echo "$(System.AccessToken)" | az devops login --organization "$(System.CollectionUri)"
+
+              # Build a compact PR description. ADO truncates --description at
+              # ~4000 chars, so we lift only the headline + top findings from
+              # 00-overview.md and link reviewers to the artefact for the full
+              # report.
+              OVERVIEW_PATH="SecurityDocs/$(sentinelWorkspaceName)/00-overview.md"
+              PR_BODY_FILE="$(mktemp)"
+              {
+                echo "# Sentinel Blueprint Snapshot: $(sentinelWorkspaceName)"
+                echo ""
+                echo "**Generated:** $(date -u +%Y-%m-%dT%H:%MZ)"
+                BUILD_URL="$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+                echo "**Pipeline run:** [$(Build.BuildNumber)](${BUILD_URL})"
+                echo "**Artefact (zip):** [sentinel-docs](${BUILD_URL}&view=artifacts&type=publishedArtifacts)"
+                echo "**Full overview:** see [\`$OVERVIEW_PATH\`]($OVERVIEW_PATH) in this branch; the **Files Changed** tab on the PR shows every section diff."
+                echo ""
+                echo "> **Review only. Do not merge.** Merging would commit tenant configuration to \`$(targetBranch)\`."
+                echo ""
+                if [ -f "$OVERVIEW_PATH" ]; then
+                  echo "## Headline"
+                  # Lift the Headline + Counts + Top findings sections from
+                  # 00-overview.md, stop at 'See the rest of this folder…'.
+                  awk '
+                    /^See the rest of this folder/ { exit }
+                    /^## Headline/      { p=1; next }
+                    p { print }
+                  ' "$OVERVIEW_PATH"
+                else
+                  echo "_Overview file not found; see the artefact for the full report._"
+                fi
+              } > "$PR_BODY_FILE"
+
+              # ADO --description has a 4000-char hard cap; the lifted overview
+              # can blow past it on a busy workspace. Truncate at 3500 to leave
+              # room for the trailing 'truncated' notice. Reviewers get the
+              # full overview by clicking the link at the top of the body.
+              MAX_LEN=3500
+              BODY_LEN=$(wc -c < "$PR_BODY_FILE")
+              if [ "$BODY_LEN" -gt "$MAX_LEN" ]; then
+                TRUNC_FILE="$(mktemp)"
+                head -c "$MAX_LEN" "$PR_BODY_FILE" > "$TRUNC_FILE"
+                {
+                  echo ""
+                  echo ""
+                  echo "_(truncated to fit ADO's 4000-character description cap; full overview is at the link near the top of this PR, and the Files Changed tab shows every section.)_"
+                } >> "$TRUNC_FILE"
+                mv "$TRUNC_FILE" "$PR_BODY_FILE"
+              fi
+              echo "##[debug]PR body length: $(wc -c < "$PR_BODY_FILE") bytes"
+
+              EXISTING=$(az repos pr list \
+                  --repository "$(Build.Repository.Name)" \
+                  --status active \
+                  --source-branch "refs/heads/$(docsBranch)" \
+                  --target-branch "refs/heads/$(targetBranch)" \
+                  --organization "$(System.CollectionUri)" \
+                  --project "$(System.TeamProject)" \
+                  --query "[0].pullRequestId" \
+                  -o tsv 2>/dev/null || true)
+
+              if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+                echo "Existing PR #$EXISTING refreshed by branch push - updating description."
+                az repos pr update \
+                    --id "$EXISTING" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --output none
+              else
+                az repos pr create \
+                    --repository "$(Build.Repository.Name)" \
+                    --source-branch "$(docsBranch)" \
+                    --target-branch "$(targetBranch)" \
+                    --title "docs(sentinel): snapshot $(sentinelWorkspaceName) $(date -u +%Y-%m-%d)" \
+                    --description "$(cat "$PR_BODY_FILE")" \
+                    --organization "$(System.CollectionUri)" \
+                    --project "$(System.TeamProject)" \
+                    --auto-complete false \
+                    --delete-source-branch false \
+                    --output table
+              fi
+
+              rm -f "$PR_BODY_FILE"
+            displayName: "Push docs branch and open / refresh PR (ADO only)"
+            condition: and(succeeded(), eq('${{ parameters.openPullRequest }}', 'true'))
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+
+  # ───────────────────────────────────────────────────────────────────────
+  # Word report: the Markdown pack rendered to one page-numbered .docx.
+  # Included only when 'publishWordReport' is ticked. Reads this run's
+  # 'sentinel-docs' artefact, so it needs no Azure sign-in at all. The
+  # page-numbered contents needs a layout engine: LibreOffice plus
+  # python3-uno install cleanly on the Ubuntu image, which is why this stays
+  # ADO-only (see Docs/Pipelines/Word-Report.md).
+  # ───────────────────────────────────────────────────────────────────────
+  - ${{ if eq(parameters.publishWordReport, true) }}:
+    - stage: WordReport
+      displayName: "Word report"
+      dependsOn: Document
+      jobs:
+        - job: Render
+          displayName: "Markdown -> .docx"
+          pool:
+            vmImage: "ubuntu-latest"
+          timeoutInMinutes: 30
+          steps:
+            - checkout: self
+              fetchDepth: 1
+
+            - download: current
+              displayName: "Download this run's 'sentinel-docs' artefact"
+              artifact: sentinel-docs
+
+            - script: |
+                set -euo pipefail
+                echo "##[section]Installing LibreOffice + python3-uno"
+                sudo apt-get update
+                sudo apt-get install -y --no-install-recommends libreoffice-writer python3-uno fonts-liberation
+                echo "##[section]Installing pandoc $(pandocVersion)"
+                curl -fsSL -o /tmp/pandoc.deb \
+                  "https://github.com/jgm/pandoc/releases/download/$(pandocVersion)/pandoc-$(pandocVersion)-1-amd64.deb"
+                sudo dpkg -i /tmp/pandoc.deb
+                echo "--- versions ---"
+                pandoc --version | head -1
+                soffice --version | head -1
+                python3 -c 'import uno; print("python3-uno OK")'
+              displayName: "Install pandoc + LibreOffice + python3-uno"
+
+            - task: PowerShell@2
+              displayName: "Convert Markdown to Word (page-numbered TOC)"
+              env:
+                WORKSPACE_NAME: $(sentinelWorkspaceName)
+                DOCS_ROOT: $(docsRoot)
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  $src = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
+                  if (-not (Test-Path -LiteralPath $src)) {
+                      Write-Host "##vso[task.logissue type=error]No '$env:WORKSPACE_NAME' folder in the downloaded artefact ($env:DOCS_ROOT). Check sentinelWorkspaceName."
+                      exit 1
+                  }
+                  if ('${{ parameters.prerenderChartsToPng }}' -ne 'True') {
+                      Write-Host "##vso[task.logissue type=warning]prerenderChartsToPng is off, so the Word report carries no chart images: pandoc drops Mermaid fences."
+                  }
+                  $out = Join-Path '$(Build.ArtifactStagingDirectory)' "$env:WORKSPACE_NAME.docx"
+                  & "$(Build.SourcesDirectory)/Tools/Blueprint/Report/Convert-MarkdownToWord.ps1" `
+                      -Source $src -OutputPath $out -Title "$env:WORKSPACE_NAME - Sentinel Documentation" -Toc Baked
+                  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $out)) {
+                      Write-Host "##vso[task.logissue type=error]Conversion failed."
+                      exit 1
+                  }
+                  Add-Type -AssemblyName System.IO.Compression.FileSystem
+                  $zip = [System.IO.Compression.ZipFile]::OpenRead($out)
+                  try {
+                      $entry = $zip.GetEntry('word/document.xml')
+                      $reader = New-Object System.IO.StreamReader($entry.Open())
+                      $xml = $reader.ReadToEnd(); $reader.Close()
+                  }
+                  finally { $zip.Dispose() }
+                  $tocEntries = ([regex]::Matches($xml, '__RefHeading')).Count
+                  Write-Host "Baked TOC entry anchors: $tocEntries"
+                  if ($tocEntries -lt 1) {
+                      Write-Host "##vso[task.logissue type=error]TOC field is empty - the LibreOffice bake did not populate it."
+                      exit 1
+                  }
+                  Write-Host "##[section]Wrote $out ($([math]::Round((Get-Item $out).Length / 1KB, 1)) KB)"
+
+            - task: PublishPipelineArtifact@1
+              displayName: "Publish 'sentinel-word-report' artefact"
+              inputs:
+                targetPath: "$(Build.ArtifactStagingDirectory)/$(sentinelWorkspaceName).docx"
+                artifact: "sentinel-word-report"
+                publishLocation: "pipeline"
+
+  # ───────────────────────────────────────────────────────────────────────
+  # SharePoint site: the iSOC Blueprint site for this workspace, built from
+  # this run's artefact. Included only when 'publishSharePointSite' is
+  # ticked. Steps:
+  #   1. Download this run's 'sentinel-docs' artefact.
+  #   2. Build the dashboard web part package (isoc-blueprint.sppkg).
+  #   3. Build the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
+  #      page per section, findings. Nothing here renders Mermaid: the
+  #      dashboard draws its own charts, and the section pages carry a
+  #      diagram only when the Document stage already pre-rendered it
+  #      ('Charts' ticked). Otherwise the diagram is left out.
+  #   4. Sign in as the SharePoint publisher identity through workload
+  #      identity federation and publish the bundle
+  #      (Publish-SentinelDocsSite.ps1): pages, navigation, findings list,
+  #      dashboard home page, and the web part package when its version
+  #      changed.
+  #   5. Keep the bundle and package as the 'sharepoint-site' artefact, even
+  #      when the publish failed, so you can see what was being published.
+  # ───────────────────────────────────────────────────────────────────────
+  - ${{ if eq(parameters.publishSharePointSite, true) }}:
+    - stage: SharePoint
+      displayName: "SharePoint site"
+      dependsOn: Document
+      jobs:
+        - job: Publish
+          displayName: "Build -> Publish"
+          pool:
+            vmImage: "ubuntu-latest"
+          timeoutInMinutes: 45
+          steps:
+            - checkout: self
+              fetchDepth: 1
+
+            - download: current
+              displayName: "Download this run's 'sentinel-docs' artefact"
+              artifact: sentinel-docs
+
+            - task: PowerShell@2
+              displayName: "Locate the workspace snapshot"
+              env:
+                WORKSPACE_NAME: $(sentinelWorkspaceName)
+                DOCS_ROOT: $(docsRoot)
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  $ws = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
+                  if (-not (Test-Path (Join-Path $ws '_raw'))) {
+                      Write-Error "No '$env:WORKSPACE_NAME/_raw' in the downloaded artefact ($env:DOCS_ROOT). Check sentinelWorkspaceName."
+                      exit 1
+                  }
+                  $md = (Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count
+                  Write-Host "##[section]Snapshot: $ws ($md Markdown files)"
+
+            - task: UseNode@1
+              displayName: "Install Node $(nodeVersion)"
+              inputs:
+                version: "$(nodeVersion)"
+
+            - task: Cache@2
+              displayName: "Cache npm"
+              inputs:
+                key: 'npm | "$(Agent.OS)" | Tools/Blueprint/SharePoint/webpart/isoc-blueprint/package-lock.json'
+                restoreKeys: |
+                  npm | "$(Agent.OS)"
+                path: $(npm_config_cache)
+
+            - task: PowerShell@2
+              displayName: "Build the dashboard web part package"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                workingDirectory: "$(webPartDir)"
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  npm ci --no-audit --no-fund
+                  if ($LASTEXITCODE -ne 0) { throw "npm ci failed ($LASTEXITCODE)" }
+                  npm run package
+                  if ($LASTEXITCODE -ne 0) { throw "npm run package failed ($LASTEXITCODE)" }
+                  $pkg = Join-Path (Get-Location) 'sharepoint/solution/isoc-blueprint.sppkg'
+                  if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
+                  Write-Host "##[section]Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
+
+            - task: PowerShell@2
+              displayName: "Install PnP.PowerShell $(pnpVersion)"
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  Install-Module -Name PnP.PowerShell -RequiredVersion '$(pnpVersion)' -Scope CurrentUser -Force -AllowClobber
+                  Import-Module PnP.PowerShell -RequiredVersion '$(pnpVersion)' -ErrorAction Stop
+                  Write-Host "##[section]PnP.PowerShell $(pnpVersion) ready on PowerShell $($PSVersionTable.PSVersion)"
+
+            - task: PowerShell@2
+              displayName: "Build the site bundle"
+              env:
+                WORKSPACE_NAME: $(sentinelWorkspaceName)
+                DOCS_ROOT: $(docsRoot)
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  $ws = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
+                  & "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1" -Source $ws | Out-Null
+
+            - task: AzureCLI@2
+              displayName: "Publish to SharePoint"
+              env:
+                WORKSPACE_NAME: $(sentinelWorkspaceName)
+                DOCS_ROOT: $(docsRoot)
+                SHAREPOINT_SITE_URL: $(sharePointSiteUrl)
+                WEB_PART_DIR: $(webPartDir)
+              inputs:
+                azureSubscription: "$(sharePointServiceConnection)"
+                scriptType: "pscore"
+                scriptLocation: "inlineScript"
+                inlineScript: |
+                  $ErrorActionPreference = 'Stop'
+                  if (-not $env:SHAREPOINT_SITE_URL) { throw 'sharePointSiteUrl is not set in the sentinel-deployment variable group.' }
+                  $resource = 'https://' + ([uri]$env:SHAREPOINT_SITE_URL).Host
+                  $token = az account get-access-token --resource $resource --query accessToken -o tsv
+                  if ($LASTEXITCODE -ne 0 -or -not $token) { throw "Could not get a SharePoint token for $resource" }
+                  Write-Host "##vso[task.setsecret]$token"
+                  $publish = @{
+                      SiteUrl     = $env:SHAREPOINT_SITE_URL
+                      Bundle      = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
+                      AccessToken = $token
+                  }
+                  if ('${{ parameters.deployAppPackage }}' -eq 'True') {
+                      $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
+                  }
+                  & "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1" @publish $(flagWhatIf)
+
+            - task: PowerShell@2
+              displayName: "Stage the site bundle for artefact publish"
+              condition: succeededOrFailed()
+              env:
+                WORKSPACE_NAME: $(sentinelWorkspaceName)
+                DOCS_ROOT: $(docsRoot)
+              inputs:
+                targetType: "inline"
+                pwsh: true
+                script: |
+                  $ErrorActionPreference = 'Stop'
+                  $dst = Join-Path "$(Build.ArtifactStagingDirectory)" 'sharepoint-site'
+                  New-Item -ItemType Directory -Path $dst -Force | Out-Null
+                  $bundle = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
+                  if (Test-Path $bundle) { Copy-Item -Path "$bundle/*" -Destination $dst -Recurse -Force }
+                  $pkg = "$(webPartDir)/sharepoint/solution/isoc-blueprint.sppkg"
+                  if (Test-Path $pkg) { Copy-Item $pkg $dst }
+
+            - task: PublishPipelineArtifact@1
+              displayName: "Publish 'sharepoint-site' artefact"
+              condition: succeededOrFailed()
+              inputs:
+                targetPath: "$(Build.ArtifactStagingDirectory)/sharepoint-site"
+                artifact: "sharepoint-site"
+                publishLocation: "pipeline"

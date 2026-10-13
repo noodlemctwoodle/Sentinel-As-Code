@@ -166,10 +166,10 @@ them need the `sc-sentinel-as-code` service connection:
   run fully offline (no `azureSubscription` step), so no OIDC wiring
   is required, but they still need registering as pipelines.
 - `Sentinel-DCR-Inventory.yml`, `Sentinel-Drift-Detect.yml`,
-  `Sentinel-Deploy.yml`, and `Sentinel-Documenter.yml` all
+  `Sentinel-Deploy.yml`, and `Sentinel-Blueprint.yml` all
   authenticate via `azureSubscription: $(serviceConnection)` and
   depend on the federation set up in Steps 1-4.
-- `Sentinel-Documenter.yml` also carries two optional stages, ticked at
+- `Sentinel-Blueprint.yml` also carries two optional stages, ticked at
   queue time. The Word report stage does no Azure authentication at all
   (pure document conversion). The SharePoint stage uses its **own**
   service connection, `sc-sentinel-sharepoint`, for a separate publisher
@@ -189,7 +189,7 @@ blast radius growing gradually):
 2. `Pipelines/Sentinel-Dependency-Update.yml` (offline + Build Service git permissions)
 3. `Pipelines/Sentinel-DCR-Inventory.yml`
 4. `Pipelines/Sentinel-Drift-Detect.yml` (read-only against Sentinel)
-5. `Pipelines/Sentinel-Documenter.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow; tick **Export: SharePoint site** and **SharePoint: what-if** first once `sc-sentinel-sharepoint` exists)
+5. `Pipelines/Sentinel-Blueprint.yml` (read-only; manual trigger only on ADO, no cron schedule, unlike the GitHub workflow; tick **Export: SharePoint site** and **SharePoint: what-if** first once `sc-sentinel-sharepoint` exists)
 6. `Pipelines/Sentinel-Deploy.yml` (full deploy; run with `flagWhatIf: true` first)
 
 For each:

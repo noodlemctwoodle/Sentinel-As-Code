@@ -29,7 +29,7 @@ Tools/Test-DefenderSentinelParity.ps1
 Tools/GUIDE-DefenderSentinelParity.md
 Tools/Export-Playbooks.ps1
 
-# Sentinel documenter output — contains tenant configuration; never commit.
+# Sentinel Blueprint output — contains tenant configuration; never commit.
 # Delivered via the workflow's private GitHub Actions artefact instead.
 SecurityDocs/
 .sentinel-connectors.json

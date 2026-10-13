@@ -62,8 +62,8 @@ deliberate rather than drift:
 - The **migrate** tool and `Test-DcrIngestion.ps1` author and read DCRs at `2023-03-11`, because
   that is the minimum version carrying the `endpoints` property. The review tool only lists DCRs
   to read their transforms, so the older `2022-06-01` is sufficient.
-- The Documenter pins `Microsoft.SecurityInsights` at `2024-09-01` and workbooks at `2023-06-01`
-  (see [Documenter References](../Documenter/Documenter-References.md#api-versions-in-use)). The
+- The Blueprint pins `Microsoft.SecurityInsights` at `2024-09-01` and workbooks at `2023-06-01`
+  (see [Blueprint References](../Blueprint/Blueprint-References.md#api-versions-in-use)). The
   two tools are independently pinned; nothing forces them into step.
 
 Workbook, DCR, playbook and Content Hub loads are each wrapped in their own `try`. A failure on
@@ -554,8 +554,8 @@ A workspace with no classic tables returns early and writes nothing.
   the tool the generated command invokes
 - [Parsers](../../Content/Parsers.md) - how this repository authors and deploys the
   `savedSearches` functions that create the indirect case
-- [Documenter References](../Documenter/Documenter-References.md#api-versions-in-use) - the
-  Documenter's independently pinned api-versions, for comparison
+- [Blueprint References](../Blueprint/Blueprint-References.md#api-versions-in-use) - the
+  Blueprint's independently pinned api-versions, for comparison
 - [Custom logs migration](https://learn.microsoft.com/azure/azure-monitor/logs/custom-logs-migrate)
 - [Log Analytics functions](https://learn.microsoft.com/azure/azure-monitor/logs/functions)
 - [Azure-Sentinel Solutions Analyzer](https://github.com/Azure/Azure-Sentinel/tree/master/Tools/Solutions%20Analyzer)

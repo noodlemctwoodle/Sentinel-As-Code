@@ -7,7 +7,8 @@
 
 .DESCRIPTION
     The 26.06 restructure moved the repository from a flat root into grouped
-    folders. Tracked files move automatically when you merge or rebase the
+    folders, and the Documenter was later renamed Blueprint (Tools/Documenter
+    and Tests/Documenter became Tools/Blueprint and Tests/Blueprint). Tracked files move automatically when you merge or rebase the
     restructure (git rename detection reconciles your customisations). This
     helper catches stragglers — untracked custom content or conflict leftovers
     still sitting at an old path — and moves them to their new home.
@@ -94,7 +95,9 @@ $moveMap = [ordered]@{
     'Scripts/Invoke-PRValidation.ps1'       = 'Tools/Invoke-PRValidation.ps1'
     'Scripts/Export-SentinelWorkbooks.ps1'  = 'Tools/Export-SentinelWorkbooks.ps1'
     'Scripts/Import-CommunityRules.ps1'     = 'Tools/Import-CommunityRules.ps1'
-    'Scripts/Documenter'                    = 'Tools/Documenter'
+    'Scripts/Documenter'                    = 'Tools/Blueprint'
+    'Tools/Documenter'                      = 'Tools/Blueprint'
+    'Tests/Documenter'                      = 'Tests/Blueprint'
 }
 
 Push-Location $RepoPath

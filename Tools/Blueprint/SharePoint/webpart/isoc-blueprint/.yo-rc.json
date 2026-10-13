@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "isoc-blueprint",
+    "componentType": "webpart",
+    "template": "none",
+    "componentName": "IsocBlueprint",
+    "componentDescription": "Renders the Sentinel Blueprint dashboard",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.3",
+    "sdksVersions": {},
+    "version": "1.21.1",
+    "libraryName": "isoc-blueprint",
+    "libraryId": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "isoc-blueprint description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false
+  }
+}

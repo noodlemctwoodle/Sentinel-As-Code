@@ -77,12 +77,12 @@ status check that the branch-protection ruleset can require independently.
   marks the job red even on a clean test run.
 - **Steps:**
   1. Checkout (`fetch-depth: 1`).
-  2. Read `pnpVersion` from `Pipelines/Sentinel-Documenter.yml` (the
+  2. Read `pnpVersion` from `Pipelines/Sentinel-Blueprint.yml` (the
      PnP.PowerShell version the SharePoint stage pins).
   3. [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
      with the pinned Pester + powershell-yaml versions and that PnP.PowerShell
      version, for the SharePoint PnP call check
-     (`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`).
+     (`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`).
   4. Run `Tools/Invoke-PRValidation.ps1` with `-InstallModules:$false` (the
      composite action already installed the modules). This is the single
      cross-platform entrypoint that both CI systems call, so test discovery,
@@ -260,7 +260,7 @@ Steps, in order:
    present, plus powershell-yaml if missing. Note this is a
    **minimum-version** install, not the exact pin the GitHub composite
    action enforces. PnP.PowerShell is the exception: it is installed at
-   exactly the `pnpVersion` read from `Pipelines/Sentinel-Documenter.yml`,
+   exactly the `pnpVersion` read from `Pipelines/Sentinel-Blueprint.yml`,
    for the SharePoint PnP call check.
 3. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
@@ -296,7 +296,7 @@ the latest commit.
 | Azure auth | `arm-validate` uses OIDC; rest offline | None (all gates offline) |
 | Path filter | None (runs on every PR / push to `main`) | Path-filtered on both `pr` and `trigger` |
 | PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` | `pr` branches `main` |
-| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Documenter's `pnpVersion`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest, PnP.PowerShell at the Documenter's `pnpVersion` |
+| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Blueprint's `pnpVersion`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest, PnP.PowerShell at the Blueprint's `pnpVersion` |
 | Test report | NUnit 2.5 XML (published to check UI + artefact) | NUnit 2.5 XML (published via `PublishTestResults@2` + artefact) |
 | Concurrency | Cancels superseded PR runs | Handled by ADO's own PR-run behaviour |
 

@@ -179,7 +179,7 @@ inlining the patterns again:
   match the workflow-level `PESTER_VERSION` / `YAML_VERSION` env vars
   the existing workflows define. Pass `pnp-version` to install
   PnP.PowerShell at an exact version as well (the PR-validation gate
-  passes the Documenter pipeline's `pnpVersion`).
+  passes the Blueprint pipeline's `pnpVersion`).
 
 When wiring up a new workflow that needs Azure auth or PowerShell
 modules, use these. Don't inline `Azure/login@v3` or `Install-Module`

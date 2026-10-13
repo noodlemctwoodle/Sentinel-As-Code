@@ -1,44 +1,44 @@
 # Sentinel SharePoint Publish Pipeline
 
 CI/CD wiring for the two ways the **iSOC Blueprint** SharePoint site is
-published from the Sentinel Documenter's output:
+published from the Sentinel Blueprint's output:
 
 - Azure DevOps: the `SharePoint` stage of
-  [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml),
+  [`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml),
   included when the `publishSharePointSite` tick box is set at queue time.
 - GitHub Actions: the separate workflow
   [`.github/workflows/sentinel-sharepoint-publish.yml`](../../.github/workflows/sentinel-sharepoint-publish.yml),
-  chained after the Documenter.
+  chained after the Blueprint.
 
 This page covers the **pipeline mechanics**: triggers, inputs, steps,
 identity and outputs. For what the generated site contains, the one-time
 bootstrap and running the scripts locally, see the tool page:
-[Sentinel SharePoint Site](../Tools/Documenter/Sentinel-SharePoint-Site.md).
+[Sentinel SharePoint Site](../Tools/Blueprint/Sentinel-SharePoint-Site.md).
 
 ## At a glance
 
 | Property | Azure DevOps | GitHub Actions |
 | --- | --- | --- |
-| Trigger | **Export: SharePoint site** (`publishSharePointSite`) on a `Sentinel-Documenter` run; the stage follows `Document` in the same run | `workflow_run`: every successful "Sentinel Documenter" run on `main`, plus `workflow_dispatch` |
-| Schedule | None (the ADO Documenter is manual) | None of its own (follows the Documenter's 06:00 UTC cron) |
-| Input | The same run's `sentinel-docs` artefact (`download: current`) | The Documenter run's `sentinel-docs-<ws>-<runId>` artefact |
+| Trigger | **Export: SharePoint site** (`publishSharePointSite`) on a `Sentinel-Blueprint` run; the stage follows `Document` in the same run | `workflow_run`: every successful "Sentinel Blueprint" run on `main`, plus `workflow_dispatch` |
+| Schedule | None (the ADO Blueprint is manual) | None of its own (follows the Blueprint's 06:00 UTC cron) |
+| Input | The same run's `sentinel-docs` artefact (`download: current`) | The Blueprint run's `sentinel-docs-<ws>-<runId>` artefact |
 | Agent | `ubuntu-latest`, its own job | `ubuntu-latest`, environment `sharepoint-publish` |
 | Identity | Service connection `sc-sentinel-sharepoint` (workload identity federation) | `SHAREPOINT_CLIENT_ID` via OIDC |
 | SharePoint rights | `Sites.Selected` with FullControl on the one site | Same app or a second one, same rights |
 | Azure roles | Reader on one empty resource group (so `AzureCLI@2` can select a subscription) | None (`allow-no-subscriptions`) |
 | Published artefact | `sharepoint-site` | `sharepoint-site-<ws>-<runId>` (30 days) |
-| Concurrency | `lockBehavior: sequential` on the Documenter pipeline | `concurrency: sentinel-sharepoint-publish` |
+| Concurrency | `lockBehavior: sequential` on the Blueprint pipeline | `concurrency: sentinel-sharepoint-publish` |
 
 ## Purpose
 
-The Documenter collects and renders. This pipeline makes the result readable
+The Blueprint collects and renders. This pipeline makes the result readable
 by people who live in SharePoint rather than in a repository or a pipeline
-artefact: it turns one Documenter run into a complete, generated site for
+artefact: it turns one Blueprint run into a complete, generated site for
 that workspace (a page per section, navigation, a findings list with
 history, and the interactive dashboard as the home page) and keeps it in
 step with every run.
 
-On ADO it is a stage of the Documenter pipeline rather than a pipeline of
+On ADO it is a stage of the Blueprint pipeline rather than a pipeline of
 its own, so one run produces whichever outputs are ticked: the Markdown
 pull request, the Word report, the SharePoint site, or any mixture. Two
 properties that argue for keeping publishing apart from collecting still
@@ -57,26 +57,26 @@ hold:
 ## Trigger
 
 Neither platform publishes on a schedule of its own: a publish always
-follows a Documenter run and uses that run's artefact, so the site shows the
+follows a Blueprint run and uses that run's artefact, so the site shows the
 latest snapshot.
 
 - **ADO.** The `SharePoint` stage is included at compile time only when
   `publishSharePointSite` is ticked, and runs after `Document` succeeds,
   reading the artefact of the run it belongs to. There is no pipeline
   resource and no chained trigger.
-- **GitHub.** `workflow_run` on "Sentinel Documenter", `completed`, `main`,
+- **GitHub.** `workflow_run` on "Sentinel Blueprint", `completed`, `main`,
   gated on `conclusion == 'success'`. `workflow_dispatch` takes an optional
-  `documenter-run-id`; blank means the latest successful Documenter run on
+  `blueprint-run-id`; blank means the latest successful Blueprint run on
   `main`, which is what a chained run would use.
 
 ## Inputs
 
 | ADO parameter | GitHub input | Default | Effect |
 | --- | --- | --- | --- |
-| `publishSharePointSite` (**Export: SharePoint site**) | (the workflow itself) | `true` | Include the `SharePoint` stage in the Documenter run. Untick it for a workspace with no site or no `sc-sentinel-sharepoint` connection. |
+| `publishSharePointSite` (**Export: SharePoint site**) | (the workflow itself) | `true` | Include the `SharePoint` stage in the Blueprint run. Untick it for a workspace with no site or no `sc-sentinel-sharepoint` connection. |
 | `sharePointWhatIf` (**SharePoint: what-if**) | `what-if` | `false` | Sign in, read the site and print the plan; change nothing. |
 | `deployAppPackage` (**SharePoint: deploy the web part if it changed**) | `deploy-app-package` | `true` | Deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
-| (the same run) | `documenter-run-id` | latest successful | Which Documenter run to publish. |
+| (the same run) | `blueprint-run-id` | latest successful | Which Blueprint run to publish. |
 
 Chained runs get the defaults, so they behave exactly like an untouched
 manual run.
@@ -85,7 +85,7 @@ manual run.
 
 1. **Checkout** the repository (scripts and the web part source).
 2. **Download** the artefact: on ADO this run's own `sentinel-docs`
-   (`download: current`); on GitHub the chosen Documenter run's.
+   (`download: current`); on GitHub the chosen Blueprint run's.
 3. **Locate** `<workspace>/_raw` in it, and fail if the workspace name does
    not match.
 4. **Build the web part package**: Node 22, `npm ci`, `npm run package`
@@ -93,8 +93,8 @@ manual run.
    registry (`.npmrc`), and the npm cache is keyed on it.
 5. **Mermaid** (GitHub only): the GitHub workflow pre-renders with
    `@mermaid-js/mermaid-cli@11` and
-   [`Convert-MermaidToImage.ps1`](../../Tools/Documenter/Convert-MermaidToImage.ps1),
-   because the GitHub Documenter leaves Mermaid fences for GitHub to render.
+   [`Convert-MermaidToImage.ps1`](../../Tools/Blueprint/Convert-MermaidToImage.ps1),
+   because the GitHub Blueprint leaves Mermaid fences for GitHub to render.
    The ADO stage renders nothing: the dashboard draws its own charts, and
    the section pages reuse the PNGs only when the Document stage already
    made them (**Charts** ticked). Otherwise each diagram is left out of its
@@ -102,12 +102,12 @@ manual run.
 6. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
    has).
 7. **Build the site bundle** with
-   [`Build-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1).
+   [`Build-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1).
 8. **Sign in and publish.** Request a SharePoint token for the tenant's
    SharePoint host through the federated credential
    (`az account get-access-token --resource https://<tenant>.sharepoint.com`),
    mask it, and run
-   [`Publish-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Publish-SentinelDocsSite.ps1)
+   [`Publish-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1)
    with `-AccessToken`. On ADO the whole step runs inside one `AzureCLI@2`
    task bound to the service connection; on GitHub it follows the
    `azure-login-oidc` composite action with `allow-no-subscriptions`.
@@ -120,7 +120,7 @@ manual run.
 
 | Name | Where | Purpose |
 | --- | --- | --- |
-| `sentinelWorkspaceName` | Variable group `sentinel-deployment` | Workspace folder inside the artefact (shared with the Documenter) |
+| `sentinelWorkspaceName` | Variable group `sentinel-deployment` | Workspace folder inside the artefact (shared with the Blueprint) |
 | `sharePointSiteUrl` | Variable group `sentinel-deployment` | The site for this workspace |
 | `sc-sentinel-sharepoint` | Service connection (the `sharePointServiceConnection` variable) | Azure Resource Manager connection, workload identity federation (manual), for the publisher app |
 
@@ -142,7 +142,7 @@ with two differences:
 | --- | --- | --- |
 | `SHAREPOINT_CLIENT_ID` | Secret | Publisher app registration |
 | `AZURE_TENANT_ID` | Secret | Tenant (shared) |
-| `SENTINEL_WORKSPACE` | Variable | Workspace name (shared with the Documenter) |
+| `SENTINEL_WORKSPACE` | Variable | Workspace name (shared with the Blueprint) |
 | `SHAREPOINT_SITE_URL` | Variable | The site for this workspace |
 | `sharepoint-publish` | Environment | Binds the federated credential; restrict it to `main` |
 
@@ -155,7 +155,7 @@ Federated credential on the publisher app:
 | Audience | `api://AzureADTokenExchange` |
 
 Binding the credential to an environment (rather than to `ref:refs/heads/main`,
-as the Documenter does) means no other workflow on `main` can mint a
+as the Blueprint does) means no other workflow on `main` can mint a
 SharePoint token.
 
 ### The publisher app registration
@@ -170,7 +170,7 @@ One app registration (or one per platform, if you prefer) with:
   Microsoft Graph's `Sites.Selected` alone is not enough: the publisher calls
   SharePoint's own APIs.
 - **FullControl on the one site**, granted by
-  [`Initialize-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1).
+  [`Initialize-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1).
   FullControl is what the site collection app catalog, the home page and the
   navigation changes need. It covers nothing outside that site.
 - **No client secret or certificate.** The token comes from the pipeline's
@@ -192,9 +192,9 @@ publish uses. Run that what-if first in your own tenant.
   on GitHub, 30 days) with the bundle (`index.html`, `model.json`,
   `site.json`, `pages/`, `diagrams/`, `findings.json`) and the `.sppkg`.
 
-The artefact holds the same tenant configuration as the Documenter's. The
+The artefact holds the same tenant configuration as the Blueprint's. The
 GitHub workflow refuses to run on a public repository for that reason (the
-same guard the Documenter uses).
+same guard the Blueprint uses).
 
 ## Failure conditions
 
@@ -202,7 +202,7 @@ The run fails when:
 
 - the repository is public (GitHub only, before any download);
 - the `Document` stage failed (ADO: the stage then does not run), there is
-  no successful Documenter run to publish (GitHub), or the artefact has no
+  no successful Blueprint run to publish (GitHub), or the artefact has no
   `<workspace>/_raw` for the configured workspace;
 - `npm ci` or the package build fails;
 - the SharePoint token cannot be obtained (federated credential, consent or
@@ -222,15 +222,15 @@ forced by the platforms:
 
 | Aspect | ADO | GitHub | Why |
 | --- | --- | --- | --- |
-| Chaining | A stage of the Documenter run, ticked at queue time | `workflow_run` after the Documenter | One pipeline with options on ADO; GitHub keeps a separate workflow so the publisher's federated credential binds to its own environment |
+| Chaining | A stage of the Blueprint run, ticked at queue time | `workflow_run` after the Blueprint | One pipeline with options on ADO; GitHub keeps a separate workflow so the publisher's federated credential binds to its own environment |
 | Sign-in | One `AzureCLI@2` task around token + publish | `azure-login-oidc` with `allow-no-subscriptions`, then a `pwsh` step | `AzureCLI@2` owns the federated sign-in on ADO |
 | Mermaid pre-render | None; reuses the Document stage's PNGs when **Charts** was ticked | Does the work | The dashboard does not need PNGs; the ADO run already has them when the Markdown pack or Word report wanted them |
-| Privacy guard | None needed (ADO repos are private) | Refuses public repositories | Same as the Documenter pair |
+| Privacy guard | None needed (ADO repos are private) | Refuses public repositories | Same as the Blueprint pair |
 | Federated subject | Service connection subject | `environment:sharepoint-publish` | Platform mechanism |
 
 ## Related
 
-- [Sentinel SharePoint Site](../Tools/Documenter/Sentinel-SharePoint-Site.md): what is generated, the bootstrap, running locally, privacy.
-- [Documenter pipeline](Documenter.md): the pipeline this stage belongs to on ADO, and the producer of the artefact the GitHub workflow publishes.
-- [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md): the collector and renderer.
+- [Sentinel SharePoint Site](../Tools/Blueprint/Sentinel-SharePoint-Site.md): what is generated, the bootstrap, running locally, privacy.
+- [Blueprint pipeline](Blueprint.md): the pipeline this stage belongs to on ADO, and the producer of the artefact the GitHub workflow publishes.
+- [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md): the collector and renderer.
 - [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md): creating a workload identity federation service connection.

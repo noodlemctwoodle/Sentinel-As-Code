@@ -33,7 +33,7 @@
 #       install-pester: 'false'
 #
 #   # Also install PnP.PowerShell at an exact version (the PR-validation
-#   # gate passes the pnpVersion the Documenter pipeline pins, for the
+#   # gate passes the pnpVersion the Blueprint pipeline pins, for the
 #   # SharePoint PnP call check). Left empty, nothing changes for callers
 #   # that do not need it, including the cache key:
 #       pnp-version: '3.4.1'

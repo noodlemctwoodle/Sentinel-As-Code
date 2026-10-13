@@ -1,8 +1,8 @@
 # Sentinel Word Report Stage
 
 CI/CD wiring for the `WordReport` stage of
-[`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml),
-the Azure DevOps stage that renders the Sentinel Documenter Markdown pack
+[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml),
+the Azure DevOps stage that renders the Sentinel Blueprint Markdown pack
 into a single, styled Word (`.docx`) report and publishes it as a build
 artefact.
 
@@ -10,14 +10,14 @@ This page documents the **stage mechanics** (how it is switched on, agent,
 steps, outputs, and the GitHub parity story). For what the invoked converter
 actually does to the Markdown (pandoc styling, the LibreOffice page-numbered
 table of contents, the reference template, and how to run it locally), see the
-tool page: [Sentinel Word Report](../Tools/Documenter/Sentinel-Word-Report.md).
+tool page: [Sentinel Word Report](../Tools/Blueprint/Sentinel-Word-Report.md).
 This page does not repeat that detail.
 
 ## At a glance
 
 | Property | Value |
 | --- | --- |
-| Pipeline | [`Pipelines/Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml), stage `WordReport` |
+| Pipeline | [`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml), stage `WordReport` |
 | Switched on by | The `publishWordReport` tick box at queue time (default off) |
 | Runs after | The `Document` stage, in parallel with the `SharePoint` stage when that is ticked too |
 | Input | This run's `sentinel-docs` artefact (`download: current`) |
@@ -29,7 +29,7 @@ This page does not repeat that detail.
 
 ## Purpose
 
-The [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) writes a
+The [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) writes a
 folder of numbered Markdown section files plus an `assets/` image store to
 `SecurityDocs/<workspace>/`. That is good for browsing in a repository but
 awkward to hand to a stakeholder. This stage closes the gap: it takes the
@@ -38,12 +38,12 @@ page-numbered `.docx`, and publishes the document as a build artefact you can
 download from the run summary.
 
 The render itself is done by
-[`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
+[`Tools/Blueprint/Report/Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1)
 in its default `-Toc Baked` mode. See the tool page for how that works.
 
 ## Running it
 
-Queue the Documenter (**Pipelines -> Sentinel-Documenter -> Run pipeline**)
+Queue the Blueprint (**Pipelines -> Sentinel-Blueprint -> Run pipeline**)
 and tick **Export: Word report**. Leave **Charts: Mermaid to PNG** on: the
 Word report pulls the chart images from `assets/`, and pandoc drops Mermaid
 fences, so with pre-rendering off the stage warns and the report carries no
@@ -104,7 +104,7 @@ the only external network dependency in the stage.
 - Validates that `<docsRoot>/<workspace>` exists (errors and exits `1` if not).
 - Warns when `prerenderChartsToPng` was off for the run.
 - Runs
-  [`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
+  [`Tools/Blueprint/Report/Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1)
   with `-Source`, `-OutputPath $(Build.ArtifactStagingDirectory)/<workspace>.docx`,
   `-Title "<workspace> - Sentinel Documentation"`, and `-Toc Baked`.
 - Fails the stage if the script returns non-zero or the `.docx` was not written.
@@ -157,7 +157,7 @@ renders the same snapshot again.
 
 **This stage is ADO-only.** There is no `*word*` workflow under
 [`.github/workflows/`](../../.github/workflows) and no GitHub mirror, and the
-GitHub Documenter workflow has no equivalent input.
+GitHub Blueprint workflow has no equivalent input.
 
 The reasons are practical:
 
@@ -172,6 +172,6 @@ absent); see the tool page for that. Only the CI wiring is ADO-specific.
 
 ## Related
 
-- [Sentinel Word Report (tool / renderer)](../Tools/Documenter/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
-- [Documenter pipeline](Documenter.md) - the pipeline this stage belongs to, with the other two outputs.
-- [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) - the tool that produces the Markdown this stage renders.
+- [Sentinel Word Report (tool / renderer)](../Tools/Blueprint/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
+- [Blueprint pipeline](Blueprint.md) - the pipeline this stage belongs to, with the other two outputs.
+- [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) - the tool that produces the Markdown this stage renders.

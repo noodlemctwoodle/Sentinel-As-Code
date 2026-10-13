@@ -24,8 +24,8 @@ Reference doc:
 | `.github/workflows/pr-validation.yml` | `Pipelines/Sentinel-PR-Validation.yml` | On every PR: 5-job merge gate |
 | `.github/workflows/pr-template-validation.yml` | *(GitHub-only)* | On every PR: fail if the PR description does not fill in `.github/PULL_REQUEST_TEMPLATE.md` |
 | `.github/workflows/sentinel-deploy-nightly.yml` | *(GitHub-only)* | Daily 03:00 UTC: E2E smoke test against test workspace |
-| `.github/workflows/sentinel-document.yml` | `Pipelines/Sentinel-Documenter.yml` | Daily 06:00 UTC on GitHub, manual on ADO: Documenter snapshot + Markdown |
-| `.github/workflows/sentinel-sharepoint-publish.yml` | `Pipelines/Sentinel-Documenter.yml` (`SharePoint` stage, ticked at queue time) | After each successful Documenter run on `main`: publish the iSOC Blueprint SharePoint site |
+| `.github/workflows/sentinel-blueprint.yml` | `Pipelines/Sentinel-Blueprint.yml` | Daily 06:00 UTC on GitHub, manual on ADO: Blueprint snapshot + Markdown |
+| `.github/workflows/sentinel-sharepoint-publish.yml` | `Pipelines/Sentinel-Blueprint.yml` (`SharePoint` stage, ticked at queue time) | After each successful Blueprint run on `main`: publish the iSOC Blueprint SharePoint site |
 
 ## Composite actions
 

@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) — 32 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 6 under [`Tests/Documenter/`](../../Tests/Documenter) |
+| Test files | [`Tests/`](../../Tests) — 32 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 6 under [`Tests/Blueprint/`](../../Tests/Blueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -127,7 +127,7 @@ ruleset can require independently:
 
 The `validate` job points Pester at the whole `Tests/` tree (`Run.Path` is
 set to the folder, not an explicit file list), so every suite below runs in
-the gate, including the `Tests/Documenter/` suites and the Copilot /
+the gate, including the `Tests/Blueprint/` suites and the Copilot /
 workbook-export suites.
 
 | Suite | File | Coverage |
@@ -153,15 +153,15 @@ workbook-export suites.
 | Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
 | Export-SentinelWorkbooks | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation, parity against existing `Content/Workbooks/<Folder>/` names, `Format-WorkbookJson` round-trip |
 | New-DcrFromSchema | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../Tests/Test-NewDcrFromSchema.Tests.ps1) | The full pure surface of the DCR-from-schema wizard: `Import-TableSpec` (three schema shapes, plus the refusal when handed a data sample), `Remove-JsonNoise` / `ConvertTo-StraightPunctuation` / `ConvertTo-SafeText` (paste repair that respects string state), `Get-ColumnIssue` and `Test-TableName` (the documented Azure Monitor limits), `Resolve-TableSchema` / `Repair-TableSchema` (duplicate and case handling, what is safe to auto-fix), `ConvertTo-StreamColumn` and `Get-DefaultTransform` (the guid-to-string reconciliation), `Test-TransformKql`, `Compare-TableSchema`, `Format-DeploymentError` (nested ARM preflight errors), both ARM template builders, and an end-to-end pass over all five shipped example schemas |
-| Documenter renderer | [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Documenter Markdown from the `Tests/Documenter/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
-| Documenter gap engine | [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
-| Documenter REST wrapper | [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
-| Documenter SharePoint site | [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
-| Documenter SharePoint PnP calls | [`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
-| Documenter table references | [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
-| Documenter maturity engine | [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
-| Documenter custom detections | [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (imports `Sentinel.Common`) |
-| Documenter lake tiers | [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
+| Blueprint renderer | [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Blueprint Markdown from the `Tests/Blueprint/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
+| Blueprint gap engine | [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
+| Blueprint REST wrapper | [`Tests/Blueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
+| Blueprint SharePoint site | [`Tests/Blueprint/SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1) | Section families, Markdown-to-page conversion, the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture (no SharePoint or PnP needed) |
+| Blueprint SharePoint PnP calls | [`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
+| Blueprint table references | [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
+| Blueprint maturity engine | [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
+| Blueprint custom detections | [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (imports `Sentinel.Common`) |
+| Blueprint lake tiers | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -255,7 +255,7 @@ for the full real example):
 BeforeAll {
     # 1. Resolve the source script path. Scripts do NOT live directly under
     #    Deploy/ — they are foldered by concern: Deploy/content/, Deploy/permissions/,
-    #    Deploy/setup/, and the drift/documenter tooling under Tools/. Point at
+    #    Deploy/setup/, and the drift/blueprint tooling under Tools/. Point at
     #    the real location, e.g. 'Deploy/content/Deploy-CustomContent.ps1'.
     $scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'Deploy/content/<ScriptName>.ps1'
 
@@ -378,48 +378,48 @@ The Phase B suites use option 1 (real module). The new
 `Tests/Test-SentinelCommon.Tests.ps1` covers `Sentinel.Common` itself
 using Pester `Mock` to stub Az PowerShell calls.
 
-### The Documenter suites source differently
+### The Blueprint suites source differently
 
-The six suites under [`Tests/Documenter/`](../../Tests/Documenter) do not
-go through the AST-extraction helper. They dot-source specific Documenter
-files directly (including files under `Tools/Documenter/Private/`) and drive
+The six suites under [`Tests/Blueprint/`](../../Tests/Blueprint) do not
+go through the AST-extraction helper. They dot-source specific Blueprint
+files directly (including files under `Tools/Blueprint/Private/`) and drive
 them against a fixed JSON fixture corpus rather than mocking Azure:
 
-- [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1)
-  reshapes `Tests/Documenter/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
-  layout the renderer [`Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1`](../../Tools/Documenter/Convert-SentinelInventoryToMarkdown.ps1)
+- [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1)
+  reshapes `Tests/Blueprint/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
+  layout the renderer [`Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1`](../../Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1)
   expects, runs it, and asserts the rendered Markdown (plus an empty-state /
   busy-workspace safety pass).
-- [`Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1)
-  dot-sources [`Tools/Documenter/Private/Get-SentinelGap.ps1`](../../Tools/Documenter/Private/Get-SentinelGap.ps1)
+- [`Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1)
+  dot-sources [`Tools/Blueprint/Private/Get-SentinelGap.ps1`](../../Tools/Blueprint/Private/Get-SentinelGap.ps1)
   and feeds it a deliberately-broken fixture so each gap-analysis rule fires.
-- [`Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1)
-  dot-sources [`Tools/Documenter/Private/Invoke-SentinelRest.ps1`](../../Tools/Documenter/Private/Invoke-SentinelRest.ps1)
+- [`Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1)
+  dot-sources [`Tools/Blueprint/Private/Invoke-SentinelRest.ps1`](../../Tools/Blueprint/Private/Invoke-SentinelRest.ps1)
   and asserts URL construction (how `-ApiVersion` is appended when the path
   already carries a query string or its own `api-version`).
-- [`Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1)
+- [`Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1)
   imports `Modules/Sentinel.Common` (so it needs `Az.Accounts`, like the
   module's own suite) and dot-sources
-  [`Tools/Documenter/Private/Get-KqlTableReferences.ps1`](../../Tools/Documenter/Private/Get-KqlTableReferences.ps1).
-- [`Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1)
+  [`Tools/Blueprint/Private/Get-KqlTableReferences.ps1`](../../Tools/Blueprint/Private/Get-KqlTableReferences.ps1).
+- [`Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1)
   dot-sources the gap engine and
-  [`Tools/Documenter/Private/Get-SentinelMaturity.ps1`](../../Tools/Documenter/Private/Get-SentinelMaturity.ps1),
+  [`Tools/Blueprint/Private/Get-SentinelMaturity.ps1`](../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1),
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
-- [`Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1)
+- [`Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1)
   dot-sources
-  [`Tools/Documenter/Private/Get-TableTierProfile.ps1`](../../Tools/Documenter/Private/Get-TableTierProfile.ps1)
+  [`Tools/Blueprint/Private/Get-TableTierProfile.ps1`](../../Tools/Blueprint/Private/Get-TableTierProfile.ps1)
   and classifies a hand-built set of five tables with and without lake
   enrolment; no fixture, no Azure modules.
-- [`SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1)
-  dot-sources the helpers under [`Tools/Documenter/SharePoint/Private/`](../../Tools/Documenter/SharePoint/Private)
-  and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Documenter/SharePoint/Build-SentinelDocsSite.ps1)
+- [`SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1)
+  dot-sources the helpers under [`Tools/Blueprint/SharePoint/Private/`](../../Tools/Blueprint/SharePoint/Private)
+  and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1)
   offline against the rendered fixture. The publisher's decisions live in pure
   planning functions, and the functions that call PnP run against stand-in
   functions (`Install-PnPStub`), so nothing needs SharePoint or PnP.PowerShell.
-- [`SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1)
+- [`SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1)
   parses the SharePoint scripts and checks every PnP.PowerShell call against
-  the real parameter metadata of the version `Pipelines/Sentinel-Documenter.yml`
+  the real parameter metadata of the version `Pipelines/Sentinel-Blueprint.yml`
   pins (`pnpVersion`), so a call that cannot bind fails here instead of in a
   pipeline run. Both PR validation jobs install that version, and in CI the
   suite fails if it is missing. Locally it is skipped without it:
@@ -586,7 +586,7 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 ## Test inventory
 
 All 22 suites are listed below: 19 root-level `Tests/*.Tests.ps1` plus the 3
-under `Tests/Documenter/`. Counts are approximate (some suites use `-ForEach`
+under `Tests/Blueprint/`. Counts are approximate (some suites use `-ForEach`
 to generate per-file `It` blocks at discovery time, so the count grows with
 the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 
@@ -612,15 +612,15 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
-| [`Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Documenter/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Documenter Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections and empty-state safety | ~200 |
-| [`Tests/Documenter/Get-SentinelGap.Tests.ps1`](../../Tests/Documenter/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour | 74 |
-| [`Tests/Documenter/Invoke-SentinelRest.Tests.ps1`](../../Tests/Documenter/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
-| [`Tests/Documenter/SharePoint-Site.Tests.ps1`](../../Tests/Documenter/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, offline bundle build | 94 |
-| [`Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Documenter/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in `Tools/Documenter/SharePoint/` binds against it | 8 |
-| [`Tests/Documenter/Get-KqlTableReferences.Tests.ps1`](../../Tests/Documenter/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
-| [`Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Documenter/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
-| [`Tests/Documenter/Get-TableTierProfile.Tests.ps1`](../../Tests/Documenter/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
-| [`Tests/Documenter/Get-SentinelMaturity.Tests.ps1`](../../Tests/Documenter/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards | 32 |
+| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Blueprint Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections and empty-state safety | ~200 |
+| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour | 74 |
+| [`Tests/Blueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
+| [`Tests/Blueprint/SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, offline bundle build | 94 |
+| [`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in `Tools/Blueprint/SharePoint/` binds against it | 8 |
+| [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
+| [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
+| [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
+| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards | 32 |
 
 Add new entries to this table as you cover more scripts.
 

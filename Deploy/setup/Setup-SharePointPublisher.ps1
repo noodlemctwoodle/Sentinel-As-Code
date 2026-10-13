@@ -3,13 +3,13 @@
 
 <#
 .SYNOPSIS
-    One-time bootstrap of the SharePoint publisher identity the Documenter
+    One-time bootstrap of the SharePoint publisher identity the Blueprint
     pipeline's SharePoint stage signs in with: the app registration, its
     SharePoint permission, the Azure DevOps service connection and the
     federated credential that ties the two together.
 
 .DESCRIPTION
-    The SharePoint stage of Pipelines/Sentinel-Documenter.yml publishes the
+    The SharePoint stage of Pipelines/Sentinel-Blueprint.yml publishes the
     iSOC Blueprint site through an identity that can write to one
     SharePoint site and nothing else in Azure. Setting that identity up by
     hand takes six steps across Entra ID, Azure and Azure DevOps; this
@@ -31,12 +31,12 @@
          assigned to it.
       5. Adds a federated credential with that issuer and subject to the
          publisher app, audience api://AzureADTokenExchange.
-      6. Optionally authorises the Documenter pipeline to use the
+      6. Optionally authorises the Blueprint pipeline to use the
          connection and writes sharePointSiteUrl into the deployment
          variable group, so the first run needs no clicks.
 
     What it does not do: create or prepare the SharePoint site. Run
-    Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1 for that
+    Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1 for that
     (it grants this app FullControl on the one site). The script prints
     the exact command with the app id filled in.
 
@@ -50,7 +50,7 @@
     https://dev.azure.com/contoso.
 
 .PARAMETER AdoProject
-    The project that holds the Documenter pipeline.
+    The project that holds the Blueprint pipeline.
 
 .PARAMETER SubscriptionId
     The subscription the service connection is scoped to. The publisher
@@ -83,7 +83,7 @@
 .PARAMETER AuthorizePipeline
     Name of a pipeline to authorise for the connection, so its first run
     does not stop at the resource authorisation checkpoint. Defaults to
-    Sentinel-Documenter. Pass an empty string to skip.
+    Sentinel-Blueprint. Pass an empty string to skip.
 
 .PARAMETER AdoPersonalAccessToken
     Only needed when your own sign-in cannot reach the organisation. By
@@ -120,7 +120,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.1.3
+    Version:        0.2.0
     Last Updated:   2026-10-12
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
@@ -152,7 +152,7 @@ param(
     [string]$ServiceConnectionName = 'sc-sentinel-sharepoint',
 
     [Parameter(Mandatory = $false)]
-    [string]$PublisherAppName = 'Sentinel Documenter SharePoint publisher',
+    [string]$PublisherAppName = 'Sentinel Blueprint SharePoint publisher',
 
     [Parameter(Mandatory = $false)]
     [string]$PublisherAppId,
@@ -165,7 +165,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [AllowEmptyString()]
-    [string]$AuthorizePipeline = 'Sentinel-Documenter',
+    [string]$AuthorizePipeline = 'Sentinel-Blueprint',
 
     [Parameter(Mandatory = $false)]
     [securestring]$AdoPersonalAccessToken
@@ -251,11 +251,26 @@ if ($PublisherAppId) {
 } else {
     $safeName = $PublisherAppName.Replace("'", "''")
     $app = Get-MgApplication -Filter "displayName eq '$safeName'" -ErrorAction Stop | Select-Object -First 1
+    if (-not $app) {
+        # Before the Documenter was renamed Blueprint the default display name
+        # was this one. Rename that app rather than create a second publisher.
+        $legacyName = 'Sentinel Documenter SharePoint publisher'
+        $legacy = Get-MgApplication -Filter "displayName eq '$legacyName'" -ErrorAction Stop | Select-Object -First 1
+        if ($legacy) {
+            if ($PSCmdlet.ShouldProcess($legacyName, "Rename app registration to '$PublisherAppName'")) {
+                Update-MgApplication -ApplicationId $legacy.Id -DisplayName $PublisherAppName -ErrorAction Stop
+                Write-Ok "Renamed '$legacyName' to '$PublisherAppName'"
+            } else {
+                Write-Skip "Would rename '$legacyName' to '$PublisherAppName'"
+            }
+            $app = $legacy
+        }
+    }
 }
 if ($app) {
     Write-Ok "Using '$($app.DisplayName)' ($($app.AppId))"
 } elseif ($PSCmdlet.ShouldProcess($PublisherAppName, 'Create app registration')) {
-    $app = New-MgApplication -DisplayName $PublisherAppName -SignInAudience 'AzureADMyOrg' -Notes 'Sentinel-As-Code Documenter: publishes the iSOC Blueprint SharePoint site. No secret; federated credential per pipeline.' -ErrorAction Stop
+    $app = New-MgApplication -DisplayName $PublisherAppName -SignInAudience 'AzureADMyOrg' -Notes 'Sentinel-As-Code Blueprint: publishes the iSOC Blueprint SharePoint site. No secret; federated credential per pipeline.' -ErrorAction Stop
     Write-Ok "Created '$($app.DisplayName)' ($($app.AppId))"
 } else {
     Write-Skip "Would create app registration '$PublisherAppName'"
@@ -340,7 +355,7 @@ if ($endpoint) {
         name          = $ServiceConnectionName
         type          = 'azurerm'
         url           = 'https://management.azure.com/'
-        description   = 'Sentinel Documenter SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
+        description   = 'Sentinel Blueprint SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
         authorization = @{ scheme = 'WorkloadIdentityFederation'; parameters = @{ tenantid = $tenantId; serviceprincipalid = $app.AppId } }
         data          = @{ environment = 'AzureCloud'; scopeLevel = 'Subscription'; subscriptionId = $SubscriptionId; subscriptionName = $subscriptionName; creationMode = 'Manual' }
         isShared      = $false
@@ -450,9 +465,9 @@ Write-Host "============================================================" -Foreg
 Write-Host "  1. Verify the connection in ADO (Project settings, Service connections, $ServiceConnectionName, Verify)."
 Write-Host "  2. Prepare the site once, as a SharePoint administrator (adds the site app catalog and grants this app FullControl on that site only):"
 Write-Host ""
-Write-Host "     ./Tools/Documenter/SharePoint/Initialize-SentinelDocsSite.ps1 ``" -ForegroundColor White
+Write-Host "     ./Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1 ``" -ForegroundColor White
 Write-Host "         -SiteUrl '$(if ($SharePointSiteUrl) { $SharePointSiteUrl } else { '<site url>' })' -Owner '<owner upn>' ``" -ForegroundColor White
 Write-Host "         -PublisherAppId '$appId' -ClientId '<your PnP sign-in app id>' -Tenant '<tenant>.onmicrosoft.com' -WhatIf" -ForegroundColor White
 Write-Host ""
-Write-Host "  3. Queue Sentinel-Documenter with 'Export: SharePoint site' and 'SharePoint: what-if' ticked, read the plan, then run it again without what-if."
+Write-Host "  3. Queue Sentinel-Blueprint with 'Export: SharePoint site' and 'SharePoint: what-if' ticked, read the plan, then run it again without what-if."
 Write-Host ""

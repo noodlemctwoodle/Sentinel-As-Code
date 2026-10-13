@@ -190,7 +190,7 @@ Both `SubscriptionId` and `ServicePrincipalAppId` are mandatory, so every invoca
 
 **Location:** `Deploy/setup/Setup-SharePointPublisher.ps1`
 
-One-time bootstrap of the identity the Documenter pipeline's SharePoint
+One-time bootstrap of the identity the Blueprint pipeline's SharePoint
 stage signs in with. It replaces the six manual steps (Entra app, SharePoint
 permission, admin consent, Azure role, ADO service connection, federated
 credential) with one idempotent run, and prints the
@@ -211,7 +211,7 @@ credential) with one idempotent run, and prints the
   ADO assigned.
 - Adds the federated credential (issuer, subject, audience
   `api://AzureADTokenExchange`) to the app.
-- Optionally authorises `Sentinel-Documenter` to use the connection and
+- Optionally authorises `Sentinel-Blueprint` to use the connection and
   writes `sharePointSiteUrl` into the `sentinel-deployment` variable group.
 - Supports `-WhatIf`; every step checks before it changes anything, so
   re-running after a partial failure finishes the job.
@@ -240,15 +240,15 @@ credential) with one idempotent run, and prints the
 | Parameter | Required | Description |
 | --- | --- | --- |
 | `-AdoOrganizationUrl` | Yes | The organisation, for example `https://dev.azure.com/contoso`. |
-| `-AdoProject` | Yes | The project that holds the Documenter pipeline. |
+| `-AdoProject` | Yes | The project that holds the Blueprint pipeline. |
 | `-SubscriptionId` | Yes | Subscription the connection is scoped to. |
 | `-ReaderResourceGroup` | Yes | Existing resource group the publisher gets Reader on. |
 | `-ServiceConnectionName` | No | Defaults to `sc-sentinel-sharepoint`, what the pipeline expects. |
-| `-PublisherAppName` | No | Display name of the app to find or create. Default `Sentinel Documenter SharePoint publisher`. |
+| `-PublisherAppName` | No | Display name of the app to find or create. Default `Sentinel Blueprint SharePoint publisher`. |
 | `-PublisherAppId` | No | Use an existing app registration instead of creating one. |
 | `-SharePointSiteUrl` | No | Written to `sharePointSiteUrl` in the variable group. |
 | `-VariableGroupName` | No | Defaults to `sentinel-deployment`. |
-| `-AuthorizePipeline` | No | Pipeline to authorise for the connection. Default `Sentinel-Documenter`; empty string skips. |
+| `-AuthorizePipeline` | No | Pipeline to authorise for the connection. Default `Sentinel-Blueprint`; empty string skips. |
 | `-AdoPersonalAccessToken` | No | SecureString PAT, only when your own sign-in cannot reach the organisation (different tenant, or not a member). |
 | `-WhatIf` | No | Print every change without making it. |
 
@@ -314,7 +314,7 @@ site with `Initialize-SentinelDocsSite.ps1`, which needs your own PnP
 sign-in app and grants this app FullControl on that one site; and the first
 pipeline run, queued with **Export: SharePoint site** and **SharePoint:
 what-if** ticked. See
-[Sentinel SharePoint Site](../Tools/Documenter/Sentinel-SharePoint-Site.md#setting-it-up).
+[Sentinel SharePoint Site](../Tools/Blueprint/Sentinel-SharePoint-Site.md#setting-it-up).
 
 ## Deploy-SentinelContentHub.ps1
 
@@ -1400,7 +1400,7 @@ which includes platform tables such as `AzureDiagnostics` that are fed
 by diagnostic settings. Those must never be migrated. The `_CL` suffix
 is enforced at table creation and is the authoritative custom-table
 marker, so the script excludes anything without it and says why. This
-matches the filter used by the documenter's SAC-PLT-02 check.
+matches the filter used by the blueprint's SAC-PLT-02 check.
 
 ### Two DCR shapes
 
@@ -1529,12 +1529,12 @@ Unit tests: `Tests/Test-InvokeClassicTableMigration.Tests.ps1`.
 
 ---
 
-## Documenter scripts
+## Blueprint scripts
 
-The repository documentation generator lives under `Tools/Documenter/`
+The repository documentation generator lives under `Tools/Blueprint/`
 (`Export-SentinelInventory.ps1`, `Convert-SentinelInventoryToMarkdown.ps1`,
 `Convert-MermaidToImage.ps1`, plus the `Report/` and `Private/` helpers)
 and is documented separately. See
-[Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) for the
+[Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) for the
 inventory export model, Markdown/Word report generation, and diagram
 rendering.

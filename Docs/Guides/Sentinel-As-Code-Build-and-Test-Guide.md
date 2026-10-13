@@ -22,7 +22,7 @@
     - [3.1 Baseline runtime](#31-baseline-runtime)
     - [3.2 Modules required to validate the project](#32-modules-required-to-validate-the-project)
     - [3.3 Modules required to use (deploy) the project](#33-modules-required-to-use-deploy-the-project)
-    - [3.4 Sentinel Documenter modules](#34-sentinel-documenter-modules)
+    - [3.4 Sentinel Blueprint modules](#34-sentinel-blueprint-modules)
     - [3.5 External (non-module) dependencies](#35-external-non-module-dependencies)
     - [3.6 Permissions](#36-permissions)
       - [3.6.1 Pipeline service principal (deploy + content)](#361-pipeline-service-principal-deploy--content)
@@ -194,7 +194,7 @@ looser.
 | [Az.LogicApp](https://learn.microsoft.com/powershell/module/az.logicapp/) | `Set-PlaybookPermissions` | `Requires:` header |
 | [Az.KeyVault](https://learn.microsoft.com/powershell/module/az.keyvault/) | Playbook permissions / Key Vault references | docs |
 | [Az.ManagedServiceIdentity](https://learn.microsoft.com/powershell/module/az.managedserviceidentity/) | Service-principal / managed-identity setup | docs |
-| [Az.OperationalInsights](https://learn.microsoft.com/powershell/module/az.operationalinsights/) | Deploy pipeline and nightly workflow; Documenter collector | cmdlet usage |
+| [Az.OperationalInsights](https://learn.microsoft.com/powershell/module/az.operationalinsights/) | Deploy pipeline and nightly workflow; Blueprint collector | cmdlet usage |
 | [Microsoft.Graph.Applications](https://learn.microsoft.com/powershell/module/microsoft.graph.applications/) | `Setup-ServicePrincipal` | `Install-Module` (auto) |
 | [Microsoft.Graph.Identity.Governance](https://learn.microsoft.com/powershell/module/microsoft.graph.identity.governance/) | `Setup-ServicePrincipal` | `Install-Module` (auto) |
 | [powershell-yaml](https://www.powershellgallery.com/packages/powershell-yaml) | `Deploy-CustomContent`; `Deploy-DefenderDetections`; `Export-DefenderDetections`; `Import-CommunityRules`; `Build-DependencyManifest` | `Install-Module` (auto) |
@@ -204,9 +204,9 @@ Scripts marked **(auto)** install the module on first run if it is missing.
 Pre-installing avoids interactive prompts in non-interactive contexts such as
 pipelines.
 
-### 3.4 Sentinel Documenter modules
+### 3.4 Sentinel Blueprint modules
 
-The read-only Documenter pins its own module set. The collector imports the Az
+The read-only Blueprint pins its own module set. The collector imports the Az
 modules; the renderer only needs `powershell-yaml`.
 
 | Module | Pinned version | Module | Pinned version |
@@ -226,7 +226,7 @@ validate-or-deploy path. Note that some are **not present in Azure Cloud Shell**
 | --- | --- |
 | [git](https://learn.microsoft.com/devops/develop/git/what-is-git) (2.x+ on PATH) | `Import-CommunityRules`; `Migrate-ForkLayout` (and cloning the repo) |
 | [pandoc](https://pandoc.org/) (on PATH) | `Convert-MarkdownToWord`; `Convert-FolderToWordReport` |
-| Node.js + [@mermaid-js/mermaid-cli](https://github.com/mermaid-js/mermaid-cli) | `Convert-MermaidToImage` (Documenter diagrams) |
+| Node.js + [@mermaid-js/mermaid-cli](https://github.com/mermaid-js/mermaid-cli) | `Convert-MermaidToImage` (Blueprint diagrams) |
 | [Azure CLI + Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/install) (`az bicep build`) | PR-validation bicep-build job |
 | [ImportExcel](https://www.powershellgallery.com/packages/ImportExcel) (module) | Standalone SDL migration workbook export only |
 
@@ -353,7 +353,7 @@ clone and run the project directly on the Cloud PC. On the image, install:
   installed for all users so engineers never need a per-session `Install-Module`
   step.
 - **The external binaries from Section 3.5** - git, plus pandoc and Node.js
-  where the Sentinel Documenter Word export and mermaid diagrams are required, so
+  where the Sentinel Blueprint Word export and mermaid diagrams are required, so
   the full validation and documentation flow runs on the host.
 - [Visual Studio Code](https://code.visualstudio.com/) - the recommended editor
   for authoring rules, scripts, Bicep and pipeline changes, and the desktop
@@ -509,7 +509,7 @@ on the user's device.
 
 - Engineers actively authoring rules, scripts or pipeline changes who want
   editor, terminal and tests in one place.
-- Scenarios that need the optional tooling (Documenter Word export, mermaid
+- Scenarios that need the optional tooling (Blueprint Word export, mermaid
   diagrams) that Cloud Shell lacks.
 
 ### 7.2 Setup outline

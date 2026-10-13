@@ -36,7 +36,7 @@ Infra/              Three subscription-scoped Bicep stacks (production Sentinel,
                     DCR-watchlist automation)
 Deploy/             Deployment scripts and sentinel-deployment.config
 Tools/              CI and maintenance tooling (dependency manifest, drift, PR validation,
-                    workbook export, community import, Documenter)
+                    workbook export, community import, Blueprint)
 Pipelines/          Azure DevOps pipeline definitions
 Modules/            In-repo PowerShell modules (Sentinel.Common shared deployer + KQL helpers)
 Tests/              Pester test suite
@@ -132,7 +132,7 @@ The [Sentinel as Code Toolkit](Docs/Toolkit/README.md) companion VS Code extensi
 Start at the [index](Docs/Pipelines/README.md) for the GitHub/ADO parity map, then
 the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 [Deploy](Docs/Pipelines/Deploy.md), [Deploy-Nightly](Docs/Pipelines/Deploy-Nightly.md),
-[Drift-Detect](Docs/Pipelines/Drift-Detect.md), [Documenter](Docs/Pipelines/Documenter.md),
+[Drift-Detect](Docs/Pipelines/Drift-Detect.md), [Blueprint](Docs/Pipelines/Blueprint.md),
 [Dependency-Update](Docs/Pipelines/Dependency-Update.md),
 [DCR-Inventory](Docs/Pipelines/DCR-Inventory.md), and
 [Word-Report](Docs/Pipelines/Word-Report.md).
@@ -153,14 +153,14 @@ the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 | DCR Watchlist Sync | [Tools/DCR-Watchlist.md](Docs/Tools/DCR-Watchlist.md) |
 | SDL Migration Workbook Export | [Tools/SDL-Migration-Workbook-Export.md](Docs/Tools/SDL-Migration-Workbook-Export.md) |
 
-Documenter (`Docs/Tools/Documenter/`): [Sentinel Documenter](Docs/Tools/Documenter/Sentinel-Documenter.md),
-[Renderer Design](Docs/Tools/Documenter/Documenter-Renderer-Design.md),
-[References](Docs/Tools/Documenter/Documenter-References.md),
-[Data Lake Coverage](Docs/Tools/Documenter/Sentinel-Data-Lake-Coverage.md),
-[Maturity Model](Docs/Tools/Documenter/Sentinel-Maturity-Model.md),
-[Health check cross-reference](Docs/Tools/Documenter/Health-Check-Coverage.md),
-[SharePoint Site](Docs/Tools/Documenter/Sentinel-SharePoint-Site.md), and
-[Word Report](Docs/Tools/Documenter/Sentinel-Word-Report.md).
+Blueprint (`Docs/Tools/Blueprint/`): [Sentinel Blueprint](Docs/Tools/Blueprint/Sentinel-Blueprint.md),
+[Renderer Design](Docs/Tools/Blueprint/Blueprint-Renderer-Design.md),
+[References](Docs/Tools/Blueprint/Blueprint-References.md),
+[Data Lake Coverage](Docs/Tools/Blueprint/Sentinel-Data-Lake-Coverage.md),
+[Maturity Model](Docs/Tools/Blueprint/Sentinel-Maturity-Model.md),
+[Health check cross-reference](Docs/Tools/Blueprint/Health-Check-Coverage.md),
+[SharePoint Site](Docs/Tools/Blueprint/Sentinel-SharePoint-Site.md), and
+[Word Report](Docs/Tools/Blueprint/Sentinel-Word-Report.md).
 
 ### Tests and Copilot - `Docs/Tests/`, `Docs/GitHub/`
 

@@ -85,7 +85,7 @@ Set-StrictMode -Version Latest
 
 # --- API versions --------------------------------------------------------------
 # Pinned to the versions the repository standardises on, see the $apiVersions map in
-# Tools/Documenter/Export-SentinelInventory.ps1. dataConnectorDefinitions and the
+# Tools/Blueprint/Export-SentinelInventory.ps1. dataConnectorDefinitions and the
 # RestApiPoller connector kind are preview-only resource types, so both use the
 # repository's SentinelPreview pin rather than the Sentinel GA pin.
 $apiTables    = '2023-09-01'         # Tables

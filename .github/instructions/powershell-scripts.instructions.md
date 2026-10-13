@@ -214,7 +214,7 @@ than no reference, because it implies the contract was checked.
 ### Variants
 
 **Files that define functions rather than run** (`Modules/**/*.psm1`,
-`Tools/Documenter/Private/*.ps1`): the file-level block describes the
+`Tools/Blueprint/Private/*.ps1`): the file-level block describes the
 file and carries `.NOTES`. Per-parameter and per-example detail lives
 on each function's own help block, not the file's.
 

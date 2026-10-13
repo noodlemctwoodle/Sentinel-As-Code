@@ -6,17 +6,39 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
-- **The ADO Documenter publishes the SharePoint site and uses the preview
+- **The Documenter is now Blueprint** - the tool, its pipelines and its
+  docs take the product's name. Folders: `Tools/Blueprint/`,
+  `Tests/Blueprint/`, `Docs/Tools/Blueprint/`; `Documenter.psd1` is
+  `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
+  (definition `Sentinel-Blueprint`), the GitHub workflow is
+  `.github/workflows/sentinel-blueprint.yml` ("Sentinel Blueprint"), and
+  the SharePoint workflow follows it by that name and takes
+  `blueprint-run-id`. Stored names move too, with a way across for
+  existing data: the site's assets library is `Blueprint Assets`
+  (`BlueprintAssets`); the publisher reads the publish state and maturity
+  history from the old `DocumenterAssets` library when the new one has
+  none, saves them to the new one, and recycles the old library after a
+  clean publish. `run-context.json` records `BlueprintVersion`, and older
+  snapshots with `DocumenterVersion` still read. The GitHub workflow reads
+  the `AZURE_BLUEPRINT_CLIENT_ID` secret, falling back to
+  `AZURE_DOCUMENTER_CLIENT_ID` until it exists. The publisher app's
+  default name is `Sentinel Blueprint SharePoint publisher`;
+  `Setup-SharePointPublisher.ps1` renames an app still called `Sentinel
+  Documenter SharePoint publisher` instead of creating a second one. The
+  dashboard web part's default file moves with the library (1.3.0).
+  `Tools/Migrate-ForkLayout.ps1` maps `Tools/Documenter` and
+  `Tests/Documenter` to their new homes.
+- **The ADO Blueprint publishes the SharePoint site and uses the preview
   APIs by default** - `publishSharePointSite` (**Export: SharePoint
   site**) and `includePreview` (**Collector: include preview APIs**) now
-  default to on in `Pipelines/Sentinel-Documenter.yml`. Untick the
+  default to on in `Pipelines/Sentinel-Blueprint.yml`. Untick the
   SharePoint export for a workspace with no site or no
   `sc-sentinel-sharepoint` connection. The GitHub workflow's
   `include-preview` input is unchanged (off).
 - **PR validation installs PnP.PowerShell for the SharePoint call check**
   - both PR validation jobs install the PnP.PowerShell version the
-  Documenter pipeline pins (`pnpVersion`, read from
-  `Pipelines/Sentinel-Documenter.yml` so the two cannot drift): inline in
+  Blueprint pipeline pins (`pnpVersion`, read from
+  `Pipelines/Sentinel-Blueprint.yml` so the two cannot drift): inline in
   `Pipelines/Sentinel-PR-Validation.yml`, and through a new `pnp-version`
   input on the `setup-pwsh-modules` composite action on GitHub (empty by
   default, so other callers and their cache keys are unchanged).
@@ -31,7 +53,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   which returns a printed text tree rather than nodes, so the comparison
   never matched and the navigation would have been rebuilt on every run;
   it now reads the top-level nodes and loads each one's children by id.
-  A new suite, `Tests/Documenter/SharePoint-PnPCalls.Tests.ps1`, checks
+  A new suite, `Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`, checks
   every PnP call in the SharePoint scripts against the parameter metadata
   of the pinned PnP.PowerShell version (unknown parameters, parameter-set
   clashes, missing mandatory parameters, `Remove-PnP*` without `-Force`),
@@ -50,27 +72,24 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   manifest, when it loads a saved page, and without it the publish failed
   on the next save (`Set-PnPPage -Title -Publish`) with the same message.
   A dashboard page placed without the property is rebuilt.
-- **The dashboard web part is called isoc-blueprint** - the SPFx project
-  moves from `Tools/Documenter/SharePoint/webpart/sentinel-navigator/` to
-  `webpart/isoc-blueprint/` and builds `isoc-blueprint.sppkg`
-  (`isoc-blueprint-client-side-solution`, web part `IsocBlueprintWebPart`),
-  version 1.2.0. The solution and web part ids are unchanged. SharePoint
-  refuses the same solution id under a second file name (`Add-PnPApp`
-  fails with "appMetadata"), so on a site that still has the old package
-  the publisher removes it and then adds the new one; the dashboard
-  page keeps working because the web part's component id is the same. The Documenter pipeline, the GitHub SharePoint
-  workflow, the site scripts' help and the docs use the new path.
+- **A renamed dashboard web part replaces its old package** - SharePoint
+  keeps one catalog file per solution id and refuses the same id under a
+  second file name (`Add-PnPApp` fails with "appMetadata"). When the app
+  catalog holds this solution under another title, the publisher removes
+  that entry before adding the package; the dashboard page keeps working
+  because the web part's component id does not change. The web part is
+  `isoc-blueprint` (`isoc-blueprint.sppkg`, `IsocBlueprintWebPart`).
 - **The SharePoint stage no longer renders Mermaid** - the dashboard draws
   its own charts, so the `SharePoint` stage of
-  `Pipelines/Sentinel-Documenter.yml` drops its mermaid-cli install and
+  `Pipelines/Sentinel-Blueprint.yml` drops its mermaid-cli install and
   pre-render step (and the `mermaidCliVersion` variable). The section
   pages reuse the PNGs when the Document stage already made them
   (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegments` leaves
   each Mermaid block out with no placeholder and no warning, and
   `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
   SharePoint workflow still pre-renders.
-- **Tidier Documenter run panel** - the queue-time options of
-  `Pipelines/Sentinel-Documenter.yml` now read as groups with one-line
+- **Tidier Blueprint run panel** - the queue-time options of
+  `Pipelines/Sentinel-Blueprint.yml` now read as groups with one-line
   labels: the three exports first and side by side (`Export: SharePoint
   site`, `Export: Markdown`, `Export: Word report`, any combination), then
   the `SharePoint:` options, `Charts:`, `Collector:` and `Maturity:`. The
@@ -80,8 +99,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   disabled Next: its default is now a single space, which the collector
   step trims, and left blank it falls back to the Sentinel RG
   (`sentinelResourceGroup`), shown on the run log's `Playbook RG` line.
-- **One Documenter pipeline on Azure DevOps, with a tick box per output** -
-  `Pipelines/Sentinel-Documenter.yml` now carries the three documentation
+- **One Blueprint pipeline on Azure DevOps, with a tick box per output** -
+  `Pipelines/Sentinel-Blueprint.yml` now carries the three documentation
   outputs as queue-time options that can be combined freely: the Markdown
   pack as a review-only pull request (`openPullRequest`), the Word report
   (`publishWordReport`, a new `WordReport` stage) and the iSOC Blueprint
@@ -98,7 +117,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Sites.Selected` application permission, grants Reader on one resource
   group, creates the `sc-sentinel-sharepoint` service connection with
   workload identity federation through the Azure DevOps REST API, adds the
-  federated credential, and optionally authorises the Documenter pipeline
+  federated credential, and optionally authorises the Blueprint pipeline
   and sets `sharePointSiteUrl` in the variable group. Idempotent, with
   `-WhatIf`.
 - **The Markdown pack carries everything the dashboard shows** - the
@@ -113,9 +132,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   and 500 incident-producing rule titles instead of 50 and 25. The product
   to family mapping the dashboard uses now lives in the shared
   `Get-ProductFamily` helper, so both outputs agree.
-- **Sentinel health check folded into the Documenter and the iSOC Blueprint
+- **Sentinel health check folded into the Blueprint and the iSOC Blueprint
   site** - the content of the Sentinel health-check script written by
-  Lasitha R, who gave it to the project, now lands on the Documenter's own
+  Lasitha R, who gave it to the project, now lands on the Blueprint's own
   layers and is refreshed by the daily pipelines. Thirteen new gap rules
   (SENT-036, 037, 038, 041 and 050 to 058: noisy rules, missing entity
   mappings, alert-only rules, legacy incident-creation rules, rules on the
@@ -263,7 +282,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the per-section view is the "Report" tab and sits before Maturity; Report
   section titles and subsection headings are more prominent; doc-table
   cells longer than 40 characters wrap instead of overflowing; the estate
-  flow and Sankey no longer shorten any label. Documenter version 0.2.0.
+  flow and Sankey no longer shorten any label. Blueprint version 0.2.0.
   The estate flow keeps its layout but reads cleanly: ring captions wrap
   onto two lines with a panel-coloured halo, the "Not monitored" pool is
   sized to its text and sits below the rings, and the unmonitored strands
@@ -280,8 +299,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   host on the data-source hygiene page) and `table-query-usage` (audited
   queries per lake-retained table, the last column of the lake usage
   evidence). `best-practices.json` is 2.3.0 with 59 rules. A new
-  [Health-Check-Coverage.md](../Tools/Documenter/Health-Check-Coverage.md)
-  maps every section of the contributed health check to its Documenter
+  [Health-Check-Coverage.md](../Tools/Blueprint/Health-Check-Coverage.md)
+  maps every section of the contributed health check to its Blueprint
   page.
 - **Sections cross-referenced with the health check** - six subsections
   the health check had and the pages did not, all from captures already
