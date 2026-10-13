@@ -1480,6 +1480,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) | ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
     }
 
+    It 'shows status words in report cells as pills and puts a chart''s key above its bars' {
+        $html | Should -Match 'const STATUS_PILL=\{''Up to date'':''Met'',''Current'':''Met'',''Update available'':''Warn'''
+        $html | Should -Match '\.st\.Warn\{background:var\(--amber\)\}'
+        $html | Should -Match 'class="legend top"'
+    }
+
     It 'shows the NIST CSF rollup above the roadmap' {
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')

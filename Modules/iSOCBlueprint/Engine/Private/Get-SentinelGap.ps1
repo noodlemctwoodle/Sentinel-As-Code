@@ -52,7 +52,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.6.1
+    Version:      0.6.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -219,6 +219,7 @@ function New-InventoryFromRaw {
         AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
         ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'
         SummaryRules           = Read-JsonArray 'summary-rules.json'
+        Watchlists             = Read-JsonArray 'watchlists.json'
         SecurityEventDuplicates = Read-JsonArray 'security-event-duplicates.json'
         CefInSyslog            = Read-JsonArray 'cef-in-syslog.json'
         LaQueryLogs            = Read-JsonArray 'la-query-logs.json'

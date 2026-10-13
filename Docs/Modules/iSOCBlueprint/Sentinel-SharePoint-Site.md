@@ -267,7 +267,10 @@ cell holding a list of four or more items separated by semicolons (the
 solutions behind a table's templates, a finding's evidence list) shows as
 chips: the first three, then Show all for the rest, with a lead-in such as
 "146 rule(s) disabled:" kept as text above them; a solution marked
-installed is tinted green. The Markdown pages refer to one another by
+installed is tinted green. Status words in a table cell show as pills:
+green for Up to date and Current, amber for Update available and Stale,
+red for Deprecated, Not in catalogue and Stale, used by rules. A chart
+with more than one series shows its key above the bars. The Markdown pages refer to one another by
 file name (`90-gap-analysis.md`); the Report tab and the native pages show
 the section's title instead ("Gap Analysis"), and a file name mentioned in
 plain text becomes a link to that section.

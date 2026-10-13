@@ -413,7 +413,7 @@ Describe 'Sentinel gap-analysis engine' {
         }
 
         It 'does not fire the newer rules the sample satisfies' {
-            foreach ($id in 'SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-PLT-12') {
+            foreach ($id in 'SAC-COV-08', 'SAC-DET-15', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-PLT-12') {
                 ($findings | Where-Object Id -eq $id).Count | Should -Be 0 -Because "$id passes on the sample"
             }
         }
@@ -549,14 +549,14 @@ Describe 'Sentinel gap-analysis rule catalogue' {
 
     It 'names every rule in the maturity id scheme, uniquely' {
         $ids = @($script:catalogue.rules | ForEach-Object { $_.id })
-        $ids.Count | Should -Be 66
-        ($ids | Sort-Object -Unique).Count | Should -Be 66
+        $ids.Count | Should -Be 67
+        ($ids | Sort-Object -Unique).Count | Should -Be 67
         foreach ($id in $ids) { $id | Should -Match '^SAC-[A-Z]{2,4}-\d{2}$' }
     }
 
     It 'keeps the retired SENT id as a unique legacy alias on the rules that had one, and names an area on every rule' {
         # Rules added after the rename (catalogue 3.1.0 on) never had a SENT id.
-        $added = @('SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12')
+        $added = @('SAC-COV-08', 'SAC-DET-15', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12')
         $withLegacy = @($script:catalogue.rules | Where-Object { $_.PSObject.Properties['legacyId'] })
         @($withLegacy | ForEach-Object id | Where-Object { $_ -in $added }).Count | Should -Be 0
         @($script:catalogue.rules | Where-Object { -not $_.PSObject.Properties['legacyId'] } | ForEach-Object id | Sort-Object) | Should -Be ($added | Sort-Object)
@@ -918,5 +918,48 @@ Describe 'Evidence never names something "?" or leaves a blank entry' {
         Get-EvidenceName ([pscustomobject]@{ a = ''; b = 'B' }) 'a', 'b' 'F' | Should -Be 'B'
         Get-EvidenceName ([pscustomobject]@{ a = ' ' }) 'a' 'F' | Should -Be 'F'
         Get-EvidenceName $null 'a' 'F' | Should -Be 'F'
+    }
+}
+
+Describe 'SAC-DET-15 flags stale watchlists that enabled rules still read' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        $now = (Get-Date).ToUniversalTime()
+        $wl = { param($alias, $days, $source) [pscustomobject]@{ properties = [pscustomobject]@{ displayName = "WL $alias"; watchlistAlias = $alias; source = $source; updated = $now.AddDays(-$days).ToString('o') } } }
+        $rule = { param($name, $enabled, $q) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ displayName = $name; enabled = $enabled; query = $q } } }
+        $script:inv = [pscustomobject]@{
+            Watchlists = @(
+                (& $wl 'vips' 400 'vips.csv')
+                (& $wl 'assets' 120 'Local file')
+                (& $wl 'fresh' 10 'Manual')
+                (& $wl 'sapsystems' 900 'ContentHub')
+                (& $wl 'unused' 500 'Manual')
+            )
+            AlertRules = @(
+                (& $rule 'VIP sign-in' $true '_GetWatchlist("vips") | join SigninLogs')
+                (& $rule 'Asset alert' $true "_GetWatchlist('Assets') | join DeviceEvents")
+                (& $rule 'Fresh use' $true "_GetWatchlist('fresh')")
+                (& $rule 'SAP rule' $true "_GetWatchlist('sapsystems')")
+                (& $rule 'Disabled user' $false "_GetWatchlist('unused')")
+            )
+        }
+    }
+
+    It 'names each stale watchlist an enabled rule reads, oldest first' {
+        $f = Test-WatchlistsStale -Inventory $script:inv
+        $f.Evidence | Should -Match '^2 watchlist\(s\) read by enabled analytics rules have not been updated in 90 days or more: WL vips \(400 days, 1 rule\); WL assets \(120 days, 1 rule\)\.$'
+    }
+
+    It 'leaves out fresh, Content Hub and only-disabled-rule watchlists' {
+        $rows = @(Get-WatchlistFreshness -Watchlists $script:inv.Watchlists -RuleUse (Get-WatchlistRuleUse -Rules $script:inv.AlertRules))
+        ($rows | Where-Object Alias -EQ 'fresh').Status | Should -Be 'Current'
+        ($rows | Where-Object Alias -EQ 'sapsystems').Status | Should -Be 'Content Hub'
+        ($rows | Where-Object Alias -EQ 'unused').Status | Should -Be 'Stale'
+        ($rows | Where-Object Alias -EQ 'vips').Status | Should -Be 'Stale, used by rules'
+    }
+
+    It 'stays quiet with no watchlist capture' {
+        Test-WatchlistsStale -Inventory ([pscustomobject]@{ AlertRules = @() }) | Should -BeNullOrEmpty
     }
 }

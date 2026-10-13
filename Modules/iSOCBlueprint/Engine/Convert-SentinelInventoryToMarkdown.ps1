@@ -150,6 +150,7 @@ if (-not (Test-Path $OutputRoot)) {
 . (Join-Path $PSScriptRoot 'Private/Get-AttackCoverage.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-SearchRestoreTable.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TemplateSolution.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-WatchlistFreshness.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-FindingMaturityLink.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
@@ -764,7 +765,8 @@ $maturityCell = if ($maturityOk -and $null -ne $maturity.overall.score) {
 
 $usageTrendBlock = if ($usageDaily.Count -ge 2) {
     $pts = @($usageDaily | Sort-Object { [datetime]$_.Day })
-    $labels = ($pts | ForEach-Object { "`"$((Format-DateUtc $_.Day).Substring(5, 5))`"" }) -join ', '
+    # Day labels read "13 Sep", not "09-13".
+    $labels = ($pts | ForEach-Object { "`"$(([datetime]$_.Day).ToUniversalTime().ToString('d MMM', [System.Globalization.CultureInfo]::InvariantCulture))`"" }) -join ', '
     $bill = ($pts | ForEach-Object { [math]::Round((_RendererNumber $_.BillableGB), 2) }) -join ', '
     $free = ($pts | ForEach-Object { [math]::Round((_RendererNumber $_.FreeGB), 2) }) -join ', '
     $max = 1.0
@@ -788,7 +790,7 @@ xychart-beta
     line "Free" [$free]
 ``````
 
-First line billable GB, second line free (Sentinel-benefit and non-billable) GB, from ``Usage``. A step up that no connector change explains is the usual first sign of a runaway source.
+Billable GB per day, and free GB (the Sentinel benefit and other non-billable data), from ``Usage``. A step up that no connector change explains is the usual first sign of a runaway source.
 "@
 } else { '' }
 
@@ -1884,20 +1886,35 @@ $(Format-Table -Items $wbRows -Columns 'Name','Category')
 Total available: $($workbookTemplates.Count)
 "@)
 
-$wlRows = $watchlists | ForEach-Object {
+# Freshness from the shared helper (the gap check SAC-DET-15 reads the
+# same): stale and read by enabled rules first, then stale, current, and
+# the watchlists Content Hub solutions ship.
+$wlFresh = @(Get-WatchlistFreshness -Watchlists @($watchlists) -RuleUse (Get-WatchlistRuleUse -Rules @(Read-RawArray 'alert-rules.json')))
+$wlFreshByAlias = @{}
+foreach ($f in $wlFresh) { if ($f.Alias) { $wlFreshByAlias[$f.Alias] = $f } }
+$wlStatusRank = @{ 'Stale, used by rules' = 0; 'Stale' = 1; 'Current' = 2; 'Content Hub' = 3 }
+$wlRows = @($watchlists | Where-Object { $_ -and $_.properties } | ForEach-Object {
     $alias = $_.properties.watchlistAlias
-    $desc  = if ($_.properties.description) { [string]$_.properties.description } else { '' }
-    $usedBy = if ($alias -and $rulesByWatchlistAlias.ContainsKey($alias)) { $rulesByWatchlistAlias[$alias].Count } else { 0 }
+    $f = if ($alias -and $wlFreshByAlias.ContainsKey($alias)) { $wlFreshByAlias[$alias] } else { $null }
     [pscustomobject]@{
-        Name           = $_.properties.displayName
-        Provider       = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
-        UsedByRules    = $usedBy
-        ItemsSearchKey = $_.properties.itemsSearchKey
-        Source         = $_.properties.source
-        Updated        = Format-DateUtc $_.properties.updated
-        Description    = $desc
+        Name            = $_.properties.displayName
+        Freshness       = $(if ($f) { $f.Status } else { '' })
+        'Age (days)'    = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { '' })
+        Updated         = Format-DateUtc $_.properties.updated
+        'Enabled rules' = $(if ($f) { $f.EnabledRules } else { 0 })
+        'Maintained by' = $(if ($f) { $f.MaintainedBy } else { '' })
+        'Search key'    = $_.properties.itemsSearchKey
+        Provider        = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
+        Description     = if ($_.properties.description) { [string]$_.properties.description } else { '' }
+        _Rank           = $(if ($f) { $wlStatusRank[$f.Status] } else { 9 })
+        _Age            = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { -1 })
     }
-}
+} | Sort-Object _Rank, @{ Expression = '_Age'; Descending = $true }, Name)
+$wlOwn = @($wlFresh | Where-Object MaintainedBy -EQ 'Workspace').Count
+$wlStale = @($wlFresh | Where-Object { $_.Status -like 'Stale*' }).Count
+$wlStaleUsed = @($wlFresh | Where-Object Status -EQ 'Stale, used by rules').Count
+$wlHub = @($wlFresh | Where-Object MaintainedBy -EQ 'Content Hub').Count
+$wlDescRows = @($wlRows | Where-Object { $_.Description } | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Description = $_.Description } })
 
 # Detailed rule-by-watchlist mapping rendered as a separate subsection.
 # Orphan watchlists (zero rule references) are surfaced explicitly —
@@ -1975,9 +1992,11 @@ $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
-**$($wlRows.Count) watchlist(s)** on this workspace. A watchlist is a CSV-backed reference table queryable via the ``_GetWatchlist()`` KQL function — use them for static lookups (asset inventories, allow-lists, geofences) that shouldn't change every alert run. Item bodies are not captured by the Blueprint; the source-of-truth for watchlist contents is the IaC repository (``Watchlists/*.csv``).
+**$($wlRows.Count)** watchlists  ·  **$wlOwn** maintained in the workspace  ·  **$wlStale** stale (not updated in $($script:WatchlistStaleDays) days)  ·  **$wlStaleUsed** stale and read by enabled rules  ·  **$wlHub** shipped by Content Hub solutions
 
-$(Format-Table -Items $wlRows -Columns 'Name','Provider','UsedByRules','ItemsSearchKey','Source','Updated','Description')
+A watchlist is reference data (assets, VIPs, allow-lists, IP ranges) that analytics rules and hunting queries look up with ``_GetWatchlist()``, and someone has to keep it current. **Freshness** is Stale when a watchlist maintained in the workspace has not been updated in $($script:WatchlistStaleDays) days, and **Stale, used by rules** when an enabled analytics rule still reads it: that rule is detecting against data that may be out of date ([SAC-DET-15]). Watchlists a Content Hub solution ships are its reference data, kept current by updating the solution. Item bodies are not captured; the source of truth for their contents is the IaC repository (``Watchlists/*.csv``).
+
+$(Format-Table -Items $wlRows -Columns 'Name','Freshness','Age (days)','Updated','Enabled rules','Maintained by','Search key','Provider')
 
 ## Used by analytics rules
 
@@ -1985,6 +2004,10 @@ Cross-reference of every captured watchlist against every Scheduled / NRT analyt
 
 $(Format-Table -Items $wlUsageRows -Columns 'Alias','RuleCount','Rules')
 $brokenRefsBlock
+
+## Descriptions
+
+$(Format-Table -Items $wlDescRows -Columns 'Name','Description' -EmptyMessage '_No watchlist has a description._')
 
 [Microsoft Sentinel watchlists overview (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists)
 [``_GetWatchlist`` function reference (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/watchlists-queries)
@@ -2159,19 +2182,39 @@ foreach ($p in $contentCatalogue) {
     if ($cid) { $catalogueByContentId[$cid] = $p }
 }
 
-$cpRows = $contentPackages | ForEach-Object {
-    $installed = $_.properties.version
-    $cid = $_.properties.contentId
-    $latest = if ($cid -and $catalogueByContentId.ContainsKey($cid)) { $catalogueByContentId[$cid].properties.version } else { $null }
-    $updateAvailable = if ($latest -and $installed -and $latest -ne $installed) { $latest } else { '' }
-    [pscustomobject]@{
-        Name            = $_.properties.displayName
-        Installed       = $installed
-        Latest          = if ($latest) { $latest } else { '' }
-        UpdateAvailable = $updateAvailable
-        Source          = $_.properties.source.kind
-    }
+# Dotted versions compare numerically (3.0.10 is newer than 3.0.9); a
+# version [version] cannot read compares as text.
+function _CompareVersion([string]$A, [string]$B) {
+    $va = $null; $vb = $null
+    if ([version]::TryParse($A, [ref]$va) -and [version]::TryParse($B, [ref]$vb)) { return $va.CompareTo($vb) }
+    return [string]::CompareOrdinal($A, $B)
 }
+# One row per installed package with its status against the catalogue:
+# Deprecated or Not in catalogue (no more updates), Update available, or Up
+# to date; those needing attention first. With no catalogue capture there
+# is nothing to compare, so the status stays blank.
+$cpStatusRank = @{ 'Deprecated' = 0; 'Not in catalogue' = 1; 'Update available' = 2; 'Up to date' = 3; '' = 4 }
+$cpRows = @($contentPackages | Where-Object { $_ } | ForEach-Object {
+    $installed = [string]$_.properties.version
+    $cid = $_.properties.contentId
+    $cat = if ($cid -and $catalogueByContentId.ContainsKey($cid)) { $catalogueByContentId[$cid] } else { $null }
+    $latest = if ($cat) { [string]$cat.properties.version } else { '' }
+    $deprecated = $cat -and $cat.properties.PSObject.Properties['isDeprecated'] -and [string]$cat.properties.isDeprecated -eq 'true'
+    $status = if ($contentCatalogue.Count -eq 0) { '' }
+        elseif (-not $cat) { 'Not in catalogue' }
+        elseif ($deprecated) { 'Deprecated' }
+        elseif ($latest -and $installed -and (_CompareVersion $installed $latest) -lt 0) { 'Update available' }
+        else { 'Up to date' }
+    [pscustomobject]@{
+        Name      = $_.properties.displayName
+        Installed = $installed
+        Latest    = $latest
+        Status    = $status
+        Source    = $_.properties.source.kind
+    }
+} | Sort-Object @{ Expression = { $cpStatusRank[[string]$_.Status] } }, Name)
+$cpUpdates = @($cpRows | Where-Object Status -EQ 'Update available').Count
+$cpRetired = @($cpRows | Where-Object { $_.Status -in 'Deprecated', 'Not in catalogue' }).Count
 $omsSolutionRows = @(Read-RawArray 'solutions-installed.json' | Where-Object { $_ } | ForEach-Object {
     $plan = if ($_.PSObject.Properties['plan'] -and $_.plan) { $_.plan } else { $null }
     $sp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
@@ -2185,23 +2228,6 @@ $omsSolutionRows = @(Read-RawArray 'solutions-installed.json' | Where-Object { $
 })
 $repoRows = $repos | ForEach-Object {
     [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
-}
-# Installed solutions that the catalogue marks deprecated or no longer lists.
-# With no catalogue capture every solution would look unlisted, so the
-# table is only built when the catalogue is present.
-$deprecatedRows = @()
-if ($contentCatalogue.Count -gt 0) {
-    $deprecatedRows = @($contentPackages | ForEach-Object {
-        $cid = $_.properties.contentId
-        if (-not $cid) { return }
-        if (-not $catalogueByContentId.ContainsKey($cid)) {
-            [pscustomobject]@{ Name = $_.properties.displayName; ContentId = $cid; Reason = 'Not in catalogue' }
-        } else {
-            $cat = $catalogueByContentId[$cid]
-            $dep = if ($cat.properties.PSObject.Properties['isDeprecated']) { [string]$cat.properties.isDeprecated } else { '' }
-            if ($dep -eq 'true') { [pscustomobject]@{ Name = $_.properties.displayName; ContentId = $cid; Reason = 'Deprecated' } }
-        }
-    })
 }
 # Content-source distribution for the headline pie.
 $sourceCounts = @{}
@@ -2224,19 +2250,13 @@ pie showData title Installed Content Hub packages by source
 $($sourcePieRows -join [Environment]::NewLine)
 ``````
 
-$($cpRows.Count) package(s) installed across $($sourceCounts.Count) source kind(s).
+**$($cpRows.Count)** Content Hub package(s) installed  ·  **$cpUpdates** with an update available  ·  **$cpRetired** deprecated or no longer listed  ·  **$($sourceCounts.Count)** source kind(s)
 
 ## Solutions installed
 
-The ``UpdateAvailable`` column is populated only when the installed version is older than the latest available in the Content Hub catalogue.
+Every installed package against the Content Hub catalogue, those needing attention first. **Update available**: the catalogue has a newer version; update it from Content Hub to get the latest rules, parsers and workbooks. **Deprecated** or **Not in catalogue**: it no longer receives updates, and [SAC-DET-13] fires on either. **Up to date**: the installed version is the latest.
 
-$(Format-Table -Items $cpRows -Columns 'Name','Installed','Latest','UpdateAvailable','Source')
-
-## Deprecated or unlisted solutions
-
-Installed solutions whose catalogue entry is marked deprecated, or that no longer appear in the Content Hub catalogue at all. Neither receives updates; [SAC-DET-13] fires on either.
-
-$(Format-Table -Items $deprecatedRows -Columns 'Name','ContentId','Reason')
+$(Format-Table -Items $cpRows -Columns 'Name','Installed','Latest','Status','Source')
 
 ## Repositories
 
@@ -3358,10 +3378,28 @@ foreach ($role in $rolesSeen) {
     }
 }
 
+# Headline figures for the access review: how many assignments and to whom,
+# then the ones that carry risk. A principal is counted once however many
+# roles it holds; one with neither a display name nor a sign-in name is
+# deleted or not readable by the collector.
+$rbacValid = @($rbacWs | Where-Object { $_ })
+$rbacPrincipals = @($rbacValid | Group-Object { $oid = [string](_RProp $_ 'ObjectId' ''); if ($oid) { $oid } else { [string](_RProp $_ 'DisplayName' '') + '|' + [string](_RProp $_ 'SignInName' '') } })
+$rbacOfType = { param($t) @($rbacPrincipals | Where-Object { [string](_RProp $_.Group[0] 'ObjectType' '') -eq $t }).Count }
+$rbacHigh = @($rbacValid | Where-Object { $_.RoleDefinitionName -in 'Owner', 'Contributor', 'User Access Administrator' }).Count
+$rbacHighPct = if ($rbacValid.Count) { [math]::Round(100 * $rbacHigh / $rbacValid.Count) } else { 0 }
+$rbacOwners = @($rbacValid | Where-Object RoleDefinitionName -EQ 'Owner').Count
+$rbacSentinel = @($rbacValid | Where-Object { [string]$_.RoleDefinitionName -like 'Microsoft Sentinel*' }).Count
+$rbacGuests = @($rbacPrincipals | Where-Object { [string](_RProp $_.Group[0] 'SignInName' '') -match '#EXT#' }).Count
+$rbacUnnamed = @($rbacPrincipals | Where-Object { -not (_RProp $_.Group[0] 'DisplayName' '') -and -not (_RProp $_.Group[0] 'SignInName' '') }).Count
+
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "RBAC")
 
-$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner / Contributor) — see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
+$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner and Contributor); see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
+
+**$($rbacValid.Count)** assignments at workspace scope  ·  **$(@($rbacRg | Where-Object { $_ }).Count)** at resource-group scope  ·  **$($rbacPrincipals.Count)** distinct principals  ·  **$(& $rbacOfType 'User')** users  ·  **$(& $rbacOfType 'Group')** groups  ·  **$(& $rbacOfType 'ServicePrincipal')** service principals
+
+**$rbacHigh** high-privilege assignments  ·  **$rbacHighPct%** of assignments high-privilege  ·  **$rbacOwners** Owner assignments  ·  **$rbacSentinel** Microsoft Sentinel role assignments  ·  **$rbacGuests** guest accounts  ·  **$rbacUnnamed** principals with no name (deleted or not readable)
 
 ## Who-grants-what-to-whom
 

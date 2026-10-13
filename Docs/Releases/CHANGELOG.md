@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Watchlist freshness, a clearer Content Hub page, RBAC figures and
+  readable ingestion dates** - the watchlists page marks each watchlist
+  maintained in the workspace Current, Stale (not updated in 90 days) or
+  Stale, used by rules, with its age and the enabled rules that read it,
+  most urgent first; Content Hub watchlists are labelled as the
+  solution's reference data. New gap rule SAC-DET-15 (Warning) fires on a
+  stale watchlist an enabled analytics rule reads. Content Hub shows each
+  installed package once with a Status (Update available, Up to date,
+  Deprecated, Not in catalogue), comparing versions as numbers, and drops
+  the separate deprecated table and the UpdateAvailable column that
+  repeated Latest. RBAC opens with headline figures (assignments,
+  principals by type, high-privilege share, Owners, Sentinel roles,
+  guests, unnamed principals). Daily ingestion labels read "13 Sep", and
+  a chart's key sits above its bars. Status words in report tables show
+  as coloured pills.
 - **Detection opportunities name each template's solution** - the rule
   templates do not say which Content Hub solution they come from, so the
   page listed every template name in one cell per table. The Blueprint now

@@ -20,7 +20,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.3
+    Version:        0.6.0
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
@@ -39,6 +39,8 @@ Set-StrictMode -Version Latest
 
 # The connector catalogue helpers (SAC-PLT-10 reads the catalogue).
 . (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
+# Watchlist freshness (SAC-DET-15), shared with the watchlists page.
+. (Join-Path $PSScriptRoot 'Get-WatchlistFreshness.ps1')
 
 # Helper, produces a Finding object with consistent shape.
 function New-Finding {
@@ -239,6 +241,19 @@ function Test-MitreTacticCoverage {
         return New-Finding -Evidence "MITRE tactics with zero enabled rules: $names." -Detail @{ UncoveredTactics = $uncovered }
     }
     return $null
+}
+
+# ------------------------------------------------------------
+# SAC-DET-15, Watchlist read by enabled rules not updated in 90 days
+# ------------------------------------------------------------
+function Test-WatchlistsStale {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if (-not ($Inventory.PSObject.Properties.Name -contains 'Watchlists') -or $null -eq $Inventory.Watchlists) { return $null }
+    $use = Get-WatchlistRuleUse -Rules @($Inventory.AlertRules)
+    $stale = @(Get-WatchlistFreshness -Watchlists @($Inventory.Watchlists) -RuleUse $use | Where-Object Status -EQ 'Stale, used by rules' | Sort-Object AgeDays -Descending)
+    if ($stale.Count -eq 0) { return $null }
+    $names = ($stale | ForEach-Object { "$(Get-EvidenceName $_ 'Name', 'Alias' 'Unnamed watchlist') ($($_.AgeDays) days, $($_.EnabledRules) rule$(if ($_.EnabledRules -ne 1) { 's' }))" }) -join '; '
+    return New-Finding -Evidence "$($stale.Count) watchlist(s) read by enabled analytics rules have not been updated in $($script:WatchlistStaleDays) days or more: $names." -Detail @{ Count = $stale.Count }
 }
 
 # ------------------------------------------------------------

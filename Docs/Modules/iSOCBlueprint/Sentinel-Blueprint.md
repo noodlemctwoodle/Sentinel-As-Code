@@ -535,7 +535,10 @@ remaining gaps against health-check build 38 (see
 | SAC-PLT-12 Query auditing off | `la-query-logs.json` | `LAQueryLogs` recorded no queries in 7 days |
 
 Each one stays quiet when the capture it reads is missing, so a failed
-call is never reported as a gap. Version 3.1.1 widened SAC-PLT-10 (a
+call is never reported as a gap. Version 3.2.0 added SAC-DET-15 (a
+watchlist maintained in the workspace, read by an enabled analytics rule
+through `_GetWatchlist()`, and not updated in 90 days; Content Hub
+watchlists are left out). Version 3.1.1 widened SAC-PLT-10 (a
 connected connector not delivering): it measures all volume over 7 days,
 so free tables such as OfficeActivity no longer look silent, and besides
 the core tables of five named connectors it checks every connected
@@ -553,6 +556,7 @@ checks from the Sentinel health-check script contributed to the project:
 | SAC-TI-02 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
 | SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests every undeployed, non-deprecated template per table |
 | SAC-MON-06 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
+| SAC-DET-15 Stale watchlist read by rules | `watchlists.json`, `alert-rules.json` | a watchlist maintained in the workspace (not shipped by Content Hub) has not been updated in 90 days and an enabled analytics rule reads it |
 | SAC-AUT-02 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |
 | SAC-DET-13 Deprecated solution | `content-packages.json`, `content-product-packages.json` | an installed solution is `isDeprecated` or missing from the catalogue |
 | SAC-TI-05 Single TI feed | `data-connectors-classic.json`, `threat-intel-counts.json` | at most one TI connector kind and no non-Microsoft indicator source |

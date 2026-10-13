@@ -1,7 +1,7 @@
 {
   "$comment": "Credit and thanks: the gap rules ported from the health check's checks are based on the Sentinel health-check script by thinkndle, kindly given to the Sentinel-As-Code project. Thank you, thinkndle, for sharing your work so generously; it shaped much of the Blueprint's health, coverage and maturity reporting.",
   "$schema": "best-practices.schema.json",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "rules": [
     {
       "id": "SAC-LOG-03",
@@ -651,6 +651,16 @@
       "check": "Test-AnalyticsRuleRunFailures",
       "remediation": "A rule whose scheduled runs fail is a detection that has stopped without an alert. Open the rule's health events in SentinelHealth, read the recorded reason (query timeout, a table or column that no longer exists, a removed KQL function, a lookback that exceeds the limit), fix the query or the data it depends on, then confirm the next runs succeed. Enable the health data connector and an automation or alert on SentinelHealth failures so the next one is noticed on the day.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-analytics-rule-integrity"
+    },
+    {
+      "id": "SAC-DET-15",
+      "area": "DET",
+      "title": "Watchlist read by enabled analytics rules not updated in 90 days",
+      "category": "Operational",
+      "severity": "Warning",
+      "check": "Test-WatchlistsStale",
+      "remediation": "A watchlist is reference data someone has to keep current: an asset inventory, VIP accounts, an allow-list or IP ranges. A rule that reads an out-of-date one misses new entries and still trusts entries that should have gone. Review each stale watchlist with its owner, refresh its contents from the source system or the IaC repository on a schedule, and delete it if nothing should read it any more. Watchlists a Content Hub solution ships are kept current by updating the solution and are not counted here.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/watchlists-manage"
     },
     {
       "id": "SAC-COV-08",

@@ -371,11 +371,12 @@ Describe 'iSOC Blueprint renderer' {
         }
     }
 
-    Context '70-content-hub.md lists deprecated and unlisted solutions' {
-        It 'names both flagged solutions with their reason' {
+    Context '70-content-hub.md marks deprecated and unlisted solutions in the one table' {
+        It 'gives both flagged solutions their status, ahead of the rest' {
             $md = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
-            $md | Should -Match '\| Microsoft 365 \| office365 \| Deprecated \|'
-            $md | Should -Match '\| Legacy Threat Feed \| legacy-feed \| Not in catalogue \|'
+            $md | Should -Match '\| Microsoft 365 \| 2\.5\.0 \| 2\.5\.0 \| Deprecated \|'
+            $md | Should -Match '\| Legacy Threat Feed \| [^|]* \|\s*\| Not in catalogue \|'
+            $md.IndexOf('| Deprecated |') | Should -BeLessThan $md.IndexOf('| Update available |')
         }
     }
 
@@ -383,7 +384,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'emits an xychart with one point per fixture day' {
             $md = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
             $md | Should -Match '### Daily ingestion \(last 30 days\)'
-            $md | Should -Match 'x-axis \["05-04", "05-05", "05-06"\]'
+            $md | Should -Match 'x-axis \["4 May", "5 May", "6 May"\]'
             $md | Should -Match 'line "Billable" \[41\.2, 39\.8, 12\.6\]'
             $md | Should -Match 'line "Free" \['
         }
@@ -894,12 +895,14 @@ Describe 'iSOC Blueprint renderer' {
             $script:chMd = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
         }
 
-        It 'shows azuread with UpdateAvailable = 3.1.0' {
-            $script:chMd | Should -Match 'Azure Active Directory \| 3\.0\.0 \| 3\.1\.0 \| 3\.1\.0 \|'
+        It 'shows azuread as Update available, 3.0.0 installed against 3.1.0' {
+            $script:chMd | Should -Match 'Azure Active Directory \| 3\.0\.0 \| 3\.1\.0 \| Update available \|'
         }
 
-        It 'leaves UpdateAvailable empty for office365 (already current)' {
-            $script:chMd | Should -Match 'Microsoft 365 \| 2\.5\.0 \| 2\.5\.0 \|\s*\|'
+        It 'compares versions as numbers, not text' {
+            . ([scriptblock]::Create(([System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)).Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq '_CompareVersion' }, $true).Extent.Text))
+            _CompareVersion '3.0.10' '3.0.9' | Should -BeGreaterThan 0
+            _CompareVersion '3.0.3' '3.0.3' | Should -Be 0
         }
     }
 
@@ -1904,5 +1907,54 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
         $md | Should -Match '\| Template \| Solution \| Solution installed \| Severity \| Kind \| Tactics \| Tables \|'
         $md | Should -Not -Match 'top 25 by volume'
         $md | Should -Not -Match '\| TemplateCount \|'
+    }
+}
+
+Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
+    BeforeAll {
+        $script:hub = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
+        $script:rbac = Get-Content (Join-Path $script:tempWsRoot '85-rbac.md') -Raw
+        # A run with watchlists: one maintained here and stale, read by an enabled rule.
+        $script:wlRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-wl-$(New-Guid)"
+        New-Item -ItemType Directory -Path (Join-Path $script:wlRoot '_raw') -Force | Out-Null
+        Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $script:wlRoot '_raw')
+        $old = (Get-Date).ToUniversalTime().AddDays(-200).ToString('o'); $new = (Get-Date).ToUniversalTime().AddDays(-5).ToString('o')
+        @(
+            [pscustomobject]@{ name = 'w1'; properties = [pscustomobject]@{ displayName = 'VIP accounts'; watchlistAlias = 'vips'; source = 'vips.csv'; provider = 'Custom'; itemsSearchKey = 'UPN'; updated = $old; description = 'Executives' } }
+            [pscustomobject]@{ name = 'w2'; properties = [pscustomobject]@{ displayName = 'Branch IPs'; watchlistAlias = 'branch'; source = 'Manual'; provider = 'Custom'; itemsSearchKey = 'Ip'; updated = $new } }
+            [pscustomobject]@{ name = 'w3'; properties = [pscustomobject]@{ displayName = 'SAP - Systems'; watchlistAlias = 'SAPSystems'; source = 'ContentHub'; provider = 'Microsoft'; itemsSearchKey = 'SystemID'; updated = $old } }
+        ) | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $script:wlRoot '_raw/watchlists.json')
+        $rules = @(Get-Content (Join-Path $script:fixtureRaw 'alert-rules.json') -Raw | ConvertFrom-Json)
+        $rules += [pscustomobject]@{ name = 'vip-rule'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'VIP sign-in'; enabled = $true; severity = 'High'; query = '_GetWatchlist("vips") | join SigninLogs on UPN'; tactics = @(); techniques = @() } }
+        ConvertTo-Json -InputObject $rules -Depth 10 | Set-Content (Join-Path $script:wlRoot '_raw/alert-rules.json')
+        & $script:renderer -WorkspaceName 'law-wl' -InputRoot $script:wlRoot -OutputRoot $script:wlRoot -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        $script:wl = Get-Content (Join-Path $script:wlRoot '50-watchlists.md') -Raw
+    }
+
+    AfterAll { if ($script:wlRoot -and (Test-Path $script:wlRoot)) { Remove-Item -Recurse -Force $script:wlRoot -ErrorAction SilentlyContinue } }
+
+    It 'shows each Content Hub package once, with its status, and counts the updates' {
+        $script:hub | Should -Match '\| Name \| Installed \| Latest \| Status \| Source \|'
+        $script:hub | Should -Not -Match 'UpdateAvailable'
+        $script:hub | Should -Not -Match '## Deprecated or unlisted solutions'
+        $script:hub | Should -Match '\*\*\d+\*\* with an update available'
+    }
+
+    It 'opens RBAC with headline figures' {
+        $script:rbac | Should -Match '\*\*\d+\*\* assignments at workspace scope  ·  \*\*\d+\*\* at resource-group scope  ·  \*\*\d+\*\* distinct principals'
+        $script:rbac | Should -Match '\*\*\d+\*\* high-privilege assignments  ·  \*\*\d+%\*\* of assignments high-privilege'
+        $script:rbac | Should -Not -Match 'Contributor\) \u2014 see'
+    }
+
+    It 'marks a stale watchlist an enabled rule reads, first, and keeps Content Hub ones apart' {
+        $script:wl | Should -Match '\| Name \| Freshness \| Age \(days\) \| Updated \| Enabled rules \| Maintained by \| Search key \| Provider \|'
+        $script:wl | Should -Match '(?s)\| VIP accounts \| Stale, used by rules \| 200 \|.*\| Branch IPs \| Current \| 5 \|.*\| SAP - Systems \| Content Hub \|'
+        $script:wl | Should -Match '\*\*1\*\* stale and read by enabled rules'
+        $script:wl | Should -Match '## Descriptions[\s\S]*\| VIP accounts \| Executives \|'
+    }
+
+    It 'labels daily ingestion by day and month' {
+        $md = (Get-ChildItem $script:tempWsRoot -Filter '*.md' | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
+        if ($md -match 'Daily ingestion, GB') { $md | Should -Match 'x-axis \["\d{1,2} [A-Z][a-z]{2}"' }
     }
 }

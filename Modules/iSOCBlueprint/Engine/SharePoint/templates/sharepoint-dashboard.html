@@ -404,7 +404,7 @@
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
-  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)}
+  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)} .st.Warn{background:var(--amber)}
   .trend{width:100%;height:auto;display:block}
   .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap)}
   .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
@@ -588,6 +588,7 @@
   .zoom #zoomPct{min-width:46px;text-align:center;font-weight:700;font-size:12.5px;color:var(--ink-2)}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:14px;
     justify-content:center}
+  .docchart .legend.top{justify-content:flex-start;margin:4px 0 12px}
   .legend span{display:inline-flex;align-items:center}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:6px}
   .legend i.dash{width:18px;height:0;border-radius:0;border-top:3px dashed var(--red);background:none;vertical-align:middle}
@@ -2670,7 +2671,8 @@
       }).join('');
       const legend=multi? '<div class="legend">'+series.map((x,si)=>'<span><i style="background:'+col(si)+'"></i>'+esc(x.name||('Series '+(si+1)))+'</span>').join('')+'</div>' : '';
       const axis=d.yAxis&&d.yAxis.title? esc(oneLine(d.yAxis.title))+(d.yAxis.max!=null&&+d.yAxis.max>0&&+d.yAxis.min===0?', 0 to '+esc(fmtNum(d.yAxis.max)):'') : '';
-      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+rows+legend+'</div>';
+      // The key goes above the bars, where it is read first.
+      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+(legend?legend.replace('class="legend"','class="legend top"'):'')+rows+'</div>';
     }
     const chartHtml=b=> b.kind==='pie'? pieChartHtml(b) : b.kind==='xy'? xyChartHtml(b) : '';
 
@@ -2762,7 +2764,11 @@
       return lead+'<div class="morewrap cellchips">'+items.map((x,i)=>'<span class="tagpill'+(/,\s*installed\)$/.test(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+
         sbtn('Show all '+items.length,'data-more data-all="Show all '+items.length+'" data-less="Show fewer"',{cls:'morepill'})+'</div>';
     }
+    // Status words in a table cell read as pills: green for fine, amber to
+    // act on, red for something that no longer works or is risky.
+    const STATUS_PILL={'Up to date':'Met','Current':'Met','Update available':'Warn','Stale':'Warn','Deprecated':'Gap','Not in catalogue':'Gap','Stale, used by rules':'Gap'};
     function formatCell(c){
+      const stc=STATUS_PILL[String(c==null?'':c).trim()]; if(stc) return '<span class="st '+stc+'">'+String(c).trim()+'</span>';
       const chips=c? listCell(c) : ''; if(chips) return chips;
       if(!c || !/^[a-z][a-z0-9]*=/i.test(c)) return c;
       const parts = c.split(/,\s*(?=[a-zA-Z][a-zA-Z0-9]*=)/);
