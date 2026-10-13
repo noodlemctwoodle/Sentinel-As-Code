@@ -21,13 +21,19 @@
     <a id="..."></a> line becomes the anchor of the heading after it, and
     Mermaid fences become chart blocks through ConvertFrom-BlueprintMermaid.
 
+    Markdig refuses a pipe table of a few thousand rows ("Markdown elements
+    in the input are too deeply nested"). A table longer than
+    $script:BpTableChunkRows rows is therefore parsed in chunks, each with
+    the header repeated, and the chunks are joined back into one table
+    block, so the model holds every row.
+
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.1
+    Version:      0.3.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, ConvertFrom-BlueprintMermaid.ps1
 
@@ -36,6 +42,11 @@
 #>
 
 $script:BpSectionSchemaVersion = 1
+
+# The longest pipe table Markdig is given at once. It refuses one of about
+# 2,700 short rows as too deeply nested; 500 leaves room for long cells.
+$script:BpTableChunkRows = 500
+$script:BpTableContinues = '<!-- bp:table-continues -->'
 
 function ConvertTo-BlueprintSection {
     <#
@@ -68,8 +79,8 @@ function ConvertTo-BlueprintSection {
     $context = @{ title = $null; anchor = $null; content = $false }
     # @() around the whole if: an if statement unrolls a one-item array.
     $blocks = @(if (-not [string]::IsNullOrWhiteSpace($Markdown)) {
-            $doc = (ConvertFrom-Markdown -InputObject $Markdown).Tokens
-            ConvertTo-BpBlockList -Blocks $doc -Context $context
+            $doc = (ConvertFrom-Markdown -InputObject (Split-BpLongTable -Markdown $Markdown)).Tokens
+            Join-BpTableChunk -Blocks @(ConvertTo-BpBlockList -Blocks $doc -Context $context)
         })
     return [ordered]@{
         schemaVersion = $script:BpSectionSchemaVersion
@@ -79,6 +90,91 @@ function ConvertTo-BlueprintSection {
         meta          = $(if ($Meta) { $Meta } else { [ordered]@{} })
         blocks        = $blocks
     }
+}
+
+function Split-BpLongTable {
+    <#
+    .SYNOPSIS
+        Cut every pipe table longer than $script:BpTableChunkRows rows into
+        chunks Markdig can parse.
+
+    .DESCRIPTION
+        Each chunk after the first repeats the table's header and separator
+        lines and follows a $script:BpTableContinues line, which
+        Join-BpTableChunk uses to join the chunks back into one table.
+        Lines inside a fenced code block are left alone, and so are tables
+        that fit; Markdown with no long table comes back unchanged.
+
+    .PARAMETER Markdown
+        The section's Markdown.
+
+    .OUTPUTS
+        [string] The Markdown, with long tables cut.
+    #>
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [AllowEmptyString()] [string] $Markdown)
+
+    $lines = $Markdown -split '\r?\n'
+    $out = [System.Collections.Generic.List[string]]::new()
+    $inFence = $false
+    $cut = $false
+    $i = 0
+    while ($i -lt $lines.Count) {
+        $line = $lines[$i]
+        if ($line -match '^\s*(```|~~~)') { $inFence = -not $inFence; $out.Add($line); $i++; continue }
+        $isTable = -not $inFence -and $line -match '^\|' -and ($i + 1) -lt $lines.Count -and
+            $lines[$i + 1] -match '^\|(\s*:?-+:?\s*\|)+\s*$'
+        if (-not $isTable) { $out.Add($line); $i++; continue }
+
+        $header = $line
+        $separator = $lines[$i + 1]
+        $j = $i + 2
+        $body = [System.Collections.Generic.List[string]]::new()
+        while ($j -lt $lines.Count -and $lines[$j] -match '^\|') { $body.Add($lines[$j]); $j++ }
+        if ($body.Count -gt $script:BpTableChunkRows) { $cut = $true }
+        for ($start = 0; $start -lt [Math]::Max($body.Count, 1); $start += $script:BpTableChunkRows) {
+            if ($start -gt 0) {
+                $out.Add('')
+                $out.Add($script:BpTableContinues)
+                $out.Add('')
+            }
+            $out.Add($header)
+            $out.Add($separator)
+            $end = [Math]::Min($start + $script:BpTableChunkRows, $body.Count)
+            for ($k = $start; $k -lt $end; $k++) { $out.Add($body[$k]) }
+        }
+        $i = $j
+    }
+    if (-not $cut) { return $Markdown }
+    return ($out -join "`n")
+}
+
+function Join-BpTableChunk {
+    <#
+    .SYNOPSIS
+        Join the table chunks Split-BpLongTable made back into one table.
+
+    .PARAMETER Blocks
+        The section's top-level blocks.
+
+    .OUTPUTS
+        The blocks, with each table followed by a seam and another table
+        merged into one, and the seams removed.
+    #>
+    param([object[]] $Blocks)
+
+    $out = [System.Collections.Generic.List[object]]::new()
+    $joinNext = $false
+    foreach ($b in $Blocks) {
+        if ($b -is [System.Collections.IDictionary] -and $b.type -eq 'tableContinues') { $joinNext = $true; continue }
+        $last = if ($out.Count) { $out[$out.Count - 1] } else { $null }
+        if ($joinNext -and $b.type -eq 'table' -and $last -and $last.type -eq 'table') {
+            $last.rows = @($last.rows) + @($b.rows)
+        }
+        else { $out.Add($b) }
+        $joinNext = $false
+    }
+    return $out.ToArray()
 }
 
 function ConvertTo-BpBlockList {
@@ -155,6 +251,8 @@ function ConvertTo-BpBlockList {
             'HtmlBlock' {
                 $html = $b.Lines.ToString().Trim()
                 if ($html -match '^<a\s+id="([^"]+)"\s*>\s*</a>$') { $Context.anchor = $Matches[1]; break }
+                # Split-BpLongTable's seam; Join-BpTableChunk removes it.
+                if ($html -eq $script:BpTableContinues) { [ordered]@{ type = 'tableContinues' }; break }
                 $Context.content = $true
                 [ordered]@{ type = 'html'; html = $html }
             }

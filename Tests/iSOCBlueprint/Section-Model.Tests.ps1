@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (renderer)
 #>
@@ -131,6 +131,56 @@ Describe 'ConvertTo-BlueprintSection' {
             $c.data.slices[0].value | Should -Be 2
             $c.source | Should -Match '^pie showData'
         }
+    }
+}
+
+Describe 'Long tables' {
+    # Markdig refuses a pipe table of about 2,700 rows as too deeply nested
+    # (a live workspace's rule effectiveness table on page 21 hit it). The
+    # converter parses long tables in chunks and joins them.
+    BeforeAll {
+        function New-TableMarkdown([int] $Rows, [string] $Name = 'Rule') {
+            $sb = [System.Text.StringBuilder]::new()
+            [void]$sb.AppendLine("| $Name | Alerts |")
+            [void]$sb.AppendLine('|---|---:|')
+            for ($i = 1; $i -le $Rows; $i++) { [void]$sb.AppendLine("| [$Name $i](https://example.com/$i) | $i |") }
+            $sb.ToString()
+        }
+    }
+
+    It 'keeps every row of a 2,728-row table in one table block' {
+        $m = ConvertTo-Model ("# Page`n`nIntro.`n`n" + (New-TableMarkdown 2728) + "`nAfter.`n")
+        @($m.blocks).type -join ',' | Should -Be 'paragraph,table,paragraph'
+        $table = @($m.blocks | Where-Object type -EQ 'table')[0]
+        @($table.rows).Count | Should -Be 2728
+        @($table.columns).Count | Should -Be 2
+        $table.columns[1].align | Should -Be 'right'
+        $table.rows[0][0][0].text | Should -Be 'Rule 1'
+        $table.rows[2727][0][0].text | Should -Be 'Rule 2728'
+        $table.rows[2727][0][0].href | Should -Be 'https://example.com/2728'
+    }
+
+    It 'keeps two long tables apart' {
+        $m = ConvertTo-Model ("# Page`n`n" + (New-TableMarkdown 1200 'One') + "`nBetween.`n`n" + (New-TableMarkdown 700 'Two'))
+        $tables = @($m.blocks | Where-Object type -EQ 'table')
+        $tables.Count | Should -Be 2
+        @($tables[0].rows).Count | Should -Be 1200
+        @($tables[1].rows).Count | Should -Be 700
+        $tables[1].rows[0][0][0].text | Should -Be 'Two 1'
+    }
+
+    It 'leaves Markdown without a long table untouched' {
+        $md = "# Page`r`n`r`n" + (New-TableMarkdown 20) + "`r`n" + '```kusto' + "`r`n| take 1`r`n" + '```' + "`r`n"
+        Split-BpLongTable -Markdown $md | Should -BeExactly $md
+    }
+
+    It 'does not cut table-like lines inside a code fence' {
+        $fenced = '```text' + "`n" + (New-TableMarkdown 600) + '```' + "`n"
+        $m = ConvertTo-Model ("# Page`n`n" + $fenced)
+        @($m.blocks | Where-Object type -EQ 'table').Count | Should -Be 0
+        $code = @($m.blocks | Where-Object type -EQ 'code')[0]
+        ([regex]::Matches($code.text, '(?m)^\| \[Rule \d+\]')).Count | Should -Be 600
+        $code.text | Should -Not -Match 'bp:table-continues'
     }
 }
 
