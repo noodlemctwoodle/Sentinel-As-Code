@@ -121,6 +121,19 @@ Describe 'ConvertTo-SharePointPageSegments' {
         It 'does not put the H1 in the body' { Join-Html $r | Should -Not -Match '<h1' }
     }
 
+    Context 'chart titles' {
+        It 'drops a chart title that repeats the heading above it, and keeps the rest' {
+            $md = @(
+                '# T', '', '## Analyst journey', '', '```mermaid', 'journey', '    title Analyst journey', '    section A', '      Step: 5: Sentinel', '```',
+                '', '## Outcomes', '', '```mermaid', 'pie title Closed by classification', '    "TP" : 3', '```'
+            ) -join "`n"
+            $charts = @((ConvertTo-Segments $md).Segments | Where-Object { $_.type -eq 'chart' })
+            $charts.Count | Should -Be 2
+            $charts[0].chart.title | Should -BeNullOrEmpty
+            $charts[1].chart.title | Should -Be 'Closed by classification'
+        }
+    }
+
     Context 'headings, anchors and rules' {
         BeforeAll {
             $md = "# T`n`n## Two`n`n### Three`n`n#### Four`n`n##### Five`n`n<a id=`"sac-log-03`"></a>`n`n---`n`ntext"
@@ -268,6 +281,13 @@ Describe 'ConvertTo-SacChartFallbackHtml' {
         $sankey | Should -Match '<td>A to B</td><td>2</td>'
         $xy = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'xy'; data = @{ xAxis = @{ labels = @('Mon', 'Tue') }; series = @(@{ values = @(1, 2) }, @{ values = @(5, 6) }) } }
         $xy | Should -Match '<td>Tue</td><td>2 / 6</td>'
+    }
+
+    It 'tabulates the incident lifecycle''s stages, leaving out a figure the capture lacks' {
+        $html = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'incident-lifecycle'; data = @{ raised = 40; new = 5; active = 3; closed = 32; unacknowledged = $null } }
+        $html | Should -Match '<tr><td>Raised</td><td>40</td></tr>'
+        $html | Should -Match '<tr><td>Closed</td><td>32</td></tr>'
+        ([regex]::Matches($html, '<tr>')).Count | Should -Be 4
     }
 
     It 'says what draws a chart it cannot tabulate, and escapes the title' {
@@ -1527,6 +1547,24 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         $kinds = @($model.sections | ForEach-Object { $_.blocks } | Where-Object { $_.t -eq 'chart' } | ForEach-Object kind | Sort-Object -Unique)
         @($kinds | Where-Object { $_ -notin 'pie', 'xy' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'draws the incident lifecycle graphic and drops a diagram title that repeats its heading' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $inc = @($model.sections | Where-Object { $_.num -eq 15 })[0]
+        $charts = @($inc.blocks | Where-Object { $_.t -eq 'chart' })
+        @($charts.kind) | Should -Be @('incident-lifecycle', 'journey', 'pie')
+        $charts[0].data.raised | Should -Be 40
+        $charts[1].title | Should -BeNullOrEmpty
+        $charts[2].title | Should -Be 'Closed incidents by classification (30d)'
+        $html | Should -Match 'function renderIncidentLifecycle\(data, theme\)'
+    }
+
+    It 'marks report headings and callouts without a coloured edge bar' {
+        $html | Should -Match '\.docbody h3::after\{content:'''';flex:1 1 auto;'
+        $html | Should -Not -Match '\.docbody h3\{[^}]*border-left'
+        $html | Should -Not -Match '\.docnote\{[^}]*border-left'
+        $html | Should -Match '\.docnote\{position:relative;margin:16px 0;padding:10px 14px;border-radius:12px;'
     }
 
     It 'gives a flowchart node an in-dashboard link to its section or finding' {

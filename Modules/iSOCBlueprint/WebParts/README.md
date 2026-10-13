@@ -76,7 +76,13 @@ tried in a plain browser page:
 | `mindmap` | A tree read left to right |
 | `flowchart`, `state`, `class` | A layered layout ([`GraphLayout.ts`](src/webparts/isocBlueprintChart/charts/GraphLayout.ts)): cycles broken, an edge that skips ranks routed round the nodes in between, groups boxed |
 | `sequence` | Lifelines with numbered messages, notes and blocks |
-| `journey` | A card per step, by stage, with its score |
+| `journey` | A journey map: the stages across the top, a curve through every step's score (smooth at the top, friction at the bottom) with each point coloured by its score, and the step and its actors underneath |
+| `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
+
+A chart with a purpose-built graphic carries its data on a
+`%% visual <kind> {json}` line in its Mermaid, which Mermaid ignores; the
+section model gives it that kind and the JSON as its data, and its
+Mermaid stays the Markdown export's drawing.
 
 Colours come from the section's theme (`supportsThemeVariants`), so a chart
 reads on a dark or coloured section. A label that carries a meaning

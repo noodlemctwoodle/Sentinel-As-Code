@@ -92,8 +92,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.11.0
-    Last Updated: 2026-10-13
+    Version:      0.11.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     Credit and thanks: the data behind the dashboard's estate flow,
@@ -356,20 +356,27 @@ function ConvertTo-SectionBlocks {
     param($Section)
 
     $blocks = [System.Collections.Generic.List[object]]::new()
+    # A chart whose title repeats the heading above it shows the heading only.
+    $lastHeading = ''
     foreach ($b in @($Section.blocks)) {
         if ($null -eq $b) { continue }
         switch ([string]$b.type) {
-            'heading' { $blocks.Add([ordered]@{ t = 'h'; lvl = [int]$b.level; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
+            'heading' {
+                $lastHeading = (@($b.text) | ForEach-Object { [string]$_.text }) -join ''
+                $blocks.Add([ordered]@{ t = 'h'; lvl = [int]$b.level; html = (ConvertTo-SectionRunsHtml @($b.text)) })
+            }
             'paragraph' { $blocks.Add([ordered]@{ t = 'p'; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
             'list' { $blocks.Add([ordered]@{ t = 'ul'; items = @(Get-SectionListItems $b) }) }
             'chart' {
                 # The dashboard draws pie and xy itself and every other kind
                 # with the chart web part's renderers (dashboard-charts.js).
                 if ($null -ne $b.data) {
+                    $title = [string]$b.title
+                    if ($title -and $title.Trim() -ieq $lastHeading.Trim()) { $title = '' }
                     if ([string]$b.kind -in 'pie', 'xy') {
-                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = $b.data })
+                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = $title; data = $b.data })
                     } else {
-                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = (ConvertTo-DashboardChartData -Chart $b); source = [string]$b.source })
+                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = $title; data = (ConvertTo-DashboardChartData -Chart $b); source = [string]$b.source })
                     }
                 }
             }

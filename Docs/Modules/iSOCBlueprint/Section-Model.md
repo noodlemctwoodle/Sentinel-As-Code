@@ -83,6 +83,13 @@ Mermaid in `source` (the Markdown export uses it, and a consumer that renders
 Mermaid can too). `data` is null only for kind `other`. Line breaks in labels
 are `\n`.
 
+A chart with a purpose-built graphic (so far the incident lifecycle) carries
+its data on a `%% visual <kind> {json}` line inside its Mermaid. Mermaid
+ignores the line, so the Markdown export draws the diagram as before; the
+section model gives the chart that kind and the JSON as its data, and
+`source` keeps the Mermaid. A visual line whose JSON does not parse is
+ignored and the Mermaid is read as usual.
+
 | `kind` | `data` |
 | --- | --- |
 | `pie` | `showData`, `slices: [{ label, value }]` |
@@ -96,6 +103,7 @@ are `\n`.
 | `state` | `states: [{ id, label, parent }]`, `transitions: [{ from, to, label, parent }]` (`[*]` is start or end), `notes: [{ state, position, text }]` |
 | `class` | `classes: [{ name, members[] }]`, `relations: [{ from, to, kind, label }]`, `notes: [{ for, text }]` |
 | `journey` | `sections: [{ name, tasks: [{ label, score, actors[] }] }]` |
+| `incident-lifecycle` | `days`, `raised`, `new`, `active`, `closed` (the window's incidents at their current status), `acknowledged` and `unacknowledged` (the closed ones picked up first, and those closed straight from New), `mttaMinutes`, `mttrMinutes`, `unified` (raised through Defender XDR), `openBySeverity`, `classification` and `closedBy` as `[{ label, count }]`, and `check: { id, fired }` (SAC-INC-05, and whether it fired in this run); a figure the capture lacks is null |
 | `other` | null |
 
 ## The index

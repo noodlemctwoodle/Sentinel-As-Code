@@ -308,6 +308,18 @@ flowchart LR
         $c.data.sections[0].tasks[1].actors | Should -Be @('Analyst', 'SOC')
     }
 
+    It 'reads a purpose-built graphic from its visual line, whatever Mermaid follows' {
+        $c = Get-Chart "stateDiagram-v2`n    %% visual incident-lifecycle {""raised"":40,""new"":5,""classification"":[{""label"":""True positive"",""count"":4}]}`n    [*] --> New"
+        $c.kind | Should -Be 'incident-lifecycle'
+        $c.data.raised | Should -Be 40
+        $c.data.classification[0].label | Should -Be 'True positive'
+    }
+
+    It 'reads the Mermaid as usual when a visual line does not parse' {
+        $c = Get-Chart "stateDiagram-v2`n    %% visual incident-lifecycle {not json}`n    [*] --> New"
+        $c.kind | Should -Be 'state'
+    }
+
     It 'returns kind other, with no data, for an unknown chart' {
         $c = Get-Chart "quadrantChart`n    title X"
         $c.kind | Should -Be 'other'; $c.data | Should -BeNullOrEmpty
@@ -361,6 +373,27 @@ Describe 'Renderer section model output' {
     It 'writes no Markdown with -OutputFormat Json, and the same sections' {
         @(Get-ChildItem $dirs.Json -Filter '*.md').Count | Should -Be 0
         @(Get-ChildItem (Join-Path $dirs.Json 'sections') -Filter '*.json').Count | Should -Be @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json').Count
+    }
+
+    It 'gives the incident lifecycle its graphic''s data, keeping the Mermaid for the export' {
+        $md = Get-Content (Join-Path $dirs.Both '15-incidents.md') -Raw
+        $md | Should -Match '(?m)^    %% visual incident-lifecycle \{"days":30,"raised":40,'
+        $md | Should -Match '(?m)^stateDiagram-v2$'
+        $section = Get-Content (Join-Path $dirs.Both 'sections/15-incidents.json') -Raw | ConvertFrom-Json
+        $c = @($section.blocks | Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'incident-lifecycle' })
+        $c.Count | Should -Be 1
+        $c[0].source | Should -Match 'stateDiagram-v2'
+        $d = $c[0].data
+        @($d.raised, $d.new, $d.active, $d.closed, $d.acknowledged, $d.unacknowledged) | Should -Be @(40, 5, 3, 32, 12, 20)
+        $d.mttaMinutes | Should -Be 95.5
+        $d.mttrMinutes | Should -Be 1620
+        @($d.openBySeverity.label) | Should -Be @('High', 'Medium', 'Low')
+        # Verdicts first, then the closures that carry none.
+        @($d.classification.label) | Should -Be @('True positive', 'Benign positive', 'False positive', 'Undetermined', 'Unclassified')
+        @($d.closedBy.label) | Should -Be @('Automation rule', 'Analyst', 'Defender XDR', 'Other')
+        $d.check.id | Should -Be 'SAC-INC-05'
+        # 20 of 32 closed without acknowledgement: over half, so SAC-INC-05 fires.
+        $d.check.fired | Should -BeTrue
     }
 
     It 'carries every Mermaid chart as a chart block' {

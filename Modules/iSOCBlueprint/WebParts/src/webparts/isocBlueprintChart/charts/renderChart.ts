@@ -1,6 +1,6 @@
 import {
-  type IChart, type IClassData, type IFlowData, type IGanttData, type IJourneyData, type IMindmapNode, type IPieData,
-  type ISankeyData, type ISequenceData, type IStateData, type ITimelineData, type IXyData
+  type IChart, type IClassData, type IFlowData, type IGanttData, type IIncidentLifecycleData, type IJourneyData,
+  type IMindmapNode, type IPieData, type ISankeyData, type ISequenceData, type IStateData, type ITimelineData, type IXyData
 } from './ChartTypes';
 import { type IChartTheme, FONT, esc, str } from './ChartKit';
 import { renderPie } from './PieChart';
@@ -14,6 +14,7 @@ import { renderState } from './StateChart';
 import { renderClass } from './ClassChart';
 import { renderSequence } from './SequenceChart';
 import { renderJourney } from './JourneyChart';
+import { renderIncidentLifecycle } from './IncidentLifecycleChart';
 
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
@@ -52,6 +53,7 @@ function draw(chart: IChart, theme: IChartTheme, label: string): string {
     case 'class': return renderClass(data as IClassData, theme, label);
     case 'sequence': return renderSequence(data as ISequenceData, theme, label);
     case 'journey': return renderJourney(data as IJourneyData, theme);
+    case 'incident-lifecycle': return renderIncidentLifecycle(data as IIncidentLifecycleData, theme);
     default: return '';
   }
 }
@@ -60,7 +62,7 @@ function describe(kind: string): string {
   const names: { [kind: string]: string } = {
     pie: 'Pie chart', xy: 'Bar chart', sankey: 'Flow diagram', timeline: 'Timeline', gantt: 'Schedule',
     mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
-    sequence: 'Sequence diagram', journey: 'Journey'
+    sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle'
   };
   return names[kind] || 'Chart';
 }

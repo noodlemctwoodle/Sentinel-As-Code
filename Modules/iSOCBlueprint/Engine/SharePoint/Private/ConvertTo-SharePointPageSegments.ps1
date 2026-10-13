@@ -39,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.3.0
-    Last Updated: 2026-10-13
+    Version:      0.3.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -379,11 +379,16 @@ function ConvertTo-SharePointPageSegments {
         [void]$buffer.Clear()
     }
 
+    # A chart whose title repeats the heading above it shows the heading only.
+    $lastHeading = ''
     foreach ($b in @($Section.blocks)) {
         if ($null -eq $b) { continue }
+        if ([string]$b.type -eq 'heading') { $lastHeading = (@($b.text) | ForEach-Object { [string]$_.text }) -join '' }
         if ([string]$b.type -eq 'chart') {
             & $flush
-            $chart = [ordered]@{ kind = [string]$b.kind; title = $b.title; data = (ConvertTo-SacChartData -Chart $b -FindingsListUrl $FindingsListUrl) }
+            $chartTitle = $b.title
+            if ($chartTitle -and ([string]$chartTitle).Trim() -ieq $lastHeading.Trim()) { $chartTitle = $null }
+            $chart = [ordered]@{ kind = [string]$b.kind; title = $chartTitle; data = (ConvertTo-SacChartData -Chart $b -FindingsListUrl $FindingsListUrl) }
             if ($chart.kind -eq 'other') { $chart.source = [string]$b.source }
             $segments.Add([ordered]@{ type = 'chart'; chart = $chart })
             continue
@@ -450,6 +455,13 @@ function ConvertTo-SacChartFallbackHtml {
     $rows = @(switch ([string]$Chart.kind) {
         'pie' { foreach ($s in @($Chart.data.slices)) { , @([string]$s.label, [string]$s.value) } }
         'sankey' { foreach ($l in @($Chart.data.links)) { , @("$($l.source) to $($l.target)", [string]$l.value) } }
+        'incident-lifecycle' {
+            $d = $Chart.data
+            foreach ($f in @(@('Raised', 'raised'), @('New', 'new'), @('Active', 'active'), @('Closed', 'closed'), @('Closed without acknowledgement', 'unacknowledged'))) {
+                $v = if ($d -is [System.Collections.IDictionary]) { $d[$f[1]] } elseif ($d -and $d.PSObject.Properties[$f[1]]) { $d.PSObject.Properties[$f[1]].Value } else { $null }
+                if ($null -ne $v) { , @($f[0], [string]$v) }
+            }
+        }
         'xy' {
             $labels = @($Chart.data.xAxis.labels)
             for ($i = 0; $i -lt $labels.Count; $i++) {

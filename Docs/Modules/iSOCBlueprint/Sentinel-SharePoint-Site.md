@@ -225,8 +225,8 @@ under the label when the two cannot share a line.
 
 The Report tab shows every section from the section model. It draws the
 section's own pie and xy (bar) charts from their data, and every other
-chart kind (state, journey, flowchart, sankey, gantt, timeline, mindmap,
-class, sequence) with the chart web part's own renderers, so a diagram
+chart kind (incident lifecycle, journey, state, flowchart, sankey, gantt,
+timeline, mindmap, class, sequence) with the chart web part's own renderers, so a diagram
 looks the same in the dashboard and on the section's SharePoint page and
 has one implementation. The site build puts those renderers into the page
 from `templates/dashboard-charts.js`, which
@@ -234,7 +234,10 @@ from `templates/dashboard-charts.js`, which
 the web part's TypeScript; a Pester test fails when the TypeScript changes
 and the bundle is not regenerated. A diagram follows the light or dark
 theme, and a node linking to a section or a finding opens it in the
-dashboard. A section with no chart of its own gets one drawn from a short
+dashboard. A diagram whose title repeats the heading above it shows the
+heading only, here and on the SharePoint pages. Headings run into a
+hairline and notes sit in a softly tinted box; nothing in the Report is
+marked with a coloured edge bar. A section with no chart of its own gets one drawn from a short
 table, and only when a column clearly holds an amount (a count, cost,
 volume or total); a table with no such column gets no chart. A link to
 another section opens it in the Report tab, and a link to a finding opens

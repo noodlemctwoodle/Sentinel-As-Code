@@ -79,8 +79,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.3
-    Last Updated:   2026-10-13
+    Version:        0.6.4
+    Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
 
@@ -4556,6 +4556,44 @@ $alertProvider7dRows = @($alertVolumes | Where-Object { $_.PSObject.Properties['
     Sort-Object @{ Expression = { [long]$_.Alerts7d }; Descending = $true }, AlertName |
     ForEach-Object { [pscustomobject]@{ Provider = [string](_RProp $_ 'ProviderName' ''); Product = $_.ProductName; Alert = $_.AlertName; Severity = $_.AlertSeverity; Alerts = [long]$_.Alerts7d } })
 
+# The incident lifecycle as data for the SharePoint graphic (the chart web
+# part's incident-lifecycle visual): the window's incidents at their
+# current status, how the closed ones got there (acknowledged first, or
+# closed straight from New), the response times, how they were classified
+# and who closed them. It rides in the Mermaid block on a %% line, which
+# Mermaid ignores and ConvertFrom-BlueprintMermaid reads; a figure the
+# capture lacks is null and the graphic leaves it out.
+function ConvertTo-LifecycleList {
+    param([System.Collections.IDictionary]$Bag, [string[]]$Order, [hashtable]$Labels)
+    if (-not $Bag -or -not $Bag.Count) { return ,@() }
+    $keys = @($Bag.Keys | ForEach-Object { [string]$_ })
+    $sorted = if ($Order) { @($Order | Where-Object { $keys -contains $_ }) + @($keys | Where-Object { $Order -notcontains $_ } | Sort-Object) }
+              else { @($keys | Sort-Object @{ Expression = { [long]$Bag[$_] }; Descending = $true }, @{ Expression = { $_ } }) }
+    return ,@($sorted | Where-Object { [long]$Bag[$_] -gt 0 } | ForEach-Object {
+        [ordered]@{ label = $(if ($Labels -and $Labels.ContainsKey($_)) { $Labels[$_] } else { $_ }); count = [long]$Bag[$_] }
+    })
+}
+$incStatusBag = if ($incSummary -and $incSummary.PSObject.Properties['ByStatus']) { _RendererBag $incSummary.ByStatus } else { $null }
+$incAckKnown = $incMttr -and ($incMttr.PSObject.Properties.Name -contains 'AcknowledgedCount')
+$incMinutes = { param($v) $s = [string]$v; $d = 0.0; if ($null -ne $v -and $s -ne 'NaN' -and [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { [math]::Round($d, 1) } else { $null } }
+$lifecycleVisual = [ordered]@{
+    days           = 30
+    raised         = $totalIncidents
+    new            = $(if ($incStatusBag) { [long](_RProp ([pscustomobject]$incStatusBag) 'New' 0) } else { $null })
+    active         = $(if ($incStatusBag) { [long](_RProp ([pscustomobject]$incStatusBag) 'Active' 0) } else { $null })
+    closed         = $(if ($incStatusBag) { [long](_RProp ([pscustomobject]$incStatusBag) 'Closed' 0) } elseif ($incMttr) { $closedCount } else { $null })
+    acknowledged   = $(if ($incAckKnown) { $ackCountForState } else { $null })
+    unacknowledged = $(if ($incAckKnown) { $unackCount } else { $null })
+    mttaMinutes    = $(if ($incMttr) { & $incMinutes (_RProp $incMttr 'MTTAMinutes') } else { $null })
+    mttrMinutes    = $(if ($incMttr) { & $incMinutes (_RProp $incMttr 'MTTRMinutes') } else { $null })
+    unified        = $(if ($incSummary -and $incSummary.PSObject.Properties['Unified']) { [long](_RendererNumber $incSummary.Unified) } else { $null })
+    openBySeverity = ConvertTo-LifecycleList -Bag $(if ($incSummary -and $incSummary.PSObject.Properties['OpenBySeverity']) { _RendererBag $incSummary.OpenBySeverity } else { $null }) -Order 'High', 'Medium', 'Low', 'Informational'
+    classification = ConvertTo-LifecycleList -Bag $incClassBag -Order 'TruePositive', 'BenignPositive', 'FalsePositive', 'Undetermined', 'Unclassified' -Labels @{ TruePositive = 'True positive'; BenignPositive = 'Benign positive'; FalsePositive = 'False positive' }
+    closedBy       = ConvertTo-LifecycleList -Bag $(if ($incSummary -and $incSummary.PSObject.Properties['ClosedBy']) { _RendererBag $incSummary.ClosedBy } else { $null }) -Labels @{ AutomationRule = 'Automation rule'; DefenderXdr = 'Defender XDR' }
+    check          = [ordered]@{ id = 'SAC-INC-05'; fired = $script:FiredFindingIds.ContainsKey('SAC-INC-05') }
+}
+$lifecycleVisualLine = '    %% visual incident-lifecycle ' + ($lifecycleVisual | ConvertTo-Json -Compress -Depth 6)
+
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
 
@@ -4571,6 +4609,7 @@ $dailyLine
 
 ``````mermaid
 stateDiagram-v2
+$lifecycleVisualLine
     [*] --> New : Alert fires
     New --> Active : Analyst opens
     New --> Closed : Auto-suppress<br/>(SAC-INC-05 fires here)

@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: e7cc67656793cf495bfbcbcd545b1b9ed1d75ea145a726a63520a30e2e36abe4 */
+   sources-sha256: 37c700641ec00975edd55ab512307cf8061f9f8d123d2fadbd72660610bc296b */
 (function(){
 'use strict';
  var defs={};
@@ -12,7 +12,7 @@
 // chart builds a string of markup; anything taken from the chart data goes
 // through esc() first.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
+exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
 exports.FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 // The dashboard's series colours, so a chart reads the same on both.
 exports.SERIES = [
@@ -231,6 +231,17 @@ function niceTicks(lo, hi, count, whole = false) {
     return ticks;
 }
 exports.niceTicks = niceTicks;
+// A colour, see-through, for fills and borders; a theme colour that is not
+// six-digit hex is mixed with transparent instead.
+function tint(hex, alpha) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(str(hex).trim());
+    if (!m) {
+        return 'color-mix(in srgb,' + esc(hex) + ' ' + Math.round(alpha * 100) + '%,transparent)';
+    }
+    const v = parseInt(m[1], 16);
+    return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + alpha + ')';
+}
+exports.tint = tint;
 
 };
  defs['ChartTypes']=function(module,exports,require){
@@ -943,46 +954,254 @@ function loopPath(a, b, vertical, reach, before) {
 exports.loopPath = loopPath;
 
 };
+ defs['IncidentLifecycleChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.duration = exports.renderIncidentLifecycle = void 0;
+const ChartKit_1 = require("./ChartKit");
+// The incident lifecycle: the window's incidents at their current status
+// (New, Active, Closed) as stage tiles, the two ways a closed incident got
+// there (acknowledged first, or closed straight from New, which SAC-INC-05
+// checks), and how the open ones split by severity and the closed ones by
+// classification and by who closed them. A figure the capture lacks is
+// left out rather than shown as zero.
+const STAGE = { new: '#d97706', active: '#2563eb', closed: '#0d9488' };
+const CLOSER = { automationrule: '#7c3aed', analyst: '#2563eb', defenderxdr: '#0891b2', other: '#64748b' };
+function renderIncidentLifecycle(data, theme) {
+    if (!data || (0, ChartKit_1.isNil)(data.raised)) {
+        return '';
+    }
+    const raised = (0, ChartKit_1.num)(data.raised);
+    const days = (0, ChartKit_1.num)(data.days) || 30;
+    if (raised <= 0) {
+        return '<p style="margin:0;color:' + (0, ChartKit_1.esc)(theme.muted) + '">No incidents were raised in the last ' + days + ' days.</p>';
+    }
+    return '<div style="display:flex;flex-direction:column;gap:16px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        pipeline(data, theme, raised, days) +
+        '<p style="margin:0;font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">Each stage shows where the last ' + days + ' days\' incidents are now; the arrows show how the closed ones got there.</p>' +
+        breakdowns(data, theme) +
+        '</div>';
+}
+exports.renderIncidentLifecycle = renderIncidentLifecycle;
+function pipeline(data, theme, raised, days) {
+    const closed = opt(data.closed);
+    const ack = opt(data.acknowledged);
+    const unack = opt(data.unacknowledged);
+    const mtta = opt(data.mttaMinutes);
+    const mttr = opt(data.mttrMinutes);
+    const unified = opt(data.unified);
+    const cols = 'minmax(118px,1fr) 52px minmax(118px,1fr) 108px minmax(118px,1fr) 92px minmax(118px,1fr)';
+    let out = '<div style="display:grid;grid-template-columns:' + cols + ';min-width:700px;padding-bottom:' + ((0, ChartKit_1.isNil)(unack) ? '0' : '16px') + '">' +
+        tile('Raised', theme.accent, raised, 'in the last ' + days + ' days', undefined, (0, ChartKit_1.isNil)(unified) ? '' : count(unified) + ' through Defender XDR', theme) +
+        arrow(theme.accent, STAGE.new, '', '', theme) +
+        tile('New', STAGE.new, opt(data.new), 'waiting, not yet acknowledged', raised, '', theme) +
+        arrow(STAGE.new, STAGE.active, 'Acknowledged', (0, ChartKit_1.isNil)(mtta) ? '' : 'MTTA ' + duration(mtta), theme) +
+        tile('Active', STAGE.active, opt(data.active), 'being investigated', raised, '', theme) +
+        arrow(STAGE.active, STAGE.closed, 'Resolved', (0, ChartKit_1.isNil)(ack) ? '' : count(ack) + ' closed', theme) +
+        tile('Closed', STAGE.closed, closed, (0, ChartKit_1.isNil)(closed) ? '' : pct(closed, raised) + ' of raised', raised, (0, ChartKit_1.isNil)(mttr) ? '' : 'MTTR ' + duration(mttr), theme);
+    if (!(0, ChartKit_1.isNil)(unack)) {
+        out += bypass(unack, closed, !!(data.check && data.check.fired), (0, ChartKit_1.str)(data.check && data.check.id), theme);
+    }
+    return out + '</div>';
+}
+function tile(label, colour, value, sub, of, foot, theme) {
+    const share = (0, ChartKit_1.isNil)(value) || (0, ChartKit_1.isNil)(of) || !of ? '' :
+        '<div style="margin-top:10px;height:4px;border-radius:99px;background:' + (0, ChartKit_1.tint)(colour, 0.2) + '"><div style="height:100%;border-radius:99px;width:' +
+            Math.min(100, value / of * 100).toFixed(1) + '%;background:' + (0, ChartKit_1.esc)(colour) + '"></div></div>';
+    return '<div style="min-width:0;border:1px solid ' + (0, ChartKit_1.tint)(colour, 0.38) + ';border-radius:14px;padding:12px 14px;background:' + (0, ChartKit_1.tint)(colour, theme.dark ? 0.13 : 0.06) + '">' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(colour) + '">' + (0, ChartKit_1.esc)(label) + '</div>' +
+        '<div style="font-size:28px;font-weight:800;line-height:1.15;margin-top:6px;font-variant-numeric:tabular-nums">' + ((0, ChartKit_1.isNil)(value) ? '<span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">n/a</span>' : count(value)) + '</div>' +
+        (sub ? '<div style="font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:2px">' + (0, ChartKit_1.esc)(sub) + '</div>' : '') +
+        share +
+        (foot ? '<div style="font-size:11.5px;font-weight:650;margin-top:8px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + (0, ChartKit_1.esc)(foot) + '</div>' : '') +
+        '</div>';
+}
+// A connector between two tiles, shaded from one stage's colour to the
+// next, with what happens on it above and a figure below.
+function arrow(from, to, above, below, theme) {
+    const small = 'font-size:11px;line-height:1.3;color:' + (0, ChartKit_1.esc)(theme.muted) + ';text-align:center;min-height:15px';
+    return '<div style="display:flex;flex-direction:column;justify-content:center;gap:5px;padding:0 6px">' +
+        '<div style="' + small + ';font-weight:700">' + (0, ChartKit_1.esc)(above) + '</div>' +
+        '<div style="position:relative;height:2px;margin-right:6px;background:linear-gradient(90deg,' + (0, ChartKit_1.esc)(from) + ',' + (0, ChartKit_1.esc)(to) + ')">' +
+        '<span style="position:absolute;right:-7px;top:-4px;border-left:8px solid ' + (0, ChartKit_1.esc)(to) + ';border-top:5px solid transparent;border-bottom:5px solid transparent"></span></div>' +
+        '<div style="' + small + ';font-weight:650;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + (0, ChartKit_1.esc)(below) + '</div>' +
+        '</div>';
+}
+// The path from New straight to Closed, under the tiles: dashed, red with
+// the check's id when the check fired, faint when nothing took it.
+function bypass(unack, closed, fired, checkId, theme) {
+    const colour = unack <= 0 ? theme.line : fired ? '#dc2626' : '#d97706';
+    const line = '2px dashed ' + (0, ChartKit_1.esc)(colour);
+    const share = (0, ChartKit_1.isNil)(closed) || !closed ? '' : ' (' + pct(unack, closed) + ' of closed)';
+    const text = unack <= 0 ? 'None closed without acknowledgement' : count(unack) + ' closed without acknowledgement' + share;
+    const badge = fired && checkId
+        ? '<span style="margin-left:8px;padding:1px 7px;border-radius:5px;background:#dc2626;color:#fff;font-weight:800;font-size:10.5px">' + (0, ChartKit_1.esc)(checkId) + '</span>' : '';
+    return '<div style="grid-column:3;height:26px;margin-left:50%;border-left:' + line + ';border-bottom:' + line + ';border-bottom-left-radius:14px"></div>' +
+        '<div style="grid-column:4 / 7;height:26px;border-bottom:' + line + ';position:relative">' +
+        '<span style="position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);white-space:nowrap;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:700;' +
+        'border:1px solid ' + (0, ChartKit_1.esc)(colour) + ';background:' + (0, ChartKit_1.esc)(theme.surface) + ';color:' + (0, ChartKit_1.esc)(unack <= 0 ? theme.muted : theme.text) + '">' + (0, ChartKit_1.esc)(text) + badge + '</span></div>' +
+        '<div style="grid-column:7;height:26px;margin-right:50%;border-right:' + line + ';border-bottom:' + line + ';border-bottom-right-radius:14px;position:relative">' +
+        '<span style="position:absolute;right:-6px;top:-1px;border-bottom:8px solid ' + (0, ChartKit_1.esc)(colour) + ';border-left:5px solid transparent;border-right:5px solid transparent"></span></div>';
+}
+function breakdowns(data, theme) {
+    const open = (0, ChartKit_1.num)(data.new) + (0, ChartKit_1.num)(data.active);
+    const panels = [
+        panel('Open now, by severity', (0, ChartKit_1.list)(data.openBySeverity), (l, i) => (0, ChartKit_1.colourFor)(l, i), (0, ChartKit_1.isNil)(data.new) && (0, ChartKit_1.isNil)(data.active) ? 'Not captured in this snapshot.' : open <= 0 ? 'No incidents are open.' : 'Not captured in this snapshot.', theme),
+        panel('Closed, by classification', (0, ChartKit_1.list)(data.classification), (l, i) => (0, ChartKit_1.colourFor)(l, i), 'Not captured in this snapshot.', theme),
+        panel('Closed by', (0, ChartKit_1.list)(data.closedBy), (l, i) => CLOSER[l.toLowerCase().replace(/[^a-z]/g, '')] || (0, ChartKit_1.colourFor)(l, i), 'Not captured in this snapshot.', theme)
+    ];
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">' + panels.join('') + '</div>';
+}
+// One breakdown: a stacked bar and a legend row per part with its count and
+// share.
+function panel(title, parts, colour, empty, theme) {
+    const rows = parts.filter((p) => (0, ChartKit_1.num)(p.count) > 0);
+    const total = rows.reduce((s, p) => s + (0, ChartKit_1.num)(p.count), 0);
+    let body;
+    if (!total) {
+        body = '<p style="margin:8px 0 0;font-size:12px;font-style:italic;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(empty) + '</p>';
+    }
+    else {
+        body = '<div style="display:flex;height:10px;border-radius:99px;overflow:hidden;margin:10px 0 10px;gap:2px">' +
+            rows.map((p, i) => '<span title="' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(p.label) + ': ' + count((0, ChartKit_1.num)(p.count))) + '" style="flex:' + (0, ChartKit_1.num)(p.count) + ' 1 0;min-width:3px;background:' + (0, ChartKit_1.esc)(colour((0, ChartKit_1.str)(p.label), i)) + '"></span>').join('') +
+            '</div>' +
+            rows.map((p, i) => '<div style="display:grid;grid-template-columns:10px minmax(0,1fr) auto 42px;gap:8px;align-items:center;font-size:12px;padding:2px 0">' +
+                '<span style="width:10px;height:10px;border-radius:3px;background:' + (0, ChartKit_1.esc)(colour((0, ChartKit_1.str)(p.label), i)) + '"></span>' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (0, ChartKit_1.esc)(p.label) + '</span>' +
+                '<span style="font-weight:700;font-variant-numeric:tabular-nums">' + count((0, ChartKit_1.num)(p.count)) + '</span>' +
+                '<span style="text-align:right;color:' + (0, ChartKit_1.esc)(theme.muted) + ';font-variant-numeric:tabular-nums">' + pct((0, ChartKit_1.num)(p.count), total) + '</span></div>').join('');
+    }
+    return '<div style="min-width:0;border:1px solid ' + (0, ChartKit_1.esc)(theme.line) + ';border-radius:12px;padding:11px 14px 12px">' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(title) + '</div>' +
+        body + '</div>';
+}
+function opt(value) {
+    return (0, ChartKit_1.isNil)(value) || (0, ChartKit_1.str)(value) === '' ? undefined : (0, ChartKit_1.num)(value);
+}
+function count(n) {
+    return Math.round(n).toLocaleString('en-GB');
+}
+function pct(part, whole) {
+    return whole > 0 ? Math.round(part / whole * 100) + '%' : '0%';
+}
+// Minutes as the dashboard writes them: 45m, 3h 20m, 1d 11h.
+function duration(minutes) {
+    const m = Math.round(minutes);
+    if (m < 1) {
+        return '< 1m';
+    }
+    if (m < 60) {
+        return m + 'm';
+    }
+    if (m < 1440) {
+        return Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '');
+    }
+    let d = Math.floor(m / 1440);
+    let h = Math.round((m % 1440) / 60);
+    if (h === 24) {
+        d += 1;
+        h = 0;
+    }
+    return d + 'd' + (h ? ' ' + h + 'h' : '');
+}
+exports.duration = duration;
+
+};
  defs['JourneyChart']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderJourney = void 0;
 const ChartKit_1 = require("./ChartKit");
-// A user journey: one card per step, grouped by stage, each with its
-// satisfaction score (1 to 5) and the actors involved.
+// A user journey as a journey map: the stages across the top, one column
+// per step, and a curve through the steps' scores (5 at the top, smooth;
+// 1 at the bottom, friction), so the pain points read as the dips. Each
+// point carries its score; the step and who does it sit underneath.
+const STEP_MIN = 88;
+const GUTTER = 62;
+const PLOT = 150;
+const PAD = 18;
 function renderJourney(data, theme) {
-    const sections = (0, ChartKit_1.list)(data && data.sections);
-    if (!sections.length) {
+    const sections = (0, ChartKit_1.list)(data && data.sections)
+        .filter((s) => (0, ChartKit_1.list)(s.tasks).length > 0);
+    const steps = [];
+    sections.forEach((s) => {
+        (0, ChartKit_1.list)(s.tasks).forEach((t) => {
+            steps.push({ task: t, score: Math.max(1, Math.min(5, Math.round((0, ChartKit_1.num)(t.score)))) });
+        });
+    });
+    if (!steps.length) {
         return '';
     }
-    let out = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">';
-    sections.forEach((s) => {
-        out += '<section style="min-width:0">' +
-            '<div style="font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-bottom:6px">' + (0, ChartKit_1.esc)(s.name) + '</div>' +
-            '<div style="display:flex;flex-direction:column;gap:8px">';
-        (0, ChartKit_1.list)(s.tasks).forEach((t) => {
-            const score = Math.max(0, Math.min(5, Math.round((0, ChartKit_1.num)(t.score))));
-            const colour = score >= 4 ? '#16a34a' : score === 3 ? '#d97706' : '#dc2626';
-            out += '<div style="border:1px solid ' + (0, ChartKit_1.esc)(theme.line) + ';border-left:4px solid ' + colour + ';border-radius:8px;padding:8px 10px">' +
-                '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
-                '<span style="font-weight:600">' + (0, ChartKit_1.esc)(t.label) + '</span>' +
-                '<span role="img" aria-label="Score ' + score + ' of 5" title="Score ' + score + ' of 5" style="flex:none;color:' + colour + ';letter-spacing:1px">' + dots(score) + '</span></div>' +
-                ((0, ChartKit_1.list)(t.actors).length
-                    ? '<div style="margin-top:4px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.list)(t.actors).map((a) => (0, ChartKit_1.esc)((0, ChartKit_1.str)(a))).join(', ') + '</div>'
-                    : '') +
-                '</div>';
-        });
-        out += '</div></section>';
-    });
-    return out + '</div>';
+    const n = steps.length;
+    const cols = 'repeat(' + n + ',minmax(' + STEP_MIN + 'px,1fr))';
+    return '<div style="min-width:' + (n * STEP_MIN + GUTTER) + 'px;padding-left:' + GUTTER + 'px;font-size:12.5px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        stages(sections, cols, theme) + plot(steps, sections, theme) + labels(steps, cols, theme) + '</div>';
 }
 exports.renderJourney = renderJourney;
-function dots(score) {
-    let s = '';
-    for (let i = 1; i <= 5; i++) {
-        s += i <= score ? '&#9679;' : '&#9675;';
+// Each stage's name over its steps, on a soft chip with a hairline under it
+// to the stage's edges.
+function stages(sections, cols, theme) {
+    return '<div style="display:grid;grid-template-columns:' + cols + '">' +
+        sections.map((s) => '<div style="grid-column:span ' + (0, ChartKit_1.list)(s.tasks).length + ';min-width:0;margin:0 4px;text-align:center;padding-bottom:7px;border-bottom:1px solid ' + (0, ChartKit_1.esc)(theme.line) + '">' +
+            '<span style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 10px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;' +
+            'color:' + (0, ChartKit_1.esc)(theme.muted) + ';background:' + (0, ChartKit_1.tint)(theme.accent, theme.dark ? 0.16 : 0.08) + '">' + (0, ChartKit_1.esc)(s.name) + '</span></div>').join('') +
+        '</div>';
+}
+// The curve and its points. The line is drawn in a stretched SVG so it
+// spans the columns exactly; the points are HTML on top, so they stay round.
+function plot(steps, sections, theme) {
+    const n = steps.length;
+    const w = n * 100;
+    const y = (s) => PAD + (5 - s) / 4 * (PLOT - 2 * PAD);
+    const pts = steps.map((s, i) => [i * 100 + 50, y(s.score)]);
+    let curve = 'M' + pts[0][0] + ' ' + pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+        const mid = (pts[i - 1][0] + pts[i][0]) / 2;
+        curve += ' C' + mid + ' ' + pts[i - 1][1] + ' ' + mid + ' ' + pts[i][1] + ' ' + pts[i][0] + ' ' + pts[i][1];
     }
-    return s;
+    const area = curve + ' L' + pts[pts.length - 1][0] + ' ' + PLOT + ' L' + pts[0][0] + ' ' + PLOT + ' Z';
+    const grad = (0, ChartKit_1.nextId)('journey');
+    let guides = '';
+    for (let s = 1; s <= 5; s++) {
+        guides += '<line x1="0" x2="' + w + '" y1="' + y(s) + '" y2="' + y(s) + '" stroke="' + (0, ChartKit_1.esc)(theme.line) + '" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>';
+    }
+    let x = 0;
+    sections.slice(0, -1).forEach((sec) => {
+        x += (0, ChartKit_1.list)(sec.tasks).length * 100;
+        guides += '<line x1="' + x + '" x2="' + x + '" y1="0" y2="' + PLOT + '" stroke="' + (0, ChartKit_1.esc)(theme.line) + '" vector-effect="non-scaling-stroke"/>';
+    });
+    const bandH = y(4) - y(5) + PAD;
+    const svg = '<svg viewBox="0 0 ' + w + ' ' + PLOT + '" preserveAspectRatio="none" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">' +
+        '<defs><linearGradient id="' + grad + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + (0, ChartKit_1.esc)(theme.accent) + '" stop-opacity="' + (theme.dark ? 0.32 : 0.2) + '"/>' +
+        '<stop offset="1" stop-color="' + (0, ChartKit_1.esc)(theme.accent) + '" stop-opacity="0"/></linearGradient></defs>' +
+        '<rect x="0" y="0" width="' + w + '" height="' + bandH + '" fill="#16a34a" fill-opacity="' + (theme.dark ? 0.07 : 0.05) + '"/>' +
+        '<rect x="0" y="' + (PLOT - bandH) + '" width="' + w + '" height="' + bandH + '" fill="#dc2626" fill-opacity="' + (theme.dark ? 0.08 : 0.05) + '"/>' +
+        guides +
+        '<path d="' + area + '" fill="url(#' + grad + ')"/>' +
+        '<path d="' + curve + '" fill="none" stroke="' + (0, ChartKit_1.esc)(theme.accent) + '" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+        '</svg>';
+    const zone = (text, top) => '<span style="position:absolute;left:-' + GUTTER + 'px;width:' + (GUTTER - 10) + 'px;text-align:right;' + (top ? 'top:6px' : 'bottom:6px') + ';font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(top ? '#16a34a' : '#dc2626') + '">' + text + '</span>';
+    const dots = steps.map((s, i) => {
+        const colour = scoreColour(s.score);
+        return '<span role="img" aria-label="' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(s.task.label) + ': score ' + s.score + ' of 5') + '" title="' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(s.task.label) + ': ' + s.score + ' of 5') + '" style="position:absolute;left:' +
+            ((i + 0.5) / n * 100).toFixed(3) + '%;top:' + (y(s.score) / PLOT * 100).toFixed(3) + '%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;' +
+            'display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff;background:' + colour + ';box-shadow:0 0 0 3px ' + (0, ChartKit_1.esc)(theme.surface) + ',0 0 0 4px ' + (0, ChartKit_1.tint)(colour, 0.45) + '">' + s.score + '</span>';
+    }).join('');
+    return '<div style="position:relative;height:' + PLOT + 'px;margin:14px 0 10px">' + svg + zone('Smooth', true) + zone('Friction', false) + dots + '</div>';
+}
+function labels(steps, cols, theme) {
+    return '<div style="display:grid;grid-template-columns:' + cols + '">' +
+        steps.map((s) => {
+            const actors = (0, ChartKit_1.list)(s.task.actors).map((a) => (0, ChartKit_1.str)(a)).filter((a) => !!a);
+            return '<div style="min-width:0;text-align:center;padding:0 4px">' +
+                '<div style="font-weight:700;line-height:1.3;color:' + (0, ChartKit_1.esc)(s.score <= 2 ? scoreColour(s.score) : theme.text) + '">' + (0, ChartKit_1.esc)(s.task.label) + '</div>' +
+                (actors.length ? '<div style="margin-top:3px;font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + actors.map((a) => (0, ChartKit_1.esc)(a)).join(', ') + '</div>' : '') +
+                '</div>';
+        }).join('') +
+        '</div>';
+}
+function scoreColour(score) {
+    return score >= 4 ? '#16a34a' : score === 3 ? '#d97706' : '#dc2626';
 }
 
 };
@@ -1766,6 +1985,7 @@ const StateChart_1 = require("./StateChart");
 const ClassChart_1 = require("./ClassChart");
 const SequenceChart_1 = require("./SequenceChart");
 const JourneyChart_1 = require("./JourneyChart");
+const IncidentLifecycleChart_1 = require("./IncidentLifecycleChart");
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
 // the chart's Mermaid source (when it has one) rather than nothing.
@@ -1804,6 +2024,7 @@ function draw(chart, theme, label) {
         case 'class': return (0, ClassChart_1.renderClass)(data, theme, label);
         case 'sequence': return (0, SequenceChart_1.renderSequence)(data, theme, label);
         case 'journey': return (0, JourneyChart_1.renderJourney)(data, theme);
+        case 'incident-lifecycle': return (0, IncidentLifecycleChart_1.renderIncidentLifecycle)(data, theme);
         default: return '';
     }
 }
@@ -1811,7 +2032,7 @@ function describe(kind) {
     const names = {
         pie: 'Pie chart', xy: 'Bar chart', sankey: 'Flow diagram', timeline: 'Timeline', gantt: 'Schedule',
         mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
-        sequence: 'Sequence diagram', journey: 'Journey'
+        sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle'
     };
     return names[kind] || 'Chart';
 }

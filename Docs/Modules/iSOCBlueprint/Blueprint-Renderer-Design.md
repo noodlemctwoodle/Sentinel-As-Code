@@ -106,7 +106,7 @@ table only.
 | `12-soc-optimization.md` | pie | recommendation-category counts | `$socTotal -gt 0` |
 | `13-data-source-hygiene.md` | pie | `$cefDevices` grouped by DeviceVendor | `$cefDevices.Count -gt 0` |
 | `14-coverage-breakdowns.md` | xychart-beta bar | every `$xdrPres` table, with `%% x-labels` full names | `$xdrPres.Count -gt 0` |
-| `15-incidents.md` | stateDiagram-v2 | `$incMttr.ClosedCount` + `$incSummary.Count` | none |
+| `15-incidents.md` | stateDiagram-v2, with a `%% visual incident-lifecycle` line for the SharePoint graphic | `$incSummary` (ByStatus, ByClassification, ClosedBy, OpenBySeverity, Unified) + `$incMttr` (closed, acknowledged, MTTA, MTTR) + whether SAC-INC-05 fired | none |
 | `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
 | `20-analytics-rules.md` | classDiagram | per-kind deployed-count notes | none |

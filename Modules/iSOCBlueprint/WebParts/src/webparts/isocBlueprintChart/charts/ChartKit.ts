@@ -230,3 +230,12 @@ export function niceTicks(lo: number, hi: number, count: number, whole: boolean 
   }
   return ticks;
 }
+
+// A colour, see-through, for fills and borders; a theme colour that is not
+// six-digit hex is mixed with transparent instead.
+export function tint(hex: string, alpha: number): string {
+  const m: RegExpExecArray | null = /^#?([0-9a-f]{6})$/i.exec(str(hex).trim());
+  if (!m) { return 'color-mix(in srgb,' + esc(hex) + ' ' + Math.round(alpha * 100) + '%,transparent)'; }
+  const v: number = parseInt(m[1], 16);
+  return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + alpha + ')';
+}

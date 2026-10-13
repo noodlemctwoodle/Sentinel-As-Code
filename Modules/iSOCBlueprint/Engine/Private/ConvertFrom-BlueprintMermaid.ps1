@@ -17,14 +17,20 @@
 
     Labels keep the line breaks the renderer writes as <br/>, as "`n".
 
+    A chart with a purpose-built graphic carries its data on a comment line,
+    "%% visual <kind> <json>", which Mermaid ignores: the chart comes back
+    as that kind with the JSON as its data (the incident lifecycle is
+    kind incident-lifecycle). JSON that does not parse is ignored and the
+    Mermaid is read as usual.
+
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.2.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -42,7 +48,8 @@ function ConvertFrom-BlueprintMermaid {
     .OUTPUTS
         [System.Collections.Specialized.OrderedDictionary] kind is one of
         pie, sankey, xy, timeline, gantt, mindmap, flowchart, sequence,
-        state, class, journey, other. title is $null when the chart has none.
+        state, class, journey, other, or a visual's kind (incident-lifecycle).
+        title is $null when the chart has none.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -59,16 +66,22 @@ function ConvertFrom-BlueprintMermaid {
         $i++
     }
     # A "%% x-labels [...]" comment carries the full axis labels of an xy
-    # chart whose Mermaid labels are shortened to fit under the bars.
+    # chart whose Mermaid labels are shortened to fit under the bars; a
+    # "%% visual <kind> {...}" comment, the data of a purpose-built graphic.
     $fullLabels = $null
+    $visual = $null
     for (; $i -lt $all.Count; $i++) {
         $comment = $all[$i].Trim()
         if ($comment.StartsWith('%%')) {
             if ($comment -match '^%%\s*x-labels\s+(?<list>\[.*\])\s*$') { $fullLabels = @(ConvertFrom-BpMermaidList $Matches['list']) }
+            elseif (-not $visual -and $comment -match '^%%\s*visual\s+(?<kind>[a-z][a-z0-9-]*)\s+(?<json>\{.*\})\s*$') {
+                try { $visual = [ordered]@{ kind = $Matches['kind']; title = $null; data = ($Matches['json'] | ConvertFrom-Json -ErrorAction Stop) } } catch { $visual = $null }
+            }
             continue
         }
         $lines.Add($all[$i])
     }
+    if ($visual) { return $visual }
     while ($lines.Count -and [string]::IsNullOrWhiteSpace($lines[0])) { $lines.RemoveAt(0) }
     if ($lines.Count -eq 0) { return [ordered]@{ kind = 'other'; title = $null; data = $null } }
 

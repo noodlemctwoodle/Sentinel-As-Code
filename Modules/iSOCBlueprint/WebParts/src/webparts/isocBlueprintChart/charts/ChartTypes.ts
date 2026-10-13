@@ -123,3 +123,30 @@ export interface IClassData {
 export interface IJourneyData {
   sections: { name: string; tasks: { label: string; score: number; actors?: string[] }[] }[];
 }
+
+// A purpose-built graphic's data, from a "%% visual" line in the Mermaid.
+// Counts are the window's incidents at their current status; acknowledged
+// and unacknowledged split the closed ones by whether they were picked up
+// before closing. Anything the capture lacks is null in the JSON, read as
+// absent.
+export interface IIncidentLifecycleData {
+  days?: number;
+  raised?: number;
+  new?: number;
+  active?: number;
+  closed?: number;
+  acknowledged?: number;
+  unacknowledged?: number;
+  mttaMinutes?: number;
+  mttrMinutes?: number;
+  unified?: number;
+  openBySeverity?: ILifecycleCount[];
+  classification?: ILifecycleCount[];
+  closedBy?: ILifecycleCount[];
+  check?: { id?: string; fired?: boolean };
+}
+
+export interface ILifecycleCount {
+  label: string;
+  count: number;
+}

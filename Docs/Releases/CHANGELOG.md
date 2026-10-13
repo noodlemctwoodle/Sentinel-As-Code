@@ -6,6 +6,19 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A purpose-built incident lifecycle and a journey map** - the
+  incident lifecycle on the Incidents page was a generic state diagram;
+  on SharePoint and in the dashboard it is now its own graphic: stage
+  tiles for Raised, New, Active and Closed with each one's share, MTTA
+  and the acknowledged closures on the arrows, the path straight from New
+  to Closed (red, tagged SAC-INC-05, when that check fired), and the open
+  incidents by severity and the closed ones by classification and by who
+  closed them. The analyst journey is a journey map: a curve through
+  every step's score, so the pain points read as dips. The report writes
+  the lifecycle's figures on a comment line in its Mermaid, so the
+  Markdown export is unchanged. A diagram no longer repeats the heading
+  above it as its own title, and the Report's headings and notes lose
+  their coloured edge bars. Chart web part 1.5.0.
 - **Area scores on the Overview's maturity card** - the card lists every
   capability area's score against the target, weakest first, with the
   areas below target in amber; selecting one opens the Assessment with the
