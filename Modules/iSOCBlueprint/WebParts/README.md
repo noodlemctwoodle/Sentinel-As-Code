@@ -77,7 +77,7 @@ tried in a plain browser page:
 | `flowchart`, `state`, `class` | A layered layout ([`GraphLayout.ts`](src/webparts/isocBlueprintChart/charts/GraphLayout.ts)): cycles broken, an edge that skips ranks routed round the nodes in between, groups boxed |
 | `sequence` | Lifelines with numbered messages, notes and blocks |
 | `journey` | A journey map: the stages across the top, a curve through every step's score (smooth at the top, friction at the bottom) with each point coloured by its score, and the step and its actors underneath |
-| `meters` | Purpose-built: a card per whole, its size, a stacked bar of its parts and a legend row per part with its count and share |
+| `meters` | Purpose-built: a card per whole, its size, a stacked bar of its parts and a legend row per part with its count and share; any other figures in a strip underneath |
 | `rule-kinds` | Purpose-built: the fields every rule carries, then a card per kind with how many are deployed and enabled, what it does and its own settings |
 | `response-chain` | Purpose-built: the alert-to-response phases in order with this workspace's figures, each step numbered, and a step a fired finding marks missing or at risk tagged with it |
 | `topology` | Purpose-built: every source family with its count (the rest behind Show all), the workspace with each table plan in use or not, and the destinations downstream |
@@ -88,6 +88,12 @@ tried in a plain browser page:
 | `runway` | Purpose-built: platform retirements on a time axis with today marked, and a card per deadline with how far off it is and whether this workspace still uses what it retires |
 | `workspace-age` | Purpose-built: how old the workspace is, its SKU and retention, its span from creation, and what it holds today |
 | `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
+
+A long list in a purpose-built graphic shows its first rows and the rest
+behind the site's button (`.sbtn`) under the list, reading Show fewer once
+open, as the dashboard does: the dashboard styles and handles it itself,
+and on a SharePoint page the web part adds the same button style, scoped
+to its own element, and the same toggle.
 
 A chart with a purpose-built graphic carries its data on a
 `%% visual <kind> {json}` line in its Mermaid, which Mermaid ignores; the

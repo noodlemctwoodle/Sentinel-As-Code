@@ -14,8 +14,11 @@ export function renderTopology(data: ITopologyData, theme: IChartTheme): string 
   const sources: ITopologyItem[] = list<ITopologyItem>(data && data.sources);
   if (!sources.length) { return ''; }
   const cols: string = 'minmax(220px,1.15fr) 40px minmax(210px,1fr) 40px minmax(190px,.95fr)';
-  return '<div style="display:grid;grid-template-columns:' + cols + ';min-width:760px;align-items:stretch;font-size:13px;color:' + esc(theme.text) + '">' +
-    sourcesCard(sources, num(data.sourceTotal), theme) + arrow(SRC, WSP) + workspaceCard(data, theme) + arrow(WSP, DST) + downstreamCard(list<ITopologyItem>(data.downstream), theme) +
+  // Each card keeps its own height, so opening the source list does not
+  // stretch the others; the arrows sit level with the cards' headings.
+  const link: (from: string, to: string) => string = (from: string, to: string): string => '<div style="margin-top:70px">' + arrow(from, to) + '</div>';
+  return '<div style="display:grid;grid-template-columns:' + cols + ';min-width:760px;align-items:start;font-size:13px;color:' + esc(theme.text) + '">' +
+    sourcesCard(sources, num(data.sourceTotal), theme) + link(SRC, WSP) + workspaceCard(data, theme) + link(WSP, DST) + downstreamCard(list<ITopologyItem>(data.downstream), theme) +
     '</div>';
 }
 
@@ -28,7 +31,7 @@ function sourcesCard(sources: ITopologyItem[], total: number, theme: IChartTheme
     '<div style="margin-top:3px">' + share(num(s.count), max, SRC, theme) + '</div></div>');
   return card(eyebrow('Connected sources', theme, SRC) + figure(count(total || sources.reduce((a: number, s: ITopologyItem): number => a + num(s.count), 0)), theme) +
     sub(sources.length + ' families, by sources feeding each', theme) +
-    '<div style="margin-top:10px">' + showAll(rows, 10, 'families', theme) + '</div>', theme);
+    '<div style="margin-top:10px">' + showAll(rows, 10, 'families') + '</div>', theme);
 }
 
 function workspaceCard(data: ITopologyData, theme: IChartTheme): string {

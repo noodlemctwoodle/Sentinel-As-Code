@@ -94,9 +94,9 @@ section model gives the chart that kind and the JSON as its data, and
 `source` keeps the Mermaid. A visual line whose JSON does not parse is
 ignored and the Mermaid is read as usual.
 
-A table that such a graphic shows in full follows a
-`<!-- bp:shown-in-graphic -->` comment. The table block then carries
-`inGraphic: true`: the Markdown and Word exports keep the table, and the
+A table or a line of figures that such a graphic shows in full follows a
+`<!-- bp:shown-in-graphic -->` comment. The table or paragraph block then
+carries `inGraphic: true`: the Markdown and Word exports keep it, and the
 SharePoint pages and the dashboard leave it out rather than show the same
 figures twice.
 
@@ -114,7 +114,7 @@ figures twice.
 | `class` | `classes: [{ name, members[] }]`, `relations: [{ from, to, kind, label }]`, `notes: [{ for, text }]` |
 | `journey` | `sections: [{ name, tasks: [{ label, score, actors[] }] }]` |
 | `incident-lifecycle` | `days`, `raised`, `new`, `active`, `closed` (the window's incidents at their current status), `acknowledged` and `unacknowledged` (the closed ones picked up first, and those closed straight from New), `mttaMinutes`, `mttrMinutes`, `unified` (raised through Defender XDR), `openBySeverity`, `classification` and `closedBy` as `[{ label, count }]`, and `check: { id, fired }` (SAC-INC-05, and whether it fired in this run); a figure the capture lacks is null |
-| `meters` | `meters: [{ title, caption, total, parts: [{ label, value, tone }] }]`; `tone` is ok, warn, bad, info, neutral, violet, teal, cyan or rose |
+| `meters` | `meters: [{ title, caption, total, parts: [{ label, value, tone }] }]`, and `figures: [{ label, value, caption }]` for figures that belong with them but are not parts of a whole; `tone` is ok, warn, bad, info, neutral, violet, teal, cyan or rose |
 | `rule-kinds` | `total` (all rules), `common[]` (the fields every rule carries), `kinds: [{ kind, label, summary, fields[], deployed, enabled, legacy }]` |
 | `response-chain` | `phases: [{ name, figure, steps: [{ n, action, actor, target, state, finding }] }]`; `state` is missing or risk when `finding` fired in this run, otherwise empty |
 | `topology` | `sources: [{ name, count }]` (every source family), `sourceTotal`, `rules` (enabled), `plans` and `downstream` as `[{ name, inUse, detail }]` |

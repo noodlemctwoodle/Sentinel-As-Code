@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Show all is the site's button, and no repeated figure tiles** - a long
+  list in the new graphics (source families, roles) shows its first rows
+  and the rest behind the site's Show all button, which sits under the
+  list and reads Show fewer once open. The figure tiles under the
+  Detection Opportunities and Content Hub graphics repeated what the
+  graphics show and are left to the Markdown and Word exports; the two
+  detection figures the graphic did not show (enabled rules, tables with
+  no detection) now sit in a strip beneath it. Chart web part 1.9.0.
 - **The estate flow, the retirement runway and the workspace history,
   and no repeated diagrams** - on SharePoint and in the dashboard the
   estate flow shows the four pipeline stages with each one's share and

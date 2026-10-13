@@ -49,5 +49,5 @@ function band(b: IAccessBand, max: number, theme: IChartTheme): string {
       '<div style="width:' + (t / max * 100).toFixed(1) + '%;min-width:6px">' + meter(parts, theme, 8) + '</div>' +
       '<span style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums">' + count(t) + '</span></div>';
   });
-  return card(head + '<div style="margin-top:8px">' + showAll(rows, 8, 'roles', theme) + '</div>', theme, str(b.tone) === 'bad' || str(b.tone) === 'ok' ? colour : undefined);
+  return card(head + '<div style="margin-top:8px">' + showAll(rows, 8, 'roles') + '</div>', theme, str(b.tone) === 'bad' || str(b.tone) === 'ok' ? colour : undefined);
 }

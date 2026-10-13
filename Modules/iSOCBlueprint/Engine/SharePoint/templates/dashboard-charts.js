@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: ca27cafa60def0b08a7e93392c5e2ce2f79feea260d48f83bfc748668762b4da */
+   sources-sha256: 564230d415fe15575c8b507931a253051daea5939ecb956f743645b5e285ba98 */
 (function(){
 'use strict';
  var defs={};
@@ -56,7 +56,7 @@ function band(b, max, theme) {
             '<div style="width:' + (t / max * 100).toFixed(1) + '%;min-width:6px">' + (0, Visual_1.meter)(parts, theme, 8) + '</div>' +
             '<span style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums">' + (0, Visual_1.count)(t) + '</span></div>';
     });
-    return (0, Visual_1.card)(head + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'roles', theme) + '</div>', theme, (0, ChartKit_1.str)(b.tone) === 'bad' || (0, ChartKit_1.str)(b.tone) === 'ok' ? colour : undefined);
+    return (0, Visual_1.card)(head + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'roles') + '</div>', theme, (0, ChartKit_1.str)(b.tone) === 'bad' || (0, ChartKit_1.str)(b.tone) === 'ok' ? colour : undefined);
 }
 
 };
@@ -538,7 +538,7 @@ function families(sources, data, theme) {
         '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + Visual_1.NEUTRAL + '"></span>Not monitored (ingested and billed, read by no detection)</span></div>';
     return (0, Visual_1.card)('<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
         '<div>' + (0, Visual_1.eyebrow)('Source families', theme) + (0, Visual_1.sub)(gbText(total) + ' billable in 30 days, ' + (0, Visual_1.pct)(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
-        key + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'families', theme) + '</div>', theme);
+        key + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'families') + '</div>', theme);
 }
 function gbText(v) {
     return (v >= 100 ? Math.round(v).toLocaleString('en-GB') : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString()) + ' GB';
@@ -1470,7 +1470,8 @@ const Visual_1 = require("./Visual");
 // then a stacked bar of its parts and a legend row per part with its
 // count and share. For figures that are parts of something (templates
 // deployed or not, packages up to date or not), where a bar chart of the
-// same numbers would only repeat the tiles beside it.
+// same numbers would only repeat the tiles beside it. Figures that belong
+// with them but are not parts of a whole sit in a strip underneath.
 const TONE = {
     ok: Visual_1.OK, warn: Visual_1.WARN, bad: Visual_1.BAD, info: Visual_1.INFO, neutral: Visual_1.NEUTRAL,
     violet: '#7c3aed', teal: '#0d9488', cyan: '#0891b2', rose: '#db2777'
@@ -1480,10 +1481,21 @@ function renderMeters(data, theme) {
     if (!meters.length) {
         return '';
     }
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
-        meters.map((m) => one(m, theme)).join('') + '</div>';
+    const figures = (0, ChartKit_1.list)(data.figures);
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">' +
+        meters.map((m) => one(m, theme)).join('') + '</div>' +
+        (figures.length ? strip(figures, theme) : '') + '</div>';
 }
 exports.renderMeters = renderMeters;
+// The figures side by side across the full width, split by hairlines.
+function strip(figures, theme) {
+    return (0, Visual_1.card)('<div style="display:grid;grid-template-columns:repeat(' + figures.length + ',minmax(0,1fr))">' +
+        figures.map((f, i) => '<div style="min-width:0;padding:2px 16px;' + (i ? 'border-left:1px solid ' + (0, ChartKit_1.esc)(theme.line) : 'padding-left:0') + '">' +
+            (0, Visual_1.eyebrow)((0, ChartKit_1.str)(f.label), theme) +
+            '<div style="font-size:24px;font-weight:800;line-height:1.15;margin-top:5px;font-variant-numeric:tabular-nums">' + (0, Visual_1.count)((0, ChartKit_1.num)(f.value)) + '</div>' +
+            (0, Visual_1.sub)((0, ChartKit_1.str)(f.caption), theme) + '</div>').join('') + '</div>', theme);
+}
 function one(m, theme) {
     const parts = (0, ChartKit_1.list)(m.parts).map((p, i) => ({
         label: (0, ChartKit_1.str)(p.label), value: Math.max(0, (0, ChartKit_1.num)(p.value)), colour: TONE[(0, ChartKit_1.str)(p.tone)] || ChartKit_1.SERIES[i % ChartKit_1.SERIES.length]
@@ -2331,8 +2343,11 @@ function renderTopology(data, theme) {
         return '';
     }
     const cols = 'minmax(220px,1.15fr) 40px minmax(210px,1fr) 40px minmax(190px,.95fr)';
-    return '<div style="display:grid;grid-template-columns:' + cols + ';min-width:760px;align-items:stretch;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
-        sourcesCard(sources, (0, ChartKit_1.num)(data.sourceTotal), theme) + (0, Visual_1.arrow)(SRC, WSP) + workspaceCard(data, theme) + (0, Visual_1.arrow)(WSP, DST) + downstreamCard((0, ChartKit_1.list)(data.downstream), theme) +
+    // Each card keeps its own height, so opening the source list does not
+    // stretch the others; the arrows sit level with the cards' headings.
+    const link = (from, to) => '<div style="margin-top:70px">' + (0, Visual_1.arrow)(from, to) + '</div>';
+    return '<div style="display:grid;grid-template-columns:' + cols + ';min-width:760px;align-items:start;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        sourcesCard(sources, (0, ChartKit_1.num)(data.sourceTotal), theme) + link(SRC, WSP) + workspaceCard(data, theme) + link(WSP, DST) + downstreamCard((0, ChartKit_1.list)(data.downstream), theme) +
         '</div>';
 }
 exports.renderTopology = renderTopology;
@@ -2344,7 +2359,7 @@ function sourcesCard(sources, total, theme) {
         '<div style="margin-top:3px">' + (0, Visual_1.share)((0, ChartKit_1.num)(s.count), max, SRC, theme) + '</div></div>');
     return (0, Visual_1.card)((0, Visual_1.eyebrow)('Connected sources', theme, SRC) + (0, Visual_1.figure)((0, Visual_1.count)(total || sources.reduce((a, s) => a + (0, ChartKit_1.num)(s.count), 0)), theme) +
         (0, Visual_1.sub)(sources.length + ' families, by sources feeding each', theme) +
-        '<div style="margin-top:10px">' + (0, Visual_1.showAll)(rows, 10, 'families', theme) + '</div>', theme);
+        '<div style="margin-top:10px">' + (0, Visual_1.showAll)(rows, 10, 'families') + '</div>', theme);
 }
 function workspaceCard(data, theme) {
     const plans = (0, ChartKit_1.list)(data.plans);
@@ -2377,7 +2392,7 @@ function downstreamCard(items, theme) {
  defs['Visual']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.note = exports.balancedColumns = exports.showAll = exports.arrow = exports.legendRow = exports.share = exports.meter = exports.chip = exports.pill = exports.sub = exports.figure = exports.eyebrow = exports.card = exports.pct = exports.count = exports.NEUTRAL = exports.INFO = exports.BAD = exports.WARN = exports.OK = void 0;
+exports.note = exports.balancedColumns = exports.chartStyles = exports.showAll = exports.arrow = exports.legendRow = exports.share = exports.meter = exports.chip = exports.pill = exports.sub = exports.figure = exports.eyebrow = exports.card = exports.pct = exports.count = exports.NEUTRAL = exports.INFO = exports.BAD = exports.WARN = exports.OK = void 0;
 const ChartKit_1 = require("./ChartKit");
 // The building blocks of the purpose-built graphics, so every one reads in
 // the site's style: soft cards on a hairline border, small spaced capitals
@@ -2457,18 +2472,37 @@ function arrow(from, to) {
         '<span style="position:absolute;right:-7px;top:-4px;border-left:8px solid ' + (0, ChartKit_1.esc)(to) + ';border-top:5px solid transparent;border-bottom:5px solid transparent"></span></div></div>';
 }
 exports.arrow = arrow;
-// The first rows of a list, and the rest behind a Show all that needs no
-// script, so a long list is complete but does not swamp its card.
-function showAll(rows, first, noun, theme) {
+// The first rows of a list, then the rest hidden behind the site's one
+// button (.sbtn), placed after the whole list so it stays at the foot when
+// the list opens: the dashboard's own show-more pattern (.morewrap, rows
+// marked data-mr, a data-more button that reads Show fewer when open). The
+// dashboard's stylesheet and click handler serve it there; the chart web
+// part adds the same (chartStyles, and its own handler) on a SharePoint page.
+function showAll(rows, first, noun) {
     if (rows.length <= first) {
         return rows.join('');
     }
-    return rows.slice(0, first).join('') +
-        '<details style="margin-top:4px"><summary style="display:inline-block;cursor:pointer;margin:6px 0 4px;padding:3px 10px;border-radius:8px;font-size:11.5px;font-weight:700;' +
-        'color:' + (0, ChartKit_1.esc)(theme.accent) + ';background:' + (0, ChartKit_1.tint)(theme.accent, theme.dark ? 0.16 : 0.08) + '">Show all ' + rows.length + ' ' + (0, ChartKit_1.esc)(noun) + '</summary>' +
-        rows.slice(first).join('') + '</details>';
+    const label = 'Show all ' + rows.length + ' ' + noun;
+    return '<div class="morewrap">' +
+        rows.map((r, i) => i < first ? r : r.replace(/^<div\b/, '<div data-mr hidden')).join('') +
+        '<button type="button" class="sbtn morebtn" data-more data-all="' + (0, ChartKit_1.esc)(label) + '" data-less="Show fewer">' + (0, ChartKit_1.esc)(label) + '</button></div>';
 }
 exports.showAll = showAll;
+// The rules a SharePoint page needs for what the dashboard styles itself:
+// the button, its place under a list, and hidden rows staying hidden over
+// their inline display. Scoped to the chart web part's own element.
+function chartStyles(scope, theme) {
+    const s = '.' + scope.replace(/[^\w-]/g, '');
+    const accent = theme.accent.replace(/[^#\w(),.%\s-]/g, '');
+    const bg = 'linear-gradient(135deg,' + accent + ',' + (theme.dark ? '#5b45c9' : '#6d5efc') + ')';
+    return s + ' [hidden]{display:none !important}' +
+        s + ' .sbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 14px;border-radius:10px;font:inherit;font-size:12.5px;font-weight:650;line-height:1.2;' +
+        'white-space:nowrap;cursor:pointer;text-decoration:none;background:' + bg + ';color:#fff;border:1px solid transparent;box-shadow:' + (theme.dark ? 'none' : '0 2px 8px rgba(37,99,235,.28)') + ';transition:filter .15s}' +
+        s + ' .sbtn:hover{filter:brightness(1.12)}' +
+        s + ' .sbtn:focus-visible{outline:2px solid ' + accent + ';outline-offset:2px}' +
+        s + ' .morebtn{margin-top:10px}';
+}
+exports.chartStyles = chartStyles;
 // Columns for n cards so the rows balance: six make three and three, never
 // five and one. At most max columns.
 function balancedColumns(n, max) {

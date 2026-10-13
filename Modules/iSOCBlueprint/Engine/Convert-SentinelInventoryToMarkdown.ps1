@@ -2358,6 +2358,8 @@ $contentHubVisualLine
 $($sourcePieRows -join [Environment]::NewLine)
 ``````
 
+<!-- bp:shown-in-graphic -->
+
 **$($cpRows.Count)** Content Hub package(s) installed  ·  **$cpUpdates** with an update available  ·  **$cpRetired** deprecated or no longer listed  ·  **$($sourceCounts.Count)** source kind(s)
 
 ## Solutions installed
@@ -5579,6 +5581,9 @@ $headroomVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters
         [ordered]@{ label = 'Solution not installed'; value = $readyNotInstalled; tone = 'warn' }
         [ordered]@{ label = 'Built-in'; value = $readyBuiltIn; tone = 'info' }
     ) }
+); figures = @(
+    [ordered]@{ label = 'Enabled analytics rules'; value = $enabledRules.Count; caption = 'Of every kind, on this workspace' }
+    [ordered]@{ label = 'Tables with data and no detection'; value = $opportunityRows.Count; caption = 'Read by no enabled rule or custom detection, last 30 days' }
 ) })
 $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
 @"
@@ -5611,6 +5616,8 @@ $(Format-Banner -Title "Detection Opportunities")
 
 Which ingested tables no enabled analytics rule reads, and which rule templates would cover them. The template list is the workspace's own alert-rule template catalogue, so a suggestion here can be enabled from Content Hub without a new data source. Deprecated templates and templates already deployed are never suggested.
 $headroomChart
+
+<!-- bp:shown-in-graphic -->
 
 **$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection
 

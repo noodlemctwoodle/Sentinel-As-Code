@@ -155,6 +155,14 @@ export interface ILifecycleCount {
 // A part's tone is ok, warn, bad, info, neutral, violet, teal, cyan or rose.
 export interface IMetersData {
   meters: IMeter[];
+  figures?: IMeterFigure[];
+}
+
+// A figure the meters do not show, in a strip under them.
+export interface IMeterFigure {
+  label: string;
+  value: number;
+  caption?: string;
 }
 
 export interface IMeter {

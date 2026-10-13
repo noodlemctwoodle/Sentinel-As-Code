@@ -68,7 +68,7 @@
         { "if": { "properties": { "type": { "const": "heading" } } },
           "then": { "required": ["level", "text", "anchor"], "properties": { "level": { "type": "integer", "minimum": 1, "maximum": 6 }, "text": { "$ref": "#/$defs/runs" }, "anchor": { "type": "string" } } } },
         { "if": { "properties": { "type": { "const": "paragraph" } } },
-          "then": { "required": ["text"], "properties": { "text": { "$ref": "#/$defs/runs" } } } },
+          "then": { "required": ["text"], "properties": { "text": { "$ref": "#/$defs/runs" }, "inGraphic": { "type": "boolean", "description": "A line of figures a purpose-built graphic on the same page shows in full; the SharePoint pages and the dashboard leave it out." } } } },
         { "if": { "properties": { "type": { "const": "list" } } },
           "then": {
             "required": ["ordered", "items"],

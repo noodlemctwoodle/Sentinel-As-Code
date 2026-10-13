@@ -86,14 +86,33 @@ export function arrow(from: string, to: string): string {
     '<span style="position:absolute;right:-7px;top:-4px;border-left:8px solid ' + esc(to) + ';border-top:5px solid transparent;border-bottom:5px solid transparent"></span></div></div>';
 }
 
-// The first rows of a list, and the rest behind a Show all that needs no
-// script, so a long list is complete but does not swamp its card.
-export function showAll(rows: string[], first: number, noun: string, theme: IChartTheme): string {
+// The first rows of a list, then the rest hidden behind the site's one
+// button (.sbtn), placed after the whole list so it stays at the foot when
+// the list opens: the dashboard's own show-more pattern (.morewrap, rows
+// marked data-mr, a data-more button that reads Show fewer when open). The
+// dashboard's stylesheet and click handler serve it there; the chart web
+// part adds the same (chartStyles, and its own handler) on a SharePoint page.
+export function showAll(rows: string[], first: number, noun: string): string {
   if (rows.length <= first) { return rows.join(''); }
-  return rows.slice(0, first).join('') +
-    '<details style="margin-top:4px"><summary style="display:inline-block;cursor:pointer;margin:6px 0 4px;padding:3px 10px;border-radius:8px;font-size:11.5px;font-weight:700;' +
-    'color:' + esc(theme.accent) + ';background:' + tint(theme.accent, theme.dark ? 0.16 : 0.08) + '">Show all ' + rows.length + ' ' + esc(noun) + '</summary>' +
-    rows.slice(first).join('') + '</details>';
+  const label: string = 'Show all ' + rows.length + ' ' + noun;
+  return '<div class="morewrap">' +
+    rows.map((r: string, i: number): string => i < first ? r : r.replace(/^<div\b/, '<div data-mr hidden')).join('') +
+    '<button type="button" class="sbtn morebtn" data-more data-all="' + esc(label) + '" data-less="Show fewer">' + esc(label) + '</button></div>';
+}
+
+// The rules a SharePoint page needs for what the dashboard styles itself:
+// the button, its place under a list, and hidden rows staying hidden over
+// their inline display. Scoped to the chart web part's own element.
+export function chartStyles(scope: string, theme: IChartTheme): string {
+  const s: string = '.' + scope.replace(/[^\w-]/g, '');
+  const accent: string = theme.accent.replace(/[^#\w(),.%\s-]/g, '');
+  const bg: string = 'linear-gradient(135deg,' + accent + ',' + (theme.dark ? '#5b45c9' : '#6d5efc') + ')';
+  return s + ' [hidden]{display:none !important}' +
+    s + ' .sbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 14px;border-radius:10px;font:inherit;font-size:12.5px;font-weight:650;line-height:1.2;' +
+    'white-space:nowrap;cursor:pointer;text-decoration:none;background:' + bg + ';color:#fff;border:1px solid transparent;box-shadow:' + (theme.dark ? 'none' : '0 2px 8px rgba(37,99,235,.28)') + ';transition:filter .15s}' +
+    s + ' .sbtn:hover{filter:brightness(1.12)}' +
+    s + ' .sbtn:focus-visible{outline:2px solid ' + accent + ';outline-offset:2px}' +
+    s + ' .morebtn{margin-top:10px}';
 }
 
 // Columns for n cards so the rows balance: six make three and three, never

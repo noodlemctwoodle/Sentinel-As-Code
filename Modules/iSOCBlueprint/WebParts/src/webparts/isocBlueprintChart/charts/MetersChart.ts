@@ -1,4 +1,4 @@
-import { type IMeter, type IMetersData, type IMeterPart } from './ChartTypes';
+import { type IMeter, type IMeterFigure, type IMetersData, type IMeterPart } from './ChartTypes';
 import { type IChartTheme, SERIES, esc, isNil, list, num, str } from './ChartKit';
 import { BAD, INFO, NEUTRAL, OK, WARN, type IPart, card, count, eyebrow, legendRow, meter, sub } from './Visual';
 
@@ -6,7 +6,8 @@ import { BAD, INFO, NEUTRAL, OK, WARN, type IPart, card, count, eyebrow, legendR
 // then a stacked bar of its parts and a legend row per part with its
 // count and share. For figures that are parts of something (templates
 // deployed or not, packages up to date or not), where a bar chart of the
-// same numbers would only repeat the tiles beside it.
+// same numbers would only repeat the tiles beside it. Figures that belong
+// with them but are not parts of a whole sit in a strip underneath.
 
 const TONE: { [tone: string]: string } = {
   ok: OK, warn: WARN, bad: BAD, info: INFO, neutral: NEUTRAL,
@@ -16,8 +17,21 @@ const TONE: { [tone: string]: string } = {
 export function renderMeters(data: IMetersData, theme: IChartTheme): string {
   const meters: IMeter[] = list<IMeter>(data && data.meters);
   if (!meters.length) { return ''; }
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;font-size:13px;color:' + esc(theme.text) + '">' +
-    meters.map((m: IMeter): string => one(m, theme)).join('') + '</div>';
+  const figures: IMeterFigure[] = list<IMeterFigure>(data.figures);
+  return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + esc(theme.text) + '">' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">' +
+    meters.map((m: IMeter): string => one(m, theme)).join('') + '</div>' +
+    (figures.length ? strip(figures, theme) : '') + '</div>';
+}
+
+// The figures side by side across the full width, split by hairlines.
+function strip(figures: IMeterFigure[], theme: IChartTheme): string {
+  return card('<div style="display:grid;grid-template-columns:repeat(' + figures.length + ',minmax(0,1fr))">' +
+    figures.map((f: IMeterFigure, i: number): string =>
+      '<div style="min-width:0;padding:2px 16px;' + (i ? 'border-left:1px solid ' + esc(theme.line) : 'padding-left:0') + '">' +
+      eyebrow(str(f.label), theme) +
+      '<div style="font-size:24px;font-weight:800;line-height:1.15;margin-top:5px;font-variant-numeric:tabular-nums">' + count(num(f.value)) + '</div>' +
+      sub(str(f.caption), theme) + '</div>').join('') + '</div>', theme);
 }
 
 function one(m: IMeter, theme: IChartTheme): string {

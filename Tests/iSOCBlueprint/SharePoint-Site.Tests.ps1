@@ -128,6 +128,11 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $html | Should -Not -Match 'Ingestion'
             $html | Should -Match 'Entra'
         }
+        It 'leaves out a line of figures flagged inGraphic' {
+            $html = Join-Html (ConvertTo-Segments "# T`n`n<!-- bp:shown-in-graphic -->`n`n**71** packages  ·  **38** to update`n`nKept.")
+            $html | Should -Not -Match 'packages'
+            $html | Should -Match 'Kept\.'
+        }
     }
 
     Context 'chart titles' {
@@ -1569,6 +1574,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $charts[0].data.raised | Should -Be 40
         $charts[1].title | Should -BeNullOrEmpty
         $charts[2].title | Should -Be 'Closed incidents by classification (30d)'
+        # Show all in a graphic is the site's button after the whole list, not a disclosure.
+        $html.Contains('class="sbtn morebtn" data-more data-all="') | Should -BeTrue
+        $html | Should -Not -Match '<summary style="display:inline-block;cursor:pointer;margin:6px 0 4px'
+        # The figures line a graphic shows is left out of the dashboard.
+        $ch = @($model.sections | Where-Object { $_.num -eq 70 })[0]
+        @($ch.blocks | Where-Object { $_.t -eq 'p' -and $_.html -match 'Content Hub package\(s\) installed' }).Count | Should -Be 0
         # The overview's stage table is in the estate graphic, so the dashboard leaves it out.
         $ov = @($model.sections | Where-Object { $_.num -eq 0 })[0]
         @($ov.blocks | Where-Object { $_.t -eq 'table' -and (@($_.headers) -join ' ') -match 'Rating' }).Count | Should -Be 0
@@ -1596,6 +1607,13 @@ Describe 'Build-SentinelDocsSite against the fixture' {
                 ) } }
         $data = ConvertTo-DashboardChartData -Chart $chart
         @($data.nodes).href | Should -Be @('/#sac-section-90', '/#sac-finding-SAC-GOV-05', 'https://learn.microsoft.com/x', $null)
+    }
+
+    It 'gives the chart web part the site''s button and its Show all toggle' {
+        $wp = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/IsocBlueprintChartWebPart.ts') -Raw
+        $wp | Should -Match "'<style>' \+ chartStyles\(SCOPE, theme\) \+ '</style>'"
+        $wp | Should -Match "closest\('\[data-more\]'\)"
+        $wp | Should -Match "button\.dataset\.less \|\| 'Show fewer'"
     }
 
     It 'keeps the bundled renderers in step with the web part''s chart sources' {

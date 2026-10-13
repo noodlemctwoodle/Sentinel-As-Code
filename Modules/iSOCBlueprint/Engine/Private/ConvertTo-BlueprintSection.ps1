@@ -47,9 +47,10 @@ $script:BpSectionSchemaVersion = 1
 # 2,700 short rows as too deeply nested; 500 leaves room for long cells.
 $script:BpTableChunkRows = 500
 $script:BpTableContinues = '<!-- bp:table-continues -->'
-# Before a table a purpose-built graphic on the same page shows in full: the
-# table keeps its place in the Markdown and Word exports, and is flagged
-# inGraphic so the SharePoint pages and the dashboard do not show it twice.
+# Before a table or a line of figures a purpose-built graphic on the same
+# page shows in full: it keeps its place in the Markdown and Word exports,
+# and is flagged inGraphic so the SharePoint pages and the dashboard do not
+# show it twice.
 $script:BpShownInGraphic = '<!-- bp:shown-in-graphic -->'
 
 function ConvertTo-BlueprintSection {
@@ -201,7 +202,9 @@ function ConvertTo-BpBlockList {
                 $runs = @(ConvertTo-BpRuns -Container $b.Inline)
                 if ($runs.Count -eq 0) { break }
                 $Context.content = $true
-                [ordered]@{ type = 'paragraph'; text = $runs }
+                $para = [ordered]@{ type = 'paragraph'; text = $runs }
+                if ($Context.inGraphic) { $para.inGraphic = $true; $Context.inGraphic = $false }
+                $para
             }
             'QuoteBlock' {
                 $inner = @(ConvertTo-BpBlockList -Blocks $b -Context @{ title = 'nested'; anchor = $null; content = $true })

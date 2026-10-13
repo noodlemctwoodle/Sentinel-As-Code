@@ -60,7 +60,7 @@ function families(sources: IEstateSource[], data: IEstateData, theme: IChartThem
     '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + NEUTRAL + '"></span>Not monitored (ingested and billed, read by no detection)</span></div>';
   return card('<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
     '<div>' + eyebrow('Source families', theme) + sub(gbText(total) + ' billable in 30 days, ' + pct(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
-    key + '<div style="margin-top:8px">' + showAll(rows, 8, 'families', theme) + '</div>', theme);
+    key + '<div style="margin-top:8px">' + showAll(rows, 8, 'families') + '</div>', theme);
 }
 
 function gbText(v: number): string {

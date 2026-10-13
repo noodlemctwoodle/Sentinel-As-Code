@@ -327,6 +327,11 @@ flowchart LR
         $tables[0].inGraphic | Should -BeTrue
         $tables[1].Contains('inGraphic') | Should -BeFalse
         @($m.blocks | Where-Object { $_.type -eq 'html' }).Count | Should -Be 0
+        # A line of figures is flagged the same way.
+        $p = ConvertTo-Model "# T`n`n<!-- bp:shown-in-graphic -->`n`n**3** a  ·  **4** b`n`nNext."
+        $paras = @($p.blocks | Where-Object { $_.type -eq 'paragraph' })
+        $paras[0].inGraphic | Should -BeTrue
+        $paras[1].Contains('inGraphic') | Should -BeFalse
     }
 
     It 'returns kind other, with no data, for an unknown chart' {
@@ -414,6 +419,12 @@ Describe 'Renderer section model output' {
         $hr = @(& $charts '28-detection-opportunities')[0]
         $hr.kind | Should -Be 'meters'
         @($hr.data.meters.title) | Should -Be @('Applicable templates', 'Ready to enable')
+        # The figures the meters do not show ride with them; the figures line is left to the exports.
+        @($hr.data.figures.label) | Should -Be @('Enabled analytics rules', 'Tables with data and no detection')
+        foreach ($id in '28-detection-opportunities', '70-content-hub') {
+            $sec = Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json
+            @($sec.blocks | Where-Object { $_.type -eq 'paragraph' -and $_.inGraphic }).Count | Should -Be 1 -Because $id
+        }
         $rc = @(& $charts '60-automation-rules-playbooks')[0]
         $rc.kind | Should -Be 'response-chain'
         @($rc.data.phases.name) | Should -Be @('Ingest', 'Detect', 'Automate', 'Notify', 'Respond')
