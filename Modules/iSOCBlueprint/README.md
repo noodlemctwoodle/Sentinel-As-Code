@@ -100,22 +100,25 @@ MIGRATION.md         where each file came from
 
 The public commands are thin: each maps its parameters onto one engine
 script, runs it and returns an object describing what it wrote. The engine
-scripts keep the layout and behaviour they had in `Tools/Blueprint`.
+scripts keep the layout and behaviour they had before the module.
 
-## Moving from Tools/Blueprint
+The SharePoint web part (an SPFx solution, not PowerShell) lives outside the
+module in [`Tools/WebParts/isoc-blueprint`](../../Tools/WebParts/isoc-blueprint);
+the pipelines build its package and pass it to `Publish-iSOCBlueprintSite
+-AppPackagePath`.
 
-The engine is a copy of `Tools/Blueprint`, made file by file. The only
-differences are listed in
-[`Tests/iSOCBlueprint/Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1)
-and [`MIGRATION.md`](MIGRATION.md): the engine loads its own copy of two
-Sentinel.Common KQL helpers, defaults its folders to `./SecurityDocs` under the
-current directory, records the module version as the Blueprint version, reads
-page 99 from the copy it ships, and links to GitHub where the pages linked into
-the repository. While both copies exist,
-[`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1)
-fails if they drift, so a fix must land in both. The pipelines run the
-module; `Tools/Blueprint` is no longer called and is removed once a pipeline
-run on the module has passed.
+## Where it came from
+
+Before release 26.10 the Blueprint was a set of scripts, in `Tools/Documenter`
+and then, briefly, `Tools/Blueprint`. The engine is those scripts, copied file by
+file; [`MIGRATION.md`](MIGRATION.md) records where each file went and the few
+edits the copy carries: the engine loads its own copy of two Sentinel.Common
+KQL helpers, defaults its folders to `./SecurityDocs` under the current
+directory, records the module version as the Blueprint version, reads page 99
+from the copy it ships, and links to GitHub where the pages linked into the
+repository. Before the old folder was removed, the module's output was
+compared with the old scripts' over the test fixture and a full pipeline run
+on the module passed.
 
 | Old script | Command |
 | --- | --- |
@@ -137,9 +140,12 @@ Invoke-Pester -Path Tests/iSOCBlueprint
 
 | Suite | Covers |
 | --- | --- |
-| `Migration-Map.Tests.ps1` | Every file under `Tools/Blueprint` is mapped, and every edit still matches its source |
-| `Engine-Copy.Tests.ps1` | The engine equals `Tools/Blueprint` apart from the listed edits; vendored copies equal their originals |
+| `Migration-Map.Tests.ps1` | The move recorded in `MIGRATION.md` stays complete: no old path comes back, no destination goes missing |
+| `Vendored.Tests.ps1` | The two Sentinel.Common KQL helpers and page 99 match their originals |
 | `Module.Tests.ps1` | Manifest, help, file headers, prerequisites against the engine's `#Requires`, and each command's parameter mapping |
 | `Module-Standalone.Tests.ps1` | The module copied outside the repository renders the fixture, builds the site and runs the assessments |
-| `Parity.Tests.ps1` | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity from the fixture |
-| `Pipelines.Tests.ps1` | Every call the Blueprint pipelines make to the module binds, after an import |
+| `Pipelines.Tests.ps1` | Every call the Blueprint pipelines make to the module binds, after an import, and every repository path they name exists |
+
+The engine's own suites (the renderer, the gap and maturity engines, the
+section model, the SharePoint site and its PnP calls, the Word rewrites and
+the helpers) sit in the same folder and test the scripts under `Engine/`.

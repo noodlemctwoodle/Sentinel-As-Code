@@ -12,7 +12,7 @@
     same output for the same input (idempotent).
 
     Each section is written as the section model, sections/<id>.json
-    (Tools/Blueprint/Schemas/section.schema.json: typed blocks, structured text
+    (Modules/iSOCBlueprint/Engine/Schemas/section.schema.json: typed blocks, structured text
     runs, charts as data; no Markdown), with sections/index.json listing them in
     order. That is what the SharePoint site is built from. The Markdown files are
     the same sections as a Markdown pack, for the docs pull request and the Word
@@ -51,21 +51,21 @@
 
 .PARAMETER ResourcesRoot
     Folder containing best-practices.json, mitre-attack.json, etc. Defaults to
-    Tools/Blueprint/Private/Resources.
+    Modules/iSOCBlueprint/Engine/Private/Resources.
 
 .PARAMETER OutputFormat
     Which formats to write: Markdown (NN-name.md), Json (sections/NN-name.json and
     sections/index.json), or both (the default). The SharePoint site needs only Json.
 
 .EXAMPLE
-    ./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
+    ./Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1 `
         -WorkspaceName 'law-sentinel-prod'
 
     Renders the Markdown section files from the inventory that
     Export-SentinelInventory.ps1 previously collected.
 
 .EXAMPLE
-    ./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
+    ./Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1 `
         -InputRoot     './SecurityDocs/law-sentinel-prod/_raw' `
         -OutputRoot    './SecurityDocs/law-sentinel-prod' `
         -WorkspaceName 'law-sentinel-prod'
@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.0
+    Version:        0.4.1
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -5257,7 +5257,7 @@ $opportunityBody = if ($ruleTableRefs.Count -eq 0 -and $templateTableRefs.Count 
 @"
 $(Format-Banner -Title "Detection Opportunities")
 
-_Table-to-rule mapping was not computed in this run (``rule-table-references.json`` and ``template-table-references.json`` are absent), so there is nothing to compare. The collector writes both when the Sentinel.Common module is available to it._
+_Table-to-rule mapping was not computed in this run (``rule-table-references.json`` and ``template-table-references.json`` are absent), so there is nothing to compare. The collector writes both; they are missing from an inventory taken by an older collector or when that capture failed._
 "@
 } else {
 @"

@@ -11,9 +11,9 @@
 
     Usage:
         $findings = Get-SentinelGap -InputRoot './SecurityDocs/myws/_raw' `
-                                    -ResourcesRoot './Tools/Blueprint/Private/Resources' `
-                                    -RulesPath './Tools/Blueprint/Private/Resources/best-practices.json' `
-                                    -GapChecksPath './Tools/Blueprint/Private/GapChecks.ps1'
+                                    -ResourcesRoot './Modules/iSOCBlueprint/Engine/Private/Resources' `
+                                    -RulesPath './Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json' `
+                                    -GapChecksPath './Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
 
     Each finding is a [pscustomobject] with these fields:
         Id           : SAC-LOG-03
@@ -52,7 +52,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.6.0
+    Version:      0.6.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 

@@ -79,7 +79,7 @@ step on its own.
 
 | Doc | What it covers |
 | --- | --- |
-| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the twelve commands, what each needs, the layout, and the move from `Tools/Blueprint` |
+| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the twelve commands, what each needs, the layout, and where each old script went |
 | [Sentinel Blueprint](iSOCBlueprint/Sentinel-Blueprint.md) | Read-only daily inventory + gap-analysis that renders a Markdown documentation pack from a live workspace |
 | [Renderer Design](iSOCBlueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
 | [Section Model](iSOCBlueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |

@@ -40,8 +40,8 @@
 
     Usage:
         $maturity = Get-SentinelMaturity -InputRoot './SecurityDocs/myws/_raw' `
-                                         -ResourcesRoot './Tools/Blueprint/Private/Resources' `
-                                         -CriteriaPath './Tools/Blueprint/Private/Resources/maturity-criteria.json' `
+                                         -ResourcesRoot './Modules/iSOCBlueprint/Engine/Private/Resources' `
+                                         -CriteriaPath './Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json' `
                                          -GapOutcomes $gapOutcomes -TargetLevel 3
 
     When -GapOutcomes is not supplied the engine reads gap-checks.json from
@@ -53,8 +53,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.0
-    Last Updated: 2026-10-09
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -512,7 +512,7 @@ function Get-SentinelMaturity {
         The _raw folder written by Export-SentinelInventory.ps1.
 
     .PARAMETER ResourcesRoot
-        Tools/Blueprint/Private/Resources.
+        Modules/iSOCBlueprint/Engine/Private/Resources.
 
     .PARAMETER CriteriaPath
         Path to maturity-criteria.json.

@@ -234,7 +234,7 @@ variables:
   - name: npm_config_cache
     value: "$(Pipeline.Workspace)/.npm"
   - name: webPartDir
-    value: "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/webpart/isoc-blueprint"
+    value: "$(Build.SourcesDirectory)/Tools/WebParts/isoc-blueprint"
   - name: flagWhatIf
     ${{ if eq(parameters.sharePointWhatIf, true) }}:
       value: "-WhatIf"
@@ -723,7 +723,7 @@ stages:
             - task: Cache@2
               displayName: "Cache npm"
               inputs:
-                key: 'npm | "$(Agent.OS)" | Tools/Blueprint/SharePoint/webpart/isoc-blueprint/package-lock.json'
+                key: 'npm | "$(Agent.OS)" | Tools/WebParts/isoc-blueprint/package-lock.json'
                 restoreKeys: |
                   npm | "$(Agent.OS)"
                 path: $(npm_config_cache)

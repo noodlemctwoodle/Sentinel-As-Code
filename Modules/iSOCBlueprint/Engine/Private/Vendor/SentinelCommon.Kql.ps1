@@ -11,7 +11,7 @@
     table-reference captures need them; the shared module also needs
     Az.Accounts and lives outside the iSOCBlueprint module, so a copy keeps
     the module self-contained. Fix them in Sentinel.Common first, then copy
-    the function here: Tests/iSOCBlueprint/Engine-Copy.Tests.ps1 fails
+    the function here: Tests/iSOCBlueprint/Vendored.Tests.ps1 fails
     while the two differ.
 
 .NOTES
@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 

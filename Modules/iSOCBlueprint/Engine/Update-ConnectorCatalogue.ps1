@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Refreshes the Blueprint's data connector catalogue
-    (Tools/Blueprint/Private/Resources/connector-catalogue.json) from the
+    (Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) from the
     Sentinel as Code Toolkit's connectors.json.
 
 .DESCRIPTION
@@ -37,10 +37,10 @@
     folder.
 
 .EXAMPLE
-    ./Tools/Blueprint/Update-ConnectorCatalogue.ps1
+    ./Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1
 
 .EXAMPLE
-    ./Tools/Blueprint/Update-ConnectorCatalogue.ps1 -Source ../Sentinel-As-Code-Toolkit/data/connectors.json
+    ./Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1 -Source ../Sentinel-As-Code-Toolkit/data/connectors.json
 
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1
@@ -48,7 +48,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 #>

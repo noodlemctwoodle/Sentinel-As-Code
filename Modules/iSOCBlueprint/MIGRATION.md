@@ -1,23 +1,38 @@
 # iSOCBlueprint migration map
 
-Where every file under `Tools/Blueprint` goes when the Blueprint becomes the
-`iSOCBlueprint` module. The table is read by
-[`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1),
-which fails when a file under `Tools/Blueprint` has no row, so nothing can be
-left behind.
+Where every file under `Tools/Blueprint` went when the Blueprint became the
+`iSOCBlueprint` module (release 26.10). The move was made file by file: the
+module was built beside the old folder, its engine held byte-identical to the
+old scripts apart from the edits below, its output compared with the old
+scripts' over the test fixture, the pipelines switched to it, and the old
+folder removed only after a pipeline run on the module passed.
+[`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1)
+reads this table and fails if a source path comes back or a destination goes
+missing.
 
 Actions:
 
 - **Copy** - copied into the module's `Engine/` folder with the same relative
-  layout. The copy is byte-identical apart from the edits named in the Edits
-  column, which are defined in
-  [`Tests/iSOCBlueprint/Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1)
-  and checked by the copy-drift test.
-- **Move** - moved elsewhere in the repository with `git mv` when the old
-  folder is removed.
+  layout, unchanged apart from the edits named in the Edits column.
+- **Move** - moved elsewhere in the repository with `git mv`.
 - **Retire** - not carried into the module; deleted with the old folder.
 - **Vendor** - functions or files from elsewhere in the repository that the
-  module ships its own copy of, kept identical to the original by a test.
+  module ships its own copy of.
+  [`Tests/iSOCBlueprint/Vendored.Tests.ps1`](../../Tests/iSOCBlueprint/Vendored.Tests.ps1)
+  keeps each identical to its original.
+
+Edits made in the copy:
+
+| Id | File | Change |
+| --- | --- | --- |
+| G1 | every `.ps1` | The `File:` key in the help block names the new path |
+| E1 | `Export-SentinelInventory.ps1` | Dot-sources the vendored KQL helpers instead of importing `Modules/Sentinel.Common` from the repository |
+| E2 | `Export-SentinelInventory.ps1` | `-OutputRoot` defaults to `./SecurityDocs` under the current directory, not two folders above the script |
+| E3 | `Export-SentinelInventory.ps1` | `BlueprintVersion` is the module manifest version (it was `0.2.0`); `ScriptCommit` is recorded only when git is installed |
+| E4 | `Convert-SentinelInventoryToMarkdown.ps1` | `-InputRoot` defaults to `./SecurityDocs/<workspace>` under the current directory |
+| E5 | `Convert-SentinelInventoryToMarkdown.ps1` | Page 99 is read from the copy the module ships, not from the repository docs |
+| E6 | `Convert-SentinelInventoryToMarkdown.ps1` | The four links into the repository (pages 20, 90 and 91) point at GitHub |
+| E7 | `Blueprint.psd1` | Its own `Version` (`0.1.0`) removed; the manifest is the only version |
 
 Paths are repository-relative. A source ending in `/**` covers every file
 beneath it.

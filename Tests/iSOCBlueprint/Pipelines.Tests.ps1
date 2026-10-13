@@ -15,7 +15,8 @@
     command: the command is exported, every named parameter and every key
     of a splatted table binds to it, and the module is imported earlier in
     the same script. It also fails when a step still runs a script from
-    Tools/Blueprint.
+    Tools/Blueprint, or when a pipeline names a repository path (the module,
+    the web part folder, a doc) that does not exist.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Pipelines.Tests.ps1 -Output Detailed
@@ -28,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -61,6 +62,15 @@ BeforeDiscovery {
     }
     $moduleSteps = @($steps | Where-Object { $_.Script -match '-iSOCBlueprint' })
     $allSteps = @($steps)
+
+    # Every repository path the pipelines name, in scripts, variables and
+    # comments alike: the module, the web part folder, the docs.
+    $repoPaths = @(foreach ($p in $pipelines) {
+            $text = Get-Content -LiteralPath (Join-Path $repoRoot $p) -Raw
+            foreach ($m in [regex]::Matches($text, '(?<![\w.-])((?:Tools|Modules|Docs|Tests|Pipelines)/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)')) {
+                @{ Pipeline = $p; RepoPath = $m.Groups[1].Value.TrimEnd('.') }
+            }
+        }) | Sort-Object { "$($_.Pipeline)|$($_.RepoPath)" } -Unique
 }
 
 BeforeAll {
@@ -103,6 +113,10 @@ BeforeAll {
 Describe 'Blueprint pipelines' {
     It 'finds the module steps in the three pipelines' -TestCases @(@{ Found = $moduleSteps.Count }) {
         $Found | Should -BeGreaterOrEqual 10
+    }
+
+    It '<Pipeline> names <RepoPath>, which exists' -ForEach $repoPaths {
+        Test-Path -LiteralPath (Join-Path $repoRoot $RepoPath) | Should -BeTrue
     }
 
     It '<Pipeline> "<Step>" runs no script from Tools/Blueprint' -ForEach $allSteps {

@@ -74,13 +74,13 @@
     [string] The bundle folder path.
 
 .EXAMPLE
-    ./Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1 `
+    ./Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1 `
         -Source ./SecurityDocs/law-sentinel-prod
 
     Builds the bundle into ./SecurityDocs/law-sentinel-prod/sharepoint.
 
 .EXAMPLE
-    ./Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1 `
+    ./Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1 `
         -Source ./artefact/law-sentinel-prod -SkipWhatsNew -WhatIf
 
     Shows what would be written without writing anything or fetching the
@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.0
+    Version:      0.4.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 #>

@@ -87,7 +87,7 @@ permissions:
 env:
   PNP_VERSION:         "3.4.1"
   NODE_VERSION:        "22"
-  WEB_PART_DIR:        Tools/Blueprint/SharePoint/webpart/isoc-blueprint
+  WEB_PART_DIR:        Tools/WebParts/isoc-blueprint
 
 jobs:
   publish:

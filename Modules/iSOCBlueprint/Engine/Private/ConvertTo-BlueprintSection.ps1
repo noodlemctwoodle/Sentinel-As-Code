@@ -6,7 +6,7 @@
     blocks, structured text runs and charts as data.
 
 .DESCRIPTION
-    The section model (Tools/Blueprint/Schemas/section.schema.json) is what
+    The section model (Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) is what
     every consumer reads: the SharePoint site, and anyone building on
     sections/*.json. No Markdown reaches it. Text is a list of runs
     (@{ text; bold; italic; code; strike; href; target }) and a line break is
@@ -27,7 +27,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, ConvertFrom-BlueprintMermaid.ps1
 

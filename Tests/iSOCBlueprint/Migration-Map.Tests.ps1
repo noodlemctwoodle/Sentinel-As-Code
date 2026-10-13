@@ -3,16 +3,16 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the iSOCBlueprint migration map and engine edits.
+    Pester tests that the Blueprint's move into the iSOCBlueprint module
+    stays complete.
 
 .DESCRIPTION
-    The Blueprint moves from Tools/Blueprint into the iSOCBlueprint module.
-    Modules/iSOCBlueprint/MIGRATION.md maps every file to its destination
-    and Tests/iSOCBlueprint/Engine-Edits.psd1 lists the only changes a
-    copied file may carry. These tests fail when a file under
-    Tools/Blueprint has no row, when a row names a file that does not
-    exist, or when an edit no longer matches its source, so nothing is left
-    behind and no edit goes stale.
+    Modules/iSOCBlueprint/MIGRATION.md records where every file under the
+    old Tools/Blueprint folder went. These tests hold the repository to
+    it: no copied, moved or retired source path exists any more, every
+    destination does, every vendored original is still there to be copied
+    from, and the edits each row names are the ones the map documents. A
+    file restored to the old folder, or a destination deleted, fails here.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Migration-Map.Tests.ps1
@@ -22,7 +22,7 @@
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Migration-Map.Tests.ps1 -Output Detailed
 
-    Lists every file and edit checked.
+    Lists every row checked.
 
 .NOTES
     File:         Tests/iSOCBlueprint/Migration-Map.Tests.ps1
@@ -30,96 +30,76 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
+
+    Version 0.1.0 checked the map against the old folder while it still
+    existed (every file mapped, every edit still matching its source).
 #>
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $PSScriptRoot '_helpers/Migration.psm1') -Force
-    $map = @(Get-MigrationMap -RepoRoot $repoRoot)
-    $sourceFiles = @(Get-BlueprintSourceFile -RepoRoot $repoRoot -Map $map | ForEach-Object { @{ Path = $_ } })
-    $rows = @($map | ForEach-Object { @{ Row = $_; Source = $_.Source } })
-    $edits = Get-EngineEdit -RepoRoot $repoRoot
-    $changes = @(foreach ($e in $edits.Edits) {
-            $i = 0
-            foreach ($c in $e.Changes) { $i++; @{ Id = $e.Id; File = $e.File; Index = $i; Find = $c.Find } }
-        })
-    $headerFiles = @($map | Where-Object { $_.Action -eq 'Copy' -and $_.Source -like '*.ps1' } | ForEach-Object { @{ Source = $_.Source } })
+    $rows = @(Get-MigrationMap -RepoRoot $repoRoot | ForEach-Object { @{ Row = $_; Source = $_.Source } })
 }
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $PSScriptRoot '_helpers/Migration.psm1') -Force
     $script:map = @(Get-MigrationMap -RepoRoot $script:repoRoot)
-    $script:edits = Get-EngineEdit -RepoRoot $script:repoRoot
+    $script:mapText = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/MIGRATION.md') -Raw
+
+    function Test-RepoPath {
+        param([string] $Path)
+        Test-Path -LiteralPath (Join-Path $script:repoRoot ($Path -replace '/\*\*$', ''))
+    }
 }
 
-Describe 'Migration map coverage' {
-    It 'reads rows from MIGRATION.md' {
+Describe 'The move out of Tools/Blueprint' {
+    It 'reads every row from MIGRATION.md' {
         $script:map.Count | Should -BeGreaterThan 40
     }
 
-    It 'has a row for <Path>' -ForEach $sourceFiles {
-        Find-MigrationRow -Map $script:map -Path $Path | Should -Not -BeNullOrEmpty
-    }
-}
-
-Describe 'Migration map rows' {
-    It '<Source> names a file that exists' -ForEach $rows {
-        $path = $Source -replace '/\*\*$', ''
-        Test-Path -LiteralPath (Join-Path $script:repoRoot $path) | Should -BeTrue
+    It 'left nothing in Tools/Blueprint' {
+        Test-Path -LiteralPath (Join-Path $script:repoRoot 'Tools/Blueprint') | Should -BeFalse
     }
 
     It '<Source> uses a known action' -ForEach $rows {
         $Row.Action | Should -BeIn @('Copy', 'Move', 'Retire', 'Vendor')
     }
 
-    It '<Source> has a destination unless it is retired' -ForEach $rows {
-        if ($Row.Action -eq 'Retire') { $Row.Destination | Should -BeNullOrEmpty }
-        else { $Row.Destination | Should -Not -BeNullOrEmpty }
+    It '<Source> is where the map says' -ForEach $rows {
+        switch ($Row.Action) {
+            'Vendor' {
+                Test-RepoPath $Row.Source | Should -BeTrue -Because 'the original is still the source of truth'
+                Test-RepoPath $Row.Destination | Should -BeTrue
+            }
+            'Retire' {
+                Test-RepoPath $Row.Source | Should -BeFalse
+                $Row.Destination | Should -BeNullOrEmpty
+            }
+            default {
+                Test-RepoPath $Row.Source | Should -BeFalse -Because 'the old copy is gone'
+                Test-RepoPath $Row.Destination | Should -BeTrue
+            }
+        }
     }
 
-    It '<Source> keeps its place in the tree when copied' -ForEach $rows {
+    It '<Source> kept its place in the tree when copied' -ForEach $rows {
         if ($Row.Action -eq 'Copy') {
             $Row.Destination | Should -BeExactly ($Row.Source -replace '^Tools/Blueprint/', 'Modules/iSOCBlueprint/Engine/')
+        }
+    }
+
+    It 'documents every edit a row names' {
+        foreach ($id in @($script:map | ForEach-Object Edits | Where-Object { $_ } | Sort-Object -Unique)) {
+            $script:mapText | Should -Match ("(?m)^\|\s*$id\s*\|") -Because "$id is named in the table"
         }
     }
 
     It 'sends no two rows to the same destination' {
         $dest = @($script:map | Where-Object { $_.Destination } | ForEach-Object Destination)
         @($dest | Group-Object | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
-    }
-}
-
-Describe 'Engine edits' {
-    It 'names only edits that are defined' {
-        $defined = @($script:edits.Edits | ForEach-Object Id)
-        $named = @($script:map | ForEach-Object Edits | Where-Object { $_ })
-        @($named | Where-Object { $_ -notin $defined }) | Should -BeNullOrEmpty
-    }
-
-    It 'lists each defined edit on the row of the file it changes' {
-        foreach ($e in $script:edits.Edits) {
-            $row = $script:map | Where-Object { $_.Source -eq "Tools/Blueprint/$($e.File)" }
-            $row | Should -Not -BeNullOrEmpty -Because "$($e.Id) changes $($e.File)"
-            $row.Action | Should -Be 'Copy'
-            $row.Edits | Should -Contain $e.Id
-        }
-    }
-
-    It 'gives every edit a reason' {
-        foreach ($e in $script:edits.Edits) { $e.Why | Should -Not -BeNullOrEmpty -Because $e.Id }
-    }
-
-    It '<Id> change <Index> matches once in <File>' -ForEach $changes {
-        $text = [System.IO.File]::ReadAllText((Join-Path $script:repoRoot "Tools/Blueprint/$File"))
-        Get-OrdinalCount -Text $text -Find $Find | Should -Be 1
-    }
-
-    It 'finds one File: header to repoint in <Source>' -ForEach $headerFiles {
-        $text = [System.IO.File]::ReadAllText((Join-Path $script:repoRoot $Source))
-        [regex]::Matches($text, $script:edits.HeaderPath.Pattern).Count | Should -Be 1
     }
 }

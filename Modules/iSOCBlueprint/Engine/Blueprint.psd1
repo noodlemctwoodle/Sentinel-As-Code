@@ -1,14 +1,13 @@
 @{
-    # Pinned module versions for the Sentinel Blueprint. Both the collector
-    # (Export-SentinelInventory.ps1) and the renderer
-    # (Convert-SentinelInventoryToMarkdown.ps1) honour these pins.
+    # Reference record of the module versions and API versions the
+    # Blueprint is built and tested against. Nothing reads this file at run
+    # time: the collector carries its own copy of the API versions (see
+    # Blueprint-References.md for why), and the pipelines pin their module
+    # versions themselves. Keep it in step with both by hand.
     #
     # The collector imports the Az.* modules; the renderer is pure file I/O
-    # and only needs powershell-yaml.
-    #
-    # Bumping a pin is a one-line PR that re-runs the validation gate against
-    # the new version. Keep the workflow cache key in sync with the tuple
-    # below so a version bump invalidates the cache cleanly.
+    # and only needs powershell-yaml. Test-iSOCBlueprintPrerequisite checks
+    # what a machine has.
 
     Modules = @{
         'Az.Accounts'           = '3.0.4'
@@ -30,8 +29,7 @@
         DataCollection        = '2023-03-11'         # DCRs, DCEs, DCRA full JSON
     }
 
-    # Author / repo metadata — referenced by Blueprint-References.md generator and the
-    # banner line in every produced Markdown file.
+    # Author and repository metadata.
     Author     = 'noodlemctwoodle'
     Repository = 'Sentinel-As-Code'
     Component  = 'Sentinel Blueprint'

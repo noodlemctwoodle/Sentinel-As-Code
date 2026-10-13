@@ -8,8 +8,10 @@
 .DESCRIPTION
     The 26.06 restructure moved the repository from a flat root into grouped
     folders, and the Documenter later became the iSOCBlueprint module
-    (Tools/Documenter became Modules/iSOCBlueprint/Engine and Tests/Documenter
-    became Tests/iSOCBlueprint). Tracked files move automatically when you
+    (Tools/Documenter, later Tools/Blueprint, became
+    Modules/iSOCBlueprint/Engine, its SharePoint web part became
+    Tools/WebParts/isoc-blueprint, and Tests/Documenter became
+    Tests/iSOCBlueprint). Tracked files move automatically when you
     merge or rebase the restructure (git rename detection reconciles your
     customisations). This helper catches stragglers (untracked custom
     content or conflict leftovers still sitting at an old path) and moves
@@ -51,7 +53,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.1
+    Version:        0.1.2
     Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, git
 #>
@@ -101,6 +103,9 @@ $moveMap = [ordered]@{
     'Tools/Documenter'                      = 'Modules/iSOCBlueprint/Engine'
     'Tests/Documenter'                      = 'Tests/iSOCBlueprint'
     'Tests/Blueprint'                       = 'Tests/iSOCBlueprint'
+    # The web part first, so the folder below does not carry it into the engine.
+    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Tools/WebParts/isoc-blueprint'
+    'Tools/Blueprint'                       = 'Modules/iSOCBlueprint/Engine'
 }
 
 Push-Location $RepoPath

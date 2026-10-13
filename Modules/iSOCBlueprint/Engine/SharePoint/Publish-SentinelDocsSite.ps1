@@ -85,7 +85,7 @@
     [string] The site URL.
 
 .EXAMPLE
-    ./Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1 `
+    ./Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1 `
         -SiteUrl 'https://contoso.sharepoint.com/sites/isoc-law-sentinel-prod' `
         -Bundle ./SecurityDocs/law-sentinel-prod/sharepoint `
         -Interactive -ClientId '<app-id>' -Tenant 'contoso.onmicrosoft.com' -WhatIf
@@ -93,7 +93,7 @@
     Signs in as you, reads the site and prints what a publish would change.
 
 .EXAMPLE
-    ./Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1 `
+    ./Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1 `
         -SiteUrl $env:SHAREPOINT_SITE_URL -Bundle $bundle `
         -AccessToken $token -AppPackagePath ./isoc-blueprint.sppkg
 
@@ -105,7 +105,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.1
+    Version:      0.4.2
     Last Updated: 2026-10-13
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1

@@ -12,8 +12,9 @@
     templates for data that is ingested but not detected on. All three need
     the same answer to the same question: which tables does this KQL read?
 
-    The identifier extraction is Sentinel.Common's Get-KqlBareIdentifiers,
-    the same code that builds dependencies.json for the repository's own
+    The identifier extraction is Sentinel.Common's Get-KqlBareIdentifiers
+    (the module's copy, Private/Vendor/SentinelCommon.Kql.ps1), the same
+    code that builds dependencies.json for the repository's own
     content. It understands let-bindings, union, join, lookup and function
     calls, which a start-of-line regex does not. On top of it this file:
 
@@ -27,9 +28,10 @@
     The collector runs these functions and writes the results to
     _raw/rule-table-references.json and _raw/template-table-references.json,
     so the gap engine, the renderer and the SharePoint build read a plain
-    file and never need Sentinel.Common or Az.Accounts themselves.
+    file and never need the KQL helpers or Az.Accounts themselves.
 
-    Callers must import Modules/Sentinel.Common before dot-sourcing this file.
+    Callers must dot-source Private/Vendor/SentinelCommon.Kql.ps1 before
+    this file.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1
@@ -37,9 +39,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.0
-    Last Updated: 2026-10-09
-    Requires:     PowerShell 7.2+, Sentinel.Common (imported by the caller)
+    Version:      0.1.1
+    Last Updated: 2026-10-13
+    Requires:     PowerShell 7.2+, SentinelCommon.Kql.ps1 (dot-sourced by the caller)
 
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block. The table-to-rule mapping and

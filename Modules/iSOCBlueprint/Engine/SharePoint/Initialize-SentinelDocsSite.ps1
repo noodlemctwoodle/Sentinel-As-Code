@@ -70,7 +70,7 @@
     Optional path to isoc-blueprint.sppkg to deploy now.
 
 .EXAMPLE
-    ./Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1 `
+    ./Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1 `
         -SiteUrl 'https://contoso.sharepoint.com/sites/isoc-law-sentinel-prod' `
         -Owner 'secops-lead@contoso.com' `
         -PublisherAppId '<publisher-app-id>' `
@@ -84,8 +84,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.0
-    Last Updated: 2026-10-08
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Permissions:  SharePoint administrator; delegated Sites.FullControl.All on the sign-in app
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
 

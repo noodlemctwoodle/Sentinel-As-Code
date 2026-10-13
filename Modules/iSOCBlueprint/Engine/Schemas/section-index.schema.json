@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Tools/Blueprint/Schemas/section-index.schema.json",
+  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json",
   "title": "Blueprint section index",
   "description": "sections/index.json: the sections of one Blueprint run, in reading order.",
   "type": "object",

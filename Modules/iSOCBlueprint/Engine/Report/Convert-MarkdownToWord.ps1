@@ -54,7 +54,7 @@
 .PARAMETER ReferenceDoc
     Pandoc reference .docx supplying house styles (table borders/shading,
     fonts, heading colours). Defaults to the bundled
-    Tools/Blueprint/Report/templates/sentinel-report-reference.docx - which
+    Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx - which
     gives formatted tables (grey grid, dark-blue header row, light row
     banding) - when it is present. Pass a path to override, or -NoReferenceDoc
     for plain.
@@ -104,12 +104,12 @@
     bullets untouched.
 
 .EXAMPLE
-    ./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 -Source ./SecurityDocs/law-sentinel-prod
+    ./Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1 -Source ./SecurityDocs/law-sentinel-prod
 
     Builds 'law-sentinel-prod.docx' beside the source folder.
 
 .EXAMPLE
-    ./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 `
+    ./Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1 `
         -Source     ./SecurityDocs/law-sentinel-prod `
         -OutputPath ./law-sentinel-prod.docx `
         -Title      'law-sentinel-prod - Sentinel Documentation'
@@ -123,7 +123,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-25
-    Version:        1.0.2
+    Version:        1.0.3
     Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, pandoc on PATH
 #>

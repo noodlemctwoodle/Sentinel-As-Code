@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Tools/Blueprint/Schemas/section.schema.json",
+  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Modules/iSOCBlueprint/Engine/Schemas/section.schema.json",
   "title": "Blueprint section",
   "description": "One section of a Blueprint workspace assessment (sections/<id>.json): typed blocks, structured text runs and charts as data. No Markdown.",
   "type": "object",

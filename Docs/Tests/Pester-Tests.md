@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) - 45 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 19 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
+| Test files | [`Tests/`](../../Tests) - 44 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 18 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -166,12 +166,11 @@ workbook-export suites.
 | Blueprint connector catalogue | [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | The shipped `connector-catalogue.json` (provenance, unique ids, the core Microsoft connectors) and its helpers: connector ids from classic and codeless connectors, 7-day activity with free tables, connected connectors against the catalogue, the connector and solution labels for a table |
 | Blueprint table families | [`Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
 | Blueprint lake tiers | [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
-| iSOCBlueprint migration map | [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move of the Blueprint into the `iSOCBlueprint` module: every file under `Tools/Blueprint` has a row in [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md), every row names a real file and a known action, copies keep their place in the tree, and every edit in [`Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1) is listed on its file's row and still matches its source exactly once |
-| iSOCBlueprint engine copy | [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | Every file the map copies into `Modules/iSOCBlueprint/Engine` equals its `Tools/Blueprint` source with only the listed edits applied (binary files by hash), the engine holds nothing the map does not account for, and the vendored copies (two `Sentinel.Common` KQL helpers, `Blueprint-References.md`) equal their originals. Fails when a fix lands in one copy only |
+| iSOCBlueprint migration map | [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move recorded in [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md) stays complete: `Tools/Blueprint` is gone, no copied, moved or retired source path exists, every destination and vendored original does, copies kept their place in the tree, and every edit a row names is documented |
+| iSOCBlueprint vendored copies | [`Tests/iSOCBlueprint/Vendored.Tests.ps1`](../../Tests/iSOCBlueprint/Vendored.Tests.ps1) | The module's copies of `Remove-KqlComments` and `Get-KqlBareIdentifiers` equal the `Sentinel.Common` originals (by AST) and the vendor file holds nothing else; the shipped `Blueprint-References.md` (page 99) equals the docs copy. Fails until a fix to the original is copied across |
 | iSOCBlueprint module | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | The manifest (valid, exports one command per `Public/` file, no required modules, version not older than the newest CHANGELOG release), each command's help and file header, the prerequisite list against the engine scripts' `#Requires`, the engine runner (null parameters left out, common parameters passed on, strict mode off), each command's parameter mapping with the engine mocked, and `New-iSOCBlueprint`'s step selection and refusals |
 | iSOCBlueprint standalone | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders the fixture (page 99 from its own copy, GitHub links), builds the SharePoint bundle offline, runs the findings and maturity commands, and loads every engine file it references from inside itself |
-| iSOCBlueprint parity | [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | Renders the fixture through `Tools/Blueprint` and through the module and compares every Markdown page and every `sections/*.json`, then builds the SharePoint bundle from one rendering with both builders and compares every bundle file, then the findings, the per-rule outcomes and the maturity assessment. Only the four E6 links (rewritten in the old output before comparing, including their section-model kind) and the bundle's build time may differ. Retired with `Tools/Blueprint` |
-| iSOCBlueprint pipelines | [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | Every inline script in `Pipelines/Sentinel-Blueprint.yml`, `.github/workflows/sentinel-blueprint.yml` and `.github/workflows/sentinel-sharepoint-publish.yml`, with the pipeline macros stood in for: each iSOCBlueprint call names an exported command, every named parameter and every key of a splatted table binds to it, the module is imported earlier in the same step, and no step runs a script from `Tools/Blueprint` |
+| iSOCBlueprint pipelines | [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | Every inline script in `Pipelines/Sentinel-Blueprint.yml`, `.github/workflows/sentinel-blueprint.yml` and `.github/workflows/sentinel-sharepoint-publish.yml`, with the pipeline macros stood in for: each iSOCBlueprint call names an exported command, every named parameter and every key of a splatted table binds to it, the module is imported earlier in the same step, no step runs a script from `Tools/Blueprint`, and every repository path the pipelines name (the module, the web part folder, the docs) exists |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -395,7 +394,7 @@ do not go through the AST-extraction helper. They dot-source specific files
 of the module's engine directly (including files under
 `Modules/iSOCBlueprint/Engine/Private/`) and drive them against a fixed JSON
 fixture corpus rather than mocking Azure. The module's own suites
-(`Migration-Map`, `Engine-Copy`, `Module`, `Module-Standalone`, `Parity`)
+(`Migration-Map`, `Vendored`, `Module`, `Module-Standalone`, `Pipelines`)
 are described in the validate table above.
 
 - [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1)
@@ -620,7 +619,7 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-Root-level `Tests/*.Tests.ps1` suites and the 19 under `Tests/iSOCBlueprint/`
+Root-level `Tests/*.Tests.ps1` suites and the 18 under `Tests/iSOCBlueprint/`
 are listed below. Counts are approximate (some suites use `-ForEach`
 to generate per-file `It` blocks at discovery time, so the count grows with
 the content tree). Run `Invoke-Pester -Path Tests` for a current total.
@@ -660,12 +659,11 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily`, `Get-ProductFamily` | 20 |
 | [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
 | [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards, `Get-FindingMaturityLink` | 37 |
-| [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | Every `Tools/Blueprint` file has a row in `MIGRATION.md`; every row and edit is valid | ~260 (per-file) |
-| [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | The engine equals `Tools/Blueprint` apart from the listed edits; vendored copies equal their originals | ~85 (per-file) |
+| [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move out of `Tools/Blueprint` stays complete: every row's source gone and destination present | ~140 (per-row) |
+| [`Tests/iSOCBlueprint/Vendored.Tests.ps1`](../../Tests/iSOCBlueprint/Vendored.Tests.ps1) | The vendored KQL helpers and page 99 equal their originals | 4 |
 | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | Manifest, help, file headers, prerequisites, the engine runner, parameter mapping, `New-iSOCBlueprint` step selection | ~90 |
 | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders, builds the site and runs the assessments | 8 |
-| [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity | ~130 (per-file) |
-| [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | The Blueprint pipelines' calls to the module bind, after an import, with nothing left on `Tools/Blueprint` | ~38 (per-step) |
+| [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | The Blueprint pipelines' calls to the module bind, after an import; nothing left on `Tools/Blueprint`; every path they name exists | ~55 (per-step and per-path) |
 
 Add new entries to this table as you cover more scripts.
 

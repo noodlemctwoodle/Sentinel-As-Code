@@ -578,9 +578,10 @@ The Pester suite is fully offline:
 - `Module.Tests.ps1`, `Module-Standalone.Tests.ps1` and `Pipelines.Tests.ps1`
   cover the module itself: the manifest and help, each command's parameter
   mapping, a run from a copy outside the repository, and every call the
-  pipelines make to it. While `Tools/Blueprint` still exists,
-  `Migration-Map.Tests.ps1`, `Engine-Copy.Tests.ps1` and `Parity.Tests.ps1`
-  hold the module's engine to it.
+  pipelines make to it. `Vendored.Tests.ps1` keeps the module's copies of
+  the two Sentinel.Common KQL helpers and of page 99 identical to their
+  originals, and `Migration-Map.Tests.ps1` keeps the move out of the old
+  `Tools/Blueprint` folder complete.
 
 All the suites live under `Tests/iSOCBlueprint/` and are picked up automatically
 by the existing PR-validation workflow (`Invoke-PRValidation.ps1` runs every

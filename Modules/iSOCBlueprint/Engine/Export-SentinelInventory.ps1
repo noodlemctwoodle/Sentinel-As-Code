@@ -51,14 +51,14 @@
     Defaults to 3 (Established).
 
 .EXAMPLE
-    ./Tools/Blueprint/Export-SentinelInventory.ps1 `
+    ./Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1 `
         -ResourceGroup 'rg-sentinel-prod' `
         -WorkspaceName 'law-sentinel-prod'
 
     Exports the full inventory to ./SecurityDocs/law-sentinel-prod/_raw/.
 
 .EXAMPLE
-    ./Tools/Blueprint/Export-SentinelInventory.ps1 `
+    ./Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1 `
         -ResourceGroup 'rg-sentinel-prod' `
         -WorkspaceName 'law-sentinel-prod' `
         -PlaybookResourceGroup 'rg-soar-prod' `
@@ -73,7 +73,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.0
+    Version:        0.4.1
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -358,7 +358,8 @@ Try-Capture 'alert-rule-templates' {
 
 Try-Capture 'rule-table-references' {
     # Which tables each rule and each template reads, resolved here with
-    # Sentinel.Common so the gap engine and the renderers read plain JSON.
+    # the vendored Sentinel.Common KQL helpers so the gap engine and the
+    # renderers read plain JSON.
     Save-Json -FileName 'rule-table-references.json' -Data (Get-RuleTableReferences -AlertRules $script:AlertRules)
     Save-Json -FileName 'template-table-references.json' -Data (Get-TemplateTableReferences -Templates $script:AlertRuleTemplates -AlertRules $script:AlertRules)
 }

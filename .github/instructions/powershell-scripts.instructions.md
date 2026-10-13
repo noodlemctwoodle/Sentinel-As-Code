@@ -262,7 +262,7 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
    The one sanctioned copy is the `iSOCBlueprint` module's
    `Engine/Private/Vendor/SentinelCommon.Kql.ps1`, which carries
    `Remove-KqlComments` and `Get-KqlBareIdentifiers` so the module stands
-   alone. `Tests/iSOCBlueprint/Engine-Copy.Tests.ps1` fails while either
+   alone. `Tests/iSOCBlueprint/Vendored.Tests.ps1` fails while either
    differs from `Sentinel.Common`: fix the shared module first, then copy
    the function across.
 2. **PSGallery module pins.** Every workflow / pipeline pins

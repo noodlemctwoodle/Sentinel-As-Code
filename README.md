@@ -36,7 +36,7 @@ Infra/              Three subscription-scoped Bicep stacks (production Sentinel,
                     DCR-watchlist automation)
 Deploy/             Deployment scripts and sentinel-deployment.config
 Tools/              CI and maintenance tooling (dependency manifest, drift, PR validation,
-                    workbook export, community import)
+                    workbook export, community import) and the SharePoint web part source
 Pipelines/          Azure DevOps pipeline definitions
 Modules/            In-repo PowerShell modules (Sentinel.Common shared deployer + KQL helpers;
                     iSOCBlueprint workspace documentation and assessment)

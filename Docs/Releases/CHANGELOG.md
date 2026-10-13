@@ -21,9 +21,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   links from the report into the repository point at GitHub. The module is
   named for the iSOC rather than Sentinel so other sources, such as Defender
   XDR, can follow. The Blueprint pipelines (Azure DevOps and both GitHub
-  workflows) now run the module, and the Blueprint test suites moved to
-  `Tests/iSOCBlueprint` and test it. `Tools/Blueprint` is no longer called;
-  a test keeps it identical to the module until it is removed.
+  workflows) run the module. The Blueprint now lives in
+  `Modules/iSOCBlueprint` (its scripts under `Engine/`), its tests in
+  `Tests/iSOCBlueprint`, its docs in `Docs/iSOCBlueprint` and the SharePoint
+  web part source in `Tools/WebParts/isoc-blueprint`;
+  [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md) records where
+  each file went. `Convert-FolderToWordReport.ps1`, a generic folder-to-Word
+  dump that nothing called, is retired.
 - **Findings and maturity grouped as the Assessment** - the gap analysis
   (page 90) and the maturity assessment (page 91) are now presented as one
   assessment. On SharePoint both pages and the findings list sit under one
@@ -56,7 +60,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   Sentinel as Code Toolkit's connector catalogue (about 630 Content Hub
   connectors and the tables each writes, from Microsoft's Solutions
   Analyzer), copied to `Private/Resources/connector-catalogue.json` by the
-  new `Tools/Blueprint/Update-ConnectorCatalogue.ps1`. Page 10 matches each
+  new `Update-iSOCBlueprintConnectorCatalogue`. Page 10 matches each
   connected connector against it (receiving data, silent, not in the
   catalogue, deprecated) and names the connector behind every table in the
   effective view; page 81 names the connector that would fill each empty
@@ -101,7 +105,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 - **Blueprint closes the gaps against health-check build 38** - a section
   by section, query by query comparison of the health-check script and its
   HTML report against the Blueprint, written up in
-  `Docs/Tools/Blueprint/Health-Check-Coverage.md`. The collector gains six
+  `Docs/iSOCBlueprint/Health-Check-Coverage.md`. The collector gains six
   captures (linked storage accounts, the agent heartbeat mix, per-table
   threat intelligence volumes, indicator health, TAXII clients and Azure
   Firewall diagnostic categories) and extends nine (connector health
@@ -164,19 +168,19 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   has every row.
 - **Blueprint sections as JSON: the section model** - every run now writes
   each section as `sections/<id>.json`, plus `sections/index.json`, in a
-  shape published as a JSON Schema (`Tools/Blueprint/Schemas/`): typed
+  shape published as a JSON Schema (`Modules/iSOCBlueprint/Engine/Schemas/`): typed
   blocks (heading, paragraph, list, table, note, chart, code, rule), text
   as structured runs (bold, italic, code, links with a target that says
   whether they point at a section, a finding, an anchor, a URL or a repo
   path), and every chart as data (pie, sankey, xy, timeline, gantt,
   mindmap, flowchart, sequence, state, class and journey) with its
-  Mermaid kept alongside. No Markdown in it. The renderer's new
-  `-OutputFormat` writes Markdown, Json or both (the default). See
-  `Docs/Tools/Blueprint/Section-Model.md`.
+  Mermaid kept alongside. No Markdown in it. `ConvertTo-iSOCBlueprint
+  -Format` writes Markdown, Json or both (the default). See
+  `Docs/iSOCBlueprint/Section-Model.md`.
 - **The Documenter is now Blueprint** - the tool, its pipelines and its
-  docs take the product's name. Folders: `Tools/Blueprint/`,
-  `Tests/Blueprint/`, `Docs/Tools/Blueprint/`; `Documenter.psd1` is
-  `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
+  docs take the product's name, and now live in the iSOCBlueprint module
+  (above): `Modules/iSOCBlueprint/`, `Tests/iSOCBlueprint/`,
+  `Docs/iSOCBlueprint/`; `Documenter.psd1` is `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
   (definition `Sentinel-Blueprint`), the GitHub workflow is
   `.github/workflows/sentinel-blueprint.yml` ("Sentinel Blueprint"), and
   the SharePoint workflow follows it by that name and takes
@@ -220,7 +224,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   which returns a printed text tree rather than nodes, so the comparison
   never matched and the navigation would have been rebuilt on every run;
   it now reads the top-level nodes and loads each one's children by id.
-  A new suite, `Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`, checks
+  A new suite, `Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`, checks
   every PnP call in the SharePoint scripts against the parameter metadata
   of the pinned PnP.PowerShell version (unknown parameters, parameter-set
   clashes, missing mandatory parameters, `Remove-PnP*` without `-Force`),
