@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.7.0
+    Version:      0.8.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1311,6 +1311,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $a.rules[@($lateral.rules)[0]].enabled | Should -BeFalse
         $lateral.subs[0].id | Should -Be 'T1021.001'
         $a.subNames.'T1021.001' | Should -Be 'Remote Desktop Protocol'
+        # Every sub-technique is named and listed under its parent, for the
+        # sub-technique view's "Every technique".
+        $t1021 = @($a.techniques | Where-Object id -EQ 'T1021')[0]
+        @($t1021.subs) | Should -Contain 'T1021.001'
+        @($t1021.subs).Count | Should -Be $t1021.subTotal
+        @($a.subNames.PSObject.Properties).Count | Should -BeGreaterThan 300
         # Brute Force sits under Credential Access only, as on the MITRE page.
         @($a.cells | Where-Object technique -EQ 'T1110').tactic | Should -Be 'CredentialAccess'
     }
@@ -1320,9 +1326,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "function wireAttackGrid\(\)"
         $html | Should -Match 'data-ak-rules="all">Include disabled'
         $html | Should -Match 'data-ak-show="all">Every technique'
+        $html | Should -Match 'data-ak-level="tech">Techniques</button><button type="button" data-ak-level="sub">Sub-techniques'
+        $html | Should -Match '<a data-ak-parent>All of '
+        # The grid sits directly above Detection opportunities.
+        $html | Should -Match "\{full:'Content inventory'\}[\s\S]*\{full:'Detection coverage by MITRE'\},\s*\{full:'Detection opportunities'\}"
         $html | Should -Match "Open the MITRE page &rarr;"
         $html | Should -Match "data-akopen>Open the ATT&amp;CK grid &rarr;"
         $html | Should -Match "\{k:'Connectors', v:c\.connectors, ic:ICON\.ingest, sec:secAt\(10\)\}"
+    }
+
+    It 'lists sub-techniques under their technique, each with its own rules, in the sub-technique view' {
+        $html | Should -Match 'const list=every\? r\.subs : mapped;'
+        $html | Should -Match 'class="ak-subrow '
+        $html | Should -Match "const sub=s\.sub\? c\.subs\.find\(x=>x\.id===s\.sub\) : null;"
+        $html | Should -Match 'const idx=sub\? sub\.rules : c\.rules;'
+    }
+
+    It 'themes the grid, report table and data flow scrollbars for light and dark' {
+        $html | Should -Match 'color-scheme:light;'
+        $html | Should -Match 'color-scheme:dark;'
+        $html | Should -Match '\.ak-scroll,\.doctscroll,\.flowbox\{scrollbar-width:thin;scrollbar-color:var\(--scroll-thumb\) transparent\}'
     }
 
     It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {

@@ -19,6 +19,8 @@
     --line:#e7eaf3; --line-2:#eef1f8; --chip:#eef2fb;
     --brand:#2563eb; --brand-ink:#1d4ed8; --accent:#6d5efc;
     --ring-track:#e8ebf6;
+    --scroll-thumb:#c9cfdd; --scroll-thumb-hover:#aab2c5;
+    color-scheme:light;
     --red:#dc2626; --orange:#ea580c; --amber:#d97706; --green:#16a34a;
     --teal:#0d9488; --violet:#7c3aed; --indigo:#4f46e5; --slate:#64748b;
     --shadow-sm:0 1px 2px rgba(16,24,40,.04),0 2px 6px rgba(16,24,40,.06);
@@ -37,6 +39,8 @@
     --line:#172536; --line-2:#122030; --chip:#112031;
     --brand:#6ea8fe; --brand-ink:#a9c7ff; --accent:#9d8cff;
     --ring-track:#1b2a3d;
+    --scroll-thumb:#1f3247; --scroll-thumb-hover:#2c4560;
+    color-scheme:dark;
     --shadow-sm:0 1px 2px rgba(0,0,0,.5);
     --shadow:0 10px 34px -12px rgba(0,0,0,.7);
     --shadow-lg:0 28px 70px -20px rgba(0,0,0,.8);
@@ -699,6 +703,14 @@
   .ak-key{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
   .ak-key i{display:inline-block;width:14px;height:11px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
   .ak-scroll{overflow-x:auto;padding-bottom:6px}
+  /* Scrolling regions get a slim scrollbar in the theme's colours rather
+     than the browser's default light one. */
+  .ak-scroll,.doctscroll,.flowbox{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}
+  .ak-scroll::-webkit-scrollbar,.doctscroll::-webkit-scrollbar,.flowbox::-webkit-scrollbar{width:8px;height:8px}
+  .ak-scroll::-webkit-scrollbar-track,.doctscroll::-webkit-scrollbar-track,.flowbox::-webkit-scrollbar-track,
+  .ak-scroll::-webkit-scrollbar-corner,.doctscroll::-webkit-scrollbar-corner,.flowbox::-webkit-scrollbar-corner{background:transparent}
+  .ak-scroll::-webkit-scrollbar-thumb,.doctscroll::-webkit-scrollbar-thumb,.flowbox::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px}
+  .ak-scroll::-webkit-scrollbar-thumb:hover,.doctscroll::-webkit-scrollbar-thumb:hover,.flowbox::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
   .ak-grid{display:grid;grid-template-columns:repeat(14,minmax(118px,1fr));gap:6px;min-width:1700px;align-items:start}
   .ak-col{display:flex;flex-direction:column;gap:5px}
   .ak-th{position:relative;padding:8px 9px 10px;border-radius:9px;background:var(--panel-soft);border:1px solid var(--line);min-height:58px}
@@ -711,15 +723,25 @@
   .ak-cell .id{display:flex;justify-content:space-between;gap:6px;font-size:10px;font-weight:800;color:var(--faint)}
   .ak-cell .ct{color:var(--ink);font-size:11px} .ak-cell .ak-dis{color:var(--amber);margin-left:3px}
   .ak-cell .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-2);font-weight:650;margin-top:2px}
-  .ak-cell.h1,.ak-key .h1{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
-  .ak-cell.h2,.ak-key .h2{background:color-mix(in srgb,var(--green) 28%,var(--panel));border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
-  .ak-cell.h3,.ak-key .h3{background:color-mix(in srgb,var(--green) 44%,var(--panel));border-color:color-mix(in srgb,var(--green) 65%,var(--line))}
-  .ak-cell.off,.ak-key .off{background:transparent;border-style:dashed;border-color:color-mix(in srgb,var(--amber) 60%,var(--line))}
-  .ak-cell.gap{opacity:.5} .ak-key .gap{background:transparent;opacity:.6}
+  .ak-cell.h1,.ak-subrow.h1,.ak-key .h1{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
+  .ak-cell.h2,.ak-subrow.h2,.ak-key .h2{background:color-mix(in srgb,var(--green) 28%,var(--panel));border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
+  .ak-cell.h3,.ak-subrow.h3,.ak-key .h3{background:color-mix(in srgb,var(--green) 44%,var(--panel));border-color:color-mix(in srgb,var(--green) 65%,var(--line))}
+  .ak-cell.off,.ak-subrow.off,.ak-key .off{background:transparent;border-style:dashed;border-color:color-mix(in srgb,var(--amber) 60%,var(--line))}
+  .ak-cell.gap{opacity:.5} .ak-subrow.gap{opacity:.55} .ak-cell.gap .ak-subrow.gap{opacity:1} .ak-key .gap{background:transparent;opacity:.6}
   .ak-cell.sel{box-shadow:0 0 0 2px var(--brand)}
   .ak-subs{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
   .ak-sub{font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand-ink)}
   .ak-sub.off{background:transparent;border:1px dashed color-mix(in srgb,var(--amber) 60%,var(--line));color:var(--muted)}
+  .ak-sublist{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+  .ak-subrow{display:grid;grid-template-columns:auto 1fr auto;gap:5px;align-items:baseline;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:10.5px;line-height:1.25}
+  .ak-subrow .sid{font-size:9.5px;font-weight:800;color:var(--faint)}
+  .ak-subrow .snm{color:var(--ink-2);font-weight:600;overflow-wrap:anywhere}
+  .ak-subrow .ct{font-size:10px;font-weight:800;color:var(--ink)}
+  .ak-subrow[role="button"]{cursor:pointer}
+  .ak-subrow[role="button"]:hover,.ak-subrow[role="button"]:focus-visible{border-color:var(--brand);outline:none}
+  .ak-subrow.sel{box-shadow:0 0 0 2px var(--brand)}
+  .ak-subrow.hit .snm{color:var(--brand-ink)}
+  .ak-subnone{margin-top:5px;font-size:10px;color:var(--faint);font-style:italic}
   /* Dark mode: every card gets the alert lifecycle's screen, a teal-tinted
      glow fading to near-black. The coloured posture cards keep their own
      colours; :where keeps this below any hover or accent rule. */
@@ -1773,17 +1795,22 @@
   // ---- ATT&CK coverage grid (Insights) ----
   // A Navigator-style matrix from M.attack: one column per tactic in
   // kill-chain order, a cell per technique shaded by the enabled rules that
-  // map it, its sub-techniques as chips. "Include disabled" adds the
-  // disabled rules (a cell only they cover is dashed: covered once they are
-  // enabled); "Every technique" adds the uncovered ones, to show the gaps.
-  // Selecting a cell lists every rule mapped to it.
-  const akState={rules:'enabled', show:'covered', q:'', sel:null};
+  // map it. "Techniques" shows a technique's mapped sub-techniques as chips;
+  // "Sub-techniques" lists each under its technique, shaded by its own rules.
+  // "Include disabled" adds the disabled rules (a cell only they cover is
+  // dashed: covered once they are enabled); "Every technique" adds the
+  // uncovered techniques and, in the sub-technique view, the uncovered
+  // sub-techniques, to show the gaps. Selecting a cell or a sub-technique
+  // lists the rules mapped to it.
+  const akState={rules:'enabled', show:'covered', level:'tech', q:'', sel:null};
   function renderAttackGrid(){
     const A=M.attack, grid=document.getElementById('akGrid'); if(!A||!grid) return;
     const R=A.rules, on=i=>R[i].enabled, q=akState.q.trim().toLowerCase();
+    const all=akState.rules==='all', every=akState.show==='all', subLevel=akState.level==='sub';
     const byTac={}; A.cells.forEach(c=>{ (byTac[c.tactic]||(byTac[c.tactic]={}))[c.technique]=c; });
     const techs={}; A.techniques.forEach(t=>techs[t.id]=t);
     const sname=id=>(A.subNames&&A.subNames[id])||id;
+    const hit=s=>!!q && (s.id+' '+sname(s.id)).toLowerCase().includes(q);
     // Tactics a rule names that the Enterprise matrix does not have (ATT&CK
     // for ICS ones, say) get columns of their own after it, so every mapped
     // technique is shown.
@@ -1794,39 +1821,67 @@
       const here=byTac[tac.short]||{};
       const inTactic=A.techniques.filter(t=>(t.tactics||[]).indexOf(tac.short)>=0);
       let ids=Object.keys(here);
-      if(akState.show==='all') inTactic.forEach(t=>{ if(ids.indexOf(t.id)<0) ids.push(t.id); });
+      if(every) inTactic.forEach(t=>{ if(ids.indexOf(t.id)<0) ids.push(t.id); });
       const rows=ids.map(id=>{
-        const c=here[id], t=techs[id]||{id:id,name:id,subTotal:0};
+        const c=here[id], t=techs[id]||{id:id,name:id,subTotal:0,subs:[]};
         const en=c? c.rules.filter(on).length : 0, dis=c? c.rules.length-en : 0;
-        const subs=c? c.subs.map(s=>({id:s.id, en:s.rules.filter(on).length, all:s.rules.length})) : [];
-        const match=!q || (id+' '+t.name).toLowerCase().includes(q) || (c && c.rules.some(i=>R[i].name.toLowerCase().includes(q))) || subs.some(s=>(s.id+' '+sname(s.id)).toLowerCase().includes(q));
+        let subs=c? c.subs.map(s=>({id:s.id, en:s.rules.filter(on).length, all:s.rules.length})) : [];
+        if(subLevel && every){
+          const have=new Set(subs.map(s=>s.id));
+          subs=subs.concat((t.subs||[]).filter(s=>!have.has(s)).map(s=>({id:s, en:0, all:0}))).sort((a,b)=>a.id.localeCompare(b.id));
+        }
+        const match=!q || (id+' '+t.name).toLowerCase().includes(q) || (c && c.rules.some(i=>R[i].name.toLowerCase().includes(q))) || subs.some(hit);
         return {id, t, c, en, dis, subs, match};
-      }).filter(r=>r.match && (r.en>0 || (akState.rules==='all' && r.dis>0) || akState.show==='all'))
-        .sort((a,b)=>(b.en-a.en)||((akState.rules==='all'?b.dis-a.dis:0))||a.id.localeCompare(b.id));
+      }).filter(r=>r.match && (r.en>0 || (all && r.dis>0) || every))
+        .sort((a,b)=>(b.en-a.en)||(all?b.dis-a.dis:0)||a.id.localeCompare(b.id));
       const coveredHere=Object.keys(here).filter(id=>here[id].rules.some(on)).length;
-      return {tac, rows, coveredHere, total:inTactic.length};
+      const subsHere=new Set(); Object.keys(here).forEach(id=>here[id].subs.forEach(s=>{ if(s.rules.some(on)) subsHere.add(s.id); }));
+      const subTotal=inTactic.reduce((n,t)=>n+(t.subTotal||0),0);
+      return {tac, rows, coveredHere, total:inTactic.length, subsHere:subsHere.size, subTotal};
     });
     const heat=n=>n>=4?'h3':n>=2?'h2':n>=1?'h1':'';
-    grid.style.gridTemplateColumns='repeat('+cols.length+',minmax(118px,1fr))';
-    grid.style.minWidth=(cols.length*122)+'px';
+    const cw=subLevel? 150 : 118;
+    grid.style.gridTemplateColumns='repeat('+cols.length+',minmax('+cw+'px,1fr))';
+    grid.style.minWidth=(cols.length*(cw+4))+'px';
+    const sel=akState.sel;
     grid.innerHTML=cols.map(col=>{
-      const pct=col.total? Math.round(col.coveredHere/col.total*100) : 0;
-      const sub=col.tac.other? 'ICS or other matrix' : col.coveredHere+' of '+col.total+' techniques';
+      const n=subLevel? col.subsHere : col.coveredHere, d=subLevel? col.subTotal : col.total;
+      const pct=d? Math.round(n/d*100) : 0;
+      const sub=col.tac.other? 'ICS or other matrix' : n+' of '+d+(subLevel?' sub-techniques':' techniques');
       return '<div class="ak-col"><div class="ak-th" title="'+esc((col.tac.id?col.tac.id+' ':'')+col.tac.name)+'"><b>'+esc(col.tac.name)+'</b><span>'+sub+'</span>'+(col.tac.other?'':'<i style="--p:'+pct+'%"></i>')+'</div>'+
         col.rows.map(r=>{
-          const cls=r.en>0? heat(r.en) : (r.dis>0 && akState.rules==='all')? 'off' : 'gap';
-          const sel=akState.sel&&akState.sel.tactic===col.tac.short&&akState.sel.technique===r.id;
-          const count=r.en>0||r.dis>0? (r.en+(akState.rules==='all'&&r.dis? '<span class="ak-dis">+'+r.dis+'</span>' : '')) : '';
-          const tip=r.id+' '+r.t.name+': '+r.en+' enabled rule'+(r.en===1?'':'s')+(r.dis? ', '+r.dis+' disabled' : '')+(r.t.subTotal? '; '+r.subs.filter(s=>s.en||akState.rules==='all').length+' of '+r.t.subTotal+' sub-techniques mapped' : '');
-          const subs=r.subs.filter(s=>s.en||akState.rules==='all').map(s=>'<span class="ak-sub'+(s.en?'':' off')+'" title="'+esc(s.id+' '+sname(s.id))+'">'+esc(s.id.slice(s.id.indexOf('.')))+'</span>').join('');
-          return '<div class="ak-cell '+cls+(sel?' sel':'')+'" '+(r.c?'role="button" tabindex="0" ':'')+'data-ak="'+esc(col.tac.short)+'|'+esc(r.id)+'" title="'+esc(tip)+'">'+
-            '<div class="id"><span>'+esc(r.id)+'</span><span class="ct">'+count+'</span></div><div class="nm">'+esc(r.t.name)+'</div>'+(subs?'<div class="ak-subs">'+subs+'</div>':'')+'</div>';
+          const cls=r.en>0? heat(r.en) : (r.dis>0 && all)? 'off' : 'gap';
+          const mine=sel&&sel.tactic===col.tac.short&&sel.technique===r.id;
+          const count=r.en>0||r.dis>0? (r.en+(all&&r.dis? '<span class="ak-dis">+'+r.dis+'</span>' : '')) : '';
+          const mapped=r.subs.filter(s=>s.en||(all&&s.all));
+          const tip=r.id+' '+r.t.name+': '+r.en+' enabled rule'+(r.en===1?'':'s')+(r.dis? ', '+r.dis+' disabled' : '')+(r.t.subTotal? '; '+mapped.length+' of '+r.t.subTotal+' sub-techniques mapped' : '');
+          let body='';
+          if(subLevel){
+            const list=every? r.subs : mapped;
+            body=list.length? '<div class="ak-sublist">'+list.map(s=>{
+              const off=s.all-s.en, scls=s.en>0? heat(s.en) : (all&&s.all>0)? 'off' : 'gap';
+              const sct=s.en>0||(all&&s.all)? s.en+(all&&off? '<span class="ak-dis">+'+off+'</span>' : '') : '';
+              const stip=s.id+' '+sname(s.id)+': '+s.en+' enabled rule'+(s.en===1?'':'s')+(off? ', '+off+' disabled' : '');
+              return '<div class="ak-subrow '+scls+(mine&&sel.sub===s.id?' sel':'')+(hit(s)?' hit':'')+'" '+(s.all>0?'role="button" tabindex="0" ':'')+'data-aksub="'+esc(s.id)+'" title="'+esc(stip)+'">'+
+                '<span class="sid">'+esc(s.id.slice(s.id.indexOf('.')))+'</span><span class="snm">'+esc(sname(s.id))+'</span><span class="ct">'+sct+'</span></div>';
+            }).join('')+'</div>' : (r.c&&r.t.subTotal? '<div class="ak-subnone">No sub-technique mapped</div>' : '');
+          } else {
+            const chips=mapped.map(s=>'<span class="ak-sub'+(s.en?'':' off')+'" title="'+esc(s.id+' '+sname(s.id))+'">'+esc(s.id.slice(s.id.indexOf('.')))+'</span>').join('');
+            if(chips) body='<div class="ak-subs">'+chips+'</div>';
+          }
+          return '<div class="ak-cell '+cls+(mine&&!(subLevel&&sel.sub)?' sel':'')+'" '+(r.c?'role="button" tabindex="0" ':'')+'data-ak="'+esc(col.tac.short)+'|'+esc(r.id)+'" title="'+esc(tip)+'">'+
+            '<div class="id"><span>'+esc(r.id)+'</span><span class="ct">'+count+'</span></div><div class="nm">'+esc(r.t.name)+'</div>'+body+'</div>';
         }).join('')+'</div>';
     }).join('');
+    const choose=(tactic,technique,sub)=>{ const s=akState.sel; akState.sel=(s&&s.tactic===tactic&&s.technique===technique&&(s.sub||null)===(sub||null))? null : {tactic,technique,sub:sub||null}; renderAttackGrid(); renderAttackDetail(); };
+    const keys=(el,fn)=>el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); fn(); } });
     grid.querySelectorAll('.ak-cell[role="button"]').forEach(el=>{
-      const pick=()=>{ const [tactic,technique]=el.dataset.ak.split('|'); akState.sel=(akState.sel&&akState.sel.tactic===tactic&&akState.sel.technique===technique)? null : {tactic,technique}; renderAttackGrid(); renderAttackDetail(); };
-      el.addEventListener('click',pick);
-      el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } });
+      const pick=()=>{ const [tactic,technique]=el.dataset.ak.split('|'); choose(tactic,technique,null); };
+      el.addEventListener('click',pick); keys(el,pick);
+    });
+    grid.querySelectorAll('.ak-subrow[role="button"]').forEach(el=>{
+      const pick=()=>{ const [tactic,technique]=el.closest('.ak-cell').dataset.ak.split('|'); choose(tactic,technique,el.dataset.aksub); };
+      el.addEventListener('click',e=>{ e.stopPropagation(); pick(); }); keys(el,pick);
     });
     if(typeof window.fitIframe==='function') window.fitIframe();
   }
@@ -1837,21 +1892,28 @@
     const t=A.techniques.find(x=>x.id===c.technique)||{name:c.technique,subTotal:0}, tac=A.tactics.find(x=>x.short===c.tactic)||{name:c.tactic.replace(/([a-z])([A-Z])/g,'$1 $2')};
     const sname=id=>(A.subNames&&A.subNames[id])||id;
     const url=id=>'https://attack.mitre.org/techniques/'+id.replace('.','/')+'/';
-    const order=c.rules.slice().sort((a,b)=>(A.rules[b].enabled-A.rules[a].enabled)||A.rules[a].name.localeCompare(A.rules[b].name));
+    // A selected sub-technique lists only the rules that map it.
+    const sub=s.sub? c.subs.find(x=>x.id===s.sub) : null;
+    const idx=sub? sub.rules : c.rules;
+    const order=idx.slice().sort((a,b)=>(A.rules[b].enabled-A.rules[a].enabled)||A.rules[a].name.localeCompare(A.rules[b].name));
     const rows=order.map(i=>{ const r=A.rules[i]; const subs=c.subs.filter(x=>x.rules.indexOf(i)>=0).map(x=>'<a href="'+esc(url(x.id))+'" target="_blank" rel="noopener" title="'+esc(sname(x.id))+'">'+esc(x.id)+'</a>').join(', ');
       return '<tr><td>'+esc(r.name)+'</td><td><span class="st '+(r.enabled?'Met':'Gap')+'">'+(r.enabled?'Enabled':'Disabled')+'</span></td><td>'+esc(r.severity||'')+'</td><td>'+esc(r.kind||'')+'</td><td>'+(subs||'<span class="note">None</span>')+'</td></tr>'; });
-    const en=c.rules.filter(i=>A.rules[i].enabled).length;
-    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3><a href="'+esc(url(c.technique))+'" target="_blank" rel="noopener">'+esc(c.technique+' '+t.name)+'</a></h3>'+
-      '<p class="note">'+esc(tac.name)+' &middot; '+en+' enabled and '+(c.rules.length-en)+' disabled rule'+(c.rules.length===1?'':'s')+(t.subTotal? ' &middot; '+c.subs.length+' of '+t.subTotal+' sub-techniques mapped' : '')+'</p><a data-ak-close>Close</a></div>'+
+    const en=idx.filter(i=>A.rules[i].enabled).length;
+    const head=sub? '<a href="'+esc(url(sub.id))+'" target="_blank" rel="noopener">'+esc(sub.id+' '+sname(sub.id))+'</a>' : '<a href="'+esc(url(c.technique))+'" target="_blank" rel="noopener">'+esc(c.technique+' '+t.name)+'</a>';
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+head+'</h3>'+
+      '<p class="note">'+esc(tac.name)+(sub? ' &middot; a sub-technique of '+esc(c.technique+' '+t.name) : '')+' &middot; '+en+' enabled and '+(idx.length-en)+' disabled rule'+(idx.length===1?'':'s')+(!sub&&t.subTotal? ' &middot; '+c.subs.length+' of '+t.subTotal+' sub-techniques mapped' : '')+'</p>'+
+      (sub? '<a data-ak-parent>All of '+esc(c.technique)+'</a>' : '')+'<a data-ak-close>Close</a></div>'+
       '<table class="tbl"><thead><tr><th>Rule</th><th>Status</th><th>Severity</th><th>Kind</th><th>Sub-techniques</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
     el.classList.remove('hidden');
     el.querySelector('[data-ak-close]').addEventListener('click',()=>{ akState.sel=null; renderAttackGrid(); renderAttackDetail(); });
+    const up=el.querySelector('[data-ak-parent]'); if(up) up.addEventListener('click',()=>{ akState.sel={tactic:s.tactic, technique:s.technique, sub:null}; renderAttackGrid(); renderAttackDetail(); });
     if(typeof window.fitIframe==='function') window.fitIframe();
   }
   function wireAttackGrid(){
     const panel=document.getElementById('akPanel'); if(!panel) return;
     panel.querySelectorAll('[data-ak-rules]').forEach(b=>b.addEventListener('click',()=>{ akState.rules=b.dataset.akRules; panel.querySelectorAll('[data-ak-rules]').forEach(x=>x.classList.toggle('on',x===b)); renderAttackGrid(); renderAttackDetail(); }));
     panel.querySelectorAll('[data-ak-show]').forEach(b=>b.addEventListener('click',()=>{ akState.show=b.dataset.akShow; panel.querySelectorAll('[data-ak-show]').forEach(x=>x.classList.toggle('on',x===b)); renderAttackGrid(); }));
+    panel.querySelectorAll('[data-ak-level]').forEach(b=>b.addEventListener('click',()=>{ akState.level=b.dataset.akLevel; panel.querySelectorAll('[data-ak-level]').forEach(x=>x.classList.toggle('on',x===b)); if(akState.sel&&akState.level!=='sub') akState.sel.sub=null; renderAttackGrid(); renderAttackDetail(); }));
     const s=panel.querySelector('#akSearch'); if(s) s.addEventListener('input',()=>{ akState.q=s.value; renderAttackGrid(); });
     renderAttackGrid();
   }
@@ -1919,9 +1981,10 @@
   if(M.attack && M.attack.tactics && M.attack.tactics.length){
     const nOn=M.attack.rules.filter(r=>r.enabled).length;
     cards.push('<div class="ipanel full" id="akPanel"><h3>Detection coverage by MITRE ATT&amp;CK technique</h3>'+
-      '<p class="note">Each column is a tactic; each cell a technique an analytics rule maps, shaded by the enabled rules that map it, with its sub-techniques. '+nOn+' of '+M.attack.rules.length+' rules are enabled. Select a cell for its rules.'+
+      '<p class="note">Each column is a tactic; each cell a technique an analytics rule maps, shaded by the enabled rules that map it. Sub-techniques lists each one under its technique, shaded by its own rules. '+nOn+' of '+M.attack.rules.length+' rules are enabled. Select a technique or sub-technique for its rules.'+
       (mitreSec!=null?' <a class="link-muted" data-jump="'+mitreSec+'">Open the MITRE page &rarr;</a>':'')+'</p>'+
-      '<div class="ak-tools"><div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
+      '<div class="ak-tools"><div class="ak-seg" role="group" aria-label="Level"><button type="button" class="on" data-ak-level="tech">Techniques</button><button type="button" data-ak-level="sub">Sub-techniques</button></div>'+
+      '<div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
       '<div class="ak-seg" role="group" aria-label="Techniques"><button type="button" class="on" data-ak-show="covered">Covered techniques</button><button type="button" data-ak-show="all">Every technique</button></div>'+
       '<input type="search" class="docsearch" id="akSearch" placeholder="Find a rule or technique" aria-label="Find a rule or technique">'+
       '<span class="ak-key"><i class="h1"></i>1 rule<i class="h2"></i>2 to 3<i class="h3"></i>4 or more<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
@@ -2173,10 +2236,10 @@
   // with a short donut. Full-width panels separate the bands. A card whose
   // title is not listed lands in a trailing band rather than disappearing.
   const BANDS=[
-    {full:'Detection coverage by MITRE'},
     {titles:['Analytics rules enabled','Findings by severity','Findings by category','Incident outcomes','Billed vs Defender free benefit','Ingestion by billing plan','Alert volume by severity','Threat intelligence by source']},
     {full:'Content inventory'},
     {titles:['Top tables by volume','Alerts by detection source','Operational health event mix','Playbook health','Daily ingestion']},
+    {full:'Detection coverage by MITRE'},
     {full:'Detection opportunities'},
     {titles:['Rule effectiveness','Top alerting rules','Sentinel data lake']},
     {full:'What'}

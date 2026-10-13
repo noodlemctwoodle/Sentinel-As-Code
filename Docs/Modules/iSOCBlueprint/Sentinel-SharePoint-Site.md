@@ -156,19 +156,26 @@ entry, every table by cost).
 
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels
-(the ATT&CK grid, content inventory, detection opportunities, what's new)
-between them, so a long table never shares a row with a short donut. The
+(content inventory, the ATT&CK grid directly above detection
+opportunities, what's new) between them, so a long table never shares a
+row with a short donut. The
 **ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
 kill-chain order with the techniques covered out of the total, and a cell
 per technique an analytics rule maps, shaded by the enabled rules that map
-it, with its sub-techniques as chips. A tactic a rule names that the
+it, with its sub-techniques as chips. "Sub-techniques" switches the grid
+to list each mapped sub-technique under its technique, shaded by its own
+rules, and each tactic's header counts sub-techniques covered out of the
+total instead; with "Every technique" it lists every sub-technique ATT&CK
+defines, so the gaps show at that level too. A tactic a rule names that the
 Enterprise matrix does not have (an ATT&CK for ICS one such as Impair
 Process Control) gets a column of its own after the fourteen, so every
 mapped technique shows. "Include disabled" adds the disabled
 rules (a cell only they cover is dashed: covered once they are enabled),
 "Every technique" adds the uncovered techniques, the search finds a rule or
 a technique, and selecting a cell lists every rule mapped to it with its
-status, severity, kind and sub-techniques. The grid links to the MITRE
+status, severity, kind and sub-techniques; selecting a sub-technique lists
+only the rules that map it. The grid scrolls sideways with a scrollbar in
+the theme's colours. The grid links to the MITRE
 page and the MITRE page back to the grid. The content inventory's tiles
 open their pages in the Report tab.
 Every card grid balances its rows (five cards become three and two,
@@ -195,7 +202,7 @@ host page (with `scrollIntoView`) rather than its own window.
 | --- | --- | --- |
 | `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
-| `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics and sub-technique total, `subNames` for the sub-techniques a rule maps, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
+| `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
 | `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope) and quick wins. Assessment tab, maturity view: the basis and scope note, overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
