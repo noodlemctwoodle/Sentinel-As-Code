@@ -50,9 +50,13 @@ hold:
   rights.
 - **Separate failure.** The stage depends on `Document` and reads the
   artefact that run produced. A SharePoint outage or a throttled publish
-  fails the stage, not the collection: the Markdown artefact and the docs
-  pull request stand, and "Rerun failed stages" publishes the same
+  fails the stage, not the collection: the `sentinel-docs` artefact and the
+  docs pull request stand, and "Rerun failed stages" publishes the same
   snapshot again without collecting.
+
+On a run with only the SharePoint export ticked, the `Document` stage
+renders the section model alone (no Markdown, no PNGs), which is all the
+site is built from.
 
 ## Trigger
 

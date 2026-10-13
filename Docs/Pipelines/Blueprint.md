@@ -180,16 +180,19 @@ The run panel lists them in this order. It has no headings, so each label
 starts with its group (`Export:`, `SharePoint:`, `Charts:`, `Collector:`,
 `Maturity:`). The three exports (SharePoint site, Markdown, Word report) can
 be ticked in any combination; with none ticked the run still collects,
-renders and keeps the `sentinel-docs` artefact.
+renders and keeps the `sentinel-docs` artefact. The section model
+(`sections/*.json`) is rendered on every run; the Markdown pack only when
+the pull request or the Word report reads it, or when nothing is ticked.
+A SharePoint-only run renders no Markdown and no PNGs.
 
 | Parameter | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `publishSharePointSite` | boolean | `true` | SharePoint site: includes the `SharePoint` stage, which builds the site bundle from the run's artefact and publishes it. See [SharePoint-Publish.md](SharePoint-Publish.md). |
-| `openPullRequest` | boolean | `true` | The Markdown export: condition on the "Push docs branch and open / refresh PR" step, which commits the pack to a rolling branch and opens a review-only pull request. The Markdown is rendered and kept as the `sentinel-docs` artefact on every run either way, because the Word report and the SharePoint site are built from it. |
+| `openPullRequest` | boolean | `true` | The Markdown export: condition on the "Push docs branch and open / refresh PR" step, which commits the pack to a rolling branch and opens a review-only pull request. Ticked (or with the Word report ticked), the renderer writes the Markdown pack alongside the section model; see `renderFormats`. |
 | `publishWordReport` | boolean | `false` | Word report: includes the `WordReport` stage (compile-time `${{ if }}`), which renders the run's artefact to a `.docx`. See [Word-Report.md](Word-Report.md). |
 | `sharePointWhatIf` | boolean | `false` | SharePoint stage: sign in, read the site and print the plan; change nothing. Compiled to the `flagWhatIf` variable. |
-| `deployAppPackage` | boolean | `true` | SharePoint stage: deploy the dashboard web part package when its version differs from the one in the site's app catalog. |
-| `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG. GitHub renders Mermaid natively and has no equivalent. |
+| `deployAppPackage` | boolean | `true` | SharePoint stage: deploy the web part package (the dashboard and chart web parts) when its version differs from the one in the site's app catalog. |
+| `prerenderChartsToPng` | boolean | `true` | **ADO-only.** Gates the Mermaid-to-PNG steps. ADO Repos preview does not render Mermaid fences or inline SVG, so charts are pre-rendered to PNG for the Markdown and Word exports. Skipped whenever the renderer writes no Markdown; the SharePoint site never needs it. GitHub renders Mermaid natively and has no equivalent. |
 | `includePreview` | boolean | `true` | Compiled to the `flagIncludePreview` variable (`-IncludePreview` or empty), passed to the collector. On by default on ADO; the GitHub `include-preview` input stays off by default. |
 | `playbookResourceGroup` | string | `" "` (a single space) | Where the collector enumerates playbooks, passed as `-PlaybookResourceGroup`. Left blank, the collector step uses `sentinelResourceGroup` from the variable group, and the run log's `Playbook RG` line shows which one it used. The default is a space because the run panel treats an empty default as no default, marks the field Required and disables Next; the collector step trims it. |
 | `targetMaturityLevel` | number (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against. |
@@ -205,6 +208,10 @@ renders and keeps the `sentinel-docs` artefact.
   `Tools/Blueprint/Blueprint.psd1` and the PR-validation workflow).
 - `flagIncludePreview` (compile-time `${{ if }}` mapping of the
   `includePreview` parameter).
+- `renderFormats` (compile-time): `Markdown,Json` when `openPullRequest` or
+  `publishWordReport` is ticked or `publishSharePointSite` is not, otherwise
+  `Json`. Passed to the renderer as `-OutputFormat`; the Mermaid pre-render
+  uses the same test.
 - `docsBranch: auto/sentinel-docs/$(sentinelWorkspaceName)`,
   `targetBranch: main` (bot-managed, not hand-edited).
 - `docsRoot: $(Pipeline.Workspace)/sentinel-docs`: where the two publish
@@ -232,14 +239,17 @@ renders and keeps the `sentinel-docs` artefact.
    `TargetMaturityLevel`.
 4. **Run renderer** (`PowerShell@2`, inline). Runs
    `Convert-SentinelInventoryToMarkdown.ps1 -WorkspaceName
-   $(sentinelWorkspaceName)`.
-5. **Mermaid pre-render** (only when `prerenderChartsToPng == true`):
+   $(sentinelWorkspaceName) -OutputFormat` with `$(renderFormats)`, and logs
+   which formats it wrote.
+5. **Mermaid pre-render** (only when `prerenderChartsToPng == true` and the
+   renderer writes Markdown):
    `UseNode@1` (Node 20), install `@mermaid-js/mermaid-cli@11`, then run
    `Convert-MermaidToImage.ps1 -Root .../SecurityDocs -Format png`.
 6. **Stage `SecurityDocs/` for artefact publish** (`PowerShell@2`).
    Copies the workspace tree into
    `$(Build.ArtifactStagingDirectory)/sentinel-docs`; fails if
-   `SecurityDocs/` was not produced.
+   `SecurityDocs/` was not produced. Logs the raw, section and Markdown
+   file counts.
 7. **Publish artefact** (`PublishPipelineArtifact@1`, artifact name
    `sentinel-docs`, `publishLocation: pipeline`).
 8. **Push docs branch and open / refresh PR** (`bash`), with
@@ -267,10 +277,10 @@ charts. No Azure sign-in. See [Word-Report.md](Word-Report.md).
 
 `dependsOn: Document`, `pool: ubuntu-latest`, `timeoutInMinutes: 45`, one
 job `Publish`. Downloads this run's `sentinel-docs` artefact, checks that
-`<workspace>/_raw` is in it, builds the dashboard web part package (Node
-22, `npm ci`, `npm run package`), installs PnP.PowerShell, builds the
-site bundle with
-`Build-SentinelDocsSite.ps1`, then signs in through the
+`<workspace>/_raw` is in it (and logs how many section files it holds),
+builds the web part package (Node 22, `npm ci`, `npm run package`),
+installs PnP.PowerShell, builds the site bundle from the section model
+with `Build-SentinelDocsSite.ps1`, then signs in through the
 `sc-sentinel-sharepoint` service connection inside one `AzureCLI@2` task,
 requests a SharePoint token for the site's host and runs
 `Publish-SentinelDocsSite.ps1` (with `-WhatIf` when `sharePointWhatIf` is
@@ -324,7 +334,7 @@ role; the Word report stage signs in nowhere.
 | Config source | Repo secrets + repo variables (`SENTINEL_RG`, `SENTINEL_WORKSPACE`) | Variable group `sentinel-deployment` |
 | Preview toggle | `include-preview` input (default off) | `includePreview` parameter (default on) |
 | PR toggle | `open-pull-request` input | `openPullRequest` parameter |
-| Mermaid handling | Rendered natively; no pre-render | `prerenderChartsToPng` (default on) converts fences to PNG |
+| Mermaid handling | Rendered natively; no pre-render | `prerenderChartsToPng` (default on) converts fences to PNG when the run writes Markdown |
 | Playbook RG override | Not exposed | `playbookResourceGroup` parameter |
 | Target maturity level | `target-maturity-level` input (choice, default 3) | `targetMaturityLevel` parameter (number, default 3) |
 | Collector task | `azure/powershell@v3` | `AzurePowerShell@5` |

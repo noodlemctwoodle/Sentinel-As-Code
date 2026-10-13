@@ -221,8 +221,9 @@ the **ADO repo only**, never GitHub.
 > site* and *Collector: include preview APIs* are ticked by default; untick
 > the SharePoint export for a workspace with no site. To skip the PR step and get only the
 > artefact, untick *Export: Markdown (docs pull request in this repo)*. The
-> Markdown is rendered either way: the artefact, the Word report and the
-> SharePoint site are all built from it.
+> section model (`sections/*.json`) is rendered on every run, and the
+> SharePoint site is built from it; the Markdown pack is rendered when the
+> pull request or the Word report needs it, or when no export is ticked.
 
 The run-pipeline panel exposes three further parameters:
 
@@ -230,8 +231,9 @@ The run-pipeline panel exposes three further parameters:
   ADO Repos and wiki render `mermaid` fences as plain code and block inline SVG,
   so the pipeline installs `@mermaid-js/mermaid-cli` and converts each fenced chart
   to a PNG via `Convert-MermaidToImage.ps1`. This step is ADO-only; the GitHub
-  workflow ships the raw fences because GitHub renders Mermaid natively. Untick it
-  to skip the Node/mmdc install on a fast run.
+  workflow ships the raw fences because GitHub renders Mermaid natively. It is
+  skipped on a run that writes no Markdown (SharePoint only). Untick it to skip
+  the Node/mmdc install on a fast run.
 - *Collector: playbook resource group* (`playbookResourceGroup`, default blank): set this when
   Logic App playbooks live in a dedicated RG separate from the Sentinel RG (the
   Sentinel-As-Code convention). It maps to the collector's `-PlaybookResourceGroup`

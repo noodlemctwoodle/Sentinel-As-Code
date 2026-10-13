@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A SharePoint-only Blueprint run renders no Markdown** - on ADO, the
+  renderer writes only the section model when neither **Export: Markdown**
+  nor **Export: Word report** is ticked (the new compile-time
+  `renderFormats` variable, passed as `-OutputFormat`), and the Mermaid
+  pre-render runs only when Markdown is written. With no export ticked the
+  run still writes the Markdown pack, so the artefact stays readable. The
+  run logs the raw, section and Markdown file counts, and the SharePoint
+  stage logs the section files it builds from.
 - **The iSOC Blueprint chart web part** - the `isoc-blueprint` package
   (1.4.0) adds a second web part that draws every chart on the SharePoint
   section pages from its data: donuts, columns and bars, lines, Sankey

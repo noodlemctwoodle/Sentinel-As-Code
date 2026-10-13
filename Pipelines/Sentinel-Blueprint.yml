@@ -5,15 +5,19 @@
 # Sentinel workspace, with the three documentation outputs as tick boxes at
 # queue time:
 #
-#   Markdown pack    the SecurityDocs/<workspace>/ tree. Always published as
-#                    the 'sentinel-docs' artefact; optionally pushed to a
-#                    rolling branch and opened as a review-only PR.
+#   Markdown pack    the SecurityDocs/<workspace>/ tree, pushed to a rolling
+#                    branch and opened as a review-only PR.
 #   Word report      the same Markdown rendered to one page-numbered .docx
 #                    (the 'sentinel-word-report' artefact).
 #   SharePoint site  the iSOC Blueprint site (dashboard home page, a page per
-#                    section, findings list) built from this run's artefact
-#                    and published to the workspace's site (also kept as the
-#                    'sharepoint-site' artefact).
+#                    section, findings list) built from this run's section
+#                    model and published to the workspace's site (also kept
+#                    as the 'sharepoint-site' artefact).
+#
+# Every run keeps the 'sentinel-docs' artefact: the raw snapshot (_raw/) and
+# the section model (sections/*.json), plus the Markdown pack when an export
+# reads it (the PR or the Word report) or when nothing is ticked. A
+# SharePoint-only run renders no Markdown and no PNGs.
 #
 # Stages:
 #   Document     collect -> render -> Mermaid to PNG -> artefact -> docs PR
@@ -99,10 +103,11 @@ parameters:
   # ---- Exports: any combination, one to many ----
   # Each export is its own stage and they share nothing but the collected
   # snapshot, so any mix can be ticked; with none ticked the run still
-  # collects, renders and keeps the 'sentinel-docs' artefact. The Markdown
-  # is always rendered because the other two are built from it: the
-  # Markdown export is the review pull request in this repo, where ADO
-  # Repos renders the pack.
+  # collects, renders and keeps the 'sentinel-docs' artefact. The section
+  # model (JSON) is always rendered, since the SharePoint site is built from
+  # it; the Markdown only when the pull request or the Word report reads it
+  # (see renderFormats). The Markdown export is the review pull request in
+  # this repo, where ADO Repos renders the pack.
   - name: publishSharePointSite
     displayName: "Export: SharePoint site (the iSOC Blueprint site)"
     type: boolean
@@ -131,9 +136,10 @@ parameters:
 
   # ---- Collector and renderer options ----
   # Mermaid fences do not render in ADO Repos preview or in pandoc, so the
-  # Markdown and Word exports both need the PNGs; the SharePoint section
-  # pages use them when present. GitHub renders Mermaid natively and its
-  # workflow has no equivalent.
+  # Markdown and Word exports both need the PNGs. The SharePoint site does
+  # not: it draws its charts from the section model. With neither Markdown
+  # export ticked nothing is pre-rendered. GitHub renders Mermaid natively
+  # and its workflow has no equivalent.
   - name: prerenderChartsToPng
     displayName: "Charts: Mermaid to PNG (Markdown and Word need it)"
     type: boolean
@@ -189,6 +195,16 @@ variables:
       value: "-IncludePreview"
     ${{ else }}:
       value: ""
+
+  # What the renderer writes. The section model (Json) always; the Markdown
+  # pack when the docs pull request or the Word report reads it, or when no
+  # export is ticked, so the artefact still carries a readable pack. The
+  # Mermaid pre-render below uses the same test.
+  - name: renderFormats
+    ${{ if or(eq(parameters.openPullRequest, true), eq(parameters.publishWordReport, true), ne(parameters.publishSharePointSite, true)) }}:
+      value: "Markdown,Json"
+    ${{ else }}:
+      value: "Json"
 
   # Rolling docs branch + PR target: bot-managed, never hand-edited. The
   # branch is per-workspace so multi-workspace runs don't collide on the same
@@ -307,9 +323,12 @@ stages:
               script: |
                 $ErrorActionPreference = 'Stop'
 
+                $formats = '$(renderFormats)' -split ','
                 Write-Host "##[section]Sentinel Blueprint - Renderer"
+                Write-Host "  Output       : $($formats -join ', ')"
                 & "$(Build.SourcesDirectory)/Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1" `
-                    -WorkspaceName "$(sentinelWorkspaceName)"
+                    -WorkspaceName "$(sentinelWorkspaceName)" `
+                    -OutputFormat $formats
 
           # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
           # "publish code as wiki" treat ```mermaid``` as plain code, and ADO
@@ -317,8 +336,9 @@ stages:
           # image). PNG renders on every ADO markdown surface. This is an
           # ADO-only workaround - GitHub renders Mermaid fences natively, so
           # its workflow ships the raw fences and skips this step. Gated on the
-          # prerenderChartsToPng parameter so it can be turned off per-run.
-          - ${{ if eq(parameters.prerenderChartsToPng, true) }}:
+          # prerenderChartsToPng parameter so it can be turned off per-run, and
+          # skipped when the renderer wrote no Markdown (see renderFormats).
+          - ${{ if and(eq(parameters.prerenderChartsToPng, true), or(eq(parameters.openPullRequest, true), eq(parameters.publishWordReport, true), ne(parameters.publishSharePointSite, true))) }}:
             - task: UseNode@1
               displayName: "Install Node 20 (for mmdc)"
               inputs:
@@ -373,10 +393,13 @@ stages:
                 New-Item -ItemType Directory -Path $dst -Force | Out-Null
                 Copy-Item -Path "$src/*" -Destination $dst -Recurse -Force
 
-                $rawCount = (Get-ChildItem -Path $dst -Recurse -Filter '*.json' | Measure-Object).Count
-                $mdCount  = (Get-ChildItem -Path $dst -Recurse -Filter '*.md'   | Measure-Object).Count
+                $json = @(Get-ChildItem -Path $dst -Recurse -Filter '*.json')
+                $rawCount     = @($json | Where-Object { $_.Directory.Name -eq '_raw' }).Count
+                $sectionCount = @($json | Where-Object { $_.Directory.Name -eq 'sections' -and $_.Name -ne 'index.json' }).Count
+                $mdCount      = (Get-ChildItem -Path $dst -Recurse -Filter '*.md' | Measure-Object).Count
                 Write-Host "##[section]Artefact staged"
                 Write-Host "  Raw JSON files : $rawCount"
+                Write-Host "  Section files  : $sectionCount"
                 Write-Host "  Markdown files : $mdCount"
                 Write-Host "  Path           : $dst"
 
@@ -629,12 +652,12 @@ stages:
   # this run's artefact. Included only when 'publishSharePointSite' is
   # ticked. Steps:
   #   1. Download this run's 'sentinel-docs' artefact.
-  #   2. Build the dashboard web part package (isoc-blueprint.sppkg).
-  #   3. Build the site bundle (Build-SentinelDocsSite.ps1): dashboard, one
-  #      page per section, findings. Nothing here renders Mermaid: the
-  #      dashboard draws its own charts, and the section pages carry a
-  #      diagram only when the Document stage already pre-rendered it
-  #      ('Charts' ticked). Otherwise the diagram is left out.
+  #   2. Build the web part package (isoc-blueprint.sppkg: the dashboard and
+  #      chart web parts).
+  #   3. Build the site bundle (Build-SentinelDocsSite.ps1) from the section
+  #      model: dashboard, one page per section, findings. Nothing is
+  #      rendered: the dashboard and the chart web part draw the charts
+  #      from their data.
   #   4. Sign in as the SharePoint publisher identity through workload
   #      identity federation and publish the bundle
   #      (Publish-SentinelDocsSite.ps1): pages, navigation, findings list,
@@ -676,8 +699,15 @@ stages:
                       Write-Error "No '$env:WORKSPACE_NAME/_raw' in the downloaded artefact ($env:DOCS_ROOT). Check sentinelWorkspaceName."
                       exit 1
                   }
-                  $md = (Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count
-                  Write-Host "##[section]Snapshot: $ws ($md Markdown files)"
+                  $sections = Join-Path $ws 'sections'
+                  if (Test-Path $sections) {
+                      $n = @(Get-ChildItem $sections -Filter '*.json' | Where-Object Name -ne 'index.json').Count
+                      Write-Host "##[section]Snapshot: $ws ($n section files)"
+                  }
+                  else {
+                      $md = (Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count
+                      Write-Host "##[section]Snapshot: $ws (no section model; the build converts the $md Markdown files)"
+                  }
 
             - task: UseNode@1
               displayName: "Install Node $(nodeVersion)"
@@ -693,7 +723,7 @@ stages:
                 path: $(npm_config_cache)
 
             - task: PowerShell@2
-              displayName: "Build the dashboard web part package"
+              displayName: "Build the web part package"
               inputs:
                 targetType: "inline"
                 pwsh: true
