@@ -104,15 +104,18 @@
     bullets untouched.
 
 .EXAMPLE
-    ./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 -Source '/private/tmp/SEC-UKS-PROD-SIEM-WS 2'
+    ./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 -Source ./SecurityDocs/law-sentinel-prod
 
-    Builds 'SEC-UKS-PROD-SIEM-WS 2.docx' beside the source folder.
+    Builds 'law-sentinel-prod.docx' beside the source folder.
 
 .EXAMPLE
     ./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 `
-        -Source     '/private/tmp/SEC-UKS-PROD-SIEM-WS 2' `
-        -OutputPath "$HOME/Desktop/SEC-UKS-PROD-SIEM-WS.docx" `
-        -Title      'SEC-UKS-PROD-SIEM-WS - Sentinel Documentation'
+        -Source     ./SecurityDocs/law-sentinel-prod `
+        -OutputPath ./law-sentinel-prod.docx `
+        -Title      'law-sentinel-prod - Sentinel Documentation'
+
+    Writes the report to a chosen path with the title the Blueprint
+    pipeline uses.
 
 .NOTES
     File:           Tools/Blueprint/Report/Convert-MarkdownToWord.ps1
@@ -120,8 +123,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-25
-    Version:        1.0.1
-    Last Updated:   2026-09-01
+    Version:        1.0.2
+    Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, pandoc on PATH
 #>
 

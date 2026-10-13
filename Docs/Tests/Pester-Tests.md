@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) — 32 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 6 under [`Tests/Blueprint/`](../../Tests/Blueprint) |
+| Test files | [`Tests/`](../../Tests) — 40 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 1 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -127,7 +127,7 @@ ruleset can require independently:
 
 The `validate` job points Pester at the whole `Tests/` tree (`Run.Path` is
 set to the folder, not an explicit file list), so every suite below runs in
-the gate, including the `Tests/Blueprint/` suites and the Copilot /
+the gate, including the `Tests/Blueprint/` and `Tests/iSOCBlueprint/` suites and the Copilot /
 workbook-export suites.
 
 | Suite | File | Coverage |
@@ -166,6 +166,7 @@ workbook-export suites.
 | Blueprint connector catalogue | [`Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1) | The shipped `connector-catalogue.json` (provenance, unique ids, the core Microsoft connectors) and its helpers: connector ids from classic and codeless connectors, 7-day activity with free tables, connected connectors against the catalogue, the connector and solution labels for a table |
 | Blueprint table families | [`Tests/Blueprint/Get-TableFamily.Tests.ps1`](../../Tests/Blueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
 | Blueprint lake tiers | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
+| iSOCBlueprint migration map | [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move of the Blueprint into the `iSOCBlueprint` module: every file under `Tools/Blueprint` has a row in [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md), every row names a real file and a known action, copies keep their place in the tree, and every edit in [`Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1) is listed on its file's row and still matches its source exactly once |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -384,7 +385,7 @@ using Pester `Mock` to stub Az PowerShell calls.
 
 ### The Blueprint suites source differently
 
-The six suites under [`Tests/Blueprint/`](../../Tests/Blueprint) do not
+The thirteen suites under [`Tests/Blueprint/`](../../Tests/Blueprint) do not
 go through the AST-extraction helper. They dot-source specific Blueprint
 files directly (including files under `Tools/Blueprint/Private/`) and drive
 them against a fixed JSON fixture corpus rather than mocking Azure:
