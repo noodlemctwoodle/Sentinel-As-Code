@@ -1425,7 +1425,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'keeps every Report page within the contents list: tabs when taller, then smaller tables, then a scroll' {
-        $html | Should -Match 'const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=56, lastDocTab=\{\};'
+        $html | Should -Match 'const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=76, lastDocTab=\{\};'
         $html | Should -Match 'function layoutDoc\(\)\{'
         # Fits: one page, tables grow into the space. Taller: tabs.
         $html | Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ fitTables\(body, limit, end\); contain\(body, limit, end\); return done\(\); \}'
@@ -1446,6 +1446,28 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.doccontent\{min-width:0;align-self:stretch;display:flex;flex-direction:column\}'
         $html | Should -Match '\.docpane,\.docsec,\.docintro\{display:flow-root\}'
         $html | Should -Not -Match 'fitDocTables'
+    }
+
+    It 'draws the inner tabs as underlined page tabs, not a switch track' {
+        $html | Should -Match '\.doctabs\{display:flex;flex-wrap:wrap;gap:2px 24px;margin:20px 0 16px;border-bottom:1px solid var\(--line\)\}'
+        $html | Should -Match '\.doctab\[aria-selected="true"\]::after\{background:var\(--btn-bg\)\}'
+        $html | Should -Not -Match '\.doctabs\{[^}]*background:var\(--chip\)'
+    }
+
+    It 'shows a line of figures in a Report page as aligned tiles' {
+        $html | Should -Match 'function kvTiles\(html\)\{'
+        $html | Should -Match "if\(b\.t==='p'\) return kvTiles\(b\.html\) \|\| '<p>'\+b\.html\+'</p>';"
+        # Minutes become days and hours; a text-only line stays text.
+        $html | Should -Match "return d\? d\+'d '\+h\+'h' : h\? h\+'h '\+mi\+'m' : mi\+' min';"
+        $html | Should -Match '\.length\*2 < tiles\.length\) return '''';'
+        # Adjacent lines share one grid; the tiles line up through subgrid.
+        $html.Contains('.replace(/<\/div><\/div><div class="kvtiles">/g,''</div>'')') | Should -BeTrue
+        $html | Should -Match '\.kvt\{display:grid;grid-row:span 3;grid-template-rows:subgrid;'
+    }
+
+    It 'keeps a page''s description under its title, above any tabs' {
+        $html | Should -Match 'if\(intro\.length && intro\[0\]\.t===''p'' && !kvTiles\(intro\[0\]\.html\)\)\{ desc=''<p class="docdesc">'''
+        $html | Should -Match '\.kvc\{[^}]*overflow-wrap:anywhere\}'
     }
 
     It 'shows the NIST CSF rollup above the roadmap' {

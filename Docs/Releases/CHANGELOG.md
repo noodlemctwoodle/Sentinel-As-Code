@@ -14,7 +14,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   Rules: Overview, All rules, Microsoft-managed rules, Recent
   modifications, By Content Hub solution), labelled with the rows each
   holds; a tab still too tall shrinks its tables and, as a last resort,
-  scrolls inside the panel.
+  scrolls inside the panel. The tabs are underlined page tabs rather than
+  a switch track. A line of figures on a report page (MTTA, MTTR, closed
+  and acknowledged incidents, the maturity summary) shows as aligned
+  tiles, with durations in days and hours. Every report page now opens
+  with a sentence saying what it covers (written in for the twenty-one
+  pages that did not), kept above the tabs, and the Dedicated Cluster
+  page reads an empty capture as no cluster rather than a broken table.
 - **Sortable report tables** - every table in the dashboard's Report tab
   sorts by a column when you select its title: ascending, descending, then
   back to the page's order, with an arrow showing which. Numbers sort by

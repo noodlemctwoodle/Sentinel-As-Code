@@ -470,16 +470,20 @@
   .docnote p{margin:5px 0}
   .docnote ul{margin:5px 0;padding-left:18px}
   .docnote li{margin:5px 0}
-  /* Inner tabs on a long Report page: the switches' track, the selected
-     tab on the button gradient, wrapping onto more lines when narrow. */
-  .doctabs{display:flex;flex-wrap:wrap;gap:3px;margin:20px 0 8px;padding:3px;background:var(--chip);border:1px solid var(--line);border-radius:10px}
-  .doctab{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:7px;background:none;color:var(--ink-2);
-    font:inherit;font-size:12.5px;font-weight:650;padding:6px 12px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
-  .doctab:hover{color:var(--ink);background:var(--panel)}
-  .doctab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .doctab[aria-selected="true"]{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
-  .doctab .dtn{font-size:11px;font-weight:750;padding:1px 7px;border-radius:999px;background:var(--panel);color:var(--muted);border:1px solid var(--line)}
-  .doctab[aria-selected="true"] .dtn{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+  /* Inner tabs on a tall Report page: page-section tabs, not a switch.
+     Plain labels on a hairline rule; the selected one in full ink with
+     the button gradient as an underline. They wrap when there are many. */
+  .doctabs{display:flex;flex-wrap:wrap;gap:2px 24px;margin:20px 0 16px;border-bottom:1px solid var(--line)}
+  .doctab{position:relative;display:inline-flex;align-items:center;gap:7px;border:0;background:none;margin-bottom:-1px;padding:9px 1px 11px;
+    color:var(--muted);font:inherit;font-size:13px;font-weight:650;cursor:pointer;transition:color .15s}
+  .doctab::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:3px 3px 0 0;background:transparent;transition:background .15s}
+  .doctab:hover{color:var(--ink)}
+  .doctab:hover::after{background:var(--line)}
+  .doctab:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:4px}
+  .doctab[aria-selected="true"]{color:var(--ink)}
+  .doctab[aria-selected="true"]::after{background:var(--btn-bg)}
+  .doctab .dtn{font-size:11px;font-weight:750;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--muted);border:1px solid var(--line)}
+  .doctab[aria-selected="true"] .dtn{background:color-mix(in srgb,var(--brand) 16%,var(--panel));color:var(--brand-ink);border-color:transparent}
   /* A tab, a section and the intro keep their blocks' margins inside, so
      their heights are what layoutDoc measures. A tab's own section heading
      is its label, so it hides inside the tab. */
@@ -517,6 +521,18 @@
 
   /* section summary stat chips */
   .docstats{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 18px}
+  /* A line of figures in a Report page reads as tiles (kvTiles). */
+  /* Each tile spans three rows the tiles beside it share (subgrid), so the
+     labels, figures and captions line up across a row however the labels
+     wrap. */
+  .docbody .docdesc{font-size:14px;line-height:1.6;color:var(--ink-2);margin:2px 0 14px;max-width:110ch}
+  .kvtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:10px;row-gap:0;margin:12px 0 8px}
+  .kvt{display:grid;grid-row:span 3;grid-template-rows:subgrid;align-content:start;margin-bottom:10px;
+    background:var(--panel-soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+  .kvk{align-self:end;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;line-height:1.3}
+  .kvv{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-top:6px;color:var(--ink);overflow-wrap:anywhere}
+  .kvc{font-size:11.5px;color:var(--muted);margin-top:3px;min-width:0;overflow-wrap:anywhere}
+  .kvt code,.kvc code{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
   .docstat{display:flex;align-items:center;gap:10px;background:var(--panel-soft);border:1px solid var(--line);
     border-radius:11px;padding:9px 14px 9px 11px}
   .docstat .si{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--chip);color:var(--muted)}
@@ -2773,7 +2789,7 @@
     // It runs when a page or tab opens, on resize and when the contents
     // search changes the list. In one column (a narrow screen) the page
     // reads top to bottom. Returning to a page reopens its last tab.
-    const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=56, lastDocTab={};
+    const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=76, lastDocTab={};
     let curDocNum=null;
     // A tab shows its heading without a closing qualifier in brackets
     // ("Playbook runs (last 7d)" reads "Playbook runs"); the full heading
@@ -2881,6 +2897,29 @@
       done();
     }
     window.layoutDoc=layoutDoc;
+    // A paragraph of figures ("**MTTA:** 2130.4 min  ·  **MTTR:** ...") reads
+    // as tiles: the label, the value (a duration in minutes made readable,
+    // the exact figure in the tooltip) and a closing bracketed qualifier as
+    // a caption. "**439** tables with data" puts the number as the value.
+    // Only when at least half the values are figures: a finding's severity
+    // and category line stays as text.
+    const KV_SEG=/^\s*<strong>([^<]{1,80}?)\s*:?\s*<\/strong>\s*:?\s*(.*?)\s*$/;
+    const fmtMinutes=n=>{ const m=Math.round(n), d=Math.floor(m/1440), h=Math.floor(m%1440/60), mi=m%60; return d? d+'d '+h+'h' : h? h+'h '+mi+'m' : mi+' min'; };
+    function kvTiles(html){
+      const parts=String(html).split(/\s+·\s+/); if(parts.length<2) return '';
+      const segs=parts.map(x=>KV_SEG.exec(x)); if(segs.some(x=>!x)) return '';
+      const plain=x=>x.replace(/<[^>]+>/g,'').trim();
+      const tiles=segs.map(x=>{
+        let k=x[1].trim(), v=x[2].trim(), cap='', tip='';
+        if(/^[\d.,]+%?$/.test(plain(k)) && v){ const n=k; k=v; v=n; }
+        const c=/^(.*?)\s*\(([^()]+)\)\s*$/.exec(v); if(c && c[1]){ v=c[1]; cap=c[2]; }
+        const mm=/^([\d.,]+)\s*min$/.exec(plain(v)); if(mm){ const n=parseFloat(mm[1].replace(/,/g,'')); if(n>=60){ tip=plain(v); v=fmtMinutes(n); } }
+        if(/^\d{5,}$/.test(plain(v))) v=Number(plain(v)).toLocaleString();
+        return {k,v,cap,tip};
+      });
+      if(tiles.filter(x=>/^[£$€]?\s*\d/.test(plain(x.v))).length*2 < tiles.length) return '';
+      return '<div class="kvtiles">'+tiles.map(x=>'<div class="kvt"'+(x.tip?' title="'+esc(x.tip)+'"':'')+'><div class="kvk">'+x.k+'</div><div class="kvv">'+x.v+'</div>'+(x.cap?'<div class="kvc">'+x.cap+'</div>':'')+'</div>').join('')+'</div>';
+    }
     let layoutDocTimer=null;
     window.addEventListener('resize',()=>{ clearTimeout(layoutDocTimer); layoutDocTimer=setTimeout(layoutDoc,150); });
     function render(num){
@@ -2890,13 +2929,15 @@
       const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
       const blockHtml=b=>{
         if(b.t==='h') return (b.lvl>=4?'<h4>':'<h3>')+b.html+(b.lvl>=4?'</h4>':'</h3>');
-        if(b.t==='p') return '<p>'+b.html+'</p>';
+        if(b.t==='p') return kvTiles(b.html) || '<p>'+b.html+'</p>';
         if(b.t==='note') return noteHtml(b);
         if(b.t==='ul') return '<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>';
         if(b.t==='chart') return chartHtml(b);
         if(b.t==='table') return (ownCharts?'':chartFromTable(b))+tableHtml(b, ti++);
         return '';
       };
+      // Lines of figures one after another share one grid of tiles.
+      const blocksHtml=list=>list.map(blockHtml).join('').replace(/<\/div><\/div><div class="kvtiles">/g,'</div>');
       // The intro, then one block per main section, which layoutDoc may
       // gather into tabs.
       const intro=[], groups=[];
@@ -2906,8 +2947,12 @@
       });
       const label=g=>g.head.html.replace(/<[^>]+>/g,'').trim();
       const rowsIn=g=>g.blocks.filter(b=>b.t==='table').reduce((a,b)=>a+(b.rows||[]).length,0);
-      const body=(intro.length? '<div class="docintro">'+intro.map(blockHtml).join('')+'</div>' : '')+
-        groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+g.blocks.map(blockHtml).join('')+'</section>').join('');
+      // The page's description, its opening paragraph, always sits under the
+      // title, above any tabs.
+      let desc='';
+      if(intro.length && intro[0].t==='p' && !kvTiles(intro[0].html)){ desc='<p class="docdesc">'+intro[0].html+'</p>'; intro.shift(); }
+      const body=desc+(intro.length? '<div class="docintro">'+blocksHtml(intro)+'</div>' : '')+
+        groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+blocksHtml(g.blocks)+'</section>').join('');
       // summary stat chips
       const stats=statsForSection(s);
       let chips='';

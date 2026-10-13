@@ -1845,3 +1845,26 @@ Describe 'Gap evidence lists keep a name that starts with a Markdown marker as t
         $md | Should -Not -Match '(?m)^  - \* '
     }
 }
+
+Describe 'Every report page opens with what it covers' {
+    It 'puts a description under the title and workspace line of each page that had none' {
+        foreach ($f in '00-overview.md', '10-data-connectors.md', '15-incidents.md', '20-analytics-rules.md', '84-cost-estimate.md', '91-maturity-assessment.md') {
+            $md = Get-Content (Join-Path $script:tempWsRoot $f) -Raw
+            # Title, workspace line, then the description as the first paragraph.
+            $md | Should -Match '(?s)^# [^\n]+\n\n> \*\*Workspace\*\*[^\n]*\n\n[A-Z][^\n]{60,}\n' -Because $f
+        }
+    }
+
+    It 'reads an empty dedicated cluster capture as no cluster, not a table of blanks' {
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-cl-$(New-Guid)"
+        try {
+            New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
+            Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw')
+            '{}' | Set-Content (Join-Path $root '_raw/dedicated-cluster.json')
+            & $script:renderer -WorkspaceName 'law-cl' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            $md = Get-Content (Join-Path $root '82-dedicated-cluster.md') -Raw
+            $md | Should -Match 'No dedicated cluster linked to this workspace'
+            $md | Should -Not -Match '\| Property \| Value \|'
+        } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
+    }
+}

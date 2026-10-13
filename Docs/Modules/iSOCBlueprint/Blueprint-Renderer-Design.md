@@ -57,7 +57,9 @@ The renderer is a single PowerShell script organised as:
    built later inside the section-25 block.
 4. **Section emit blocks**: one block per `.md` file. Each block builds
    its data, optionally builds a Mermaid chart, then calls
-   `Write-Section <filename> <body>` which writes to disk + applies the
+   `Write-Section <filename> <body>` which puts the page's description
+   from `$script:SectionDescriptions` (for the pages whose opening does not
+   already say what they cover) under the title and workspace line, writes to disk + applies the
    finding-id auto-link pass.
 5. **Index page**: the final `Write-Section 'index.md'` call emits the
    navigation TOC.

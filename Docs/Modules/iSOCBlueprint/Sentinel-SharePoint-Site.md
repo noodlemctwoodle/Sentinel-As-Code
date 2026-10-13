@@ -252,7 +252,17 @@ to the tooltip and the top of the tab) and the rows it holds; the arrow
 keys move between tabs, and returning to a page reopens its last tab.
 The layout is worked out when a page or tab opens, on resize and when
 the contents search changes the list; on a narrow screen, where the list
-sits above the page, the page reads top to bottom. The Markdown pages refer to one another by
+sits above the page, the page reads top to bottom. Every page opens with
+a sentence or two saying what it covers, which stays under the title
+above any tabs; the renderer writes it for the pages whose opening did
+not already say. The tabs are
+underlined page tabs on a hairline rule, the selected one in full ink with
+the button gradient beneath it. A line of figures in a page ("MTTA: ... ·
+MTTR: ... · Closed: ...") shows as a row of tiles, label above figure,
+lined up across the row however the labels wrap; a duration in minutes
+reads in days and hours with the exact minutes in its tooltip, and a
+bracketed qualifier ("last 30d") becomes a caption. A line that is mostly
+text, such as a finding's severity and category, stays as text. The Markdown pages refer to one another by
 file name (`90-gap-analysis.md`); the Report tab and the native pages show
 the section's title instead ("Gap Analysis"), and a file name mentioned in
 plain text becomes a link to that section.
