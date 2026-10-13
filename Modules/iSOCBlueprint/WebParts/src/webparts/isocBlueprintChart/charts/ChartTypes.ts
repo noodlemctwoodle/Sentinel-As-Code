@@ -224,3 +224,66 @@ export interface ITopologyItem {
   inUse?: boolean;
   detail?: string;
 }
+
+// The monthly cost: the total, billable GB and cost by plan, and every
+// source family's GB with every one of its tables.
+export interface ICostBreakdownData {
+  currency?: string;
+  monthlyTotal?: number;
+  totalGb?: number;
+  plans?: ICostPlan[];
+  sources?: ICostSource[];
+}
+
+export interface ICostPlan {
+  name: string;
+  gb: number;
+  cost?: number;
+}
+
+export interface ICostSource {
+  name: string;
+  gb: number;
+  tables?: ICostTable[];
+}
+
+export interface ICostTable {
+  table: string;
+  gb: number;
+  tier?: string;
+}
+
+// Role assignments at workspace scope, in bands, by principal type.
+export interface IAccessData {
+  bands: IAccessBand[];
+}
+
+export interface IAccessBand {
+  name: string;
+  tone?: string;
+  findings?: string[];
+  roles: IAccessRole[];
+}
+
+export interface IAccessRole {
+  role: string;
+  users?: number;
+  groups?: number;
+  servicePrincipals?: number;
+}
+
+// The data lake's tiers on this workspace, by table count, and the ways the
+// lake is worked with.
+export interface ILakeData {
+  analyticsOnly?: number;
+  mirrored?: number;
+  extended?: number;
+  lakeOnly?: number;
+  retentionYears?: number;
+  uses?: ILakeUse[];
+}
+
+export interface ILakeUse {
+  name: string;
+  detail?: string;
+}

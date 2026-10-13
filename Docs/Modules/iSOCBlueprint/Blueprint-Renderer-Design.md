@@ -131,15 +131,13 @@ table only.
 | `81-table-plans-retention.md` | pie | tables grouped by plan | none |
 | `83-data-collection.md` | flowchart (LR, 3 subgraphs), with a `%% visual topology` line (every source family, none rolled up) | `$connectors` → workspace → downstream | none |
 | `84-cost-estimate.md` | xychart-beta bar | `$cost.Top10TablesByCost` | inside the `if ($cost)` branch |
-| `84-cost-estimate.md` | mindmap | top 8 cost tables tree | inside the `if ($cost)` branch |
-| `84-cost-estimate.md` | sankey-beta | source → table → billing tier | inside the `if ($cost)` branch |
-| `84-cost-estimate.md` | flowchart (compact) | same data, fallback for dense workspaces | inside the `if ($cost)` branch |
-| `85-rbac.md` | flowchart (LR, 2 subgraphs) | `$rbacWs` aggregated by type × role | `$rbacWs.Count -gt 0` |
+| `84-cost-estimate.md` | sankey-beta, with a `%% visual cost-breakdown` line (the total, GB and cost by plan, every source family and table) | source → table → billing tier | inside the `if ($cost)` branch |
+| `85-rbac.md` | flowchart (LR, 2 subgraphs), with a `%% visual access` line (roles in bands by principal type) | `$rbacWs` aggregated by type × role | `$rbacWs.Count -gt 0` |
 | `86-subscription-context.md` | pie | resource-providers grouped by State | `$rpRows.Count -gt 0` |
 | `87-azure-monitor-agents.md` | xychart-beta bar (conditional) | AMA vs MMA per machine type | `$totalAgents -ge 3` (else sentence) |
 | `88-sentinel-data-lake.md` | pie | `$tierPieRows` (tables by tier configuration) | `$tierPieRows.Count -ge 2` |
 | `89-retention.md` | xychart-beta bar (width 1400, height 480) | `$topRetention` Lake-only retention days | inside the same `$tierPieRows.Count -ge 2` branch |
-| `88-sentinel-data-lake.md` | flowchart (LR, three tiers) | static Lake ingest / mirror / promote / query paths | `$hasDataLake` |
+| `88-sentinel-data-lake.md` | flowchart (LR, three tiers), with a `%% visual lake` line (tables per tier and the ways the lake is used) | Lake ingest / mirror / promote / query paths, and `$tierStats` | `$hasDataLake` |
 | `90-gap-analysis.md` | xychart-beta grouped bar | `$gapByCategory` × Warning/Info | `$gapFindings.Count -gt 0` |
 | `91-maturity-assessment.md` | xychart-beta bar | `$maturity.areas[].score` on a fixed 0 to 5 axis | `$maturityOk` (else a "not produced" sentence) |
 

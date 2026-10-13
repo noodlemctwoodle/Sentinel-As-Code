@@ -3235,12 +3235,22 @@ $sourceCount     = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[
 $tallestColumn   = [Math]::Max($middleNodeCount, $sourceCount)
 $sankeyHeight    = [Math]::Max(720, 24 * $tallestColumn + 200)
 
-# Disclosure line used in the section narrative — accurate whether the
-# long-tail collapse fired or not.
-$sankeyTailNote = if ($flowFiltered.Count -gt $middleNodeCount) {
-    $tailTables = $flowFiltered.Count - ($keepIndividual.Keys.Count)
-    " The bottom 10% of billable GB has been collapsed into per-source ``tail (N)`` buckets to keep the middle column readable ($tailTables small table(s) bucketed)."
-} else { '' }
+# The cost as data for the SharePoint graphic: the total, GB and cost by
+# plan, and every source family with every one of its tables (no tail
+# buckets: the graphic lists them all behind each family).
+$costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
+    currency     = [string]$cost.Currency
+    monthlyTotal = $cost.MonthlyTotal
+    totalGb      = [math]::Round([double]$totalGb, 2)
+    plans        = @($planRows | Sort-Object { -[double]$_.Gb30d } | ForEach-Object { [ordered]@{ name = [string]$_.Plan; gb = [double]$_.Gb30d; cost = $_.MonthlyCost } })
+    sources      = @($flowFiltered | Group-Object Source | ForEach-Object {
+        [ordered]@{
+            name   = [string]$_.Name
+            gb     = [math]::Round([double](($_.Group | Measure-Object -Property Gb -Sum).Sum), 2)
+            tables = @($_.Group | Sort-Object -Property Gb -Descending | ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = $(if ($_.Tier -like 'Sentinel*') { 'Sentinel rate' } else { 'Log Analytics rate' }) } })
+        }
+    } | Sort-Object { -$_.gb })
+})
 
 @"
 $(Format-Banner -Title "Estimated Monthly Cost")
@@ -3270,37 +3280,11 @@ xychart-beta
     bar [$(($cost.Top10TablesByCost | ForEach-Object { $_.Gb30d }) -join ', ')]
 ``````
 
-Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables under short labels; the table below lists every table with its full name.
+Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables; the table below lists every table with its full name.
 
 $(Format-Table -Items $allTables -Columns 'Table','Plan','Gb30d','MonthlyCost')
 
-## Cost concentration — mindmap
-
-``````mermaid
-mindmap
-    root((30-day billable<br/>$([math]::Round([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Sum).Sum, 2)) GB))
-$(($cost.Top10TablesByCost | Select-Object -First 8 | ForEach-Object {
-    # Two-line label — Mermaid mindmap nodes have a tight horizontal
-    # fit-to-text bound that clips long single-line labels. Stacking
-    # the table name above the GB value keeps both fully visible.
-    # Round-to-significance: ≥100 GB no decimals, ≥10 GB one decimal,
-    # below that two — strips the noisy ".42" tails that contributed
-    # to the overflow without losing information for small tables.
-    $gb = [double]$_.Gb30d
-    $gbLabel = if ($gb -ge 100) {
-        [math]::Round($gb, 0).ToString()
-    } elseif ($gb -ge 10) {
-        [math]::Round($gb, 1).ToString()
-    } else {
-        [math]::Round($gb, 2).ToString()
-    }
-    "        $($_.Table)<br/>$gbLabel GB"
-}) -join [Environment]::NewLine)
-``````
-
-Tree view of where the chargeable footprint lands. Pair with the top-tables bar above — same data, different shape, easier scan for "is one source dominating?".
-
-## Cost flow — source → table → billing tier
+## Cost by source and plan
 
 ``````mermaid
 ---
@@ -3315,51 +3299,12 @@ config:
     linkColor: gradient
 ---
 sankey-beta
+$costVisualLine
 
 $sankeyFlowText
 ``````
 
-Three columns: source on the left, workspace table in the middle, billing tier on the right. Sentinel-rate billing covers tables on the Analytics plan; LA-rate billing covers Basic / Auxiliary. Findings [SAC-LOG-15] / [SAC-LOG-16] / [SAC-LOG-18] flag tables that could re-route from Sentinel-rate to LA-rate via DCR-based splits.$sankeyTailNote
-
-## Cost flow — table → billing tier (compact view)
-
-Top-10 cost-bearing tables routed to their billing tier. Sentinel-rate covers tables on the Analytics plan; LA-rate covers Basic / Auxiliary. Billing-tier nodes only render when at least one table routes to them — a workspace with no LA-rate tables won't display an LA-rate node.
-
-$(
-$compactSource = if ($cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
-    @($cost.AllTablesByCost) | Select-Object -First 10
-} else {
-    @($cost.Top10TablesByCost)
-}
-$compactEdges = @()
-$compactNeedsSent = $false
-$compactNeedsLa   = $false
-foreach ($t in $compactSource) {
-    $tbl = $t.Table
-    $tblId = ($tbl -replace '[^a-zA-Z0-9]', '')
-    $gb = $t.Gb30d
-    $plan = $t.Plan
-    $billing = if ($plan -eq 'Analytics') { 'SENT' } else { 'LA' }
-    if ($billing -eq 'SENT') { $compactNeedsSent = $true } else { $compactNeedsLa = $true }
-    $compactEdges += "    $tblId[`"$tbl<br/>$gb GB`"] --> $billing"
-}
-$compactNodes = @()
-if ($compactNeedsSent) { $compactNodes += '    SENT[Sentinel-rate billing]' }
-if ($compactNeedsLa)   { $compactNodes += '    LA[LA-rate billing]' }
-$compactClasses = @()
-if ($compactNeedsSent) { $compactClasses += '    class SENT sentinel' }
-if ($compactNeedsLa)   { $compactClasses += '    class LA la' }
-@"
-``````mermaid
-flowchart LR
-$($compactEdges -join [Environment]::NewLine)
-$($compactNodes -join [Environment]::NewLine)
-    classDef sentinel fill:#5b1a1a,stroke:#a33,color:#fdd
-    classDef la fill:#1a3b1a,stroke:#3a3,color:#dfd
-$($compactClasses -join [Environment]::NewLine)
-``````
-"@
-)
+Where the billable data comes from, by source family and table, and the rate each table bills at: the Sentinel rate for tables on the Analytics plan, the Log Analytics rate for Basic and Auxiliary. Findings [SAC-LOG-15], [SAC-LOG-16] and [SAC-LOG-18] flag tables that could move from the Sentinel rate to the Log Analytics rate through DCR-based splits.
 
 ## Commitment-tier what-if
 
@@ -3494,6 +3439,28 @@ foreach ($role in $rolesSeen) {
     }
 }
 
+# The assignments as data for the SharePoint graphic: every role in a band
+# (broad roles, Microsoft Sentinel roles, Log Analytics and monitoring, the
+# rest), with its users, groups and service principals.
+$accessBand = { param([string]$Role)
+    if ($Role -in 'Owner', 'Contributor', 'User Access Administrator') { 'broad' }
+    elseif ($Role -like 'Microsoft Sentinel*') { 'sentinel' }
+    elseif ($Role -like 'Log Analytics*' -or $Role -like 'Monitoring*') { 'monitor' }
+    else { 'other' }
+}
+$accessRoles = { param([string]$Band)
+    @($rolesSeen | Where-Object { (& $accessBand $_) -eq $Band } | ForEach-Object {
+        $c = $principalsByRole[$_]
+        [ordered]@{ role = [string]$_; users = [int]$c['User']; groups = [int]$c['Group']; servicePrincipals = [int]$c['ServicePrincipal'] }
+    } | Sort-Object { -($_.users + $_.groups + $_.servicePrincipals) }, { $_.role })
+}
+$accessVisualLine = Format-VisualLine -Kind 'access' -Data ([ordered]@{ bands = @(
+    [ordered]@{ name = 'Broad roles'; tone = 'bad'; findings = @(@('SAC-GOV-05', 'SAC-GOV-06') | Where-Object { $script:FiredFindingIds.ContainsKey($_) }); roles = @(& $accessRoles 'broad') }
+    [ordered]@{ name = 'Microsoft Sentinel roles'; tone = 'ok'; findings = @(); roles = @(& $accessRoles 'sentinel') }
+    [ordered]@{ name = 'Log Analytics and monitoring'; tone = 'info'; findings = @(); roles = @(& $accessRoles 'monitor') }
+    [ordered]@{ name = 'Other roles'; tone = 'neutral'; findings = @(); roles = @(& $accessRoles 'other') }
+) })
+
 # Headline figures for the access review: how many assignments and to whom,
 # then the ones that carry risk. A principal is counted once however many
 # roles it holds; one with neither a display name nor a sign-in name is
@@ -3511,7 +3478,7 @@ $rbacUnnamed = @($rbacPrincipals | Where-Object { -not (_RProp $_.Group[0] 'Disp
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "RBAC")
 
-$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Dotted amber edges below mark broad-role paths (Owner and Contributor); see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
+$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Broad roles (Owner and Contributor) are marked out below; see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
 
 **$($rbacValid.Count)** assignments at workspace scope  ·  **$(@($rbacRg | Where-Object { $_ }).Count)** at resource-group scope  ·  **$($rbacPrincipals.Count)** distinct principals  ·  **$(& $rbacOfType 'User')** users  ·  **$(& $rbacOfType 'Group')** groups  ·  **$(& $rbacOfType 'ServicePrincipal')** service principals
 
@@ -3521,6 +3488,7 @@ $($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distin
 
 ``````mermaid
 flowchart LR
+$accessVisualLine
     subgraph PRIN["Principals"]
         direction TB
 $($principalNodes -join [Environment]::NewLine)
@@ -6185,6 +6153,21 @@ $(Format-Table -Items $lakeValidationRows -Columns 'Table','Plan','LakeOnlyDays'
 # and the ingestion / mirror / promote / query paths. Always rendered
 # when Lake is enrolled because it's instructional rather than
 # data-driven.
+# The lake's tiers as data for the SharePoint graphic, by table count.
+$lakeVisualLine = Format-VisualLine -Kind 'lake' -Data ([ordered]@{
+    analyticsOnly  = [int]$tierStats.AnalyticsOnly
+    mirrored       = [int]$tierStats.MirroredOnly
+    extended       = [int]$tierStats.MirroredExtended
+    lakeOnly       = [int]$tierStats.LakeOnly
+    retentionYears = 12
+    uses           = @(
+        [ordered]@{ name = 'KQL jobs'; detail = 'Promote summarised data back to the Analytics tier for detection' }
+        [ordered]@{ name = 'KQL exploration'; detail = 'Query the lake in the Defender portal' }
+        [ordered]@{ name = 'Notebooks'; detail = 'Jupyter notebooks in VS Code' }
+        [ordered]@{ name = 'Sentinel graph'; detail = 'Blast radius and hunting' }
+        [ordered]@{ name = 'MCP tools'; detail = 'Entity analysis and triage' }
+    )
+})
 $lakeArchitectureBlock = if ($hasDataLake) { @"
 
 ## Lake architecture
@@ -6193,6 +6176,7 @@ How data flows once the tenant is onboarded to the Lake. Source → Analytics ti
 
 ``````mermaid
 flowchart LR
+$lakeVisualLine
     SRC[Data sources] --> ANA[(Analytics tier<br/>real-time KQL, rules)]
     SRC --> LO[(Lake-only tables<br/>verbose / low-query)]
     ANA -. auto-mirror .-> LAKE

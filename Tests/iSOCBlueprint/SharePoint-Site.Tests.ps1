@@ -1561,7 +1561,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $charts[1].title | Should -BeNullOrEmpty
         $charts[2].title | Should -Be 'Closed incidents by classification (30d)'
         $html | Should -Match 'function renderIncidentLifecycle\(data, theme\)'
-        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology') {
+        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology', 'renderCostBreakdown', 'renderAccess', 'renderLake') {
             $html | Should -Match ('function ' + $fn + '\(data, theme\)')
         }
     }

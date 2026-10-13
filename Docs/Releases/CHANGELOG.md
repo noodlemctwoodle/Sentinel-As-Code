@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **One cost view, an access matrix and a data lake graphic** - the
+  Estimated Monthly Cost page drew the same data four ways (a bar chart,
+  a mind map, a flow diagram and a compact flow); the mind map and the
+  compact flow are gone, and on SharePoint the flow diagram becomes one
+  cost breakdown: the monthly estimate, GB and cost by plan, and every
+  source family's GB opening to every one of its tables. RBAC's
+  who-grants-what diagram becomes role assignments in bands (broad roles
+  tagged with the SAC-GOV findings, Microsoft Sentinel roles, Log
+  Analytics and monitoring, the rest) split by users, groups and service
+  principals. The data lake's architecture diagram shows this
+  workspace's tables per tier and the ways the lake is used. Chart web
+  part 1.7.0.
 - **Purpose-built graphics for the rule kinds, the response chain, the
   topology, detection headroom and Content Hub** - the SharePoint site and
   the dashboard no longer draw these from their Mermaid. The rule taxonomy

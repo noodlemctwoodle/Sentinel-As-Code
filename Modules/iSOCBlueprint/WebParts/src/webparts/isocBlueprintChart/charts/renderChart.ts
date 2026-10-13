@@ -1,5 +1,5 @@
 import {
-  type IChart, type IClassData, type IFlowData, type IGanttData, type IIncidentLifecycleData, type IJourneyData,
+  type IAccessData, type IChart, type IClassData, type ICostBreakdownData, type IFlowData, type ILakeData, type IGanttData, type IIncidentLifecycleData, type IJourneyData,
   type IMetersData, type IMindmapNode, type IPieData, type IResponseChainData, type IRuleKindsData, type ISankeyData,
   type ISequenceData, type IStateData, type ITimelineData, type ITopologyData, type IXyData
 } from './ChartTypes';
@@ -20,6 +20,9 @@ import { renderMeters } from './MetersChart';
 import { renderRuleKinds } from './RuleKindsChart';
 import { renderResponseChain } from './ResponseChainChart';
 import { renderTopology } from './TopologyChart';
+import { renderCostBreakdown } from './CostBreakdownChart';
+import { renderAccess } from './AccessChart';
+import { renderLake } from './LakeChart';
 
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
@@ -63,6 +66,9 @@ function draw(chart: IChart, theme: IChartTheme, label: string): string {
     case 'rule-kinds': return renderRuleKinds(data as IRuleKindsData, theme);
     case 'response-chain': return renderResponseChain(data as IResponseChainData, theme);
     case 'topology': return renderTopology(data as ITopologyData, theme);
+    case 'cost-breakdown': return renderCostBreakdown(data as ICostBreakdownData, theme);
+    case 'access': return renderAccess(data as IAccessData, theme);
+    case 'lake': return renderLake(data as ILakeData, theme);
     default: return '';
   }
 }
@@ -72,7 +78,8 @@ function describe(kind: string): string {
     pie: 'Pie chart', xy: 'Bar chart', sankey: 'Flow diagram', timeline: 'Timeline', gantt: 'Schedule',
     mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
     sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
-    meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology'
+    meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology',
+    'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers'
   };
   return names[kind] || 'Chart';
 }

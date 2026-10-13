@@ -734,8 +734,8 @@ Describe 'iSOC Blueprint renderer' {
         It 'keeps the dominant tables individually visible in the Sankey block' {
             # Strip the markdown to just the Sankey block before asserting —
             # the section narrative and methodology reference table names too.
-            $sankeyStart = $script:busyCostMd.IndexOf('source → table → billing tier')
-            $sankeyEnd   = $script:busyCostMd.IndexOf('Three columns', $sankeyStart)
+            $sankeyStart = $script:busyCostMd.IndexOf('## Cost by source and plan')
+            $sankeyEnd   = $script:busyCostMd.IndexOf('Where the billable data comes from', $sankeyStart)
             $sankey      = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
             $sankey | Should -Match 'CommonSecurityLog'
             $sankey | Should -Match 'Syslog'
@@ -752,9 +752,13 @@ Describe 'iSOC Blueprint renderer' {
             $script:busyCostMd | Should -Match 'Office 365,OfficeActivity,110'
         }
 
-        It 'annotates the section narrative with the tail-collapse disclosure' {
-            $script:busyCostMd | Should -Match 'collapsed into per-source'
-            $script:busyCostMd | Should -Match '\d+ small table\(s\) bucketed'
+        It 'lists every table in the cost graphic, while the Mermaid keeps its tail buckets' {
+            $line = [regex]::Match($script:busyCostMd, '(?m)^    %% visual cost-breakdown (\{.*\})\r?$').Groups[1].Value
+            $data = $line | ConvertFrom-Json
+            $tables = @($data.sources.tables)
+            @($tables | Where-Object { $_.table -match ' tail \(' }).Count | Should -Be 0
+            $tables.Count | Should -BeGreaterThan 25
+            $script:busyCostMd | Should -Match 'Other tail \(\d+\)'
         }
 
         It 'sets the Sankey chart height with a sensible floor for busy workspaces' {

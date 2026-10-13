@@ -84,7 +84,8 @@ Mermaid can too). `data` is null only for kind `other`. Line breaks in labels
 are `\n`.
 
 A chart with a purpose-built graphic (the incident lifecycle, rule kinds,
-the response chain, the topology, and the meters on the detection
+the response chain, the topology, the cost breakdown, the role
+assignments, the data lake tiers, and the meters on the detection
 opportunities and Content Hub pages) carries
 its data on a `%% visual <kind> {json}` line inside its Mermaid. Mermaid
 ignores the line, so the Markdown export draws the diagram as before; the
@@ -110,6 +111,9 @@ ignored and the Mermaid is read as usual.
 | `rule-kinds` | `total` (all rules), `common[]` (the fields every rule carries), `kinds: [{ kind, label, summary, fields[], deployed, enabled, legacy }]` |
 | `response-chain` | `phases: [{ name, figure, steps: [{ n, action, actor, target, state, finding }] }]`; `state` is missing or risk when `finding` fired in this run, otherwise empty |
 | `topology` | `sources: [{ name, count }]` (every source family), `sourceTotal`, `rules` (enabled), `plans` and `downstream` as `[{ name, inUse, detail }]` |
+| `cost-breakdown` | `currency`, `monthlyTotal`, `totalGb`, `plans: [{ name, gb, cost }]`, `sources: [{ name, gb, tables: [{ table, gb, tier }] }]` (every table, none bucketed) |
+| `access` | `bands: [{ name, tone, findings[], roles: [{ role, users, groups, servicePrincipals }] }]`; `findings` lists the fired SAC-GOV-05 and SAC-GOV-06 on the broad-roles band |
+| `lake` | `analyticsOnly`, `mirrored`, `extended`, `lakeOnly` (operational tables by tier configuration), `retentionYears`, `uses: [{ name, detail }]` |
 | `other` | null |
 
 ## The index

@@ -416,6 +416,19 @@ Describe 'Renderer section model output' {
         $tp.kind | Should -Be 'topology'
         @($tp.data.plans.name) | Should -Be @('Analytics', 'Basic', 'Auxiliary', 'Data Lake', 'Long-term archive')
         @($tp.data.sources).Count | Should -BeGreaterThan 0
+        $cb = @(& $charts '84-cost-estimate' | Where-Object { $_.kind -ne 'xy' })
+        $cb.Count | Should -Be 1 -Because 'the mind map and the compact flow repeated the cost breakdown'
+        $cb[0].kind | Should -Be 'cost-breakdown'
+        $tables = @($cb[0].data.sources.tables)
+        $tables.Count | Should -BeGreaterThan 0
+        # Every table is listed under its source, none bucketed into a tail.
+        @($tables | Where-Object { $_.table -match ' tail \(' }).Count | Should -Be 0
+        $ac = @(& $charts '85-rbac')[0]
+        $ac.kind | Should -Be 'access'
+        @($ac.data.bands.name) | Should -Be @('Broad roles', 'Microsoft Sentinel roles', 'Log Analytics and monitoring', 'Other roles')
+        $lk = @(& $charts '88-sentinel-data-lake' | Where-Object { $_.kind -eq 'lake' })
+        $lk.Count | Should -Be 1
+        @($lk[0].data.uses.name) | Should -Contain 'KQL jobs'
         # The Markdown keeps its Mermaid; the graphic's data rides on a comment line.
         (Get-Content (Join-Path $dirs.Both '83-data-collection.md') -Raw) | Should -Match '(?m)^flowchart LR\r?\n    %% visual topology \{'
     }

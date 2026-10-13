@@ -1,10 +1,65 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: 4bd7f73ae32bd20325cfe986e016fd71e1e3c7c24be89b81bbe4ca87eb6d6ba6 */
+   sources-sha256: 2a4d2ead0be2124a0c0689628cc9ed5d16db9a484cdffcce7e952aad96428d02 */
 (function(){
 'use strict';
  var defs={};
+ defs['AccessChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderAccess = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// Who holds which role at workspace scope: the roles in bands (broad
+// roles first, then the Microsoft Sentinel roles, then Log Analytics and
+// monitoring, then the rest), each role with how many users, groups and
+// service principals hold it. A band a fired finding speaks to carries it.
+const TONE = { bad: Visual_1.BAD, ok: Visual_1.OK, info: Visual_1.INFO, neutral: Visual_1.NEUTRAL };
+const USER = '#2563eb';
+const GROUP = '#7c3aed';
+const SP = '#0d9488';
+function renderAccess(data, theme) {
+    const bands = (0, ChartKit_1.list)(data && data.bands).filter((b) => (0, ChartKit_1.list)(b.roles).length > 0);
+    if (!bands.length) {
+        return '';
+    }
+    const max = Math.max(1, ...bands.map((b) => Math.max(...(0, ChartKit_1.list)(b.roles).map(total))));
+    const key = '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' +
+        [['Users', USER], ['Groups', GROUP], ['Service principals', SP]].map((k) => '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + k[1] + '"></span>' + k[0] + '</span>').join('') + '</div>';
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + key +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px">' +
+        bands.map((b) => band(b, max, theme)).join('') + '</div></div>';
+}
+exports.renderAccess = renderAccess;
+function total(r) {
+    return (0, ChartKit_1.num)(r.users) + (0, ChartKit_1.num)(r.groups) + (0, ChartKit_1.num)(r.servicePrincipals);
+}
+function band(b, max, theme) {
+    const colour = TONE[(0, ChartKit_1.str)(b.tone)] || Visual_1.NEUTRAL;
+    const roles = (0, ChartKit_1.list)(b.roles);
+    const sum = roles.reduce((a, r) => a + total(r), 0);
+    const findings = (0, ChartKit_1.list)(b.findings).map((f) => (0, Visual_1.pill)((0, ChartKit_1.str)(f), Visual_1.BAD)).join(' ');
+    const head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + (0, Visual_1.eyebrow)((0, ChartKit_1.str)(b.name), theme, colour) + findings + '</div>' +
+        '<span style="font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, Visual_1.count)(sum) + ' assignment' + (sum === 1 ? '' : 's') + '</span></div>';
+    const rows = roles.map((r) => {
+        const parts = [
+            { label: 'Users', value: (0, ChartKit_1.num)(r.users), colour: USER },
+            { label: 'Groups', value: (0, ChartKit_1.num)(r.groups), colour: GROUP },
+            { label: 'Service principals', value: (0, ChartKit_1.num)(r.servicePrincipals), colour: SP }
+        ];
+        const t = total(r);
+        const detail = parts.filter((p) => p.value > 0).map((p) => (0, Visual_1.count)(p.value) + ' ' + p.label.toLowerCase()).join(', ');
+        return '<div style="display:grid;grid-template-columns:minmax(150px,1.8fr) minmax(80px,1.3fr) 34px;gap:10px;align-items:center;padding:5px 0" title="' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(r.role) + ': ' + detail) + '">' +
+            '<span style="font-size:12.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (0, ChartKit_1.esc)(r.role) + '</span>' +
+            '<div style="width:' + (t / max * 100).toFixed(1) + '%;min-width:6px">' + (0, Visual_1.meter)(parts, theme, 8) + '</div>' +
+            '<span style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums">' + (0, Visual_1.count)(t) + '</span></div>';
+    });
+    return (0, Visual_1.card)(head + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'roles', theme) + '</div>', theme, (0, ChartKit_1.str)(b.tone) === 'bad' || (0, ChartKit_1.str)(b.tone) === 'ok' ? colour : undefined);
+}
+
+};
  defs['ChartKit']=function(module,exports,require){
 "use strict";
 // Shared drawing helpers for the chart web part: escaping, reading loosely
@@ -347,6 +402,72 @@ function classBox(b, name, members, theme) {
             (0, ChartKit_1.svgText)(b.x + 13, b.y + 32 + (b.h - 32) / 2, members, { size: 12, fill: theme.text, lineHeight: 16 }) + '</g>';
     }
     return out;
+}
+
+};
+ defs['CostBreakdownChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderCostBreakdown = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// Where the monthly estimate comes from: the total, then the billable GB by
+// plan with each plan's cost, then every source family's GB, each opening
+// to every one of its tables with its billing rate. One view of the cost,
+// in place of the separate mind map, flow diagram and compact flow.
+const PLAN = { Analytics: '#dc2626', Basic: '#0d9488', Auxiliary: '#0891b2', DataLake: '#7c3aed' };
+const PLAN_NAME = { DataLake: 'Data lake' };
+function renderCostBreakdown(data, theme) {
+    const sources = (0, ChartKit_1.list)(data && data.sources).filter((s) => (0, ChartKit_1.num)(s.gb) > 0);
+    const plans = (0, ChartKit_1.list)(data && data.plans);
+    if (!sources.length && !plans.length) {
+        return '';
+    }
+    const currency = (0, ChartKit_1.str)(data.currency);
+    const totalGb = (0, ChartKit_1.num)(data.totalGb) || sources.reduce((a, s) => a + (0, ChartKit_1.num)(s.gb), 0);
+    const money = (v) => (0, ChartKit_1.isNil)(v) || (0, ChartKit_1.str)(v) === '' ? '' : (currency ? currency + ' ' : '') + (0, ChartKit_1.fmt)((0, ChartKit_1.num)(v));
+    const head = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">' +
+        (0, Visual_1.card)((0, Visual_1.eyebrow)('Estimated monthly cost', theme) + (0, Visual_1.figure)(money(data.monthlyTotal) || 'n/a', theme, 28) +
+            (0, Visual_1.sub)('From the last 30 days of billable data: ' + gb(totalGb) + '.', theme), theme, Visual_1.INFO) +
+        plansCard(plans, money, theme) + '</div>';
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + head +
+        (sources.length ? sourcesCard(sources, totalGb, theme) : '') + '</div>';
+}
+exports.renderCostBreakdown = renderCostBreakdown;
+function plansCard(plans, money, theme) {
+    const parts = plans.map((p, i) => ({ label: PLAN_NAME[(0, ChartKit_1.str)(p.name)] || (0, ChartKit_1.str)(p.name), value: (0, ChartKit_1.num)(p.gb), colour: PLAN[(0, ChartKit_1.str)(p.name)] || ChartKit_1.SERIES[i % ChartKit_1.SERIES.length] }));
+    const total = parts.reduce((a, p) => a + p.value, 0);
+    const rows = parts.map((p, i) => '<div style="display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:10px;align-items:center;font-size:12px;padding:2px 0">' +
+        '<span style="width:10px;height:10px;border-radius:3px;background:' + (0, ChartKit_1.esc)(p.colour) + '"></span>' +
+        '<span>' + (0, ChartKit_1.esc)(p.label) + ' <span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, Visual_1.pct)(p.value, total) + '</span></span>' +
+        '<span style="font-variant-numeric:tabular-nums;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + gb(p.value) + '</span>' +
+        '<span style="font-weight:750;font-variant-numeric:tabular-nums;text-align:right;min-width:84px">' + (0, ChartKit_1.esc)(money(plans[i].cost)) + '</span></div>').join('');
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('By plan', theme) + (0, Visual_1.sub)('Billable GB in 30 days, and each plan\'s monthly cost', theme) +
+        '<div style="margin:10px 0 9px">' + (0, Visual_1.meter)(parts, theme, 12) + '</div>' + rows, theme);
+}
+function sourcesCard(sources, totalGb, theme) {
+    const max = Math.max(...sources.map((s) => (0, ChartKit_1.num)(s.gb)));
+    const rows = sources.map((s, i) => {
+        const tables = (0, ChartKit_1.list)(s.tables);
+        const colour = ChartKit_1.SERIES[i % ChartKit_1.SERIES.length];
+        const summary = '<summary style="display:grid;grid-template-columns:minmax(140px,1.1fr) minmax(120px,2fr) 80px 44px 76px;gap:12px;align-items:center;cursor:pointer;padding:7px 4px;list-style:none">' +
+            '<span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (0, ChartKit_1.esc)(s.name) + '">' + (0, ChartKit_1.esc)(s.name) + '</span>' +
+            (0, Visual_1.share)((0, ChartKit_1.num)(s.gb), max, colour, theme) +
+            '<span style="text-align:right;font-weight:750;font-variant-numeric:tabular-nums">' + gb((0, ChartKit_1.num)(s.gb)) + '</span>' +
+            '<span style="text-align:right;color:' + (0, ChartKit_1.esc)(theme.muted) + ';font-variant-numeric:tabular-nums">' + (0, Visual_1.pct)((0, ChartKit_1.num)(s.gb), totalGb) + '</span>' +
+            '<span style="justify-self:end">' + (0, Visual_1.chip)(tables.length + ' table' + (tables.length === 1 ? '' : 's'), theme) + '</span></summary>';
+        const detail = '<div style="margin:2px 0 8px;padding:6px 10px;border-radius:9px;background:' + (0, ChartKit_1.tint)(colour, theme.dark ? 0.08 : 0.04) + '">' +
+            tables.map((t) => '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto 80px;gap:12px;align-items:center;font-size:12px;padding:3px 0">' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" title="' + (0, ChartKit_1.esc)(t.table) + '">' + (0, ChartKit_1.esc)(t.table) + '</span>' +
+                '<span style="font-size:11px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(t.tier) + '</span>' +
+                '<span style="text-align:right;font-variant-numeric:tabular-nums">' + gb((0, ChartKit_1.num)(t.gb)) + '</span></div>').join('') + '</div>';
+        return '<details style="border-top:1px solid ' + (0, ChartKit_1.esc)(theme.line) + '">' + summary + detail + '</details>';
+    }).join('');
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('By source', theme) + (0, Visual_1.sub)('Every source family\'s billable GB; select one for its tables and billing rate', theme) +
+        '<div style="margin-top:8px">' + rows + '</div>', theme);
+}
+function gb(v) {
+    return (v >= 100 ? Math.round(v).toLocaleString('en-GB') : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString()) + ' GB';
 }
 
 };
@@ -1216,6 +1337,53 @@ function labels(steps, cols, theme) {
 function scoreColour(score) {
     return score >= 4 ? '#16a34a' : score === 3 ? '#d97706' : '#dc2626';
 }
+
+};
+ defs['LakeChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderLake = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The Sentinel data lake's tiers on this workspace: the Analytics tier and
+// how much of it is mirrored or kept longer in the lake, the lake-only
+// tier, the lake they both land in, and the ways the lake is worked with.
+const ANA = '#d97706';
+const LAKE = '#2563eb';
+const ONLY = '#0891b2';
+const USE = '#16a34a';
+function renderLake(data, theme) {
+    if (!data) {
+        return '';
+    }
+    const analytics = (0, ChartKit_1.num)(data.analyticsOnly) + (0, ChartKit_1.num)(data.mirrored) + (0, ChartKit_1.num)(data.extended);
+    const lakeOnly = (0, ChartKit_1.num)(data.lakeOnly);
+    const uses = (0, ChartKit_1.list)(data.uses);
+    const left = '<div style="display:flex;flex-direction:column;gap:12px">' +
+        (0, Visual_1.card)((0, Visual_1.eyebrow)('Analytics tier', theme, ANA) + (0, Visual_1.figure)((0, Visual_1.count)(analytics) + ' tables', theme, 22) +
+            (0, Visual_1.sub)('Real-time KQL and analytics rules', theme) +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">' +
+            (0, Visual_1.chip)((0, Visual_1.count)((0, ChartKit_1.num)(data.mirrored) + (0, ChartKit_1.num)(data.extended)) + ' mirrored to the lake', theme) +
+            (0, Visual_1.chip)((0, Visual_1.count)((0, ChartKit_1.num)(data.extended)) + ' kept longer in the lake', theme) +
+            (0, Visual_1.chip)((0, Visual_1.count)((0, ChartKit_1.num)(data.analyticsOnly)) + ' Analytics only', theme) + '</div>', theme, ANA) +
+        (0, Visual_1.card)((0, Visual_1.eyebrow)('Lake-only tier', theme, ONLY) + (0, Visual_1.figure)((0, Visual_1.count)(lakeOnly) + ' tables', theme, 22) +
+            (0, Visual_1.sub)('Verbose, rarely queried data, straight to the lake; no real-time rules', theme), theme, lakeOnly > 0 ? ONLY : undefined, lakeOnly > 0 ? '' : 'opacity:.7') +
+        '</div>';
+    const lake = (0, Visual_1.card)((0, Visual_1.eyebrow)('Sentinel data lake', theme, LAKE) +
+        '<div style="font-size:15px;font-weight:800;margin-top:6px">Up to ' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(data.retentionYears) || '12') + ' years of affordable retention</div>' +
+        (0, Visual_1.sub)('Stored as Parquet, about 6:1 compressed. The Analytics tier mirrors to it automatically.', theme), theme, LAKE, 'display:flex;flex-direction:column;justify-content:center');
+    const use = uses.length
+        ? '<div>' + (0, Visual_1.eyebrow)('Working with the lake', theme) +
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px">' +
+            uses.map((u) => '<div style="min-width:0;border-radius:10px;padding:9px 11px;background:' + (0, ChartKit_1.tint)(USE, theme.dark ? 0.1 : 0.05) + ';border:1px solid ' + (0, ChartKit_1.tint)(USE, 0.3) + '">' +
+                '<div style="font-size:12.5px;font-weight:750">' + (0, ChartKit_1.esc)(u.name) + '</div>' +
+                '<div style="font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:2px;line-height:1.4">' + (0, ChartKit_1.esc)(u.detail) + '</div></div>').join('') + '</div></div>'
+        : '';
+    return '<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        '<div style="display:grid;grid-template-columns:minmax(240px,1fr) 44px minmax(220px,.9fr);min-width:540px;align-items:stretch">' +
+        left + (0, Visual_1.arrow)(ANA, LAKE) + lake + '</div>' + use + '</div>';
+}
+exports.renderLake = renderLake;
 
 };
  defs['MetersChart']=function(module,exports,require){
@@ -2317,6 +2485,9 @@ const MetersChart_1 = require("./MetersChart");
 const RuleKindsChart_1 = require("./RuleKindsChart");
 const ResponseChainChart_1 = require("./ResponseChainChart");
 const TopologyChart_1 = require("./TopologyChart");
+const CostBreakdownChart_1 = require("./CostBreakdownChart");
+const AccessChart_1 = require("./AccessChart");
+const LakeChart_1 = require("./LakeChart");
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
 // the chart's Mermaid source (when it has one) rather than nothing.
@@ -2360,6 +2531,9 @@ function draw(chart, theme, label) {
         case 'rule-kinds': return (0, RuleKindsChart_1.renderRuleKinds)(data, theme);
         case 'response-chain': return (0, ResponseChainChart_1.renderResponseChain)(data, theme);
         case 'topology': return (0, TopologyChart_1.renderTopology)(data, theme);
+        case 'cost-breakdown': return (0, CostBreakdownChart_1.renderCostBreakdown)(data, theme);
+        case 'access': return (0, AccessChart_1.renderAccess)(data, theme);
+        case 'lake': return (0, LakeChart_1.renderLake)(data, theme);
         default: return '';
     }
 }
@@ -2368,7 +2542,8 @@ function describe(kind) {
         pie: 'Pie chart', xy: 'Bar chart', sankey: 'Flow diagram', timeline: 'Timeline', gantt: 'Schedule',
         mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
         sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
-        meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology'
+        meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology',
+        'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers'
     };
     return names[kind] || 'Chart';
 }

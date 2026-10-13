@@ -81,6 +81,9 @@ tried in a plain browser page:
 | `rule-kinds` | Purpose-built: the fields every rule carries, then a card per kind with how many are deployed and enabled, what it does and its own settings |
 | `response-chain` | Purpose-built: the alert-to-response phases in order with this workspace's figures, each step numbered, and a step a fired finding marks missing or at risk tagged with it |
 | `topology` | Purpose-built: every source family with its count (the rest behind Show all), the workspace with each table plan in use or not, and the destinations downstream |
+| `cost-breakdown` | Purpose-built: the monthly estimate, billable GB and cost by plan, and every source family's GB, each opening (no script) to every one of its tables and its billing rate |
+| `access` | Purpose-built: role assignments in bands (broad, Microsoft Sentinel, Log Analytics and monitoring, other), each role split by users, groups and service principals; the broad band carries the fired SAC-GOV findings |
+| `lake` | Purpose-built: the Analytics tier with how much is mirrored or kept longer in the lake, the lake-only tier, the lake, and the ways it is worked with |
 | `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
 
 A chart with a purpose-built graphic carries its data on a
