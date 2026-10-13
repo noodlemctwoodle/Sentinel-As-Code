@@ -1274,6 +1274,16 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "if\(!\(window\.matchMedia && matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\)\)\{\s*arcs\.forEach"
     }
 
+    It 'animates the Data flow Sankey: beads on the ribbons and a reveal that fails open' {
+        $html | Should -Match 'svg\.sankey \.sk-beads\{[^}]*pointer-events:none'
+        $html | Should -Match "bead\.setAttribute\('class','sk-beads'\)"
+        # The clip starts full width, so a reveal that never runs hides nothing.
+        $html | Should -Match "clipRect\.setAttribute\('width',W\)"
+        $html | Should -Match 'function revealSankey\(svgEl\)'
+        $html | Should -Match "prefers-reduced-motion: reduce\)'\)\.matches\) \|\| !svgEl\.getBoundingClientRect\(\)\.width\) return;"
+        $html | Should -Match "if\(name==='flow' && big\) revealSankey\(big\);"
+    }
+
     It 'leaves the closure split out for a snapshot collected before it' {
         $ws5 = Join-Path $outDir 'law-before-closedby'
         New-Item -ItemType Directory -Path (Join-Path $ws5 '_raw') -Force | Out-Null

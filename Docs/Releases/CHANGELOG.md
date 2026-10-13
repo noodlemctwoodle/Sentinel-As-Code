@@ -6,13 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
-- **Estate flow animated** - the Overview's estate flow now moves like the
-  alert lifecycle: beads run along every strand a detection rule reads, the
+- **Estate flow and Data flow animated** - the Overview's estate flow now
+  moves like the alert lifecycle: beads run along every strand a detection rule reads, the
   band between the rings and the closed and open incident branches, faster
   for more data; the dashed strands of data no detection rule reads creep
   towards the "No detection rule" pool; and each ring's arc draws in when
   the page opens. Hover highlighting dims the beads with their strands, and
-  nothing moves for reduced motion.
+  nothing moves for reduced motion. The Data flow tab's Sankey gets beads
+  along its ribbons and sweeps in from the left when the tab opens and after
+  each filter change.
 - **Alert lifecycle on the dashboard Overview** - a new panel under
   "Workspace at a glance", in the light and dark themes, modelled on a SOC command
   centre: source families with strands sized by GB run into

@@ -542,6 +542,9 @@
   svg.estate.es-dim .es-beads{opacity:.12;transition:opacity .15s}
   svg.estate.es-dim .es-beads.es-hot{opacity:1}
   svg.estate .es-arc{transition:stroke-dasharray 1.2s cubic-bezier(.22,.8,.3,1)}
+  /* Data flow: beads along the middle of each Sankey ribbon, as above. */
+  svg.sankey .sk-beads{fill:none;stroke-linecap:round;stroke-opacity:.85;pointer-events:none;animation:lcflow linear infinite}
+  html[data-theme="dark"] svg.sankey .sk-beads{stroke:#e6fffb;stroke-opacity:.5}
   .esdetail{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:14px 16px}
   .esdetail .esd-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
   .esdetail .esd-head h3{margin:0;font-size:15px;font-weight:800}
@@ -1578,6 +1581,19 @@
         n._out=links.filter(l=>l.source===n.id).reduce((a,l)=>a+l.value,0);
         n._in =links.filter(l=>l.target===n.id).reduce((a,l)=>a+l.value,0); y+=slotH+slotGap; });
     });
+    // Ribbons and their beads sit in one group behind a clip that
+    // revealSankey widens from the left when the chart is drawn on screen
+    // (and again when its tab opens); nodes and labels stay on top,
+    // unclipped. The clip starts full width, so a reveal that never runs
+    // leaves the ribbons showing.
+    const maxLink=Math.max(0.001,...links.map(l=>l.value));
+    const clipId='skClip'+(svgEl.id||'');
+    const defs=document.createElementNS(ns,'defs'), clip=document.createElementNS(ns,'clipPath'), clipRect=document.createElementNS(ns,'rect');
+    clip.setAttribute('id',clipId); clipRect.setAttribute('x','0'); clipRect.setAttribute('y','0'); clipRect.setAttribute('width',W); clipRect.setAttribute('height',H);
+    clip.appendChild(clipRect); defs.appendChild(clip); svgEl.appendChild(defs);
+    const ribbons=document.createElementNS(ns,'g');
+    ribbons.setAttribute('clip-path','url(#'+clipId+')');
+    svgEl.appendChild(ribbons);
     const colHdr=['Data source','Workspace table','Plan and tier','Outcome'];
     cols.forEach((arr,ci)=>{ if(!arr.length)return; const t=document.createElementNS(ns,'text');
       t.setAttribute('x',colX[ci]); t.setAttribute('y',12); t.setAttribute('fill','#9aa3af');
@@ -1591,7 +1607,18 @@
       const path=document.createElementNS(ns,'path');
       const d='M'+x0+','+sy0+' C'+xm+','+sy0+' '+xm+','+ty0+' '+x1+','+ty0+
               ' L'+x1+','+(ty0+th)+' C'+xm+','+(ty0+th)+' '+xm+','+(sy0+sh)+' '+x0+','+(sy0+sh)+' Z';
-      path.setAttribute('d',d); path.setAttribute('fill',col); path.setAttribute('fill-opacity','.32'); svgEl.appendChild(path);
+      path.setAttribute('d',d); path.setAttribute('fill',col); path.setAttribute('fill-opacity','.32'); ribbons.appendChild(path);
+      // Beads along the ribbon's middle, faster for a larger share of the
+      // biggest flow; a ribbon under 2px carries none.
+      const thick=Math.min(sh,th);
+      if(thick>=2){
+        const sm=sy0+sh/2, tm=ty0+th/2, bead=document.createElementNS(ns,'path');
+        bead.setAttribute('d','M'+x0+','+sm+' C'+xm+','+sm+' '+xm+','+tm+' '+x1+','+tm);
+        bead.setAttribute('class','sk-beads'); bead.setAttribute('stroke',col);
+        bead.setAttribute('stroke-width',Math.max(1,thick*0.28).toFixed(1)); bead.setAttribute('stroke-dasharray','3 21');
+        bead.style.animationDuration=(3.4-1.8*Math.sqrt(Math.min(1,l.value/maxLink))).toFixed(1)+'s';
+        ribbons.appendChild(bead);
+      }
     });
     nodes.forEach(n=>{
       const col = nodeFill(n);
@@ -1623,7 +1650,22 @@
         val.textContent=vt; svgEl.appendChild(val);
       }
     });
+    revealSankey(svgEl);
     return {W,H};
+  }
+  // Widen the Sankey's ribbon clip from 0 to full width over 0.9 s. Skipped
+  // for reduced motion and while the chart is hidden (its tab is closed);
+  // activateTab calls it again when the Data flow tab opens.
+  function revealSankey(svgEl){
+    const rect=svgEl && svgEl.querySelector('clipPath rect'); if(!rect) return;
+    const full=svgEl.viewBox.baseVal.width;
+    if(svgEl._reveal) cancelAnimationFrame(svgEl._reveal);
+    rect.setAttribute('width',full);
+    if((window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !svgEl.getBoundingClientRect().width) return;
+    const t0=performance.now(), dur=900;
+    const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); rect.setAttribute('width',(full*e).toFixed(1)); if(k<1) svgEl._reveal=requestAnimationFrame(step); else svgEl._reveal=null; };
+    rect.setAttribute('width','0');
+    svgEl._reveal=requestAnimationFrame(step);
   }
   const legendHtml = Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
      '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
@@ -2460,6 +2502,8 @@
     document.querySelectorAll('[data-views]').forEach(el=>el.classList.toggle('hidden',!el.dataset.views.split(' ').includes(name)));
     document.querySelectorAll('.subtab').forEach(x=>{ const on=x.dataset.sub===name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on?'true':'false'); });
     balanceGrids(); markClamped();
+    // The Sankey was drawn while its tab was hidden: reveal it now.
+    if(name==='flow' && big) revealSankey(big);
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{

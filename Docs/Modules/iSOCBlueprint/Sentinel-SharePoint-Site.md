@@ -97,7 +97,11 @@ The estate flow moves too: beads run along the strands a detection rule
 reads, the band between the rings and the incident branches (faster for more
 data), the dashed "no detection rule" strands creep towards their pool, and
 each ring's arc draws in once when the page opens. Hovering a family dims the
-other strands and their beads; none of it runs for reduced motion.
+other strands and their beads; none of it runs for reduced motion. The Data
+flow tab's Sankey does the same: beads run along the middle of every ribbon
+thick enough to carry them, and the ribbons sweep in from the left when the
+tab opens and after each filter change (the sweep starts from a fully drawn
+chart, so it never leaves the ribbons hidden).
 
 The estate flow is interactive: hovering a source family spotlights its
 strands, clicking a family or the "Not monitored" pool opens a table of the
