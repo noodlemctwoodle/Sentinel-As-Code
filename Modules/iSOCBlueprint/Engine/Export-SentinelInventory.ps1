@@ -73,7 +73,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.0
+    Version:        0.5.1
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -952,6 +952,12 @@ Try-Capture 'incidents-summary' {
     # Aggregate-only, the Blueprint never exports incident bodies (PII).
     # The bags hold counts per key. ByClassification covers closed incidents
     # only; an empty classification is reported as "Unclassified".
+    # OpenBySeverity counts the incidents not closed. ClosedBy says who closed
+    # each closed incident, from the first record that shows it Closed:
+    # an automation rule (ModifiedBy contains "Automation", the test
+    # Microsoft's automation rule guide uses), Defender XDR (closed there and
+    # synced), an analyst (a user principal name), or Other; only the
+    # category leaves the workspace, never the name.
     $kql = @'
 let inc = SecurityIncident
 | where TimeGenerated > ago(30d)
@@ -967,6 +973,20 @@ let byProvider = inc
 | extend P = iff(isempty(ProviderName), "Unknown", ProviderName)
 | summarize N = count() by P
 | summarize B = make_bag(bag_pack(P, N), 100);
+let openBySev = inc | where Status != "Closed" | summarize N = count() by Severity | summarize B = make_bag(bag_pack(Severity, N), 100);
+let closing = SecurityIncident
+| where TimeGenerated > ago(30d) and Status == "Closed"
+| summarize arg_min(TimeGenerated, ModifiedBy) by IncidentNumber;
+let closedBy = inc
+| where Status == "Closed"
+| project IncidentNumber
+| join kind=leftouter closing on IncidentNumber
+| extend By = case(ModifiedBy contains "Automation", "AutomationRule",
+                   ModifiedBy has_any ("Microsoft 365 Defender", "Microsoft Defender XDR", "Microsoft XDR"), "DefenderXdr",
+                   ModifiedBy contains "@", "Analyst",
+                   "Other")
+| summarize N = count() by By
+| summarize B = make_bag(bag_pack(By, N), 100);
 let isUnified = (p: string, a: string) { p in ("Microsoft 365 Defender", "Microsoft XDR") or a has_any ("Microsoft 365 Defender", "Microsoft XDR") };
 inc
 | extend Recent = TimeGenerated > ago(7d), IsUnified = isUnified(ProviderName, tostring(AdditionalData))
@@ -976,7 +996,8 @@ inc
     FalsePositive7d = countif(Recent and Classification == "FalsePositive"),
     TruePositive7d = countif(Recent and Classification == "TruePositive"),
     Unified7d = countif(Recent and IsUnified)
-| extend ByStatus = toscalar(byStatus), BySeverity = toscalar(bySev), ByClassification = toscalar(byClass), ByProvider = toscalar(byProvider)
+| extend ByStatus = toscalar(byStatus), BySeverity = toscalar(bySev), ByClassification = toscalar(byClass), ByProvider = toscalar(byProvider),
+    OpenBySeverity = toscalar(openBySev), ClosedBy = toscalar(closedBy)
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop

@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.5.0
+    Version:      0.6.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1242,6 +1242,43 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.maturity.methodology.scope | Should -Match 'People \(staffing, skills, roles\)'
         $html | Should -Match 'class="matscope"'
         $html | Should -Match 'people and processes were not assessed'
+    }
+
+    It 'carries the alert lifecycle: closures by who closed them, open incidents by severity and MTTR' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $model.alertLifecycle.closedBy.AutomationRule | Should -Be 14
+        $model.alertLifecycle.closedBy.Analyst | Should -Be 11
+        $model.alertLifecycle.closedBy.DefenderXdr | Should -Be 5
+        $model.alertLifecycle.closedBy.Other | Should -Be 2
+        ($model.alertLifecycle.closedBy.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be $model.estate.incidentsClosed
+        $model.alertLifecycle.openBySeverity.High | Should -Be 2
+        $model.alertLifecycle.openBySeverity.Informational | Should -Be 0
+        ($model.alertLifecycle.openBySeverity.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be $model.estate.incidentsOpen
+        $model.alertLifecycle.mttrMinutes | Should -Be 1620
+        $html | Should -Match 'id="alertLifecycle"[\s\S]*id="lcStage"[\s\S]*id="lcStrip"'
+        # Under Workspace at a glance, before the security posture cards.
+        $html | Should -Match 'id="heroPills"[\s\S]*id="alertLifecycle"[\s\S]*Security posture'
+        # Its own light and dark colours, and particles that follow a theme switch.
+        $html | Should -Match 'html\[data-theme="dark"\] \.lifecycle\{'
+        $html | Should -Match "window\.addEventListener\('sac-theme',frame\)"
+        # Motion stops for anyone who asks for less of it.
+        $html | Should -Match "matchMedia\('\(prefers-reduced-motion: reduce\)'\)"
+    }
+
+    It 'leaves the closure split out for a snapshot collected before it' {
+        $ws5 = Join-Path $outDir 'law-before-closedby'
+        New-Item -ItemType Directory -Path (Join-Path $ws5 '_raw') -Force | Out-Null
+        Copy-Item -Path (Join-Path $ws '_raw/*.json') -Destination (Join-Path $ws5 '_raw')
+        $inc = @(Get-Content (Join-Path $ws5 '_raw/incidents-summary.json') -Raw | ConvertFrom-Json)
+        $inc[0].PSObject.Properties.Remove('ClosedBy')
+        $inc[0].PSObject.Properties.Remove('OpenBySeverity')
+        ConvertTo-Json -InputObject $inc -Depth 10 | Set-Content (Join-Path $ws5 '_raw/incidents-summary.json')
+        $b5 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws5 -SkipWhatsNew 6> $null
+        $model = Get-Content (Join-Path $b5 'model.json') -Raw | ConvertFrom-Json
+        $model.alertLifecycle.closedBy | Should -BeNullOrEmpty
+        $model.alertLifecycle.openBySeverity | Should -BeNullOrEmpty
+        $model.estate.incidentsClosed | Should -Be 32
+        $model.alertLifecycle.mttrMinutes | Should -Be 1620
     }
 
     It 'writes the findings and the per-check outcomes' {

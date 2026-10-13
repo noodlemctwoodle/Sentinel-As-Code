@@ -627,6 +627,42 @@
   .hidden{display:none !important}
 
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  /* ---------- alert lifecycle (under Workspace at a glance) ---------- */
+  /* The picture's own colours, light and dark; strands keep the family
+     colours in both. Dark mode keeps the black "screen" the glow reads on. */
+  .lifecycle{--lc-line:var(--line);--lc-ring:rgba(13,148,136,.40);--lc-ring2:rgba(13,148,136,.16);--lc-glow:#14b8a6;
+    background:radial-gradient(110% 130% at 50% 40%,#ecf9f6 0%,var(--panel) 62%);overflow:hidden}
+  html[data-theme="dark"] .lifecycle{--lc-line:rgba(148,163,184,.16);--lc-ring:rgba(94,234,212,.28);--lc-ring2:rgba(94,234,212,.14);--lc-glow:#5eead4;
+    background:radial-gradient(120% 140% at 50% 42%,#0c1d26 0%,#070e18 55%,#04070d 100%);border-color:#13202f}
+  .lc-stage{position:relative;margin:2px -4px 0}
+  .lc-stage svg{display:block;width:100%;height:auto}
+  .lc-stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .lc-node{cursor:pointer;outline:none}
+  .lc-node:hover .lc-num,.lc-node:focus-visible .lc-num{fill:var(--lc-glow)}
+  .lc-node:focus-visible .lc-hit{stroke:var(--lc-glow);stroke-width:1.5}
+  .lc-num{font-weight:800;fill:var(--ink);font-variant-numeric:tabular-nums}
+  .lc-lbl{fill:var(--muted);font-weight:700;letter-spacing:.14em}
+  .lc-src{fill:var(--ink-2);font-weight:650} .lc-sub{fill:var(--faint)}
+  .lc-ring{stroke:var(--lc-ring)} .lc-ring2{stroke:var(--lc-ring2)}
+  .lc-glowstop{stop-color:var(--lc-glow)} .lc-junction{fill:var(--lc-glow)}
+  .lc-strand{stroke-opacity:.5} html[data-theme="dark"] .lc-strand{stroke-opacity:.45}
+  /* Moving beads: the strand's own colour on light, near-white on dark. */
+  .lc-flow{fill:none;stroke-linecap:round;stroke-opacity:.95;animation:lcflow linear infinite}
+  html[data-theme="dark"] .lc-flow{stroke:#e6fffb;stroke-opacity:.55}
+  @keyframes lcflow{to{stroke-dashoffset:-72}}
+  .lc-spin{transform-box:fill-box;transform-origin:center;animation:lcspin 48s linear infinite}
+  .lc-spin.rev{animation-duration:70s;animation-direction:reverse}
+  @keyframes lcspin{to{transform:rotate(360deg)}}
+  .lc-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:4px;border-top:1px solid var(--lc-line)}
+  .lc-kpi{padding:14px 16px 8px;border-left:1px solid var(--lc-line)} .lc-kpi:first-child{border-left:0}
+  .lc-kpi .k{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:.04em}
+  .lc-kpi .v{font-size:26px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .lc-kpi .v small{font-size:12px;font-weight:650;color:var(--muted);margin-left:3px}
+  .lc-kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .lc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .lc-chip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:5px;color:#0b1220}
+  .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
+  .lc-spark polyline{stroke:var(--lc-glow)}
   @media(prefers-reduced-motion:reduce){*{animation:none !important}}
   /* Drop the tab strip to its own full-width row before it can overflow the bar.
      Brand (left) + theme toggle + CTA (right) stay on row 1; nav sits on row 2 and
@@ -684,6 +720,15 @@
           <p class="note">Headline configuration and posture, regenerated on every Blueprint run.</p></div>
       </div>
       <div class="tiles" id="heroPills"></div>
+    </div>
+
+    <div class="panel lifecycle" id="alertLifecycle">
+      <div class="phead"><div>
+        <h2>Alert lifecycle</h2>
+        <p class="note" id="lcNote"></p>
+      </div></div>
+      <div class="lc-stage" id="lcStage"></div>
+      <div class="lc-strip" id="lcStrip"></div>
     </div>
 
     <div class="seclabel">Security posture</div>
@@ -1181,6 +1226,176 @@
   document.getElementById('estateLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
     '<span><i class="dash"></i>No detection rule (dashed, family colour)</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
     '<span><i style="background:var(--brand)"></i>Fair (65%+)</span><span><i style="background:var(--amber)"></i>Weak</span>';
+
+  // ---- alert lifecycle ----
+  // The SOC at a glance, left to right: source families (strand width = GB),
+  // the alerts the rules and products raised, the incidents those became, and
+  // how the incidents ended (closed by an automation rule, by an analyst, in
+  // Defender XDR, by another identity, or still open; strand width =
+  // incidents). A snapshot from before the ClosedBy capture shows Closed as
+  // one branch. The particles in the middle are decoration: alerts drawn in,
+  // fewer incidents let out, in proportion.
+  (function(){
+    const stage=document.getElementById('lcStage'); if(!stage) return;
+    const E=M.estate||{}, C=M.alertLifecycle||{};
+    const ns='http://www.w3.org/2000/svg';
+    const W=1200, H=420, cy=196, cx=600;
+    const n0=v=>Number(v)||0;
+    const compact=new Intl.NumberFormat('en-GB',{notation:'compact',maximumFractionDigits:1});
+    const num=v=>n0(v)>=10000? compact.format(n0(v)) : n0(v).toLocaleString('en-GB');
+    const days=/^(\d+)d$/.exec(String(E.window||'30d')); const win=days? 'last '+days[1]+' days' : String(E.window);
+    const sources=(E.sources||[]).filter(s=>s&&n0(s.gb)>0).sort((a,b)=>n0(b.gb)-n0(a.gb));
+    const alerts=n0(E.alerts), incidents=n0(E.incidents), closed=n0(E.incidentsClosed), open=n0(E.incidentsOpen);
+    const hasSec=n=>(M.sections||[]).some(s=>s.num===n)? n : null;
+    const SEV=[['High','H','#f87171'],['Medium','M','#fbbf24'],['Low','L','#60a5fa'],['Informational','I','#94a3b8']];
+    const cb=C.closedBy;
+    const branches=(cb? [
+        {label:'Closed by automation', v:n0(cb.AutomationRule), col:'#2dd4bf', go:hasSec(60)},
+        {label:'Closed by analysts', v:n0(cb.Analyst), col:'#60a5fa', go:hasSec(15)},
+        {label:'Closed in Defender XDR', v:n0(cb.DefenderXdr), col:'#a78bfa', go:hasSec(15)},
+        {label:'Closed by other identities', v:n0(cb.Other), col:'#94a3b8', go:hasSec(15)}
+      ] : [{label:'Closed', v:closed, col:'#2dd4bf', go:hasSec(15)}]).concat([{label:'Open', v:open, col:'#f59e0b', go:hasSec(15), open:true}]);
+
+    document.getElementById('lcNote').textContent='Source families to the alerts they raised, the incidents those became and how the incidents were closed, over the '+win+
+      '. Strand width is GB on the left and incidents on the right. Select any part to open its page.';
+
+    const svg=document.createElementNS(ns,'svg');
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.setAttribute('role','img');
+    svg.setAttribute('aria-label', num(alerts)+' alerts and '+num(incidents)+' incidents over the '+win+': '+
+      branches.map(b=>b.label.charAt(0).toLowerCase()+b.label.slice(1)+' '+num(b.v)).join(', ')+'.');
+    stage.appendChild(svg);
+    const mk=(tag,attrs,text,parent)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; (parent||svg).appendChild(el); return el; };
+    const go=(g,fn,title)=>{ g.setAttribute('class','lc-node'); g.setAttribute('tabindex','0'); g.setAttribute('role','link'); mk('title',{},title,g);
+      g.addEventListener('click',fn); g.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fn(); } }); };
+    const defs=mk('defs',{});
+    const glow=mk('filter',{id:'lcGlow',x:'-50%',y:'-50%',width:'200%',height:'200%'},null,defs);
+    mk('feGaussianBlur',{stdDeviation:'4',result:'b'},null,glow);
+    const merge=mk('feMerge',{},null,glow); mk('feMergeNode',{in:'b'},null,merge); mk('feMergeNode',{in:'SourceGraphic'},null,merge);
+    const core=mk('radialGradient',{id:'lcCore'},null,defs);
+    mk('stop',{offset:'0%',class:'lc-glowstop','stop-opacity':'.22'},null,core); mk('stop',{offset:'100%',class:'lc-glowstop','stop-opacity':'0'},null,core);
+
+    // Decoration: faint arcs behind the sources, the core's glow and rings.
+    [300,345,390].forEach((r,i)=>mk('circle',{cx:-150,cy:cy,r:r,fill:'none',stroke:'rgba(148,163,184,'+(0.07-i*0.015)+')','stroke-width':'1.2'}));
+    mk('circle',{cx:cx,cy:cy,r:118,fill:'url(#lcCore)'});
+    mk('circle',{cx:cx,cy:cy,r:92,fill:'none','stroke-width':'1','stroke-dasharray':'2 7',class:'lc-spin lc-ring'});
+    mk('circle',{cx:cx,cy:cy,r:104,fill:'none','stroke-width':'6','stroke-dasharray':'40 26',class:'lc-spin rev lc-ring2'});
+
+    // Sources: one strand each into the alerts node.
+    const strand=(d,col,w,speed)=>{
+      mk('path',{d:d,fill:'none',stroke:col,'stroke-width':w.toFixed(1),'stroke-linecap':'round',class:'lc-strand'});
+      const f=mk('path',{d:d,class:'lc-flow',stroke:col,'stroke-width':Math.max(1,w*0.3).toFixed(1),'stroke-dasharray':'3 21'});
+      f.style.animationDuration=speed.toFixed(1)+'s';
+    };
+    const maxGb=Math.max(1,...sources.map(s=>n0(s.gb)));
+    const top=sources.length>1? 48 : cy, gap=sources.length>1? (H-96-10)/(sources.length-1) : 0;
+    const srcG=mk('g',{});
+    sources.forEach((s,i)=>{
+      const y=top+i*gap, k=Math.sqrt(n0(s.gb)/maxGb), w=3+20*k, col=famColor[s.category]||'#64748b';
+      strand('M214 '+y.toFixed(1)+' C 300 '+y.toFixed(1)+', 310 '+cy+', 384 '+cy, col, w, 3.2-1.8*k);
+      mk('circle',{cx:210,cy:y,r:3.5,fill:col,filter:'url(#lcGlow)'},null,srcG);
+      mk('text',{x:198,y:y-2,'text-anchor':'end','font-size':'13',class:'lc-src'},s.category,srcG);
+      mk('text',{x:198,y:y+13,'text-anchor':'end','font-size':'10.5',class:'lc-sub'},(n0(s.gb)>=10? Math.round(n0(s.gb)).toLocaleString('en-GB') : n0(s.gb).toLocaleString('en-GB',{maximumFractionDigits:1}))+' GB',srcG);
+    });
+    if(sources.length){ go(srcG,()=>{ if(activateTab) activateTab('flow'); bringTop(); },'Open the data flow'); }
+    else mk('text',{x:140,y:cy,'text-anchor':'middle','font-size':'12',class:'lc-sub'},'No billable ingestion');
+    mk('text',{x:198,y:22,'text-anchor':'end','font-size':'10',class:'lc-lbl'},'DATA SOURCES');
+    mk('circle',{cx:388,cy:cy,r:4,class:'lc-junction',filter:'url(#lcGlow)'});
+
+    // Alerts and incidents nodes either side of the core.
+    const bigNode=(x,value,label,title,fn,sub)=>{
+      const g=mk('g',{});
+      mk('rect',{x:x-62,y:cy-34,width:124,height:sub?74:62,rx:10,fill:'transparent',class:'lc-hit'},null,g);
+      mk('text',{x:x,y:cy+4,'text-anchor':'middle','font-size':'32',class:'lc-num'},num(value),g);
+      mk('text',{x:x,y:cy+24,'text-anchor':'middle','font-size':'10.5',class:'lc-lbl'},label,g);
+      if(sub) mk('text',{x:x,y:cy+40,'text-anchor':'middle','font-size':'10.5',class:'lc-sub'},sub,g);
+      if(fn) go(g,fn,title);
+    };
+    const alertsSec=hasSec(16), incSec=hasSec(15);
+    bigNode(436,alerts,'ALERTS','Open the alerts page',alertsSec!=null? ()=>jumpTo(alertsSec) : null);
+    bigNode(764,incidents,'INCIDENTS','Open the incidents page',incSec!=null? ()=>jumpTo(incSec) : null,
+      incidents>0? '1 per '+(alerts/incidents>=10? Math.round(alerts/incidents) : (alerts/incidents).toFixed(1))+' alerts' : null);
+
+    // Outcomes: one strand per branch from the incidents node.
+    const bTop=branches.length>1? 58 : cy, bGap=branches.length>1? (H-116-20)/(branches.length-1) : 0;
+    branches.forEach((b,i)=>{
+      const y=bTop+i*bGap, k=incidents>0? Math.sqrt(b.v/incidents) : 0, w=b.v>0? 2.5+22*k : 1;
+      mk('circle',{cx:816,cy:cy,r:4,class:'lc-junction',filter:'url(#lcGlow)'});
+      strand('M818 '+cy+' C 870 '+cy+', 880 '+y.toFixed(1)+', 932 '+y.toFixed(1), b.col, w, 3.4-1.8*k);
+      const g=mk('g',{});
+      mk('rect',{x:928,y:y-24,width:266,height:b.open&&C.openBySeverity?66:48,rx:8,fill:'transparent',class:'lc-hit'},null,g);
+      mk('circle',{cx:940,cy:y,r:7,fill:b.col,filter:'url(#lcGlow)'},null,g);
+      mk('text',{x:958,y:y+7,'font-size':'22',class:'lc-num'},num(b.v),g);
+      mk('text',{x:958,y:y+22,'font-size':'10',class:'lc-lbl'},b.label.toUpperCase(),g);
+      if(b.open && C.openBySeverity){
+        let x=958;
+        SEV.forEach(([key,letter,col])=>{ const v=n0(C.openBySeverity[key]); if(!v) return;
+          const t=letter+' '+v, wd=12+t.length*6.4;
+          mk('rect',{x:x,y:y+30,width:wd,height:16,rx:4,fill:col},null,g);
+          mk('text',{x:x+wd/2,y:y+42,'text-anchor':'middle','font-size':'10.5','font-weight':'800',fill:'#0b1220'},t,g);
+          x+=wd+6; });
+      }
+      if(b.go!=null) go(g,()=>jumpTo(b.go),'Open the '+(b.go===60?'automation':'incidents')+' page');
+    });
+
+    // The core's particles: a canvas over the stage, drawn in viewBox units.
+    const canvas=document.createElement('canvas'); stage.appendChild(canvas);
+    const ctx=canvas.getContext('2d');
+    const still=window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const rnd=(a,b)=>a+Math.random()*(b-a);
+    const ring=[]; for(let i=0;i<300;i++){ const r=rnd(12,88); ring.push({r:r, a:rnd(0,6.283), s:(r<50?1:-1)*rnd(0.002,0.007), z:rnd(0.9,2.1), g:Math.random()<0.25}); }
+    const ratio=incidents>0? Math.min(1,Math.max(0.08,incidents/Math.max(alerts,1))) : 0.08;
+    const inflow=[]; for(let i=0;i<36;i++) inflow.push({t:Math.random(), y:rnd(-26,26), s:rnd(0.004,0.009)});
+    const outflow=[]; for(let i=0;i<Math.max(3,Math.round(36*ratio));i++) outflow.push({t:Math.random(), y:rnd(-10,10), s:rnd(0.003,0.006)});
+    let scale=1;
+    function size(){ const r=canvas.getBoundingClientRect(); if(!r.width) return; const dpr=window.devicePixelRatio||1;
+      canvas.width=Math.round(r.width*dpr); canvas.height=Math.round(r.height*dpr); scale=r.width/W; ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0); }
+    // Additive light on the dark screen; plain, deeper colours on light,
+    // where adding light to white would wash the particles out.
+    const PAL_DARK={teal:'94,234,212', green:'134,239,172', red:'248,113,113', mode:'lighter'};
+    const PAL_LIGHT={teal:'13,148,136', green:'22,163,74', red:'220,38,38', mode:'source-over'};
+    function frame(){
+      const P=document.documentElement.dataset.theme==='dark'? PAL_DARK : PAL_LIGHT;
+      ctx.clearRect(0,0,W,H);
+      ctx.globalCompositeOperation=P.mode;
+      ring.forEach(p=>{ if(!still) p.a+=p.s; const x=cx+p.r*Math.cos(p.a), y=cy+p.r*Math.sin(p.a)*0.94;
+        ctx.fillStyle=p.g? 'rgba('+P.green+','+(0.85-p.r/120)+')' : 'rgba('+P.teal+','+(0.9-p.r/110)+')';
+        ctx.beginPath(); ctx.arc(x,y,p.z,0,6.283); ctx.fill(); });
+      inflow.forEach(p=>{ if(!still){ p.t+=p.s; if(p.t>1){ p.t=0; p.y=rnd(-26,26); } }
+        const x=474+(cx-22-474)*p.t, y=cy+p.y*(1-p.t);
+        ctx.fillStyle='rgba('+P.red+','+(0.25+0.5*p.t)+')'; ctx.beginPath(); ctx.arc(x,y,1.4,0,6.283); ctx.fill(); });
+      outflow.forEach(p=>{ if(!still){ p.t+=p.s; if(p.t>1){ p.t=0; p.y=rnd(-10,10); } }
+        const x=cx+22+(726-cx-22)*p.t, y=cy+p.y*p.t;
+        ctx.fillStyle='rgba('+P.teal+','+(0.9-0.6*p.t)+')'; ctx.beginPath(); ctx.arc(x,y,1.8,0,6.283); ctx.fill(); });
+      ctx.globalCompositeOperation='source-over';
+    }
+    size(); frame();
+    if(window.ResizeObserver) new ResizeObserver(()=>{ size(); frame(); }).observe(stage);
+    window.addEventListener('sac-theme',frame);
+    if(!still){
+      // Skip drawing while the Overview is not on screen (another tab is
+      // open, or the page is hidden); the loop itself costs nothing then.
+      const loop=()=>{ if(!document.hidden && stage.offsetParent!==null){ if(!canvas.width) size(); frame(); } requestAnimationFrame(loop); };
+      requestAnimationFrame(loop);
+    }
+
+    // The strip under the picture.
+    const daily=(M.usageDaily||[]).map(d=>n0(d.billable)+n0(d.free));
+    const avg=daily.length? daily.reduce((a,b)=>a+b,0)/daily.length : null;
+    const spark=pts=>{ if(pts.length<2) return ''; const mx=Math.max(...pts,0.001), w=200, h=30;
+      const xy=pts.map((v,i)=>(i/(pts.length-1)*w).toFixed(1)+','+(h-2-(v/mx)*(h-4)).toFixed(1)).join(' ');
+      return '<svg class="lc-spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+xy+'" fill="none" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>'; };
+    const dur=m=>m==null? 'n/a' : m<60? Math.round(m)+'<small>min</small>' : m<1440? (m/60).toFixed(1)+'<small>hours</small>' : (m/1440).toFixed(1)+'<small>days</small>';
+    const auto=cb? n0(cb.AutomationRule) : null;
+    const chips=C.openBySeverity? '<div class="lc-chips">'+SEV.map(([key,letter,col])=>{ const v=n0(C.openBySeverity[key]); return v? '<span class="lc-chip" style="background:'+col+'" title="'+key+'">'+letter+' '+v+'</span>' : ''; }).join('')+'</div>' : '';
+    document.getElementById('lcStrip').innerHTML=
+      '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':(avg>=10?Math.round(avg).toLocaleString('en-GB'):avg.toFixed(1))+'<small>GB / day</small>')+'</div>'+spark(daily)+'</div>'+
+      '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+num(alerts)+' alerts, '+num(incidents)+' incidents</div></div>'+
+      '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+chips+'</div>'+
+      '<div class="lc-kpi"><div class="k">Mean time to resolve</div><div class="v">'+dur(C.mttrMinutes)+'</div><div class="s">Closed incidents, '+win+'</div></div>'+
+      '<div class="lc-kpi"><div class="k">Closed by automation</div><div class="v">'+(auto==null? 'n/a' : closed>0? Math.round(auto/closed*100)+'<small>%</small>' : '0<small>%</small>')+'</div><div class="s">'+
+        (auto==null? 'Not captured in this snapshot' : num(auto)+' of '+num(closed)+' closed')+'</div></div>';
+  })();
 
   // ---- maturity card + quick wins ----
   const MAT = M.maturity || null;

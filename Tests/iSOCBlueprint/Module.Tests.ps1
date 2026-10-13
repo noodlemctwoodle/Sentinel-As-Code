@@ -183,6 +183,20 @@ Describe 'Collector API versions' {
     }
 }
 
+Describe 'Incident closure capture' {
+    It 'counts closed incidents by who closed them, exporting the category and never the name' {
+        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
+        $block = [regex]::Match($collector, "(?s)Try-Capture 'incidents-summary' \{.*?\n\}").Value
+        $block | Should -Match 'ModifiedBy contains "Automation", "AutomationRule"'
+        $block | Should -Match '"DefenderXdr"'
+        $block | Should -Match '"Analyst"'
+        $block | Should -Match 'summarize N = count\(\) by By'
+        $block | Should -Match 'OpenBySeverity = toscalar\(openBySev\), ClosedBy = toscalar\(closedBy\)'
+        # ModifiedBy only feeds the case(); the summarised output holds the category.
+        $block | Should -Not -Match 'make_set\(ModifiedBy|make_list\(ModifiedBy|by ModifiedBy'
+    }
+}
+
 Describe 'SharePoint publisher name' {
     It 'defaults to the iSOC Blueprint name and renames an app found under an earlier one' {
         $setup = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/setup/Setup-SharePointPublisher.ps1') -Raw

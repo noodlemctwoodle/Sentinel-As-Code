@@ -6,6 +6,26 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Alert lifecycle on the dashboard Overview** - a new panel under
+  "Workspace at a glance", in the light and dark themes, modelled on a SOC command
+  centre: source families with strands sized by GB run into
+  the alerts they raised, an animated core, and the incidents those became;
+  each incident branch then shows how it ended (closed by an automation
+  rule, by an analyst, in Defender XDR, by another identity, or open, with
+  open incidents by severity). A strip underneath gives ingestion per day
+  with a sparkline, alerts per incident, open incidents, mean time to
+  resolve and the share closed by automation, and every part opens its
+  page. The collector's `incidents-summary` capture gains two count bags
+  for it, `OpenBySeverity` and `ClosedBy` (each closed incident sorted by
+  the record that first shows it closed: `ModifiedBy contains
+  "Automation"`, Defender XDR, a user principal name, or other; only the
+  category leaves the workspace). A snapshot collected before this shows a
+  single Closed branch. The dashboard model gains `alertLifecycle`.
+- **Pages with tables of a few thousand rows render** - a live workspace's
+  rule effectiveness table (2,728 rows) made Markdig refuse page 21 as "too
+  deeply nested", which stopped the render there. Tables longer than 500
+  rows are now parsed in chunks and joined back into one table, so the
+  section model keeps every row.
 - **Blueprint output kept off the public GitHub repo** - a new
   `.githooks/pre-push` hook refuses any push to a `github.com` remote whose
   commits add Blueprint output (`SecurityDocs/`, `BlueprintRuns/`, or a

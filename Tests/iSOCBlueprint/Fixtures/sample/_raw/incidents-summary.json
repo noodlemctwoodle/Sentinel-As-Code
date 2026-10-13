@@ -29,6 +29,17 @@
     "ByProvider": {
       "Azure Sentinel": 28,
       "Microsoft XDR": 12
+    },
+    "OpenBySeverity": {
+      "High": 2,
+      "Medium": 4,
+      "Low": 2
+    },
+    "ClosedBy": {
+      "AutomationRule": 14,
+      "Analyst": 11,
+      "DefenderXdr": 5,
+      "Other": 2
     }
   }
 ]

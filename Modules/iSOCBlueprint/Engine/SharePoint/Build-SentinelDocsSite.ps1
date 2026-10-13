@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.5.0
+    Version:      0.6.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -908,6 +908,29 @@ foreach ($row in ($tiObjectRows | Where-Object { $_ } | Sort-Object { ConvertTo-
     $tiObjects += [ordered]@{ type = [string]$row.StixType; count = [long](ConvertTo-BuildNumber $row.Count) }
 }
 
+# The Overview's alert lifecycle: alerts to incidents, then how the closed ones
+# were closed and how severe the open ones are. closedBy and openBySeverity
+# are null for a snapshot collected before those bags were captured.
+$closedByMap = $null
+if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ClosedBy'] -and $null -ne $incSummaryRow.ClosedBy) {
+    $bag = Get-BuildBag $incSummaryRow.ClosedBy
+    $closedByMap = [ordered]@{}
+    foreach ($k in 'AutomationRule', 'Analyst', 'DefenderXdr', 'Other') { $closedByMap[$k] = $(if ($bag.Contains($k)) { [long]$bag[$k] } else { [long]0 }) }
+}
+$openBySeverityMap = $null
+if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['OpenBySeverity'] -and $null -ne $incSummaryRow.OpenBySeverity) {
+    $bag = Get-BuildBag $incSummaryRow.OpenBySeverity
+    $openBySeverityMap = [ordered]@{}
+    foreach ($k in 'High', 'Medium', 'Low', 'Informational') { $openBySeverityMap[$k] = $(if ($bag.Contains($k)) { [long]$bag[$k] } else { [long]0 }) }
+}
+$mttrRows = @(Read-RawArray 'incidents-mttr.json')
+$mttrRow = if ($mttrRows.Count -gt 0) { $mttrRows[0] } else { $null }
+$alertLifecycle = [ordered]@{
+    closedBy       = $closedByMap
+    openBySeverity = $openBySeverityMap
+    mttrMinutes    = $(if ($mttrRow -and $mttrRow.PSObject.Properties['MTTRMinutes'] -and "$($mttrRow.MTTRMinutes)" -ne '') { [math]::Round((ConvertTo-BuildNumber $mttrRow.MTTRMinutes), 1) } else { $null })
+}
+
 $incidentsByClassification = @()
 if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ByClassification']) {
     $bag = Get-BuildBag $incSummaryRow.ByClassification
@@ -1109,6 +1132,7 @@ $model = [ordered]@{
     tiBySource   = $tiBySource
     tiObjects    = $tiObjects
     incidentsByClassification = $incidentsByClassification
+    alertLifecycle = $alertLifecycle
     familyOrder  = @(Get-SectionFamilyOrder)
     sections     = $sections
     dataLakeEnrolled = $lakeEnrolled

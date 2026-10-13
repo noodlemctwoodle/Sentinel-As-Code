@@ -191,9 +191,12 @@ Grouped by purpose:
 - `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
   `incidents-detail-by-provider`, `incidents-by-rule` (every rule title) - incident counts, mean-time-to-respond,
   daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
-  row with `Count`, `Closed` and four bags (`ByStatus`, `BySeverity`, `ByClassification`,
-  `ByProvider`) whose values are real counts; closed incidents with an empty classification
-  are reported as `Unclassified`. The same row carries the last 7 days (`Count7d`,
+  row with `Count`, `Closed` and six bags (`ByStatus`, `BySeverity`, `ByClassification`,
+  `ByProvider`, `OpenBySeverity`, `ClosedBy`) whose values are real counts; closed incidents
+  with an empty classification are reported as `Unclassified`. `ClosedBy` sorts each closed
+  incident by the first record that shows it Closed: `AutomationRule` (`ModifiedBy contains
+  "Automation"`, the test the automation rules guide uses), `DefenderXdr`, `Analyst` (a user
+  principal name) or `Other`; only the category is exported. The same row carries the last 7 days (`Count7d`,
   `Closed7d`, `TruePositive7d`, `FalsePositive7d`) and the incidents raised through Defender
   XDR (`Unified`, `Unified7d`: provider Microsoft XDR or Microsoft 365 Defender);
   `incidents-mttr` carries the 7-day MTTA and MTTR beside the 30-day ones.
