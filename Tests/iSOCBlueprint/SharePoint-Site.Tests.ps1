@@ -1284,6 +1284,19 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "if\(name==='flow' && big\) revealSankey\(big\);"
     }
 
+    It 'gives every card the dark screen in dark mode, below hover and accent rules' {
+        $html | Should -Match 'html\[data-theme="dark"\] :where\(\.hero,\.panel,\.pill,\.ipanel,\.ctcard,\.docnav,\.docpanel,\.card,\.fcard\)'
+        $html | Should -Match 'html\[data-theme="dark"\] \.outcome\.ringcard\{\s*background:radial-gradient'
+    }
+
+    It 'draws the estate flow in the alert lifecycle style with the same layout and links' {
+        $html | Should -Match "glow\.setAttribute\('id','esGlow'\)"
+        $html | Should -Match "mk\('circle',\{class:'es-src','data-fam':s\.category"
+        $html | Should -Match "(?s)class:'es-arc'.{0,400}?filter:'url\(#esGlow\)'"
+        $html | Should -Match "mk\('circle',\{'data-inc':b\.l"
+        $html | Should -Match "svgEl\.querySelectorAll\('\[data-inc\]'\)"
+    }
+
     It 'leaves the closure split out for a snapshot collected before it' {
         $ws5 = Join-Path $outDir 'law-before-closedby'
         New-Item -ItemType Directory -Path (Join-Path $ws5 '_raw') -Force | Out-Null

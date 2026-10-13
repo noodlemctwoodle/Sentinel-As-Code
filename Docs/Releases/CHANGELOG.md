@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Dark mode cards and the estate flow restyled** - in dark mode every
+  dashboard card takes the alert lifecycle's look, a teal-tinted glow
+  fading to near-black, with a darker base panel colour so donut holes and
+  table headers inside the cards match; the coloured posture cards keep
+  their colours, and light mode is unchanged. The estate flow keeps its
+  layout and links but is drawn in the same style: glowing source dots,
+  glowing ring arcs with larger percentages, and the closed and open
+  incidents as glowing nodes with their counts.
 - **Estate flow and Data flow animated** - the Overview's estate flow now
   moves like the alert lifecycle: beads run along every strand a detection rule reads, the
   band between the rings and the closed and open incident branches, faster

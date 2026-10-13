@@ -93,6 +93,14 @@ counts shows one Closed branch and says the automation share was not
 captured. The particles stop for anyone who asks for reduced motion, and the
 drawing pauses while the Overview is not on screen.
 
+In dark mode every card (the header, panels, glance tiles, insight, contents,
+section and finding cards) uses the alert lifecycle's screen, a teal-tinted
+glow fading to near-black, and the base panel colour is darker to match; the
+coloured posture cards keep their colours. The estate flow is drawn in the
+same style: glowing source dots, ring arcs with a glow and spaced capitals
+for the captions, and the closed and open incidents as glowing nodes with
+their counts.
+
 The estate flow moves too: beads run along the strands a detection rule
 reads, the band between the rings and the incident branches (faster for more
 data), the dashed "no detection rule" strands creep towards their pool, and
