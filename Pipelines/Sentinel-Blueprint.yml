@@ -52,7 +52,7 @@
 #     permission CustomDetection.Read.All on the same identity; without it
 #     that one capture is recorded as not taken and the run still succeeds.
 #   - SharePoint stage only: the site prepared once by
-#     Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1, and an
+#     Initialize-iSOCBlueprintSite (Modules/iSOCBlueprint), and an
 #     Azure Resource Manager service connection $(sharePointServiceConnection)
 #     (workload identity federation, manual) for the publisher app
 #     registration that holds the SharePoint application permission
@@ -180,7 +180,7 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
-  # Pinned module versions. Keep in sync with Tools/Blueprint/Blueprint.psd1
+  # Pinned module versions. Keep in sync with Modules/iSOCBlueprint/Engine/Blueprint.psd1
   # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
   # with the Blueprint pipeline on what 'works'.
   - name: pesterVersion
@@ -280,7 +280,7 @@ stages:
                     Format-Table Name, Version
 
           - task: AzurePowerShell@5
-            displayName: "Run collector - Export-SentinelInventory.ps1"
+            displayName: "Run collector - Export-iSOCBlueprintInventory"
             inputs:
               azureSubscription: $(serviceConnection)
               ScriptType: "InlineScript"
@@ -294,6 +294,7 @@ stages:
                     SubscriptionId = "$(azureSubscriptionId)"
                     ResourceGroup  = "$(sentinelResourceGroup)"
                     WorkspaceName  = "$(sentinelWorkspaceName)"
+                    OutputPath     = "$(Build.SourcesDirectory)/SecurityDocs"
                 }
                 if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
 
@@ -313,10 +314,11 @@ stages:
                 Write-Host "  Target level : $($params['TargetMaturityLevel'])"
                 Write-Host "============================================================"
 
-                & "$(Build.SourcesDirectory)/Tools/Blueprint/Export-SentinelInventory.ps1" @params
+                Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                Export-iSOCBlueprintInventory @params | Out-Null
 
           - task: PowerShell@2
-            displayName: "Run renderer - Convert-SentinelInventoryToMarkdown.ps1"
+            displayName: "Run renderer - ConvertTo-iSOCBlueprint"
             inputs:
               targetType: "inline"
               pwsh: true
@@ -326,9 +328,11 @@ stages:
                 $formats = '$(renderFormats)' -split ','
                 Write-Host "##[section]Sentinel Blueprint - Renderer"
                 Write-Host "  Output       : $($formats -join ', ')"
-                & "$(Build.SourcesDirectory)/Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1" `
+                Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                ConvertTo-iSOCBlueprint `
                     -WorkspaceName "$(sentinelWorkspaceName)" `
-                    -OutputFormat $formats
+                    -Path "$(Build.SourcesDirectory)/SecurityDocs/$(sentinelWorkspaceName)" `
+                    -Format $formats | Out-Null
 
           # Pre-render Mermaid fenced blocks to PNG. ADO Repos preview and
           # "publish code as wiki" treat ```mermaid``` as plain code, and ADO
@@ -367,9 +371,10 @@ stages:
                   $ErrorActionPreference = 'Stop'
 
                   Write-Host "##[section]Sentinel Blueprint - Mermaid pre-render (PNG)"
-                  & "$(Build.SourcesDirectory)/Tools/Blueprint/Convert-MermaidToImage.ps1" `
-                      -Root "$(Build.SourcesDirectory)/SecurityDocs" `
-                      -Format png
+                  Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                  ConvertTo-iSOCBlueprintChartImage `
+                      -Path "$(Build.SourcesDirectory)/SecurityDocs" `
+                      -Format png | Out-Null
 
           - task: PowerShell@2
             displayName: "Stage SecurityDocs/ for artefact publish"
@@ -618,8 +623,9 @@ stages:
                       Write-Host "##vso[task.logissue type=warning]prerenderChartsToPng is off, so the Word report carries no chart images: pandoc drops Mermaid fences."
                   }
                   $out = Join-Path '$(Build.ArtifactStagingDirectory)' "$env:WORKSPACE_NAME.docx"
-                  & "$(Build.SourcesDirectory)/Tools/Blueprint/Report/Convert-MarkdownToWord.ps1" `
-                      -Source $src -OutputPath $out -Title "$env:WORKSPACE_NAME - Sentinel Documentation" -Toc Baked
+                  Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                  Export-iSOCBlueprintWord `
+                      -Path $src -OutputPath $out -Title "$env:WORKSPACE_NAME - Sentinel Documentation" -Toc Baked | Out-Null
                   if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $out)) {
                       Write-Host "##vso[task.logissue type=error]Conversion failed."
                       exit 1
@@ -654,13 +660,13 @@ stages:
   #   1. Download this run's 'sentinel-docs' artefact.
   #   2. Build the web part package (isoc-blueprint.sppkg: the dashboard and
   #      chart web parts).
-  #   3. Build the site bundle (Build-SentinelDocsSite.ps1) from the section
+  #   3. Build the site bundle (New-iSOCBlueprintSite) from the section
   #      model: dashboard, one page per section, findings. Nothing is
   #      rendered: the dashboard and the chart web part draw the charts
   #      from their data.
   #   4. Sign in as the SharePoint publisher identity through workload
   #      identity federation and publish the bundle
-  #      (Publish-SentinelDocsSite.ps1): pages, navigation, findings list,
+  #      (Publish-iSOCBlueprintSite): pages, navigation, findings list,
   #      dashboard home page, and the web part package when its version
   #      changed.
   #   5. Keep the bundle and package as the 'sharepoint-site' artefact, even
@@ -760,7 +766,8 @@ stages:
                 script: |
                   $ErrorActionPreference = 'Stop'
                   $ws = Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME
-                  & "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1" -Source $ws | Out-Null
+                  Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                  New-iSOCBlueprintSite -Path $ws | Out-Null
 
             - task: AzureCLI@2
               displayName: "Publish to SharePoint"
@@ -782,13 +789,14 @@ stages:
                   Write-Host "##vso[task.setsecret]$token"
                   $publish = @{
                       SiteUrl     = $env:SHAREPOINT_SITE_URL
-                      Bundle      = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
+                      Path        = Join-Path (Join-Path $env:DOCS_ROOT $env:WORKSPACE_NAME) 'sharepoint'
                       AccessToken = $token
                   }
                   if ('${{ parameters.deployAppPackage }}' -eq 'True') {
                       $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
                   }
-                  & "$(Build.SourcesDirectory)/Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1" @publish $(flagWhatIf)
+                  Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
+                  Publish-iSOCBlueprintSite @publish $(flagWhatIf)
 
             - task: PowerShell@2
               displayName: "Stage the site bundle for artefact publish"

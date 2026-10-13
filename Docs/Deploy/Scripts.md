@@ -194,7 +194,7 @@ One-time bootstrap of the identity the Blueprint pipeline's SharePoint
 stage signs in with. It replaces the six manual steps (Entra app, SharePoint
 permission, admin consent, Azure role, ADO service connection, federated
 credential) with one idempotent run, and prints the
-`Initialize-SentinelDocsSite.ps1` command to run next.
+`Initialize-iSOCBlueprintSite` command to run next.
 
 ### Key Features
 
@@ -310,7 +310,7 @@ Re-running is safe: every step that is already done reports so and is
 skipped, which is also how you set the site URL later.
 
 What it leaves to you: clicking Verify on the connection; preparing the
-site with `Initialize-SentinelDocsSite.ps1`, which needs your own PnP
+site with `Initialize-iSOCBlueprintSite`, which needs your own PnP
 sign-in app and grants this app FullControl on that one site; and the first
 pipeline run, queued with **Export: SharePoint site** and **SharePoint:
 what-if** ticked. See
@@ -1529,12 +1529,13 @@ Unit tests: `Tests/Test-InvokeClassicTableMigration.Tests.ps1`.
 
 ---
 
-## Blueprint scripts
+## iSOCBlueprint module
 
-The repository documentation generator lives under `Tools/Blueprint/`
-(`Export-SentinelInventory.ps1`, `Convert-SentinelInventoryToMarkdown.ps1`,
-`Convert-MermaidToImage.ps1`, plus the `Report/` and `Private/` helpers)
-and is documented separately. See
+The Blueprint (the workspace documentation, gap analysis and maturity
+assessment) is the PowerShell module
+[`Modules/iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md):
+`New-iSOCBlueprint` produces any output in one command, and eleven more
+commands run each step on its own. It is documented separately. See
 [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) for the
 inventory export model, Markdown/Word report generation, and diagram
 rendering.

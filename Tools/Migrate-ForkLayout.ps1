@@ -7,11 +7,13 @@
 
 .DESCRIPTION
     The 26.06 restructure moved the repository from a flat root into grouped
-    folders, and the Documenter was later renamed Blueprint (Tools/Documenter
-    and Tests/Documenter became Tools/Blueprint and Tests/Blueprint). Tracked files move automatically when you merge or rebase the
-    restructure (git rename detection reconciles your customisations). This
-    helper catches stragglers — untracked custom content or conflict leftovers
-    still sitting at an old path — and moves them to their new home.
+    folders, and the Documenter later became the iSOCBlueprint module
+    (Tools/Documenter became Modules/iSOCBlueprint/Engine and Tests/Documenter
+    became Tests/iSOCBlueprint). Tracked files move automatically when you
+    merge or rebase the restructure (git rename detection reconciles your
+    customisations). This helper catches stragglers (untracked custom
+    content or conflict leftovers still sitting at an old path) and moves
+    them to their new home.
 
     The move is at the filesystem level (Move-Item), which works for both
     tracked and untracked files; git detects the renames for tracked content on
@@ -49,8 +51,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.0
-    Last Updated:   2026-09-01
+    Version:        0.1.1
+    Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, git
 #>
 
@@ -95,9 +97,10 @@ $moveMap = [ordered]@{
     'Scripts/Invoke-PRValidation.ps1'       = 'Tools/Invoke-PRValidation.ps1'
     'Scripts/Export-SentinelWorkbooks.ps1'  = 'Tools/Export-SentinelWorkbooks.ps1'
     'Scripts/Import-CommunityRules.ps1'     = 'Tools/Import-CommunityRules.ps1'
-    'Scripts/Documenter'                    = 'Tools/Blueprint'
-    'Tools/Documenter'                      = 'Tools/Blueprint'
-    'Tests/Documenter'                      = 'Tests/Blueprint'
+    'Scripts/Documenter'                    = 'Modules/iSOCBlueprint/Engine'
+    'Tools/Documenter'                      = 'Modules/iSOCBlueprint/Engine'
+    'Tests/Documenter'                      = 'Tests/iSOCBlueprint'
+    'Tests/Blueprint'                       = 'Tests/iSOCBlueprint'
 }
 
 Push-Location $RepoPath

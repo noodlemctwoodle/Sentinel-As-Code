@@ -93,9 +93,9 @@ current directory, records the module version as the Blueprint version, reads
 page 99 from the copy it ships, and links to GitHub where the pages linked into
 the repository. While both copies exist,
 [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1)
-fails if they drift, so a fix must land in both. The pipelines still call
-`Tools/Blueprint` until they are switched to the module; the old folder is
-removed after a pipeline run on the module passes.
+fails if they drift, so a fix must land in both. The pipelines run the
+module; `Tools/Blueprint` is no longer called and is removed once a pipeline
+run on the module has passed.
 
 | Old script | Command |
 | --- | --- |
@@ -122,3 +122,4 @@ Invoke-Pester -Path Tests/iSOCBlueprint
 | `Module.Tests.ps1` | Manifest, help, file headers, prerequisites against the engine's `#Requires`, and each command's parameter mapping |
 | `Module-Standalone.Tests.ps1` | The module copied outside the repository renders the fixture, builds the site and runs the assessments |
 | `Parity.Tests.ps1` | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity from the fixture |
+| `Pipelines.Tests.ps1` | Every call the Blueprint pipelines make to the module binds, after an import |

@@ -20,9 +20,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   module version (26.10.0, following the repository release), and the four
   links from the report into the repository point at GitHub. The module is
   named for the iSOC rather than Sentinel so other sources, such as Defender
-  XDR, can follow. The pipelines move to the module in a later change; until
-  then `Tools/Blueprint` is unchanged and a test keeps the two copies
-  identical.
+  XDR, can follow. The Blueprint pipelines (Azure DevOps and both GitHub
+  workflows) now run the module, and the Blueprint test suites moved to
+  `Tests/iSOCBlueprint` and test it. `Tools/Blueprint` is no longer called;
+  a test keeps it identical to the module until it is removed.
 - **Findings and maturity grouped as the Assessment** - the gap analysis
   (page 90) and the maturity assessment (page 91) are now presented as one
   assessment. On SharePoint both pages and the findings list sit under one

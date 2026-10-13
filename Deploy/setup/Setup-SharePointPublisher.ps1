@@ -36,7 +36,7 @@
          variable group, so the first run needs no clicks.
 
     What it does not do: create or prepare the SharePoint site. Run
-    Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1 for that
+    Initialize-iSOCBlueprintSite from the iSOCBlueprint module for that
     (it grants this app FullControl on the one site). The script prints
     the exact command with the app id filled in.
 
@@ -111,7 +111,7 @@
         -SubscriptionId '00000000-0000-0000-0000-000000000000' `
         -ReaderResourceGroup 'rg-sentinel-publisher'
 
-    Creates everything and prints the Initialize-SentinelDocsSite.ps1
+    Creates everything and prints the Initialize-iSOCBlueprintSite
     command to run next.
 
 .NOTES
@@ -120,8 +120,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.2.0
-    Last Updated:   2026-10-12
+    Version:        0.2.1
+    Last Updated:   2026-10-13
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
                     Administrator, or Global Administrator). Azure: User
@@ -465,7 +465,8 @@ Write-Host "============================================================" -Foreg
 Write-Host "  1. Verify the connection in ADO (Project settings, Service connections, $ServiceConnectionName, Verify)."
 Write-Host "  2. Prepare the site once, as a SharePoint administrator (adds the site app catalog and grants this app FullControl on that site only):"
 Write-Host ""
-Write-Host "     ./Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1 ``" -ForegroundColor White
+Write-Host "     Import-Module ./Modules/iSOCBlueprint" -ForegroundColor White
+Write-Host "     Initialize-iSOCBlueprintSite ``" -ForegroundColor White
 Write-Host "         -SiteUrl '$(if ($SharePointSiteUrl) { $SharePointSiteUrl } else { '<site url>' })' -Owner '<owner upn>' ``" -ForegroundColor White
 Write-Host "         -PublisherAppId '$appId' -ClientId '<your PnP sign-in app id>' -Tenant '<tenant>.onmicrosoft.com' -WhatIf" -ForegroundColor White
 Write-Host ""

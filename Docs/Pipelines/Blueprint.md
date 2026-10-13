@@ -112,14 +112,15 @@ Steps, in order:
    `subscription-id: secrets.AZURE_SUBSCRIPTION_ID`.
 5. **Run Sentinel inventory collector** (`azure/powershell@v3`,
    `azPSVersion: latest`). Sets `SENTINEL_RG` and `SENTINEL_WORKSPACE`
-   from repo variables, parses `include-preview`, then runs
-   `./Tools/Blueprint/Export-SentinelInventory.ps1` with
+   from repo variables, parses `include-preview`, imports
+   `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
    `-SubscriptionId`, `-ResourceGroup`, `-WorkspaceName`,
-   `-IncludePreview:$includePreview` and `-TargetMaturityLevel` (from
-   `target-maturity-level`, default 3).
-6. **Render Markdown report** (`shell: pwsh`). Runs
-   `./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1`
-   `-WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'`.
+   `-IncludePreview:$includePreview`, `-TargetMaturityLevel` (from
+   `target-maturity-level`, default 3) and `-OutputPath` set to
+   `SecurityDocs/` in the checkout.
+6. **Render Markdown report** (`shell: pwsh`). Imports the module and runs
+   `ConvertTo-iSOCBlueprint -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'`
+   on `SecurityDocs/<workspace>`, writing both formats.
 7. **Confirm `SecurityDocs/` is not git-tracked** (`shell: bash`). Fails
    the run if `git ls-files --error-unmatch SecurityDocs/` succeeds, so a
    folder that was accidentally committed cannot slip past the gitignore
@@ -205,7 +206,8 @@ A SharePoint-only run renders no Markdown and no PNGs.
 - `serviceConnection: sc-sentinel-as-code`.
 - `SuppressAzurePowerShellBreakingChangeWarnings: true`.
 - `pesterVersion: 5.7.1`, `yamlVersion: 0.4.12` (kept in sync with
-  `Tools/Blueprint/Blueprint.psd1` and the PR-validation workflow).
+  `Modules/iSOCBlueprint/Engine/Blueprint.psd1` and the PR-validation
+  workflow).
 - `flagIncludePreview` (compile-time `${{ if }}` mapping of the
   `includePreview` parameter).
 - `renderFormats` (compile-time): `Markdown,Json` when `openPullRequest` or
@@ -232,19 +234,20 @@ A SharePoint-only run renders no Markdown and no PNGs.
 2. **Install pinned PowerShell modules** (`PowerShell@2`, inline). Installs
    `powershell-yaml` at `$(yamlVersion)` only (no Pester).
 3. **Run collector** (`AzurePowerShell@5`, `azureSubscription:
-   $(serviceConnection)`, `azurePowerShellVersion: LatestVersion`). Runs
-   `Export-SentinelInventory.ps1` with `SubscriptionId`, `ResourceGroup`,
-   `WorkspaceName`, optionally `IncludePreview` (when
-   `flagIncludePreview` is set), optionally `PlaybookResourceGroup`, and
-   `TargetMaturityLevel`.
+   $(serviceConnection)`, `azurePowerShellVersion: LatestVersion`). Imports
+   `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
+   `SubscriptionId`, `ResourceGroup`, `WorkspaceName`, optionally
+   `IncludePreview` (when `flagIncludePreview` is set),
+   `PlaybookResourceGroup`, `TargetMaturityLevel` and `OutputPath`
+   (`$(Build.SourcesDirectory)/SecurityDocs`).
 4. **Run renderer** (`PowerShell@2`, inline). Runs
-   `Convert-SentinelInventoryToMarkdown.ps1 -WorkspaceName
-   $(sentinelWorkspaceName) -OutputFormat` with `$(renderFormats)`, and logs
+   `ConvertTo-iSOCBlueprint -WorkspaceName $(sentinelWorkspaceName)` on
+   `SecurityDocs/<workspace>` with `-Format $(renderFormats)`, and logs
    which formats it wrote.
 5. **Mermaid pre-render** (only when `prerenderChartsToPng == true` and the
    renderer writes Markdown):
    `UseNode@1` (Node 20), install `@mermaid-js/mermaid-cli@11`, then run
-   `Convert-MermaidToImage.ps1 -Root .../SecurityDocs -Format png`.
+   `ConvertTo-iSOCBlueprintChartImage -Path .../SecurityDocs -Format png`.
 6. **Stage `SecurityDocs/` for artefact publish** (`PowerShell@2`).
    Copies the workspace tree into
    `$(Build.ArtifactStagingDirectory)/sentinel-docs`; fails if
@@ -266,7 +269,7 @@ A SharePoint-only run renders no Markdown and no PNGs.
 job `Render`. Checks the repository out (`fetchDepth: 1`), downloads this
 run's `sentinel-docs` artefact (`download: current`), installs LibreOffice
 Writer, `python3-uno` and pandoc `$(pandocVersion)`, runs
-`Convert-MarkdownToWord.ps1` on `<docsRoot>/<workspace>` with the title
+`Export-iSOCBlueprintWord` on `<docsRoot>/<workspace>` with the title
 `<workspace> - Sentinel Documentation` and `-Toc Baked`, verifies the baked
 table of contents, and publishes `<workspace>.docx` as the
 `sentinel-word-report` artefact. It warns when `prerenderChartsToPng` was
@@ -280,10 +283,10 @@ job `Publish`. Downloads this run's `sentinel-docs` artefact, checks that
 `<workspace>/_raw` is in it (and logs how many section files it holds),
 builds the web part package (Node 22, `npm ci`, `npm run package`),
 installs PnP.PowerShell, builds the site bundle from the section model
-with `Build-SentinelDocsSite.ps1`, then signs in through the
+with `New-iSOCBlueprintSite`, then signs in through the
 `sc-sentinel-sharepoint` service connection inside one `AzureCLI@2` task,
 requests a SharePoint token for the site's host and runs
-`Publish-SentinelDocsSite.ps1` (with `-WhatIf` when `sharePointWhatIf` is
+`Publish-iSOCBlueprintSite` (with `-WhatIf` when `sharePointWhatIf` is
 ticked, and the `.sppkg` path when `deployAppPackage` is). The bundle and
 package are kept as the `sharepoint-site` artefact even when the publish
 failed. See [SharePoint-Publish.md](SharePoint-Publish.md).

@@ -101,12 +101,13 @@ manual run.
 5. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
    has).
 6. **Build the site bundle** with
-   [`Build-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1).
+   [`New-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1) from the
+   iSOCBlueprint module.
 7. **Sign in and publish.** Request a SharePoint token for the tenant's
    SharePoint host through the federated credential
    (`az account get-access-token --resource https://<tenant>.sharepoint.com`),
    mask it, and run
-   [`Publish-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1)
+   [`Publish-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/Publish-iSOCBlueprintSite.ps1)
    with `-AccessToken`. On ADO the whole step runs inside one `AzureCLI@2`
    task bound to the service connection; on GitHub it follows the
    `azure-login-oidc` composite action with `allow-no-subscriptions`.
@@ -169,7 +170,7 @@ One app registration (or one per platform, if you prefer) with:
   Microsoft Graph's `Sites.Selected` alone is not enough: the publisher calls
   SharePoint's own APIs.
 - **FullControl on the one site**, granted by
-  [`Initialize-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1).
+  [`Initialize-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/Initialize-iSOCBlueprintSite.ps1).
   FullControl is what the site collection app catalog, the home page and the
   navigation changes need. It covers nothing outside that site.
 - **No client secret or certificate.** The token comes from the pipeline's

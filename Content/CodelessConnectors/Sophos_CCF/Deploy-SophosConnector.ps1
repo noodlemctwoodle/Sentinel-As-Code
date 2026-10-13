@@ -51,8 +51,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-08-20
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Azure CLI (az) signed in with rights to create tables, DCRs and Sentinel resources
 
     API versions:
@@ -85,7 +85,7 @@ Set-StrictMode -Version Latest
 
 # --- API versions --------------------------------------------------------------
 # Pinned to the versions the repository standardises on, see the $apiVersions map in
-# Tools/Blueprint/Export-SentinelInventory.ps1. dataConnectorDefinitions and the
+# Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1. dataConnectorDefinitions and the
 # RestApiPoller connector kind are preview-only resource types, so both use the
 # repository's SentinelPreview pin rather than the Sentinel GA pin.
 $apiTables    = '2023-09-01'         # Tables

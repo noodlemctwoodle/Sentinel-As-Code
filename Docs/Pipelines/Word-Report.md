@@ -38,8 +38,8 @@ page-numbered `.docx`, and publishes the document as a build artefact you can
 download from the run summary.
 
 The render itself is done by
-[`Tools/Blueprint/Report/Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1)
-in its default `-Toc Baked` mode. See the tool page for how that works.
+[`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1) from the
+iSOCBlueprint module, in its default `-Toc Baked` mode. See the tool page for how that works.
 
 ## Running it
 
@@ -103,11 +103,11 @@ the only external network dependency in the stage.
 
 - Validates that `<docsRoot>/<workspace>` exists (errors and exits `1` if not).
 - Warns when `prerenderChartsToPng` was off for the run.
-- Runs
-  [`Tools/Blueprint/Report/Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1)
-  with `-Source`, `-OutputPath $(Build.ArtifactStagingDirectory)/<workspace>.docx`,
+- Imports `Modules/iSOCBlueprint` and runs
+  [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
+  with `-Path`, `-OutputPath $(Build.ArtifactStagingDirectory)/<workspace>.docx`,
   `-Title "<workspace> - Sentinel Documentation"`, and `-Toc Baked`.
-- Fails the stage if the script returns non-zero or the `.docx` was not written.
+- Fails the stage if the conversion returns non-zero or the `.docx` was not written.
 - **TOC verification:** opens the produced `.docx` as a zip, reads
   `word/document.xml`, and counts LibreOffice `__RefHeading` anchors. A baked
   (page-numbered) table of contents carries these anchors, so if the count is
@@ -145,7 +145,7 @@ if:
 - The `Document` stage failed (the stage then does not run at all).
 - The install step cannot fetch pandoc or the apt packages.
 - `<docsRoot>/<workspace>` is not in the artefact.
-- `Convert-MarkdownToWord.ps1` returns non-zero or does not write the `.docx`.
+- `Export-iSOCBlueprintWord` returns non-zero or does not write the `.docx`.
 - The baked table of contents is empty (zero `__RefHeading` anchors),
   indicating the LibreOffice bake did not populate the field.
 

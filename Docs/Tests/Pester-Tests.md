@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) - 44 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 18 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
+| Test files | [`Tests/`](../../Tests) - 45 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 19 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -171,6 +171,7 @@ workbook-export suites.
 | iSOCBlueprint module | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | The manifest (valid, exports one command per `Public/` file, no required modules, version not older than the newest CHANGELOG release), each command's help and file header, the prerequisite list against the engine scripts' `#Requires`, the engine runner (null parameters left out, common parameters passed on, strict mode off), each command's parameter mapping with the engine mocked, and `New-iSOCBlueprint`'s step selection and refusals |
 | iSOCBlueprint standalone | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders the fixture (page 99 from its own copy, GitHub links), builds the SharePoint bundle offline, runs the findings and maturity commands, and loads every engine file it references from inside itself |
 | iSOCBlueprint parity | [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | Renders the fixture through `Tools/Blueprint` and through the module and compares every Markdown page and every `sections/*.json`, then builds the SharePoint bundle from one rendering with both builders and compares every bundle file, then the findings, the per-rule outcomes and the maturity assessment. Only the four E6 links (rewritten in the old output before comparing, including their section-model kind) and the bundle's build time may differ. Retired with `Tools/Blueprint` |
+| iSOCBlueprint pipelines | [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | Every inline script in `Pipelines/Sentinel-Blueprint.yml`, `.github/workflows/sentinel-blueprint.yml` and `.github/workflows/sentinel-sharepoint-publish.yml`, with the pipeline macros stood in for: each iSOCBlueprint call names an exported command, every named parameter and every key of a splatted table binds to it, the module is imported earlier in the same step, and no step runs a script from `Tools/Blueprint` |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI
@@ -619,7 +620,7 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-Root-level `Tests/*.Tests.ps1` suites and the 18 under `Tests/iSOCBlueprint/`
+Root-level `Tests/*.Tests.ps1` suites and the 19 under `Tests/iSOCBlueprint/`
 are listed below. Counts are approximate (some suites use `-ForEach`
 to generate per-file `It` blocks at discovery time, so the count grows with
 the content tree). Run `Invoke-Pester -Path Tests` for a current total.
@@ -664,6 +665,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | Manifest, help, file headers, prerequisites, the engine runner, parameter mapping, `New-iSOCBlueprint` step selection | ~90 |
 | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders, builds the site and runs the assessments | 8 |
 | [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity | ~130 (per-file) |
+| [`Tests/iSOCBlueprint/Pipelines.Tests.ps1`](../../Tests/iSOCBlueprint/Pipelines.Tests.ps1) | The Blueprint pipelines' calls to the module bind, after an import, with nothing left on `Tools/Blueprint` | ~38 (per-step) |
 
 Add new entries to this table as you cover more scripts.
 

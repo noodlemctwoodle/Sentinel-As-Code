@@ -58,9 +58,16 @@ the authenticated context) is the only module it needs.
 
 ## Sentinel Blueprint
 
-The read-only Blueprint (`Tools/Blueprint/`) pins its own module set in
-[`Blueprint.psd1`](../../Tools/Blueprint/Blueprint.psd1). The collector
-imports the Az modules; the renderer only needs `powershell-yaml`.
+The read-only Blueprint, the
+[`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md) module, records its
+module set in
+[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Engine/Blueprint.psd1). The
+collector (`Export-iSOCBlueprintInventory`) imports the Az modules; the
+renderer (`ConvertTo-iSOCBlueprint`) only needs `powershell-yaml`; publishing
+and setting up the SharePoint site need PowerShell 7.4 and PnP.PowerShell
+3.4.1. The module declares no required modules: each command needs only what
+its step uses, and `Test-iSOCBlueprintPrerequisite` lists what a machine has
+and is missing.
 
 | Module | Pinned version |
 | --- | --- |
@@ -83,8 +90,9 @@ is a standalone helper (not part of the deploy path) that needs:
 | Dependency | Required by |
 | --- | --- |
 | `git` (2.x+ on PATH) | [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Migrate-ForkLayout.ps1`](../../Tools/Migrate-ForkLayout.ps1) |
-| `pandoc` (on PATH) | [`Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1), [`Convert-FolderToWordReport.ps1`](../../Tools/Blueprint/Report/Convert-FolderToWordReport.ps1) |
-| Node.js + `@mermaid-js/mermaid-cli` | [`Convert-MermaidToImage.ps1`](../../Tools/Blueprint/Convert-MermaidToImage.ps1) |
+| `pandoc` (on PATH) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1) |
+| LibreOffice + `python3-uno` (optional) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1): page numbers in the contents |
+| Node.js + `@mermaid-js/mermaid-cli` | [`ConvertTo-iSOCBlueprintChartImage`](../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1) |
 | Azure CLI + Bicep (`az bicep build`) | PR-validation `bicep-build` job |
 | Azure CLI (`az`) | [`Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) (`az automation account show`, `az role assignment create` / `delete` / `list`) |
 

@@ -155,18 +155,23 @@ jobs:
             $includePreview = [bool]::Parse('${{ inputs.include-preview || 'false' }}')
             $targetLevel    = [int]'${{ inputs.target-maturity-level || '3' }}'
 
-            ./Tools/Blueprint/Export-SentinelInventory.ps1 `
+            Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
+            Export-iSOCBlueprintInventory `
               -SubscriptionId      '${{ secrets.AZURE_SUBSCRIPTION_ID }}' `
               -ResourceGroup       $env:SENTINEL_RG `
               -WorkspaceName       $env:SENTINEL_WORKSPACE `
               -IncludePreview:$includePreview `
-              -TargetMaturityLevel $targetLevel
+              -TargetMaturityLevel $targetLevel `
+              -OutputPath          (Join-Path $env:GITHUB_WORKSPACE 'SecurityDocs') | Out-Null
 
       - name: Render Markdown report
         shell: pwsh
         run: |
-          ./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
-            -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
+          ConvertTo-iSOCBlueprint `
+            -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}' `
+            -Path (Join-Path $env:GITHUB_WORKSPACE 'SecurityDocs/${{ vars.SENTINEL_WORKSPACE }}') | Out-Null
 
       - name: Confirm SecurityDocs/ is not git-tracked
         # The folder MUST be gitignored. If a previous change accidentally

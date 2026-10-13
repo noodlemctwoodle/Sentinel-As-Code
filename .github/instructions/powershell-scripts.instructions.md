@@ -214,9 +214,13 @@ than no reference, because it implies the contract was checked.
 ### Variants
 
 **Files that define functions rather than run** (`Modules/**/*.psm1`,
-`Tools/Blueprint/Private/*.ps1`): the file-level block describes the
-file and carries `.NOTES`. Per-parameter and per-example detail lives
-on each function's own help block, not the file's.
+`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/*.ps1`,
+`Modules/iSOCBlueprint/Engine/Private/*.ps1`): the file-level block
+describes the file and carries `.NOTES`. Per-parameter and per-example
+detail lives on each function's own help block, not the file's. Put a
+comment line between the file block and the first `function`: with only
+a blank line between them, PowerShell reads the file block as that
+function's help and `Get-Help` shows the wrong text.
 
 **Pester test files** (`Tests/**/*.Tests.ps1`): no `.PARAMETER`, since
 they take none. `.EXAMPLE` carries the `Invoke-Pester` invocations a

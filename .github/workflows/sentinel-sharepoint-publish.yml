@@ -14,11 +14,11 @@
 #   1. Downloads the Blueprint run's 'sentinel-docs-<ws>-<runId>' artefact.
 #   2. Builds the web part package (isoc-blueprint.sppkg: the dashboard and
 #      chart web parts).
-#   3. Builds the site bundle from the section model (Build-SentinelDocsSite.ps1).
+#   3. Builds the site bundle from the section model (New-iSOCBlueprintSite).
 #      Charts are data, drawn by the dashboard and the chart web part, so
 #      nothing is pre-rendered.
 #   4. Signs in as the SharePoint publisher identity (OIDC) and publishes the
-#      bundle (Publish-SentinelDocsSite.ps1).
+#      bundle (Publish-iSOCBlueprintSite).
 #   5. Uploads the bundle and package as a 30-day run artefact.
 #
 # CRITICAL: REPOSITORY PRIVACY
@@ -33,7 +33,7 @@
 #                          app from the Blueprint and deploy identities, with:
 #                            - SharePoint application permission Sites.Selected
 #                              (admin consent), FullControl granted on the one
-#                              site by Initialize-SentinelDocsSite.ps1
+#                              site by Initialize-iSOCBlueprintSite
 #                            - no Azure role assignments
 #                            - a federated credential trusting
 #                                subject:  repo:<owner>/<repo>:environment:sharepoint-publish
@@ -199,7 +199,8 @@ jobs:
           WORKSPACE_NAME: ${{ vars.SENTINEL_WORKSPACE }}
         run: |
           $ErrorActionPreference = 'Stop'
-          ./Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1 -Source (Join-Path 'blueprint' $env:WORKSPACE_NAME) | Out-Null
+          Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
+          New-iSOCBlueprintSite -Path (Join-Path 'blueprint' $env:WORKSPACE_NAME) | Out-Null
 
       - name: Azure login (OIDC, SharePoint publisher)
         uses: ./.github/actions/azure-login-oidc
@@ -229,14 +230,15 @@ jobs:
 
           $publish = @{
               SiteUrl     = $env:SHAREPOINT_SITE_URL
-              Bundle      = Join-Path (Join-Path 'blueprint' $env:WORKSPACE_NAME) 'sharepoint'
+              Path        = Join-Path (Join-Path 'blueprint' $env:WORKSPACE_NAME) 'sharepoint'
               AccessToken = $token
           }
           if ($env:DEPLOY_APP_PACKAGE -eq 'true') {
               $publish.AppPackagePath = Join-Path $env:WEB_PART_DIR 'sharepoint/solution/isoc-blueprint.sppkg'
           }
           if ($env:WHAT_IF -eq 'true') { $publish.WhatIf = $true }
-          ./Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1 @publish
+          Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
+          Publish-iSOCBlueprintSite @publish
 
       - name: Stage the site bundle
         if: ${{ !cancelled() }}
