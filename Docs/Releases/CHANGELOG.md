@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Report pages end level with the contents list; inner tabs on tall
+  pages** - no Report page runs past the bottom of the contents list. A
+  page that fits grows its tables into any space left; a taller page
+  shows a tab at a time, a tab per substantial section with small
+  sections folded into the tab before them while they fit (Analytics
+  Rules: Overview, All rules, Microsoft-managed rules, Recent
+  modifications, By Content Hub solution), labelled with the rows each
+  holds; a tab still too tall shrinks its tables and, as a last resort,
+  scrolls inside the panel.
 - **Sortable report tables** - every table in the dashboard's Report tab
   sorts by a column when you select its title: ascending, descending, then
   back to the page's order, with an arrow showing which. Numbers sort by

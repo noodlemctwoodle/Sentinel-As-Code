@@ -1424,6 +1424,30 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'table\.doct th\[aria-sort="ascending"\] \.sorti'
     }
 
+    It 'keeps every Report page within the contents list: tabs when taller, then smaller tables, then a scroll' {
+        $html | Should -Match 'const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=56, lastDocTab=\{\};'
+        $html | Should -Match 'function layoutDoc\(\)\{'
+        # Fits: one page, tables grow into the space. Taller: tabs.
+        $html | Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ fitTables\(body, limit, end\); contain\(body, limit, end\); return done\(\); \}'
+        # A big section starts a tab; a small one joins while it fits.
+        $html | Should -Match 'if\(!cur \|\| \(it\.big && cur\.items\.length\) \|\| cur\.h\+it\.h>cap\)\{'
+        $html | Should -Match "t\.full=t\.items\[0\]\.big\? t\.items\[0\]\.label : \(i===0\? 'Overview' : t\.items\[0\]\.label\);"
+        # Too tall: the tallest tables shrink first, then the tab scrolls.
+        $html | Should -Match 'function fitTables\(scope, limit, end\)\{'
+        $html | Should -Match 'function contain\(scope, limit, end\)\{'
+        # The ARIA tablist, arrow keys and short labels; no All tab.
+        $html | Should -Match "strip\.setAttribute\('role','tablist'\)"
+        $html | Should -Match 'ArrowRight:\(i\+1\)%tabsDef\.length'
+        $html | Should -Match 'const shortLabel=l=>'
+        $html | Should -Not -Match '>All</button>'
+        # Run on page and tab changes, resize, the contents search and the tab showing.
+        $html | Should -Match "if\(name==='sectionsdoc' && window\.layoutDoc\) window\.layoutDoc\(\);"
+        $html | Should -Match 'wireNav\(\); layoutDoc\(\);'
+        $html | Should -Match '\.doccontent\{min-width:0;align-self:stretch;display:flex;flex-direction:column\}'
+        $html | Should -Match '\.docpane,\.docsec,\.docintro\{display:flow-root\}'
+        $html | Should -Not -Match 'fitDocTables'
+    }
+
     It 'shows the NIST CSF rollup above the roadmap' {
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')

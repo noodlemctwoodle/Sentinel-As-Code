@@ -439,9 +439,13 @@
   .docitem:hover{background:var(--chip);color:var(--ink)}
   .docitem.active{background:color-mix(in srgb,var(--brand) 12%,var(--panel));border-color:color-mix(in srgb,var(--brand) 32%,var(--line));color:var(--brand-ink)}
   .docitem .dtt{flex:1;line-height:1.3;overflow-wrap:anywhere}
-  .doccontent{min-width:0}
+  /* The page reaches the bottom of the contents list beside it and no
+     further (layoutDoc in the script). No entry animation: it would move
+     the page while it is measured. */
+  .docwrap>.docnav{align-self:start}
+  .doccontent{min-width:0;align-self:stretch;display:flex;flex-direction:column}
   .docpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
-    padding:24px 26px;animation:rise .4s cubic-bezier(.22,.8,.3,1) both}
+    padding:24px 26px;flex:1 0 auto}
   .docpanel .dhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
   .docpanel .dpage{margin-left:auto}
   .docpanel .dpage+.dpage{margin-left:0}
@@ -466,6 +470,21 @@
   .docnote p{margin:5px 0}
   .docnote ul{margin:5px 0;padding-left:18px}
   .docnote li{margin:5px 0}
+  /* Inner tabs on a long Report page: the switches' track, the selected
+     tab on the button gradient, wrapping onto more lines when narrow. */
+  .doctabs{display:flex;flex-wrap:wrap;gap:3px;margin:20px 0 8px;padding:3px;background:var(--chip);border:1px solid var(--line);border-radius:10px}
+  .doctab{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:7px;background:none;color:var(--ink-2);
+    font:inherit;font-size:12.5px;font-weight:650;padding:6px 12px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
+  .doctab:hover{color:var(--ink);background:var(--panel)}
+  .doctab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .doctab[aria-selected="true"]{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
+  .doctab .dtn{font-size:11px;font-weight:750;padding:1px 7px;border-radius:999px;background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+  .doctab[aria-selected="true"] .dtn{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+  /* A tab, a section and the intro keep their blocks' margins inside, so
+     their heights are what layoutDoc measures. A tab's own section heading
+     is its label, so it hides inside the tab. */
+  .docpane,.docsec,.docintro{display:flow-root}
+  .docbody.tabbed .docsec.lead>.dsech{display:none}
   .doctable-wrap{margin:16px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
   .doctable-tools{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel-soft)}
   .doctable-tools input{flex:1;font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--canvas);color:var(--ink)}
@@ -2739,19 +2758,156 @@
     }
     const ICONN2={ info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6"/>') };
 
+    // Page layout (layoutDoc): no Report page runs past the bottom of the
+    // contents list beside it.
+    // 1. A page that fits reads top to bottom, its scrolling tables (cut off
+    //    at 620px) growing into any space left above the list's foot.
+    // 2. A taller page with two or more main sections (## in the Markdown)
+    //    shows a tab at a time. A section with DOC_TAB_SMALL or more table
+    //    rows starts a tab; a smaller one (a short table or only text) joins
+    //    the tab before it while it fits, keeping its heading; small
+    //    sections at the start make an Overview tab. The intro stays above
+    //    the tabs unless it is tall, when it opens the Overview tab.
+    // 3. A tab or page still too tall shrinks its tallest tables first, to
+    //    DOC_TABLE_MIN, and as a last resort scrolls inside the panel.
+    // It runs when a page or tab opens, on resize and when the contents
+    // search changes the list. In one column (a narrow screen) the page
+    // reads top to bottom. Returning to a page reopens its last tab.
+    const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=56, lastDocTab={};
+    let curDocNum=null;
+    // A tab shows its heading without a closing qualifier in brackets
+    // ("Playbook runs (last 7d)" reads "Playbook runs"); the full heading
+    // is its tooltip and opens the tab's content.
+    const shortLabel=l=>{ const s2=l.replace(/\s*\([^()]*\)\s*$/,'').trim(); return s2||l; };
+    const outerH=x=>{ const st=getComputedStyle(x); return x.getBoundingClientRect().height+(parseFloat(st.marginTop)||0)+(parseFloat(st.marginBottom)||0); };
+    // Where the visible content of an element ends: its last shown child and
+    // that child's bottom margin.
+    const contentEnd=el=>[...el.children].filter(x=>x.offsetParent).reduce((m,x)=>Math.max(m, x.getBoundingClientRect().bottom+(parseFloat(getComputedStyle(x).marginBottom)||0)), el.getBoundingClientRect().top);
+    function docLimit(panel){
+      const navBox=document.querySelector('.docwrap>.docnav'), cs=getComputedStyle(panel);
+      return navBox.getBoundingClientRect().bottom-(parseFloat(cs.paddingBottom)||0)-(parseFloat(cs.borderBottomWidth)||0);
+    }
+    // Grow the scrolling tables in scope into the space above limit, in page
+    // order; when the content ends below limit, shrink the tallest first.
+    function fitTables(scope, limit, end){
+      const boxes=[...scope.querySelectorAll('.doctscroll')].filter(x=>x.offsetParent);
+      boxes.forEach(x=>{ x.style.maxHeight=''; });
+      let slack=limit-end();
+      if(slack>1){
+        for(const x of boxes){
+          if(slack<=1) break;
+          const need=x.scrollHeight-x.clientHeight; if(need<=0) continue;
+          const add=Math.min(need,slack); x.style.maxHeight=(x.clientHeight+add)+'px'; slack-=add;
+        }
+      } else if(slack< -1){
+        let over=-slack;
+        for(const x of boxes.slice().sort((a,b)=>b.clientHeight-a.clientHeight)){
+          if(over<=1) break;
+          const can=x.clientHeight-Math.min(DOC_TABLE_MIN, x.scrollHeight); if(can<=0) continue;
+          const cut=Math.min(can,over); x.style.maxHeight=(x.clientHeight-cut)+'px'; over-=cut;
+        }
+      }
+    }
+    // The last resort: scope scrolls inside the panel, down to limit.
+    function contain(scope, limit, end){
+      if(end()-limit>1){ scope.style.maxHeight=Math.max(160, limit-scope.getBoundingClientRect().top)+'px'; scope.style.overflow='auto'; }
+    }
+    function unTab(body){
+      body.classList.remove('tabbed');
+      [...body.querySelectorAll(':scope > .docpane')].forEach(p=>{ [...p.children].forEach(c=>{ c.classList.remove('lead'); body.appendChild(c); }); p.remove(); });
+      const strip=body.querySelector(':scope > .doctabs'); if(strip) strip.remove();
+    }
+    function showTab(body, i, focus){
+      const tabs=[...body.querySelectorAll(':scope > .doctabs .doctab')], panes=[...body.querySelectorAll(':scope > .docpane')];
+      if(!tabs.length) return;
+      i=Math.max(0, Math.min(i, tabs.length-1));
+      tabs.forEach((b,j)=>{ const on=j===i; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; panes[j].hidden=!on; panes[j].style.maxHeight=''; panes[j].style.overflow=''; });
+      lastDocTab[curDocNum]=i;
+      const panel=body.closest('.docpanel'), limit=docLimit(panel), end=()=>contentEnd(body);
+      fitTables(panes[i], limit, end);
+      contain(panes[i], limit, end);
+      if(focus) tabs[i].focus();
+    }
+    function layoutDoc(){
+      const panel=content.querySelector('.docpanel'), body=panel&&panel.querySelector('.docbody'), navBox=document.querySelector('.docwrap>.docnav');
+      if(!body || !navBox || !content.offsetParent) return;
+      const done=()=>{ if(typeof fitIframe==='function') fitIframe(); };
+      // Back to the flat page.
+      unTab(body);
+      const parts=[...body.querySelectorAll(':scope > .docintro, :scope > .docsec')];
+      [body, ...parts].forEach(x=>{ x.style.maxHeight=''; x.style.overflow=''; });
+      body.querySelectorAll('.doctscroll').forEach(x=>{ x.style.maxHeight=''; });
+      // One column: the page reads top to bottom.
+      if(navBox.getBoundingClientRect().right > content.getBoundingClientRect().left+1) return done();
+      const limit=docLimit(panel), end=()=>contentEnd(body);
+      const secEls=parts.filter(x=>x.classList.contains('docsec')), introEl=parts.find(x=>x.classList.contains('docintro'));
+      if(end()<=limit+1 || secEls.length<2){ fitTables(body, limit, end); contain(body, limit, end); return done(); }
+      // Pack the sections into tabs no taller than the space under the strip.
+      const firstTop=(introEl||secEls[0]).getBoundingClientRect().top;
+      const introAbove=!!introEl && outerH(introEl) <= (limit-firstTop)*0.3;
+      const cap=limit-firstTop-(introAbove?outerH(introEl):0)-DOC_STRIP;
+      const items=((introEl&&!introAbove)? [{el:introEl, rows:0, label:'Overview', big:false, h:outerH(introEl)}] : [])
+        .concat(secEls.map(el=>({el, rows:+el.dataset.rows||0, label:el.dataset.label||'', big:(+el.dataset.rows||0)>=DOC_TAB_SMALL, h:outerH(el)})));
+      const tabsDef=[]; let cur=null;
+      items.forEach(it=>{
+        if(!cur || (it.big && cur.items.length) || cur.h+it.h>cap){ cur={items:[], h:0}; tabsDef.push(cur); }
+        cur.items.push(it); cur.h+=it.h;
+      });
+      if(tabsDef.length<2){ fitTables(body, limit, end); contain(body, limit, end); return done(); }
+      tabsDef.forEach((t,i)=>{ t.full=t.items[0].big? t.items[0].label : (i===0? 'Overview' : t.items[0].label); t.rows=t.items.reduce((a,x)=>a+x.rows,0); });
+      // Build the strip and the panes; a tab's own section heading is its
+      // label, so that heading hides inside the tab.
+      const panes=tabsDef.map((t,i)=>{
+        const p=document.createElement('div'); p.className='docpane'; p.setAttribute('role','tabpanel'); p.id='dpane'+i; p.setAttribute('aria-labelledby','dtab'+i);
+        t.items.forEach((it,j)=>{ if(j===0 && it.label===t.full && shortLabel(t.full)===t.full) it.el.classList.add('lead'); p.appendChild(it.el); });
+        return p;
+      });
+      const strip=document.createElement('div'); strip.className='doctabs'; strip.setAttribute('role','tablist'); strip.setAttribute('aria-label','Sections of this page');
+      tabsDef.forEach((t,i)=>{
+        const b=document.createElement('button'), short=shortLabel(t.full);
+        b.type='button'; b.className='doctab'; b.id='dtab'+i; b.setAttribute('role','tab'); b.setAttribute('aria-controls','dpane'+i);
+        if(short!==t.full) b.title=t.full;
+        b.innerHTML=esc(short)+(t.rows?'<span class="dtn">'+t.rows.toLocaleString()+'</span>':'');
+        b.onclick=()=>{ showTab(body, i, false); bringTop(strip,true); done(); };
+        b.onkeydown=e=>{
+          const k={ArrowRight:(i+1)%tabsDef.length, ArrowLeft:(i-1+tabsDef.length)%tabsDef.length, Home:0, End:tabsDef.length-1}[e.key];
+          if(k!=null){ e.preventDefault(); showTab(body, k, true); done(); }
+        };
+        strip.appendChild(b);
+      });
+      body.appendChild(strip); panes.forEach(p=>body.appendChild(p));
+      body.classList.add('tabbed');
+      showTab(body, lastDocTab[curDocNum]||0, false);
+      done();
+    }
+    window.layoutDoc=layoutDoc;
+    let layoutDocTimer=null;
+    window.addEventListener('resize',()=>{ clearTimeout(layoutDocTimer); layoutDocTimer=setTimeout(layoutDoc,150); });
     function render(num){
       const s=secs.find(x=>x.num===num)||secs[0];
-      let body='';
+      curDocNum=s.num;
       let ti=0;
       const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
+      const blockHtml=b=>{
+        if(b.t==='h') return (b.lvl>=4?'<h4>':'<h3>')+b.html+(b.lvl>=4?'</h4>':'</h3>');
+        if(b.t==='p') return '<p>'+b.html+'</p>';
+        if(b.t==='note') return noteHtml(b);
+        if(b.t==='ul') return '<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>';
+        if(b.t==='chart') return chartHtml(b);
+        if(b.t==='table') return (ownCharts?'':chartFromTable(b))+tableHtml(b, ti++);
+        return '';
+      };
+      // The intro, then one block per main section, which layoutDoc may
+      // gather into tabs.
+      const intro=[], groups=[];
       (s.blocks||[]).forEach(b=>{
-        if(b.t==='h'){ body+= (b.lvl>=4?'<h4>':'<h3>')+b.html+(b.lvl>=4?'</h4>':'</h3>'); }
-        else if(b.t==='p'){ body+='<p>'+b.html+'</p>'; }
-        else if(b.t==='note'){ body+=noteHtml(b); }
-        else if(b.t==='ul'){ body+='<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>'; }
-        else if(b.t==='chart'){ body+=chartHtml(b); }
-        else if(b.t==='table'){ if(!ownCharts) body+=chartFromTable(b); body+=tableHtml(b, ti++); }
+        if(b.t==='h' && b.lvl===2) groups.push({head:b, blocks:[]});
+        else (groups.length? groups[groups.length-1].blocks : intro).push(b);
       });
+      const label=g=>g.head.html.replace(/<[^>]+>/g,'').trim();
+      const rowsIn=g=>g.blocks.filter(b=>b.t==='table').reduce((a,b)=>a+(b.rows||[]).length,0);
+      const body=(intro.length? '<div class="docintro">'+intro.map(blockHtml).join('')+'</div>' : '')+
+        groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+g.blocks.map(blockHtml).join('')+'</section>').join('');
       // summary stat chips
       const stats=statsForSection(s);
       let chips='';
@@ -2765,7 +2921,7 @@
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
       content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
-      // wire per-table filters
+      // wire per-table sorting and filters
       content.querySelectorAll('table.doct thead th').forEach(th=>{ const b=th.querySelector('.thsort'); if(b) b.onclick=()=>sortTable(th.closest('table'), th); });
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{
         inp.oninput=()=>{
@@ -2774,6 +2930,7 @@
           const c=document.getElementById(inp.dataset.for+'c'); if(c)c.textContent=shown+' / '+t.querySelectorAll('tbody tr').length+' rows';
         };
       });
+      layoutDoc();
       if(typeof fitIframe==='function') fitIframe();
     }
 
@@ -2794,7 +2951,7 @@
     nav.innerHTML=navHtml('');
     wireNav();
     render(secs[0].num);
-    search.oninput=()=>{ nav.innerHTML=navHtml(search.value); wireNav();
+    search.oninput=()=>{ nav.innerHTML=navHtml(search.value); wireNav(); layoutDoc();
       const first=nav.querySelector('.docitem'); if(first && !nav.querySelector('.docitem.active')){ /* keep current */ } };
     // expose for cross-tab jumps (e.g. the gap-analysis buttons)
     gotoDocSection = function(num){
@@ -2958,6 +3115,7 @@
     document.querySelectorAll('.subtab').forEach(x=>{ const on=x.dataset.sub===name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on?'true':'false'); });
     balanceGrids(); markClamped();
     if(name==='sections') fillCards();
+    if(name==='sectionsdoc' && window.layoutDoc) window.layoutDoc();
     // The Sankey was drawn while its tab was hidden: reveal it now.
     if(name==='flow' && big) revealSankey(big);
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }

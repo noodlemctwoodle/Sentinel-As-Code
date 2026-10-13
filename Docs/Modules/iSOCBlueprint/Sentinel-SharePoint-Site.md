@@ -237,7 +237,22 @@ page's own order; a small arrow shows which. A column of numbers sorts by
 value, units included (sizes from KB to TB are scaled, so 512 MB sorts
 below 65 GB, and days, percentages and currency read as numbers), and any
 other column in natural order (Rule 2 before Rule 10); empty cells go last.
-Sorting and the row filter work together. The Markdown pages refer to one another by
+Sorting and the row filter work together. No page runs past the bottom
+of the contents list beside it. A page that fits reads top to bottom, and
+its scrolling tables (cut off at 620px) grow into any space above the
+list's foot. A taller page with two or more main sections shows a tab at
+a time below its intro: a section with 20 or more table rows starts a
+tab, a smaller one (a short table or only text) joins the tab before it
+while there is room, under its own heading, and small sections at the
+start make an Overview tab (a tall intro opens that tab rather than
+sitting above the strip). A tab or page still too tall shrinks its
+tallest tables first, to 200px, and as a last resort scrolls inside the
+panel. A tab is labelled with its heading (a bracketed qualifier moves
+to the tooltip and the top of the tab) and the rows it holds; the arrow
+keys move between tabs, and returning to a page reopens its last tab.
+The layout is worked out when a page or tab opens, on resize and when
+the contents search changes the list; on a narrow screen, where the list
+sits above the page, the page reads top to bottom. The Markdown pages refer to one another by
 file name (`90-gap-analysis.md`); the Report tab and the native pages show
 the section's title instead ("Gap Analysis"), and a file name mentioned in
 plain text becomes a link to that section.
