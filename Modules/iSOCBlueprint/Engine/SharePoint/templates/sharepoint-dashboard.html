@@ -21,6 +21,7 @@
     --ring-track:#e8ebf6;
     --scroll-thumb:#c9cfdd; --scroll-thumb-hover:#aab2c5;
     --ak-sub:#7c3aed;
+    --btn-bg:linear-gradient(135deg,var(--brand),var(--accent)); --btn-shadow:0 2px 8px rgba(37,99,235,.28);
     color-scheme:light;
     --red:#dc2626; --orange:#ea580c; --amber:#d97706; --green:#16a34a;
     --teal:#0d9488; --violet:#7c3aed; --indigo:#4f46e5; --slate:#64748b;
@@ -42,6 +43,7 @@
     --ring-track:#1b2a3d;
     --scroll-thumb:#1f3247; --scroll-thumb-hover:#2c4560;
     --ak-sub:#a78bfa;
+    --btn-bg:linear-gradient(135deg,#2a63d6,#5b45c9); --btn-shadow:none;
     color-scheme:dark;
     --shadow-sm:0 1px 2px rgba(0,0,0,.5);
     --shadow:0 10px 34px -12px rgba(0,0,0,.7);
@@ -104,8 +106,7 @@
     transition:color .15s,background .15s,box-shadow .15s}
   .subtab:hover{color:var(--ink);background:var(--panel)}
   .subtab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .subtab.active{color:#fff;background:linear-gradient(135deg,var(--brand),var(--accent));box-shadow:0 2px 8px rgba(37,99,235,.28)}
-  html[data-theme="dark"] .subtab.active{background:linear-gradient(135deg,#2a63d6,#5b45c9);box-shadow:none}
+  .subtab.active{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
   .subcount{font-size:12px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--ink-2);border:1px solid var(--line)}
   .subtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
   .subnav .note{margin:0;flex:1 1 320px;min-width:0}
@@ -182,7 +183,7 @@
   .seclabel{display:flex;align-items:center;gap:10px;margin:24px 2px var(--gap-label);font-size:12px;font-weight:800;
     letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
   .seclabel::after{content:"";flex:1;height:1px;background:var(--line)}
-  .link-muted{color:var(--brand-ink);cursor:pointer;font-weight:650;font-size:13px;white-space:nowrap}
+  .link-muted{display:inline-flex;align-items:center;gap:5px;margin-left:4px;padding:2px 10px;border-radius:999px;font-weight:650;font-size:12px;white-space:nowrap;vertical-align:baseline}
 
   /* ---------- glance stat tiles (#heroPills) ---------- */
   .glance{margin-top:var(--gap)}
@@ -343,9 +344,7 @@
   .matbig{font-size:34px;font-weight:850;letter-spacing:-.02em;line-height:1;margin-top:4px}
   .matbig small{font-size:14px;font-weight:700;color:var(--muted);margin-left:6px}
   .matcap{color:var(--muted);font-size:12.5px;margin-top:10px}
-  .btn{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);
-    background:var(--panel);color:var(--brand-ink);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:var(--shadow-sm)}
-  .btn:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line))}
+  .btn{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:9px 14px;border-radius:10px;font:inherit;font-weight:700;font-size:12.5px}
   .btn svg{width:14px;height:14px}
   .qw{display:flex;flex-direction:column;gap:9px}
   .qw .qwi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel-soft)}
@@ -382,7 +381,7 @@
   .ltx .ltx-list li{margin:2px 0;overflow-wrap:anywhere}
   .ltx.open.aslist .ltx-body{display:none}
   .ltx.open.aslist .ltx-list{display:block}
-  .ltx .ltx-btn{display:none;margin-top:4px;font:inherit;font-size:11.5px;font-weight:700;color:var(--brand-ink);background:none;border:0;padding:0;cursor:pointer}
+  .ltx .ltx-btn{display:none;margin-top:6px;font:inherit;font-size:11.5px;font-weight:650;padding:3px 10px;border-radius:999px}
   .ltx.clamped .ltx-btn{display:inline-block}
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
@@ -397,15 +396,13 @@
   /* Lists show their first few entries; "Show all" reveals the rest. Nothing
      is dropped from the model, so the dashboard reports everything. */
   [hidden]{display:none !important}
-  .morebtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font:inherit;font-size:12px;font-weight:650;
-    color:var(--brand-ink);background:none;border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer}
-  .morebtn:hover{background:var(--chip)}
-  .morepill{cursor:pointer;border:1px dashed var(--line);background:none;font:inherit;font-size:11px;font-weight:650;color:var(--brand-ink)}
+  .morebtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font:inherit;font-size:12px;font-weight:650;border-radius:999px;padding:5px 11px}
+  .morepill{font:inherit;font-size:11px;font-weight:650}
   .flowfilter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
   .fchip{font:inherit;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
     background:var(--chip);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
   .fchip span{color:var(--muted);font-weight:500}
-  .fchip.active{background:var(--brand);border-color:transparent;color:#fff}
+  .fchip.active{background:var(--btn-bg);border-color:transparent;color:#fff;box-shadow:var(--btn-shadow)}
   .fchip.active span{color:rgba(255,255,255,.85)}
   table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 
@@ -429,8 +426,8 @@
   .docpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:24px 26px;animation:rise .4s cubic-bezier(.22,.8,.3,1) both}
   .docpanel .dhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-  .docpanel .dpage{margin-left:auto;font-size:12px;font-weight:700;color:var(--brand-ink);text-decoration:none}
-  .docpanel .dpage:hover{text-decoration:underline}
+  .docpanel .dpage{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap}
+  .docpanel .dpage+.dpage{margin-left:0}
   .docpanel .dbadge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-ink);
     background:color-mix(in srgb,var(--brand) 11%,transparent);border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));
     padding:4px 10px;border-radius:999px}
@@ -524,11 +521,9 @@
   .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
   .zoom{display:flex;align-items:center;gap:6px;color:var(--muted);background:var(--chip);
     border:1px solid var(--line);border-radius:11px;padding:4px}
-  .zoom button{border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;
-    cursor:pointer;font-size:16px;color:var(--ink-2);display:grid;place-items:center;transition:background .12s}
-  .zoom button:hover{background:var(--chip)}
+  .zoom button{border-radius:8px;width:30px;height:30px;font-size:16px;display:grid;place-items:center}
   .zoom #zoomPct{min-width:46px;text-align:center;font-weight:700;font-size:12.5px;color:var(--ink-2)}
-  .zoom .fit{width:auto;padding:0 12px;color:var(--brand-ink);font-weight:700}
+  .zoom .fit{width:auto;padding:0 12px;font-weight:700}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:14px;
     justify-content:center}
   .legend span{display:inline-flex;align-items:center}
@@ -636,10 +631,8 @@
   /* One toggle per card: a chevron at the far right of the title row, in
      the same place on every card, visible only when a block is clamped;
      it opens both blocks, and clicking clamped text does the same. */
-  .fc-expand{visibility:hidden;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--brand-ink);
-    display:inline-grid;place-items:center;cursor:pointer;padding:0;transition:transform .15s}
+  .fc-expand{visibility:hidden;width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;padding:0}
   .fc-expand svg{width:15px;height:15px}
-  .fc-expand:hover{background:var(--chip)}
   .fcard.has-more .fc-expand,.fcard.open .fc-expand{visibility:visible}
   .fcard.open .fc-expand{transform:rotate(180deg)}
   .fcard.has-more .fc-block .ltx.clamped .ltx-body{cursor:pointer}
@@ -699,11 +692,8 @@
   /* ---------- ATT&CK coverage grid (Insights) ---------- */
   .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
   .ak-tools .docsearch{margin:0;width:220px}
-  /* The MITRE page link sits at the right of the switches, styled as one of them. */
-  .ak-open{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:10px;
-    padding:6px 12px;color:var(--brand-ink);font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
-  .ak-open:hover{color:var(--ink);background:var(--panel)}
-  .ak-open:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  /* The MITRE page link sits at the right of the switches. */
+  .ak-open{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:650;white-space:nowrap}
   .ak-keyrow{margin:0 0 12px}
   /* The grid's switches look like the tabs and the Assessment switch: a
      tinted track, the selected option on the brand gradient. */
@@ -712,8 +702,7 @@
     transition:color .15s,background .15s,box-shadow .15s}
   .ak-seg button:hover{color:var(--ink);background:var(--panel)}
   .ak-seg button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .ak-seg button.on{color:#fff;background:linear-gradient(135deg,var(--brand),var(--accent));box-shadow:0 2px 8px rgba(37,99,235,.28)}
-  html[data-theme="dark"] .ak-seg button.on{background:linear-gradient(135deg,#2a63d6,#5b45c9);box-shadow:none}
+  .ak-seg button.on{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
   .ak-key{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
   .ak-key i{display:inline-block;width:14px;height:11px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
   .ak-key i+i:not(.off):not(.gap){margin-left:2px}
@@ -784,6 +773,15 @@
     .hero{padding:14px 16px}
     .brand .bs{display:none}
   }
+  /* One look for every button that does something (show all, show fewer,
+     expand, clear filters, zoom, open a page): white on the brand gradient,
+     as a selected tab or switch is, so a button reads as a button on every
+     page. Toggles keep their track and take the gradient when selected. */
+  .morebtn,.morepill,.btn,.ak-open,.ltx .ltx-btn,.fc-expand,.zoom button,.link-muted,.docpanel .dpage{
+    background:var(--btn-bg);color:#fff;border:1px solid transparent;box-shadow:var(--btn-shadow);cursor:pointer;text-decoration:none;
+    transition:filter .15s,box-shadow .15s,transform .15s}
+  .morebtn:hover,.morepill:hover,.btn:hover,.ak-open:hover,.ltx .ltx-btn:hover,.fc-expand:hover,.zoom button:hover,.link-muted:hover,.docpanel .dpage:hover{filter:brightness(1.12);color:#fff;text-decoration:none}
+  .morebtn:focus-visible,.morepill:focus-visible,.btn:focus-visible,.ak-open:focus-visible,.ltx .ltx-btn:focus-visible,.fc-expand:focus-visible,.zoom button:focus-visible,.link-muted:focus-visible,.docpanel .dpage:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -1355,11 +1353,11 @@
     const opNum=findSecNum(/detection opportunities/i,null);
     const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
       ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
-    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+cdLine+fpLine+
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" role="button" tabindex="0" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+cdLine+fpLine+
       (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
     el.classList.remove('hidden');
     el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
-    el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
+    el.querySelectorAll('[data-jump]').forEach(a=>{ a.addEventListener('click',()=>jumpTo(+a.dataset.jump)); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); jumpTo(+a.dataset.jump); } }); });
     if(typeof window.fitIframe==='function') window.fitIframe();
   }
   const ringPage=k=>({ingestion:findSecNum(/table plans/i,null),detection:findSecNum(/detection opportunities/i,null),alerts:findSecNum(/^analytics rules/i,null),incidents:findSecNum(/^incidents/i,null)})[k];
@@ -2199,7 +2197,7 @@
         (o.templates.length>PILLS?'<button type="button" class="tagpill morepill" data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer">Show all '+o.templates.length+'</button>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.'+
-      (opNum?' <a class="link-muted" data-jump="'+opNum+'">Open the full list &rarr;</a>':'')+'</p>'+
+      (opNum?' <a class="link-muted" role="button" tabindex="0" data-jump="'+opNum+'">Open the full list &rarr;</a>':'')+'</p>'+
       moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables')+'</div>');
   }
 
@@ -2239,7 +2237,7 @@
       : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
     const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB / 30d ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
-      '<p class="note">'+status+(lakeNum!=null?' <a class="link-muted" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
+      '<p class="note">'+status+(lakeNum!=null?' <a class="link-muted" role="button" tabindex="0" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
       (tierItems.length? donutMultiHtml(tierItems,String(DL.operationalTables||0),'tables') : '<p class="note">No operational tables to classify.</p>')+
       (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet',show:8,label:'tables'}):'')+costLine+'</div>');
   }
@@ -2566,11 +2564,12 @@
       const pageUrl=sitePageUrl(s.page);
       const openLink=pageUrl?'<a class="dpage" href="'+esc(pageUrl)+'" target="_top">Open as a page &rarr;</a>':'';
       // The MITRE page links to the ATT&CK grid on the Insights tab.
-      const akLink=(M.attack && /mitre/i.test(s.title||''))? '<a class="dpage" data-akopen>Open the ATT&amp;CK grid &rarr;</a>' : '';
+      const akLink=(M.attack && /mitre/i.test(s.title||''))? '<a class="dpage" role="button" tabindex="0" data-akopen>Open the ATT&amp;CK grid &rarr;</a>' : '';
       content.innerHTML='<div class="docpanel"><div class="dhead"><span class="dbadge">'+esc(s.family)+'</span>'+akLink+openLink+'</div>'+
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
-      content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
+      content.querySelectorAll('[data-akopen]').forEach(a=>{ const go=()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); };
+        a.addEventListener('click',go); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } }); });
       // wire per-table filters
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{
         inp.oninput=()=>{

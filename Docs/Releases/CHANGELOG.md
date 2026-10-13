@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **One button style across the dashboard** - every button that does
+  something ("Show all", "Show fewer", the "Show all N" pills, "Expand",
+  "Clear filters", the zoom buttons, and the buttons and links that open
+  another page) is now white on the brand gradient in light and dark
+  mode, the same colour a selected tab or switch takes, so buttons are
+  easy to pick out on every tab. Selected filter chips on the data flow
+  take the same gradient, and the links in card descriptions work from
+  the keyboard.
 - **ATT&CK coverage grid, every rule on the MITRE page, a linked
   dashboard** - the dashboard's Insights tab replaces its tactic bars with
   an ATT&CK grid laid out like MITRE's Navigator: a column per tactic in

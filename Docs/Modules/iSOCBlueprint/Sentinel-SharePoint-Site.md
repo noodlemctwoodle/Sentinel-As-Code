@@ -154,6 +154,18 @@ effectiveness row, every uncovered table with every template that reads
 it, every alerting rule, every extended-retention table, every roadmap
 entry, every table by cost).
 
+Every button that does something looks the same on every tab: white on
+the brand gradient, the colour a selected tab or switch takes. That covers
+"Show all" and "Show fewer", the "Show all N" pills, "Expand" and the
+finding cards' expand control, "Clear filters", the Flow tab's zoom
+buttons, and the buttons and links that open another page ("Open the
+assessment", "Open the MITRE page", "Open the full list", "Open as a
+page"). Toggles (the tabs, the Assessment switch, the ATT&CK grid's
+switches, the data flow's filter chips) sit on a tinted track and take the
+same gradient when selected. The gradient is one pair of variables,
+`--btn-bg` and `--btn-shadow`, set for light and dark. Links to outside
+documentation (Microsoft Learn, ATT&CK) stay plain links.
+
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels
 (content inventory, the ATT&CK grid directly above detection

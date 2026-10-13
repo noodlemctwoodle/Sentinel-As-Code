@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.9.0
+    Version:      0.10.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1351,9 +1351,27 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'styles the grid switches like the tabs and the Assessment switch' {
-        $html | Should -Match '\.ak-seg button\.on\{color:#fff;background:linear-gradient\(135deg,var\(--brand\),var\(--accent\)\)'
-        $html | Should -Match 'html\[data-theme="dark"\] \.ak-seg button\.on\{background:linear-gradient\(135deg,#2a63d6,#5b45c9\)'
+        $html | Should -Match '\.ak-seg button\.on\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
+        $html | Should -Match '\.subtab\.active\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
         $html | Should -Not -Match '\.ak-seg button\.on\{background:var\(--brand\);color:#fff\}'
+    }
+
+    It 'gives every action button one look, the brand gradient, in light and dark' {
+        # One gradient, defined per theme.
+        $html | Should -Match '--btn-bg:linear-gradient\(135deg,var\(--brand\),var\(--accent\)\);'
+        $html | Should -Match '--btn-bg:linear-gradient\(135deg,#2a63d6,#5b45c9\);'
+        # Show all / show fewer, the show-all pills, expand, open-a-page buttons,
+        # the jump links in card notes and the zoom buttons all take it.
+        $shared = '.morebtn,.morepill,.btn,.ak-open,.ltx .ltx-btn,.fc-expand,.zoom button,.link-muted,.docpanel .dpage{'
+        $html.Contains($shared + "`n    background:var(--btn-bg);color:#fff;") | Should -BeTrue
+        # Selected filter chips match the selected switches.
+        $html | Should -Match '\.fchip\.active\{background:var\(--btn-bg\);'
+        # The old outline-only "Show all" style is gone.
+        $html | Should -Not -Match '\.morebtn\{[^}]*color:var\(--brand-ink\);background:none'
+        $html | Should -Not -Match '\.morepill\{[^}]*border:1px dashed'
+        # Jump links are keyboard buttons.
+        $html | Should -Match '<a class="link-muted" role="button" tabindex="0" data-jump='
+        $html | Should -Not -Match '<a class="link-muted" data-jump='
     }
 
     It 'gives every tactic header the same height so the cells start level' {
