@@ -53,7 +53,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -70,6 +70,9 @@
 
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'Get-TableFamily.ps1')
+}
+if (-not (Get-Command -Name Get-SearchRestoreTable -CommandType Function -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'Get-SearchRestoreTable.ps1')
 }
 
 $script:MaturityEffortRank = @{ Low = 0; Medium = 1; High = 2 }
@@ -273,6 +276,17 @@ function New-MaturityMetrics {
 
     $searchJobs = Get-RowCount 'search-jobs.json'
     $restores   = Get-RowCount 'restore-logs.json'
+    # A snapshot collected before the collector wrote these two files still
+    # has the table list, where search job (_SRCH) and restored (_RST) tables
+    # live; read them from there rather than leave the criterion Unknown.
+    if ($null -eq $searchJobs -and $null -eq $restores) {
+        $tableRows = Read-Rows 'workspace-tables.json'
+        if ($null -ne $tableRows) {
+            $found = Get-SearchRestoreTable -Tables $tableRows
+            $searchJobs = @($found.SearchJobs).Count
+            $restores = @($found.Restores).Count
+        }
+    }
     $searchOrRestoreJobs = if ($null -eq $searchJobs -and $null -eq $restores) { $null } else { [int]$searchJobs + [int]$restores }
 
     $lakeExtendedTables = $null; $tablesWithCustomRetention = $null

@@ -73,7 +73,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.1
+    Version:        0.5.2
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -161,6 +161,7 @@ $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $
 . (Join-Path $PSScriptRoot 'Private/Vendor/SentinelCommon.Kql.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-KqlTableReferences.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-DefenderCustomDetections.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-SearchRestoreTable.ps1')
 
 # Shared between captures: each Try-Capture body runs in its own scope.
 $script:AlertRules         = @()
@@ -308,6 +309,12 @@ Try-Capture 'workspace-tables' {
         $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion '2023-09-01'
     }
     Save-Json -FileName 'workspace-tables.json' -Data $tables
+    # Search jobs and restores leave _SRCH and _RST tables behind; they are
+    # the record the maturity model (SAC-INV-02) and the search and restore
+    # page read.
+    $found = Get-SearchRestoreTable -Tables @($tables)
+    Save-Json -FileName 'search-jobs.json' -Data @($found.SearchJobs)
+    Save-Json -FileName 'restore-logs.json' -Data @($found.Restores)
 }
 
 Try-Capture 'sentinel-pricing' {

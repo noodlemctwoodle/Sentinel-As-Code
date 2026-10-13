@@ -1242,6 +1242,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.maturity.methodology.scope | Should -Match 'People \(staffing, skills, roles\)'
         $html | Should -Match 'class="matscope"'
         $html | Should -Match 'people and processes were not assessed'
+        # Two matching tiles, without the amber side bar.
+        $html | Should -Match '<div class="ms"><div class="msh">''\+ICON\.scale\+''Basis</div>'
+        $html | Should -Match '<div class="ms"><div class="msh">''\+ICON\.crosshair\+''Scope</div>'
+        $html | Should -Not -Match '\.matscope\{[^}]*border-left:3px solid var\(--amber\)'
     }
 
     It 'carries the alert lifecycle: closures by who closed them, open incidents by severity and MTTR' {

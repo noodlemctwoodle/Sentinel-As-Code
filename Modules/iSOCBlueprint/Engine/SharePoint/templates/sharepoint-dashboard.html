@@ -110,12 +110,13 @@
   .subcount{font-size:12px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--ink-2);border:1px solid var(--line)}
   .subtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
   .subnav .note{margin:0;flex:1 1 320px;min-width:0}
-  /* What the maturity score is based on and what it leaves out */
-  .matscope{margin:0 0 18px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);border-left:3px solid var(--amber);
-    background:var(--panel-soft);color:var(--ink-2);font-size:13px;line-height:1.5}
-  .matscope p{margin:0}
-  .matscope p+p{margin-top:6px}
-  .matscope b{color:var(--ink)}
+  /* What the maturity score is based on and what it leaves out: two
+     matching tiles, side by side where there is room. */
+  .matscope{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 18px}
+  .matscope .ms{padding:12px 14px;border-radius:12px;background:var(--panel-soft);border:1px solid var(--line)}
+  .matscope .msh{display:flex;align-items:center;gap:7px;margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .matscope .msh svg{width:14px;height:14px;flex:none;color:var(--brand-ink)}
+  .matscope p{margin:0;color:var(--ink-2);font-size:12.5px;line-height:1.55}
   /* Findings view summary: the same kind of picture as the maturity view.
      Every legend entry, bar and row filters the list below. */
   .fsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 32px}
@@ -2307,8 +2308,8 @@
     html+='<div class="panel"><div class="phead"><div><h2>'+esc(MAT.methodology.name)+'</h2>'+
       '<p class="note">Eleven capability areas scored 0 to 5 from the gap outcomes and the captured configuration. Unknown criteria (inputs not captured in this run) never count against the workspace.</p></div></div>'+
       ((MAT.methodology.basis||MAT.methodology.scope)?'<div class="matscope">'+
-        (MAT.methodology.basis?'<p><b>Basis.</b> '+esc(MAT.methodology.basis)+'</p>':'')+
-        (MAT.methodology.scope?'<p><b>Scope.</b> '+esc(MAT.methodology.scope)+'</p>':'')+'</div>':'')+
+        (MAT.methodology.basis?'<div class="ms"><div class="msh">'+ICON.scale+'Basis</div><p>'+esc(MAT.methodology.basis)+'</p></div>':'')+
+        (MAT.methodology.scope?'<div class="ms"><div class="msh">'+ICON.crosshair+'Scope</div><p>'+esc(MAT.methodology.scope)+'</p></div>':'')+'</div>':'')+
       '<div class="donutwrap">'+donutHtml(pct, sc==null?'n/a':(+sc).toFixed(2)+' / 5', sc==null?'not assessed':MAT.overall.levelName)+
       '<div class="dlegend"><div class="di"><i style="background:var(--green)"></i>Met<b>'+MAT.totals.met+'</b></div>'+
       '<div class="di"><i style="background:var(--red)"></i>Gap<b>'+MAT.totals.gap+'</b></div>'+

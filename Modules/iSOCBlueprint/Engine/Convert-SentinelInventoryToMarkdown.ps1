@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.0
+    Version:        0.6.1
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -148,6 +148,7 @@ if (-not (Test-Path $OutputRoot)) {
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AttackCoverage.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-SearchRestoreTable.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-FindingMaturityLink.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
@@ -5425,22 +5426,58 @@ $(Format-Table -Items $linkedRows -Columns 'Name','ResourceId','WriteAccessResou
 "@)
 
 # Section 37 — Search and restore (TOC 4.3.4)
-# Search jobs and restore-logs aren't always pulled per-table; surface what
-# we have at workspace scope.
+# A search job leaves a _SRCH table and a restore a _RST table in the
+# workspace's table list. The collector saves them as search-jobs.json and
+# restore-logs.json; a snapshot collected before it did reads them from
+# workspace-tables.json instead.
 $searchJobs = Read-RawArray 'search-jobs.json'
 $restoreJobs = Read-RawArray 'restore-logs.json'
+if (-not (Test-Path (Join-Path $rawRoot 'search-jobs.json')) -and -not (Test-Path (Join-Path $rawRoot 'restore-logs.json'))) {
+    $found = Get-SearchRestoreTable -Tables @(Read-RawArray 'workspace-tables.json')
+    $searchJobs = @($found.SearchJobs)
+    $restoreJobs = @($found.Restores)
+}
+$srProp = {
+    param($Object, [string]$Name)
+    if ($null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name) { $Object.$Name } else { $null }
+}
+$srWindow = {
+    param($From, $To)
+    $f = Format-DateUtc $From; $t = Format-DateUtc $To
+    if ($f -or $t) { "$f to $t" } else { '' }
+}
+$searchRows = @($searchJobs | ForEach-Object {
+        $p = $_.properties; $s = & $srProp $p 'searchResults'
+        [pscustomobject]@{
+            'Table'          = [string]$_.name
+            'Source table'   = [string](& $srProp $s 'sourceTable')
+            'Search window'  = & $srWindow (& $srProp $s 'startSearchTime') (& $srProp $s 'endSearchTime')
+            'Created (UTC)'  = Format-DateUtc (& $srProp $p 'createDate')
+            'Retention'      = $(if ($null -ne (& $srProp $p 'totalRetentionInDays')) { "$(& $srProp $p 'totalRetentionInDays') days" } else { '' })
+            'Query'          = $(if (& $srProp $s 'query') { '`' + ([string](& $srProp $s 'query')).Trim() + '`' } else { '' })
+        }
+    })
+$restoreRows = @($restoreJobs | ForEach-Object {
+        $p = $_.properties; $r = & $srProp $p 'restoredLogs'
+        [pscustomobject]@{
+            'Table'           = [string]$_.name
+            'Source table'    = [string](& $srProp $r 'sourceTable')
+            'Restored window' = & $srWindow (& $srProp $r 'startRestoreTime') (& $srProp $r 'endRestoreTime')
+            'Created (UTC)'   = Format-DateUtc (& $srProp $p 'createDate')
+        }
+    })
 Write-Section '37-search-restore.md' (@"
 $(Format-Banner -Title "Search and Restore Tables  (TOC 4.3.4)")
 
-Search jobs and Long-Term-Restore operations rehydrate data from archive into queryable tables. The table below shows in-flight or recently completed jobs.
+Search jobs and restores bring data back from long-term retention into tables you can query: a search job writes its matches to a table ending in ``_SRCH``, a restore a time range of a table to one ending in ``_RST``. Each table stays until someone deletes it, so this is every search and restore whose table is still in the workspace: **$(@($searchRows).Count)** search job$(if (@($searchRows).Count -ne 1) { 's' }) and **$(@($restoreRows).Count)** restore$(if (@($restoreRows).Count -ne 1) { 's' }).
 
 ## Search jobs
 
-$(Format-Table -Items $searchJobs -Columns 'name','properties')
+$(Format-Table -Items $searchRows -Columns 'Table','Source table','Search window','Created (UTC)','Retention','Query' -EmptyMessage '_No search job tables in the workspace._')
 
-## Restore logs
+## Restores
 
-$(Format-Table -Items $restoreJobs -Columns 'name','properties')
+$(Format-Table -Items $restoreRows -Columns 'Table','Source table','Restored window','Created (UTC)' -EmptyMessage '_No restored tables in the workspace._')
 
 [Search jobs in Azure Monitor Logs](https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs) · [Restore logs](https://learn.microsoft.com/azure/azure-monitor/logs/restore)
 "@)

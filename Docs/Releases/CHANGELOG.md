@@ -6,6 +6,22 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Search jobs and restores are collected, so SAC-INV-02 is no longer
+  always Unknown** - the maturity criterion "Search or restore has been
+  exercised" and the Report's search and restore page read
+  `search-jobs.json` and `restore-logs.json`, but nothing wrote them, so
+  every real run showed the criterion as Unknown and the page as empty.
+  The collector now picks the search job (`_SRCH`) and restored (`_RST`)
+  tables out of the table list it already saves and writes both files;
+  the maturity engine and the renderer read them from
+  `workspace-tables.json` when a snapshot predates them. Re-rendering an
+  existing run fills the search and restore page; the maturity score is
+  saved at collection, so SAC-INV-02 updates on the next collection (or
+  `Get-iSOCBlueprintMaturity`, which scores now). The search and
+  restore page now lists each table with its source table, time range,
+  creation date, retention and, for a search job, its query. The maturity
+  view's basis and scope sit in two matching tiles in place of the
+  amber-edged note.
 - **One button style across the dashboard** - every button that does
   something ("Show all", "Show fewer", the "Show all N" pills, "Expand",
   "Clear filters", the zoom buttons, and the buttons and links that open

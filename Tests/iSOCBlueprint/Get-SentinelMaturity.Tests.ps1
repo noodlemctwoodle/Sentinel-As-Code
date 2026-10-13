@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -213,6 +213,38 @@ Describe 'Maturity assessment over the sample fixture' {
         $bare = Join-Path $TestDrive 'bmcount-none'
         New-Item -ItemType Directory -Path $bare -Force | Out-Null
         (New-MaturityMetrics -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
+    }
+
+    It 'reads search jobs and restores from the table list when a snapshot has neither file' {
+        $dir = Join-Path $TestDrive 'srch-from-tables'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        Get-ChildItem $fixtureRaw -File | Where-Object Name -NotIn 'search-jobs.json', 'restore-logs.json' | Copy-Item -Destination $dir
+        $tables = @(Get-Content (Join-Path $fixtureRaw 'workspace-tables.json') -Raw | ConvertFrom-Json)
+        $tables += [pscustomobject]@{ name = 'SigninLogs_1A2B_SRCH'; properties = [pscustomobject]@{
+                schema = [pscustomobject]@{ tableType = 'SearchResults' }
+                searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0' } } }
+        ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $dir 'workspace-tables.json')
+        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).searchOrRestoreJobs | Should -Be 1
+        $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
+        ($m.areas.criteria | Where-Object id -eq 'SAC-INV-02').status | Should -Be 'Met'
+        # With neither file nor a search or restore table, it is a Gap, not Unknown.
+        ConvertTo-Json -InputObject @($tables | Select-Object -SkipLast 1) -Depth 10 | Set-Content (Join-Path $dir 'workspace-tables.json')
+        $m2 = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
+        ($m2.areas.criteria | Where-Object id -eq 'SAC-INV-02').status | Should -Be 'Gap'
+    }
+
+    It 'picks search job and restored tables by type, block or name suffix' {
+        $found = Get-SearchRestoreTable -Tables @(
+            [pscustomobject]@{ name = 'SecurityEvent'; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'Microsoft' } } }
+            [pscustomobject]@{ name = 'B_SRCH'; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'SearchResults' } } }
+            [pscustomobject]@{ name = 'A_SRCH'; properties = [pscustomobject]@{} }
+            [pscustomobject]@{ name = 'Odd'; properties = [pscustomobject]@{ restoredLogs = [pscustomobject]@{ sourceTable = 'Syslog' } } }
+            [pscustomobject]@{ name = 'Syslog_RST'; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'RestoredLogs' } } }
+            $null
+        )
+        @($found.SearchJobs).name | Should -Be @('A_SRCH', 'B_SRCH')
+        @($found.Restores).name | Should -Be @('Odd', 'Syslog_RST')
+        @((Get-SearchRestoreTable -Tables @()).SearchJobs).Count | Should -Be 0
     }
 
     It 'leaves mean time to acknowledge Unknown when no incident was acknowledged (KQL avg returns NaN)' {

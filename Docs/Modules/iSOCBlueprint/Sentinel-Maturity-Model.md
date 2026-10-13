@@ -186,7 +186,7 @@ Unknown), and `0` or `false` when the file exists but holds nothing.
 | `watchlists` | `watchlists.json` | watchlists |
 | `incidents30d`, `closedIncidents30d` | `incidents-summary.json` | incidents and closures in 30 days |
 | `mttaMinutes` | `incidents-mttr.json` | mean time to acknowledge; null when no incident was acknowledged in the window |
-| `searchOrRestoreJobs` | `search-jobs.json`, `restore-logs.json` | search jobs plus restores |
+| `searchOrRestoreJobs` | `search-jobs.json`, `restore-logs.json`; `workspace-tables.json` when a snapshot has neither | search job (`_SRCH`) plus restored (`_RST`) tables still in the workspace |
 | `lakeExtendedTables` | `workspace-tables.json` | tables on the DataLake or Auxiliary plan, or with total retention beyond interactive |
 | `tablesWithCustomRetention` | `workspace-tables.json`, `workspace.json` | tables whose retention differs from the workspace default |
 | `summaryRules` | `summary-rules.json` | summary rules |

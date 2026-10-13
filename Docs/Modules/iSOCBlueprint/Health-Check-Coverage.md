@@ -176,7 +176,7 @@ data. Where the window or shape differs, the note says how.
 | `.../linkedServices` | `linked-services.json` | |
 | `.../providers/Microsoft.Insights/diagnosticSettings` | `diagnostic-settings.json` | |
 | `Get-AzRoleAssignment` at workspace scope | `rbac-workspace.json` (and `rbac-resourcegroup.json`) | |
-| `.../tables` (newest version first) | `workspace-tables.json` | Now 2025-02-01, falling back to 2023-09-01 |
+| `.../tables` (newest version first) | `workspace-tables.json`, `search-jobs.json`, `restore-logs.json` | Now 2025-02-01, falling back to 2023-09-01. The search job (`_SRCH`) and restored (`_RST`) tables are picked out of the list into their own files |
 | `.../alertRules` | `alert-rules.json`, `rule-table-references.json` | |
 | `.../contentPackages`, `.../contentProductPackages` | `content-packages.json`, `content-product-packages.json` | |
 | `.../alertRuleTemplates` | `alert-rule-templates.json`, `template-table-references.json` | |

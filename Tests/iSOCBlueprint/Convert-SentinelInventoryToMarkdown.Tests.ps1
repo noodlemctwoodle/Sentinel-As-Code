@@ -31,7 +31,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.4.0
+    Version:      0.4.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1775,5 +1775,46 @@ Describe 'iSOC Blueprint renderer - findings and maturity as one assessment' {
     It 'links the two pages to each other' {
         $script:gap90 | Should -Match '\[maturity assessment\]\(91-maturity-assessment\.md\)'
         $script:mat91 | Should -Match '\[gap analysis\]\(90-gap-analysis\.md\) are one assessment'
+    }
+}
+
+Describe '37-search-restore.md lists the search job and restored tables' {
+    BeforeAll {
+        $script:srOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-sr-$(New-Guid)"
+        $root = Join-Path $script:srOutDir 'law-sr'
+        New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
+        # A snapshot from before the collector wrote search-jobs.json and
+        # restore-logs.json: the tables are only in the table list.
+        Get-ChildItem -Path $script:fixtureRaw -File | Where-Object Name -NotIn 'search-jobs.json', 'restore-logs.json' |
+            Copy-Item -Destination (Join-Path $root '_raw')
+        $tables = @(Get-Content (Join-Path $script:fixtureRaw 'workspace-tables.json') -Raw | ConvertFrom-Json)
+        $tables += [pscustomobject]@{ name = 'SigninLogs_1A2B_SRCH'; properties = [pscustomobject]@{
+                createDate = '2026-09-01T10:00:00Z'; totalRetentionInDays = 30
+                schema = [pscustomobject]@{ tableType = 'SearchResults' }
+                searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0'
+                    startSearchTime = '2025-01-01T00:00:00Z'; endSearchTime = '2025-03-31T00:00:00Z' } } }
+        $tables += [pscustomobject]@{ name = 'Syslog_RST'; properties = [pscustomobject]@{
+                schema = [pscustomobject]@{ tableType = 'RestoredLogs' }
+                restoredLogs = [pscustomobject]@{ sourceTable = 'Syslog'; startRestoreTime = '2025-02-01T00:00:00Z'; endRestoreTime = '2025-02-02T00:00:00Z' } } }
+        ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $root '_raw/workspace-tables.json')
+        & $script:renderer -WorkspaceName 'law-sr' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        $script:sr37 = Get-Content (Join-Path $root '37-search-restore.md') -Raw
+        $script:fx37 = Get-Content (Join-Path $script:tempWsRoot '37-search-restore.md') -Raw
+    }
+
+    AfterAll {
+        if ($script:srOutDir -and (Test-Path $script:srOutDir)) { Remove-Item -Recurse -Force -Path $script:srOutDir -ErrorAction SilentlyContinue }
+    }
+
+    It 'reads them from the table list when the snapshot has neither file' {
+        $script:sr37 | Should -Match '\*\*1\*\* search job and \*\*1\*\* restore'
+        $script:sr37 | Should -Match '\| SigninLogs_1A2B_SRCH \| SigninLogs \| 2025-01-01 00:00 to 2025-03-31 00:00 \| 2026-09-01 10:00 \| 30 days \| `SigninLogs \\\| where ResultType != 0` \|'
+        $script:sr37 | Should -Match '\| Syslog_RST \| Syslog \| 2025-02-01 00:00 to 2025-02-02 00:00 \|'
+    }
+
+    It 'says so plainly when there are none, and no longer dumps raw properties' {
+        $script:fx37 | Should -Match '_No search job tables in the workspace\._'
+        $script:fx37 | Should -Match '_No restored tables in the workspace\._'
+        $script:fx37 | Should -Not -Match '\| name \| properties \|'
     }
 }

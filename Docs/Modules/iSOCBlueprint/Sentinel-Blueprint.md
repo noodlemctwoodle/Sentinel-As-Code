@@ -133,6 +133,8 @@ SecurityDocs/
     ├── _raw/                          machine-readable JSON snapshot
     │   ├── workspace.json
     │   ├── workspace-tables.json
+    │   ├── search-jobs.json            the search job (_SRCH) tables in workspace-tables.json
+    │   ├── restore-logs.json           the restored (_RST) tables in workspace-tables.json
     │   ├── tables-with-data.json
     │   ├── alert-rules.json
     │   ├── data-connectors-classic.json
@@ -170,7 +172,7 @@ SecurityDocs/
     ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
     ├── 35-parsers-functions.md        parsers and functions, other saved searches
     ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
-    ├── 37-search-restore.md           search jobs / restore logs
+    ├── 37-search-restore.md           search job and restored tables
     ├── 38-summary-rules.md            summary rules
     ├── 40-workbooks.md                saved workbooks + templates available
     ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
