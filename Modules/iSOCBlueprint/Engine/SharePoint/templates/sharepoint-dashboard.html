@@ -528,6 +528,10 @@
   /* Each tile spans three rows the tiles beside it share (subgrid), so the
      labels, figures and captions line up across a row however the labels
      wrap. */
+  /* A diagram drawn by the chart web part's renderers scrolls sideways
+     when it is wider than the page. */
+  .wpchart{margin:16px 0;overflow-x:auto}
+  .wpchart svg{max-width:none}
   .docbody .docdesc{font-size:14px;line-height:1.6;color:var(--ink-2);margin:2px 0 14px;max-width:110ch}
   .kvtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:10px;row-gap:0;margin:12px 0 8px}
   .kvt{display:grid;grid-row:span 3;grid-template-rows:subgrid;align-content:start;margin-bottom:10px;
@@ -1001,6 +1005,8 @@
 </div>
 
 <script id="sac-model" type="application/json">/*__MODEL__*/null</script>
+<!-- The chart web part's renderers (window.SacCharts), put here by the site build. -->
+<script>/*__SAC_CHARTS__*/</script>
 <script>
 (function(){
   "use strict";
@@ -2674,7 +2680,30 @@
       // The key goes above the bars, where it is read first.
       return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+(legend?legend.replace('class="legend"','class="legend top"'):'')+rows+'</div>';
     }
-    const chartHtml=b=> b.kind==='pie'? pieChartHtml(b) : b.kind==='xy'? xyChartHtml(b) : '';
+    // Every other kind (state, journey, flowchart, sankey, gantt, timeline,
+    // mindmap, class, sequence) is drawn by the chart web part's renderers,
+    // bundled in as window.SacCharts, in the page's own colours, so a
+    // diagram looks the same here and on its SharePoint page. They redraw
+    // when the theme changes.
+    const wpCharts=[];
+    function wpTheme(){
+      const cs=getComputedStyle(document.documentElement), v=n=>cs.getPropertyValue(n).trim();
+      return {text:v('--ink'), muted:v('--muted'), line:v('--line'), surface:v('--panel'), accent:v('--brand'), dark:document.documentElement.dataset.theme==='dark'};
+    }
+    if(window.SacCharts && SacCharts.setTextMeasurer){
+      const cx=document.createElement('canvas').getContext('2d');
+      if(cx) SacCharts.setTextMeasurer((text,size,bold)=>{ cx.font=(bold?'600 ':'')+size+'px '+SacCharts.FONT; return cx.measureText(text).width; });
+    }
+    function wpChartHtml(b){
+      if(!(window.SacCharts && SacCharts.renderChart)) return '';
+      const i=wpCharts.push({kind:b.kind, title:b.title, data:b.data, source:b.source})-1;
+      return '<div class="wpchart" data-wpc="'+i+'">'+SacCharts.renderChart(wpCharts[i], wpTheme())+'</div>';
+    }
+    window.addEventListener('sac-theme',()=>{
+      if(!window.SacCharts) return;
+      content.querySelectorAll('.wpchart[data-wpc]').forEach(el=>{ const c=wpCharts[+el.dataset.wpc]; if(c) el.innerHTML=SacCharts.renderChart(c, wpTheme()); });
+    });
+    const chartHtml=b=> b.kind==='pie'? pieChartHtml(b) : b.kind==='xy'? xyChartHtml(b) : wpChartHtml(b);
 
     // Summary stat chips: only clean, meaningful ones — a numeric key/value table
     // (e.g. "Connectors 3") yields a chip per row; generic data tables do not.
@@ -2949,6 +2978,7 @@
     function render(num){
       const s=secs.find(x=>x.num===num)||secs[0];
       curDocNum=s.num;
+      wpCharts.length=0;
       let ti=0;
       const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
       const blockHtml=b=>{
@@ -3008,6 +3038,16 @@
     // it. Both start at the top of what they open.
     const listedFindings=new Set(((M.findings&&M.findings.items)||[]).map(f=>f.id));
     content.addEventListener('click',e=>{
+      // A diagram node linking to a section or a finding (/#sac-section-NN,
+      // /#sac-finding-ID) opens it here, as a text link does.
+      const wa=e.target.closest('.wpchart a'), wm=wa && /#sac-(section|finding)-(.+)$/.exec(wa.getAttribute('href')||'');
+      if(wm){
+        e.preventDefault();
+        if(wm[1]==='finding' && listedFindings.has(wm[2]) && typeof window.showFinding==='function'){ window.showFinding(wm[2]); return; }
+        const n=wm[1]==='section'? +wm[2] : 90;
+        if(secs.some(x=>x.num===n)){ gotoDocSection(n); bringTop(content,true); }
+        return;
+      }
       const a=e.target.closest('a.xref'); if(!a||!content.contains(a)) return;
       e.preventDefault();
       if(a.dataset.xfind && listedFindings.has(a.dataset.xfind) && typeof window.showFinding==='function'){ window.showFinding(a.dataset.xfind); return; }

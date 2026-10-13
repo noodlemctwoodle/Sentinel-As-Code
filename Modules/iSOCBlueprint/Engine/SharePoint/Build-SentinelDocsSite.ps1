@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.10.0
+    Version:      0.11.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -316,6 +316,34 @@ function Get-SectionListItems {
     }
 }
 
+function ConvertTo-DashboardChartData {
+    <#
+    .SYNOPSIS
+        A chart's data for the dashboard. A flowchart node that links to a
+        section or a finding gets an in-dashboard address (/#sac-section-NN,
+        /#sac-finding-ID), which the dashboard opens in its Report tab or
+        findings view; a web link stays; anything else has no link. Other
+        kinds pass through.
+    #>
+    param($Chart)
+    if ([string]$Chart.kind -ne 'flowchart' -or $null -eq $Chart.data) { return $Chart.data }
+    $data = $Chart.data | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable -Depth 32
+    foreach ($n in @($data.nodes)) {
+        if ($null -eq $n) { continue }
+        $href = $null
+        $target = $n['target']
+        if ($n['href'] -and $target) {
+            switch ([string]$target['kind']) {
+                'section' { if ([string]$target['section'] -match '^(\d+)') { $href = "/#sac-section-$([int]$Matches[1])" } }
+                'finding' { $href = "/#sac-finding-$([string]$target['id'])" }
+                'external' { $href = [string]$n['href'] }
+            }
+        }
+        $n['href'] = $href
+    }
+    return $data
+}
+
 function ConvertTo-SectionBlocks {
     <#
     .SYNOPSIS
@@ -335,8 +363,14 @@ function ConvertTo-SectionBlocks {
             'paragraph' { $blocks.Add([ordered]@{ t = 'p'; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
             'list' { $blocks.Add([ordered]@{ t = 'ul'; items = @(Get-SectionListItems $b) }) }
             'chart' {
-                if ([string]$b.kind -in 'pie', 'xy' -and $null -ne $b.data) {
-                    $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = $b.data })
+                # The dashboard draws pie and xy itself and every other kind
+                # with the chart web part's renderers (dashboard-charts.js).
+                if ($null -ne $b.data) {
+                    if ([string]$b.kind -in 'pie', 'xy') {
+                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = $b.data })
+                    } else {
+                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = (ConvertTo-DashboardChartData -Chart $b); source = [string]$b.source })
+                    }
                 }
             }
             'table' {
@@ -1251,7 +1285,11 @@ if ($PSCmdlet.ShouldProcess($OutputRoot, 'Prepare bundle folder')) {
 # <script type="application/json"> block it is embedded in.
 $modelJson = $model | ConvertTo-Json -Depth 24 -Compress -EscapeHandling EscapeHtml
 $template = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'templates/sharepoint-dashboard.html') -Raw -Encoding utf8
-$html = $template.Replace('__TITLE__', (ConvertTo-HtmlText $Title)).Replace('/*__MODEL__*/null', $modelJson)
+# The chart web part's renderers, bundled by WebParts/Build-DashboardCharts.ps1,
+# draw the diagrams the dashboard does not draw itself.
+$chartBundlePath = Join-Path $PSScriptRoot 'templates/dashboard-charts.js'
+$chartBundle = if (Test-Path -LiteralPath $chartBundlePath) { Get-Content -LiteralPath $chartBundlePath -Raw -Encoding utf8 } else { $buildWarnings.Add('templates/dashboard-charts.js is missing: the dashboard draws only pie and xy charts.'); '' }
+$html = $template.Replace('__TITLE__', (ConvertTo-HtmlText $Title)).Replace('/*__MODEL__*/null', $modelJson).Replace('/*__SAC_CHARTS__*/', $chartBundle)
 $indexPath = Join-Path $OutputRoot 'index.html'
 if ($PSCmdlet.ShouldProcess($indexPath, 'Write dashboard HTML')) {
     Set-Content -LiteralPath $indexPath -Value $html -Encoding utf8 -NoNewline

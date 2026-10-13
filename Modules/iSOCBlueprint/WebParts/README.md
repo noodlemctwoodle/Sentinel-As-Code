@@ -85,6 +85,21 @@ elsewhere in the Blueprint. A drawing scales down with its column to two
 thirds of its size and then scrolls sideways, so its text stays readable
 on a phone. A kind the web part does not draw shows its Mermaid source.
 
+The SharePoint dashboard's Report tab draws its diagrams with these same
+modules. `Build-DashboardCharts.ps1` compiles them (CommonJS, with the
+TypeScript in `node_modules`) and bundles them into
+`../Engine/SharePoint/templates/dashboard-charts.js`, which exposes
+`window.SacCharts`; the site build puts that file into the dashboard page.
+After changing anything under `charts/`, regenerate the bundle:
+
+```powershell
+npm ci
+./Build-DashboardCharts.ps1
+```
+
+The bundle records a hash of its sources, and the SharePoint-Site Pester
+suite fails until it is regenerated.
+
 ## Security
 
 Because the dashboard's iframe shares the page's origin and the script runs

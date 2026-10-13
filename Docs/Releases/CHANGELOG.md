@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Every diagram draws in the dashboard** - the Report tab drew only pie
+  and bar charts, so 14 diagrams across 11 pages (the incident lifecycle
+  and analyst journey, flowcharts, sankeys, a gantt, a timeline, a mind
+  map, a class and a sequence diagram) left an empty heading. It now
+  draws them with the chart web part's own renderers, bundled into the
+  page, so a diagram has one implementation and looks the same in the
+  dashboard and on its SharePoint page; diagrams follow the light or dark
+  theme, and a node linking to a section or finding opens it.
 - **Watchlist freshness, a clearer Content Hub page, RBAC figures and
   readable ingestion dates** - the watchlists page marks each watchlist
   maintained in the workspace Current, Stale (not updated in 90 days) or

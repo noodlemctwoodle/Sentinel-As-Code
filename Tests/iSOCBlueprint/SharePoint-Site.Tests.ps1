@@ -1026,11 +1026,14 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         foreach ($f in 'index.html', 'model.json', 'site.json', 'findings.json') { Join-Path $bundle $f | Should -Exist }
     }
 
-    It 'carries each section''s pie and xy charts for the Report tab, and no other kind' {
+    It 'carries every section chart for the Report tab, with the diagram''s source as a fallback' {
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         $charts = @($model.sections | ForEach-Object { @($_.blocks) } | Where-Object { $_.t -eq 'chart' })
         $charts.Count | Should -BeGreaterThan 0
-        @($charts | Where-Object { $_.kind -notin 'pie', 'xy' }).Count | Should -Be 0
+        # Pie and xy the dashboard draws itself; the rest carry their data and
+        # their Mermaid source for the chart web part's renderers.
+        @($charts | Where-Object { $_.kind -in 'pie', 'xy' -and $_.PSObject.Properties.Name -contains 'source' }).Count | Should -Be 0
+        @($charts | Where-Object { $_.kind -notin 'pie', 'xy' -and -not $_.source }).Count | Should -Be 0
         # The maturity page's area scores, which the dashboard used to drop
         # and replace with a chart of the Areas table's last number column.
         $area = @($model.sections | Where-Object num -EQ 91 | ForEach-Object { @($_.blocks) } | Where-Object { $_.t -eq 'chart' })[0]
@@ -1139,9 +1142,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'embeds the model so data cannot close the script block' {
-        # The template has exactly two closing script tags (model block and
-        # main script); the hostile evidence must not add a third.
-        ([regex]::Matches($html, '</script>')).Count | Should -Be 2
+        # The page has exactly three closing script tags (the chart renderers,
+        # the model block and the main script); the hostile evidence must not
+        # add a fourth.
+        ([regex]::Matches($html, '</script>')).Count | Should -Be 3
         $html | Should -Match '\\u003c/script\\u003e'
     }
 
@@ -1486,6 +1490,48 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'class="legend top"'
     }
 
+    It 'draws every chart kind, the diagrams through the chart web part''s bundled renderers' {
+        # The site build puts the bundle in place of the placeholder.
+        $html | Should -Not -Match '/\*__SAC_CHARTS__\*/'
+        $html | Should -Match 'window\.SacCharts=\{ renderChart: rc\.renderChart'
+        $html | Should -Match "const chartHtml=b=> b\.kind==='pie'\? pieChartHtml\(b\) : b\.kind==='xy'\? xyChartHtml\(b\) : wpChartHtml\(b\);"
+        $html | Should -Match "window\.addEventListener\('sac-theme',\(\)=>\{\s*if\(!window\.SacCharts\) return;"
+        # A diagram link to a section or a finding opens it in the dashboard.
+        $html | Should -Match '/#sac-\(section\|finding\)-\(\.\+\)\$/'
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $kinds = @($model.sections | ForEach-Object { $_.blocks } | Where-Object { $_.t -eq 'chart' } | ForEach-Object kind | Sort-Object -Unique)
+        @($kinds | Where-Object { $_ -notin 'pie', 'xy' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'gives a flowchart node an in-dashboard link to its section or finding' {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1'), [ref]$null, [ref]$null)
+        . ([scriptblock]::Create($ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertTo-DashboardChartData' }, $true).Extent.Text))
+        $chart = @{ kind = 'flowchart'; data = @{ nodes = @(
+                    @{ id = 'a'; label = 'Gap'; href = '90-gap-analysis.md'; target = @{ kind = 'section'; section = '90-gap-analysis' } }
+                    @{ id = 'b'; label = 'F'; href = '90-gap-analysis.md#sac-gov-05'; target = @{ kind = 'finding'; id = 'SAC-GOV-05' } }
+                    @{ id = 'c'; label = 'Learn'; href = 'https://learn.microsoft.com/x'; target = @{ kind = 'external' } }
+                    @{ id = 'd'; label = 'Repo'; href = 'Docs/x.md'; target = @{ kind = 'repo'; path = 'Docs/x.md' } }
+                ) } }
+        $data = ConvertTo-DashboardChartData -Chart $chart
+        @($data.nodes).href | Should -Be @('/#sac-section-90', '/#sac-finding-SAC-GOV-05', 'https://learn.microsoft.com/x', $null)
+    }
+
+    It 'keeps the bundled renderers in step with the web part''s chart sources' {
+        $charts = Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts'
+        $names = [string[]]@(Get-ChildItem -LiteralPath $charts -Filter '*.ts' -File | ForEach-Object Name)
+        [Array]::Sort($names, [StringComparer]::Ordinal)
+        $sb = [System.Text.StringBuilder]::new()
+        foreach ($n in $names) {
+            $text = (Get-Content -LiteralPath (Join-Path $charts $n) -Raw -Encoding utf8) -replace "`r`n", "`n"
+            [void]$sb.Append($n).Append("`n").Append($text).Append("`n")
+        }
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        $hash = ([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($sb.ToString())))).Replace('-', '').ToLowerInvariant()
+        $bundleText = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard-charts.js') -Raw
+        $bundleText | Should -Match "sources-sha256: $hash" -Because 'a chart source changed: run ./Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1'
+        $bundleText | Should -Not -Match '(?i)</script'
+    }
+
     It 'shows the NIST CSF rollup above the roadmap' {
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')
@@ -1493,7 +1539,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'shows section titles, not Markdown file names, in the Report tab' {
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
-        $text = ($model.sections | ForEach-Object { $_.blocks } | ConvertTo-Json -Depth 32 -Compress)
+        # Text blocks only: a diagram's Mermaid source, shown only when it cannot
+        # be drawn, keeps the Markdown links it was written with.
+        $text = ($model.sections | ForEach-Object { $_.blocks } | Where-Object { $_.t -ne 'chart' } | ConvertTo-Json -Depth 32 -Compress)
         $text | Should -Not -Match '\b\d{2}-[a-z0-9-]+\.md\b'
         $text | Should -Match 'data-xsec=\\"90\\">Gap Analysis</a>'
     }
