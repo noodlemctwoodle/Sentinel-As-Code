@@ -83,13 +83,48 @@
   .tab:hover{color:var(--ink)}
   .tab.active{color:var(--brand-ink);background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
   /* Assessment: maturity and findings under one tab, with a switch */
-  .subnav{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:var(--gap)}
-  .subtabs{display:inline-flex;gap:3px;background:var(--chip);border:1px solid var(--line);padding:3px;border-radius:10px}
-  .subtab{font:inherit;font-weight:600;font-size:12.5px;padding:6px 14px;border-radius:8px;border:1px solid transparent;background:none;color:var(--tab-ink);cursor:pointer}
-  .subtab:hover{color:var(--ink)}
-  .subtab.active{color:var(--brand-ink);background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
-  html[data-theme="dark"] .subtab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
-  .subnav .note{margin:0}
+  .subnav{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:var(--gap) 0;padding:12px 14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .subtabs{display:inline-flex;gap:4px;background:var(--chip);border:1px solid var(--line);padding:4px;border-radius:12px}
+  .subtab{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:650;font-size:14px;padding:8px 16px;
+    border-radius:9px;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer;
+    transition:color .15s,background .15s,box-shadow .15s}
+  .subtab:hover{color:var(--ink);background:var(--panel)}
+  .subtab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .subtab.active{color:#fff;background:linear-gradient(135deg,var(--brand),var(--accent));box-shadow:0 2px 8px rgba(37,99,235,.28)}
+  html[data-theme="dark"] .subtab.active{background:linear-gradient(135deg,#2a63d6,#5b45c9);box-shadow:none}
+  .subcount{font-size:12px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--ink-2);border:1px solid var(--line)}
+  .subtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+  .subnav .note{margin:0;flex:1 1 320px;min-width:0}
+  /* What the maturity score is based on and what it leaves out */
+  .matscope{margin:0 0 18px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);border-left:3px solid var(--amber);
+    background:var(--panel-soft);color:var(--ink-2);font-size:13px;line-height:1.5}
+  .matscope p{margin:0}
+  .matscope p+p{margin-top:6px}
+  .matscope b{color:var(--ink)}
+  /* Findings view summary: the same kind of picture as the maturity view.
+     Every legend entry, bar and row filters the list below. */
+  .fsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 32px}
+  .fsum h3{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--ink-2)}
+  .fpick{display:flex;align-items:center;gap:9px;width:100%;font:inherit;font-size:12.5px;color:var(--ink-2);background:none;
+    border:0;border-radius:6px;padding:3px 6px;margin:0 -6px;cursor:pointer;text-align:left}
+  .fpick:hover,.fpick:focus-visible{background:var(--chip);outline:none}
+  .fpick i{width:12px;height:12px;border-radius:3px;flex:none}
+  .fpick .pv{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:750;color:var(--ink)}
+  .fpick .pp{color:var(--faint);font-size:11px;font-weight:650;margin-left:7px;min-width:34px;text-align:right}
+  .fgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:var(--gap);margin:var(--gap) 0}
+  .fgrid2>.panel{margin:0}
+  .fkey{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px;font-size:12px;color:var(--muted)}
+  .fkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .fbars{display:grid;grid-template-columns:minmax(150px,38%) 1fr auto;align-items:center;gap:9px 12px}
+  .fbar{display:contents;cursor:pointer}
+  .fbar .fl{font-size:12.5px;font-weight:650;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fbar:hover .fl{color:var(--brand-ink)}
+  .fbar .ft{display:flex;height:12px;border-radius:999px;background:var(--line-2);overflow:hidden}
+  .fbar .ft span{height:100%}
+  .fbar .fv{font-size:12.5px;font-weight:800;min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
+  table.tbl tr.frow{cursor:pointer}
+  table.tbl tr.frow:hover td{background:var(--chip)}
   html[data-theme="dark"] .tab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
   .spacer{flex:1 1 0;min-width:0}
   .iconbtn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
@@ -698,8 +733,8 @@
   <!-- ASSESSMENT: the maturity assessment and the findings behind it -->
   <div class="subnav hidden" data-views="maturity findings">
     <div class="subtabs" role="tablist" aria-label="Assessment">
-      <button type="button" class="subtab" data-sub="maturity" role="tab">Maturity</button>
-      <button type="button" class="subtab" data-sub="findings" role="tab">Findings</button>
+      <button type="button" class="subtab" data-sub="maturity" role="tab"><span>Maturity</span><span class="subcount" hidden></span></button>
+      <button type="button" class="subtab" data-sub="findings" role="tab"><span>Findings</span><span class="subcount" hidden></span></button>
     </div>
     <span class="note">Findings say what is wrong now; maturity scores the capability they leave missing. Each finding shows what closing it does to the score.</span>
   </div>
@@ -722,11 +757,14 @@
 
   <!-- FINDINGS -->
   <section data-view="findings" class="hidden">
+    <div id="findingsBoard"></div>
     <div class="filters">
       <select id="sevSelect"><option value="">All severities</option></select>
+      <select id="areaSelect"><option value="">All areas</option></select>
       <select id="catSelect"><option value="">All categories</option></select>
       <select id="matSelect"><option value="">Any maturity effect</option><option value="scored">Moves the maturity score</option><option value="unscored">Not scored (hygiene or cost)</option></select>
       <input type="search" class="docsearch" id="findSearch" placeholder="Search findings…" style="margin:0;width:260px">
+      <button type="button" class="morebtn" id="findClear" style="margin:0" hidden>Clear filters</button>
       <span class="note" id="findCount" style="margin-left:auto"></span>
     </div>
     <div class="fcards" id="findList" style="margin-top:var(--gap)"></div>
@@ -1124,7 +1162,7 @@
     if(MAT && MAT.overall && MAT.overall.score!=null){
       const sc=+MAT.overall.score, lv=MAT.overall.level, tg=MAT.targetLevel;
       const below=(MAT.areasBelowTarget||[]).length, total=(MAT.areas||[]).length;
-      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">'+esc(MAT.methodology.name)+' v'+esc(MAT.methodology.version)+' &middot; computed from configuration and 30 days of activity.</p></div></div>'+
+      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">'+esc(MAT.methodology.name)+' v'+esc(MAT.methodology.version)+(MAT.methodology.basis?', based on SOC-CMM':'')+' &middot; scored from the Sentinel workspace only (configuration and 30 days of activity); people and processes were not assessed.</p></div></div>'+
         '<div class="matbig">'+sc.toFixed(2)+'<small>/ 5 &middot; '+esc(MAT.overall.levelName)+'</small></div>'+
         '<div class="mat-band">'+lvlNames.map((n,i)=>'<div class="lvl'+(i===lv?' on':'')+(i===tg?' target':'')+'"><b>'+i+'</b>'+esc(n)+'</div>').join('')+'</div>'+
         '<div class="meter"><div class="mf" style="--w:'+(sc/5*100).toFixed(1)+'%"></div><div class="mt" style="--t:'+(tg/5*100)+'%"></div></div>'+
@@ -1693,6 +1731,9 @@
     let html='';
     html+='<div class="panel"><div class="phead"><div><h2>'+esc(MAT.methodology.name)+'</h2>'+
       '<p class="note">Eleven capability areas scored 0 to 5 from the gap outcomes and the captured configuration. Unknown criteria (inputs not captured in this run) never count against the workspace.</p></div></div>'+
+      ((MAT.methodology.basis||MAT.methodology.scope)?'<div class="matscope">'+
+        (MAT.methodology.basis?'<p><b>Basis.</b> '+esc(MAT.methodology.basis)+'</p>':'')+
+        (MAT.methodology.scope?'<p><b>Scope.</b> '+esc(MAT.methodology.scope)+'</p>':'')+'</div>':'')+
       '<div class="donutwrap">'+donutHtml(pct, sc==null?'n/a':(+sc).toFixed(2)+' / 5', sc==null?'not assessed':MAT.overall.levelName)+
       '<div class="dlegend"><div class="di"><i style="background:var(--green)"></i>Met<b>'+MAT.totals.met+'</b></div>'+
       '<div class="di"><i style="background:var(--red)"></i>Gap<b>'+MAT.totals.gap+'</b></div>'+
@@ -1944,19 +1985,95 @@
   const sevSel=document.getElementById('sevSelect'), catSel=document.getElementById('catSelect'), findQ=document.getElementById('findSearch');
   sevs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sevSel.appendChild(o);});
   [...new Set(M.findings.items.map(f=>f.category).filter(Boolean))].sort().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;catSel.appendChild(o);});
-  const matSel=document.getElementById('matSelect');
+  const matSel=document.getElementById('matSelect'), areaSel=document.getElementById('areaSelect'), findClear=document.getElementById('findClear');
+  // Areas: the maturity area each finding belongs to, from the rule, else
+  // from its SAC-<AREA>-NN id ('-' when neither gives one).
+  const fAreaNames={}; ((M.maturity&&M.maturity.areas)||[]).forEach(a=>fAreaNames[a.id]=a.name);
+  M.findings.items.forEach(f=>(f.maturity||[]).forEach(m=>{ if(m.area&&m.areaName&&!fAreaNames[m.area]) fAreaNames[m.area]=m.areaName; }));
+  const fArea=f=>{ if(f.area) return f.area; const m=/^SAC-([A-Z]+)-\d+$/.exec(f.id||''); return m?m[1]:'-'; };
+  const fAreaLabel=id=>id==='-'?'No area':(fAreaNames[id]?id+' '+fAreaNames[id]:id);
+  [...new Set(M.findings.items.map(fArea))].sort().forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=fAreaLabel(a);areaSel.appendChild(o);});
   function renderFindings(){
-    const sv=sevSel.value, cv=catSel.value, mv=matSel.value, q=(findQ.value||'').trim().toLowerCase();
+    const sv=sevSel.value, cv=catSel.value, mv=matSel.value, av=areaSel.value, q=(findQ.value||'').trim().toLowerCase();
     const scored=f=>(f.maturity||[]).length>0;
-    const rows=M.findings.items.filter(f=>(!sv||f.severity===sv)&&(!cv||f.category===cv)&&(!mv||(mv==='scored')===scored(f))&&(!q||(f.id+' '+(f.legacyId||'')+' '+f.title+' '+(f.evidence||'')+' '+(f.remediation||'')).toLowerCase().includes(q)));
+    const rows=M.findings.items.filter(f=>(!sv||f.severity===sv)&&(!cv||f.category===cv)&&(!av||fArea(f)===av)&&(!mv||(mv==='scored')===scored(f))&&(!q||(f.id+' '+(f.legacyId||'')+' '+f.title+' '+(f.evidence||'')+' '+(f.remediation||'')).toLowerCase().includes(q)));
+    findClear.hidden=!(sv||cv||mv||av||q);
     const list=document.getElementById('findList');
     list.innerHTML=rows.length? rows.map(findingCard).join('') : '<p class="note" style="padding:16px 18px">No findings match.</p>';
     document.getElementById('findCount').textContent=rows.length+' of '+M.findings.items.length+' findings';
     markClamped(list);
   }
-  sevSel.onchange=renderFindings; catSel.onchange=renderFindings; matSel.onchange=renderFindings; findQ.addEventListener('input',renderFindings); renderFindings();
+  const clearFindingFilters=()=>{ sevSel.value=''; catSel.value=''; matSel.value=''; areaSel.value=''; findQ.value=''; };
+  sevSel.onchange=renderFindings; catSel.onchange=renderFindings; matSel.onchange=renderFindings; areaSel.onchange=renderFindings; findQ.addEventListener('input',renderFindings);
+  findClear.onclick=()=>{ clearFindingFilters(); renderFindings(); };
+  renderFindings();
   // Open the Assessment tab's findings view on one finding (used by the criteria cards).
-  window.showFinding=function(id){ sevSel.value=''; catSel.value=''; matSel.value=''; findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
+  window.showFinding=function(id){ clearFindingFilters(); findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
+
+  // ---- findings summary: the same kind of picture the maturity view gives ----
+  (function(){
+    const el=document.getElementById('findingsBoard'); if(!el) return;
+    const items=M.findings.items||[];
+    if(!items.length){ el.innerHTML='<div class="panel"><div class="phead"><div><h2>No open findings</h2><p class="note">Every best-practice check that ran passed.</p></div></div></div>'; return; }
+    const sevOrder=['Critical','Error','Warning','Info','Informational'];
+    const sevCol={Critical:'#dc2626',Error:'#ea580c',Warning:'#d97706',Info:'#64748b',Informational:'#64748b'};
+    const sevList=[...sevOrder.filter(s=>items.some(f=>f.severity===s)), ...[...new Set(items.map(f=>f.severity))].filter(s=>s&&!sevOrder.includes(s))];
+    const colOf=s=>sevCol[s]||'#64748b';
+    const sevRank=f=>{ const i=sevList.indexOf(f.severity); return i<0?99:i; };
+    const scored=f=>(f.maturity||[]).length>0;
+    const nScored=items.filter(scored).length;
+    const pick=(k,v)=>'data-fk="'+k+'" data-fv="'+esc(v)+'"';
+    function donut(rows,big,small){
+      const total=rows.reduce((a,x)=>a+x.value,0)||1; let acc=0;
+      const segs=rows.map(x=>{ const st=acc/total*360; acc+=x.value; return x.color+' '+st.toFixed(2)+'deg '+(acc/total*360).toFixed(2)+'deg'; }).join(',');
+      return '<div class="piewrap"><div class="dms" style="--pie:conic-gradient('+segs+')"><div class="dmshole"><div><div class="dmsv">'+esc(big)+'</div><div class="dmsk">'+esc(small)+'</div></div></div></div>'+
+        '<div class="pielegend">'+rows.map(x=>'<button type="button" class="fpick" '+pick(x.k,x.v)+' title="List these findings"><i style="background:'+x.color+'"></i>'+esc(x.label)+
+          '<span class="pv">'+x.value+'</span><span class="pp">'+Math.round(x.value/total*100)+'%</span></button>').join('')+'</div></div>';
+    }
+    // Bars stacked by severity, one row per group; the longest row fills the track.
+    function stacked(groupOf,labelOf,k){
+      const keys=[...new Set(items.map(groupOf))];
+      const rows=keys.map(g=>({g, n:items.filter(f=>groupOf(f)===g).length})).sort((a,b)=>b.n-a.n||String(a.g).localeCompare(String(b.g)));
+      const max=Math.max(1,...rows.map(x=>x.n));
+      return '<div class="fbars">'+rows.map(x=>{
+        const segs=sevList.map(sv=>{ const n=items.filter(f=>groupOf(f)===x.g&&f.severity===sv).length;
+          return n?'<span style="width:'+(n/max*100)+'%;background:'+colOf(sv)+'" title="'+esc(sv)+': '+n+'"></span>':''; }).join('');
+        return '<div class="fbar" '+pick(k,x.g)+' title="List these findings"><div class="fl" title="'+esc(labelOf(x.g))+'">'+esc(labelOf(x.g))+'</div><div class="ft">'+segs+'</div><div class="fv">'+x.n+'</div></div>';
+      }).join('')+'</div>';
+    }
+    const key='<div class="fkey">'+sevList.map(sv=>'<span><i style="background:'+colOf(sv)+'"></i>'+esc(sv)+'</span>').join('')+'</div>';
+    let html='<div class="panel"><div class="phead"><div><h2>Open findings</h2><p class="note">'+items.length+' items from the best-practice gap analysis. Click a legend entry, a bar or a row to list those findings below.</p></div></div>'+
+      '<div class="fsum"><div><h3>By severity</h3>'+donut(sevList.map(sv=>({label:sv,value:items.filter(f=>f.severity===sv).length,color:colOf(sv),k:'sev',v:sv})),String(items.length),'findings')+'</div>'+
+      '<div><h3>Effect on the maturity score</h3>'+donut([
+        {label:'Moves the score',value:nScored,color:'#2563eb',k:'mat',v:'scored'},
+        {label:'Not scored',value:items.length-nScored,color:'#94a3b8',k:'mat',v:'unscored'}],String(nScored),'move the score')+
+      '<p class="note" style="margin-top:10px">Not scored: hygiene and cost checks that no maturity criterion reads.</p></div></div></div>';
+    html+='<div class="fgrid2">'+
+      '<div class="panel"><div class="phead"><div><h2>By area</h2><p class="note">The maturity area each finding belongs to, split by severity.</p></div></div>'+key+stacked(fArea,fAreaLabel,'area')+'</div>'+
+      '<div class="panel"><div class="phead"><div><h2>By category</h2><p class="note">The kind of problem each finding is, split by severity.</p></div></div>'+key+stacked(f=>f.category||'Other',g=>g,'cat')+'</div></div>';
+    const impact=[]; items.forEach(f=>(f.maturity||[]).forEach(m=>impact.push({f,m})));
+    impact.sort((a,b)=>((+b.m.lift||0)-(+a.m.lift||0))||(sevRank(a.f)-sevRank(b.f))||String(a.f.id).localeCompare(String(b.f.id)));
+    if(impact.length){
+      html+='<div class="panel"><div class="phead"><div><h2>Score impact</h2><p class="note">Every finding that decides a maturity criterion, ordered by how much closing it lifts the overall score. Shared: the criterion also needs other findings closed. '+
+        (items.length-nScored===1?'1 further finding is a hygiene or cost check':(items.length-nScored)+' further findings are hygiene or cost checks')+' the score does not count.</p></div></div>'+
+        moreWrap('<table class="tbl"><thead><tr><th>Finding</th><th>Severity</th><th>Criterion</th><th>Area</th><th class="num">Lift</th></tr></thead><tbody>'+
+          trRows(impact.map(x=>'<tr class="frow" '+pick('id',x.f.id)+' title="Show this finding"><td><b class="cid">'+esc(x.f.id)+'</b> '+esc(x.f.title)+'</td>'+
+            '<td><span class="sev '+esc(x.f.severity)+'">'+esc(x.f.severity)+'</span></td>'+
+            '<td><b class="cid">'+esc(x.m.criterionId)+'</b> '+esc(x.m.name)+(x.m.shared?' <span class="note">(shared)</span>':'')+'</td>'+
+            '<td>'+esc(x.m.areaName||x.m.area)+'</td><td class="num">'+(x.m.lift!=null&&+x.m.lift>0?fmtLift(x.m.lift):'none')+'</td></tr>'),10)+
+          '</tbody></table>',impact.length,10,'scored findings')+'</div>';
+    }
+    el.innerHTML=html;
+    el.addEventListener('click',e=>{
+      if(e.target.closest('[data-more]')) return;
+      const t=e.target.closest('[data-fk]'); if(!t||!el.contains(t)) return;
+      const k=t.dataset.fk, v=t.dataset.fv;
+      clearFindingFilters();
+      if(k==='sev') sevSel.value=v; else if(k==='cat') catSel.value=v; else if(k==='mat') matSel.value=v; else if(k==='area') areaSel.value=v; else if(k==='id') findQ.value=v;
+      renderFindings();
+      const bar=document.querySelector('[data-view="findings"] .filters'); if(bar) bar.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  })();
 
   // ---- balanced card grids ----
   // auto-fill packs as many columns as fit and leaves a short last row
@@ -2023,12 +2140,11 @@
     t.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); } };
   });
   document.querySelectorAll('.subtab').forEach(b=>{ b.onclick=()=>activateTab(b.dataset.sub); });
-  // The switch labels carry the counts.
+  // Each side of the switch carries its count.
   (function(){
-    const fb=document.querySelector('.subtab[data-sub="findings"]');
-    if(fb && M.findings) fb.textContent='Findings \u00b7 '+M.findings.items.length;
-    const mb=document.querySelector('.subtab[data-sub="maturity"]');
-    if(mb && M.maturity && M.maturity.overall && M.maturity.overall.score!=null) mb.textContent='Maturity \u00b7 '+M.maturity.overall.score+' / 5';
+    const setCount=(sub,text)=>{ const c=document.querySelector('.subtab[data-sub="'+sub+'"] .subcount'); if(c){ c.textContent=text; c.hidden=false; } };
+    if(M.findings) setCount('findings', String(M.findings.items.length));
+    if(M.maturity && M.maturity.overall && M.maturity.overall.score!=null) setCount('maturity', (+M.maturity.overall.score).toFixed(2)+' / 5');
   })();
 })();
 </script>

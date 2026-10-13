@@ -17,20 +17,34 @@ enabled, which tables have data, whether playbooks failed, whether
 incidents are classified when they close. It exists to rank the work, give
 a before-and-after for changes, and show a trend across the daily runs.
 
-It is not an audit, a certification or a risk rating. It cannot see people,
-skills, runbooks that live outside Sentinel or how well an analyst
-investigates. Those are listed under `outOfScope` in the output so nobody
-reads the number as more than it is.
+It is not an audit, a certification or a risk rating.
 
-The methodology is this project's own. It borrows nothing from any
-commercial or trademarked maturity model: the areas, the criteria, the
-scale and the scoring are defined in
+**Scope.** The score is based strictly on the Microsoft Sentinel
+infrastructure and configuration, and the findings raised against them.
+People (staffing, skills, roles) and processes (runbooks and procedures
+outside Sentinel) are not assessed, nor is how well an analyst
+investigates, so it is not a maturity rating of the SOC as a whole. The
+report says so next to the score everywhere it appears: the scope note at
+the top of page 91, the maturity line on the overview page, and the
+maturity card and maturity view on the dashboard. The longer list is under
+`outOfScope` in the output.
+
+**Basis.** The model is a custom one based on the SOC-CMM framework. The
+areas, the criteria, the scale and the scoring are this project's own,
+adapted to what a Sentinel workspace can show, and are defined in
 [`Private/Resources/maturity-criteria.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
 and computed by
 [`Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1).
-The criterion set, the estate-flow view and the detection-headroom idea
-come from the Sentinel health-check script written by Lasitha R, who gave
-it to the project.
+The score is not an official SOC-CMM rating or certification, and this
+project is not affiliated with or endorsed by the SOC-CMM project; SOC-CMM
+is a trademark of its owner. The criterion set, the estate-flow view and
+the detection-headroom idea come from the Sentinel health-check script
+written by Lasitha R, who gave it to the project.
+
+Both statements live once, as `methodology.basis` and `methodology.scope`
+in the criteria file. The assessment copies them into `maturity.json`, and
+the renderer and the site build read them from there, or from the criteria
+file for a `maturity.json` written before they existed.
 
 ## The areas
 

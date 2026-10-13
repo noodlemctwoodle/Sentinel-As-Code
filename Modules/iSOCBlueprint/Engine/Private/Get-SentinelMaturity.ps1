@@ -53,7 +53,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -729,6 +729,8 @@ function Get-SentinelMaturity {
             version         = [string]$doc.methodology.version
             criteriaVersion = [string]$doc.version
             scaleNote       = [string](Get-MaturityPropertyValue $doc 'methodology.scaleNote' '')
+            basis           = [string](Get-MaturityPropertyValue $doc 'methodology.basis' '')
+            scope           = [string](Get-MaturityPropertyValue $doc 'methodology.scope' '')
         }
         generatedAtUtc   = (Get-Date).ToUniversalTime().ToString('o')
         targetLevel      = $TargetLevel

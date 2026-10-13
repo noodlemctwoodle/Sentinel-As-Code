@@ -16,10 +16,10 @@ Three tables follow, so nothing is left unaccounted for:
 - **Findings**: every key finding the report raises, with the gap rule
   that raises it here.
 
-"New" marks what this pass added. The maturity model is this project's own
-methodology (see [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md)); the
-health check's SOC-CMM naming, levels and identifiers were not carried
-over.
+"New" marks what this pass added. The maturity model is a custom one based
+on SOC-CMM, as the health check's was (see
+[Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md)); the health check's
+SOC-CMM naming, levels and identifiers were not carried over.
 
 ## Page map
 
@@ -145,7 +145,7 @@ too.
 | Operations: stale rules | `22-rule-health-quality.md`, "Stale rules" | SAC-DET-04 |
 | Operations: SOC optimization recommendations | `12-soc-optimization.md` | |
 | Sentinel and Defender XDR unification | `10-data-connectors.md`, "Defender XDR unification", with unified incidents, Defender XDR alerts and the retired Azure Security Center path (new) | SAC-DET-08, SAC-PLT-11 |
-| Maturity: scope of this assessment | `91-maturity-assessment.md`, header and "Out of scope" | |
+| Maturity: scope of this assessment | `91-maturity-assessment.md`, the basis and scope notes under the header and "Out of scope"; the overview's maturity line; the dashboard's maturity card and view | |
 | Maturity: framework alignment | `91-maturity-assessment.md`, "NIST CSF 2.0 rollup" | |
 | Maturity: the maturity scale | `91-maturity-assessment.md`, "Maturity scale" (new) | |
 | Maturity: matrix by aspect | `91-maturity-assessment.md`, "Area scores" and "Areas"; dashboard Assessment tab (maturity view) | |
@@ -285,8 +285,9 @@ data. Where the window or shape differs, the note says how.
 
 ## What was changed on purpose
 
-- The maturity model carries no SOC-CMM naming, levels, identifiers or
-  domains; the criteria, impact and guidance wording were reused with
+- The maturity model is based on SOC-CMM but carries none of its naming,
+  levels, identifiers or domains, and says it is not an official SOC-CMM
+  rating; the criteria, impact and guidance wording were reused with
   credit.
 - "Defender portal onboarded" is never inferred: the onboarding state
   resource exists on every Sentinel workspace, so the page says the signal

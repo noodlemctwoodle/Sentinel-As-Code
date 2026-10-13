@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.1
+    Version:      0.4.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 #>
@@ -927,8 +927,18 @@ $dataLakeModel = [ordered]@{
 # scores, the criteria statuses, the roadmap and the rollup.
 $maturityModel = $null
 if ($maturityOk) {
+    # What the score is based on and what it covers; an older collector's
+    # maturity.json has neither, so read them from the criteria file.
+    $basis = [string]$maturityRaw.methodology.basis
+    $scope = [string]$maturityRaw.methodology.scope
+    $criteriaFile = Join-Path $PSScriptRoot '../Private/Resources/maturity-criteria.json'
+    if ((-not $basis -or -not $scope) -and (Test-Path -LiteralPath $criteriaFile)) {
+        $criteriaMethod = (Get-Content -LiteralPath $criteriaFile -Raw | ConvertFrom-Json).methodology
+        if (-not $basis) { $basis = [string]$criteriaMethod.basis }
+        if (-not $scope) { $scope = [string]$criteriaMethod.scope }
+    }
     $maturityModel = [ordered]@{
-        methodology      = [ordered]@{ name = [string]$maturityRaw.methodology.name; version = [string]$maturityRaw.methodology.version }
+        methodology      = [ordered]@{ name = [string]$maturityRaw.methodology.name; version = [string]$maturityRaw.methodology.version; basis = $basis; scope = $scope }
         targetLevel      = [int]$maturityRaw.targetLevel
         targetLevelName  = [string]$maturityRaw.targetLevelName
         targetMet        = [bool]$maturityRaw.targetMet

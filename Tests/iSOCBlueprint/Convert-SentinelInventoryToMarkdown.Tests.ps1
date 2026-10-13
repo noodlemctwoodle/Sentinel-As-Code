@@ -31,7 +31,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -131,6 +131,7 @@ Describe 'Sentinel Blueprint renderer' {
 
         It 'carries the maturity headline and links to the new pages' {
             $script:overview | Should -Match '\*\*Maturity:\*\* 1\.59 / 5 \(Initial\)'
+            $script:overview | Should -Match 'Scored from the Sentinel workspace only: people and processes were not assessed\.'
             $script:overview | Should -Match '\(28-detection-opportunities\.md\)'
             $script:overview | Should -Match '\(91-maturity-assessment\.md\)'
         }
@@ -174,6 +175,14 @@ Describe 'Sentinel Blueprint renderer' {
     Context '91-maturity-assessment.md renders the assessment' {
         BeforeAll {
             $script:mat = Get-Content (Join-Path $script:tempWsRoot '91-maturity-assessment.md') -Raw
+        }
+
+        It 'says what the score is based on and what it covers, even from a maturity.json that carries neither' {
+            # The fixture's maturity.json predates the basis and scope, so both come from the criteria file.
+            $script:mat | Should -Match 'A custom model based on the SOC-CMM framework\.'
+            $script:mat | Should -Match 'not affiliated with or endorsed by the SOC-CMM project'
+            $script:mat | Should -Match '(?m)^> \*\*Scope:\*\* The score is based strictly on the Microsoft Sentinel infrastructure and configuration'
+            $script:mat | Should -Match 'People \(staffing, skills, roles\) and processes'
         }
 
         It 'names the methodology and the headline score' {

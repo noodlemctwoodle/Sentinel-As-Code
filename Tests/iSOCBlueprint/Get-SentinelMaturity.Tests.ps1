@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -99,9 +99,10 @@ Describe 'Maturity assessment over the sample fixture' {
         ($maturity.totals.met + $maturity.totals.gap + $maturity.totals.unknown) | Should -Be 60
     }
 
-    It 'names the methodology without any third-party model' {
+    It 'names the methodology as the project''s own and carries its basis and scope' {
         $maturity.methodology.name | Should -Be 'Sentinel-As-Code maturity assessment'
-        $maturity.methodology.name | Should -Not -Match 'CMM'
+        $maturity.methodology.basis | Should -Match 'based on the SOC-CMM framework'
+        $maturity.methodology.scope | Should -Match 'People'
     }
 
     It 'reports the target as level 3, Established, and not met' {
@@ -405,10 +406,22 @@ Describe 'maturity-criteria.json schema guards' {
         foreach ($id in $doc.csf.subcategories.PSObject.Properties.Name) { $used | Should -Contain $id }
     }
 
-    It 'carries no em-dash and no third-party model name anywhere in the file' {
+    It 'carries no em-dash anywhere in the file' {
         $text = Get-Content $criteriaPath -Raw
         $text | Should -Not -Match ([char]0x2014)
-        $text | Should -Not -Match 'SOC-CMM'
+    }
+
+    It 'says what the model is based on, without claiming an official rating or an endorsement' {
+        $doc.methodology.basis | Should -Match 'based on the SOC-CMM framework'
+        $doc.methodology.basis | Should -Match 'not an official SOC-CMM rating or certification'
+        $doc.methodology.basis | Should -Match 'not affiliated with or endorsed by'
+    }
+
+    It 'says the score covers the Sentinel workspace only, not people or processes' {
+        $doc.methodology.scope | Should -Match 'strictly on the Microsoft Sentinel infrastructure and configuration'
+        $doc.methodology.scope | Should -Match 'People'
+        $doc.methodology.scope | Should -Match 'processes'
+        $doc.methodology.scope | Should -Match 'not assessed'
     }
 
     It 'gives every criterion a non-empty impact and guidance' {

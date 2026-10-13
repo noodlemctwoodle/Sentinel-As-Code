@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.1
+    Version:        0.4.2
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -462,6 +462,21 @@ $incMttr           = Read-RawArray 'incidents-mttr.json'    | Select-Object -Fir
 # members the page needs rather than for the object.
 $maturityOk = ($null -ne $maturity -and $null -ne $maturity.PSObject.Properties['areas'] -and $null -ne $maturity.PSObject.Properties['overall'])
 
+# What the score is based on and what it covers. A maturity.json from an
+# older collector carries neither, so fall back to the criteria file.
+$maturityBasis = ''
+$maturityScope = ''
+if ($maturityOk) {
+    $maturityBasis = [string](_RProp (_RProp $maturity 'methodology') 'basis' '')
+    $maturityScope = [string](_RProp (_RProp $maturity 'methodology') 'scope' '')
+    $criteriaFile = Join-Path $ResourcesRoot 'maturity-criteria.json'
+    if ((-not $maturityBasis -or -not $maturityScope) -and (Test-Path -LiteralPath $criteriaFile)) {
+        $criteriaDoc = Get-Content -LiteralPath $criteriaFile -Raw | ConvertFrom-Json
+        if (-not $maturityBasis) { $maturityBasis = [string](_RProp $criteriaDoc.methodology 'basis' '') }
+        if (-not $maturityScope) { $maturityScope = [string](_RProp $criteriaDoc.methodology 'scope' '') }
+    }
+}
+
 # KQL result cells arrive as strings; fixtures carry typed values. Parse
 # rather than cast so neither shape throws.
 function _RendererNumber {
@@ -691,7 +706,7 @@ _No billable ingestion in the last 30 days, so there is no flow to draw._$family
 }
 
 $maturityHeadline = if ($maturityOk -and $null -ne $maturity.overall.score) {
-    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count). Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
+    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count). Scored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
 } elseif ($maturityOk) {
     "_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md)."
 } else { '_Maturity assessment not available for this run._' }
@@ -3782,7 +3797,10 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
 @"
 $(Format-Banner -Title "Maturity Assessment")
 
-> **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $($maturity.methodology.scaleNote)
+> **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $(if ($maturityBasis) { "$maturityBasis " })$($maturity.methodology.scaleNote)
+$(if ($maturityScope) { "
+> **Scope:** $maturityScope
+" })
 
 The maturity assessment and the [gap analysis](90-gap-analysis.md) are one assessment: the findings there are the evidence behind many of the criteria here, and each finding says which criterion it decides.
 

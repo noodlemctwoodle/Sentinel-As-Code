@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.4.1
+    Version:      0.4.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1181,8 +1181,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'data-tab="maturity" data-tabs="maturity findings" role="tab">.*Assessment</div>'
         $html | Should -Not -Match 'data-tab="findings"'
         $html | Should -Match 'class="subtab" data-sub="maturity"[\s\S]*class="subtab" data-sub="findings"'
+        $html | Should -Match 'class="subcount"'
         $html | Should -Match 'id="estateRings"'
         $html | Should -Match 'id="maturityBoard"'
+    }
+
+    It 'gives the findings view a summary with click-through to the list, and an area filter' {
+        $html | Should -Match 'id="findingsBoard"[\s\S]*class="filters"'
+        $html | Should -Match 'id="areaSelect"'
+        $html | Should -Match 'id="findClear"'
+        $html | Should -Match "h2>Score impact</h2>"
+        $html | Should -Match 'data-fk='
+    }
+
+    It 'carries what the maturity score is based on and what it covers, and shows both' {
+        # The fixture's maturity.json predates them; the build reads the criteria file instead.
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $model.maturity.methodology.basis | Should -Match 'based on the SOC-CMM framework'
+        $model.maturity.methodology.scope | Should -Match 'People \(staffing, skills, roles\)'
+        $html | Should -Match 'class="matscope"'
+        $html | Should -Match 'people and processes were not assessed'
     }
 
     It 'writes the findings and the per-check outcomes' {

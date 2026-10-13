@@ -6,6 +6,22 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **What the maturity score covers, and a findings summary** - the maturity
+  assessment now says what it is based on and what it covers wherever the
+  score appears (page 91, the overview's maturity line, the dashboard's
+  maturity card and maturity view): a custom model based on the SOC-CMM
+  framework, not an official SOC-CMM rating or certification and not
+  affiliated with or endorsed by the SOC-CMM project; and a score based
+  strictly on the Sentinel infrastructure and configuration and the findings
+  raised against them, with people and processes not assessed. The wording
+  lives once, as `methodology.basis` and `methodology.scope` in
+  `maturity-criteria.json` (criteria 1.2.0), and is copied into
+  `maturity.json`. On the dashboard, the Findings view opens with the same
+  kind of summary as the Maturity view (findings by severity and by effect on
+  the score, stacked bars by area and by category, and every scored finding
+  ranked by its lift), each part filtering the list below, which gains an
+  area filter and a Clear button. The switch between the two views is now a
+  clear segmented control with a count on each side.
 - **iSOCBlueprint PowerShell module** - the Blueprint is now also a module,
   [`Modules/iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md), so a
   Blueprint of any type comes from one command and the module can be used
