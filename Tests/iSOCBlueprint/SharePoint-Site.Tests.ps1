@@ -1331,6 +1331,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # The grid sits directly above Detection opportunities.
         $html | Should -Match "\{full:'Content inventory'\}[\s\S]*\{full:'Detection coverage by MITRE'\},\s*\{full:'Detection opportunities'\}"
         $html | Should -Match "Open the MITRE page &rarr;"
+        # The MITRE page link is a button at the right of the grid's switches, not in the note.
+        $html | Should -Match 'id="akSearch"[^>]*>''\+\s*\(mitreSec!=null\?''<a class="ak-open" role="button" tabindex="0" data-jump='
+        $html | Should -Match '\.ak-open\{margin-left:auto;'
         $html | Should -Match "data-akopen>Open the ATT&amp;CK grid &rarr;"
         $html | Should -Match "\{k:'Connectors', v:c\.connectors, ic:ICON\.ingest, sec:secAt\(10\)\}"
     }
@@ -1345,6 +1348,17 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique'
         $html | Should -Match "const sub=s\.sub\? c\.subs\.find\(x=>x\.id===s\.sub\) : null;"
         $html | Should -Match 'const idx=sub\? sub\.rules : c\.rules;'
+    }
+
+    It 'styles the grid switches like the tabs and the Assessment switch' {
+        $html | Should -Match '\.ak-seg button\.on\{color:#fff;background:linear-gradient\(135deg,var\(--brand\),var\(--accent\)\)'
+        $html | Should -Match 'html\[data-theme="dark"\] \.ak-seg button\.on\{background:linear-gradient\(135deg,#2a63d6,#5b45c9\)'
+        $html | Should -Not -Match '\.ak-seg button\.on\{background:var\(--brand\);color:#fff\}'
+    }
+
+    It 'gives every tactic header the same height so the cells start level' {
+        $html | Should -Match '\.ak-th b\{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:2\.4em;'
+        $html | Should -Match '\.ak-th span\{display:block;[^}]*white-space:nowrap;'
     }
 
     It 'themes the grid, report table and data flow scrollbars for light and dark' {

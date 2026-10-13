@@ -697,11 +697,23 @@
   .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
   .lc-spark polyline{stroke:var(--lc-glow)}
   /* ---------- ATT&CK coverage grid (Insights) ---------- */
-  .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
+  .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
   .ak-tools .docsearch{margin:0;width:220px}
-  .ak-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .ak-seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer}
-  .ak-seg button.on{background:var(--brand);color:#fff}
+  /* The MITRE page link sits at the right of the switches, styled as one of them. */
+  .ak-open{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:10px;
+    padding:6px 12px;color:var(--brand-ink);font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
+  .ak-open:hover{color:var(--ink);background:var(--panel)}
+  .ak-open:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .ak-keyrow{margin:0 0 12px}
+  /* The grid's switches look like the tabs and the Assessment switch: a
+     tinted track, the selected option on the brand gradient. */
+  .ak-seg{display:inline-flex;gap:3px;background:var(--chip);border:1px solid var(--line);padding:3px;border-radius:10px}
+  .ak-seg button{border:1px solid transparent;border-radius:7px;background:none;color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:5px 11px;cursor:pointer;
+    transition:color .15s,background .15s,box-shadow .15s}
+  .ak-seg button:hover{color:var(--ink);background:var(--panel)}
+  .ak-seg button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .ak-seg button.on{color:#fff;background:linear-gradient(135deg,var(--brand),var(--accent));box-shadow:0 2px 8px rgba(37,99,235,.28)}
+  html[data-theme="dark"] .ak-seg button.on{background:linear-gradient(135deg,#2a63d6,#5b45c9);box-shadow:none}
   .ak-key{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
   .ak-key i{display:inline-block;width:14px;height:11px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
   .ak-key i+i:not(.off):not(.gap){margin-left:2px}
@@ -714,11 +726,14 @@
   .ak-scroll::-webkit-scrollbar-corner,.doctscroll::-webkit-scrollbar-corner,.flowbox::-webkit-scrollbar-corner{background:transparent}
   .ak-scroll::-webkit-scrollbar-thumb,.doctscroll::-webkit-scrollbar-thumb,.flowbox::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px}
   .ak-scroll::-webkit-scrollbar-thumb:hover,.doctscroll::-webkit-scrollbar-thumb:hover,.flowbox::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
-  .ak-grid{display:grid;grid-template-columns:repeat(14,minmax(118px,1fr));gap:6px;min-width:1700px;align-items:start}
+  .ak-grid{display:grid;grid-template-columns:repeat(14,minmax(126px,1fr));gap:6px;min-width:1820px;align-items:start}
   .ak-col{display:flex;flex-direction:column;gap:5px}
-  .ak-th{position:relative;padding:8px 9px 10px;border-radius:9px;background:var(--panel-soft);border:1px solid var(--line);min-height:58px}
-  .ak-th b{display:block;font-size:12px;line-height:1.2;color:var(--ink)}
-  .ak-th span{font-size:10.5px;color:var(--muted)}
+  /* Every tactic header is the same height: two lines for the name (a
+     longer one is clipped, its full name in the tooltip) and one for the
+     count, so the cells below start level. */
+  .ak-th{position:relative;padding:8px 9px 10px;border-radius:9px;background:var(--panel-soft);border:1px solid var(--line);box-sizing:border-box}
+  .ak-th b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:2.4em;font-size:12px;line-height:1.2;color:var(--ink)}
+  .ak-th span{display:block;margin-top:3px;font-size:10.5px;line-height:1.3;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ak-th i{position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0 0 9px 9px;background:linear-gradient(90deg,var(--green) var(--p),var(--line-2) var(--p))}
   .ak-cell{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:11.5px;line-height:1.25}
   .ak-cell[role="button"]{cursor:pointer}
@@ -1848,7 +1863,8 @@
       return {tac, rows, coveredHere, total:inTactic.length, subsHere:subsHere.size, subTotal};
     });
     const heat=n=>n>=4?'h3':n>=2?'h2':n>=1?'h1':'';
-    const cw=subLevel? 150 : 118;
+    // Wide enough that every tactic name, ICS ones included, fits two lines.
+    const cw=subLevel? 150 : 126;
     grid.style.gridTemplateColumns='repeat('+cols.length+',minmax('+cw+'px,1fr))';
     grid.style.minWidth=(cols.length*(cw+4))+'px';
     const sel=akState.sel;
@@ -1989,13 +2005,13 @@
   if(M.attack && M.attack.tactics && M.attack.tactics.length){
     const nOn=M.attack.rules.filter(r=>r.enabled).length;
     cards.push('<div class="ipanel full" id="akPanel"><h3>Detection coverage by MITRE ATT&amp;CK technique</h3>'+
-      '<p class="note">Each column is a tactic; each cell a technique an analytics rule maps, shaded by the enabled rules that map it. Sub-techniques lists each one under its technique, shaded by its own rules. '+nOn+' of '+M.attack.rules.length+' rules are enabled. Select a technique or sub-technique for its rules.'+
-      (mitreSec!=null?' <a class="link-muted" data-jump="'+mitreSec+'">Open the MITRE page &rarr;</a>':'')+'</p>'+
+      '<p class="note">Each column is a tactic; each cell a technique an analytics rule maps, shaded by the enabled rules that map it. Sub-techniques lists each one under its technique, shaded by its own rules. '+nOn+' of '+M.attack.rules.length+' rules are enabled. Select a technique or sub-technique for its rules.</p>'+
       '<div class="ak-tools"><div class="ak-seg" role="group" aria-label="Level"><button type="button" class="on" data-ak-level="tech">Techniques</button><button type="button" data-ak-level="sub">Sub-techniques</button></div>'+
       '<div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
       '<div class="ak-seg" role="group" aria-label="Techniques"><button type="button" class="on" data-ak-show="covered">Covered techniques</button><button type="button" data-ak-show="all">Every technique</button></div>'+
       '<input type="search" class="docsearch" id="akSearch" placeholder="Find a rule or technique" aria-label="Find a rule or technique">'+
-      '<span class="ak-key"><i class="h1"></i><i class="h2"></i><i class="h3"></i>technique<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique (1 rule, 2 to 3, 4 or more)<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
+      (mitreSec!=null?'<a class="ak-open" role="button" tabindex="0" data-jump="'+mitreSec+'">Open the MITRE page &rarr;</a>':'')+'</div>'+
+      '<div class="ak-keyrow"><span class="ak-key"><i class="h1"></i><i class="h2"></i><i class="h3"></i>technique<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique (1 rule, 2 to 3, 4 or more)<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
       '<div class="ak-scroll"><div class="ak-grid" id="akGrid"></div></div><div id="akDetail" class="hidden"></div></div>');
   } else {
     const mMax = Math.max(1, ...M.mitre.map(t=>t.rules));

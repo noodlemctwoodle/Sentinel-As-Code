@@ -160,7 +160,8 @@ pie cards, bar-list cards, table cards), with the full-width panels
 opportunities, what's new) between them, so a long table never shares a
 row with a short donut. The
 **ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
-kill-chain order with the techniques covered out of the total, and a cell
+kill-chain order with the techniques covered out of the total (every
+tactic header the same height, so the cells start level), and a cell
 per technique an analytics rule maps, shaded by the enabled rules that map
 it, with its sub-techniques as chips by their full id. Techniques shade
 green and sub-techniques violet, light to dark for 1 rule, 2 to 3 and 4 or
@@ -177,8 +178,9 @@ rules (a cell only they cover is dashed: covered once they are enabled),
 a technique, and selecting a cell lists every rule mapped to it with its
 status, severity, kind and sub-techniques; selecting a sub-technique lists
 only the rules that map it. The grid scrolls sideways with a scrollbar in
-the theme's colours. The grid links to the MITRE
-page and the MITRE page back to the grid. The content inventory's tiles
+the theme's colours. Its switches look like the dashboard's tabs, and an
+"Open the MITRE page" button at the right of them opens page 25, which
+links back to the grid. The content inventory's tiles
 open their pages in the Report tab.
 Every card grid balances its rows (five cards become three and two,
 never four and one) and a short last row widens to fill the band. The
