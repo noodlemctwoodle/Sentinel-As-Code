@@ -418,3 +418,42 @@ Describe 'maturity-criteria.json schema guards' {
         }
     }
 }
+
+Describe 'Get-FindingMaturityLink' {
+    BeforeAll {
+        $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $root 'Tools/Blueprint/Private/Get-FindingMaturityLink.ps1')
+        $script:criteriaPath = Join-Path $root 'Tools/Blueprint/Private/Resources/maturity-criteria.json'
+        $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/Blueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
+        $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity
+    }
+
+    It 'maps every gap rule a criterion reads, through allOf and anyOf' {
+        $criteria = (Get-Content $script:criteriaPath -Raw | ConvertFrom-Json -Depth 16).criteria
+        $expected = [System.Collections.Generic.HashSet[string]]::new()
+        $walk = { param($s) if ($s.kind -eq 'gapRule') { [void]$expected.Add($s.rule) } elseif ($s.kind -in 'allOf', 'anyOf') { foreach ($x in $s.sources) { & $walk $x } } }
+        foreach ($c in $criteria) { & $walk $c.source }
+        @($script:links.Keys | Sort-Object) | Should -Be @($expected | Sort-Object)
+    }
+
+    It 'joins the status and the overall lift from maturity.json' {
+        $l = @($script:links['SAC-LOG-03'])[0]
+        $l.CriterionId | Should -Be 'SAC-LOG-03'
+        $l.Status | Should -Be 'Gap'
+        $l.Lift | Should -BeGreaterThan 0
+        $l.Shared | Should -BeFalse
+        Format-FindingMaturityShort @($script:links['SAC-LOG-03']) | Should -Be '+0.075 to LOG'
+    }
+
+    It 'marks a criterion several findings decide together as shared' {
+        @($script:links['SAC-DET-07'])[0].Shared | Should -BeTrue
+    }
+
+    It 'calls a finding no criterion reads not scored, and works without a maturity run' {
+        $script:links.ContainsKey('SAC-LOG-22') | Should -BeFalse
+        Format-FindingMaturityShort $null | Should -Be 'Not scored'
+        $bare = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $null
+        @($bare['SAC-LOG-03'])[0].Status | Should -BeNullOrEmpty
+        Format-FindingMaturityShort @($bare['SAC-LOG-03']) | Should -Be 'LOG'
+    }
+}

@@ -1703,3 +1703,27 @@ Describe 'Sentinel Blueprint renderer - connector catalogue, saved searches and 
         Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Match '## Sentinel pricing settings[\s\S]*_The endpoint returned nothing for this workspace\._'
     }
 }
+
+Describe 'Sentinel Blueprint renderer - findings and maturity as one assessment' {
+
+    BeforeAll {
+        $script:gap90 = Get-Content (Join-Path $script:tempWsRoot '90-gap-analysis.md') -Raw
+        $script:mat91 = Get-Content (Join-Path $script:tempWsRoot '91-maturity-assessment.md') -Raw
+    }
+
+    It 'gives the findings summary a Maturity column' {
+        $script:gap90 | Should -Match '\| ID \| Severity \| Category \| Title \| Maturity \|'
+        $script:gap90 | Should -Match '\| \[SAC-LOG-03\]\(#sac-log-03\) \| Warning \| Cost \|[^\n]*\| \+0\.075 to LOG \|'
+        $script:gap90 | Should -Match '\| \[SAC-LOG-07\]\(#sac-log-07\) \|[^\n]*\| Not scored \|'
+    }
+
+    It 'says on each finding card which criterion it decides and what closing it is worth' {
+        $script:gap90 | Should -Match '\*\*Maturity:\*\* decides \[SAC-LOG-03\]\(91-maturity-assessment\.md#criteria\) A daily cap is set \(Log management and cost\), now Gap; closing it lifts the overall score by \+0\.075\.'
+        $script:gap90 | Should -Match '\*\*Maturity:\*\* not scored\. This is a hygiene or cost check'
+    }
+
+    It 'links the two pages to each other' {
+        $script:gap90 | Should -Match '\[maturity assessment\]\(91-maturity-assessment\.md\)'
+        $script:mat91 | Should -Match '\[gap analysis\]\(90-gap-analysis\.md\) are one assessment'
+    }
+}

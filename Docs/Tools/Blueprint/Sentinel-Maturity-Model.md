@@ -120,6 +120,19 @@ The order is `overallLift` descending, then effort (Low first), then id.
 **Quick wins** are every Low-effort entry, in that order. The dashboard
 shows the first five with a "Show all" control.
 
+### Findings and criteria
+
+Findings (the gap analysis) and criteria are one assessment. A criterion
+whose source is a gap rule, directly or inside `allOf` / `anyOf`, is
+decided by that rule's finding, so
+[`Private/Get-FindingMaturityLink.ps1`](../../../Tools/Blueprint/Private/Get-FindingMaturityLink.ps1)
+maps each finding to the criteria it decides and joins their status and
+`overallLift` from `maturity.json`. Page 90 shows it in a Maturity column and
+on every finding card, and the dashboard as a chip on each finding with a
+filter for findings that move the score. A finding no criterion reads is a
+hygiene or cost check and is shown as not scored. Lifts appear as stored,
+to three decimals, wherever they are shown.
+
 ## The NIST CSF 2.0 rollup
 
 Each criterion references one or two subcategories of the NIST
@@ -233,5 +246,5 @@ text, so a mistake fails the PR gate rather than the nightly run.
   engine and the output tree.
 - [Renderer design](Blueprint-Renderer-Design.md): how
   `91-maturity-assessment.md` is drawn.
-- [SharePoint site](Sentinel-SharePoint-Site.md): the Maturity tab and
+- [SharePoint site](Sentinel-SharePoint-Site.md): the Assessment tab's maturity view and
   the score history.

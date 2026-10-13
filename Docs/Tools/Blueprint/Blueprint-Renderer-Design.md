@@ -425,6 +425,7 @@ assets root).
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Tools/Blueprint/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Blueprint/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1`](../../../Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Tools/Blueprint/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Tools/Blueprint/Update-ConnectorCatalogue.ps1) |
+| [`Tools/Blueprint/Private/Get-FindingMaturityLink.ps1`](../../../Tools/Blueprint/Private/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
 | [`Tools/Blueprint/Private/Get-TableFamily.ps1`](../../../Tools/Blueprint/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
 | [`Tools/Blueprint/Private/Get-TableTierProfile.ps1`](../../../Tools/Blueprint/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
 | [`Tools/Blueprint/Private/Get-SentinelMaturity.ps1`](../../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Tools/Blueprint/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
@@ -433,10 +434,10 @@ assets root).
 | [`Tools/Blueprint/Private/Resources/mitre-attack.json`](../../../Tools/Blueprint/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Blueprint/Private/Resources/commitment-tiers.json`](../../../Tools/Blueprint/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~245 tests) |
+| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~250 tests) |
 | [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |
 | [`Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1`](../../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1) | Connector catalogue resource guards and helpers (13 tests) |
-| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (33 tests) |
+| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (37 tests) |
 | [`Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1`](../../../Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1) | Word report rewrites: status colouring by column, finding bullets (7 tests) |
 | [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |

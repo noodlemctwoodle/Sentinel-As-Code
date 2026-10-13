@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Findings and maturity grouped as the Assessment** - the gap analysis
+  (page 90) and the maturity assessment (page 91) are now presented as one
+  assessment. On SharePoint both pages and the findings list sit under one
+  Assessment navigation heading (the reference pages move to their own
+  References heading), and the dashboard's separate Maturity and Findings
+  tabs become one Assessment tab with a switch between them. Each finding
+  now says which maturity criterion it decides and how much closing it
+  lifts the overall score, or that it is a hygiene or cost check the score
+  does not count: a Maturity column and a line on every card on page 90,
+  and a chip on every finding on the dashboard with a filter for findings
+  that move the score. Pages 90 and 91 link to each other. Maturity lifts
+  are shown as stored, to three decimals, everywhere they appear.
 - **Blueprint pages split to the health check's granularity** - five new
   pages take sections from the pages that had grown largest:
   `02-deprecated-legacy-features.md` (the deadline runway and the legacy

@@ -211,6 +211,13 @@ Beyond those headline pages the report groups into families:
   retention and Data Lake surface.
 - **Retirements**: `02-deprecated-legacy-features.md` sets the platform
   deadlines against the legacy features this workspace still uses.
+- **Assessment**: `90-gap-analysis.md` (the findings) and
+  `91-maturity-assessment.md` are one assessment. Each finding says which
+  maturity criterion it decides and what closing it lifts the overall score
+  by, or that it is a hygiene or cost check the score does not count; the
+  SharePoint site groups both pages and the findings list under one
+  Assessment heading, and the dashboard shows them behind one Assessment
+  tab.
 - **Coverage**: `14-coverage-breakdowns.md` attributes AzureActivity /
   AzureDiagnostics / XDR ingestion back to its source.
 

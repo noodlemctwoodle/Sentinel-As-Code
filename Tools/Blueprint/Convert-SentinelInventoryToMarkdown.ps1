@@ -140,6 +140,7 @@ if (-not (Test-Path $OutputRoot)) {
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-FindingMaturityLink.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertFrom-BlueprintMermaid.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-BlueprintSection.ps1')
@@ -3405,12 +3406,29 @@ $(Format-Table -Items $polRows -Columns 'Name','Scope')
 # ---------------------------------------------------------------------------
 # Section: 90 — gap analysis
 # ---------------------------------------------------------------------------
+# Findings and maturity are one assessment: each finding names the maturity
+# criterion it decides, if any, and what closing it does to the score.
+$findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $ResourcesRoot 'maturity-criteria.json') -Maturity $(if ($maturityOk) { $maturity } else { $null })
+function _FormatFindingMaturity([string]$Id) {
+    $links = if ($findingMaturity.ContainsKey($Id)) { @($findingMaturity[$Id]) } else { @() }
+    if ($links.Count -eq 0) { return 'not scored. This is a hygiene or cost check; it does not move the maturity score.' }
+    return ((@($links | ForEach-Object {
+        $state = if ($_.Status) { ", now $($_.Status)" } else { '' }
+        $gain = if ($null -ne $_.Lift -and $_.Lift -gt 0) {
+            $by = ([double]$_.Lift).ToString('0.###', [System.Globalization.CultureInfo]::InvariantCulture)
+            if ($_.Shared) { "; closing all of its findings lifts the overall score by +$by" } else { "; closing it lifts the overall score by +$by" }
+        } else { '' }
+        $how = if ($_.Shared) { 'one of the findings behind' } else { 'decides' }
+        "$how [$($_.CriterionId)](91-maturity-assessment.md#criteria) $($_.Name) ($($_.AreaName))$state$gain"
+    })) -join '; ') + '.'
+}
 $gapRows = $gapFindings | ForEach-Object {
     [pscustomobject]@{
         ID       = "[$($_.Id)](#$(($_.Id).ToLower()))"
         Severity = $_.Severity
         Category = $_.Category
         Title    = $_.Title
+        Maturity = Format-FindingMaturityShort $(if ($findingMaturity.ContainsKey($_.Id)) { @($findingMaturity[$_.Id]) } else { $null })
     }
 }
 
@@ -3485,6 +3503,8 @@ $(Format-Banner -Title "Gap Analysis")
 
 The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](../../Tools/Blueprint/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/GapChecks.ps1](../../Tools/Blueprint/Private/GapChecks.ps1) — adding a new rule is a two-line change.
 
+Findings and the [maturity assessment](91-maturity-assessment.md) are one assessment seen two ways: a finding says what is wrong now, a maturity criterion scores the capability it leaves missing. Each finding below says which criterion it decides and what closing it does to the overall score; a finding no criterion reads is a hygiene or cost check that does not move the score.
+
 ## Findings landscape
 
 ``````mermaid
@@ -3500,9 +3520,9 @@ xychart-beta
 
 ## Findings summary
 
-Each ID links to the detail card below. Severity badge is colour-coded; full evidence, remediation and reference links live in the per-finding cards. Sort by severity first, then by category.
+Each ID links to the detail card below, where the full evidence, remediation and reference links live. ``Maturity`` is the overall-score lift from closing the finding and the area it counts in, or Not scored for a hygiene or cost check. Sorted by severity first, then by category.
 
-$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title' } else { '_No findings — clean run._' })
+$(if ($gapRows.Count -gt 0) { Format-Table -Items $gapRows -Columns 'ID','Severity','Category','Title','Maturity' } else { '_No findings: a clean run._' })
 
 ## Findings detail
 
@@ -3513,6 +3533,8 @@ $(if ($gapFindings.Count -gt 0) {
 ### $($_.Id) — $($_.Title)
 
 **Severity:** $($_.Severity)  ·  **Category:** $($_.Category)
+
+**Maturity:** $(_FormatFindingMaturity $_.Id)
 
 **Evidence**
 
@@ -3761,6 +3783,8 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
 $(Format-Banner -Title "Maturity Assessment")
 
 > **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $($maturity.methodology.scaleNote)
+
+The maturity assessment and the [gap analysis](90-gap-analysis.md) are one assessment: the findings there are the evidence behind many of the criteria here, and each finding says which criterion it decides.
 
 **Overall:** $overallText  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $($mAreas.Count)  ·  **Criteria:** $($maturity.totals.met) met · $($maturity.totals.gap) gaps · $($maturity.totals.unknown) unknown
 

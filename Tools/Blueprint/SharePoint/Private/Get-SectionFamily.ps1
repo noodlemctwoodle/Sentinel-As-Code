@@ -43,8 +43,8 @@ $script:SacSectionFamilyOrder = @(
     'Automation'
     'Workspace & data'
     'Cost & access'
-    'Maturity'
-    'Findings & references'
+    'Assessment'
+    'References'
 )
 
 $script:SacSectionFamilyMap = @{
@@ -84,10 +84,10 @@ $script:SacSectionFamilyMap = @{
     87 = 'Workspace & data'        # 87-azure-monitor-agents
     88 = 'Workspace & data'        # 88-sentinel-data-lake
     89 = 'Workspace & data'        # 89-retention
-    90 = 'Findings & references'   # 90-gap-analysis
-    91 = 'Maturity'                # 91-maturity-assessment
-    96 = 'Findings & references'   # 96-references-microsoft
-    99 = 'Findings & references'   # 99-references
+    90 = 'Assessment'              # 90-gap-analysis (the findings)
+    91 = 'Assessment'              # 91-maturity-assessment
+    96 = 'References'              # 96-references-microsoft
+    99 = 'References'              # 99-references
 }
 
 function Get-SectionFamily {
@@ -121,7 +121,7 @@ function Get-SectionFamily {
         6 { return 'Automation' }
         7 { return 'Hunting & content' }
         8 { return 'Workspace & data' }
-        9 { return 'Findings & references' }
+        9 { return $(if ($Number -ge 96) { 'References' } else { 'Assessment' }) }
         default { return 'Other' }
     }
 }

@@ -132,6 +132,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-FindingMaturityLink.ps1')
 # Only for snapshots rendered before the section model: their Markdown is
 # converted with the renderer's own converter.
 . (Join-Path $PSScriptRoot '../Private/ConvertFrom-BlueprintMermaid.ps1')
@@ -490,6 +491,9 @@ foreach ($f in $gap) {
     if (-not $bySeverity.ContainsKey($s)) { $bySeverity[$s] = 0 }; $bySeverity[$s]++
     if (-not $byCategory.ContainsKey($c)) { $byCategory[$c] = 0 }; $byCategory[$c]++
 }
+# Each finding carries the maturity criteria it decides, so the dashboard's
+# Assessment tab can show what closing it does to the score.
+$findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $PSScriptRoot '../Private/Resources/maturity-criteria.json') -Maturity (Read-Raw 'maturity.json')
 $findingList = @()
 foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
     $findingList += [ordered]@{
@@ -502,6 +506,9 @@ foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.Contains
         evidence    = $f.Evidence
         remediation = $f.Remediation
         learn       = $f.Learn
+        maturity    = @($(if ($findingMaturity.ContainsKey([string]$f.Id)) { @($findingMaturity[[string]$f.Id]) } else { @() }) | ForEach-Object {
+                [ordered]@{ criterionId = $_.CriterionId; name = $_.Name; area = $_.Area; areaName = $_.AreaName; status = $_.Status; lift = $_.Lift; shared = $_.Shared }
+            })
     }
 }
 $findings = [ordered]@{

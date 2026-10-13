@@ -148,7 +148,7 @@ too.
 | Maturity: scope of this assessment | `91-maturity-assessment.md`, header and "Out of scope" | |
 | Maturity: framework alignment | `91-maturity-assessment.md`, "NIST CSF 2.0 rollup" | |
 | Maturity: the maturity scale | `91-maturity-assessment.md`, "Maturity scale" (new) | |
-| Maturity: matrix by aspect | `91-maturity-assessment.md`, "Area scores" and "Areas"; dashboard Maturity tab | |
+| Maturity: matrix by aspect | `91-maturity-assessment.md`, "Area scores" and "Areas"; dashboard Assessment tab (maturity view) | |
 | Maturity: domain summary | Not carried: the areas are not grouped into SOC-CMM domains | |
 | Maturity: score breakdown, evidence and next steps | `91-maturity-assessment.md`, "Criteria" | |
 | Maturity: open gaps and operational impact | `91-maturity-assessment.md`, "Open gaps and their impact" (new) | |
@@ -156,7 +156,7 @@ too.
 | Maturity: quick wins | `91-maturity-assessment.md`, "Quick wins" | |
 | Maturity: assessment scope and limitations | `91-maturity-assessment.md`, "Out of scope" | |
 | Maturity: full assessment evidence by aspect | `91-maturity-assessment.md`, "Criteria", evidence column | |
-| Maturity: reference, aspects and NIST CSF 2.0 subcategories | [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md); the subcategories in `maturity.json` and on the dashboard Maturity tab | |
+| Maturity: reference, aspects and NIST CSF 2.0 subcategories | [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md); the subcategories in `maturity.json` and on the dashboard Assessment tab (maturity view) | |
 | Findings and recommended actions | `90-gap-analysis.md`; dashboard Findings; SharePoint findings list with history | all |
 
 ## Data

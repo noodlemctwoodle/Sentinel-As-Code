@@ -16,9 +16,9 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings (each finding shows what closing it does to the maturity score, and the findings filter by that effect). Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
-| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
+| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
 | **Assets** | The dashboard HTML and data, the publisher's state file and the maturity score history. | `BlueprintAssets` library |
 
@@ -128,7 +128,7 @@ under the label when the two cannot share a line.
 | Model key | Panel | Source captures |
 | --- | --- | --- |
 | `estate` | Overview: the four pipeline rings (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed) and the estate flow (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
-| `maturity` | Overview: the maturity card (score, level band, target marker) and quick wins. Maturity tab: overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
+| `maturity` | Overview: the maturity card (score, level band, target marker) and quick wins. Assessment tab, maturity view: overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
@@ -262,7 +262,7 @@ The entry is keyed on the bundle's build time, so publishing the same
 bundle twice does not add a point, and the file is capped at 180 entries
 (`Add-SacMaturityHistoryEntry -MaxEntries`). A copy is written next to the
 dashboard (`BlueprintAssets/dashboard/maturity-history.json`); the
-Maturity tab fetches it from beside its own page and draws the overall
+Assessment tab's maturity view fetches it from beside its own page and draws the overall
 score as a trend once two entries exist. Opened from disk, the fetch
 cannot run and the trend panel stays hidden. Both files are readable by
 anyone who can read the dashboard, which is the same audience. `-WhatIf`

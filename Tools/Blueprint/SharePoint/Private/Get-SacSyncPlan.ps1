@@ -229,8 +229,10 @@ function Get-NavigationPlan {
     .DESCRIPTION
         One node for the dashboard, one heading per section family (in the
         family display order, only families with at least one page that
-        exists), each with its section pages as children, and a node for the
-        findings list. URLs use the '~site/' prefix the publisher resolves.
+        exists), each with its section pages as children. The findings list
+        sits under the Assessment family, beside the gap analysis and the
+        maturity assessment, or as its own node when no Assessment page
+        exists. URLs use the '~site/' prefix the publisher resolves.
 
     .PARAMETER Sections
         Section descriptors from site.json: objects with page, title,
@@ -275,11 +277,16 @@ function Get-NavigationPlan {
             Where-Object { $_.family -eq $family -and $exists.Contains([string]$_.page) } |
             Sort-Object { [int]$_.num } |
             ForEach-Object { [ordered]@{ title = [string]$_.title; url = "~site/SitePages/$($_.page).aspx"; children = @() } })
+        if ($family -eq 'Assessment' -and $children.Count -gt 0) {
+            $children += [ordered]@{ title = 'Findings list'; url = "~site/$FindingsListUrl/AllItems.aspx"; children = @() }
+        }
         if ($children.Count -eq 0) { continue }
         $nodes.Add([ordered]@{ title = $family; url = $null; children = $children })
     }
 
-    $nodes.Add([ordered]@{ title = 'Findings'; url = "~site/$FindingsListUrl/AllItems.aspx"; children = @() })
+    if (-not @($nodes | Where-Object { $_.title -eq 'Assessment' }).Count) {
+        $nodes.Add([ordered]@{ title = 'Findings'; url = "~site/$FindingsListUrl/AllItems.aspx"; children = @() })
+    }
 
     return [pscustomobject]@{
         Nodes     = $nodes.ToArray()

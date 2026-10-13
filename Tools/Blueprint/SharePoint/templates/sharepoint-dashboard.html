@@ -82,6 +82,14 @@
   .tab svg{width:15px;height:15px;opacity:.85}
   .tab:hover{color:var(--ink)}
   .tab.active{color:var(--brand-ink);background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
+  /* Assessment: maturity and findings under one tab, with a switch */
+  .subnav{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:var(--gap)}
+  .subtabs{display:inline-flex;gap:3px;background:var(--chip);border:1px solid var(--line);padding:3px;border-radius:10px}
+  .subtab{font:inherit;font-weight:600;font-size:12.5px;padding:6px 14px;border-radius:8px;border:1px solid transparent;background:none;color:var(--tab-ink);cursor:pointer}
+  .subtab:hover{color:var(--ink)}
+  .subtab.active{color:var(--brand-ink);background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
+  html[data-theme="dark"] .subtab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
+  .subnav .note{margin:0}
   html[data-theme="dark"] .tab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
   .spacer{flex:1 1 0;min-width:0}
   .iconbtn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
@@ -526,7 +534,7 @@
   table.tbl tbody tr:hover{background:color-mix(in srgb,var(--brand) 5%,transparent)}
   table.tbl tbody tr:last-child td{border-bottom:0}
   .tablewrap{padding:6px 8px}
-  /* Cards shared by the Findings tab, the Overview findings and the
+  /* Cards shared by the Assessment tab's findings view, the Overview findings and the
      maturity criteria: one card per item with a status-coloured edge, the
      pill, id and title on the first line, chips beneath, then Evidence and
      Remediation (or Guidance) side by side. */
@@ -601,8 +609,7 @@
       <div class="tab" data-tab="flow" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M4 7a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 10h-7m7 0a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM11 7h2a4 4 0 0 1 4 4v0M13 17h-2a4 4 0 0 1-4-4v0"/></svg>Data flow</div>
       <div class="tab" data-tab="sections" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>Insights</div>
       <div class="tab" data-tab="sectionsdoc" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z"/></svg>Report</div>
-      <div class="tab" data-tab="maturity" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Maturity</div>
-      <div class="tab" data-tab="findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".6"/></svg>Findings</div>
+      <div class="tab" data-tab="maturity" data-tabs="maturity findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Assessment</div>
     </nav>
     <div class="spacer"></div>
     <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">
@@ -688,6 +695,15 @@
     <div class="insights" id="insightsBoard"></div>
   </section>
 
+  <!-- ASSESSMENT: the maturity assessment and the findings behind it -->
+  <div class="subnav hidden" data-views="maturity findings">
+    <div class="subtabs" role="tablist" aria-label="Assessment">
+      <button type="button" class="subtab" data-sub="maturity" role="tab">Maturity</button>
+      <button type="button" class="subtab" data-sub="findings" role="tab">Findings</button>
+    </div>
+    <span class="note">Findings say what is wrong now; maturity scores the capability they leave missing. Each finding shows what closing it does to the score.</span>
+  </div>
+
   <!-- MATURITY -->
   <section data-view="maturity" class="hidden">
     <div id="maturityBoard"></div>
@@ -709,6 +725,7 @@
     <div class="filters">
       <select id="sevSelect"><option value="">All severities</option></select>
       <select id="catSelect"><option value="">All categories</option></select>
+      <select id="matSelect"><option value="">Any maturity effect</option><option value="scored">Moves the maturity score</option><option value="unscored">Not scored (hygiene or cost)</option></select>
       <input type="search" class="docsearch" id="findSearch" placeholder="Search findings…" style="margin:0;width:260px">
       <span class="note" id="findCount" style="margin-left:auto"></span>
     </div>
@@ -752,12 +769,26 @@
       (list?'<ul class="ltx-list">'+parts.map(x=>'<li>'+esc(x.trim())+'</li>').join('')+'</ul>':'')+
       '<button type="button" class="ltx-btn" data-ltx>Expand</button></div>';
   }
-  // One card per finding; used by the Findings tab and the Overview.
+  // One card per finding; used by the Assessment tab's findings view and the Overview.
+  // A maturity lift as maturity.json stores it (up to three decimals), so the
+  // dashboard and the Markdown pages show the same number.
+  function fmtLift(v){ return '+'+String(Math.round((+v||0)*1000)/1000); }
+  // What closing a finding does to the maturity score: the lift and area of
+  // each criterion it decides, or Not scored for a hygiene or cost check.
+  function maturityChip(f){
+    const links=f.maturity||[];
+    if(!links.length) return '<span class="fchip" title="No maturity criterion reads this finding">Not scored</span>';
+    return links.map(l=>{
+      const lift=(l.lift!=null&&l.lift>0)? ' '+fmtLift(l.lift) : '';
+      const tip=(l.shared?'One of the findings behind ':'Decides ')+l.criterionId+' '+(l.name||'')+(l.status?' ('+l.status+')':'');
+      return '<span class="fchip" title="'+esc(tip)+'">Maturity '+esc(l.area)+esc(lift)+'</span>';
+    }).join('');
+  }
   function findingCard(f){
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
       '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
-      '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
+      '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+maturityChip(f)+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'<div class="fc-link"></div></div>'+
       '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'<div class="fc-link">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Microsoft Learn &rarr;</a>':'')+'</div></div></div></div>';
   }
@@ -1108,7 +1139,7 @@
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
       const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
-        '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>');
+        '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; '+fmtLift(q.overallLift)+'</span></div>');
       qw.innerHTML=moreWrap('<div class="qw">'+rowsMore(qwItems,QW,'div')+'</div>', qwItems.length, QW, 'quick wins');
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
   })();
@@ -1674,7 +1705,7 @@
       html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
         moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
         trRows(MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
-          '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">+'+(+r.overallLift||0).toFixed(2)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
+          '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">'+fmtLift(r.overallLift)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
         '</tbody></table>',MAT.roadmap.length,10,'gaps')+'</div>';
     }
     if(MAT.csf&&MAT.csf.functions&&MAT.csf.functions.length){
@@ -1913,17 +1944,19 @@
   const sevSel=document.getElementById('sevSelect'), catSel=document.getElementById('catSelect'), findQ=document.getElementById('findSearch');
   sevs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sevSel.appendChild(o);});
   [...new Set(M.findings.items.map(f=>f.category).filter(Boolean))].sort().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;catSel.appendChild(o);});
+  const matSel=document.getElementById('matSelect');
   function renderFindings(){
-    const sv=sevSel.value, cv=catSel.value, q=(findQ.value||'').trim().toLowerCase();
-    const rows=M.findings.items.filter(f=>(!sv||f.severity===sv)&&(!cv||f.category===cv)&&(!q||(f.id+' '+(f.legacyId||'')+' '+f.title+' '+(f.evidence||'')+' '+(f.remediation||'')).toLowerCase().includes(q)));
+    const sv=sevSel.value, cv=catSel.value, mv=matSel.value, q=(findQ.value||'').trim().toLowerCase();
+    const scored=f=>(f.maturity||[]).length>0;
+    const rows=M.findings.items.filter(f=>(!sv||f.severity===sv)&&(!cv||f.category===cv)&&(!mv||(mv==='scored')===scored(f))&&(!q||(f.id+' '+(f.legacyId||'')+' '+f.title+' '+(f.evidence||'')+' '+(f.remediation||'')).toLowerCase().includes(q)));
     const list=document.getElementById('findList');
     list.innerHTML=rows.length? rows.map(findingCard).join('') : '<p class="note" style="padding:16px 18px">No findings match.</p>';
     document.getElementById('findCount').textContent=rows.length+' of '+M.findings.items.length+' findings';
     markClamped(list);
   }
-  sevSel.onchange=renderFindings; catSel.onchange=renderFindings; findQ.addEventListener('input',renderFindings); renderFindings();
-  // Open the Findings tab on one finding (used by the criteria cards).
-  window.showFinding=function(id){ sevSel.value=''; catSel.value=''; findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
+  sevSel.onchange=renderFindings; catSel.onchange=renderFindings; matSel.onchange=renderFindings; findQ.addEventListener('input',renderFindings); renderFindings();
+  // Open the Assessment tab's findings view on one finding (used by the criteria cards).
+  window.showFinding=function(id){ sevSel.value=''; catSel.value=''; matSel.value=''; findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
 
   // ---- balanced card grids ----
   // auto-fill packs as many columns as fit and leaves a short last row
@@ -1971,18 +2004,32 @@
   }
 
   // ---- tabs ----
+  // A tab with data-tabs covers several views (Assessment: maturity and
+  // findings); it reopens the one last shown.
+  const lastOf={};
+  const viewsOf=t=>(t.dataset.tabs||t.dataset.tab).split(' ');
   activateTab = function(name){
-    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===name));
+    document.querySelectorAll('.tab').forEach(x=>{ const on=viewsOf(x).includes(name); x.classList.toggle('active', on); if(on) lastOf[x.dataset.tab]=name; });
     document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==name));
+    document.querySelectorAll('[data-views]').forEach(el=>el.classList.toggle('hidden',!el.dataset.views.split(' ').includes(name)));
+    document.querySelectorAll('.subtab').forEach(x=>{ const on=x.dataset.sub===name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on?'true':'false'); });
     balanceGrids(); markClamped();
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{
-    const activate=()=>{ activateTab(t.dataset.tab); window.scrollTo({top:0,behavior:'smooth'}); };
+    const activate=()=>{ activateTab(lastOf[t.dataset.tab]||t.dataset.tab); window.scrollTo({top:0,behavior:'smooth'}); };
     t.onclick=activate;
     t.tabIndex=0;
     t.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); } };
   });
+  document.querySelectorAll('.subtab').forEach(b=>{ b.onclick=()=>activateTab(b.dataset.sub); });
+  // The switch labels carry the counts.
+  (function(){
+    const fb=document.querySelector('.subtab[data-sub="findings"]');
+    if(fb && M.findings) fb.textContent='Findings \u00b7 '+M.findings.items.length;
+    const mb=document.querySelector('.subtab[data-sub="maturity"]');
+    if(mb && M.maturity && M.maturity.overall && M.maturity.overall.score!=null) mb.textContent='Maturity \u00b7 '+M.maturity.overall.score+' / 5';
+  })();
 })();
 </script>
 </body>

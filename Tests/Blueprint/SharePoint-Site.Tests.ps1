@@ -89,11 +89,16 @@ Describe 'Get-SectionFamily' {
         Get-SectionFamily -Number 36 | Should -Be 'Workspace & data'
     }
 
-    It 'places detection opportunities under Detection and the maturity page under Maturity, before the findings' {
+    It 'places detection opportunities under Detection, and the findings and maturity together under Assessment, before the references' {
         Get-SectionFamily -Number 28 | Should -Be 'Detection'
-        Get-SectionFamily -Number 91 | Should -Be 'Maturity'
+        Get-SectionFamily -Number 90 | Should -Be 'Assessment'
+        Get-SectionFamily -Number 91 | Should -Be 'Assessment'
+        Get-SectionFamily -Number 96 | Should -Be 'References'
+        Get-SectionFamily -Number 99 | Should -Be 'References'
+        Get-SectionFamily -Number 92 | Should -Be 'Assessment' -Because 'an unmapped 9x page below 96 falls back to Assessment'
         $order = @(Get-SectionFamilyOrder)
-        [array]::IndexOf($order, 'Maturity') | Should -Be ([array]::IndexOf($order, 'Findings & references') - 1)
+        [array]::IndexOf($order, 'Assessment') | Should -Be ([array]::IndexOf($order, 'References') - 1)
+        $order | Should -Not -Contain 'Maturity'
     }
 }
 
@@ -416,6 +421,27 @@ Describe 'Get-NavigationPlan' {
         )
         $tree = ConvertTo-SacNavigationTree -Nodes $readBack -WebServerRelativeUrl '/sites/isoc'
         Get-NavigationSignature -Nodes $tree | Should -Be $nav.Signature
+    }
+}
+
+Describe 'Get-NavigationPlan with the Assessment family' {
+    BeforeAll {
+        $sections = @(
+            [pscustomobject]@{ num = 91; page = 'sac-91-maturity'; title = 'Maturity Assessment'; family = 'Assessment' }
+            [pscustomobject]@{ num = 90; page = 'sac-90-gaps'; title = 'Gap Analysis'; family = 'Assessment' }
+            [pscustomobject]@{ num = 99; page = 'sac-99-references'; title = 'References'; family = 'References' }
+        )
+        $script:navA = Get-NavigationPlan -Sections $sections -ExistingPages @('sac-91-maturity', 'sac-90-gaps', 'sac-99-references') `
+            -FamilyOrder (Get-SectionFamilyOrder) -DashboardPage 'Dashboard' -FindingsListUrl 'Lists/SentinelFindings'
+    }
+    It 'puts the gap analysis, the maturity assessment and the findings list under one Assessment heading' {
+        @($navA.Nodes | ForEach-Object title) | Should -Be @('Dashboard', 'Assessment', 'References')
+        $assessment = $navA.Nodes | Where-Object title -eq 'Assessment'
+        @($assessment.children | ForEach-Object title) | Should -Be @('Gap Analysis', 'Maturity Assessment', 'Findings list')
+        $assessment.children[-1].url | Should -Be '~site/Lists/SentinelFindings/AllItems.aspx'
+    }
+    It 'adds no separate Findings node when the list sits under Assessment' {
+        @($navA.Nodes | Where-Object { $_.url -eq '~site/Lists/SentinelFindings/AllItems.aspx' }).Count | Should -Be 0
     }
 }
 
@@ -1117,7 +1143,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.usageDaily).Count | Should -Be 3
         $model.playbookHealth.failed7d | Should -Be 5
         ($model.incidentsByClassification | Where-Object label -eq 'Undetermined').value | Should -Be 15
-        @($model.familyOrder) | Should -Contain 'Maturity'
+        @($model.familyOrder) | Should -Contain 'Assessment'
     }
 
     It 'carries the data lake model from the shared tier profile' {
@@ -1135,16 +1161,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives the new pages a family and a headline' {
-        ($site.sections | Where-Object num -eq 91).family | Should -Be 'Maturity'
+        ($site.sections | Where-Object num -eq 91).family | Should -Be 'Assessment'
+        ($site.sections | Where-Object num -eq 90).family | Should -Be 'Assessment'
         ($site.sections | Where-Object num -eq 28).family | Should -Be 'Detection'
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         ($model.sections | Where-Object num -eq 91).headline | Should -Be 'Score 1.59 / 5'
+        $logCap = $model.findings.items | Where-Object id -eq 'SAC-LOG-03'
+        $logCap.maturity[0].criterionId | Should -Be 'SAC-LOG-03'
+        $logCap.maturity[0].status | Should -Be 'Gap'
+        $logCap.maturity[0].lift | Should -BeGreaterThan 0
+        @(($model.findings.items | Where-Object id -eq 'SAC-LOG-07').maturity).Count | Should -Be 0
+        $html | Should -Match 'data-tabs="maturity findings"'
+        $html | Should -Match 'id="matSelect"'
         ($model.sections | Where-Object num -eq 28).headline | Should -Be '8 tables without detection'
     }
 
-    It 'ships the estate flow and the Maturity tab in the dashboard' {
+    It 'ships the estate flow and the Assessment tab, maturity and findings behind one switch, in the dashboard' {
         $html | Should -Match 'function drawEstateFlow'
-        $html | Should -Match 'data-tab="maturity"'
+        $html | Should -Match 'data-tab="maturity" data-tabs="maturity findings" role="tab">.*Assessment</div>'
+        $html | Should -Not -Match 'data-tab="findings"'
+        $html | Should -Match 'class="subtab" data-sub="maturity"[\s\S]*class="subtab" data-sub="findings"'
         $html | Should -Match 'id="estateRings"'
         $html | Should -Match 'id="maturityBoard"'
     }
