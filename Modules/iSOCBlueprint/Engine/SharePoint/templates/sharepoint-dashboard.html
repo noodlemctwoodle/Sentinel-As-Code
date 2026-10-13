@@ -184,7 +184,7 @@
   .seclabel{display:flex;align-items:center;gap:10px;margin:24px 2px var(--gap-label);font-size:12px;font-weight:800;
     letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
   .seclabel::after{content:"";flex:1;height:1px;background:var(--line)}
-  .link-muted{display:inline-flex;align-items:center;gap:5px;margin-left:4px;padding:2px 10px;border-radius:999px;font-weight:650;font-size:12px;white-space:nowrap;vertical-align:baseline}
+  .note .sbtn{margin-left:6px;vertical-align:middle}
 
   /* ---------- glance stat tiles (#heroPills) ---------- */
   .glance{margin-top:var(--gap)}
@@ -355,8 +355,7 @@
   .matbig{font-size:34px;font-weight:850;letter-spacing:-.02em;line-height:1;margin-top:4px}
   .matbig small{font-size:14px;font-weight:700;color:var(--muted);margin-left:6px}
   .matcap{color:var(--muted);font-size:12.5px;margin-top:10px}
-  .btn{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:9px 14px;border-radius:10px;font:inherit;font-weight:700;font-size:12.5px}
-  .btn svg{width:14px;height:14px}
+  .btn{margin-top:14px}
   .qw{display:flex;flex-direction:column;gap:9px}
   .qw .qwi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel-soft)}
   .qw .qwi[role="button"]{cursor:pointer;transition:border-color .15s}
@@ -366,7 +365,7 @@
   @keyframes critflash{0%,35%{box-shadow:0 0 0 3px var(--brand)}100%{box-shadow:0 0 0 3px transparent}}
   .critfind{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
   .critfind .flabel{margin:0 2px 0 0}
-  .critfind .link-muted{margin-left:0}
+
   .qw .qwn{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green);font-weight:800;font-size:12px}
   .qw .qwt{font-weight:700;font-size:13px}
   .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
@@ -400,8 +399,8 @@
   .ltx .ltx-list li{margin:2px 0;overflow-wrap:anywhere}
   .ltx.open.aslist .ltx-body{display:none}
   .ltx.open.aslist .ltx-list{display:block}
-  .ltx .ltx-btn{display:none;margin-top:6px;font:inherit;font-size:11.5px;font-weight:650;padding:3px 10px;border-radius:999px}
-  .ltx.clamped .ltx-btn{display:inline-block}
+  .ltx .ltx-btn{display:none;margin-top:6px}
+  .ltx.clamped .ltx-btn{display:inline-flex}
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
@@ -415,8 +414,7 @@
   /* Lists show their first few entries; "Show all" reveals the rest. Nothing
      is dropped from the model, so the dashboard reports everything. */
   [hidden]{display:none !important}
-  .morebtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font:inherit;font-size:12px;font-weight:650;border-radius:999px;padding:5px 11px}
-  .morepill{font:inherit;font-size:11px;font-weight:650}
+  .morebtn{margin-top:10px}
   .flowfilter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
   .fchip{font:inherit;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
     background:var(--chip);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
@@ -445,7 +443,7 @@
   .docpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:24px 26px;animation:rise .4s cubic-bezier(.22,.8,.3,1) both}
   .docpanel .dhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-  .docpanel .dpage{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap}
+  .docpanel .dpage{margin-left:auto}
   .docpanel .dpage+.dpage{margin-left:0}
   .docpanel .dbadge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-ink);
     background:color-mix(in srgb,var(--brand) 11%,transparent);border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));
@@ -540,9 +538,7 @@
   .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
   .zoom{display:flex;align-items:center;gap:6px;color:var(--muted);background:var(--chip);
     border:1px solid var(--line);border-radius:11px;padding:4px}
-  .zoom button{border-radius:8px;width:30px;height:30px;font-size:16px;display:grid;place-items:center}
   .zoom #zoomPct{min-width:46px;text-align:center;font-weight:700;font-size:12.5px;color:var(--ink-2)}
-  .zoom .fit{width:auto;padding:0 12px;font-weight:700}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:14px;
     justify-content:center}
   .legend span{display:inline-flex;align-items:center}
@@ -571,10 +567,9 @@
   svg.sankey .sk-beads{fill:none;stroke-linecap:round;stroke-opacity:.85;pointer-events:none;animation:lcflow linear infinite}
   html[data-theme="dark"] svg.sankey .sk-beads{stroke:#e6fffb;stroke-opacity:.5}
   .esdetail{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:14px 16px}
-  .esdetail .esd-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+  .esdetail .esd-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-bottom:8px}
   .esdetail .esd-head h3{margin:0;font-size:15px;font-weight:800}
-  .esdetail .esd-head .note{margin:0}
-  .esdetail .esd-head a{margin-left:auto;cursor:pointer;font-weight:700;font-size:12.5px}
+  .esdetail .esd-head .note{margin:0;flex:1 1 auto}
   /* Panels inside a grid row keep no stacked-block margin, or the row
      would carry twice the spacing of its neighbours. */
   .flowgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin:var(--gap) 0}
@@ -650,8 +645,7 @@
   /* One toggle per card: a chevron at the far right of the title row, in
      the same place on every card, visible only when a block is clamped;
      it opens both blocks, and clicking clamped text does the same. */
-  .fc-expand{visibility:hidden;width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;padding:0}
-  .fc-expand svg{width:15px;height:15px}
+  .fc-expand{visibility:hidden}
   .fcard.has-more .fc-expand,.fcard.open .fc-expand{visibility:visible}
   .fcard.open .fc-expand{transform:rotate(180deg)}
   .fcard.has-more .fc-block .ltx.clamped .ltx-body{cursor:pointer}
@@ -712,7 +706,7 @@
   .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
   .ak-tools .docsearch{margin:0;width:220px}
   /* The MITRE page link sits at the right of the switches. */
-  .ak-open{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:650;white-space:nowrap}
+  .ak-open{margin-left:auto}
   .ak-keyrow{margin:0 0 12px}
   /* The grid's switches look like the tabs and the Assessment switch: a
      tinted track, the selected option on the brand gradient. */
@@ -792,15 +786,21 @@
     .hero{padding:14px 16px}
     .brand .bs{display:none}
   }
-  /* One look for every button that does something (show all, show fewer,
-     expand, clear filters, zoom, open a page): white on the brand gradient,
-     as a selected tab or switch is, so a button reads as a button on every
-     page. Toggles keep their track and take the gradient when selected. */
-  .morebtn,.morepill,.btn,.ak-open,.ltx .ltx-btn,.fc-expand,.zoom button,.link-muted,.docpanel .dpage{
-    background:var(--btn-bg);color:#fff;border:1px solid transparent;box-shadow:var(--btn-shadow);cursor:pointer;text-decoration:none;
+  /* The one button. Every button that does something (show all, show
+     fewer, expand, clear filters, zoom, open a page or a finding) is a
+     .sbtn, made by sbtn() in the script, so they look the same on every
+     tab: white on the brand gradient a selected tab or switch takes, one
+     size, one shape. .icon is the square version for a symbol (zoom, a
+     card's expand chevron). Other classes on a button only place it. */
+  .sbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 14px;border-radius:10px;
+    font:inherit;font-size:12.5px;font-weight:650;line-height:1.2;white-space:nowrap;cursor:pointer;text-decoration:none;
+    background:var(--btn-bg);color:#fff;border:1px solid transparent;box-shadow:var(--btn-shadow);
     transition:filter .15s,box-shadow .15s,transform .15s}
-  .morebtn:hover,.morepill:hover,.btn:hover,.ak-open:hover,.ltx .ltx-btn:hover,.fc-expand:hover,.zoom button:hover,.link-muted:hover,.docpanel .dpage:hover{filter:brightness(1.12);color:#fff;text-decoration:none}
-  .morebtn:focus-visible,.morepill:focus-visible,.btn:focus-visible,.ak-open:focus-visible,.ltx .ltx-btn:focus-visible,.fc-expand:focus-visible,.zoom button:focus-visible,.link-muted:focus-visible,.docpanel .dpage:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .sbtn:hover{filter:brightness(1.12);color:#fff;text-decoration:none}
+  .sbtn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .sbtn svg{width:14px;height:14px;flex:none}
+  .sbtn.icon{width:30px;height:30px;padding:0;font-size:16px}
+  .sbtn.icon svg{width:15px;height:15px}
 </style>
 </head>
 <body>
@@ -892,7 +892,7 @@
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
           <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs Defender benefit. Every ribbon is a real measure from the cost estimate (GB over the last 30 days).</p></div>
-        <div class="zoom"><button id="zoomOut">&minus;</button><span id="zoomPct">100%</span><button id="zoomIn">+</button><button class="fit" id="zoomFit">Fit</button></div>
+        <div class="zoom"><button type="button" class="sbtn icon" id="zoomOut" aria-label="Zoom out">&minus;</button><span id="zoomPct">100%</span><button type="button" class="sbtn icon" id="zoomIn" aria-label="Zoom in">+</button><button type="button" class="sbtn" id="zoomFit">Fit</button></div>
       </div>
       <div class="flowfilter" id="flowFilter"></div>
       <div class="flowbox"><svg class="sankey" id="sankeyBig"></svg></div>
@@ -943,7 +943,7 @@
       <select id="catSelect"><option value="">All categories</option></select>
       <select id="matSelect"><option value="">Any maturity effect</option><option value="scored">Moves the maturity score</option><option value="unscored">Not scored (hygiene or cost)</option></select>
       <input type="search" class="docsearch" id="findSearch" placeholder="Search findings…" style="margin:0;width:260px">
-      <button type="button" class="morebtn" id="findClear" style="margin:0" hidden>Clear filters</button>
+      <button type="button" class="sbtn" id="findClear" hidden>Clear filters</button>
       <span class="note" id="findCount" style="margin-left:auto"></span>
     </div>
     <div class="fcards" id="findList" style="margin-top:var(--gap)"></div>
@@ -988,18 +988,31 @@
   // moreWrap(inner,total,shown,label): the inner markup marks its hidden
   // entries with data-mr + hidden; the button toggles them. Nested wraps
   // only toggle their own entries.
+  // sbtn(label, attrs, opts): the dashboard's one button (see .sbtn). label
+  // is HTML; attrs is a string of extra attributes; opts.go adds the arrow
+  // for a button that opens something, opts.cls classes that place it,
+  // opts.icon the square symbol form, opts.href makes it a link to a page.
+  const SBTN_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
+  function sbtn(label, attrs, opts){
+    opts=opts||{};
+    const cls='sbtn'+(opts.icon?' icon':'')+(opts.cls?' '+opts.cls:'');
+    const inner=label+(opts.go?SBTN_ARROW:'');
+    return opts.href
+      ? '<a class="'+cls+'" href="'+esc(opts.href)+'"'+(attrs?' '+attrs:'')+'>'+inner+'</a>'
+      : '<button type="button" class="'+cls+'"'+(attrs?' '+attrs:'')+'>'+inner+'</button>';
+  }
   function moreWrap(inner,total,shown,label){
-    const btn = total>shown ? '<button type="button" class="morebtn" data-more data-all="Show all '+total+' '+label+'" data-less="Show fewer">Show all '+total+' '+label+'</button>' : '';
+    const btn = total>shown ? sbtn('Show all '+total+' '+label, 'data-more data-all="Show all '+total+' '+label+'" data-less="Show fewer"', {cls:'morebtn'}) : '';
     return '<div class="morewrap">'+inner+btn+'</div>';
   }
   const trRows=(rows,show)=>rows.map((r,i)=> i<show ? r : r.replace(/^<tr\b/,'<tr data-mr hidden')).join('');
   // longText(text): three visible lines and an Expand control when there is
   // more; semicolon-separated lists expand as a bulleted list.
   function longText(t){
-    t=String(t==null?'':t); const parts=t.split(/;\s+/); const list=parts.length>=4;
+    t=String(t==null?'':t); const parts=t.split(/;\s+/).filter(x=>x.trim()); const list=parts.length>=4;
     return '<div class="ltx'+(list?' aslist':'')+'"><div class="ltx-body">'+esc(t)+'</div>'+
       (list?'<ul class="ltx-list">'+parts.map(x=>'<li>'+esc(x.trim())+'</li>').join('')+'</ul>':'')+
-      '<button type="button" class="ltx-btn" data-ltx>Expand</button></div>';
+      sbtn('Expand','data-ltx',{cls:'ltx-btn'})+'</div>';
   }
   // One card per finding; used by the Assessment tab's findings view and the Overview.
   // A maturity lift as maturity.json stores it (up to three decimals), so the
@@ -1019,7 +1032,7 @@
   function findingCard(f){
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
-      '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+      '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+maturityChip(f)+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'<div class="fc-link"></div></div>'+
       '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'<div class="fc-link">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Microsoft Learn &rarr;</a>':'')+'</div></div></div></div>';
@@ -1372,11 +1385,11 @@
     const opNum=findSecNum(/detection opportunities/i,null);
     const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
       ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
-    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?'<a class="link-muted" role="button" tabindex="0" data-jump="'+opNum+'">Detection opportunities &rarr;</a>':'')+'<a data-esd-close>Close</a></div>'+cdLine+fpLine+
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?sbtn('Detection opportunities','data-jump="'+opNum+'"',{go:true}):'')+sbtn('Close','data-esd-close')+'</div>'+cdLine+fpLine+
       (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
     el.classList.remove('hidden');
     el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
-    el.querySelectorAll('[data-jump]').forEach(a=>{ a.addEventListener('click',()=>jumpTo(+a.dataset.jump)); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); jumpTo(+a.dataset.jump); } }); });
+    el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
     if(typeof window.fitIframe==='function') window.fitIframe();
   }
   const ringPage=k=>({ingestion:findSecNum(/table plans/i,null),detection:findSecNum(/detection opportunities/i,null),alerts:findSecNum(/^analytics rules/i,null),incidents:findSecNum(/^incidents/i,null)})[k];
@@ -1575,7 +1588,7 @@
         '<div class="meter"><div class="mf" style="--w:'+(sc/5*100).toFixed(1)+'%"></div><div class="mt" style="--t:'+(tg/5*100)+'%"></div></div>'+
         '<div class="matcap">Target level '+tg+' ('+esc(MAT.targetLevelName)+'): '+(MAT.targetMet?'met in every area.':below+' of '+total+' areas below target.')+' '+
         MAT.totals.met+' criteria met &middot; '+MAT.totals.gap+' gaps &middot; '+MAT.totals.unknown+' unknown.</div>'+
-        '<button class="btn" type="button" data-go="maturity">Open the assessment '+ICON.arrow+'</button>';
+        sbtn('Open the assessment','data-go="maturity"',{go:true,cls:'btn'});
     } else {
       card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">Not assessed in this snapshot.</p></div></div>'+
         '<p class="note">The collector writes maturity.json after the gap analysis. This run has none, or no criterion could be evaluated.</p>';
@@ -1829,8 +1842,16 @@
     document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th>GB/30d</th><th>'+esc(cost.currency)+'/mo</th></tr></thead><tbody>'+
       cost.topTables.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.plan)+'</td><td>'+t.gb30d+'</td><td>'+t.cost+'</td></tr>').join('')+'</tbody></table>';
   }
-  document.getElementById('topRules').innerHTML=moreWrap('<table class="tbl"><thead><tr><th>Rule</th><th>Product</th><th>Sev</th><th>Alerts</th></tr></thead><tbody>'+
-    trRows(M.topRules.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.product)+'</td><td><span class="sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="num">'+r.alerts+'</td></tr>'),8)+'</tbody></table>', M.topRules.length, 8, 'rules');
+  // The eight busiest rules here; Rule Performance lists every one.
+  (function(){
+    const el=document.getElementById('topRules'), sec=findSecNum(/^rule performance/i, null);
+    const rows=M.topRules.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.product)+'</td><td><span class="sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="num">'+r.alerts.toLocaleString()+'</td></tr>');
+    const head='<table class="tbl"><thead><tr><th>Rule</th><th>Product</th><th>Sev</th><th>Alerts</th></tr></thead><tbody>';
+    el.innerHTML = sec!=null
+      ? head+rows.slice(0,8).join('')+'</tbody></table>'+(rows.length>8? sbtn('All '+rows.length.toLocaleString()+' rules in the report','data-jump="'+sec+'"',{go:true,cls:'morebtn'}) : '')
+      : moreWrap(head+trRows(rows,8)+'</tbody></table>', rows.length, 8, 'rules');
+    el.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>jumpTo(+b.dataset.jump)));
+  })();
 
   // ---- top findings ----
   // Only the critical findings here; the button opens the findings view,
@@ -1838,7 +1859,7 @@
   const allF = M.findings.items||[], topF = allF.filter(f=>f.severity==='Critical');
   const topEl = document.getElementById('topFindings');
   topEl.innerHTML=(topF.length? '<div class="fcards">'+topF.map(findingCard).join('')+'</div>' : '<p class="note">No critical findings in this run.</p>')+
-    (allF.length? '<button type="button" class="morebtn" data-go="findings">All '+allF.length.toLocaleString()+' findings in the assessment &rarr;</button>' : '');
+    (allF.length? sbtn('All '+allF.length.toLocaleString()+' findings in the assessment','data-go="findings"',{go:true,cls:'morebtn'}) : '');
   topEl.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); bringTop(); }));
   markClamped(topEl);
 
@@ -1953,7 +1974,7 @@
     const head=sub? '<a href="'+esc(url(sub.id))+'" target="_blank" rel="noopener">'+esc(sub.id+' '+sname(sub.id))+'</a>' : '<a href="'+esc(url(c.technique))+'" target="_blank" rel="noopener">'+esc(c.technique+' '+t.name)+'</a>';
     el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+head+'</h3>'+
       '<p class="note">'+esc(tac.name)+(sub? ' &middot; a sub-technique of '+esc(c.technique+' '+t.name) : '')+' &middot; '+en+' enabled and '+(idx.length-en)+' disabled rule'+(idx.length===1?'':'s')+(!sub&&t.subTotal? ' &middot; '+c.subs.length+' of '+t.subTotal+' sub-techniques mapped' : '')+'</p>'+
-      (sub? '<a data-ak-parent>All of '+esc(c.technique)+'</a>' : '')+'<a data-ak-close>Close</a></div>'+
+      (sub? sbtn('All of '+esc(c.technique),'data-ak-parent') : '')+sbtn('Close','data-ak-close')+'</div>'+
       '<table class="tbl"><thead><tr><th>Rule</th><th>Status</th><th>Severity</th><th>Kind</th><th>Sub-techniques</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
     el.classList.remove('hidden');
     el.querySelector('[data-ak-close]').addEventListener('click',()=>{ akState.sel=null; renderAttackGrid(); renderAttackDetail(); });
@@ -2017,7 +2038,8 @@
   const FILL_MIN=8, FILL_CAP=40;
   // keep: the button shows even when every entry fits, for a card whose
   // only link to its page it is.
-  const fillFoot=(total,sec,label,keep)=>'<a class="morebtn fillmore" role="button" tabindex="0" data-jump="'+sec+'"'+(keep?' data-keep':'')+' hidden>All '+total.toLocaleString()+' '+esc(label)+' in the report &rarr;</a>';
+  // shown: visible from the start, for a list fillCards does not measure.
+  const fillFoot=(total,sec,label,keep,shown)=>sbtn('All '+total.toLocaleString()+' '+esc(label)+' in the report','data-jump="'+sec+'"'+(keep?' data-keep':'')+(shown?'':' hidden'),{go:true,cls:'fillmore'});
   function barsHtml(items, opts){
     opts = opts||{};
     const col = THEME[opts.theme] || THEME.brand;
@@ -2083,7 +2105,7 @@
       '<div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
       '<div class="ak-seg" role="group" aria-label="Techniques"><button type="button" class="on" data-ak-show="covered">Covered techniques</button><button type="button" data-ak-show="all">Every technique</button></div>'+
       '<input type="search" class="docsearch" id="akSearch" placeholder="Find a rule or technique" aria-label="Find a rule or technique">'+
-      (mitreSec!=null?'<a class="ak-open" role="button" tabindex="0" data-jump="'+mitreSec+'">Open the MITRE page &rarr;</a>':'')+'</div>'+
+      (mitreSec!=null?sbtn('Open the MITRE page','data-jump="'+mitreSec+'"',{go:true,cls:'ak-open'}):'')+'</div>'+
       '<div class="ak-keyrow"><span class="ak-key"><i class="h1"></i><i class="h2"></i><i class="h3"></i>technique<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique (1 rule, 2 to 3, 4 or more)<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
       '<div class="ak-scroll"><div class="ak-grid" id="akGrid"></div></div><div id="akDetail" class="hidden"></div></div>');
   } else {
@@ -2288,13 +2310,13 @@
     const PILLS=3;
     const rows=M.detectionOpportunities.map(o=>'<tr><td>'+esc(o.table)+'<div class="note" style="margin:2px 0 0">'+esc(o.family)+'</div></td><td class="num">'+fmtN(o.gb30d)+' GB</td><td>'+
       (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
-        (o.templates.length>PILLS?'<button type="button" class="tagpill morepill" data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer">Show all '+o.templates.length+'</button>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
+        (o.templates.length>PILLS?sbtn('Show all '+o.templates.length,'data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer"',{cls:'morepill'}):'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.</p>'+
       // The first twelve here; every table on the report page.
       (opNum
         ? '<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows.slice(0,12).join('')+'</tbody></table>'+
-          (rows.length>12? fillFoot(rows.length,opNum,'tables').replace(' hidden>','>') : '')
+          (rows.length>12? fillFoot(rows.length,opNum,'tables',false,true) : '')
         : moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
   }
 
@@ -2336,7 +2358,7 @@
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
       // The button under the table list opens the data lake page; without a
       // list, the link sits in the description instead.
-      '<p class="note">'+status+(lakeNum!=null&&!ext.length?' <a class="link-muted" role="button" tabindex="0" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
+      '<p class="note">'+status+(lakeNum!=null&&!ext.length?sbtn('Open the data lake page','data-jump="'+lakeNum+'"',{go:true}):'')+'</p>'+
       (tierItems.length? donutMultiHtml(tierItems,String(DL.operationalTables||0),'tables') : '<p class="note">No operational tables to classify.</p>')+costLine+
       (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet',fill:{sec:lakeNum,label:'tables',keep:true}}):'')+'</div>');
   }
@@ -2437,7 +2459,7 @@
       '<div class="filters" style="margin:0"><select id="matStatus"><option value="">All statuses</option><option>Met</option><option>Gap</option><option>Unknown</option></select>'+
       '<select id="matArea"><option value="">All areas</option>'+(MAT.areas||[]).map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('')+'</select>'+
       '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px">'+
-      '<button type="button" class="morebtn" id="matClear" style="margin:0" hidden>Clear filters</button></div></div>'+
+      '<button type="button" class="sbtn" id="matClear" hidden>Clear filters</button></div></div>'+
       '<div class="fcards" id="matList" style="margin-top:14px"></div></div>';
     el.innerHTML=html;
     const tb=el.querySelector('#matList'), sel=el.querySelector('#matStatus'), ar=el.querySelector('#matArea'), q=el.querySelector('#matSearch'), clr=el.querySelector('#matClear');
@@ -2450,7 +2472,7 @@
       const fl=(findingsByCrit[c.id]||[]).slice();
       if(findingIds.has(c.id) && !fl.some(f=>f.id===c.id)) fl.unshift({id:c.id,title:'Open finding'});
       if(!fl.length) return '';
-      return '<div class="critfind"><span class="flabel">'+(fl.length===1?'Finding':'Findings')+'</span>'+fl.map(f=>'<a class="link-muted" role="button" tabindex="0" data-showfind="'+esc(f.id)+'" title="'+esc(f.title||'')+'">'+esc(f.id)+' &rarr;</a>').join('')+'</div>';
+      return '<div class="critfind"><span class="flabel">'+(fl.length===1?'Finding':'Findings')+'</span>'+fl.map(f=>sbtn(esc(f.id),'data-showfind="'+esc(f.id)+'" title="'+esc(f.title||'')+'"',{go:true})).join('')+'</div>';
     }
     function renderCriteria(){
       const st=sel.value, av=ar.value, s=(q.value||'').trim().toLowerCase();
@@ -2461,12 +2483,12 @@
       if(clr) clr.hidden=!(st||av||s);
       tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'" data-cid="'+esc(c.id)+'">'+
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
-        '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+        '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
         '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'<div class="fc-link">'+critFindingLinks(c)+'</div></div>'+
         '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'<div class="fc-link"></div></div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
-      tb.querySelectorAll('[data-showfind]').forEach(a=>{ a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); window.showFinding(a.dataset.showfind); } }); });
+      tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
@@ -2696,14 +2718,13 @@
       if(stats.length){ chips='<div class="docstats">'+stats.map(c=>
         '<div class="docstat"><span class="si">'+ICONN.rows+'</span><div><div class="sv">'+c.v+'</div><div class="sk">'+esc(c.k)+'</div></div></div>').join('')+'</div>'; }
       const pageUrl=sitePageUrl(s.page);
-      const openLink=pageUrl?'<a class="dpage" href="'+esc(pageUrl)+'" target="_top">Open as a page &rarr;</a>':'';
+      const openLink=pageUrl?sbtn('Open as a page','target="_top"',{go:true,cls:'dpage',href:pageUrl}):'';
       // The MITRE page links to the ATT&CK grid on the Insights tab.
-      const akLink=(M.attack && /mitre/i.test(s.title||''))? '<a class="dpage" role="button" tabindex="0" data-akopen>Open the ATT&amp;CK grid &rarr;</a>' : '';
+      const akLink=(M.attack && /mitre/i.test(s.title||''))? sbtn('Open the ATT&amp;CK grid','data-akopen',{go:true,cls:'dpage'}) : '';
       content.innerHTML='<div class="docpanel"><div class="dhead"><span class="dbadge">'+esc(s.family)+'</span>'+akLink+openLink+'</div>'+
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
-      content.querySelectorAll('[data-akopen]').forEach(a=>{ const go=()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); };
-        a.addEventListener('click',go); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } }); });
+      content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
       // wire per-table filters
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{
         inp.oninput=()=>{

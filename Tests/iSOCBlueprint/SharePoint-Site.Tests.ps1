@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.11.0
+    Version:      0.12.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1331,14 +1331,14 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'data-ak-rules="all">Include disabled'
         $html | Should -Match 'data-ak-show="all">Every technique'
         $html | Should -Match 'data-ak-level="tech">Techniques</button><button type="button" data-ak-level="sub">Sub-techniques'
-        $html | Should -Match '<a data-ak-parent>All of '
+        $html | Should -Match "sbtn\('All of '\+esc\(c\.technique\),'data-ak-parent'\)"
         # The grid sits directly above Detection opportunities.
         $html | Should -Match "\{full:'Content inventory'\}[\s\S]*\{full:'Detection coverage by MITRE'\},\s*\{full:'Detection opportunities'\}"
-        $html | Should -Match "Open the MITRE page &rarr;"
+        $html | Should -Match 'sbtn\(''Open the MITRE page'',''data-jump="''\+mitreSec\+''"'',\{go:true,cls:''ak-open''\}\)'
         # The MITRE page link is a button at the right of the grid's switches, not in the note.
-        $html | Should -Match 'id="akSearch"[^>]*>''\+\s*\(mitreSec!=null\?''<a class="ak-open" role="button" tabindex="0" data-jump='
-        $html | Should -Match '\.ak-open\{margin-left:auto;'
-        $html | Should -Match "data-akopen>Open the ATT&amp;CK grid &rarr;"
+        $html | Should -Match 'id="akSearch"[^>]*>''\+\s*\(mitreSec!=null\?sbtn\(''Open the MITRE page'''
+        $html | Should -Match '\.ak-open\{margin-left:auto\}'
+        $html | Should -Match "sbtn\('Open the ATT&amp;CK grid','data-akopen',\{go:true,cls:'dpage'\}\)"
         $html | Should -Match "\{k:'Connectors', v:c\.connectors, ic:ICON\.ingest, sec:secAt\(10\)\}"
     }
 
@@ -1363,7 +1363,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'fills each Insights list card to its row and links to the report page with the whole list' {
         $html | Should -Match 'function fillCards\(\)'
         $html | Should -Match 'const FILL_MIN=8, FILL_CAP=40;'
-        $html | Should -Match "' in the report &rarr;</a>'"
+        $html | Should -Match "sbtn\('All '\+total\.toLocaleString\(\)\+' '\+esc\(label\)\+' in the report'"
         # Each list card names the report page that holds every entry.
         $html | Should -Match "barsHtml\(tt,\{theme:'teal',fill:\{sec:secCostPage,label:'tables'\}\}\)"
         $html | Should -Match "barsHtml\(tr,\{theme:'indigo',fill:\{sec:secRulePerf,label:'rules'\}\}\)"
@@ -1377,13 +1377,13 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # It runs when the Insights tab shows.
         $html | Should -Match "if\(name==='sections'\) fillCards\(\);"
         # Detection opportunities: the first twelve, then the report page.
-        $html | Should -Match "fillFoot\(rows\.length,opNum,'tables'\)"
+        $html | Should -Match "fillFoot\(rows\.length,opNum,'tables',false,true\)"
         # The buttons sit at the foot of their cards, so a row's line up.
         $html | Should -Match '\.iband>\.ipanel:has\(>\.fillmore\)\{display:flex;flex-direction:column\}'
         $html | Should -Match '\.iband>\.ipanel>\.fillmore\{margin-top:auto;'
         # The data lake card keeps its button and drops the duplicate link above.
         $html | Should -Match "fill:\{sec:lakeNum,label:'tables',keep:true\}"
-        $html | Should -Match 'lakeNum!=null&&!ext\.length\?'' <a class="link-muted"'
+        $html | Should -Match "lakeNum!=null&&!ext\.length\?sbtn\('Open the data lake page'"
     }
 
     It 'opens a criterion from the roadmap or a quick win by filtering the criteria list' {
@@ -1400,7 +1400,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'shows only the critical findings on the Overview, with a button to every finding' {
         $html | Should -Match "topF = allF\.filter\(f=>f\.severity==='Critical'\)"
-        $html | Should -Match 'data-go="findings">All '
+        $html | Should -Match 'sbtn\(''All ''\+allF\.length\.toLocaleString\(\)\+'' findings in the assessment'',''data-go="findings"'''
         $html | Should -Match 'No critical findings in this run\.'
         $html | Should -Not -Match "rowsMore\(topF\.map\(findingCard\),6,'div'\)"
     }
@@ -1447,18 +1447,33 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # One gradient, defined per theme.
         $html | Should -Match '--btn-bg:linear-gradient\(135deg,var\(--brand\),var\(--accent\)\);'
         $html | Should -Match '--btn-bg:linear-gradient\(135deg,#2a63d6,#5b45c9\);'
-        # Show all / show fewer, the show-all pills, expand, open-a-page buttons,
-        # the jump links in card notes and the zoom buttons all take it.
-        $shared = '.morebtn,.morepill,.btn,.ak-open,.ltx .ltx-btn,.fc-expand,.zoom button,.link-muted,.docpanel .dpage{'
-        $html.Contains($shared + "`n    background:var(--btn-bg);color:#fff;") | Should -BeTrue
+        # One button class, .sbtn, carries the look; sbtn() makes every button.
+        $html | Should -Match '\.sbtn\{display:inline-flex;[^}]*border-radius:10px;[^}]*background:var\(--btn-bg\);color:#fff;'
+        $html | Should -Match '\.sbtn\.icon\{width:30px;height:30px;padding:0;'
+        $html | Should -Match 'function sbtn\(label, attrs, opts\)\{'
+        # Show all, Expand, the report buttons, Clear filters, zoom, the
+        # finding links and the page links are all made with it.
+        $html | Should -Match "const btn = total>shown \? sbtn\('Show all '"
+        $html | Should -Match "sbtn\('Expand','data-ltx',\{cls:'ltx-btn'\}\)"
+        $html | Should -Match '<button type="button" class="sbtn" id="findClear" hidden>'
+        $html | Should -Match '<button type="button" class="sbtn" id="matClear" hidden>'
+        $html | Should -Match '<button type="button" class="sbtn icon" id="zoomOut"'
+        $html | Should -Match 'class="sbtn icon fc-expand" data-fcx'
+        $html | Should -Match 'sbtn\(''Open as a page'',''target="_top"'',\{go:true,cls:''dpage'',href:pageUrl\}\)'
+        $html | Should -Match "sbtn\('Close','data-esd-close'\)"
+        # The classes those buttons used to carry only place them now.
+        $html | Should -Not -Match 'class="link-muted"'
+        $html | Should -Not -Match '\.morebtn\{[^}]*background'
+        $html | Should -Not -Match '\.btn\{[^}]*padding'
+        $html | Should -Not -Match '<a data-(esd|ak)-close>'
         # Selected filter chips match the selected switches.
         $html | Should -Match '\.fchip\.active\{background:var\(--btn-bg\);'
-        # The old outline-only "Show all" style is gone.
-        $html | Should -Not -Match '\.morebtn\{[^}]*color:var\(--brand-ink\);background:none'
-        $html | Should -Not -Match '\.morepill\{[^}]*border:1px dashed'
-        # Jump links are keyboard buttons.
-        $html | Should -Match '<a class="link-muted" role="button" tabindex="0" data-jump='
-        $html | Should -Not -Match '<a class="link-muted" data-jump='
+    }
+
+    It 'links the Overview top alerting rules to the report after eight' {
+        $html | Should -Match "sec=findSecNum\(/\^rule performance/i, null\)"
+        $html | Should -Match "rows\.slice\(0,8\)\.join\(''\)"
+        $html | Should -Match "sbtn\('All '\+rows\.length\.toLocaleString\(\)\+' rules in the report'"
     }
 
     It 'gives every tactic header the same height so the cells start level' {

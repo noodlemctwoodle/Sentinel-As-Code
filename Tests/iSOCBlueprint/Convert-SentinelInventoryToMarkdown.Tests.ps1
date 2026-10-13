@@ -1818,3 +1818,30 @@ Describe '37-search-restore.md lists the search job and restored tables' {
         $script:fx37 | Should -Not -Match '\| name \| properties \|'
     }
 }
+
+Describe 'Gap evidence lists keep a name that starts with a Markdown marker as text' {
+    BeforeAll {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)
+        foreach ($name in '_EscapeMdListItem', '_FormatGapEvidence') {
+            $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true)
+            . ([scriptblock]::Create($fn.Extent.Text))
+        }
+    }
+
+    It 'escapes a leading bullet, heading, quote or number marker' {
+        _EscapeMdListItem '* Deteccion trafico SMB 1.0' | Should -Be '\* Deteccion trafico SMB 1.0'
+        _EscapeMdListItem '- dash' | Should -Be '\- dash'
+        _EscapeMdListItem '# hash' | Should -Be '\# hash'
+        _EscapeMdListItem '> quote' | Should -Be '\> quote'
+        _EscapeMdListItem '1. Test' | Should -Be '1\. Test'
+        _EscapeMdListItem 'SAP - Login' | Should -Be 'SAP - Login'
+        _EscapeMdListItem '*bold*' | Should -Be '*bold*'
+    }
+
+    It 'writes such a name as one bullet, not an empty bullet and a nested one' {
+        $ev = '146 rule(s) disabled: ' + ((1..20 | ForEach-Object { "Rule number $_" }) + '* Deteccion trafico SMB 1.0' -join '; ')
+        $md = _FormatGapEvidence $ev
+        $md | Should -Match '(?m)^  - \\\* Deteccion trafico SMB 1\.0$'
+        $md | Should -Not -Match '(?m)^  - \* '
+    }
+}

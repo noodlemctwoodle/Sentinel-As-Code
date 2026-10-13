@@ -156,7 +156,9 @@ foot of the card (the buttons in a row line up) such as
 entry (Rule Performance, Alerts, Sentinel Health and Resilience, Estimated
 Monthly Cost, Automation Rules and Playbooks, Microsoft Sentinel Data
 Lake; the data lake card keeps its button even when every table fits, as
-its only link to that page). Detection opportunities shows twelve tables, then the same kind of
+its only link to that page). The Overview's top alerting rules show the
+eight busiest, then "All N rules in the report". Detection opportunities
+shows twelve tables, then the same kind of
 button. Nothing expands in place there, so a list of thousands never
 turns into a long scroll; a card whose report page is missing from the
 run keeps a "Show all N" control instead. Elsewhere (the
@@ -171,17 +173,22 @@ row, every uncovered table with every template that reads it, every
 alerting rule, every extended-retention table, every roadmap entry, every
 table by cost).
 
-Every button that does something looks the same on every tab: white on
-the brand gradient, the colour a selected tab or switch takes. That covers
-"Show all" and "Show fewer", the "Show all N" pills, "Expand" and the
-finding cards' expand control, "Clear filters", the Flow tab's zoom
-buttons, and the buttons and links that open another page ("Open the
-assessment", "Open the MITRE page", "Open the full list", "Open as a
-page"). Toggles (the tabs, the Assessment switch, the ATT&CK grid's
-switches, the data flow's filter chips) sit on a tinted track and take the
-same gradient when selected. The gradient is one pair of variables,
+Every button is made one way, so they look the same on every tab. The
+template's `sbtn(label, attrs, opts)` writes a `.sbtn` button (or a link,
+for "Open as a page"): white on the brand gradient a selected tab or
+switch takes, one size (12.5px, 7px by 14px padding), one shape (10px
+corners), with an arrow when it opens something. `.sbtn.icon` is the
+square form for a symbol (zoom, a card's expand chevron). That covers
+"Show all" and "Show fewer", "Expand", "Clear filters", Close, the
+report buttons ("All 2,780 rules in the report"), the finding links on a
+criterion, and "Open the assessment", "Open the MITRE page", "Open the
+ATT&CK grid" and "Open as a page". Any other class on a button only
+places it. Toggles (the tabs, the Assessment switch, the ATT&CK grid's
+switches, the data flow's filter chips) sit on a tinted track and take
+the same gradient when selected. The gradient is one pair of variables,
 `--btn-bg` and `--btn-shadow`, set for light and dark. Links to outside
-documentation (Microsoft Learn, ATT&CK) stay plain links.
+documentation (Microsoft Learn, ATT&CK) and the contents lists stay plain
+links.
 
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels

@@ -70,7 +70,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.3.2
+    Version:      0.3.3
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -884,5 +884,39 @@ Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
         $f = Test-ConnectorTableMismatch -Inventory (& $script:inv @($aad) @([pscustomobject]@{ DataType = 'SigninLogs'; IngestedLast7d = 3 }))
         $f.Evidence | Should -Match 'AzureActiveDirectory to AuditLogs'
         $f.Evidence | Should -Not -Match 'no data in any table'
+    }
+}
+
+Describe 'Evidence never names something "?" or leaves a blank entry' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+    }
+
+    It 'names a service principal Azure cannot resolve by its object id' {
+        $inv = [pscustomobject]@{ RbacWorkspace = @(
+                [pscustomobject]@{ DisplayName = 'ci-deployer-sp'; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Contributor'; ObjectId = '11111111-1111-1111-1111-111111111111' }
+                [pscustomobject]@{ DisplayName = ''; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Owner'; ObjectId = '22222222-2222-2222-2222-222222222222' }
+                [pscustomobject]@{ DisplayName = $null; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Contributor' }
+            ) }
+        $f = Test-ServicePrincipalOverPrivileged -Inventory $inv
+        $f.Evidence | Should -Match 'ci-deployer-sp; Unnamed service principal, object id 22222222-2222-2222-2222-222222222222 \(deleted or not readable\); Unnamed service principal\.'
+        $f.Evidence | Should -Not -Match '\?'
+    }
+
+    It 'names a disabled rule with a blank display name by its rule id' {
+        $inv = [pscustomobject]@{ AlertRules = @(
+                [pscustomobject]@{ name = 'aaaa-1'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = '  '; enabled = $false } }
+                [pscustomobject]@{ name = 'bbbb-2'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Named rule'; enabled = $false } }
+            ); RulesFired = @() }
+        $f = Test-RulesDisabledOrFailing -Inventory $inv
+        $f.Evidence | Should -Match 'aaaa-1; Named rule'
+        $f.Evidence | Should -Not -Match ';\s*;'
+    }
+
+    It 'falls back for a missing or blank value and keeps a real one' {
+        Get-EvidenceName ([pscustomobject]@{ a = ''; b = 'B' }) 'a', 'b' 'F' | Should -Be 'B'
+        Get-EvidenceName ([pscustomobject]@{ a = ' ' }) 'a' 'F' | Should -Be 'F'
+        Get-EvidenceName $null 'a' 'F' | Should -Be 'F'
     }
 }

@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.1
+    Version:        0.6.2
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -3505,6 +3505,14 @@ $gapRows = $gapFindings | ForEach-Object {
 # separated lists (e.g. 657 disabled rule names). Cramming that into a
 # narrow table cell is unreadable. The detail-card form splits long
 # semicolon lists into bullet items and renders short evidence inline.
+# A list item that starts with a Markdown block marker (a rule named
+# "* Detection ..." or "1. Test") would open a nested list, a heading or a
+# quote and leave its own bullet empty; a backslash keeps it as text.
+function _EscapeMdListItem {
+    param([string]$Text)
+    return (($Text -replace '^([*+\-#>])(?=\s|$)', '\$1') -replace '^(\d+)([.)])(?=\s|$)', '$1\$2')
+}
+
 function _FormatGapEvidence {
     param([string]$Evidence)
     if (-not $Evidence) { return '_(none)_' }
@@ -3526,12 +3534,12 @@ function _FormatGapEvidence {
         return @"
 $lead
 
-$(($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine)
+$(($items | ForEach-Object { "  - $(_EscapeMdListItem $_)" }) -join [Environment]::NewLine)
 "@
     }
     # No leading colon — bullet the whole list.
     $items = $Evidence -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-    return ($items | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
+    return ($items | ForEach-Object { "  - $(_EscapeMdListItem $_)" }) -join [Environment]::NewLine
 }
 
 function _FormatGapLearnLink {

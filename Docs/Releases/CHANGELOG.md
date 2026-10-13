@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **One button template; evidence never shows "?" or an empty bullet** -
+  every dashboard button now comes from one template (`sbtn()` and the
+  `.sbtn` class), so Show all, Expand, Clear filters, Close, zoom, the
+  report buttons and the page links share one size, shape and colour,
+  with an arrow on those that open something. The Overview's top alerting
+  rules show the eight busiest and then a button to Rule Performance
+  rather than expanding to every rule. In the gap analysis a principal or
+  rule with no display name is named by its id ("Unnamed service
+  principal, object id ... (deleted or not readable)") instead of "?", a
+  blank name falls back the same way, and a rule whose name starts with
+  a Markdown marker ("* Detection ...") stays one bullet in the report
+  rather than an empty bullet over a nested one.
 - **Insights cards end level and link to the report; report pages read by
   title; the roadmap opens its criterion** - each Insights card that lists
   things now fills to the height of the tallest card in its row and ends

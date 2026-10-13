@@ -20,7 +20,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.2
+    Version:        0.5.3
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
@@ -81,6 +81,27 @@ function Get-PropOrDefault {
     }
     if ($null -eq $current) { return $Default }
     return $current
+}
+
+function Get-EvidenceName {
+    <#
+    .SYNOPSIS
+        A name for evidence text: the first of -Path that is not blank,
+        else -Fallback. Blank counts as missing, so an empty display name
+        never leaves an empty entry in a list of names.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [AllowNull()] [object]$Object,
+        [Parameter(Mandatory = $true)] [string[]]$Path,
+        [Parameter(Mandatory = $false)] [string]$Fallback = 'Unnamed'
+    )
+    if ($null -eq $Object) { return $Fallback }
+    foreach ($p in $Path) {
+        $v = [string](Get-PropOrDefault $Object $p '')
+        if (-not [string]::IsNullOrWhiteSpace($v)) { return $v.Trim() }
+    }
+    return $Fallback
 }
 
 # ------------------------------------------------------------
@@ -233,7 +254,7 @@ function Test-RulesDisabledOrFailing {
         ($managed -notcontains $kind) -and (-not $enabled)
     })
     if ($bad.Count -gt 0) {
-        $names = ($bad | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' (Get-PropOrDefault $_ 'name' '?') }) -join '; '
+        $names = ($bad | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
         # Many rules last modified on one day points at a bulk change rather
         # than individual tuning decisions; name the day when it covers at
         # least ten rules and a third of the disabled set.
@@ -255,7 +276,7 @@ function Test-RulesDisabledOrFailing {
         }
         $firedThenDisabled = @($bad | Where-Object { $firedById.ContainsKey(([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()) } | ForEach-Object {
             [pscustomobject]@{
-                Rule         = [string](Get-PropOrDefault $_ 'properties.displayName' (Get-PropOrDefault $_ 'name' '?'))
+                Rule         = Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule'
                 Alerts30d    = $firedById[([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()]
                 LastModified = _ToIsoTime (Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null)
             }
@@ -733,7 +754,7 @@ function Test-MouldyAnalyticsRules {
         ($kind -in @('Scheduled','NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
     })
     if ($mouldy.Count -eq 0) { return $null }
-    $names = ($mouldy | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    $names = ($mouldy | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
     return New-Finding -Evidence "$($mouldy.Count) enabled Scheduled/NRT rule(s) not modified in over 12 months: $names." -Detail @{ Count = $mouldy.Count }
 }
 
@@ -759,7 +780,7 @@ function Test-AnalyticsRuleTemplateDrift {
         if (-not $deployed) { continue }
         if ([string]$deployed -ne $latestByTemplate[$tplName]) {
             $drifted += [pscustomobject]@{
-                Name     = Get-PropOrDefault $r 'properties.displayName' '?'
+                Name     = Get-EvidenceName $r 'properties.displayName', 'name' 'Unnamed rule'
                 Deployed = [string]$deployed
                 Latest   = $latestByTemplate[$tplName]
             }
@@ -783,7 +804,7 @@ function Test-DominantNoisyRule {
     $topAlerts = [double](Get-PropOrDefault $top 'Alerts' 0)
     $ratio = $topAlerts / [double]$totalAlerts
     if ($ratio -le 0.30) { return $null }
-    $name = Get-PropOrDefault $top 'AlertName' '?'
+    $name = Get-EvidenceName $top 'AlertName' 'Unnamed alert'
     return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in 30d ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
 }
 
@@ -819,7 +840,7 @@ function Test-DeadAnalyticsRule {
         ($kind -in @('Scheduled','NRT')) -and $enabled -and $name -and (-not $noisy.ContainsKey($name))
     })
     if ($dead.Count -eq 0) { return $null }
-    $sample = ($dead | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    $sample = ($dead | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
     return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in 30 days: $sample." -Detail @{ Count = $dead.Count }
 }
 
@@ -835,7 +856,12 @@ function Test-ServicePrincipalOverPrivileged {
         ($role -in @('Owner','Contributor')) -and ($type -eq 'ServicePrincipal')
     })
     if ($bad.Count -eq 0) { return $null }
-    $names = ($bad | ForEach-Object { Get-PropOrDefault $_ 'DisplayName' '?' }) -join '; '
+    # A principal Azure cannot name (deleted, or not readable by the
+    # collector) still has its object id, which finds it in Entra ID.
+    $names = ($bad | ForEach-Object {
+            $oid = [string](Get-PropOrDefault $_ 'ObjectId' '')
+            Get-EvidenceName $_ 'DisplayName', 'SignInName' $(if ($oid) { "Unnamed service principal, object id $oid (deleted or not readable)" } else { 'Unnamed service principal' })
+        }) -join '; '
     return New-Finding -Evidence "$($bad.Count) service principal(s) hold Owner or Contributor at workspace scope: $names." -Detail @{ Count = $bad.Count }
 }
 
@@ -983,7 +1009,7 @@ function Test-CustomLogsV1Migration {
         ($type -eq 'CustomLog') -and ($name -like '*_CL') -and $active.ContainsKey($name) -and (-not $tablesWithDcr.ContainsKey($name))
     })
     if ($clv1.Count -eq 0) { return $null }
-    $names = ($clv1 | ForEach-Object { Get-PropOrDefault $_ 'name' '?' }) -join ', '
+    $names = ($clv1 | ForEach-Object { Get-EvidenceName $_ 'name' 'Unnamed table' }) -join ', '
     return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them, likely still using the HTTP Data Collector API (CLv1). Affected: $names. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
 }
 
@@ -1096,7 +1122,7 @@ function _GetEnabledQueryRules {
 
 function _GetRuleLabel {
     param([object]$Rule)
-    return [string](Get-PropOrDefault $Rule 'properties.displayName' (Get-PropOrDefault $Rule 'name' '?'))
+    return Get-EvidenceName $Rule 'properties.displayName', 'name' 'Unnamed rule'
 }
 
 # GB ingested in the last 7 days, billable or not. IngestedLast7d was added
@@ -1137,7 +1163,7 @@ function Test-NoisyFalsePositiveRule {
     } | Sort-Object { -(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) })
     if ($noisy.Count -eq 0) { return $null }
     $sample = ($noisy | ForEach-Object {
-        "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
+        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
     }) -join '; '
     return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last 30 days: $sample." -Detail @{
         Count = $noisy.Count
@@ -1225,7 +1251,7 @@ function Test-RulesOnLegacyThreatIntelTable {
         (@(Get-PropOrDefault $_ 'Tables' @()) -contains 'ThreatIntelligenceIndicator')
     })
     if ($hits.Count -eq 0) { return $null }
-    $names = @($hits | ForEach-Object { [string](Get-PropOrDefault $_ 'RuleName' (Get-PropOrDefault $_ 'RuleId' '?')) })
+    $names = @($hits | ForEach-Object { Get-EvidenceName $_ 'RuleName', 'RuleId' 'Unnamed rule' })
     return New-Finding -Evidence "$($hits.Count) enabled rule(s) query ThreatIntelligenceIndicator, which stopped receiving indicators on 31 July 2025: $($names -join '; '). They match against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
 }
 
@@ -1310,7 +1336,7 @@ function Test-SilentTableWithDependentRules {
     $rulesByTable = @{}
     foreach ($ref in @($Inventory.RuleTableReferences)) {
         if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
-        $ruleName = [string](Get-PropOrDefault $ref 'RuleName' (Get-PropOrDefault $ref 'RuleId' '?'))
+        $ruleName = Get-EvidenceName $ref 'RuleName', 'RuleId' 'Unnamed rule'
         foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) {
             if (-not $t -or -not $known.Contains([string]$t)) { continue }
             if (-not $rulesByTable.ContainsKey($t)) { $rulesByTable[$t] = [System.Collections.Generic.List[string]]::new() }
@@ -1341,7 +1367,7 @@ function Test-PlaybookRunFailures {
     $sample = ($failing | ForEach-Object {
         $last = _ToIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
         $when = if ($last) { ", last $last" } else { '' }
-        "$(Get-PropOrDefault $_ 'Playbook' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
+        "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
     }) -join '; '
     return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last 7 days: $sample." -Detail @{
         Count     = $failing.Count
@@ -1487,7 +1513,7 @@ function Test-AnalyticsRuleRunFailures {
     $sample = ($failing | ForEach-Object {
         $reason = [string](Get-PropOrDefault $_ 'Reason' '')
         $why = if ($reason) { ": $reason" } else { '' }
-        "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
+        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
     }) -join '; '
     return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last 7 days: $sample." -Detail @{
         Count = $failing.Count
