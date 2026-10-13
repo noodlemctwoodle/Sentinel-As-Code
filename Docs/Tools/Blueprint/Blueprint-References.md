@@ -166,7 +166,8 @@ Grouped by purpose:
   auditing is off (SAC-PLT-12).
 - `table-query-usage` - audited queries, distinct users and the last query per lake-retained
   table over 30 days (`LAQueryLogs` matched against every such table name from the
-  `workspace-tables` capture written earlier in the run, 60 names per query); the usage evidence on the data lake
+  `workspace-tables` capture written earlier in the run, 60 names per query;
+  a failed batch fails the capture rather than writing an empty file); the usage evidence on the data lake
   page. Empty when no table keeps data in the lake beyond its analytics retention.
 
 **Sentinel health and posture**
@@ -332,6 +333,19 @@ Anonymous, no auth required. Used by `Private/Get-AzureRetailPrice.ps1`.
 - Filter syntax: `$filter=serviceName eq '<name>' and armRegionName eq '<region>' and priceType eq 'Consumption'`
 - Pagination: follow `NextPageLink` in the response.
 - Documentation: <https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices>
+
+## Data connector catalogue
+
+Which data connector writes which table, and the Content Hub solution that
+ships it, comes from `Private/Resources/connector-catalogue.json`: about 630
+connectors and their tables, copied from the Sentinel as Code Toolkit's
+`data/connectors.json`. The Toolkit builds that file from Microsoft's
+Solutions Analyzer CSVs in the Azure-Sentinel repository
+(<https://github.com/Azure/Azure-Sentinel/tree/master/Tools/Solutions%20Analyzer>),
+taking a connector's tables from its own mapping where Microsoft publishes one
+and otherwise from every table its solution's content uses. Refresh the copy
+with `./Tools/Blueprint/Update-ConnectorCatalogue.ps1` (it reads the Toolkit's
+file on GitHub by default, or a local path with `-Source`).
 
 ## Sentinel free benefit
 

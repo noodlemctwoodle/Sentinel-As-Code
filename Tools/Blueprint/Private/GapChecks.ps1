@@ -20,7 +20,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.0
+    Version:        0.5.0
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
@@ -30,6 +30,9 @@
 #>
 
 Set-StrictMode -Version Latest
+
+# The connector catalogue helpers (SAC-PLT-10 reads the catalogue).
+. (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
 
 # Helper, produces a Finding object with consistent shape.
 function New-Finding {
@@ -622,20 +625,17 @@ function _GetBillable30d {
 }
 
 # ------------------------------------------------------------
-# SAC-PLT-10, Connector connected but target table has no recent data
+# SAC-PLT-10, Connector connected but its tables received no data
 # ------------------------------------------------------------
 function Test-ConnectorTableMismatch {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (-not $Inventory.DataConnectors -or -not $Inventory.TablesWithData) { return $null }
-    # Build per-table 24h activity map.
-    $active24h = @{}
-    foreach ($t in $Inventory.TablesWithData) {
-        if ([double](Get-PropOrDefault $t 'BillableLast24h' 0) -gt 0) {
-            $active24h[(Get-PropOrDefault $t 'DataType' '')] = $true
-        }
-    }
-    # Connector → expected target tables. For now this is a coarse heuristic, kind name
-    # → known table list. Refined per connector by maintaining a lookup elsewhere.
+    # Volume per table over 7 days, free tables (OfficeActivity,
+    # SecurityAlert) included: billable volume alone made them look silent.
+    $activity = Get-TableActivity -TablesWithData @($Inventory.TablesWithData)
+    $hasData = { param($t) $activity.ContainsKey($t) -and $activity[$t] -gt 0 }
+
+    # The core tables these connectors must fill, checked one by one.
     $kindToTables = @{
         'AzureActiveDirectory'                       = @('SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs')
         'Office365'                                  = @('OfficeActivity')
@@ -643,18 +643,31 @@ function Test-ConnectorTableMismatch {
         'MicrosoftDefenderAdvancedThreatProtection'  = @('SecurityAlert')
         'MicrosoftThreatProtection'                  = @('SecurityIncident','SecurityAlert')
     }
-    $bad = @()
-    foreach ($c in $Inventory.DataConnectors) {
-        $kind = Get-PropOrDefault $c 'kind' ''
+    $bad = [System.Collections.Generic.List[string]]::new()
+    $silent = [System.Collections.Generic.List[object]]::new()
+    foreach ($c in @($Inventory.DataConnectors)) {
+        if ($null -eq $c) { continue }
+        $kind = [string](Get-PropOrDefault $c 'kind' '')
         if (-not $kindToTables.ContainsKey($kind)) { continue }
         foreach ($expected in $kindToTables[$kind]) {
-            if (-not $active24h.ContainsKey($expected)) { $bad += "$kind→$expected" }
+            if (-not (& $hasData $expected)) { $bad.Add("$kind to $expected") }
         }
     }
-    if ($bad.Count -gt 0) {
-        return New-Finding -Evidence "Connector(s) reporting connected with no recent data in target table(s): $($bad -join '; ')." -Detail @{ Mismatches = $bad }
+    # Every other connected connector the catalogue knows: silent when none
+    # of the tables it lists received data. A catalogue list can include
+    # tables the connector does not write, so one quiet table proves nothing.
+    $catalogue = Get-PropOrDefault $Inventory 'ConnectorCatalogue' $null
+    if ($catalogue) {
+        $others = @($Inventory.DataConnectors | Where-Object { $null -ne $_ -and -not $kindToTables.ContainsKey([string](Get-PropOrDefault $_ 'kind' '')) })
+        foreach ($row in @(Get-ConnectorCatalogueStatus -Catalogue $catalogue -Connectors $others -Activity $activity)) {
+            if ($row.Status -eq 'Silent') { $silent.Add($row) }
+        }
     }
-    return $null
+    if ($bad.Count -eq 0 -and $silent.Count -eq 0) { return $null }
+    $parts = @()
+    if ($bad.Count) { $parts += "core table(s) with no data in 7 days: $($bad -join '; ')" }
+    if ($silent.Count) { $parts += "connector(s) with no data in any table they write: " + (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ') }
+    return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{ Mismatches = @($bad); SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } }) }
 }
 
 # ------------------------------------------------------------

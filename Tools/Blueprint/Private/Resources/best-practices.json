@@ -1,6 +1,6 @@
 {
   "$schema": "best-practices.schema.json",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "rules": [
     {
       "id": "SAC-LOG-03",
@@ -303,11 +303,11 @@
       "id": "SAC-PLT-10",
       "legacyId": "SENT-028",
       "area": "PLT",
-      "title": "Connector reports Connected but its target table has zero ingestion in 24h",
+      "title": "Connected data connector is not delivering data",
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-ConnectorTableMismatch",
-      "remediation": "A Connected-state connector with no recent data in its target table is a near-certain breakage. Compare against connector health logs and DCR associations.",
+      "remediation": "A connector that is connected but delivered nothing in 7 days, to a core table it must fill or to any table the connector catalogue says it writes, is almost always broken: an expired secret, a revoked consent, a stopped agent or a removed DCR association. Check the connector page and SentinelHealth, then the DCR and the source.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {

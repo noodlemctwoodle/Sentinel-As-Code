@@ -52,13 +52,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.5.0
+    Version:      0.6.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
+
+# The inventory loads the connector catalogue, whichever checks file runs.
+. (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
 
 function Get-SentinelGap {
     [CmdletBinding()]
@@ -224,5 +227,6 @@ function New-InventoryFromRaw {
         MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
         SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'
         CommitmentTiers        = Read-Resource 'commitment-tiers.json'
+        ConnectorCatalogue     = Import-ConnectorCatalogue -Path (Join-Path $ResourcesRoot 'connector-catalogue.json')
     }
 }

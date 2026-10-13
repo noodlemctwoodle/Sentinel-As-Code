@@ -850,3 +850,39 @@ Describe 'Gap evidence lists every item' {
         $f.Evidence | Should -Match 'Template 1, Template 2, Template 3, Template 4, Template 5'
     }
 }
+
+Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Tools/Blueprint/Private/Resources/connector-catalogue.json')
+        $script:inv = {
+            param([object[]]$Connectors, [object[]]$Tables)
+            [pscustomobject]@{ DataConnectors = $Connectors; TablesWithData = $Tables; ConnectorCatalogue = $script:catalogue }
+        }
+    }
+
+    It 'does not flag a free table that received data (OfficeActivity bills nothing)' {
+        $inv = & $script:inv @([pscustomobject]@{ kind = 'Office365'; properties = [pscustomobject]@{} }) @([pscustomobject]@{ DataType = 'OfficeActivity'; BillableLast24h = 0; BillableLast7d = 0; IngestedLast7d = 40 })
+        Test-ConnectorTableMismatch -Inventory $inv | Should -BeNullOrEmpty
+    }
+
+    It 'flags a connected codeless connector none of whose catalogue tables received data' {
+        $ado = [pscustomobject]@{ kind = 'RestApiPoller'; properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' } }
+        $f = Test-ConnectorTableMismatch -Inventory (& $script:inv @($ado) @([pscustomobject]@{ DataType = 'Syslog'; IngestedLast7d = 5 }))
+        $f.Evidence | Should -Match 'no data in any table they write: Azure DevOps Audit Logs'
+        $f.Detail.SilentConnectors[0].Id | Should -Be 'AzureDevOpsAuditLogs'
+    }
+
+    It 'treats data in any one of a connector''s catalogue tables as delivering' {
+        $ado = [pscustomobject]@{ kind = 'RestApiPoller'; properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' } }
+        Test-ConnectorTableMismatch -Inventory (& $script:inv @($ado) @([pscustomobject]@{ DataType = 'ADOAuditLogs_CL'; IngestedLast7d = 0.2 })) | Should -BeNullOrEmpty
+    }
+
+    It 'still checks the core tables of the named connectors one by one' {
+        $aad = [pscustomobject]@{ kind = 'AzureActiveDirectory'; properties = [pscustomobject]@{} }
+        $f = Test-ConnectorTableMismatch -Inventory (& $script:inv @($aad) @([pscustomobject]@{ DataType = 'SigninLogs'; IngestedLast7d = 3 }))
+        $f.Evidence | Should -Match 'AzureActiveDirectory to AuditLogs'
+        $f.Evidence | Should -Not -Match 'no data in any table'
+    }
+}

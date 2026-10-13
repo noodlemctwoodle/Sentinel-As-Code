@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint data connector catalogue** - the Blueprint now reads the
+  Sentinel as Code Toolkit's connector catalogue (about 630 Content Hub
+  connectors and the tables each writes, from Microsoft's Solutions
+  Analyzer), copied to `Private/Resources/connector-catalogue.json` by the
+  new `Tools/Blueprint/Update-ConnectorCatalogue.ps1`. Page 10 matches each
+  connected connector against it (receiving data, silent, not in the
+  catalogue, deprecated) and names the connector behind every table in the
+  effective view; page 81 names the connector that would fill each empty
+  catalogue table; page 28 names the solutions that ship each table with no
+  template; page 01 lists deprecated connectors still connected. SAC-PLT-10
+  checks every connected connector the catalogue knows, and measures all
+  volume over 7 days, so free tables such as OfficeActivity no longer look
+  silent (catalogue 3.1.1). The two captures nothing read are now shown:
+  saved searches that are neither hunting queries nor parsers (page 35) and
+  the Sentinel pricings endpoint (page 84).
 - **SharePoint publish no longer fails every chart page** - the publisher
   wrote a chart as a table, when the chart web part was missing, through a
   function it never loaded, so 25 of 35 pages failed. It now loads it, and

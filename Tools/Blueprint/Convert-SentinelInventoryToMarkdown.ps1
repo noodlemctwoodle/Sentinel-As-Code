@@ -139,6 +139,7 @@ if (-not (Test-Path $OutputRoot)) {
 # Dot-source private helpers.
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertFrom-BlueprintMermaid.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-BlueprintSection.ps1')
@@ -1051,6 +1052,36 @@ $effective = Get-EffectiveConnectors `
     -TablesWithData      $tablesWithData `
     -WorkspaceResourceId $workspaceResourceId
 
+# The connector catalogue: every Sentinel data connector and the tables it
+# writes. Each connector in the workspace is matched against it, and each
+# table in the effective view is credited to the connector the catalogue
+# names for it.
+$connectorCatalogue = Import-ConnectorCatalogue -Path (Join-Path $ResourcesRoot 'connector-catalogue.json')
+$tableActivity7d = Get-TableActivity -TablesWithData @($tablesWithData)
+$connectedConnectorIds = @($connectors | Where-Object { $_ } | ForEach-Object { Get-WorkspaceConnectorId -Connector $_ } | Where-Object { $_ })
+$catalogueStatus = if ($connectorCatalogue) { @(Get-ConnectorCatalogueStatus -Catalogue $connectorCatalogue -Connectors @($connectors) -Activity $tableActivity7d) } else { @() }
+$catalogueStatusOrder = @{ 'Silent' = 0; 'Receiving data' = 1; 'No tables in the catalogue' = 2; 'Not in the catalogue' = 3 }
+$catalogueRows = @($catalogueStatus | Sort-Object @{ Expression = { $catalogueStatusOrder[$_.Status] } }, Connector | ForEach-Object {
+    [pscustomobject]@{
+        Connector      = $_.Connector
+        Solution       = $_.Solution
+        Status         = $(if ($_.Deprecated) { "$($_.Status), deprecated connector" } else { $_.Status })
+        TablesWithData = ($_.WithData -join ', ')
+        QuietTables    = ($_.Quiet -join ', ')
+    }
+})
+$effectiveRows = @($effective | Where-Object { $_ } | ForEach-Object {
+    # A classic connector's row names its connector in the identifier.
+    $ownId = if ([string]$_.Source -eq 'Classic') { ([string]$_.Identifier -split '/')[0] } else { '' }
+    $label = if ($connectorCatalogue -and $_.Table) { Get-TableConnectorLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -ConnectedIds $connectedConnectorIds -ConnectorId $ownId } else { '' }
+    $_ | Select-Object *, @{ Name = 'CatalogueConnector'; Expression = { $label } }
+})
+$catalogueBlock = if (-not $connectorCatalogue) {
+    '_The connector catalogue (``Private/Resources/connector-catalogue.json``) is missing from this Blueprint build._'
+} else {
+    Format-Table -Items $catalogueRows -Columns 'Connector','Solution','Status','TablesWithData','QuietTables' -EmptyMessage (Get-EmptyMessage 'data-connectors-classic.json' '_No data connectors in the workspace._')
+}
+
 # Connector-kind distribution for the headline pie. Excludes CCF defs
 # (counted separately) since they're not deployed instances per se.
 $kindCounts = @{}
@@ -1133,7 +1164,15 @@ Modern Sentinel workspaces ingest most of their data through DCRs and diagnostic
 
 See ``Docs/Tools/Blueprint/Sentinel-Blueprint.md`` for the design note.
 
-$(Format-Table -Items $effective -Columns 'Source','Identifier','Table','Last24hGB','LastIngested')
+``CatalogueConnector`` is the data connector the connector catalogue credits with the table: the row's own connector for a classic connector, otherwise the connectors that list the table when there are at most three (marked when connected), otherwise how many connectors share it.
+
+$(Format-Table -Items $effectiveRows -Columns 'Source','Identifier','Table','CatalogueConnector','Last24hGB','LastIngested')
+
+## Connected connectors against the catalogue
+
+Each data connector in the workspace matched to the connector catalogue: the Content Hub data connectors and the tables each one writes, taken from the Azure-Sentinel repository (catalogue of $(if ($connectorCatalogue) { $connectorCatalogue.Version } else { 'n/a' })). **Silent** means none of the tables the catalogue lists for the connector received data in the last 7 days, free tables included ([SAC-PLT-10]). The catalogue takes a connector's tables from the connector's own mapping where Microsoft publishes one, otherwise from every table its solution's content reads, so a quiet table in the list is not always one the connector writes; a connector with data in any of its tables counts as receiving data.
+
+$catalogueBlock
 
 ## Connector health (24h activity)
 
@@ -1693,11 +1732,31 @@ $($parserRows.Count) parser(s) / function(s). Each entry is a `let`-style KQL de
 "@
 } else { '' }
 
+# Saved searches that are neither hunting queries nor parsers: queries
+# saved from Logs under categories such as Log Management.
+$otherSavedRows = @(Read-RawArray 'kql-savedsearches.json' | Where-Object { $_ } | ForEach-Object {
+    $p = _RProp $_ 'properties'
+    $cat = [string](_RProp $p 'category' '')
+    if ($cat -eq 'Hunting Queries' -or $cat -eq 'Functions' -or [string](_RProp $p 'functionAlias' '')) { return }
+    $q = [string](_RProp $p 'query' '')
+    [pscustomobject]@{
+        Category   = $(if ($cat) { $cat } else { 'Uncategorised' })
+        Name       = [string](_RProp $p 'displayName' (_RProp $_ 'name' ''))
+        QueryLines = $(if ($q) { @($q -split "\r?\n").Count } else { 0 })
+    }
+} | Sort-Object Category, Name)
+
 Write-Section '35-parsers-functions.md' (@"
 $(Format-Banner -Title "Parsers and Functions")
 $parserChartBlock
 
 $(Format-Table -Items $parserRows -Columns 'Name','Alias','Category')
+
+## Other saved searches
+
+Saved searches in the workspace that are neither hunting queries ([30-hunting-queries.md](30-hunting-queries.md)) nor parsers: queries saved from Logs under categories such as Log Management or General Exploration. Ones nobody owns are clutter; the ones worth keeping belong in source control as hunting queries or functions.
+
+$(Format-Table -Items $otherSavedRows -Columns 'Category','Name','QueryLines' -EmptyMessage (Get-EmptyMessage 'kql-savedsearches.json' '_None: every saved search is a hunting query or a parser._'))
 "@)
 
 # ---------------------------------------------------------------------------
@@ -2346,7 +2405,13 @@ $catalogueOnly = @($workspaceTables | Where-Object {
     ($_.properties.schema.tableType -ne 'CustomLog') -and
     (-not $populatedTableNames.ContainsKey($_.name))
 })
-$catalogueOnlyRows = @($catalogueOnly | ForEach-Object { [pscustomobject]@{ Table = [string]$_.name } } | Sort-Object Table)
+$catalogueOnlyRows = @($catalogueOnly | ForEach-Object {
+    $name = [string]$_.name
+    [pscustomobject]@{
+        Table     = $name
+        Connector = $(if ($connectorCatalogue) { Get-TableConnectorLabel -Catalogue $connectorCatalogue -Table $name -ConnectedIds $connectedConnectorIds } else { '' })
+    }
+} | Sort-Object Table)
 
 # Detection coverage per operational table, from the enabled rules' table
 # references. Empty when the collector did not compute the mapping.
@@ -2477,9 +2542,9 @@ Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or ne
 
 ## Catalogue-only Microsoft schemas
 
-$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem.
+$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem. ``Connector`` is the data connector that would fill the table, from the connector catalogue (see [10-data-connectors.md](10-data-connectors.md)): the connectors that list it when there are at most three, otherwise how many share it; blank for a table no Content Hub connector writes.
 
-$(Format-Table -Items $catalogueOnlyRows -Columns 'Table')
+$(Format-Table -Items $catalogueOnlyRows -Columns 'Table','Connector')
 
 ## Classic custom tables (legacy Data Collector API)
 
@@ -3121,6 +3186,27 @@ $($cost.Caveats | ForEach-Object { "- $_" }) -join "`n")
 [Sentinel billing (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/billing) · [Reduce costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs) · [Cost logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs)
 "@
 }
+# What the Sentinel pricings endpoint reports, setting by setting. It is a
+# preview API that returns nothing in some regions; the estimate itself is
+# built from the workspace SKU and retail prices, not from it.
+$pricingRows = @(foreach ($item in @(Read-RawArray 'sentinel-pricing.json' | Where-Object { $_ })) {
+    $label = [string](_RProp $item 'name' (_RProp $item 'kind' 'pricing'))
+    $props = _RProp $item 'properties'
+    if ($props) {
+        foreach ($pp in $props.PSObject.Properties) {
+            [pscustomobject]@{ Pricing = $label; Setting = $pp.Name; Value = $(if ($null -eq $pp.Value -or $pp.Value -is [string] -or $pp.Value -is [ValueType]) { [string]$pp.Value } else { $pp.Value | ConvertTo-Json -Compress -Depth 6 }) }
+        }
+    }
+    else { [pscustomobject]@{ Pricing = $label; Setting = 'kind'; Value = [string](_RProp $item 'kind' '') } }
+})
+$costBody += @"
+
+## Sentinel pricing settings
+
+What the Microsoft Sentinel pricings endpoint (``Microsoft.SecurityInsights/pricings``) reports for the workspace. It is a preview API that is not available in every region; the estimate above is built from the workspace SKU and Azure retail prices, not from it.
+
+$(Format-Table -Items $pricingRows -Columns 'Pricing','Setting','Value' -EmptyMessage (Get-EmptyMessage 'sentinel-pricing.json' '_The endpoint returned nothing for this workspace._'))
+"@
 Write-Section '84-cost-estimate.md' $costBody
 
 # ---------------------------------------------------------------------------
@@ -3556,7 +3642,9 @@ $msIncidentRules01 = @($rules | Where-Object { $_ -and $_.kind -eq 'MicrosoftSec
 $ascAlerts01 = [long](@(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ -and [string]$_.ProductName -eq 'Azure Security Center' } | ForEach-Object { _RendererNumber $_.Alerts }) | Measure-Object -Sum).Sum
 $fwLegacy01 = [long](@(Read-RawArray 'azure-firewall-categories.json' | Where-Object { $_ -and [string]$_.Category -like 'AzureFirewall*' } | ForEach-Object { _RendererNumber $_.LogCount }) | Measure-Object -Sum).Sum
 $has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
+$deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object Connector | Sort-Object -Unique)
 $legacyRows = @(
+    _LegacyRow 'Deprecated data connectors still connected' $deprecatedConnectors01.Count ([bool]$connectorCatalogue -and (& $has01 'data-connectors-classic.json')) "$($deprecatedConnectors01.Count) connector(s)$(if ($deprecatedConnectors01.Count) { ': ' + ($deprecatedConnectors01 -join '; ') })" '[10-data-connectors.md](10-data-connectors.md)'
     _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 August 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$mmaMachines01 machine(s) still heartbeating through it in 7 days" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
     _LegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 September 2026' $classicTables01.Count (& $has01 'workspace-tables.json') "$($classicTables01.Count) table(s) with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
     _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$tiLegacyRows01 record(s) in 30 days" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
@@ -5075,7 +5163,14 @@ $opportunityRows = @($uncoveredTables | ForEach-Object {
         Templates          = (($cands | ForEach-Object { $_.DisplayName }) -join '; ')
     }
 })
-$noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Gb30d = $_.Gb30d } })
+$installedSolutionNames = @(Read-RawArray 'content-packages.json' | Where-Object { $_ } | ForEach-Object { [string](_RProp (_RProp $_ 'properties') 'displayName' '') } | Where-Object { $_ })
+$noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object {
+    [pscustomobject]@{
+        Table     = $_.Table
+        Gb30d     = $_.Gb30d
+        Solutions = $(if ($connectorCatalogue) { Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames } else { '' })
+    }
+})
 $readyTemplates = @($undeployedTemplates | Where-Object {
     $tbls = @($_.Tables)
     @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
@@ -5123,9 +5218,9 @@ $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','TemplateCount',
 
 ## Tables with no template available
 
-Tables above with no undeployed, non-deprecated template that reads them. Covering one of these means writing a custom rule, or a Defender XDR custom detection, rather than enabling a template.
+Tables above with no undeployed, non-deprecated template that reads them. Covering one of these means writing a custom rule, or a Defender XDR custom detection, rather than enabling a template. ``Solutions`` names the Content Hub solutions that ship the table, from the connector catalogue, marking the ones installed: installing one usually brings rule templates for it. A blank means no Content Hub solution ships the table, as for most custom tables.
 
-$(Format-Table -Items $noTemplateRows -Columns 'Table','Gb30d' -EmptyMessage '_Every table above has at least one template available._')
+$(Format-Table -Items $noTemplateRows -Columns 'Table','Gb30d','Solutions' -EmptyMessage '_Every table above has at least one template available._')
 
 [SAC-MON-05] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
 

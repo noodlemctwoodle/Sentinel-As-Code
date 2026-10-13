@@ -789,7 +789,7 @@ Describe 'Sentinel Blueprint renderer' {
 
         It 'surfaces an Effective connectors synthesised view section' {
             $script:dcMd | Should -Match '## Effective connectors \(synthesised view\)'
-            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| Last24hGB \| LastIngested \|'
+            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| CatalogueConnector \| Last24hGB \| LastIngested \|'
         }
 
         It 'attributes Office365 sharePoint to a Classic source in the synthesis' {
@@ -1609,5 +1609,79 @@ Describe 'Sentinel Blueprint renderer - full reporting in plain words' {
         $chart = @((Get-Content (Join-Path $script:wide 'sections/14-coverage-breakdowns.json') -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'xy' })[0]
         @($chart.data.xAxis.labels).Count | Should -Be 15
         $chart.data.xAxis.labels[0] | Should -Be 'DeviceNetworkEvents'
+    }
+}
+
+Describe 'Sentinel Blueprint renderer - connector catalogue, saved searches and Sentinel pricing' {
+
+    BeforeAll {
+        $script:catRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-catalogue-$(New-Guid)"
+        $ws = Join-Path $script:catRoot 'cat'
+        New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
+        Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $ws '_raw')
+        $raw = { param($Name, $Value) ConvertTo-Json -InputObject $Value -Depth 16 | Set-Content (Join-Path $ws "_raw/$Name") }
+
+        # A codeless connector with no data and a deprecated connector, on top
+        # of the sample's four.
+        $conn = @(Get-Content (Join-Path $ws '_raw/data-connectors-classic.json') -Raw | ConvertFrom-Json)
+        $conn += [pscustomobject]@{ name = 'ado'; kind = 'RestApiPoller'; properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' } }
+        $conn += [pscustomobject]@{ name = 'dt'; kind = 'DarktraceAma'; properties = [pscustomobject]@{} }
+        & $raw 'data-connectors-classic.json' $conn
+        $tables = @(Get-Content (Join-Path $ws '_raw/workspace-tables.json') -Raw | ConvertFrom-Json)
+        $tables += [pscustomobject]@{ name = 'Dynamics365Activity'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'Microsoft' } } }
+        & $raw 'workspace-tables.json' $tables
+        & $raw 'kql-savedsearches.json' @(
+            [pscustomobject]@{ name = 'h1'; properties = [pscustomobject]@{ category = 'Hunting Queries'; displayName = 'A hunt'; query = 'SigninLogs' } }
+            [pscustomobject]@{ name = 'f1'; properties = [pscustomobject]@{ category = 'Functions'; displayName = 'A parser'; functionAlias = 'MyParser'; query = 'Syslog' } }
+            [pscustomobject]@{ name = 'l1'; properties = [pscustomobject]@{ category = 'Log Management'; displayName = 'Failed sign-ins by user'; query = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName" } }
+            [pscustomobject]@{ name = 'g1'; properties = [pscustomobject]@{ category = 'General Exploration'; displayName = 'All syslog'; query = 'Syslog' } }
+        )
+        & $raw 'sentinel-pricing.json' @([pscustomobject]@{ name = 'default'; kind = 'Sentinel'; properties = [pscustomobject]@{ tier = 'CapacityReservation'; capacityGbPerDay = 100 } })
+
+        & $script:renderer -WorkspaceName 'law-cat' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        $script:catPage = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
+    }
+
+    AfterAll {
+        if ($script:catRoot -and (Test-Path $script:catRoot)) { Remove-Item -Recurse -Force -Path $script:catRoot -ErrorAction SilentlyContinue }
+    }
+
+    It 'matches each connected connector against the catalogue, silent ones first' {
+        $md = & $script:catPage '10-data-connectors'
+        $md | Should -Match '## Connected connectors against the catalogue[\s\S]*\| Azure DevOps Audit Logs \(via Codeless Connector Platform\) \| AzureDevOpsAuditing \| Silent \|'
+        $md | Should -Match '\| AI Analyst Darktrace via AMA \| AI Analyst Darktrace \| Receiving data, deprecated connector \| CommonSecurityLog \|'
+        $md | Should -Match '\| MicrosoftThreatIntelligence \|\s+\| Not in the catalogue \|'
+        $section = ($md -split '## Connected connectors against the catalogue')[1]
+        $section.IndexOf('| Silent |') | Should -BeLessThan $section.IndexOf('| Receiving data')
+    }
+
+    It 'credits each table in the effective view to a connector' {
+        $md = & $script:catPage '10-data-connectors'
+        $md | Should -Match '\| Classic \| AzureActiveDirectory/signInLogs \| SigninLogs \| Microsoft Entra ID \|'
+        $md | Should -Match '\| CommonSecurityLog \| Shared by \d+ connectors \|'
+    }
+
+    It 'lists deprecated connectors still connected among the legacy features' {
+        & $script:catPage '01-live-snapshot' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector\(s\): AI Analyst Darktrace via AMA \|'
+    }
+
+    It 'names the connector that would fill a catalogue-only schema and the solutions behind tables with no template' {
+        & $script:catPage '81-table-plans-retention' | Should -Match '\| Dynamics365Activity \| Dynamics 365 \|'
+        & $script:catPage '28-detection-opportunities' | Should -Match '## Tables with no template available[\s\S]*\| CommonSecurityLog \| 300 \| Shared by \d+ solutions \|'
+    }
+
+    It 'lists the saved searches that are neither hunting queries nor parsers' {
+        $md = & $script:catPage '35-parsers-functions'
+        $md | Should -Match '## Other saved searches[\s\S]*\| General Exploration \| All syslog \| 1 \|[\s\S]*\| Log Management \| Failed sign-ins by user \| 3 \|'
+        ($md -split '## Other saved searches')[1] | Should -Not -Match 'A hunt|A parser'
+    }
+
+    It 'shows what the Sentinel pricings endpoint reports, setting by setting' {
+        $md = & $script:catPage '84-cost-estimate'
+        $md | Should -Match '## Sentinel pricing settings[\s\S]*\| default \| tier \| CapacityReservation \|[\s\S]*\| default \| capacityGbPerDay \| 100 \|'
+    }
+
+    It 'says when the endpoint returned nothing, as on the sample' {
+        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Match '## Sentinel pricing settings[\s\S]*_The endpoint returned nothing for this workspace\._'
     }
 }

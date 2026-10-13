@@ -123,7 +123,7 @@ SecurityDocs/
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, legacy features still in use, regenerated every run
-    ├── 10-data-connectors.md          classic + CCF + synthesised effective view, Defender XDR unification
+    ├── 10-data-connectors.md          classic + CCF + synthesised effective view with the connector behind each table, connected connectors against the connector catalogue, Defender XDR unification
     ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene with vendors, SecurityEvent duplicates, noisy event IDs, Syslog and SecurityEvent contributors
@@ -133,9 +133,9 @@ SecurityDocs/
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
     ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
-    ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers, templates ready to enable
+    ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable
     ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
-    ├── 35-parsers-functions.md
+    ├── 35-parsers-functions.md        parsers and functions, other saved searches
     ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
     ├── 37-search-restore.md           search jobs / restore logs
     ├── 38-summary-rules.md            summary rules
@@ -147,7 +147,7 @@ SecurityDocs/
     ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, retention recommendations, silent tables by detection impact, classic (Data Collector API) tables
     ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
     ├── 83-data-collection.md          DCRs, DCEs, transforms
-    ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if
+    ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if, Sentinel pricing settings
     ├── 85-rbac.md                     role assignments, by role, Sentinel and monitoring roles, high-privilege assignments
     ├── 86-subscription-context.md     signed-in identity, subscription, tenant, RPs, locks, policy
     ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace, agent heartbeat mix by OS and version
@@ -408,7 +408,12 @@ remaining gaps against health-check build 38 (see
 | SAC-PLT-12 Query auditing off | `la-query-logs.json` | `LAQueryLogs` recorded no queries in 7 days |
 
 Each one stays quiet when the capture it reads is missing, so a failed
-call is never reported as a gap. Version 2.3.0 added SAC-DET-14 (analytics rule
+call is never reported as a gap. Version 3.1.1 widened SAC-PLT-10 (a
+connected connector not delivering): it measures all volume over 7 days,
+so free tables such as OfficeActivity no longer look silent, and besides
+the core tables of five named connectors it checks every connected
+connector the connector catalogue knows, flagging one when none of the
+tables the catalogue lists for it received data. Version 2.3.0 added SAC-DET-14 (analytics rule
 runs failing, from `SentinelHealth`). Version 2.2.0 added thirteen that port the
 checks from the Sentinel health-check script contributed to the project:
 
