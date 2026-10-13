@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.8.0
+    Version:      0.9.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1338,6 +1338,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'lists sub-techniques under their technique, each with its own rules, in the sub-technique view' {
         $html | Should -Match 'const list=every\? r\.subs : mapped;'
         $html | Should -Match 'class="ak-subrow '
+        # Full ids, and violet for sub-techniques against green for techniques.
+        $html | Should -Match '<span class="sid">''\+esc\(s\.id\)\+''</span>'
+        $html | Should -Not -Match 's\.id\.slice\(s\.id\.indexOf'
+        $html | Should -Match '\.ak-subrow\.h1,\.ak-key \.s1\{background:color-mix\(in srgb,var\(--ak-sub\)'
+        $html | Should -Match '<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique'
         $html | Should -Match "const sub=s\.sub\? c\.subs\.find\(x=>x\.id===s\.sub\) : null;"
         $html | Should -Match 'const idx=sub\? sub\.rules : c\.rules;'
     }

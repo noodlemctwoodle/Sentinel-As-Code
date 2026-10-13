@@ -20,6 +20,7 @@
     --brand:#2563eb; --brand-ink:#1d4ed8; --accent:#6d5efc;
     --ring-track:#e8ebf6;
     --scroll-thumb:#c9cfdd; --scroll-thumb-hover:#aab2c5;
+    --ak-sub:#7c3aed;
     color-scheme:light;
     --red:#dc2626; --orange:#ea580c; --amber:#d97706; --green:#16a34a;
     --teal:#0d9488; --violet:#7c3aed; --indigo:#4f46e5; --slate:#64748b;
@@ -40,6 +41,7 @@
     --brand:#6ea8fe; --brand-ink:#a9c7ff; --accent:#9d8cff;
     --ring-track:#1b2a3d;
     --scroll-thumb:#1f3247; --scroll-thumb-hover:#2c4560;
+    --ak-sub:#a78bfa;
     color-scheme:dark;
     --shadow-sm:0 1px 2px rgba(0,0,0,.5);
     --shadow:0 10px 34px -12px rgba(0,0,0,.7);
@@ -702,6 +704,7 @@
   .ak-seg button.on{background:var(--brand);color:#fff}
   .ak-key{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
   .ak-key i{display:inline-block;width:14px;height:11px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
+  .ak-key i+i:not(.off):not(.gap){margin-left:2px}
   .ak-scroll{overflow-x:auto;padding-bottom:6px}
   /* Scrolling regions get a slim scrollbar in the theme's colours rather
      than the browser's default light one. */
@@ -723,19 +726,24 @@
   .ak-cell .id{display:flex;justify-content:space-between;gap:6px;font-size:10px;font-weight:800;color:var(--faint)}
   .ak-cell .ct{color:var(--ink);font-size:11px} .ak-cell .ak-dis{color:var(--amber);margin-left:3px}
   .ak-cell .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-2);font-weight:650;margin-top:2px}
-  .ak-cell.h1,.ak-subrow.h1,.ak-key .h1{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
-  .ak-cell.h2,.ak-subrow.h2,.ak-key .h2{background:color-mix(in srgb,var(--green) 28%,var(--panel));border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
-  .ak-cell.h3,.ak-subrow.h3,.ak-key .h3{background:color-mix(in srgb,var(--green) 44%,var(--panel));border-color:color-mix(in srgb,var(--green) 65%,var(--line))}
+  .ak-cell.h1,.ak-key .h1{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
+  .ak-cell.h2,.ak-key .h2{background:color-mix(in srgb,var(--green) 28%,var(--panel));border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
+  .ak-cell.h3,.ak-key .h3{background:color-mix(in srgb,var(--green) 44%,var(--panel));border-color:color-mix(in srgb,var(--green) 65%,var(--line))}
+  /* Sub-techniques take violet, so they read apart from their green techniques. */
+  .ak-subrow.h1,.ak-key .s1{background:color-mix(in srgb,var(--ak-sub) 22%,var(--panel));border-color:color-mix(in srgb,var(--ak-sub) 50%,var(--line))}
+  .ak-subrow.h2,.ak-key .s2{background:color-mix(in srgb,var(--ak-sub) 36%,var(--panel));border-color:color-mix(in srgb,var(--ak-sub) 62%,var(--line))}
+  .ak-subrow.h3,.ak-key .s3{background:color-mix(in srgb,var(--ak-sub) 52%,var(--panel));border-color:color-mix(in srgb,var(--ak-sub) 75%,var(--line))}
   .ak-cell.off,.ak-subrow.off,.ak-key .off{background:transparent;border-style:dashed;border-color:color-mix(in srgb,var(--amber) 60%,var(--line))}
   .ak-cell.gap{opacity:.5} .ak-subrow.gap{opacity:.55} .ak-cell.gap .ak-subrow.gap{opacity:1} .ak-key .gap{background:transparent;opacity:.6}
   .ak-cell.sel{box-shadow:0 0 0 2px var(--brand)}
   .ak-subs{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
-  .ak-sub{font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand-ink)}
+  .ak-sub{font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--ak-sub) 18%,transparent);border:1px solid color-mix(in srgb,var(--ak-sub) 40%,transparent);color:var(--ak-sub)}
   .ak-sub.off{background:transparent;border:1px dashed color-mix(in srgb,var(--amber) 60%,var(--line));color:var(--muted)}
   .ak-sublist{display:flex;flex-direction:column;gap:3px;margin-top:6px}
-  .ak-subrow{display:grid;grid-template-columns:auto 1fr auto;gap:5px;align-items:baseline;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:10.5px;line-height:1.25}
-  .ak-subrow .sid{font-size:9.5px;font-weight:800;color:var(--faint)}
-  .ak-subrow .snm{color:var(--ink-2);font-weight:600;overflow-wrap:anywhere}
+  .ak-subrow{padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:10.5px;line-height:1.25}
+  .ak-subrow .sh{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+  .ak-subrow .sid{font-size:9.5px;font-weight:800;color:var(--ak-sub)}
+  .ak-subrow .snm{color:var(--ink-2);font-weight:600;overflow-wrap:anywhere;margin-top:1px}
   .ak-subrow .ct{font-size:10px;font-weight:800;color:var(--ink)}
   .ak-subrow[role="button"]{cursor:pointer}
   .ak-subrow[role="button"]:hover,.ak-subrow[role="button"]:focus-visible{border-color:var(--brand);outline:none}
@@ -1863,10 +1871,10 @@
               const sct=s.en>0||(all&&s.all)? s.en+(all&&off? '<span class="ak-dis">+'+off+'</span>' : '') : '';
               const stip=s.id+' '+sname(s.id)+': '+s.en+' enabled rule'+(s.en===1?'':'s')+(off? ', '+off+' disabled' : '');
               return '<div class="ak-subrow '+scls+(mine&&sel.sub===s.id?' sel':'')+(hit(s)?' hit':'')+'" '+(s.all>0?'role="button" tabindex="0" ':'')+'data-aksub="'+esc(s.id)+'" title="'+esc(stip)+'">'+
-                '<span class="sid">'+esc(s.id.slice(s.id.indexOf('.')))+'</span><span class="snm">'+esc(sname(s.id))+'</span><span class="ct">'+sct+'</span></div>';
+                '<div class="sh"><span class="sid">'+esc(s.id)+'</span><span class="ct">'+sct+'</span></div><div class="snm">'+esc(sname(s.id))+'</div></div>';
             }).join('')+'</div>' : (r.c&&r.t.subTotal? '<div class="ak-subnone">No sub-technique mapped</div>' : '');
           } else {
-            const chips=mapped.map(s=>'<span class="ak-sub'+(s.en?'':' off')+'" title="'+esc(s.id+' '+sname(s.id))+'">'+esc(s.id.slice(s.id.indexOf('.')))+'</span>').join('');
+            const chips=mapped.map(s=>'<span class="ak-sub'+(s.en?'':' off')+'" title="'+esc(s.id+' '+sname(s.id))+'">'+esc(s.id)+'</span>').join('');
             if(chips) body='<div class="ak-subs">'+chips+'</div>';
           }
           return '<div class="ak-cell '+cls+(mine&&!(subLevel&&sel.sub)?' sel':'')+'" '+(r.c?'role="button" tabindex="0" ':'')+'data-ak="'+esc(col.tac.short)+'|'+esc(r.id)+'" title="'+esc(tip)+'">'+
@@ -1987,7 +1995,7 @@
       '<div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
       '<div class="ak-seg" role="group" aria-label="Techniques"><button type="button" class="on" data-ak-show="covered">Covered techniques</button><button type="button" data-ak-show="all">Every technique</button></div>'+
       '<input type="search" class="docsearch" id="akSearch" placeholder="Find a rule or technique" aria-label="Find a rule or technique">'+
-      '<span class="ak-key"><i class="h1"></i>1 rule<i class="h2"></i>2 to 3<i class="h3"></i>4 or more<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
+      '<span class="ak-key"><i class="h1"></i><i class="h2"></i><i class="h3"></i>technique<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique (1 rule, 2 to 3, 4 or more)<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
       '<div class="ak-scroll"><div class="ak-grid" id="akGrid"></div></div><div id="akDetail" class="hidden"></div></div>');
   } else {
     const mMax = Math.max(1, ...M.mitre.map(t=>t.rules));

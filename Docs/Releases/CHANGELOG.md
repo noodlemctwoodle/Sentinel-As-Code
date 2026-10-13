@@ -12,7 +12,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   kill-chain order, a cell per technique shaded by the enabled rules that
   map it, sub-techniques as chips, and a column of its own for a tactic
   outside the Enterprise matrix (ATT&CK for ICS); "Sub-techniques" lists
-  each sub-technique under its technique with its own shading and rules;
+  each sub-technique by its full id under its technique, shaded violet
+  against the techniques' green, with its own rules;
   "Include disabled" shows what the disabled rules would cover (dashed),
   "Every technique" shows the gaps at either level, a search finds a rule,
   technique or sub-technique, and selecting a cell or sub-technique lists

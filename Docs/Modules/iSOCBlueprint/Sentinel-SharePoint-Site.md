@@ -162,8 +162,10 @@ row with a short donut. The
 **ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
 kill-chain order with the techniques covered out of the total, and a cell
 per technique an analytics rule maps, shaded by the enabled rules that map
-it, with its sub-techniques as chips. "Sub-techniques" switches the grid
-to list each mapped sub-technique under its technique, shaded by its own
+it, with its sub-techniques as chips by their full id. Techniques shade
+green and sub-techniques violet, light to dark for 1 rule, 2 to 3 and 4 or
+more. "Sub-techniques" switches the grid to list each mapped sub-technique
+(full id, name and rule count) under its technique, shaded by its own
 rules, and each tactic's header counts sub-techniques covered out of the
 total instead; with "Every technique" it lists every sub-technique ATT&CK
 defines, so the gaps show at that level too. A tactic a rule names that the
