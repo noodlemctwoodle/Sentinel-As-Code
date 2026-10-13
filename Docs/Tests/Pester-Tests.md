@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) - 43 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 4 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
+| Test files | [`Tests/`](../../Tests) - 44 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 5 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -170,6 +170,7 @@ workbook-export suites.
 | iSOCBlueprint engine copy | [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | Every file the map copies into `Modules/iSOCBlueprint/Engine` equals its `Tools/Blueprint` source with only the listed edits applied (binary files by hash), the engine holds nothing the map does not account for, and the vendored copies (two `Sentinel.Common` KQL helpers, `Blueprint-References.md`) equal their originals. Fails when a fix lands in one copy only |
 | iSOCBlueprint module | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | The manifest (valid, exports one command per `Public/` file, no required modules, version not older than the newest CHANGELOG release), each command's help and file header, the prerequisite list against the engine scripts' `#Requires`, the engine runner (null parameters left out, common parameters passed on, strict mode off), each command's parameter mapping with the engine mocked, and `New-iSOCBlueprint`'s step selection and refusals |
 | iSOCBlueprint standalone | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders the fixture (page 99 from its own copy, GitHub links), builds the SharePoint bundle offline, runs the findings and maturity commands, and loads every engine file it references from inside itself |
+| iSOCBlueprint parity | [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | Renders the fixture through `Tools/Blueprint` and through the module and compares every Markdown page and every `sections/*.json`, then builds the SharePoint bundle from one rendering with both builders and compares every bundle file, then the findings, the per-rule outcomes and the maturity assessment. Only the four E6 links (rewritten in the old output before comparing, including their section-model kind) and the bundle's build time may differ. Retired with `Tools/Blueprint` |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI

@@ -121,3 +121,4 @@ Invoke-Pester -Path Tests/iSOCBlueprint
 | `Engine-Copy.Tests.ps1` | The engine equals `Tools/Blueprint` apart from the listed edits; vendored copies equal their originals |
 | `Module.Tests.ps1` | Manifest, help, file headers, prerequisites against the engine's `#Requires`, and each command's parameter mapping |
 | `Module-Standalone.Tests.ps1` | The module copied outside the repository renders the fixture, builds the site and runs the assessments |
+| `Parity.Tests.ps1` | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity from the fixture |
