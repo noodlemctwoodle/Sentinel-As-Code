@@ -92,8 +92,11 @@ topology that matches your setup:
 
 A folder per workspace under `SecurityDocs/<workspace>/`. The collector
 (`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
-(`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into `index.md`
-plus **35 numbered Markdown sections**:
+(`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into **35 numbered
+sections**, written twice: as the [section model](Section-Model.md) in `sections/`
+(typed JSON, what the SharePoint site is built from and what to build on) and as
+Markdown files with an `index.md` contents page (`-OutputFormat Json` skips the
+Markdown):
 
 ```
 SecurityDocs/
@@ -113,6 +116,10 @@ SecurityDocs/
     │   ├── gap-analysis.json          findings that fired
     │   ├── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
     │   └── maturity.json              maturity assessment: area scores, roadmap, quick wins, CSF rollup
+    ├── sections/                      the section model (see Section-Model.md)
+    │   ├── index.json                 the sections in reading order, with the run's facts
+    │   ├── 00-overview.json           one file per section below: blocks, text runs, charts as data
+    │   └── ...
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
@@ -276,7 +283,8 @@ Connect-AzAccount
     -PlaybookResourceGroup 'rg-sentinel-automation' `
     -IncludePreview
 
-# 3. Render. Writes ./SecurityDocs/<workspace>/*.md.
+# 3. Render. Writes ./SecurityDocs/<workspace>/sections/*.json and *.md
+#    (add -OutputFormat Json for the section model only).
 ./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
     -WorkspaceName 'law-sentinel-prod'
 ```
@@ -504,6 +512,9 @@ The Pester suite is fully offline:
 - `Get-SentinelMaturity.Tests.ps1` scores the fixture, checks named criteria,
   the roadmap order and the NIST CSF rollup, runs synthetic criteria for the
   scoring arithmetic and guards the criteria file's schema.
+- `Section-Model.Tests.ps1` covers the section model: the Markdown converter,
+  every chart kind the Mermaid parser reads, and the renderer's
+  `sections/*.json` validated against the schemas.
 - `SharePoint-Site.Tests.ps1` covers the section families, the
   Markdown-to-page conversion, the publish planners, the maturity history
   helper, the publisher's SharePoint steps against stand-in PnP functions and

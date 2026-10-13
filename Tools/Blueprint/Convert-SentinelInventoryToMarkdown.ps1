@@ -3,15 +3,22 @@
 
 <#
 .SYNOPSIS
-    Render the JSON snapshot under SecurityDocs/<workspace>/_raw/ into the human-readable
-    Markdown report under SecurityDocs/<workspace>/.
+    Render the JSON snapshot under SecurityDocs/<workspace>/_raw/ into the section model
+    (SecurityDocs/<workspace>/sections/*.json) and the Markdown report beside it.
 
 .DESCRIPTION
     Pure file-to-file transformation — no Azure dependency. Designed so the renderer can
     be exercised end-to-end by Pester fixtures without auth, and so a re-run produces the
     same output for the same input (idempotent).
 
-    Sections produced (one MD file each, plus index.md):
+    Each section is written as the section model, sections/<id>.json
+    (Tools/Blueprint/Schemas/section.schema.json: typed blocks, structured text
+    runs, charts as data; no Markdown), with sections/index.json listing them in
+    order. That is what the SharePoint site is built from. The Markdown files are
+    the same sections as a Markdown pack, for the docs pull request and the Word
+    report; -OutputFormat Json skips them.
+
+    Sections produced (one file of each format, plus index):
 
       00-overview.md
       10-data-connectors.md
@@ -46,6 +53,10 @@
     Folder containing best-practices.json, mitre-attack.json, etc. Defaults to
     Tools/Blueprint/Private/Resources.
 
+.PARAMETER OutputFormat
+    Which formats to write: Markdown (NN-name.md), Json (sections/NN-name.json and
+    sections/index.json), or both (the default). The SharePoint site needs only Json.
+
 .EXAMPLE
     ./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
         -WorkspaceName 'law-sentinel-prod'
@@ -68,8 +79,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.3.0
-    Last Updated:   2026-10-12
+    Version:        0.4.0
+    Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
 #>
@@ -86,7 +97,11 @@ param(
     [string]$OutputRoot,
 
     [Parameter(Mandatory = $false)]
-    [string]$ResourcesRoot = (Join-Path $PSScriptRoot 'Private/Resources')
+    [string]$ResourcesRoot = (Join-Path $PSScriptRoot 'Private/Resources'),
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Markdown', 'Json')]
+    [string[]]$OutputFormat = @('Markdown', 'Json')
 )
 
 # Strict mode is intentionally NOT set in the renderer.
@@ -125,6 +140,19 @@ if (-not (Test-Path $OutputRoot)) {
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
+. (Join-Path $PSScriptRoot 'Private/ConvertFrom-BlueprintMermaid.ps1')
+. (Join-Path $PSScriptRoot 'Private/ConvertTo-BlueprintSection.ps1')
+
+# Output formats. The section model is what the SharePoint site reads; the
+# Markdown pack feeds the docs pull request and the Word report.
+$script:WriteMarkdown = $OutputFormat -contains 'Markdown'
+$script:WriteJson     = $OutputFormat -contains 'Json'
+$script:SectionsRoot  = Join-Path $OutputRoot 'sections'
+$script:SectionIndex  = [System.Collections.Generic.List[object]]::new()
+$script:SectionMeta   = $null
+if ($script:WriteJson -and -not (Test-Path $script:SectionsRoot)) {
+    New-Item -ItemType Directory -Path $script:SectionsRoot -Force | Out-Null
+}
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -209,8 +237,30 @@ function Write-Section([string]$FileName, [string]$Body) {
         [void]$sb.Append($line)
     }
     $body = $sb.ToString()
-    Set-Content -Path $target -Value $body -Encoding UTF8
-    Write-Information "  ↳ rendered $FileName"
+    if ($script:WriteMarkdown) {
+        Set-Content -Path $target -Value $body -Encoding UTF8
+        Write-Information "  ↳ rendered $FileName"
+    }
+    if ($script:WriteJson) { Write-SectionModel -FileName $FileName -Markdown $body }
+}
+
+function Write-SectionModel([string]$FileName, [string]$Markdown) {
+    # sections/<id>.json: the section model for this section. The contents
+    # page (index.md) has none: sections/index.json lists the sections.
+    if ($FileName -eq 'index.md') { return }
+    if (-not $script:SectionMeta) {
+        $rc = Read-Raw 'run-context.json'
+        $script:SectionMeta = [ordered]@{
+            workspace        = $WorkspaceName
+            generatedUtc     = $(if ($rc -and $rc.StartedAtUtc) { ([datetime]$rc.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') } else { $null })
+            blueprintVersion = $(if ($rc -and $rc.BlueprintVersion) { [string]$rc.BlueprintVersion } else { $null })
+        }
+    }
+    $id = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    $model = ConvertTo-BlueprintSection -Markdown $Markdown -Id $id -Meta $script:SectionMeta
+    $model | ConvertTo-Json -Depth 64 | Set-Content -Path (Join-Path $script:SectionsRoot "$id.json") -Encoding utf8
+    $script:SectionIndex.Add([ordered]@{ id = $id; order = $model.order; title = $model.title; file = "$id.json" })
+    if (-not $script:WriteMarkdown) { Write-Information "  ↳ rendered sections/$id.json" }
 }
 
 function Format-DateUtc {
@@ -5391,8 +5441,11 @@ Curated Microsoft Learn entry points for the topics covered in this report. Dist
 # ---------------------------------------------------------------------------
 $refSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Docs/Tools/Blueprint/Blueprint-References.md'
 if (Test-Path $refSrc) {
-    Copy-Item -Path $refSrc -Destination (Join-Path $OutputRoot '99-references.md') -Force
-    Write-Information "  ↳ copied 99-references.md"
+    if ($script:WriteMarkdown) {
+        Copy-Item -Path $refSrc -Destination (Join-Path $OutputRoot '99-references.md') -Force
+        Write-Information "  ↳ copied 99-references.md"
+    }
+    if ($script:WriteJson) { Write-SectionModel -FileName '99-references.md' -Markdown (Get-Content -LiteralPath $refSrc -Raw) }
 }
 
 # ---------------------------------------------------------------------------
@@ -5444,5 +5497,12 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [99-references.md](99-references.md) | — | Blueprint's own API versions and modules |
 "@
 Write-Section 'index.md' $indexBody
+
+if ($script:WriteJson) {
+    # sections/index.json: every section in reading order.
+    $ordered = @($script:SectionIndex | Sort-Object @{ Expression = { if ($null -eq $_.order) { [int]::MaxValue } else { $_.order } } }, @{ Expression = { $_.id } })
+    [ordered]@{ schemaVersion = 1; meta = $script:SectionMeta; sections = $ordered } |
+        ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $script:SectionsRoot 'index.json') -Encoding utf8
+}
 
 Write-Information "✓ Renderer complete — output: $OutputRoot"

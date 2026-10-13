@@ -135,6 +135,7 @@ The read-only documentation generator.
 | --- | --- |
 | [Sentinel Blueprint](Tools/Blueprint/Sentinel-Blueprint.md) | Read-only daily inventory + gap-analysis that renders a Markdown documentation pack from a live workspace |
 | [Renderer Design](Tools/Blueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
+| [Section Model](Tools/Blueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
 | [References & Conventions](Tools/Blueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
 | [Maturity Model](Tools/Blueprint/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
 | [Health check cross-reference](Tools/Blueprint/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Blueprint, page by page, with the gap rule that covers it |

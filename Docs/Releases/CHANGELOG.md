@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint sections as JSON: the section model** - every run now writes
+  each section as `sections/<id>.json`, plus `sections/index.json`, in a
+  shape published as a JSON Schema (`Tools/Blueprint/Schemas/`): typed
+  blocks (heading, paragraph, list, table, note, chart, code, rule), text
+  as structured runs (bold, italic, code, links with a target that says
+  whether they point at a section, a finding, an anchor, a URL or a repo
+  path), and every chart as data (pie, sankey, xy, timeline, gantt,
+  mindmap, flowchart, sequence, state, class and journey) with its
+  Mermaid kept alongside. No Markdown in it. The renderer's new
+  `-OutputFormat` writes Markdown, Json or both (the default). See
+  `Docs/Tools/Blueprint/Section-Model.md`.
 - **The Documenter is now Blueprint** - the tool, its pipelines and its
   docs take the product's name. Folders: `Tools/Blueprint/`,
   `Tests/Blueprint/`, `Docs/Tools/Blueprint/`; `Documenter.psd1` is

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Tools/Blueprint/Schemas/section.schema.json",
+  "title": "Blueprint section",
+  "description": "One section of a Blueprint workspace assessment (sections/<id>.json): typed blocks, structured text runs and charts as data. No Markdown.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "title", "blocks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "description": "File name without extension, for example 20-analytics-rules or index." },
+    "order": { "type": ["integer", "null"], "description": "The number the id starts with; null for index." },
+    "title": { "type": ["string", "null"] },
+    "meta": {
+      "type": "object",
+      "description": "Facts about the run the section came from.",
+      "properties": {
+        "workspace": { "type": "string" },
+        "generatedUtc": { "type": ["string", "null"] },
+        "blueprintVersion": { "type": ["string", "null"] }
+      }
+    },
+    "blocks": { "$ref": "#/$defs/blocks" }
+  },
+  "$defs": {
+    "blocks": { "type": "array", "items": { "$ref": "#/$defs/block" } },
+    "runs": { "type": "array", "items": { "$ref": "#/$defs/run" } },
+    "run": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["text"],
+          "additionalProperties": false,
+          "properties": {
+            "text": { "type": "string" },
+            "bold": { "const": true },
+            "italic": { "const": true },
+            "code": { "const": true },
+            "strike": { "const": true },
+            "href": { "type": "string" },
+            "target": { "$ref": "#/$defs/target" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["break"],
+          "additionalProperties": false,
+          "properties": { "break": { "const": true } }
+        }
+      ]
+    },
+    "target": {
+      "type": "object",
+      "required": ["kind"],
+      "description": "What a link points at. section: another section (and an anchor in it); finding: a gap-analysis finding by id; anchor: a heading on the same page; external: a web URL; repo: a path in the repository.",
+      "properties": {
+        "kind": { "enum": ["section", "finding", "anchor", "external", "repo"] },
+        "section": { "type": "string" },
+        "anchor": { "type": ["string", "null"] },
+        "id": { "type": "string", "pattern": "^SAC-[A-Z]{2,4}-\\d{2}$" },
+        "path": { "type": "string" }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "enum": ["heading", "paragraph", "list", "table", "note", "chart", "code", "rule", "html"] } },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "heading" } } },
+          "then": { "required": ["level", "text", "anchor"], "properties": { "level": { "type": "integer", "minimum": 1, "maximum": 6 }, "text": { "$ref": "#/$defs/runs" }, "anchor": { "type": "string" } } } },
+        { "if": { "properties": { "type": { "const": "paragraph" } } },
+          "then": { "required": ["text"], "properties": { "text": { "$ref": "#/$defs/runs" } } } },
+        { "if": { "properties": { "type": { "const": "list" } } },
+          "then": {
+            "required": ["ordered", "items"],
+            "properties": {
+              "ordered": { "type": "boolean" },
+              "start": { "type": "integer" },
+              "items": { "type": "array", "items": { "type": "object", "required": ["text", "blocks"], "properties": { "text": { "$ref": "#/$defs/runs" }, "blocks": { "$ref": "#/$defs/blocks" } } } }
+            }
+          } },
+        { "if": { "properties": { "type": { "const": "table" } } },
+          "then": {
+            "required": ["columns", "rows"],
+            "properties": {
+              "columns": { "type": "array", "items": { "type": "object", "required": ["text"], "properties": { "text": { "$ref": "#/$defs/runs" }, "align": { "enum": ["left", "center", "right", null] } } } },
+              "rows": { "type": "array", "items": { "type": "array", "items": { "$ref": "#/$defs/runs" } } }
+            }
+          } },
+        { "if": { "properties": { "type": { "const": "note" } } },
+          "then": { "required": ["blocks"], "properties": { "blocks": { "$ref": "#/$defs/blocks" } } } },
+        { "if": { "properties": { "type": { "const": "chart" } } },
+          "then": {
+            "required": ["kind", "source"],
+            "properties": {
+              "kind": { "enum": ["pie", "sankey", "xy", "timeline", "gantt", "mindmap", "flowchart", "sequence", "state", "class", "journey", "other"] },
+              "title": { "type": ["string", "null"] },
+              "data": { "type": ["object", "null"], "description": "Chart data; its shape depends on kind (see Docs/Tools/Blueprint/Section-Model.md). null for kind other." },
+              "source": { "type": "string", "description": "The chart as Mermaid, for consumers that render Mermaid and for the Markdown export." }
+            }
+          } },
+        { "if": { "properties": { "type": { "const": "code" } } },
+          "then": { "required": ["text"], "properties": { "language": { "type": ["string", "null"] }, "text": { "type": "string" } } } },
+        { "if": { "properties": { "type": { "const": "html" } } },
+          "then": { "required": ["html"], "properties": { "html": { "type": "string" } } } }
+      ]
+    }
+  }
+}
