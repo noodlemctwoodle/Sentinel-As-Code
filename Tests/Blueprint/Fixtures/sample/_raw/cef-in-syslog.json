@@ -1,3 +1,3 @@
 [
-  { "Computer": "syslog-forwarder-01", "LogCount": 2310 }
+  {"Computer": "syslog-forwarder-01", "ProductVendor": "Palo Alto Networks-PAN-OS", "LogCount": 2310}
 ]

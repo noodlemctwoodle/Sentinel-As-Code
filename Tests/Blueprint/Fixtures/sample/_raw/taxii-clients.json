@@ -1,0 +1,13 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/threatIntelligence/main/taxiiClients/opensource-feed",
+    "name": "opensource-feed",
+    "properties": {
+      "friendlyName": "Open source feed",
+      "description": "Community indicators",
+      "collectionId": "107",
+      "pollingFrequency": "OnceAnHour",
+      "taxiiServer": "https://taxii.example.org/taxii2/"
+    }
+  }
+]

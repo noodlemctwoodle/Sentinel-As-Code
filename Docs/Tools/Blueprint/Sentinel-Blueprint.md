@@ -122,21 +122,21 @@ SecurityDocs/
     │   └── ...
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
-    ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
+    ├── 01-live-snapshot.md            workspace-at-a-glance, legacy features still in use, regenerated every run
     ├── 10-data-connectors.md          classic + CCF + synthesised effective view, Defender XDR unification
-    ├── 11-sentinel-health.md          SentinelHealth events (last 7 days)
+    ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
-    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene, agent dual-collection, noisy events, Syslog and SecurityEvent contributors
-    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics / XDR coverage by source, Entra ID table presence
-    ├── 15-incidents.md                incident MTTA/MTTR, incidents by rule, alert volume by severity and source
+    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene with vendors, SecurityEvent duplicates, noisy event IDs, Syslog and SecurityEvent contributors
+    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics per category / Azure Firewall categories / XDR coverage by source, Entra ID table presence
+    ├── 15-incidents.md                incident MTTA/MTTR, 7-day incident metrics, incidents and alert volumes by provider, incidents by rule
     ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures, Defender XDR custom detections
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
-    ├── 26-ueba.md                     UEBA configuration
-    ├── 27-threat-intelligence.md      indicator counts by source, indicators by type
-    ├── 28-detection-opportunities.md  tables with data but no detection, templates ready to enable
+    ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
+    ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
+    ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers, templates ready to enable
     ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
     ├── 35-parsers-functions.md
-    ├── 36-data-export.md              data export configuration
+    ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
     ├── 37-search-restore.md           search jobs / restore logs
     ├── 38-summary-rules.md            summary rules
     ├── 40-workbooks.md                saved workbooks + templates available
@@ -144,16 +144,16 @@ SecurityDocs/
     ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants, automation opportunities
     ├── 70-content-hub.md              installed solutions + repos
     ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
-    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
+    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, retention recommendations, silent tables by detection impact, classic (Data Collector API) tables
     ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
     ├── 83-data-collection.md          DCRs, DCEs, transforms
     ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if
-    ├── 85-rbac.md                     role assignments
-    ├── 86-subscription-context.md     subscription, tenant, RPs, locks, policy
-    ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace
-    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, usage evidence, migration candidates
+    ├── 85-rbac.md                     role assignments, by role, Sentinel and monitoring roles, high-privilege assignments
+    ├── 86-subscription-context.md     signed-in identity, subscription, tenant, RPs, locks, policy
+    ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace, agent heartbeat mix by OS and version
+    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, retention into the lake, ingestion validation, usage evidence, migration candidates
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
-    ├── 91-maturity-assessment.md     maturity by area, roadmap, quick wins, NIST CSF rollup
+    ├── 91-maturity-assessment.md     maturity scale, maturity by area, open gaps and their impact, roadmap, quick wins, NIST CSF rollup
     ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
     └── 99-references.md               blueprint's own API versions + modules (copied from Blueprint-References.md)
 ```
@@ -387,12 +387,28 @@ one of the eleven assessment areas (DET, PLT, COV, AUT, MON, INC, INV, TI,
 HNT, LOG, GOV). A rule that decides a maturity criterion on its own carries
 that criterion's id, so finding `SAC-DET-03` is the reason criterion
 `SAC-DET-03` is a Gap; rules with no criterion of their own take the next
-numbers in their area. Every rule keeps its retired `SENT-NNN` id as
-`legacyId` (catalogue 3.0.0); the SharePoint findings list recognises an
-item filed under the legacy id and moves it to the new id instead of
-resolving one finding and adding another.
+numbers in their area. Every rule written before catalogue 3.1.0 keeps
+its retired `SENT-NNN` id as `legacyId` (catalogue 3.0.0); the SharePoint
+findings list recognises an item filed under the legacy id and moves it
+to the new id instead of resolving one finding and adding another. Rules
+added from 3.1.0 never had a `SENT-NNN` id, so they carry no `legacyId`.
 
-The catalogue holds 59 rules. Version 2.3.0 added SAC-DET-14 (analytics rule
+The catalogue holds 66 rules. Version 3.1.0 added seven that close the
+remaining gaps against health-check build 38 (see
+[Health-Check-Coverage.md](Health-Check-Coverage.md)):
+
+| Rule | What it reads | Fires when |
+|---|---|---|
+| SAC-COV-08 Entity analytics not enabled | `settings.json`, `ueba-data-presence.json` | the EntityAnalytics settings carry no identity provider and `IdentityInfo` received no rows in 14 days |
+| SAC-LOG-19 Summary rules not in use | `summary-rules.json`, `tables-with-data.json` | no summary rule exists while one or more tables ingest 50 GB or more in 30 days |
+| SAC-LOG-20 Retention out of order | `workspace-tables.json` | a table's analytics retention is longer than its total retention |
+| SAC-LOG-21 Long retention nobody uses | `workspace-tables.json`, `rule-table-references.json`, `summary-rules.json`, `table-query-usage.json` | a table keeps data beyond its analytics retention (or is on the DataLake plan) and no enabled rule, summary rule, search or restore table, or audited query reads it |
+| SAC-LOG-22 SecurityEvent duplicates | `security-event-duplicates.json` | a host sent the same SecurityEvent record more than once in the last hour (two agents, or overlapping DCRs) |
+| SAC-LOG-23 CEF in Syslog | `cef-in-syslog.json` | CEF-formatted messages landed in `Syslog` instead of `CommonSecurityLog` in 7 days; the evidence lists every forwarder |
+| SAC-PLT-12 Query auditing off | `la-query-logs.json` | `LAQueryLogs` recorded no queries in 7 days |
+
+Each one stays quiet when the capture it reads is missing, so a failed
+call is never reported as a gap. Version 2.3.0 added SAC-DET-14 (analytics rule
 runs failing, from `SentinelHealth`). Version 2.2.0 added thirteen that port the
 checks from the Sentinel health-check script contributed to the project:
 

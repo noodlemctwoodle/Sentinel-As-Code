@@ -1,6 +1,6 @@
 {
   "$schema": "best-practices.schema.json",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "rules": [
     {
       "id": "SAC-LOG-03",
@@ -650,6 +650,76 @@
       "check": "Test-AnalyticsRuleRunFailures",
       "remediation": "A rule whose scheduled runs fail is a detection that has stopped without an alert. Open the rule's health events in SentinelHealth, read the recorded reason (query timeout, a table or column that no longer exists, a removed KQL function, a lookback that exceeds the limit), fix the query or the data it depends on, then confirm the next runs succeed. Enable the health data connector and an automation or alert on SentinelHealth failures so the next one is noticed on the day.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-analytics-rule-integrity"
+    },
+    {
+      "id": "SAC-COV-08",
+      "area": "COV",
+      "title": "Entity analytics not enabled",
+      "category": "Coverage",
+      "severity": "Info",
+      "check": "Test-EntityAnalyticsEnabled",
+      "remediation": "Turn on entity analytics in the Microsoft Sentinel settings (Entity behavior) and choose Microsoft Entra ID, plus Active Directory for hybrid identities, as the identity providers. IdentityInfo is then populated, and every incident carries who the account is, the groups it belongs to and how privileged it is.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics"
+    },
+    {
+      "id": "SAC-LOG-19",
+      "area": "LOG",
+      "title": "Summary rules not in use while high-volume tables are ingested",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-SummaryRulesInUse",
+      "remediation": "Create summary rules that aggregate the high-volume tables (for example CommonSecurityLog, Syslog or DeviceNetworkEvents) into compact summary tables on a schedule. Long-range queries, workbooks and detections then read the summary instead of the raw rows, and the raw table can move to a cheaper tier.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/summary-rules"
+    },
+    {
+      "id": "SAC-LOG-20",
+      "area": "LOG",
+      "title": "Table analytics retention is longer than its total retention",
+      "category": "Hygiene",
+      "severity": "Warning",
+      "check": "Test-RetentionOrder",
+      "remediation": "Total retention covers analytics retention plus any long-term (data lake) retention, so it must be at least the analytics retention. Set total retention to the period the data must be kept, and analytics retention to no more than that.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure"
+    },
+    {
+      "id": "SAC-LOG-21",
+      "area": "LOG",
+      "title": "Table kept in long-term retention with no usage evidence",
+      "category": "Cost",
+      "severity": "Info",
+      "check": "Test-LongRetentionUsage",
+      "remediation": "Confirm why each table is kept beyond its analytics retention: a regulatory or evidence-retention requirement justifies it, otherwise shorten the total retention. Nothing read it in the last 30 days: no enabled analytics rule, summary rule, search or restore job, or audited query.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/manage-data-overview"
+    },
+    {
+      "id": "SAC-LOG-22",
+      "area": "LOG",
+      "title": "SecurityEvent records duplicated (two agents or overlapping DCRs)",
+      "category": "Cost",
+      "severity": "Warning",
+      "check": "Test-SecurityEventDuplicates",
+      "remediation": "The same Windows security event arrived more than once from the hosts listed, so it is ingested and billed twice and can raise duplicate alerts. Remove the legacy Log Analytics agent where the Azure Monitor Agent is installed, and make sure only one data collection rule collects security events from each machine.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration"
+    },
+    {
+      "id": "SAC-LOG-23",
+      "area": "LOG",
+      "title": "CEF records landing in the Syslog table",
+      "category": "Hygiene",
+      "severity": "Warning",
+      "check": "Test-CefInSyslog",
+      "remediation": "Associate the forwarder with a Common Event Format data collection rule (CEF via AMA) so CEF messages are parsed into CommonSecurityLog, and exclude those facilities from the Syslog rule. Detections, parsers and workbooks for the device read CommonSecurityLog and miss these records today.",
+      "learn": "https://learn.microsoft.com/azure/sentinel/connect-cef-syslog-ama"
+    },
+    {
+      "id": "SAC-PLT-12",
+      "area": "PLT",
+      "title": "Query auditing (LAQueryLogs) not enabled",
+      "category": "Operational",
+      "severity": "Info",
+      "check": "Test-QueryAuditing",
+      "remediation": "Add a diagnostic setting on the workspace that sends the Audit category to the workspace itself. Every query is then recorded in LAQueryLogs, with who ran it and what it read, which is how access to sensitive data is reviewed and how lake usage is evidenced.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/query-audit"
     }
   ]
 }

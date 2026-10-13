@@ -26,7 +26,7 @@
         Sentinel              = '2024-09-01'         # GA — covers most artefacts
         SentinelPreview       = '2024-10-01-preview' # Content Hub product packages, summary rules, pricings
         OperationalInsights   = '2025-02-01'         # Workspace, replication, network ACL fields
-        Tables                = '2023-09-01'         # Table plan, retention, archive
+        Tables                = '2025-02-01'         # Table plan, retention, tableSubType; falls back to 2023-09-01
         DataCollection        = '2023-03-11'         # DCRs, DCEs, DCRA full JSON
     }
 

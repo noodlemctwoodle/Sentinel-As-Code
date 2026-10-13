@@ -431,9 +431,9 @@ assets root).
 | [`Tools/Blueprint/Private/Resources/mitre-attack.json`](../../../Tools/Blueprint/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Blueprint/Private/Resources/commitment-tiers.json`](../../../Tools/Blueprint/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~200 tests) |
-| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (74 tests) |
-| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (32 tests) |
+| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~225 tests) |
+| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (90 tests) |
+| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (33 tests) |
 | [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
 | [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |

@@ -73,8 +73,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.3.1
-    Last Updated:   2026-10-12
+    Version:        0.4.0
+    Last Updated:   2026-10-13
     Component:      Sentinel Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -139,7 +139,7 @@ $apiVersions = @{
     Sentinel              = '2024-09-01'
     SentinelPreview       = '2024-10-01-preview'
     OperationalInsights   = '2025-02-01'
-    Tables                = '2023-09-01'
+    Tables                = '2025-02-01'
     DataCollection        = '2023-03-11'
 }
 $blueprintVersion = '0.2.0'
@@ -265,6 +265,9 @@ $sentinelScope       = "$workspaceResourceId/providers/Microsoft.SecurityInsight
 $runContext = [pscustomobject]@{
     SubscriptionId    = $SubscriptionId
     TenantId          = $tenantId
+    # Who ran the collector: a user, a service principal or a managed identity.
+    Account           = [string]$ctx.Account.Id
+    AccountType       = [string]$ctx.Account.Type
     ResourceGroup     = $ResourceGroup
     WorkspaceName     = $WorkspaceName
     WorkspaceResourceId = $workspaceResourceId
@@ -287,7 +290,15 @@ Try-Capture 'workspace' {
 }
 
 Try-Capture 'workspace-tables' {
-    $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion $apiVersions.Tables
+    # 2025-02-01 carries schema.tableSubType (Classic or DCR-based),
+    # lastPlanModifiedDate and the *AsDefault retention flags. A region or
+    # cloud that does not serve it yet falls back to 2023-09-01.
+    try {
+        $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion $apiVersions.Tables
+    } catch {
+        Write-Warning "Tables API $($apiVersions.Tables) not served ($($_.Exception.Message)); falling back to 2023-09-01."
+        $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion '2023-09-01'
+    }
     Save-Json -FileName 'workspace-tables.json' -Data $tables
 }
 
@@ -514,10 +525,10 @@ Try-Capture 'ueba-data-presence' {
     # KQL skips the missing arm rather than throwing.
     $kql = @'
 union isfuzzy=true
-    (BehaviorAnalytics  | where TimeGenerated > ago(12d) | extend TableName = "BehaviorAnalytics"),
-    (IdentityInfo       | where TimeGenerated > ago(12d) | extend TableName = "IdentityInfo"),
-    (UserPeerAnalytics  | where TimeGenerated > ago(12d) | extend TableName = "UserPeerAnalytics")
-| summarize Count = count() by TableName
+    (BehaviorAnalytics  | where TimeGenerated > ago(14d) | extend TableName = "BehaviorAnalytics"),
+    (IdentityInfo       | where TimeGenerated > ago(14d) | extend TableName = "IdentityInfo"),
+    (UserPeerAnalytics  | where TimeGenerated > ago(14d) | extend TableName = "UserPeerAnalytics")
+| summarize Count = countif(TimeGenerated > ago(12d)), Count7d = countif(TimeGenerated > ago(7d)), Count14d = count() by TableName
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -756,6 +767,13 @@ Try-Capture 'linked-services' {
     Save-Json -FileName 'linked-services.json' -Data $ls
 }
 
+Try-Capture 'linked-storage-accounts' {
+    # Customer-owned storage the workspace writes to (custom logs, query
+    # results, alerts, ingestion), one entry per data source type.
+    $lsa = Invoke-SentinelRest -Path "$workspaceResourceId/linkedStorageAccounts" -ApiVersion '2020-08-01'
+    Save-Json -FileName 'linked-storage-accounts.json' -Data $lsa
+}
+
 Try-Capture 'solutions-installed' {
     $sols = Invoke-SentinelRest -Path "/subscriptions/$SubscriptionId/providers/Microsoft.OperationsManagement/solutions" -ApiVersion '2015-11-01-preview'
     $scoped = @($sols | Where-Object { $_.properties.workspaceResourceId -eq $workspaceResourceId })
@@ -885,9 +903,11 @@ Try-Capture 'sentinel-health' {
 SentinelHealth
 | where TimeGenerated > ago(7d)
 | summarize
-    Events    = count(),
-    LastEvent = max(TimeGenerated),
-    Statuses  = make_set(Status, 10)
+    Events      = count(),
+    LastEvent   = max(TimeGenerated),
+    Statuses    = make_set(Status, 10),
+    Failures    = countif(Status != "Success"),
+    LastFailure = maxif(TimeGenerated, Status != "Success")
     by SentinelResourceName, SentinelResourceKind, SentinelResourceType
 '@
     try {
@@ -925,9 +945,20 @@ let byClass  = inc
 | extend C = iff(isempty(Classification), "Unclassified", Classification)
 | summarize N = count() by C
 | summarize B = make_bag(bag_pack(C, N), 100);
+let byProvider = inc
+| extend P = iff(isempty(ProviderName), "Unknown", ProviderName)
+| summarize N = count() by P
+| summarize B = make_bag(bag_pack(P, N), 100);
+let isUnified = (p: string, a: string) { p in ("Microsoft 365 Defender", "Microsoft XDR") or a has_any ("Microsoft 365 Defender", "Microsoft XDR") };
 inc
-| summarize Count = count(), Closed = countif(Status == "Closed")
-| extend ByStatus = toscalar(byStatus), BySeverity = toscalar(bySev), ByClassification = toscalar(byClass)
+| extend Recent = TimeGenerated > ago(7d), IsUnified = isUnified(ProviderName, tostring(AdditionalData))
+| summarize Count = count(), Closed = countif(Status == "Closed"),
+    Unified = countif(IsUnified),
+    Count7d = countif(Recent), Closed7d = countif(Recent and Status == "Closed"),
+    FalsePositive7d = countif(Recent and Classification == "FalsePositive"),
+    TruePositive7d = countif(Recent and Classification == "TruePositive"),
+    Unified7d = countif(Recent and IsUnified)
+| extend ByStatus = toscalar(byStatus), BySeverity = toscalar(bySev), ByClassification = toscalar(byClass), ByProvider = toscalar(byProvider)
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -954,7 +985,10 @@ SecurityIncident
     ClosedCount       = count(),
     AcknowledgedCount = countif(isnotnull(AckMins)),
     MTTAMinutes       = avgif(AckMins, isnotnull(AckMins)),
-    MTTRMinutes       = avgif(RsvMins, isnotnull(RsvMins))
+    MTTRMinutes       = avgif(RsvMins, isnotnull(RsvMins)),
+    ClosedCount7d     = countif(TimeGenerated > ago(7d)),
+    MTTAMinutes7d     = avgif(AckMins, isnotnull(AckMins) and TimeGenerated > ago(7d)),
+    MTTRMinutes7d     = avgif(RsvMins, isnotnull(RsvMins) and TimeGenerated > ago(7d))
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1146,6 +1180,24 @@ Heartbeat
     }
 }
 
+# Agents by OS, agent category (Azure Monitor Agent, Direct Agent for MMA,
+# SCOM) and version over 7 days: the heartbeat mix behind the AMA migration.
+Try-Capture 'agent-heartbeat-mix' {
+    $kql = @'
+Heartbeat
+| where TimeGenerated > ago(7d)
+| extend OSVersion = strcat(OSName, " ", OSMajorVersion, ".", OSMinorVersion)
+| summarize Computers = dcount(Computer), LastSeen = max(TimeGenerated) by OSType, Category, Version, OSVersion
+| order by Computers desc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'agent-heartbeat-mix.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'agent-heartbeat-mix.json' -Data @()
+    }
+}
+
 Try-Capture 'data-exports' {
     $exports = Invoke-SentinelRest -Path "$workspaceResourceId/dataExports" -ApiVersion $apiVersions.OperationalInsights
     Save-Json -FileName 'data-exports.json' -Data $exports
@@ -1156,7 +1208,8 @@ Try-Capture 'threat-intel-counts' {
     $kql = @'
 union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
 | where TimeGenerated > ago(30d)
-| summarize Count = count(), Last = max(TimeGenerated) by SourceSystem = coalesce(SourceSystem, Source)
+| extend IndicatorKey = coalesce(tostring(column_ifexists("Id", "")), tostring(column_ifexists("IndicatorId", "")))
+| summarize Count = count(), Indicators = dcount(IndicatorKey), Last = max(TimeGenerated) by SourceSystem = coalesce(SourceSystem, Source)
 | order by Count desc
 '@
     try {
@@ -1177,6 +1230,63 @@ Try-Capture 'threat-intel-metrics' {
 }
 
 # Data-source hygiene checks. Four independent KQL captures driving section 13.
+# Records in each threat intelligence table, current and legacy, with the
+# first and last record in 30 days: the table migration status on page 27.
+# A table that exists but is empty still returns a row of zeros.
+Try-Capture 'threat-intel-tables' {
+    $kql = @'
+union isfuzzy=true
+    (ThreatIntelIndicators       | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelIndicators"),
+    (ThreatIntelObjects          | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelObjects"),
+    (ThreatIntelligenceIndicator | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelligenceIndicator")
+| project Table, Records30d, Records7d, FirstSeen, LastSeen
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'threat-intel-tables.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'threat-intel-tables.json' -Data @()
+    }
+}
+
+# Indicator health over 30 days, each indicator at its latest state: how
+# many are active, deleted, revoked and still within their validity.
+Try-Capture 'threat-intel-health' {
+    $kql = @'
+ThreatIntelIndicators
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by Id
+| summarize Total = count(),
+    Active = countif(IsActive == true and IsDeleted == false),
+    Deleted = countif(IsDeleted == true),
+    Revoked = countif(Revoked == true),
+    StillValid = countif(isnull(ValidUntil) or ValidUntil > now())
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'threat-intel-health.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'threat-intel-health.json' -Data @()
+    }
+}
+
+Try-Capture 'taxii-clients' {
+    # TAXII clients on the workspace's threat intelligence. The path is not in
+    # the published REST reference, so it is tried on three api-versions and a
+    # service that does not serve it leaves an empty list; the TI connectors
+    # stay the primary feed signal on page 27.
+    $clients = @()
+    foreach ($v in @($apiVersions.Sentinel, '2024-03-01', '2023-11-01')) {
+        try {
+            $clients = Invoke-SentinelRest -Path "$sentinelScope/threatIntelligence/main/taxiiClients" -ApiVersion $v
+            break
+        } catch {
+            $clients = @()
+        }
+    }
+    Save-Json -FileName 'taxii-clients.json' -Data $clients
+}
+
 Try-Capture 'cef-devices' {
     $kql = @'
 CommonSecurityLog
@@ -1197,8 +1307,10 @@ Try-Capture 'cef-in-syslog' {
     $kql = @'
 Syslog
 | where TimeGenerated > ago(7d)
-| where SyslogMessage startswith "0|"
-| summarize LogCount = count() by Computer
+| where SyslogMessage startswith "0|" or SyslogMessage startswith "CEF:"
+| extend Parts = split(SyslogMessage, "|")
+| extend ProductVendor = strcat(tostring(Parts[1]), "-", tostring(Parts[2]))
+| summarize LogCount = count() by Computer, ProductVendor
 | top 50 by LogCount
 '@
     try {
@@ -1220,10 +1332,10 @@ let DuplicateEvents = SecurityEvents
 | where count_ > 1;
 let SumPerComputer = DuplicateEvents | summarize LogCount = sum(count_) by Computer;
 DuplicateEvents
-| summarize DuplicateEventIds = make_set(EventID, 100) by Computer
-| top 30 by array_length(DuplicateEventIds)
+| summarize DuplicateEventIds = make_set(EventID, 100), DuplicateRecords = count() by Computer
+| top 30 by DuplicateRecords
 | lookup SumPerComputer on Computer
-| project Computer, LogCount, DuplicateEventIds
+| project Computer, DuplicateRecords, LogCount, DuplicateEventIds
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1288,11 +1400,11 @@ Try-Capture 'top-event-ids' {
 find withsource = TableName1 in (Event, SecurityEvent)
     where TimeGenerated > ago(7d) project _BilledSize, _IsBillable, Computer, _ResourceId, EventID, Activity, RenderedDescription
 | where _IsBillable == true
-| summarize ["BilledSizeGB"] = round(sum(_BilledSize)/1000/1000/1000, 3) by TableName = TableName1, EventID, Activity, RenderedDescription
+| summarize ["BilledSizeGB"] = round(sum(_BilledSize)/1000/1000/1000, 3), LogCount = count() by TableName = TableName1, EventID, Activity, RenderedDescription
 | extend EventDescription = iif(isempty(Activity), RenderedDescription, Activity)
 | project-away RenderedDescription, Activity
-| project-reorder TableName, EventID, EventDescription, BilledSizeGB
-| top 10 by BilledSizeGB desc
+| project-reorder TableName, EventID, EventDescription, BilledSizeGB, LogCount
+| top 15 by BilledSizeGB desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1309,7 +1421,8 @@ Try-Capture 'analytics-rule-volumes' {
     $kql = @'
 SecurityAlert
 | where TimeGenerated > ago(30d)
-| summarize Alerts = count() by AlertName, ProductName, AlertSeverity
+| summarize Alerts = count(), Alerts7d = countif(TimeGenerated > ago(7d)), ProviderName = take_any(ProviderName)
+    by AlertName, ProductName, AlertSeverity
 | order by Alerts desc
 | take 500
 '@
@@ -1422,6 +1535,27 @@ AzureDiagnostics
         Save-Json -FileName 'azure-diagnostics-categories.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'azure-diagnostics-categories.json' -Data @()
+    }
+}
+
+# Azure Firewall rows by category, legacy (AzureFirewall*) and
+# resource-specific (AZFW*), asked for by name so a small legacy category
+# is not lost below the top 100 of azure-diagnostics-categories.
+Try-Capture 'azure-firewall-categories' {
+    $kql = @'
+AzureDiagnostics
+| where TimeGenerated > ago(7d)
+| where Category in ("AzureFirewallApplicationRule", "AzureFirewallNetworkRule", "AzureFirewallDnsProxy",
+                     "AZFWApplicationRule", "AZFWNetworkRule", "AZFWDnsQuery", "AZFWNatRule",
+                     "AZFWThreatIntel", "AZFWIdpsSignature")
+| summarize LogCount = count() by Category
+| order by Category asc
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        Save-Json -FileName 'azure-firewall-categories.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'azure-firewall-categories.json' -Data @()
     }
 }
 

@@ -52,8 +52,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.4.0
-    Last Updated: 2026-10-12
+    Version:      0.5.0
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -215,6 +215,11 @@ function New-InventoryFromRaw {
         IncidentsSummary       = Read-JsonArray 'incidents-summary.json'
         AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
         ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'
+        SummaryRules           = Read-JsonArray 'summary-rules.json'
+        SecurityEventDuplicates = Read-JsonArray 'security-event-duplicates.json'
+        CefInSyslog            = Read-JsonArray 'cef-in-syslog.json'
+        LaQueryLogs            = Read-JsonArray 'la-query-logs.json'
+        TableQueryUsage        = Read-JsonArray 'table-query-usage.json'
         MitreTactics           = @((Read-Resource 'mitre-attack.json').tactics)
         MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
         SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'

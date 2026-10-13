@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/dataExports/export-to-eventhub",
+    "name": "export-to-eventhub",
+    "properties": {
+      "dataExportId": "11111111-2222-3333-4444-555555555555",
+      "enable": true,
+      "tableNames": [
+        "SecurityEvent",
+        "Syslog"
+      ],
+      "destination": {
+        "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.EventHub/namespaces/eh-sentinel-export",
+        "type": "EventHub"
+      }
+    }
+  }
+]

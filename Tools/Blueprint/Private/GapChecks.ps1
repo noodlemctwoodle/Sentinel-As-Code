@@ -20,8 +20,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.3.0
-    Last Updated:   2026-10-12
+    Version:        0.4.0
+    Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
 
@@ -62,8 +62,10 @@ function Get-PropOrDefault {
         if ($null -eq $current) { return $Default }
         if ($current -is [hashtable] -and $current.ContainsKey($segment)) {
             $current = $current[$segment]
-        } elseif ($current.PSObject.Properties.Name -contains $segment) {
-            $current = $current.$segment
+        } elseif ($null -ne $current.PSObject.Properties[$segment]) {
+            # The indexer, not .Properties.Name: an empty JSON object has no
+            # properties, and member enumeration over none throws in strict mode.
+            $current = $current.PSObject.Properties[$segment].Value
         } else {
             return $Default
         }
@@ -1493,4 +1495,151 @@ function Test-AnalyticsRuleRunFailures {
             }
         })
     }
+}
+
+# ------------------------------------------------------------
+# SAC-COV-08, Entity analytics not enabled
+# ------------------------------------------------------------
+function Test-EntityAnalyticsEnabled {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # Two signals: identity providers on the EntityAnalytics settings
+    # resource, and IdentityInfo rows. Either capture missing is unknown.
+    if ($Inventory.RawFiles -notcontains 'settings.json' -or $Inventory.RawFiles -notcontains 'ueba-data-presence.json') { return $null }
+    $providers = @(Get-PropOrDefault $Inventory.Settings 'EntityAnalytics.properties.entityProviders' @() | Where-Object { $_ })
+    if ($providers.Count -gt 0) { return $null }
+    $identity = @($Inventory.UebaDataPresence | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'TableName' '') -eq 'IdentityInfo' }) | Select-Object -First 1
+    $rows = if ($identity) { _ToInt (Get-PropOrDefault $identity 'Count14d' (Get-PropOrDefault $identity 'Count' 0)) } else { 0 }
+    if ($rows -gt 0) { return $null }
+    return New-Finding -Evidence 'Entity analytics has no identity provider configured and IdentityInfo received no rows in the last 14 days, so incidents carry no account or group context.' -Detail @{ Providers = @(); IdentityInfoRows = 0 }
+}
+
+# Billable GB in 30 days per table, summed over the per-solution rows.
+function _GetTableVolumes30d {
+    param([object]$Inventory)
+    $gb = @{}
+    foreach ($row in @($Inventory.TablesWithData)) {
+        if ($null -eq $row) { continue }
+        $t = [string](Get-PropOrDefault $row 'DataType' '')
+        if (-not $t) { continue }
+        $gb[$t] = ($(if ($gb.ContainsKey($t)) { $gb[$t] } else { 0.0 })) + (_GetBillable30d $row)
+    }
+    return $gb
+}
+
+# ------------------------------------------------------------
+# SAC-LOG-19, Summary rules not in use while high-volume tables are ingested
+# ------------------------------------------------------------
+function Test-SummaryRulesInUse {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if ($Inventory.RawFiles -notcontains 'summary-rules.json') { return $null }
+    if (@($Inventory.SummaryRules | Where-Object { $null -ne $_ }).Count -gt 0) { return $null }
+    $threshold = 50.0
+    $volumes = _GetTableVolumes30d $Inventory
+    $big = @($volumes.GetEnumerator() | Where-Object { $_.Value -ge $threshold } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key)
+    if ($big.Count -eq 0) { return $null }
+    $names = @($big | ForEach-Object { "$($_.Key) ($([math]::Round($_.Value, 1)) GB)" })
+    return New-Finding -Evidence "No summary rules are configured, while $($big.Count) table(s) ingest $threshold GB or more in 30 days: $($names -join ', ')." -Detail @{ Tables = @($big | ForEach-Object { [pscustomobject]@{ Table = $_.Key; Gb30d = [math]::Round($_.Value, 2) } }) }
+}
+
+# ------------------------------------------------------------
+# SAC-LOG-20, Analytics retention longer than total retention
+# ------------------------------------------------------------
+function Test-RetentionOrder {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if ($Inventory.RawFiles -notcontains 'workspace-tables.json') { return $null }
+    $bad = @($Inventory.WorkspaceTables | Where-Object { $null -ne $_ } | ForEach-Object {
+        $analytics = _ToInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
+        $total = _ToInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
+        if ($analytics -gt 0 -and $total -gt 0 -and $analytics -gt $total) {
+            [pscustomobject]@{ Table = [string](Get-PropOrDefault $_ 'name' ''); AnalyticsDays = $analytics; TotalDays = $total }
+        }
+    } | Sort-Object Table)
+    if ($bad.Count -eq 0) { return $null }
+    $names = @($bad | ForEach-Object { "$($_.Table) (analytics $($_.AnalyticsDays) days, total $($_.TotalDays) days)" })
+    return New-Finding -Evidence "$($bad.Count) table(s) have analytics retention longer than total retention: $($names -join ', ')." -Detail @{ Tables = $bad }
+}
+
+# ------------------------------------------------------------
+# SAC-LOG-21, Long-term retention with no usage evidence
+# ------------------------------------------------------------
+function Test-LongRetentionUsage {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    # Audited queries are one of the four signals; without them every table
+    # would look unused, so the check needs that capture and the rule map.
+    if ($Inventory.RawFiles -notcontains 'table-query-usage.json' -or $Inventory.RawFiles -notcontains 'rule-table-references.json') { return $null }
+    $long = @($Inventory.WorkspaceTables | Where-Object { $null -ne $_ } | Where-Object {
+        $analytics = _ToInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
+        $total = _ToInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
+        ([string](Get-PropOrDefault $_ 'properties.plan' '')) -eq 'DataLake' -or $total -gt $analytics
+    })
+    if ($long.Count -eq 0) { return $null }
+    $readByRule = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($ref in @($Inventory.RuleTableReferences)) {
+        if ($null -eq $ref -or -not (_ToBool (Get-PropOrDefault $ref 'Enabled' $false))) { continue }
+        foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) { if ($t) { [void]$readByRule.Add([string]$t) } }
+    }
+    $summaryQueries = @($Inventory.SummaryRules | Where-Object { $null -ne $_ } | ForEach-Object {
+        [string](Get-PropOrDefault $_ 'properties.ruleDefinition.query' (Get-PropOrDefault $_ 'properties.query' ''))
+    })
+    $derived = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($t in @($Inventory.WorkspaceTables)) {
+        $n = [string](Get-PropOrDefault $t 'name' '')
+        if ($n -match '^(.+?)_(SRCH|RST|KQL_CL)$') { [void]$derived.Add($Matches[1]) }
+    }
+    $queried = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($row in @($Inventory.TableQueryUsage)) {
+        if ($null -ne $row -and (_ToInt (Get-PropOrDefault $row 'Queries' 0)) -gt 0) { [void]$queried.Add([string](Get-PropOrDefault $row 'Table' '')) }
+    }
+    $unused = @($long | Where-Object {
+        $n = [string](Get-PropOrDefault $_ 'name' '')
+        $inSummary = [bool]($summaryQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($n) + '\b') } | Select-Object -First 1)
+        -not ($readByRule.Contains($n) -or $inSummary -or $derived.Contains($n) -or $queried.Contains($n))
+    } | ForEach-Object {
+        [pscustomobject]@{ Table = [string]$_.name; TotalDays = _ToInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0); Plan = [string](Get-PropOrDefault $_ 'properties.plan' '') }
+    } | Sort-Object Table)
+    if ($unused.Count -eq 0) { return $null }
+    $names = @($unused | ForEach-Object { "$($_.Table) ($($_.TotalDays) days total)" })
+    return New-Finding -Evidence "$($unused.Count) table(s) keep data beyond their analytics retention with no enabled rule, summary rule, search or restore job, or audited query reading them: $($names -join ', ')." -Detail @{ Tables = $unused }
+}
+
+# ------------------------------------------------------------
+# SAC-LOG-22, SecurityEvent records duplicated
+# ------------------------------------------------------------
+function Test-SecurityEventDuplicates {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if ($Inventory.RawFiles -notcontains 'security-event-duplicates.json') { return $null }
+    $hosts = @($Inventory.SecurityEventDuplicates | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })
+    if ($hosts.Count -eq 0) { return $null }
+    $names = @($hosts | ForEach-Object {
+        $n = Get-PropOrDefault $_ 'DuplicateRecords' $null
+        if ($null -ne $n) { "$([string]$_.Computer) ($(_ToInt $n) duplicated events)" } else { [string]$_.Computer }
+    })
+    return New-Finding -Evidence "$($hosts.Count) host(s) sent the same SecurityEvent record more than once in the last hour: $($names -join ', ')." -Detail @{ Hosts = @($hosts | ForEach-Object { [string]$_.Computer }) }
+}
+
+# ------------------------------------------------------------
+# SAC-LOG-23, CEF records landing in the Syslog table
+# ------------------------------------------------------------
+function Test-CefInSyslog {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if ($Inventory.RawFiles -notcontains 'cef-in-syslog.json') { return $null }
+    $rows = @($Inventory.CefInSyslog | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })
+    if ($rows.Count -eq 0) { return $null }
+    $byHost = @($rows | Group-Object { [string]$_.Computer } | ForEach-Object {
+        [pscustomobject]@{ Computer = $_.Name; Records = (@($_.Group | ForEach-Object { _ToInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum }
+    } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
+    $names = @($byHost | ForEach-Object { "$($_.Computer) ($($_.Records) records)" })
+    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last 7 days, from $($byHost.Count) forwarder(s): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
+}
+
+# ------------------------------------------------------------
+# SAC-PLT-12, Query auditing (LAQueryLogs) not enabled
+# ------------------------------------------------------------
+function Test-QueryAuditing {
+    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    if ($Inventory.RawFiles -notcontains 'la-query-logs.json') { return $null }
+    $row = @($Inventory.LaQueryLogs | Where-Object { $null -ne $_ }) | Select-Object -First 1
+    $count = if ($row) { _ToInt (Get-PropOrDefault $row 'QueryCount' 0) } else { 0 }
+    if ($count -gt 0) { return $null }
+    return New-Finding -Evidence 'LAQueryLogs recorded no queries in the last 7 days: query auditing is not enabled on the workspace, so nobody can see who searched which data.' -Detail @{ QueryCount7d = $count }
 }

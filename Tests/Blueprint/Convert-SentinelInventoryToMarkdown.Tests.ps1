@@ -129,7 +129,7 @@ Describe 'Sentinel Blueprint renderer' {
         }
 
         It 'carries the maturity headline and links to the new pages' {
-            $script:overview | Should -Match '\*\*Maturity:\*\* 1\.49 / 5 \(Initial\)'
+            $script:overview | Should -Match '\*\*Maturity:\*\* 1\.59 / 5 \(Initial\)'
             $script:overview | Should -Match '\(28-detection-opportunities\.md\)'
             $script:overview | Should -Match '\(91-maturity-assessment\.md\)'
         }
@@ -146,12 +146,19 @@ Describe 'Sentinel Blueprint renderer' {
         }
 
         It 'lists the highest-volume uncovered table first with no suggestion' {
-            $script:opp | Should -Match '\| FirewallLogs_CL \| 2000 \|  \| 0 \|'
+            $script:opp | Should -Match '\| Table \| Gb30d \| TemplateCount \| Templates \|'
+            $script:opp | Should -Match '\| FirewallLogs_CL \| 2000 \| 0 \|\s+\|'
         }
 
         It 'suggests the undeployed template for OfficeActivity and never the deprecated one' {
-            $script:opp | Should -Match '\| OfficeActivity \| 400 \| Data exfiltration \| 0 \|'
+            $script:opp | Should -Match '\| OfficeActivity \| 400 \| 1 \| Data exfiltration \|'
             $script:opp | Should -Not -Match 'Deprecated\] Firewall'
+        }
+
+        It 'lists the tables no template covers in their own subsection' {
+            $script:opp | Should -Match '## Tables with no template available[\s\S]*\| FirewallLogs_CL \| 2000 \|[\s\S]*\| LegacyCLv1_CL \| 10 \|[\s\S]*## Undeployed templates ready to enable'
+            $section = ($script:opp -split '## Tables with no template available')[1] -split '## Undeployed templates' | Select-Object -First 1
+            $section | Should -Not -Match '\| OfficeActivity \|'
         }
 
         It 'does not list a table an enabled rule already reads' {
@@ -170,7 +177,7 @@ Describe 'Sentinel Blueprint renderer' {
 
         It 'names the methodology and the headline score' {
             $script:mat | Should -Match 'Sentinel-As-Code maturity assessment'
-            $script:mat | Should -Match '\*\*Overall:\*\* 1\.49 / 5 \(Initial\)'
+            $script:mat | Should -Match '\*\*Overall:\*\* 1\.59 / 5 \(Initial\)'
             $script:mat | Should -Match '\*\*Target:\*\* 3 \(Established\)'
         }
 
@@ -183,7 +190,7 @@ Describe 'Sentinel Blueprint renderer' {
             $script:mat | Should -Match '## Roadmap'
             $script:mat | Should -Match '\| 1 \| SAC-INV-02 '
             $script:mat | Should -Match '## Quick wins[\s\S]*- \*\*SAC-INV-02\*\*'
-            $script:mat | Should -Match '\| DE Detect \| 30 \| 11 \| 19 \| 0 \|'
+            $script:mat | Should -Match '\| DE Detect \| 30 \| 12 \| 18 \| 0 \|'
             # the criterion shares its id with the daily-cap finding, which fired, so the id links to it
             $script:mat | Should -Match '\| \[SAC-LOG-03\]\(90-gap-analysis\.md#sac-log-03\) \| LOG \| practice \| A daily cap is set \| 🔴 Gap \|'
         }
@@ -223,7 +230,7 @@ Describe 'Sentinel Blueprint renderer' {
 
         It 'carries the estate flow and the maturity row' {
             $script:liveSnap | Should -Match 'sankey-beta'
-            $script:liveSnap | Should -Match '\| Maturity \(overall / target\) \| 1\.49 / 3 \(Initial, target Established\) \|'
+            $script:liveSnap | Should -Match '\| Maturity \(overall / target\) \| 1\.59 / 3 \(Initial, target Established\) \|'
             $script:liveSnap | Should -Match '\(91-maturity-assessment\.md\)'
         }
     }
@@ -1038,7 +1045,7 @@ Describe 'Sentinel Blueprint renderer' {
         }
 
         It 'lists BehaviorAnalytics with its row count' {
-            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 1247 \|'
+            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 790 \| 1247 \| 1402 \|'
         }
     }
 
@@ -1390,5 +1397,142 @@ Describe 'Sentinel Blueprint renderer - bookmarks on the hunting page' {
 
     It 'falls back to the service-reported count when the list was too large' {
         $script:bmCount | Should -Match '## Bookmarks[\s\S]*\*\*350 bookmarks\*\* exist'
+    }
+}
+
+Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
+
+    BeforeAll {
+        $script:hcRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-hc38-$(New-Guid)"
+        $page = { param($Root, $Name) Get-Content (Join-Path $Root $Name) -Raw }
+
+        # The sample as it is, and two copies: one taken before the newer
+        # captures existed, one with a table kept in the lake beyond its
+        # analytics retention.
+        $full = Join-Path $script:hcRoot 'full'
+        $old = Join-Path $script:hcRoot 'old'
+        $lake = Join-Path $script:hcRoot 'lake'
+        foreach ($dir in $full, $old, $lake) {
+            New-Item -ItemType Directory -Path (Join-Path $dir '_raw') -Force | Out-Null
+            Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $dir '_raw')
+        }
+        foreach ($name in 'linked-storage-accounts.json', 'agent-heartbeat-mix.json', 'threat-intel-tables.json', 'threat-intel-health.json', 'taxii-clients.json', 'azure-firewall-categories.json') {
+            Remove-Item (Join-Path $old "_raw/$name") -Force
+        }
+        $inc = Get-Content (Join-Path $old '_raw/incidents-summary.json') -Raw | ConvertFrom-Json
+        $inc[0].PSObject.Properties.Remove('Count7d'); $inc[0].PSObject.Properties.Remove('ByProvider')
+        ConvertTo-Json -InputObject @($inc) -Depth 8 | Set-Content (Join-Path $old '_raw/incidents-summary.json')
+        $tables = Get-Content (Join-Path $lake '_raw/workspace-tables.json') -Raw | ConvertFrom-Json
+        ($tables | Where-Object name -eq 'AuditLogs').properties.totalRetentionInDays = 365
+        ConvertTo-Json -InputObject @($tables) -Depth 16 | Set-Content (Join-Path $lake '_raw/workspace-tables.json')
+
+        foreach ($pair in @(@($full, 'law-hc-full'), @($old, 'law-hc-old'), @($lake, 'law-hc-lake'))) {
+            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        }
+        $script:hc = @{}
+        foreach ($n in '01-live-snapshot', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene', '14-coverage-breakdowns', '15-incidents', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention', '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '91-maturity-assessment') {
+            $script:hc[$n] = & $page $full "$n.md"
+        }
+        $script:hcOld = @{}
+        foreach ($n in '14-coverage-breakdowns', '15-incidents', '27-threat-intelligence', '36-data-export', '87-azure-monitor-agents') {
+            $script:hcOld[$n] = & $page $old "$n.md"
+        }
+        $script:hcLake = & $page $lake '88-sentinel-data-lake.md'
+    }
+
+    AfterAll {
+        if ($script:hcRoot -and (Test-Path $script:hcRoot)) { Remove-Item -Recurse -Force -Path $script:hcRoot -ErrorAction SilentlyContinue }
+    }
+
+    It 'adds continuous exports, linked storage accounts and ADX clusters to the data export page' {
+        $hc['36-data-export'] | Should -Match '## Continuous data exports[\s\S]*\| export-to-eventhub \| Event Hub \|'
+        $hc['36-data-export'] | Should -Match '## Linked storage accounts[\s\S]*\| CustomLogs \| stsentinellogs \|'
+        $hc['36-data-export'] | Should -Match '## ADX clusters linked to the workspace[\s\S]*\| adxsentinelarchive \|'
+    }
+
+    It 'names the identity the collector ran as' {
+        $hc['86-subscription-context'] | Should -Match '## Signed-in identity[\s\S]*\| Type \| ServicePrincipal \|'
+    }
+
+    It 'breaks the RBAC page down by role, Sentinel roles and high-privilege roles' {
+        $hc['85-rbac'] | Should -Match '## Assignments by role[\s\S]*\| Owner \| 1 \| 0 \| 1 \| 0 \|'
+        $hc['85-rbac'] | Should -Match '## Microsoft Sentinel role assignments[\s\S]*\| Sentinel SOC Reader \|'
+        $hc['85-rbac'] | Should -Match '## Log Analytics and monitoring role assignments\s+_No Log Analytics or monitoring role'
+        $hc['85-rbac'] | Should -Match '## High-privilege assignments[\s\S]*\| ci-deployer-sp \|\s+\| ServicePrincipal \| Contributor \|'
+    }
+
+    It 'shows all three retention checks with their outcome' {
+        $hc['81-table-plans-retention'] | Should -Match '## Retention recommendations[\s\S]*\| Default retention covers the free 90 days \| Action needed \|'
+        $hc['81-table-plans-retention'] | Should -Match '\| Long retention is set per table \| OK \|'
+    }
+
+    It 'lists the agent heartbeat mix with the legacy agent named' {
+        $hc['87-azure-monitor-agents'] | Should -Match '## Agent heartbeat mix[\s\S]*\| Windows \| Azure Monitor Agent \| 1\.30\.0\.0 \|'
+        $hc['87-azure-monitor-agents'] | Should -Match '\| Windows \| Direct Agent \(MMA, legacy\) \| 10\.20\.18069\.0 \|'
+    }
+
+    It 'adds the TI table migration status, indicator health, indicators by source and TAXII clients' {
+        $ti = $hc['27-threat-intelligence']
+        $ti | Should -Match '## Table migration status\s+\*\*Current\.\*\*'
+        $ti | Should -Match '\| ThreatIntelligenceIndicator \(retired\) \| 0 \| 0 \|\s+\|\s+\| No data in 30 days \|'
+        $ti | Should -Match '## Indicator health \(last 30d\)[\s\S]*\| Revoked \| 12 \|'
+        $ti | Should -Match '## Indicators by source \(last 30d\)[\s\S]*\| Microsoft Defender Threat Intelligence \| 4200 \| 1180 \|'
+        $ti | Should -Match '### TAXII clients[\s\S]*\| Open source feed \| 107 \| OnceAnHour \|'
+    }
+
+    It 'adds the 7-day incident metrics, incidents by provider and alert volumes by provider' {
+        $hc['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*\| Incidents \| 14 \|[\s\S]*\| Raised through Defender XDR \(unified\) \| 5 \|[\s\S]*\| MTTA \(incidents closed in the window\) \| 60\.5 min \|'
+        $hc['15-incidents'] | Should -Match '## Incidents by provider \(last 30d\)[\s\S]*\| Microsoft XDR \| 12 \|'
+        $hc['15-incidents'] | Should -Match '## Alert volumes by provider \(last 7d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 4 \|'
+    }
+
+    It 'shows unified incidents and legacy alert paths on the unification table' {
+        $hc['10-data-connectors'] | Should -Match '\| Incidents raised through Defender XDR \(7d\) \| 5 of 14 \|'
+        $hc['10-data-connectors'] | Should -Match '\| Alerts under the retired Azure Security Center name \(30d\) \| 0 \|'
+    }
+
+    It 'lists connectors that reported health failures, with the failure count' {
+        $hc['11-sentinel-health'] | Should -Match '## Connector and DCR health issues \(last 7d\)[\s\S]*\| Office 365 \| Office365 \| 6 \| 2026-05-05 22:00 \|'
+    }
+
+    It 'adds AzureDiagnostics by category and both forms of Azure Firewall logging' {
+        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 7d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9000 \|'
+        $hc['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 7d\)\s+\*\*Collected twice\.\*\*'
+        $hc['14-coverage-breakdowns'] | Should -Match '\| AZFWNetworkRule \|'
+    }
+
+    It 'adds the CEF vendor, duplicate record and event record columns to the hygiene page' {
+        $hc['13-data-source-hygiene'] | Should -Match '\| syslog-forwarder-01 \| Palo Alto Networks-PAN-OS \| 2310 \|'
+        $hc['13-data-source-hygiene'] | Should -Match '\| dc01\.contoso\.local \| 310 \| 1248 \|'
+        $hc['13-data-source-hygiene'] | Should -Match '\| 4624 \| An account was successfully logged on \| 612340 \| 18\.234 \|'
+    }
+
+    It 'reports entity analytics beside UEBA' {
+        $hc['26-ueba'] | Should -Match '## Entity analytics[\s\S]*\| IdentityInfo rows \(14d\) \| 360 \|[\s\S]*\| Entity analytics \| Enabled \|'
+    }
+
+    It 'explains the maturity scale and lists every open gap with its impact' {
+        $hc['91-maturity-assessment'] | Should -Match '## Maturity scale[\s\S]*\| 3 \| Established \| 3\.00 to 3\.99 \| Target \|'
+        $hc['91-maturity-assessment'] | Should -Match '## Open gaps and their impact[\s\S]*SAC-DET-03'
+        $hc['91-maturity-assessment'] | Should -Not -Match 'Top 20 of'
+    }
+
+    It 'summarises the legacy features still in use on the live snapshot' {
+        $hc['01-live-snapshot'] | Should -Match '## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 August 2024 \| In use \| 8 machine'
+        $hc['01-live-snapshot'] | Should -Match '\| Retired ThreatIntelligenceIndicator table \(ingestion\) \| Not in use \|'
+    }
+
+    It 'says a newer capture was not taken rather than claiming there is nothing' {
+        $hcOld['36-data-export'] | Should -Match '## Linked storage accounts[\s\S]*?_Not captured in this snapshot\._'
+        $hcOld['87-azure-monitor-agents'] | Should -Match '## Agent heartbeat mix[\s\S]*?_Not captured in this snapshot\._'
+        $hcOld['27-threat-intelligence'] | Should -Match '## Table migration status\s+_Not captured in this snapshot\._'
+        $hcOld['27-threat-intelligence'] | Should -Match '### TAXII clients[\s\S]*?_Not captured in this snapshot\._'
+        $hcOld['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*?_Not captured in this snapshot\._'
+        $hcOld['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 7d\)\s+_Not captured in this snapshot\._'
+    }
+
+    It 'lists every table whose retention rolls into the lake and checks each is still fed' {
+        $hcLake | Should -Match '## Retention that rolls into the lake[\s\S]*\| AuditLogs \| Analytics \| 30 \| 335 \| 365 \|'
+        $hcLake | Should -Match '## Ingestion validation[\s\S]*\| AuditLogs \| Analytics \| 335 \|[^\n]*\| Check: '
     }
 }

@@ -121,6 +121,19 @@ Top 10 tables by Lake-only retention days (the portion of total retention
 that bills against the Lake-storage meter). Renders only when at least
 one table has `totalRetentionInDays > retentionInDays`.
 
+Below the chart, a table lists every table whose retention rolls into the
+lake (not only the ten in the chart) with its plan, analytics, lake-only
+and total retention days, billable GB over 90 days and the number of
+enabled rules that read it.
+
+"Ingestion validation" then asks whether each of those tables is still
+being fed. It reads the last ingestion time from `tables-with-data.json`
+(the `Usage` table over 90 days) and marks a table "OK: ingesting", or
+"Check" when it had no data in 90 days or its last record is more than 7
+days old. A table kept for years that stopped receiving data is paying to
+retain history nobody is adding to. The idea comes from health-check
+build 38.
+
 ### 7. Lake-only tables
 
 Explicit `plan = DataLake` table list with retention columns. When empty,

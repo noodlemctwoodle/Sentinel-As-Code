@@ -400,6 +400,24 @@ Describe 'Sentinel gap-analysis engine' {
             $f.Evidence | Should -Match 'single feed \(MicrosoftThreatIntelligence\)'
         }
 
+        It 'fires SAC-LOG-22 because dc01 sent 310 SecurityEvent records more than once' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-22'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'dc01\.contoso\.local \(310 duplicated events\)'
+        }
+
+        It 'fires SAC-LOG-23 because a forwarder put CEF messages into Syslog' {
+            $f = $findings | Where-Object Id -eq 'SAC-LOG-23'
+            $f.Count | Should -Be 1
+            $f.Evidence | Should -Match 'syslog-forwarder-01 \(2310 records\)'
+        }
+
+        It 'does not fire the newer rules the sample satisfies' {
+            foreach ($id in 'SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-PLT-12') {
+                ($findings | Where-Object Id -eq $id).Count | Should -Be 0 -Because "$id passes on the sample"
+            }
+        }
+
         It 'fires SAC-LOG-06 because AzureFirewall* categories and the AZFWNetworkRule table both carry data' {
             $f = $findings | Where-Object Id -eq 'SAC-LOG-06'
             $f.Count | Should -Be 1
@@ -531,13 +549,18 @@ Describe 'Sentinel gap-analysis rule catalogue' {
 
     It 'names every rule in the maturity id scheme, uniquely' {
         $ids = @($script:catalogue.rules | ForEach-Object { $_.id })
-        $ids.Count | Should -Be 59
-        ($ids | Sort-Object -Unique).Count | Should -Be 59
+        $ids.Count | Should -Be 66
+        ($ids | Sort-Object -Unique).Count | Should -Be 66
         foreach ($id in $ids) { $id | Should -Match '^SAC-[A-Z]{2,4}-\d{2}$' }
     }
 
-    It 'keeps the retired SENT id as a unique legacy alias and names an area on every rule' {
-        $legacy = @($script:catalogue.rules | ForEach-Object { $_.legacyId })
+    It 'keeps the retired SENT id as a unique legacy alias on the rules that had one, and names an area on every rule' {
+        # Rules added after the rename (catalogue 3.1.0 on) never had a SENT id.
+        $added = @('SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12')
+        $withLegacy = @($script:catalogue.rules | Where-Object { $_.PSObject.Properties['legacyId'] })
+        @($withLegacy | ForEach-Object id | Where-Object { $_ -in $added }).Count | Should -Be 0
+        @($script:catalogue.rules | Where-Object { -not $_.PSObject.Properties['legacyId'] } | ForEach-Object id | Sort-Object) | Should -Be ($added | Sort-Object)
+        $legacy = @($withLegacy | ForEach-Object { $_.legacyId })
         ($legacy | Sort-Object -Unique).Count | Should -Be 59
         foreach ($l in $legacy) { $l | Should -Match '^SENT-\d{3}$' }
         foreach ($r in $script:catalogue.rules) {
@@ -578,6 +601,22 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
 
     AfterAll {
         if ($script:trimmed -and (Test-Path $script:trimmed)) { Remove-Item $script:trimmed -Recurse -Force }
+    }
+
+    It 'keeps the newer rules quiet when their captures are missing' {
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-newer-absent-$(New-Guid)"
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        try {
+            Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
+            foreach ($name in 'security-event-duplicates.json', 'cef-in-syslog.json', 'la-query-logs.json', 'summary-rules.json', 'table-query-usage.json', 'ueba-data-presence.json') {
+                Remove-Item (Join-Path $dir $name) -Force -ErrorAction SilentlyContinue
+            }
+            $out = [System.Collections.Generic.List[object]]::new()
+            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $out
+            foreach ($id in 'SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12') {
+                ($out | Where-Object Id -eq $id).Outcome | Should -Be 'Passed' -Because "$id has no input to judge"
+            }
+        } finally { Remove-Item $dir -Recurse -Force }
     }
 
     It 'records every rule as Passed or Fired, none Errored, when capture files are missing' {
@@ -687,5 +726,99 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
             -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Blueprint/Private/Resources/best-practices.json') `
             -GapChecksPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Blueprint/Private/GapChecks.ps1')
         @($plain | ForEach-Object Id) | Should -Be @($withCollector | ForEach-Object Id)
+    }
+}
+
+Describe 'Rules ported from health check build 38' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        function New-Table([string] $Name, [int] $Analytics, [int] $Total, [string] $Plan = 'Analytics') {
+            [pscustomobject]@{ name = $Name; properties = [pscustomobject]@{ plan = $Plan; retentionInDays = $Analytics; totalRetentionInDays = $Total } }
+        }
+    }
+
+    Context 'SAC-COV-08 entity analytics' {
+        It 'fires with no provider and no IdentityInfo rows' {
+            $inv = [pscustomobject]@{ RawFiles = @('settings.json', 'ueba-data-presence.json')
+                Settings = [pscustomobject]@{ EntityAnalytics = [pscustomobject]@{ properties = [pscustomobject]@{} } }
+                UebaDataPresence = @([pscustomobject]@{ TableName = 'BehaviorAnalytics'; Count = 10 }) }
+            (Test-EntityAnalyticsEnabled -Inventory $inv).Evidence | Should -Match 'no identity provider'
+        }
+        It 'stays quiet with a provider configured, or with IdentityInfo rows' {
+            $withProvider = [pscustomobject]@{ RawFiles = @('settings.json', 'ueba-data-presence.json')
+                Settings = [pscustomobject]@{ EntityAnalytics = [pscustomobject]@{ properties = [pscustomobject]@{ entityProviders = @('AzureActiveDirectory') } } }
+                UebaDataPresence = @() }
+            Test-EntityAnalyticsEnabled -Inventory $withProvider | Should -BeNullOrEmpty
+            $withRows = [pscustomobject]@{ RawFiles = @('settings.json', 'ueba-data-presence.json'); Settings = [pscustomobject]@{ EntityAnalytics = $null }
+                UebaDataPresence = @([pscustomobject]@{ TableName = 'IdentityInfo'; Count = 0; Count14d = 42 }) }
+            Test-EntityAnalyticsEnabled -Inventory $withRows | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'SAC-LOG-19 summary rules' {
+        It 'fires with no summary rules and a table at 50 GB or more, summing per-solution rows' {
+            $inv = [pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @()
+                TablesWithData = @([pscustomobject]@{ DataType = 'CommonSecurityLog'; BillableLast30d = 30 }, [pscustomobject]@{ DataType = 'CommonSecurityLog'; BillableLast30d = 25 }, [pscustomobject]@{ DataType = 'Syslog'; BillableLast30d = 5 }) }
+            $f = Test-SummaryRulesInUse -Inventory $inv
+            $f.Evidence | Should -Match 'CommonSecurityLog \(55 GB\)'
+            $f.Evidence | Should -Not -Match 'Syslog'
+        }
+        It 'stays quiet when a summary rule exists or nothing is high volume' {
+            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @([pscustomobject]@{ name = 'r' }); TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 500 }) }) | Should -BeNullOrEmpty
+            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @(); TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 4 }) }) | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'SAC-LOG-20 retention order' {
+        It 'fires when analytics retention exceeds total retention, and only then' {
+            $inv = [pscustomobject]@{ RawFiles = @('workspace-tables.json'); WorkspaceTables = @((New-Table 'Bad' 180 90), (New-Table 'Good' 90 365), (New-Table 'Equal' 30 30)) }
+            $f = Test-RetentionOrder -Inventory $inv
+            $f.Evidence | Should -Match 'Bad \(analytics 180 days, total 90 days\)'
+            @($f.Detail.Tables).Count | Should -Be 1
+        }
+    }
+
+    Context 'SAC-LOG-21 long-term retention usage' {
+        BeforeAll {
+            $script:lakeInv = {
+                param($Refs = @(), $Usage = @(), $Summary = @(), $Extra = @())
+                [pscustomobject]@{ RawFiles = @('table-query-usage.json', 'rule-table-references.json')
+                    WorkspaceTables = @((New-Table 'LongTable' 30 365), (New-Table 'LakeOnly' 0 730 'DataLake'), (New-Table 'Short' 30 30)) + $Extra
+                    RuleTableReferences = $Refs; TableQueryUsage = $Usage; SummaryRules = $Summary }
+            }
+        }
+        It 'lists every long-retention table nothing reads' {
+            $f = Test-LongRetentionUsage -Inventory (& $script:lakeInv)
+            $f.Evidence | Should -Match 'LakeOnly \(730 days total\)'
+            $f.Evidence | Should -Match 'LongTable \(365 days total\)'
+            $f.Evidence | Should -Not -Match 'Short'
+        }
+        It 'counts an enabled rule, a summary rule, a search job or an audited query as use' {
+            $inv = & $script:lakeInv -Refs @([pscustomobject]@{ Enabled = $true; Tables = @('LongTable') }) -Usage @([pscustomobject]@{ Table = 'LakeOnly'; Queries = 3 })
+            Test-LongRetentionUsage -Inventory $inv | Should -BeNullOrEmpty
+            $inv = & $script:lakeInv -Summary @([pscustomobject]@{ properties = [pscustomobject]@{ ruleDefinition = [pscustomobject]@{ query = 'LongTable | summarize count()' } } }) -Extra @([pscustomobject]@{ name = 'LakeOnly_SRCH'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30 } })
+            Test-LongRetentionUsage -Inventory $inv | Should -BeNullOrEmpty
+        }
+        It 'ignores a disabled rule' {
+            $inv = & $script:lakeInv -Refs @([pscustomobject]@{ Enabled = $false; Tables = @('LongTable', 'LakeOnly') })
+            (Test-LongRetentionUsage -Inventory $inv).Evidence | Should -Match 'LongTable'
+        }
+    }
+
+    Context 'SAC-PLT-12 query auditing' {
+        It 'fires when LAQueryLogs is empty or missing from the capture, and stays quiet with queries' {
+            (Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @() })).Evidence | Should -Match 'not enabled'
+            (Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @([pscustomobject]@{ QueryCount = 0 }) })).Evidence | Should -Match 'not enabled'
+            Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @([pscustomobject]@{ QueryCount = 12 }) }) | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'Get-PropOrDefault' {
+        It 'reads through an empty JSON object under strict mode' {
+            Set-StrictMode -Version Latest
+            $o = '{"EntityAnalytics": {"properties": {}}}' | ConvertFrom-Json
+            Get-PropOrDefault $o 'EntityAnalytics.properties.entityProviders' 'none' | Should -Be 'none'
+        }
     }
 }

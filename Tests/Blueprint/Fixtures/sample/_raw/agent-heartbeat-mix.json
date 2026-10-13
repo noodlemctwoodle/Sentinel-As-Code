@@ -1,0 +1,5 @@
+[
+  {"OSType": "Windows", "Category": "Azure Monitor Agent", "Version": "1.30.0.0", "OSVersion": "Windows Server 2022 Datacenter 10.0", "Computers": 36, "LastSeen": "2026-05-06T07:58:00Z"},
+  {"OSType": "Windows", "Category": "Direct Agent", "Version": "10.20.18069.0", "OSVersion": "Windows Server 2016 Datacenter 10.0", "Computers": 5, "LastSeen": "2026-05-06T07:55:00Z"},
+  {"OSType": "Linux", "Category": "Azure Monitor Agent", "Version": "1.31.1", "OSVersion": "Ubuntu 22.04", "Computers": 18, "LastSeen": "2026-05-06T07:59:00Z"}
+]

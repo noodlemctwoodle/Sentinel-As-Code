@@ -192,6 +192,13 @@ function Read-RawArray([string]$Name) {
     return @($value)
 }
 
+function Get-EmptyMessage([string]$Name, [string]$Empty = '_None._') {
+    # A capture added after a snapshot was taken leaves no file. Its section
+    # says so, rather than claiming the workspace has nothing.
+    if (Test-Path (Join-Path $rawRoot $Name)) { return $Empty }
+    return '_Not captured in this snapshot._'
+}
+
 function Write-Section([string]$FileName, [string]$Body) {
     $target = Join-Path $OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
@@ -1066,11 +1073,23 @@ $mdcSubscription = @($connectors | Where-Object { $_ -and (_RProp $_ 'kind') -eq
 $mdcTenant = @($connectors | Where-Object { $_ -and (_RProp $_ 'kind') -eq 'MicrosoftDefenderForCloudTenantBased' }).Count
 $unifiedBillingFlag = [bool](_RProp (_RProp (_RProp $workspace 'properties') 'features') 'unifiedSentinelBillingOnly' $false)
 $onboardingRow = @(Read-RawArray 'onboarding-state.json' | Where-Object { $_ }) | Select-Object -First 1
+# What actually flows: incidents created through the unified queue, Defender
+# XDR alerts in SecurityAlert, and alerts still labelled with the retired
+# Azure Security Center product name.
+$unifiedIncidents = if ($incSummary -and $incSummary.PSObject.Properties['Unified7d']) {
+    "$([int](_RendererNumber $incSummary.Unified7d)) of $([int](_RendererNumber (_RProp $incSummary 'Count7d' 0)))"
+} else { 'Not captured' }
+$alertVolumes10 = @(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ })
+$xdrAlerts30d = [long](@($alertVolumes10 | Where-Object { [string]$_.ProductName -match 'Microsoft 365 Defender|Microsoft Defender XDR' } | ForEach-Object { _RendererNumber $_.Alerts }) | Measure-Object -Sum).Sum
+$ascAlerts30d = [long](@($alertVolumes10 | Where-Object { [string]$_.ProductName -eq 'Azure Security Center' } | ForEach-Object { _RendererNumber $_.Alerts }) | Measure-Object -Sum).Sum
 $unificationRows = @(
     [pscustomobject]@{ Check = 'Defender XDR connector (MicrosoftThreatProtection)'; Value = $(if ($mtpConnector) { 'Present' } else { 'Not configured' }); Meaning = 'Brings XDR incidents and alerts into the workspace; without it Sentinel and Defender run separate queues' }
     [pscustomobject]@{ Check = 'XDR incidents data type'; Value = (& $mtpState 'incidents'); Meaning = 'Enabled means Defender incidents (and their alerts) are synchronised, the unified-queue path' }
     [pscustomobject]@{ Check = 'XDR alerts data type'; Value = (& $mtpState 'alerts'); Meaning = 'Enabled means raw XDR alerts also land in SecurityAlert' }
     [pscustomobject]@{ Check = 'XDR advanced-hunting tables with data (7d)'; Value = "$xdrActive of $($xdrPresenceRows.Count) checked"; Meaning = 'Device, Email, Identity and CloudApp tables streaming into the workspace; see 14-coverage-breakdowns.md' }
+    [pscustomobject]@{ Check = 'Incidents raised through Defender XDR (7d)'; Value = $unifiedIncidents; Meaning = 'Incidents whose provider is Microsoft XDR (or Microsoft 365 Defender), against all incidents updated in the window; see 15-incidents.md' }
+    [pscustomobject]@{ Check = 'Defender XDR alerts in SecurityAlert (30d)'; Value = $xdrAlerts30d; Meaning = 'Alerts whose product is Microsoft 365 Defender or Microsoft Defender XDR; zero with the connector present means the alerts data type is off' }
+    [pscustomobject]@{ Check = 'Alerts under the retired Azure Security Center name (30d)'; Value = $ascAlerts30d; Meaning = 'Non-zero means the legacy Azure Security Center connector path is still feeding alerts; Defender for Cloud replaces it' }
     [pscustomobject]@{ Check = 'Legacy Microsoft incident-creation rules enabled'; Value = $legacyIncidentRulesEnabled; Meaning = 'The pre-unification way of promoting Defender alerts; with the incidents data type enabled they duplicate work ([SAC-DET-08])' }
     [pscustomobject]@{ Check = 'Unified Sentinel and Defender billing'; Value = $(if ($unifiedBillingFlag) { 'true' } else { 'false / absent' }); Meaning = 'features.unifiedSentinelBillingOnly on the workspace, set once the workspace is on the unified billing model' }
     [pscustomobject]@{ Check = 'Sentinel onboarding state resource'; Value = $(if ($onboardingRow) { 'Present' } else { 'Not captured' }); Meaning = 'Microsoft.SecurityInsights/onboardingStates/default exists on every Sentinel-enabled workspace; it does not prove Defender-portal onboarding' }
@@ -2482,6 +2501,35 @@ $( $nonDefaultRows = @($tableRows | Where-Object {
     } | Sort-Object -Property Gb90d -Descending)
    Format-Table -Items $nonDefaultRows -Columns 'Name','Plan','Interactive','Total','Archive','Gb90d' )
 
+## Retention recommendations
+
+The three workspace-level retention checks, each shown whether or not it needs action.
+
+$( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
+   $cheaperTier = @($tableRows | Where-Object { [string]$_.Plan -in @('Basic', 'Auxiliary', 'DataLake') })
+   $overrides = @($tableRows | Where-Object { [string]$_.Interactive -and ([int]$_.Interactive) -ne $defaultRet })
+   $retRecs = @(
+       [pscustomobject]@{
+           Check = 'Default retention covers the free 90 days'
+           Status = $(if ($defaultRet -lt 90) { 'Action needed' } else { 'OK' })
+           Detail = "Workspace default is $defaultRet days."
+           Recommendation = 'Raise the default to at least 90 days: the first 90 days of retention are included with Microsoft Sentinel ([SAC-LOG-07]).'
+       }
+       [pscustomobject]@{
+           Check = 'Long retention uses a cheaper tier'
+           Status = $(if ($defaultRet -gt 90 -and $cheaperTier.Count -eq 0) { 'Action needed' } else { 'OK' })
+           Detail = "Default $defaultRet days; $($cheaperTier.Count) table(s) on the Basic, Auxiliary or data lake plan."
+           Recommendation = 'Move high-volume tables that few rules read to the data lake tier, which bills well below the Analytics rate and keeps data for up to 12 years.'
+       }
+       [pscustomobject]@{
+           Check = 'Long retention is set per table'
+           Status = $(if ($defaultRet -gt 180 -and $overrides.Count -eq 0) { 'Action needed' } else { 'OK' })
+           Detail = "Default $defaultRet days; $($overrides.Count) table(s) override it."
+           Recommendation = 'Keep the default short and extend retention only on the tables that need it, rather than holding every table for the longest period any one of them needs.'
+       }
+   )
+   Format-Table -Items $retRecs -Columns 'Check','Status','Detail','Recommendation' )
+
 [Table plans (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans) · [Retention & archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive) · [Manage table tiers in Sentinel](https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention)
 "@
 Write-Section '81-table-plans-retention.md' $tablePlansBody
@@ -3094,8 +3142,23 @@ function _RbacPrincipal {
     return '_(unknown)_'
 }
 $wsRows = $rbacWs | ForEach-Object {
-    [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
+    [pscustomobject]@{ Principal = (_RbacPrincipal $_); SignIn = [string](_RProp $_ 'SignInName' ''); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
 }
+# Counts per role by principal type, and the three views the access review
+# starts from: Sentinel roles, Log Analytics and monitoring roles, and the
+# roles that can change or delete the workspace.
+$roleCountRows = @($rbacWs | Where-Object { $_ } | Group-Object RoleDefinitionName | ForEach-Object {
+    [pscustomobject]@{
+        Role              = $_.Name
+        Total             = $_.Count
+        Users             = @($_.Group | Where-Object { $_.ObjectType -eq 'User' }).Count
+        Groups            = @($_.Group | Where-Object { $_.ObjectType -eq 'Group' }).Count
+        ServicePrincipals = @($_.Group | Where-Object { $_.ObjectType -eq 'ServicePrincipal' }).Count
+    }
+} | Sort-Object @{ Expression = 'Total'; Descending = $true }, Role)
+$sentinelRoleRows = @($wsRows | Where-Object { $_.Role -match 'Sentinel' })
+$lawRoleRows = @($wsRows | Where-Object { $_.Role -match 'Log Analytics|Monitoring (Reader|Contributor)' })
+$highPrivRows = @($wsRows | Where-Object { $_.Role -in @('Owner', 'Contributor', 'User Access Administrator') })
 $rgRows = $rbacRg | ForEach-Object {
     [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
 }
@@ -3177,9 +3240,27 @@ $(($rolesSeen | ForEach-Object {
 $($principalClicks -join [Environment]::NewLine)
 ``````
 
+## Assignments by role
+
+$(Format-Table -Items $roleCountRows -Columns 'Role','Total','Users','Groups','ServicePrincipals')
+
+## Microsoft Sentinel role assignments
+
+$(Format-Table -Items $sentinelRoleRows -Columns 'Principal','SignIn','Type','Role' -EmptyMessage '_No Microsoft Sentinel role is assigned at workspace scope._')
+
+## Log Analytics and monitoring role assignments
+
+$(Format-Table -Items $lawRoleRows -Columns 'Principal','SignIn','Type','Role' -EmptyMessage '_No Log Analytics or monitoring role is assigned at workspace scope._')
+
+## High-privilege assignments (Owner, Contributor, User Access Administrator)
+
+These roles can change or delete the workspace and everything in it, or grant access to others. Defender XDR portal roles are granted in Microsoft Entra ID and the Defender portal at tenant scope and cannot be read from the workspace.
+
+$(Format-Table -Items $highPrivRows -Columns 'Principal','SignIn','Type','Role' -EmptyMessage '_No Owner, Contributor or User Access Administrator assignment at workspace scope._')
+
 ## At workspace scope
 
-$(Format-Table -Items $wsRows -Columns 'Principal','Type','Role')
+$(Format-Table -Items $wsRows -Columns 'Principal','SignIn','Type','Role')
 
 ## At resource group scope
 
@@ -3236,6 +3317,18 @@ $($rpPieRows -join [Environment]::NewLine)
 "@
 } else { '' }
 
+# Who the collector ran as. Snapshots from before the account was recorded
+# say so rather than showing a blank.
+$runCtx86 = Read-Raw 'run-context.json'
+$identityBlock = if ($runCtx86 -and $runCtx86.PSObject.Properties['Account']) {
+    @"
+| | |
+|---|---|
+| Account | ``$([string]$runCtx86.Account)`` |
+| Type | $([string](_RProp $runCtx86 'AccountType' 'Unknown')) |
+"@
+} else { '_Not recorded in this snapshot._' }
+
 Write-Section '86-subscription-context.md' (@"
 $(Format-Banner -Title "Subscription and Tenant Context")
 
@@ -3247,6 +3340,12 @@ $(Format-Banner -Title "Subscription and Tenant Context")
 | ID   | ``$($sub.Id)`` |
 | Tenant ID | ``$($sub.TenantId)`` |
 | State | $($sub.State) |
+
+## Signed-in identity
+
+The identity the collector ran as: a pipeline signs in as its service connection's service principal or managed identity, a local run as the person running it. Every capture reflects what this identity could read.
+
+$identityBlock
 $rpChartBlock
 
 ## Resource providers
@@ -3437,6 +3536,35 @@ $mitreSuffix          = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Co
     "  ·  $($parts -join '  ·  ')"
 } else { '' }
 
+# Legacy and deprecated features still in use, one row each, read from the
+# same captures their pages use. A capture missing from an older snapshot
+# shows as Not captured rather than as not in use.
+function _LegacyRow([string]$Feature, $Count, [bool]$Captured, [string]$Evidence, [string]$Where) {
+    [pscustomobject]@{
+        Feature  = $Feature
+        Status   = $(if (-not $Captured) { 'Not captured' } elseif ([double]$Count -gt 0) { 'In use' } else { 'Not in use' })
+        Evidence = $(if ($Captured) { $Evidence } else { '' })
+        Where    = $Where
+    }
+}
+$mmaMachines01 = [long](@(Read-RawArray 'ama-mma-migration.json' | Where-Object { $_ } | ForEach-Object { _RendererNumber (_RProp $_ 'MMACount' 0) }) | Measure-Object -Sum).Sum
+$classicTables01 = @($workspaceTables | Where-Object { $_ -and [string](_RProp (_RProp (_RProp $_ 'properties') 'schema') 'tableSubType' '') -eq 'Classic' })
+$tiLegacyRows01 = [long](@(Read-RawArray 'threat-intel-tables.json' | Where-Object { $_ -and [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { _RendererNumber (_RProp $_ 'Records30d' 0) }) | Measure-Object -Sum).Sum
+$tiLegacyRules01 = @($enabledRules | Where-Object { [string](_RProp (_RProp $_ 'properties') 'query' '') -match 'ThreatIntelligenceIndicator(?!s)' }).Count
+$msIncidentRules01 = @($rules | Where-Object { $_ -and $_.kind -eq 'MicrosoftSecurityIncidentCreation' -and (_RProp (_RProp $_ 'properties') 'enabled' $false) }).Count
+$ascAlerts01 = [long](@(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ -and [string]$_.ProductName -eq 'Azure Security Center' } | ForEach-Object { _RendererNumber $_.Alerts }) | Measure-Object -Sum).Sum
+$fwLegacy01 = [long](@(Read-RawArray 'azure-firewall-categories.json' | Where-Object { $_ -and [string]$_.Category -like 'AzureFirewall*' } | ForEach-Object { _RendererNumber $_.LogCount }) | Measure-Object -Sum).Sum
+$has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
+$legacyRows = @(
+    _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 August 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$mmaMachines01 machine(s) still heartbeating through it in 7 days" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
+    _LegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 September 2026' $classicTables01.Count (& $has01 'workspace-tables.json') "$($classicTables01.Count) table(s) with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
+    _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$tiLegacyRows01 record(s) in 30 days" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
+    _LegacyRow 'Retired ThreatIntelligenceIndicator table (rules reading it)' $tiLegacyRules01 (& $has01 'alert-rules.json') "$tiLegacyRules01 enabled rule(s) query it" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-TI-02]'
+    _LegacyRow 'Microsoft incident-creation rules (pre-unification)' $msIncidentRules01 (& $has01 'alert-rules.json') "$msIncidentRules01 enabled rule(s)" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
+    _LegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') "$ascAlerts01 alert(s) in 30 days" '[10-data-connectors.md](10-data-connectors.md)'
+    _LegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') "$fwLegacy01 row(s) in 7 days" '[14-coverage-breakdowns.md](14-coverage-breakdowns.md), [SAC-LOG-06]'
+)
+
 $execBody = @"
 $(Format-Banner -Title "Live snapshot")
 
@@ -3470,6 +3598,12 @@ gantt
     Legacy TIP connector deprecates        :active, tip,  $today, ${tipDays}d
     Sentinel Azure portal retires (→ XDR)  :crit,  xdr,  $today, ${xdrDays}d
 ``````
+
+## Legacy features still in use
+
+Each retired or retiring feature the Blueprint can see, whether this workspace still uses it, and where the detail is. Sentinel's move from the Azure portal to the Defender portal is on the runway above; Defender-portal onboarding cannot be read from the workspace.
+
+$(Format-Table -Items $legacyRows -Columns 'Feature','Status','Evidence','Where')
 
 ## Workspace at a glance
 
@@ -3551,6 +3685,23 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
         }
     })
     $outOfScopeLines = (@($maturity.outOfScope) | ForEach-Object { "- **$($_.area)**: $($_.reason)" }) -join [Environment]::NewLine
+    # The scale, with the score band each level covers and the target marked.
+    $scaleRows = @(@($maturity.levels) | ForEach-Object {
+        $lv = [int]$_.level
+        [pscustomobject]@{
+            Level  = $lv
+            Name   = $_.name
+            Scores = $(if ($lv -ge 5) { '5.00' } else { "$lv.00 to $lv.99" })
+            Target = $(if ($lv -eq [int]$maturity.targetLevel) { 'Target' } else { '' })
+        }
+    })
+    # Every open gap with what it costs the SOC today and what closes it.
+    $openGapRows = @($mAreas | ForEach-Object {
+        $areaId = $_.id
+        @($_.criteria) | Where-Object { $_.status -eq 'Gap' } | ForEach-Object {
+            [pscustomobject]@{ Id = $_.id; Area = $areaId; Criterion = $_.name; Effort = $_.effort; Impact = $_.impact; Guidance = $_.guidance }
+        }
+    })
     $overallText = if ($null -eq $maturity.overall.score) { 'not assessed' } else { "$($maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
 @"
 $(Format-Banner -Title "Maturity Assessment")
@@ -3581,9 +3732,21 @@ xychart-beta
 
 $(Format-Table -Items $areaRows -Columns 'Id','Area','Score','Level','Evaluated','Unknown','Confidence','GapToTarget')
 
+## Maturity scale
+
+An area's score is five times the weighted share of its evaluated criteria that are met; its level is the whole-number part of the score. Criteria that could not be evaluated are left out rather than counted as gaps.
+
+$(Format-Table -Items $scaleRows -Columns 'Level','Name','Scores','Target')
+
+## Open gaps and their impact
+
+Every criterion that is not met, with what the gap costs the SOC today and the change that closes it. The roadmap below orders the same gaps by the lift each one gives.
+
+$(Format-Table -Items $openGapRows -Columns 'Id','Area','Criterion','Effort','Impact','Guidance' -EmptyMessage '_No open gaps: every evaluated criterion is met._')
+
 ## Roadmap
 
-Every gap, ordered by how much closing it lifts the overall score, then by effort (Low first). ``Projected`` is the overall score after this entry and every one above it. Top 20 of $(@($maturity.roadmap).Count).
+Every gap ($(@($maturity.roadmap).Count) in all), ordered by how much closing it lifts the overall score, then by effort (Low first). ``Projected`` is the overall score after this entry and every one above it.
 
 $(Format-Table -Items $roadmapRows -Columns 'Priority','Criterion','Area','Effort','Lift','Projected','Guidance')
 
@@ -3618,10 +3781,26 @@ $healthRows = $health | ForEach-Object {
         Kind     = $_.SentinelResourceKind
         Type     = $_.SentinelResourceType
         Events   = $_.Events
+        Failures = _RProp $_ 'Failures' ''
         Statuses = ($_.Statuses -join ', ')
         LastEvent= Format-DateUtc $_.LastEvent
     }
 }
+# Data connectors that reported a failure. Failures arrived after the first
+# captures; an older snapshot falls back to a non-Success status.
+$healthFailuresCaptured = @($health | Where-Object { $_ -and $_.PSObject.Properties['Failures'] }).Count -gt 0
+$connectorHealthRows = @($health | Where-Object {
+    $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
+    $(if ($_.PSObject.Properties['Failures']) { [long]$_.Failures -gt 0 } else { @($_.Statuses | Where-Object { $_ -ne 'Success' }).Count -gt 0 })
+} | ForEach-Object {
+    [pscustomobject]@{
+        Connector   = $_.SentinelResourceName
+        Kind        = $_.SentinelResourceKind
+        Failures    = _RProp $_ 'Failures' 'not captured'
+        LastFailure = Format-DateUtc (_RProp $_ 'LastFailure')
+        Statuses    = ($_.Statuses -join ', ')
+    }
+} | Sort-Object @{ Expression = { _RendererNumber $_.Failures }; Descending = $true }, Connector)
 $healthSummary = Read-RawArray 'sentinel-health-summary.json'
 $healthSummaryRows = $healthSummary | ForEach-Object {
     [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; LogCount = $_.LogCount }
@@ -3667,7 +3846,13 @@ $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock
 
-$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Statuses','LastEvent')
+$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','LastEvent')
+
+## Connector and DCR health issues (last 7d)
+
+Data connectors whose health events reported a failure in the last 7 days, most failures first. A failing connector silently stops feeding the tables its rules read; [83-data-collection.md](83-data-collection.md) lists the DCRs behind it.
+
+$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','LastFailure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last 7 days (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last 7 days._' }))
 
 ## Operations summary (per OperationName + Status)
 
@@ -3774,13 +3959,13 @@ $cefDevRows = $cefDevices | ForEach-Object {
     [pscustomobject]@{ DeviceVendor = $_.DeviceVendor; DeviceProduct = $_.DeviceProduct; LogCount = $_.LogCount }
 }
 $cefSyslogRows = $cefInSyslog | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; LogCount = $_.LogCount }
+    [pscustomobject]@{ Computer = $_.Computer; ProductVendor = _RProp $_ 'ProductVendor' ''; LogCount = $_.LogCount }
 }
 $secEvtDupeRows = $secEvtDupes | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; LogCount = $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
+    [pscustomobject]@{ Computer = $_.Computer; DuplicateRecords = _RProp $_ 'DuplicateRecords' ''; Copies = $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
 }
 $topEventIdRows = $topEventIds | ForEach-Object {
-    [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; BilledSizeGB = $_.BilledSizeGB }
+    [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; LogCount = _RProp $_ 'LogCount' ''; BilledSizeGB = $_.BilledSizeGB }
 }
 
 # Aggregate CEF logs by DeviceVendor for the headline pie.
@@ -3828,21 +4013,21 @@ $(Format-Table -Items $cefDevRows -Columns 'DeviceVendor','DeviceProduct','LogCo
 
 ## CEF records misrouted into Syslog (last 7d)
 
-A non-empty table here means a Linux syslog forwarder is shipping CEF-formatted records to the wrong workspace table. Split the source into a dedicated CommonSecurityLog stream.
+A non-empty table here means a Linux syslog forwarder is shipping CEF-formatted records (a message starting ``CEF:`` or ``0|``) to the wrong workspace table, by forwarder and the vendor and product in the CEF header. Point a CEF data collection rule at the forwarder so the records land parsed in CommonSecurityLog ([SAC-LOG-23]).
 
-$(Format-Table -Items $cefSyslogRows -Columns 'Computer','LogCount')
+$(Format-Table -Items $cefSyslogRows -Columns 'Computer','ProductVendor','LogCount')
 
 ## SecurityEvent duplicates (last 1h)
 
-Computers reporting duplicate SecurityEvent records within a one-hour window. Almost always an MMA + AMA dual-collection misconfiguration; consolidate the collection path.
+Computers reporting duplicate SecurityEvent records within a one-hour window: ``DuplicateRecords`` is how many distinct events arrived more than once, ``Copies`` the total rows those events produced. Almost always an MMA + AMA dual-collection misconfiguration or two DCRs collecting the same events; consolidate the collection path ([SAC-LOG-22]).
 
-$(Format-Table -Items $secEvtDupeRows -Columns 'Computer','LogCount','DuplicateEventIds')
+$(Format-Table -Items $secEvtDupeRows -Columns 'Computer','DuplicateRecords','Copies','DuplicateEventIds')
 
-## Top 10 noisy event IDs (last 7d)
+## Top noisy event IDs (last 7d)
 
-Highest-volume Windows event IDs across the Event + SecurityEvent tables, by billed size. Each row is a candidate for filtering at the DCR transform stage.
+Highest-volume Windows event IDs across the Event + SecurityEvent tables, by billed size, with the record count. Each row is a candidate for filtering at the DCR transform stage.
 
-$(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescription','BilledSizeGB')
+$(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescription','LogCount','BilledSizeGB')
 
 ## Syslog contributors (last 7d)
 
@@ -3922,6 +4107,29 @@ A short bar means that XDR surface (email / device / identity / cloud-app) isn't
 "@
 } else { '' }
 
+# AzureDiagnostics by category, and Azure Firewall in both its forms: the
+# legacy AzureDiagnostics categories and the resource-specific AZFW* tables.
+$azDiagCategoryRows = @(Read-RawArray 'azure-diagnostics-categories.json' | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; Category = $_.Category; LogCount = $_.LogCount }
+})
+$fwCategoryRows = @(Read-RawArray 'azure-firewall-categories.json' | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{
+        Category = $_.Category
+        Form     = $(if ([string]$_.Category -like 'AZFW*') { 'Resource-specific category' } else { 'Legacy category' })
+        LogCount = $_.LogCount
+    }
+})
+$fwTableRows = @($tablesWithData | Where-Object { $_ -and [string](_RProp $_ 'DataType' '') -like 'AZFW*' } | ForEach-Object {
+    [pscustomobject]@{ Table = $_.DataType; Gb7d = [math]::Round((_RendererNumber (_RProp $_ 'BillableLast7d' 0)), 2); LastIngested = Format-DateUtc (_RProp $_ 'LastIngested') }
+})
+$fwLegacyRows = @($fwCategoryRows | Where-Object { $_.Form -eq 'Legacy category' })
+$fwVerdict = if (-not (Test-Path (Join-Path $rawRoot 'azure-firewall-categories.json'))) { '_Not captured in this snapshot._' }
+    elseif ($fwLegacyRows.Count -gt 0 -and ($fwTableRows.Count -gt 0 -or @($fwCategoryRows | Where-Object { $_.Form -ne 'Legacy category' }).Count -gt 0)) {
+        '**Collected twice.** Azure Firewall writes legacy categories into AzureDiagnostics and the resource-specific form as well; remove the legacy diagnostic setting to stop paying for the same events twice ([SAC-LOG-06]).'
+    }
+    elseif ($fwCategoryRows.Count -eq 0 -and $fwTableRows.Count -eq 0) { '_No Azure Firewall logs in the last 7 days._' }
+    else { 'Azure Firewall logs arrive in one form only.' }
+
 Write-Section '14-coverage-breakdowns.md' (@"
 $(Format-Banner -Title "Coverage Breakdowns")
 
@@ -3939,6 +4147,22 @@ $(Format-Table -Items $azActRows -Columns 'SubscriptionId','LogCount')
 Resource providers emitting diagnostic settings into the workspace. Maps directly to which Azure services have diagnostic settings wired up to this workspace.
 
 $(Format-Table -Items $azDiagRows -Columns 'ResourceProvider','LogCount')
+
+## AzureDiagnostics per category (last 7d)
+
+Every diagnostic category writing into AzureDiagnostics, by resource provider, busiest first. A service with a resource-specific table available (Azure Firewall, Key Vault, Application Gateway and others) is cheaper and easier to query in that form ([SAC-LOG-18]).
+
+$(Format-Table -Items $azDiagCategoryRows -Columns 'ResourceProvider','Category','LogCount')
+
+## Azure Firewall categories (last 7d)
+
+$fwVerdict
+
+$(Format-Table -Items $fwCategoryRows -Columns 'Category','Form','LogCount' -EmptyMessage (Get-EmptyMessage 'azure-firewall-categories.json' '_No Azure Firewall categories in AzureDiagnostics._'))
+
+Resource-specific Azure Firewall tables with data:
+
+$(Format-Table -Items $fwTableRows -Columns 'Table','Gb7d','LastIngested')
 
 ## XDR table presence (last 7d)
 
@@ -4071,6 +4295,33 @@ $effectivenessRows = @($ruleEffectiveness | Sort-Object { -(_RendererNumber $_.I
     }
 })
 
+# The last 7 days, as the health check reports them: incidents updated in
+# the window at their latest state, and the alert names behind them.
+$incident7dBlock = if ($incSummary -and $incSummary.PSObject.Properties['Count7d']) {
+    $mtta7 = if ($incMttr -and $incMttr.PSObject.Properties['MTTAMinutes7d']) { Format-MinutesScalar -Value $incMttr.MTTAMinutes7d } else { 'n/a' }
+    $mttr7 = if ($incMttr -and $incMttr.PSObject.Properties['MTTRMinutes7d']) { Format-MinutesScalar -Value $incMttr.MTTRMinutes7d } else { 'n/a' }
+    @"
+| | |
+|---|---:|
+| Incidents | $([int](_RendererNumber $incSummary.Count7d)) |
+| Closed | $([int](_RendererNumber (_RProp $incSummary 'Closed7d' 0))) |
+| Closed as true positive | $([int](_RendererNumber (_RProp $incSummary 'TruePositive7d' 0))) |
+| Closed as false positive | $([int](_RendererNumber (_RProp $incSummary 'FalsePositive7d' 0))) |
+| Raised through Defender XDR (unified) | $([int](_RendererNumber (_RProp $incSummary 'Unified7d' 0))) |
+| MTTA (incidents closed in the window) | $mtta7 |
+| MTTR (incidents closed in the window) | $mttr7 |
+"@
+} else { '_Not captured in this snapshot._' }
+$incProviderBag = if ($incSummary -and $incSummary.PSObject.Properties['ByProvider']) { _RendererBag $incSummary.ByProvider } else { $null }
+$incProviderRows = if ($incProviderBag) {
+    @($incProviderBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { [pscustomobject]@{ Provider = $_.Key; Incidents = $_.Value } })
+} else { @() }
+$alertVolumes = @(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ })
+$alert7dCaptured = @($alertVolumes | Where-Object { $_.PSObject.Properties['Alerts7d'] }).Count -gt 0
+$alertProvider7dRows = @($alertVolumes | Where-Object { $_.PSObject.Properties['Alerts7d'] -and [long]$_.Alerts7d -gt 0 } |
+    Sort-Object @{ Expression = { [long]$_.Alerts7d }; Descending = $true }, AlertName |
+    ForEach-Object { [pscustomobject]@{ Provider = [string](_RProp $_ 'ProviderName' ''); Product = $_.ProductName; Alert = $_.AlertName; Severity = $_.AlertSeverity; Alerts = [long]$_.Alerts7d } })
+
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
 
@@ -4171,7 +4422,25 @@ $(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','C
 
 Per-provider, per-product, per-first-rule alert counts joined to the incidents they belong to. The FirstRule ID resolves to its full name via the [20-analytics-rules.md](20-analytics-rules.md) table.
 
-$(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = $_.AlertCount } }) -Columns 'Provider','Product','FirstRule','AlertCount')
+$(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | Where-Object { $_ } | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = $_.AlertCount } }) -Columns 'Provider','Product','FirstRule','AlertCount')
+
+## Incident metrics (last 7d)
+
+Incidents updated in the last 7 days, each at its latest state. The 30-day view is at the top of the page.
+
+$incident7dBlock
+
+## Incidents by provider (last 30d)
+
+Which service created the incident. ``Microsoft XDR`` (or ``Microsoft 365 Defender``) means the incident came through the unified Defender XDR queue rather than from a Sentinel rule.
+
+$(Format-Table -Items $incProviderRows -Columns 'Provider','Incidents' -EmptyMessage $(if ($incSummary -and -not $incSummary.PSObject.Properties['ByProvider']) { '_Not captured in this snapshot._' } else { '_None._' }))
+
+## Alert volumes by provider (last 7d)
+
+Every alert name that fired in the last 7 days, with the provider and product that raised it, busiest first.
+
+$(Format-Table -Items $alertProvider7dRows -Columns 'Provider','Product','Alert','Severity','Alerts' -EmptyMessage $(if ($alert7dCaptured -or $alertVolumes.Count -eq 0) { '_No alerts in the last 7 days._' } else { '_Not captured in this snapshot._' }))
 
 [Sentinel incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
 "@
@@ -4482,8 +4751,23 @@ $uebaConfigLabel = if ($uebaSetting) {
 }
 $uebaPresence = Read-RawArray 'ueba-data-presence.json'
 $uebaPresenceRows = $uebaPresence | ForEach-Object {
-    [pscustomobject]@{ Table = $_.TableName; Rows12d = $_.Count }
+    [pscustomobject]@{ Table = $_.TableName; Rows7d = _RProp $_ 'Count7d' ''; Rows12d = $_.Count; Rows14d = _RProp $_ 'Count14d' '' }
 }
+# Entity analytics: the identity providers synchronised into IdentityInfo
+# (Microsoft Entra ID, Active Directory), from the settings resource, and the
+# IdentityInfo rows that show the sync is running.
+$entitySetting = if ($null -ne $settingsRaw) { _RProp $settingsRaw 'EntityAnalytics' } else { $null }
+$entityProviders = @(_RProp (_RProp $entitySetting 'properties') 'entityProviders' @())
+$identityRow = @($uebaPresence | Where-Object { $_ -and [string]$_.TableName -eq 'IdentityInfo' }) | Select-Object -First 1
+$identityRows14 = if ($identityRow) { _RendererNumber (_RProp $identityRow 'Count14d' (_RProp $identityRow 'Count' 0)) } else { 0 }
+$entityEnabled = $entityProviders.Count -gt 0 -or $identityRows14 -gt 0
+$entityBlock = @"
+| | |
+|---|---|
+| Entity providers (configured) | $(if ($entityProviders.Count -gt 0) { $entityProviders -join ', ' } else { '_(none configured via the settings resource)_' }) |
+| IdentityInfo rows (14d) | $identityRows14 |
+| Entity analytics | $(if ($entityEnabled) { 'Enabled' } elseif ($uebaPresence.Count -eq 0) { 'Unknown (data-presence capture not available)' } else { 'Not enabled ([SAC-COV-08])' }) |
+"@
 $uebaTotalRows = ($uebaPresenceRows | Measure-Object -Property Rows12d -Sum).Sum
 $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
     "Yes — $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last 12 days"
@@ -4515,7 +4799,9 @@ $uebaPresenceBlock = if ($uebaPresenceRows.Count -gt 0) {
 
 ## Data-presence inference (last 12 days)
 
-$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows12d')
+Rows per UEBA table over 7, 12 and 14 days. The 7- and 14-day columns are blank in snapshots taken before they were added.
+
+$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows7d','Rows12d','Rows14d')
 "@
 } else { '' }
 Write-Section '26-ueba.md' (@"
@@ -4529,6 +4815,13 @@ UEBA enriches incidents with anomaly scores and entity-level timelines. It is en
 | Data sources (configured) | $(if ($uebaSources.Count -gt 0) { ($uebaSources -join ', ') } else { '_(none configured via the settings resource)_' }) |
 | Producing data | $uebaActiveLabel |
 $uebaPiePresenceBlock$uebaPresenceBlock
+
+## Entity analytics
+
+Entity analytics synchronises user and group details from the identity providers into ``IdentityInfo``, which enriches every incident with who the account is and what it belongs to. It is configured separately from UEBA.
+
+$entityBlock
+
 [Enable UEBA in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics)
 "@)
 
@@ -4650,6 +4943,58 @@ $(Format-Table -Items ($tiObjects | ForEach-Object { [pscustomobject]@{ StixType
 $tiFeedKinds = @('MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence', 'ThreatIntelligenceUploadIndicatorsAPI')
 $tiFeedRows = @($connectors | Where-Object { $_.kind -in $tiFeedKinds } | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.name } })
 
+# Which TI tables carry data: the current ThreatIntelIndicators and
+# ThreatIntelObjects, and the retired ThreatIntelligenceIndicator. A table
+# missing from the capture is not in the workspace at all.
+$tiTableRaw = @(Read-RawArray 'threat-intel-tables.json' | Where-Object { $_ })
+$tiTableRows = @(foreach ($name in 'ThreatIntelIndicators', 'ThreatIntelObjects', 'ThreatIntelligenceIndicator') {
+    $row = $tiTableRaw | Where-Object { [string]$_.Table -eq $name } | Select-Object -First 1
+    $n30 = if ($row) { [long](_RProp $row 'Records30d' 0) } else { 0 }
+    [pscustomobject]@{
+        Table      = $(if ($name -eq 'ThreatIntelligenceIndicator') { "$name (retired)" } else { $name })
+        Records30d = $(if ($row) { $n30 } else { '' })
+        Records7d  = $(if ($row) { [long](_RProp $row 'Records7d' 0) } else { '' })
+        FirstSeen  = $(if ($row) { Format-DateUtc (_RProp $row 'FirstSeen') } else { '' })
+        LastSeen   = $(if ($row) { Format-DateUtc (_RProp $row 'LastSeen') } else { '' })
+        Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in 30 days' })
+    }
+})
+$tiCurrent = [long](@($tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { _RProp $_ 'Records30d' 0 }) | Measure-Object -Sum).Sum
+$tiLegacy = [long](@($tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { _RProp $_ 'Records30d' 0 }) | Measure-Object -Sum).Sum
+$tiMigration = if (-not (Test-Path (Join-Path $rawRoot 'threat-intel-tables.json'))) { '_Not captured in this snapshot._' }
+    elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) { '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).' }
+    elseif ($tiCurrent -gt 0) { '**Current.** Threat intelligence is flowing into `ThreatIntelIndicators`.' }
+    elseif ($tiLegacy -gt 0) { '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).' }
+    else { '**No threat intelligence** in either table over the last 30 days.' }
+
+$tiHealth = Read-RawArray 'threat-intel-health.json' | Select-Object -First 1
+$tiHealthBlock = if ($tiHealth) {
+    @"
+| | |
+|---|---:|
+| Distinct indicators (latest state) | $([long](_RProp $tiHealth 'Total' 0)) |
+| Active | $([long](_RProp $tiHealth 'Active' 0)) |
+| Deleted | $([long](_RProp $tiHealth 'Deleted' 0)) |
+| Revoked | $([long](_RProp $tiHealth 'Revoked' 0)) |
+| Still within their validity | $([long](_RProp $tiHealth 'StillValid' 0)) |
+"@
+} else { Get-EmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last 30 days._' }
+
+$tiKqlSourceRows = @($tiCounts | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{ SourceSystem = $_.SourceSystem; Records = $_.Count; Indicators = _RProp $_ 'Indicators' ''; LastSeen = Format-DateUtc $_.Last }
+} | Sort-Object @{ Expression = { [long]$_.Records }; Descending = $true }, SourceSystem)
+
+$taxiiRows = @(Read-RawArray 'taxii-clients.json' | Where-Object { $_ } | ForEach-Object {
+    $tp = _RProp $_ 'properties'
+    [pscustomobject]@{
+        Name        = [string](_RProp $tp 'friendlyName' $_.name)
+        Collection  = [string](_RProp $tp 'collectionId' '')
+        Polling     = [string](_RProp $tp 'pollingFrequency' '')
+        Server      = [string](_RProp $tp 'taxiiServer' '')
+        Description = [string](_RProp $tp 'description' '')
+    }
+})
+
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
@@ -4659,14 +5004,40 @@ $tiHeadline
 $tiPieBlock
 
 $(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
+
+## Table migration status
+
+$tiMigration
+
+$(Format-Table -Items $tiTableRows -Columns 'Table','Records30d','Records7d','FirstSeen','LastSeen','Status')
+
+## Indicator health (last 30d)
+
+Each indicator in ``ThreatIntelIndicators`` at its latest state. Deleted and revoked indicators no longer match; an indicator past its ``ValidUntil`` date is kept for history but should not drive new alerts.
+
+$tiHealthBlock
+
+## Indicators by source (last 30d)
+
+Records and distinct indicators per source system, from the indicator tables themselves (current and retired).
+
+$(Format-Table -Items $tiKqlSourceRows -Columns 'SourceSystem','Records','Indicators','LastSeen')
 $tiTypeBlock
 $tiObjectsBlock
 
 ## Feeds
 
-Threat-intelligence connectors configured on the workspace. One feed is a single point of failure for every TI detection; [SAC-TI-05] fires when there is at most one.
+Where indicators come from. One feed is a single point of failure for every TI detection; [SAC-TI-05] fires when there is at most one.
+
+### Threat intelligence connectors
 
 $(Format-Table -Items $tiFeedRows -Columns 'Kind','Name')
+
+### TAXII clients
+
+TAXII 2.x collections the workspace polls, from the threat intelligence TAXII client list. Not every service returns this list; the connectors above remain the reliable feed signal.
+
+$(Format-Table -Items $taxiiRows -Columns 'Name','Collection','Polling','Server','Description' -EmptyMessage (Get-EmptyMessage 'taxii-clients.json' '_No TAXII clients returned._'))
 
 [Microsoft Sentinel Threat Intelligence (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence)
 "@)
@@ -4699,10 +5070,11 @@ $opportunityRows = @($uncoveredTables | ForEach-Object {
     [pscustomobject]@{
         Table              = $name
         Gb30d              = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
-        SuggestedTemplates = (($cands | Select-Object -First 3 | ForEach-Object { $_.DisplayName }) -join '; ')
-        MoreTemplates      = [math]::Max(0, $cands.Count - 3)
+        TemplateCount      = $cands.Count
+        Templates          = (($cands | ForEach-Object { $_.DisplayName }) -join '; ')
     }
 })
+$noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Gb30d = $_.Gb30d } })
 $readyTemplates = @($undeployedTemplates | Where-Object {
     $tbls = @($_.Tables)
     @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
@@ -4746,7 +5118,13 @@ $headroomChart
 
 "Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alert volumes by product in [20-analytics-rules.md](20-analytics-rules.md) before treating a row as unprotected.
 
-$(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','SuggestedTemplates','MoreTemplates')
+$(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','TemplateCount','Templates')
+
+## Tables with no template available
+
+Tables above with no undeployed, non-deprecated template that reads them. Covering one of these means writing a custom rule, or a Defender XDR custom detection, rather than enabling a template.
+
+$(Format-Table -Items $noTemplateRows -Columns 'Table','Gb30d' -EmptyMessage '_Every table above has at least one template available._')
 
 [SAC-MON-05] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
 
@@ -4773,19 +5151,45 @@ $linkedRows = @($linkedServices | ForEach-Object {
     }
 })
 $exportRows = $dataExports | ForEach-Object {
+    $dest = [string]$_.properties.destination.resourceId
     [pscustomobject]@{
-        Name        = $_.name
-        Destination = $_.properties.destination.resourceId
-        Tables      = ($_.properties.tableNames -join ', ')
-        Enabled     = $_.properties.enable
+        Name            = $_.name
+        DestinationType = if ($dest -match '/storageAccounts/') { 'Storage account (Blob)' } elseif ($dest -match '/namespaces/') { 'Event Hub' } else { [string](_RProp $_.properties.destination 'type' '') }
+        Destination     = $dest
+        Tables          = ($_.properties.tableNames -join ', ')
+        Enabled         = $_.properties.enable
     }
 }
+$linkedStorageRows = @(Read-RawArray 'linked-storage-accounts.json' | Where-Object { $_ } | ForEach-Object {
+    $lp = _RProp $_ 'properties'
+    [pscustomobject]@{
+        DataSource      = [string](_RProp $lp 'dataSourceType' $_.name)
+        StorageAccounts = (@(_RProp $lp 'storageAccountIds' @()) | ForEach-Object { ([string]$_ -split '/')[-1] }) -join ', '
+    }
+})
+$adxRows = @($linkedRows | Where-Object { $_.ResourceId -match '/providers/Microsoft\.Kusto/' } | ForEach-Object {
+    [pscustomobject]@{ Name = $_.Name; Cluster = ($_.ResourceId -split '/')[-1]; ResourceId = $_.ResourceId }
+})
 Write-Section '36-data-export.md' (@"
 $(Format-Banner -Title "Data Export  (TOC 4.3.3)")
 
+## Continuous data exports
+
 Continuous export of selected tables to Storage Accounts or Event Hubs. Empty list = no data export configured.
 
-$(Format-Table -Items $exportRows -Columns 'Name','Destination','Tables','Enabled')
+$(Format-Table -Items $exportRows -Columns 'Name','DestinationType','Destination','Tables','Enabled')
+
+## Linked storage accounts
+
+Customer-owned storage the workspace writes to, by data source type: custom and IIS logs, saved query results, alerts and ingestion. Empty when the workspace uses Microsoft-managed storage only.
+
+$(Format-Table -Items $linkedStorageRows -Columns 'DataSource','StorageAccounts' -EmptyMessage (Get-EmptyMessage 'linked-storage-accounts.json'))
+
+## ADX clusters linked to the workspace
+
+Azure Data Explorer clusters linked through a workspace linked service, typically to keep data for longer outside the workspace.
+
+$(Format-Table -Items $adxRows -Columns 'Name','Cluster','ResourceId')
 
 ## Linked services
 
@@ -4931,6 +5335,17 @@ Two bars per machine type — AMA first, MMA second. A workspace mid-migration s
     "`n> **Agent migration:** $totalAgents agent(s) heartbeating; chart suppressed because the count is too small for a meaningful visual. The migration-status table below carries the per-machine detail."
 }
 
+$heartbeatMixRows = @(Read-RawArray 'agent-heartbeat-mix.json' | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{
+        OSType    = $_.OSType
+        Agent     = $(switch ([string]$_.Category) { 'Direct Agent' { 'Direct Agent (MMA, legacy)' } 'SCOM Agent' { 'SCOM Agent (legacy)' } default { $_ } })
+        Version   = $_.Version
+        OSVersion = $_.OSVersion
+        Computers = $_.Computers
+        LastSeen  = Format-DateUtc $_.LastSeen
+    }
+})
+
 Write-Section '87-azure-monitor-agents.md' (@"
 $(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
 
@@ -4944,6 +5359,12 @@ $(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','
 Per-machine-type breakdown of agent migration progress. ``Direct Agent`` counts the legacy MMA; ``Azure Monitor Agent`` counts the modern AMA. Migration state is **Completed** when only AMA records exist for a category, **In Progress** when both exist, and **Not Started** otherwise.
 
 $(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMACount','AMACount','MigrationStatus')
+
+## Agent heartbeat mix
+
+Machines by operating system, agent and agent version over the last 7 days. A ``Direct Agent`` or ``SCOM Agent`` row is the legacy Log Analytics agent, retired on 31 August 2024 ([SAC-PLT-03]); the version column shows how far behind each fleet is.
+
+$(Format-Table -Items $heartbeatMixRows -Columns 'OSType','Agent','Version','OSVersion','Computers','LastSeen' -EmptyMessage (Get-EmptyMessage 'agent-heartbeat-mix.json' '_No heartbeats in the last 7 days._'))
 
 [Migrate from Log Analytics agent to Azure Monitor agent (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration)
 [Azure Monitor Agent overview (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/agents-overview)
@@ -5167,11 +5588,39 @@ $($tierPieRows -join [Environment]::NewLine)
 
 # Retention split bar chart — only render when at least one table has
 # extended retention (otherwise the chart would be empty).
+# Every table whose retention rolls into the lake, with its volume and the
+# rules reading it, and whether each one is still being fed.
+$retentionAllRows = @($retentionRows | ForEach-Object {
+    $name = [string]$_.Table
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    [pscustomobject]@{
+        Table = $name; Plan = $_.Plan; AnalyticsDays = $_.AnalyticsDays; LakeOnlyDays = $_.LakeOnlyDays; TotalDays = $_.TotalDays
+        Gb90d = $(if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 })
+        Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
+    }
+} | Sort-Object @{ Expression = 'LakeOnlyDays'; Descending = $true }, Table)
+$nowUtc88 = (Get-Date).ToUniversalTime()
+$lakeValidationRows = @($retentionRows | ForEach-Object {
+    $name = [string]$_.Table
+    $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
+    $last = if ($use) { _RProp $use 'LastIngested' } else { $null }
+    $lastDt = $null
+    if ($last) { $parsed = [datetime]::MinValue; if ([datetime]::TryParse([string]$last, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) { $lastDt = $parsed } }
+    $days = if ($lastDt) { [math]::Round(($nowUtc88 - $lastDt).TotalDays, 1) } else { $null }
+    [pscustomobject]@{
+        Table = $name; Plan = $_.Plan; LakeOnlyDays = $_.LakeOnlyDays
+        Gb90d = $(if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 })
+        LastIngested = Format-DateUtc $last
+        DaysSince = $(if ($null -ne $days) { $days } else { 'n/a' })
+        Validation = $(if ($null -eq $days) { 'Check: no data in 90 days' } elseif ($days -gt 7) { "Check: last record $days days ago" } else { 'OK: ingesting' })
+    }
+} | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
+
 $retentionChartBlock = if ($topRetention.Count -gt 0) { @"
 
-## Retention split — top tables by extended Lake retention
+## Retention that rolls into the lake
 
-Top 10 tables paying for retention beyond the Analytics-tier interactive period. Each bar is the table's *Lake-only* retention days — the portion of total retention that bills against the Lake-storage meter (per GB · month, with 6:1 compression). Tables with the same Analytics retention as total retention don't appear here because they sit entirely within the Analytics retention window and incur no Lake-storage charge.
+Tables paying for retention beyond the Analytics-tier interactive period. Each bar is the table's *Lake-only* retention days for the ten longest: the portion of total retention that bills against the Lake-storage meter (per GB · month, with 6:1 compression). The table below lists every one. Tables with the same Analytics retention as total retention don't appear here because they sit entirely within the Analytics retention window and incur no Lake-storage charge.
 
 ``````mermaid
 ---
@@ -5187,7 +5636,13 @@ xychart-beta
     bar [$retLakeBars]
 ``````
 
-$(Format-Table -Items $topRetention -Columns 'Table','Plan','AnalyticsDays','LakeOnlyDays','TotalDays')
+$(Format-Table -Items $retentionAllRows -Columns 'Table','Plan','AnalyticsDays','LakeOnlyDays','TotalDays','Gb90d','Rules')
+
+## Ingestion validation
+
+Is each table with long-term retention still being fed? Last ingestion comes from the ``Usage`` table over 90 days. A table kept for years that stopped receiving data is paying to retain history nobody is adding to, and its detections have gone quiet.
+
+$(Format-Table -Items $lakeValidationRows -Columns 'Table','Plan','LakeOnlyDays','Gb90d','LastIngested','DaysSince','Validation')
 "@ } else { '' }
 
 # Lake architecture flowchart — static visual showing the three tiers

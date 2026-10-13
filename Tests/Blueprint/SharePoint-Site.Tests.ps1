@@ -1070,7 +1070,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         ($model.estate.tables | Where-Object table -eq 'FirewallLogs_CL').covered | Should -BeFalse
         $html | Should -Match 'function showEstateDetail'
         @($model.maturity.areas).Count | Should -Be 11
-        $model.maturity.overall.score | Should -Be 1.49
+        $model.maturity.overall.score | Should -Be 1.59
         @($model.maturity.criteria).Count | Should -Be 60
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
@@ -1104,7 +1104,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         ($site.sections | Where-Object num -eq 91).family | Should -Be 'Maturity'
         ($site.sections | Where-Object num -eq 28).family | Should -Be 'Detection'
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
-        ($model.sections | Where-Object num -eq 91).headline | Should -Be 'Score 1.49 / 5'
+        ($model.sections | Where-Object num -eq 91).headline | Should -Be 'Score 1.59 / 5'
         ($model.sections | Where-Object num -eq 28).headline | Should -Be '8 tables without detection'
     }
 

@@ -6,6 +6,23 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint closes the gaps against health-check build 38** - a section
+  by section, query by query comparison of the health-check script and its
+  HTML report against the Blueprint, written up in
+  `Docs/Tools/Blueprint/Health-Check-Coverage.md`. The collector gains six
+  captures (linked storage accounts, the agent heartbeat mix, per-table
+  threat intelligence volumes, indicator health, TAXII clients and Azure
+  Firewall diagnostic categories) and extends nine (connector health
+  failures, 7-day incident and alert counts by provider, duplicate
+  SecurityEvent counts, CEF vendors in Syslog, distinct indicators per
+  source, UEBA counts over 7 and 14 days, the signed-in identity, and the
+  2025-02-01 tables API with a fallback). The renderer adds the matching
+  subsections across fifteen pages, including a legacy features list on
+  the live snapshot, the maturity scale and open gaps on the maturity
+  page, and ingestion validation for lake-retained tables. The detection
+  opportunities page now lists every candidate template per table and the
+  tables no template covers. The gap catalogue moves to 3.1.0 with seven
+  new rules: SAC-COV-08, SAC-LOG-19 to SAC-LOG-23 and SAC-PLT-12.
 - **SharePoint pages are republished only when they change** - a section
   page's content hash differed on every build, so every publish rebuilt
   every page. Two causes, both from .NET randomising string hashing per

@@ -33,7 +33,7 @@ literal string.
 | `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers connectors, alert rules, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, settings, threat-intelligence metrics. |
 | `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Content Hub product packages, SOC-optimisation recommendations, `pricings` resource, `hunts`. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
-| `Microsoft.OperationalInsights/workspaces/tables` | `2023-09-01` | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`. |
+| `Microsoft.OperationalInsights/workspaces/tables` | `2025-02-01` (falls back to `2023-09-01`) | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`, and on the newer version `schema.tableSubType` (Classic or DCR-based), `lastPlanModifiedDate` and the `*AsDefault` retention flags. A region that does not serve the newer version gets the older one, with a warning in the run log. |
 | `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms; REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
 
 ### Ad-hoc one-off versions
@@ -55,6 +55,8 @@ needs bumping.
 | `Microsoft.OperationsManagement/solutions` | `2015-11-01-preview` | `solutions-installed` |
 | `Microsoft.Authorization/locks` (workspace scope) | `2016-09-01` | `workspace-locks` |
 | `.../availableServiceTiers` | `2020-08-01` | `available-service-tiers` |
+| `.../linkedStorageAccounts` | `2020-08-01` | `linked-storage-accounts`: customer-owned storage per data source type |
+| `Microsoft.SecurityInsights/threatIntelligence/main/taxiiClients` | `Sentinel` pin, then `2024-03-01`, then `2023-11-01` | `taxii-clients`: not in the published REST reference, so a service that does not answer leaves an empty list rather than a failed capture |
 
 `sourceControls` (the `repositories` capture) is a special case: it is published on a
 different cadence than the rest of Sentinel and the GA Sentinel pin returns
@@ -140,7 +142,7 @@ call shape is non-obvious enough to be worth pinning down here:
 
 ## Recurring KQL queries
 
-The collector runs **34 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
+The collector runs **38 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
 each inside its own `Try-Capture` block that writes one `_raw/<name>.json` file. They are
 **not** all cheap billing-metadata reads: a good half of them query raw operational and
 security tables directly (`CommonSecurityLog`, `Syslog`, `SecurityEvent`, `SecurityAlert`,
@@ -160,7 +162,8 @@ Grouped by purpose:
   line on the dashboard.
 - `azure-diagnostics-categories` - `AzureDiagnostics` row counts by resource provider and
   category over 7 days, the input to the duplicate-firewall-logging rule.
-- `la-query-logs` - Log Analytics query-audit activity.
+- `la-query-logs` - Log Analytics query-audit activity over 7 days; zero records means query
+  auditing is off (SAC-PLT-12).
 - `table-query-usage` - audited queries, distinct users and the last query per lake-retained
   table over 30 days (`LAQueryLogs` matched against up to 60 table names taken from the
   `workspace-tables` capture written earlier in the run); the usage evidence on the data lake
@@ -168,13 +171,16 @@ Grouped by purpose:
 
 **Sentinel health and posture**
 
-- `sentinel-health` and `sentinel-health-summary` - `SentinelHealth`-based connector/rule health.
+- `sentinel-health` and `sentinel-health-summary` - `SentinelHealth`-based connector/rule health;
+  `sentinel-health` carries the failure count and last failure per resource, the connector
+  health issues on page 11.
 - `rule-health` - analytics rules whose scheduled runs failed in the last 7 days, with the
   failure count, last failure and recorded reason (`SentinelHealth`, resource type
   "Analytics Rule"); the input to SAC-DET-14 and the rule-run-failures table.
 - `ueba-data-presence` - infers whether UEBA is producing data (row presence in
-  `BehaviorAnalytics` / `IdentityInfo` / `UserPeerAnalytics`), the operational counterpart to
-  the `settings/Ueba` configuration signal.
+  `BehaviorAnalytics` / `IdentityInfo` / `UserPeerAnalytics`, over 12 days with 7- and 14-day
+  counts beside it), the operational counterpart to the `settings/Ueba` configuration signal,
+  and the IdentityInfo evidence for entity analytics (SAC-COV-08).
 
 (SOC-optimisation recommendations, `soc-optimization`, are captured separately over REST from
 `.../recommendations`, not via KQL.)
@@ -184,9 +190,12 @@ Grouped by purpose:
 - `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
   `incidents-detail-by-provider`, `incidents-by-rule` (up to 500 rule titles) - incident counts, mean-time-to-respond,
   daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
-  row with `Count`, `Closed` and three bags (`ByStatus`, `BySeverity`, `ByClassification`)
-  whose values are real counts; closed incidents with an empty classification are reported
-  as `Unclassified`.
+  row with `Count`, `Closed` and four bags (`ByStatus`, `BySeverity`, `ByClassification`,
+  `ByProvider`) whose values are real counts; closed incidents with an empty classification
+  are reported as `Unclassified`. The same row carries the last 7 days (`Count7d`,
+  `Closed7d`, `TruePositive7d`, `FalsePositive7d`) and the incidents raised through Defender
+  XDR (`Unified`, `Unified7d`: provider Microsoft XDR or Microsoft 365 Defender);
+  `incidents-mttr` carries the 7-day MTTA and MTTR beside the 30-day ones.
 - `rule-effectiveness` - per detection over 30 days: incidents, closures and the
   true/false/benign-positive split, with a false-positive rate over closed incidents. Each
   incident is counted once (`arg_max` by `IncidentNumber`) and joined to its alerts. Sentinel
@@ -203,11 +212,18 @@ Grouped by purpose:
 
 - `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert` (grouped by
   `AlertName`, `ProductName`, `AlertSeverity`, up to 500 rows so the pack and the
-  dashboard list every alerting rule rather than a top fifty).
+  dashboard list every alerting rule rather than a top fifty), with the provider and the
+  last 7 days' count beside the 30-day total.
 - `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
   than the alert name, so renamed rules and rules sharing a name are told apart.
-- `threat-intel-counts` - threat-intelligence indicator counts from KQL. (The related
-  `threat-intel-metrics` capture is REST, from `.../threatIntelligence/main/metrics`.)
+- `threat-intel-counts` - threat-intelligence records and distinct indicators per source
+  system from KQL. (The related `threat-intel-metrics` capture is REST, from
+  `.../threatIntelligence/main/metrics`.)
+- `threat-intel-tables` - records over 30 and 7 days, first and last record, in each of
+  `ThreatIntelIndicators`, `ThreatIntelObjects` and the retired `ThreatIntelligenceIndicator`:
+  the table migration status on page 27.
+- `threat-intel-health` - each indicator in `ThreatIntelIndicators` at its latest state:
+  active, deleted, revoked and still within its validity.
 - `threat-intel-objects` - `ThreatIntelObjects` rows by STIX type over 30 days.
 - `threat-intel-by-type` - indicators by observable type (IP, domain, URL, file hash, email)
   over 30 days from `ThreatIntelIndicators` (`ObservableKey`), falling back to the retired
@@ -216,19 +232,26 @@ Grouped by purpose:
 **Table hygiene, agent migration and connector misrouting**
 
 - `cef-devices` - top CEF device vendor/product pairs (`CommonSecurityLog`).
-- `cef-in-syslog` - CEF records that landed in `Syslog`, a forwarder misconfiguration that
-  should be split into a dedicated `CommonSecurityLog` stream.
-- `security-event-duplicates` - duplicate `SecurityEvent` records, typically MMA + AMA
-  dual-collection.
+- `cef-in-syslog` - CEF records (a message starting `CEF:` or `0|`) that landed in `Syslog`,
+  by forwarder and the vendor and product in the CEF header; a forwarder misconfiguration
+  that should be split into a dedicated `CommonSecurityLog` stream (SAC-LOG-23).
+- `security-event-duplicates` - duplicate `SecurityEvent` records per host in the last hour,
+  with the number of distinct events duplicated; typically MMA + AMA dual-collection
+  (SAC-LOG-22).
+- `agent-heartbeat-mix` - machines by OS, agent category (Azure Monitor Agent, Direct Agent
+  for the legacy MMA, SCOM) and agent version over 7 days.
 - `syslog-contributors` - `Syslog` records and billed size by host and facility over 7 days.
 - `securityevent-top-hosts` - `SecurityEvent` records and billed size by host over 7 days.
 - `ama-agents` and `ama-mma-migration` - Azure Monitor Agent inventory and MMA→AMA migration
   status.
-- `top-event-ids` - top billable Windows event IDs across `Event`/`SecurityEvent` (via `find`),
-  drives table-noise tuning.
+- `top-event-ids` - top 15 billable Windows event IDs across `Event`/`SecurityEvent` (via
+  `find`), with the record count; drives table-noise tuning.
 - `azure-activity-coverage` - per-subscription `AzureActivity` volume, surfaces subscriptions
   not shipping Activity Logs.
 - `azure-diagnostics-providers` - `AzureDiagnostics` volume by resource provider.
+- `azure-firewall-categories` - Azure Firewall rows by category, legacy `AzureFirewall*` and
+  resource-specific `AZFW*`, asked for by name so a small legacy category is not lost below
+  the top 100 of `azure-diagnostics-categories`.
 - `xdr-table-presence` - record counts across the known Defender XDR table list, a quick
   "is XDR connected and producing data?" check.
 
