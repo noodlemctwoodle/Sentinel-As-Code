@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.8.0
+    Version:      0.9.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -275,8 +275,14 @@ function ConvertTo-SectionRunsHtml {
     foreach ($r in @($Runs)) {
         if ($null -eq $r) { continue }
         if ($r.break) { [void]$sb.Append('<br>'); continue }
-        $h = ConvertTo-HtmlText ([string]$r.text)
-        if ($r.code) { $h = "<code>$h</code>" }
+        # A link or mention by file name (90-gap-analysis.md) shows the
+        # section's title, and a mention becomes a link to it.
+        $text = [string]$r.text
+        if ($r.href -and [string]$r.target.kind -eq 'section') { $text = Get-SacSectionLinkText -Text $text -SectionId ([string]$r.target.section) }
+        $fileOnly = (-not $r.href) -and $text -match '^\s*\d{2}-[a-z0-9-]+\.md\s*$'
+        $h = ConvertTo-HtmlText $text
+        if (-not $r.href) { $h = ConvertTo-SacFileMentionHtml -Html $h -Link { param($id, $title) "<a class=`"xref`" href=`"#`" data-xsec=`"$([int]$id.Substring(0, 2))`">$title</a>" } }
+        if ($r.code -and -not $fileOnly) { $h = "<code>$h</code>" }
         if ($r.strike) { $h = "<s>$h</s>" }
         if ($r.italic) { $h = "<em>$h</em>" }
         if ($r.bold) { $h = "<strong>$h</strong>" }
@@ -1091,7 +1097,13 @@ $siteSections = @()
 $pageDocs = @()
 $chartCount = 0
 
-foreach ($sec in @(Get-SectionModels -Source $Source)) {
+$allSectionModels = @(Get-SectionModels -Source $Source)
+# Every section's title first, so a link to a later section can show it.
+$script:SacSectionTitles = @{}
+foreach ($s in $allSectionModels) {
+    if ($s -and $s.id -and $null -ne $s.order) { $script:SacSectionTitles[[string]$s.id] = Get-SacSectionTitle -Title ([string]$s.title) }
+}
+foreach ($sec in $allSectionModels) {
     if ($null -eq $sec.order) { continue }
     $id = [string]$sec.id
     $num = [int]$sec.order

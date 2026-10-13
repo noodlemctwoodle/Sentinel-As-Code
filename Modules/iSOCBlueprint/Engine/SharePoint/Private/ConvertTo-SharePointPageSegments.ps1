@@ -39,7 +39,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.1
+    Version:      0.3.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -95,6 +95,78 @@ function ConvertTo-SacHtmlText {
     return $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;')
 }
 
+# The Markdown pages refer to one another by file name (90-gap-analysis.md),
+# which suits a folder of Markdown but not the site. These turn a file name
+# into the section's title: from $script:SacSectionTitles (section id ->
+# title), which the site build fills before it converts any page, or the id
+# made readable when the build has not.
+$script:SacFileNamePattern = '(?<![\w/.-])(?<id>\d{2}-[a-z0-9-]+)\.md\b'
+
+function Get-SacSectionName {
+    <#
+    .SYNOPSIS
+        A section's title for a link to it: '90-gap-analysis' -> 'Gap
+        Analysis' (its title), or 'Gap analysis' when the title is unknown.
+
+    .PARAMETER SectionId
+        The section id, the file name without .md.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [AllowEmptyString()] [string] $SectionId)
+
+    if ($script:SacSectionTitles -and $script:SacSectionTitles.ContainsKey($SectionId)) { return [string]$script:SacSectionTitles[$SectionId] }
+    $words = (($SectionId -replace '^\d+-', '') -replace '-', ' ').Trim()
+    if (-not $words) { return $SectionId }
+    return $words.Substring(0, 1).ToUpperInvariant() + $words.Substring(1)
+}
+
+function Get-SacSectionLinkText {
+    <#
+    .SYNOPSIS
+        The text a link to another section shows: the section's title when
+        the Markdown wrote its file name, otherwise the text as written.
+
+    .PARAMETER Text
+        The link text.
+
+    .PARAMETER SectionId
+        The section the link points at.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([AllowEmptyString()] [AllowNull()] [string] $Text, [Parameter(Mandatory)] [AllowEmptyString()] [string] $SectionId)
+
+    if ([string]$Text -match '^\s*(?:\./)?\d{2}-[a-z0-9-]+\.md(?:#\S*)?\s*$') { return Get-SacSectionName -SectionId $SectionId }
+    return [string]$Text
+}
+
+function ConvertTo-SacFileMentionHtml {
+    <#
+    .SYNOPSIS
+        Replace each file name (NN-name.md) in escaped plain text with the
+        section's title, as a link from -Link for a section in this run and
+        as text otherwise.
+
+    .PARAMETER Html
+        Escaped text with no markup.
+
+    .PARAMETER Link
+        Scriptblock taking the section id and the escaped title, returning
+        the link HTML.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([AllowEmptyString()] [AllowNull()] [string] $Html, [Parameter(Mandatory)] [scriptblock] $Link)
+
+    if (-not $Html -or $Html -cnotmatch $script:SacFileNamePattern) { return [string]$Html }
+    return $Html -creplace $script:SacFileNamePattern, {
+        $id = $_.Groups['id'].Value
+        $title = ConvertTo-SacHtmlText (Get-SacSectionName -SectionId $id)
+        if ($script:SacSectionTitles -and $script:SacSectionTitles.ContainsKey($id)) { & $Link $id $title } else { $title }
+    }
+}
+
 function ConvertTo-SacSiteLink {
     <#
     .SYNOPSIS
@@ -148,8 +220,13 @@ function ConvertTo-SacRunsHtml {
     foreach ($r in @($Runs)) {
         if ($null -eq $r) { continue }
         if ($r.break) { [void]$sb.Append('<br>'); continue }
-        $h = ConvertTo-SacHtmlText ([string]$r.text)
-        if ($r.code) { $h = "<code>$h</code>" }
+        # A link or mention by file name shows the section's title.
+        $text = [string]$r.text
+        if ($r.href -and [string]$r.target.kind -eq 'section') { $text = Get-SacSectionLinkText -Text $text -SectionId ([string]$r.target.section) }
+        $fileOnly = (-not $r.href) -and $text -match '^\s*\d{2}-[a-z0-9-]+\.md\s*$'
+        $h = ConvertTo-SacHtmlText $text
+        if (-not $r.href) { $h = ConvertTo-SacFileMentionHtml -Html $h -Link { param($id, $title) "<a href=`"~site/SitePages/$(Get-SacPageName -FileName $id).aspx`">$title</a>" } }
+        if ($r.code -and -not $fileOnly) { $h = "<code>$h</code>" }
         if ($r.strike) { $h = "<s>$h</s>" }
         if ($r.italic) { $h = "<em>$h</em>" }
         if ($r.bold) { $h = "<strong>$h</strong>" }

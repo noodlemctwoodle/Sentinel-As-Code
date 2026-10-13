@@ -16,7 +16,7 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the estate flow with its pipeline figures, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the estate flow with its pipeline figures, the maturity card with quick wins, the critical findings with a button to every finding, and a contents card per family), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
@@ -145,14 +145,31 @@ filter by severity, category and free text; criteria by status, area and
 free text, and a criterion whose id a fired finding shares carries an
 "Open finding" link.
 
-Every list on the dashboard is complete. Panels show their first entries
-(eight bars, eight table rows, twelve opportunity tables with three
-templates each, six findings on the Overview, ten roadmap gaps) and a
-"Show all N" control reveals the rest; nothing is folded into an "N more"
-badge that cannot be opened. The model carries the full lists (every
-effectiveness row, every uncovered table with every template that reads
-it, every alerting rule, every extended-retention table, every roadmap
-entry, every table by cost).
+Every list on the dashboard is complete, either on the card or one click
+away. The Insights cards that list things (top tables by volume, top
+alerting rules, alerts by detection source, operational health, rule
+effectiveness, failing playbooks, the data lake's extended tables) show at
+least eight entries and then as many more as fit beside the tallest card
+in their row, so a row's cards end level, and close with a button at the
+foot of the card (the buttons in a row line up) such as
+"All 2,780 rules in the report" that opens the report page holding every
+entry (Rule Performance, Alerts, Sentinel Health and Resilience, Estimated
+Monthly Cost, Automation Rules and Playbooks, Microsoft Sentinel Data
+Lake; the data lake card keeps its button even when every table fits, as
+its only link to that page). Detection opportunities shows twelve tables, then the same kind of
+button. Nothing expands in place there, so a list of thousands never
+turns into a long scroll; a card whose report page is missing from the
+run keeps a "Show all N" control instead. Elsewhere (the
+Overview's quick wins, ten roadmap gaps, a table's templates) "Show all N"
+reveals the rest. The Overview's top findings are the critical ones only,
+with a button to the findings view, which lists every finding. With the
+data lake enrolled, the Insights tab's ingestion by billing plan card
+shows a Data lake plan row (0 GB when no table is lake-only) and a line
+saying how many Analytics-plan tables are mirrored to the lake at no extra
+ingestion charge and how many keep data there beyond analytics retention. The model carries the full lists (every effectiveness
+row, every uncovered table with every template that reads it, every
+alerting rule, every extended-retention table, every roadmap entry, every
+table by cost).
 
 Every button that does something looks the same on every tab: white on
 the brand gradient, the colour a selected tab or switch takes. That covers
@@ -207,7 +224,10 @@ table, and only when a column clearly holds an amount (a count, cost,
 volume or total); a table with no such column gets no chart. A link to
 another section opens it in the Report tab, and a link to a finding opens
 it in the findings view, or the gap analysis page when this run's
-findings list does not hold it.
+findings list does not hold it. The Markdown pages refer to one another by
+file name (`90-gap-analysis.md`); the Report tab and the native pages show
+the section's title instead ("Gap Analysis"), and a file name mentioned in
+plain text becomes a link to that section.
 
 Following a link or a tab starts at the top of what it opens. On
 SharePoint the web part grows its iframe to the dashboard's full height
@@ -219,7 +239,7 @@ host page (with `scrollIntoView`) rather than its own window.
 | `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
 | `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
-| `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope) and quick wins. Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
+| `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope) and quick wins. Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target, the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |

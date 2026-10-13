@@ -853,7 +853,7 @@ $(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $(
 }) -join [Environment]::NewLine
 } else { '_No findings — clean run._' })
 
-See the rest of this folder for deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [detection opportunities](28-detection-opportunities.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md), [maturity assessment](91-maturity-assessment.md).
+The deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [detection opportunities](28-detection-opportunities.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md), [maturity assessment](91-maturity-assessment.md).
 "@
 
 Write-Section '00-overview.md' $overviewBody

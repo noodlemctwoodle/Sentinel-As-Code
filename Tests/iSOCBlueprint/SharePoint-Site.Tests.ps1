@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.10.0
+    Version:      0.11.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1358,6 +1358,89 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.ak-seg button\.on\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
         $html | Should -Match '\.subtab\.active\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
         $html | Should -Not -Match '\.ak-seg button\.on\{background:var\(--brand\);color:#fff\}'
+    }
+
+    It 'fills each Insights list card to its row and links to the report page with the whole list' {
+        $html | Should -Match 'function fillCards\(\)'
+        $html | Should -Match 'const FILL_MIN=8, FILL_CAP=40;'
+        $html | Should -Match "' in the report &rarr;</a>'"
+        # Each list card names the report page that holds every entry.
+        $html | Should -Match "barsHtml\(tt,\{theme:'teal',fill:\{sec:secCostPage,label:'tables'\}\}\)"
+        $html | Should -Match "barsHtml\(tr,\{theme:'indigo',fill:\{sec:secRulePerf,label:'rules'\}\}\)"
+        $html | Should -Match "barsHtml\(pi,\{theme:'rose',fill:\{sec:secAlerts,label:'sources'\}\}\)"
+        $html | Should -Match "barsHtml\(hi,\{theme:'cyan',fill:\{sec:secHealth,label:'operations'\}\}\)"
+        $html | Should -Match "barsHtml\(fl,\{theme:'rose',fill:\{sec:secAutomation,label:'failing playbooks'\}\}\)"
+        $html | Should -Match "secRulePerf=findSecNum\(/\^rule performance/i, null\)"
+        $html | Should -Match '<tbody data-fill-list data-fill-total="''\+rows\.length\+''">'
+        # No list card expands in place any more.
+        $html | Should -Not -Match "show:8,label:'(tables|rules|operations|playbooks)'"
+        # It runs when the Insights tab shows.
+        $html | Should -Match "if\(name==='sections'\) fillCards\(\);"
+        # Detection opportunities: the first twelve, then the report page.
+        $html | Should -Match "fillFoot\(rows\.length,opNum,'tables'\)"
+        # The buttons sit at the foot of their cards, so a row's line up.
+        $html | Should -Match '\.iband>\.ipanel:has\(>\.fillmore\)\{display:flex;flex-direction:column\}'
+        $html | Should -Match '\.iband>\.ipanel>\.fillmore\{margin-top:auto;'
+        # The data lake card keeps its button and drops the duplicate link above.
+        $html | Should -Match "fill:\{sec:lakeNum,label:'tables',keep:true\}"
+        $html | Should -Match 'lakeNum!=null&&!ext\.length\?'' <a class="link-muted"'
+    }
+
+    It 'opens a criterion from the roadmap or a quick win by filtering the criteria list' {
+        $html | Should -Match '<tr class="frow" role="button" tabindex="0" data-crit="'
+        $html | Should -Match '<div class="qwi" role="button" tabindex="0" data-crit="'
+        $html | Should -Match "window\.showCriterion=function\(id\)\{"
+        $html | Should -Match "sel\.value=''; ar\.value=''; q\.value=id; renderCriteria\(\);"
+        $html | Should -Match 'id="matClear"'
+        # An id on its own matches that criterion only.
+        $html | Should -Match "const exact=!!s && \(MAT\.criteria\|\|\[\]\)\.some\(c=>c\.id\.toLowerCase\(\)===s\);"
+        # Each criterion links to the findings behind it.
+        $html | Should -Match 'function critFindingLinks\(c\)'
+    }
+
+    It 'shows only the critical findings on the Overview, with a button to every finding' {
+        $html | Should -Match "topF = allF\.filter\(f=>f\.severity==='Critical'\)"
+        $html | Should -Match 'data-go="findings">All '
+        $html | Should -Match 'No critical findings in this run\.'
+        $html | Should -Not -Match "rowsMore\(topF\.map\(findingCard\),6,'div'\)"
+    }
+
+    It 'shows the data lake on the billing plan card when the lake is enrolled' {
+        $html | Should -Match "label:'Data lake plan',value:lakeGb"
+        $html | Should -Match 'if\(activePlans\.length>=2 \|\| \(lakeOn && activePlans\.length\)\)'
+        $html | Should -Match 'mirrored to it at no extra ingestion charge'
+        $html | Should -Match '\.bar\.lake \.bf\{background:linear-gradient'
+    }
+
+    It 'shows the NIST CSF rollup above the roadmap' {
+        $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
+        $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')
+    }
+
+    It 'shows section titles, not Markdown file names, in the Report tab' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $text = ($model.sections | ForEach-Object { $_.blocks } | ConvertTo-Json -Depth 32 -Compress)
+        $text | Should -Not -Match '\b\d{2}-[a-z0-9-]+\.md\b'
+        $text | Should -Match 'data-xsec=\\"90\\">Gap Analysis</a>'
+    }
+
+    It 'turns a file name into the section title on the native pages too' {
+        $script:SacSectionTitles = @{ '90-gap-analysis' = 'Gap Analysis'; '84-cost-estimate' = 'Estimated Monthly Cost' }
+        try {
+            $runs = @(
+                [pscustomobject]@{ text = '90-gap-analysis.md'; href = '90-gap-analysis.md'; target = [pscustomobject]@{ kind = 'section'; section = '90-gap-analysis' } }
+                [pscustomobject]@{ text = ' lists every one; see ' }
+                [pscustomobject]@{ text = '84-cost-estimate.md'; code = $true }
+                [pscustomobject]@{ text = ' and 12-soc-optimization.md, not docs/84-cost-estimate.md' }
+            )
+            $out = ConvertTo-SacRunsHtml -Runs $runs -FindingsListUrl 'Lists/Findings'
+            $out | Should -Match '<a href="~site/SitePages/sac-90-gap-analysis\.aspx">Gap Analysis</a> lists every one'
+            $out | Should -Match 'see <a href="~site/SitePages/sac-84-cost-estimate\.aspx">Estimated Monthly Cost</a>'
+            $out | Should -Not -Match '<code>'
+            # A section not in this run reads as words; a path is left alone.
+            $out | Should -Match 'and Soc optimization, not docs/84-cost-estimate\.md'
+            Get-SacSectionLinkText -Text 'data connectors' -SectionId '10-data-connectors' | Should -Be 'data connectors'
+        } finally { $script:SacSectionTitles = $null }
     }
 
     It 'gives every action button one look, the brand gradient, in light and dark' {

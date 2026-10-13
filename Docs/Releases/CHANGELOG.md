@@ -6,6 +6,23 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Insights cards end level and link to the report; report pages read by
+  title; the roadmap opens its criterion** - each Insights card that lists
+  things now fills to the height of the tallest card in its row and ends
+  with a button, lined up across the row, to the report page that holds every entry (for example
+  "All 2,780 rules in the report" opens Rule Performance), instead of a
+  "Show all" that could expand into thousands of rows; Detection
+  opportunities shows twelve tables and the same button. The Report tab
+  and the native pages show a section's title where the Markdown pages
+  wrote its file name (`90-gap-analysis.md` reads "Gap Analysis"), and the
+  overview's "See the rest of this folder" line now reads "The deep-dive
+  sections". Selecting a roadmap entry or a quick win filters the
+  criteria list to that criterion, with Clear filters to go back, and each
+  criterion links to the findings behind it. The NIST CSF 2.0 rollup sits
+  above the roadmap. The Overview's top findings show only the critical
+  ones, with a button to every finding in the Assessment tab, and with the
+  data lake enrolled the billing plan card shows a Data lake plan row and
+  says how many tables are mirrored to the lake.
 - **Search jobs and restores are collected, so SAC-INV-02 is no longer
   always Unknown** - the maturity criterion "Search or restore has been
   exercised" and the Report's search and restore page read

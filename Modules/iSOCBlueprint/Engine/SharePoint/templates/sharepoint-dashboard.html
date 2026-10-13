@@ -242,6 +242,15 @@
      with similar heights (donuts, bar lists, tables), so a tall table never
      shares a row with a short donut; full-width panels sit between bands. */
   #insightsBoard{display:flex;flex-direction:column;gap:var(--gap)}
+  /* While fillCards measures, cards take their own height, not the row's. */
+  #insightsBoard.filling .iband>.ipanel{align-self:start}
+  /* A card with a report button is a column with the button at its foot,
+     so the buttons in a row line up whatever each list's length. */
+  .iband>.ipanel:has(>.fillmore){display:flex;flex-direction:column}
+  .iband>.ipanel:has(>.fillmore)>*{flex:none}
+  .iband>.ipanel>.fillmore{margin-top:auto;align-self:flex-start}
+  .ipanel>[data-fill-list],.ipanel>.tbl:has(>[data-fill-list]){margin-bottom:12px}
+  .ipanel.full>.fillmore{margin-top:12px}
   .iband{margin:0}
   @media(max-width:440px){.insights{grid-template-columns:1fr}}
   .ipanel h3{margin:0;font-size:15px;font-weight:750;letter-spacing:-.01em}
@@ -257,6 +266,7 @@
   .bar .bv{font-size:12.5px;font-weight:750;color:var(--ink);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
   .bar.sev-Critical .bf{background:var(--red)} .bar.sev-Error .bf{background:var(--orange)}
   .bar.sev-Warning .bf{background:var(--amber)} .bar.sev-Info .bf,.bar.sev-Informational .bf{background:var(--slate)}
+  .bar.lake .bf{background:linear-gradient(90deg,#7c3aed,#a855f7)}
   /* donut */
   .donutwrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
   .donut{flex:none;width:128px;height:128px;border-radius:50%;display:grid;place-items:center;
@@ -349,6 +359,14 @@
   .btn svg{width:14px;height:14px}
   .qw{display:flex;flex-direction:column;gap:9px}
   .qw .qwi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel-soft)}
+  .qw .qwi[role="button"]{cursor:pointer;transition:border-color .15s}
+  .qw .qwi[role="button"]:hover,.qw .qwi[role="button"]:focus-visible{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));outline:none}
+  /* A criterion picked from the roadmap or a quick win flashes once. */
+  .fcard.flash{animation:critflash 1.8s ease-out}
+  @keyframes critflash{0%,35%{box-shadow:0 0 0 3px var(--brand)}100%{box-shadow:0 0 0 3px transparent}}
+  .critfind{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .critfind .flabel{margin:0 2px 0 0}
+  .critfind .link-muted{margin-left:0}
   .qw .qwn{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green);font-weight:800;font-size:12px}
   .qw .qwt{font-weight:700;font-size:13px}
   .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
@@ -859,7 +877,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Top findings</h2>
-        <p class="note">Highest-severity items from the best-practice gap analysis.</p>
+        <p class="note">The critical findings from the best-practice gap analysis; every finding is in the Assessment tab.</p>
       </div></div>
       <div id="topFindings"></div>
     </div>
@@ -1565,9 +1583,14 @@
     card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); bringTop(); }));
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
-      const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
+      const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi" role="button" tabindex="0" data-crit="'+esc(q.criterionId)+'" title="Show this criterion and the findings behind it"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
         '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; '+fmtLift(q.overallLift)+'</span></div>');
       qw.innerHTML=moreWrap('<div class="qw">'+rowsMore(qwItems,QW,'div')+'</div>', qwItems.length, QW, 'quick wins');
+      qw.querySelectorAll('.qwi[data-crit]').forEach(r=>{
+        const go=()=>{ if(typeof window.showCriterion==='function') window.showCriterion(r.dataset.crit); };
+        r.addEventListener('click',e=>{ if(e.target.closest('[data-ltx],[data-more],a,button')) return; go(); });
+        r.addEventListener('keydown',e=>{ if(e.target===r && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); go(); } });
+      });
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
   })();
 
@@ -1810,9 +1833,14 @@
     trRows(M.topRules.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.product)+'</td><td><span class="sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="num">'+r.alerts+'</td></tr>'),8)+'</tbody></table>', M.topRules.length, 8, 'rules');
 
   // ---- top findings ----
-  const topF = M.findings.items;
-  document.getElementById('topFindings').innerHTML=moreWrap('<div class="fcards">'+rowsMore(topF.map(findingCard),6,'div')+'</div>', topF.length, 6, 'findings');
-  markClamped(document.getElementById('topFindings'));
+  // Only the critical findings here; the button opens the findings view,
+  // which lists every one.
+  const allF = M.findings.items||[], topF = allF.filter(f=>f.severity==='Critical');
+  const topEl = document.getElementById('topFindings');
+  topEl.innerHTML=(topF.length? '<div class="fcards">'+topF.map(findingCard).join('')+'</div>' : '<p class="note">No critical findings in this run.</p>')+
+    (allF.length? '<button type="button" class="morebtn" data-go="findings">All '+allF.length.toLocaleString()+' findings in the assessment &rarr;</button>' : '');
+  topEl.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); bringTop(); }));
+  markClamped(topEl);
 
   // ---- ATT&CK coverage grid (Insights) ----
   // A Navigator-style matrix from M.attack: one column per tactic in
@@ -1941,6 +1969,35 @@
     renderAttackGrid();
   }
 
+  // fillCards: each list card shows FILL_MIN entries, then as many more as
+  // fit without growing past the tallest card in its grid row, and its
+  // report button shows when entries are left over. Runs when the Insights
+  // tab shows, on resize and once fonts load; a hidden board is skipped.
+  function fillCards(){
+    const b=document.getElementById('insightsBoard'); if(!b || !b.clientWidth) return;
+    const lists=[...b.querySelectorAll('[data-fill-list]')]; if(!lists.length) return;
+    const setN=(list,n)=>{
+      [...list.children].forEach((r,i)=>{ r.hidden=i>=n; });
+      const card=list.closest('.ipanel'), btn=card&&card.querySelector('.fillmore');
+      if(btn) btn.hidden=!(btn.hasAttribute('data-keep') || n<+list.dataset.fillTotal);
+    };
+    b.classList.add('filling');
+    lists.forEach(l=>setN(l,FILL_MIN));
+    b.querySelectorAll('.iband').forEach(band=>{
+      const rows={};
+      [...band.children].forEach(c=>{ (rows[c.offsetTop]||(rows[c.offsetTop]=[])).push(c); });
+      Object.values(rows).forEach(cards=>{
+        const target=Math.max(...cards.map(c=>c.offsetHeight));
+        cards.forEach(c=>c.querySelectorAll('[data-fill-list]').forEach(list=>{
+          const max=list.children.length; let n=Math.min(FILL_MIN,max);
+          while(n<max){ setN(list,n+1); if(c.offsetHeight>target){ setN(list,n); break; } n++; }
+        }));
+      });
+    });
+    b.classList.remove('filling');
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+
   // ---- insights board (visual Sections) ----
   const board = document.getElementById('insightsBoard');
   const fmt = n => (Math.round(n*100)/100).toLocaleString();
@@ -1954,11 +2011,28 @@
     cyan:   ['#0891b2','#22d3ee'],
     indigo: ['#4f46e5','#818cf8']
   };
+  // Cards that list things fill to the height of the tallest card in their
+  // row, then end with a button to the report page that holds the whole
+  // list (fillCards). FILL_MIN entries always show; FILL_CAP are drawn.
+  const FILL_MIN=8, FILL_CAP=40;
+  // keep: the button shows even when every entry fits, for a card whose
+  // only link to its page it is.
+  const fillFoot=(total,sec,label,keep)=>'<a class="morebtn fillmore" role="button" tabindex="0" data-jump="'+sec+'"'+(keep?' data-keep':'')+' hidden>All '+total.toLocaleString()+' '+esc(label)+' in the report &rarr;</a>';
   function barsHtml(items, opts){
     opts = opts||{};
     const col = THEME[opts.theme] || THEME.brand;
     const max = opts.max || Math.max(1, ...items.map(i=>i.value));
     const style = opts.theme ? ' style="--c1:'+col[0]+';--c2:'+col[1]+'"' : '';
+    // opts.fill {sec, label}: fill the card and link to section sec. Without
+    // a section to link to, the list keeps its Show all control.
+    if(opts.fill && opts.fill.sec==null){ opts.show=opts.show||FILL_MIN; opts.label=opts.label||opts.fill.label; }
+    const fill = opts.fill && opts.fill.sec!=null;
+    if(fill){
+      return '<div class="bars" data-fill-list data-fill-total="'+items.length+'">'+items.slice(0,FILL_CAP).map(i=>
+        '<div class="bar '+(i.cls||'')+'"'+style+'><div class="bl" title="'+esc(i.label)+'">'+esc(i.label)+'</div>'+
+        '<div class="bt"><div class="bf" style="--w:'+Math.max(2,(i.value/max*100))+'%"></div></div>'+
+        '<div class="bv">'+esc(i.display!=null?i.display:i.value)+'</div></div>').join('')+'</div>'+fillFoot(items.length,opts.fill.sec,opts.fill.label,opts.fill.keep);
+    }
     const show = opts.show || items.length;
     const html = '<div class="bars">'+items.map((i,ix)=>
       '<div class="bar '+(i.cls||'')+'"'+style+(ix>=show?' data-mr hidden':'')+'><div class="bl" title="'+esc(i.label)+'">'+esc(i.label)+'</div>'+
@@ -2051,21 +2125,38 @@
       '<p class="note">Where the gap-analysis findings concentrate across the workspace.</p>'+barsHtml(catItems,{theme:'violet'})+'</div>');
   }
 
+  // Report pages that hold each card's full list.
+  const secRulePerf=findSecNum(/^rule performance/i, null), secAlerts=findSecNum(/^alerts$/i, null),
+        secHealth=findSecNum(/sentinel health/i, null), secAutomation=findSecNum(/^automation rules/i, null),
+        secCostPage=findSecNum(/monthly cost/i, null);
   // 4. Top tables by 30-day volume
   if(cost && cost.topTables && cost.topTables.length){
     const ttSrc = (cost.allTables&&cost.allTables.length)? cost.allTables : cost.topTables;
     const tt = ttSrc.map(t=>({label:t.table,value:t.gb30d,display:fmt(t.gb30d)+' GB'}));
     cards.push('<div class="ipanel"><h3>Top tables by volume</h3>'+
-      '<p class="note">Ingested GB over the last 30 days (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',show:8,label:'tables'})+'</div>');
+      '<p class="note">Ingested GB over the last 30 days (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',fill:{sec:secCostPage,label:'tables'}})+'</div>');
   }
 
   // 4b. Ingestion by billing plan — only when there are 2+ active plans (a single
   // plan makes a pointless one-bar chart), else show alert volume by severity.
   const activePlans = (cost && cost.byPlan ? cost.byPlan.filter(p=>p.gb30d>0) : []);
-  if(activePlans.length>=2){
-    const pl = activePlans.map(p=>({label:p.plan+' plan',value:p.gb30d,display:fmt(p.gb30d)+' GB'}));
+  // With the data lake enrolled the lake plan always shows (0 GB when no
+  // table is lake-only), with a line for the mirror: every Analytics-plan
+  // table is copied to the lake at no extra ingestion charge, so it is
+  // described rather than drawn as a second bar of the same data.
+  const DLp = M.dataLake||{}, lakeOn = !!(DLp.enrolled||M.dataLakeEnrolled);
+  if(activePlans.length>=2 || (lakeOn && activePlans.length)){
+    const pl = activePlans.filter(p=>!/^(datalake|lake)$/i.test(p.plan)).map(p=>({label:p.plan+' plan',value:p.gb30d,display:fmt(p.gb30d)+' GB'}));
+    if(lakeOn){
+      const lakePlan=(cost.byPlan||[]).find(p=>/^(datalake|lake)$/i.test(p.plan));
+      const lakeGb=lakePlan? +lakePlan.gb30d||0 : +((DLp.cost||{}).lakeGb)||0;
+      pl.push({label:'Data lake plan',value:lakeGb,display:fmt(lakeGb)+' GB',cls:'lake'});
+    }
+    const tiers=DLp.tiers||{}, mirrored=(+tiers.MirroredOnly||0)+(+tiers.MirroredExtended||0), extended=+DLp.extendedCount||0;
+    const lakeLine = lakeOn? '<p class="note" style="margin:12px 0 0">Data lake enrolled: '+(mirrored? mirrored.toLocaleString()+' Analytics-plan table'+(mirrored===1?' is':'s are') : 'Analytics-plan tables are')+
+      ' mirrored to it at no extra ingestion charge'+(extended? ', and '+extended.toLocaleString()+' keep data there beyond analytics retention' : '')+'.</p>' : '';
     cards.push('<div class="ipanel"><h3>Ingestion by billing plan</h3>'+
-      '<p class="note">GB over 30 days split across the active table plans.</p>'+barsHtml(pl,{theme:'amber'})+'</div>');
+      '<p class="note">GB over 30 days split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
   } else if(M.topRules && M.topRules.length){
     const sevCol={High:'#dc2626',Medium:'#d97706',Low:'#eab308',Informational:'#64748b',Other:'#94a3b8'};
     const sa={}; M.topRules.forEach(r=>{ const s=r.severity||'Other'; sa[s]=(sa[s]||0)+(r.alerts||0); });
@@ -2082,7 +2173,7 @@
   if(M.topRules && M.topRules.length){
     const tr = M.topRules.map(r=>({label:r.name,value:r.alerts,display:r.alerts.toLocaleString()}));
     cards.push('<div class="ipanel"><h3>Top alerting rules (30d)</h3>'+
-      '<p class="note">Rules producing the most alerts in the last 30 days.</p>'+barsHtml(tr,{theme:'indigo',show:8,label:'rules'})+'</div>');
+      '<p class="note">Rules producing the most alerts in the last 30 days.</p>'+barsHtml(tr,{theme:'indigo',fill:{sec:secRulePerf,label:'rules'}})+'</div>');
   }
 
   // 5a. Alerts by detection source — which security product generates the alert volume
@@ -2097,7 +2188,7 @@
     const pi=Object.keys(ps).map(k=>({label:k,value:ps[k],display:ps[k].toLocaleString()})).sort((a,b)=>b.value-a.value);
     if(pi.length){
       cards.push('<div class="ipanel"><h3>Alerts by detection source (30d)</h3>'+
-        '<p class="note">Share of alert volume by the security product that raised it.</p>'+barsHtml(pi,{theme:'rose'})+'</div>');
+        '<p class="note">Share of alert volume by the security product that raised it.</p>'+barsHtml(pi,{theme:'rose',fill:{sec:secAlerts,label:'sources'}})+'</div>');
     }
   }
 
@@ -2107,7 +2198,7 @@
     const hi=Object.keys(agg).map(k=>({label:k,value:agg[k],display:agg[k].toLocaleString()})).sort((a,b)=>b.value-a.value);
     if(hi.length){
       cards.push('<div class="ipanel"><h3>Operational health event mix (7d)</h3>'+
-        '<p class="note">Sentinel health events by operation and status over the last 7 days.</p>'+barsHtml(hi,{theme:'cyan',show:8,label:'operations'})+'</div>');
+        '<p class="note">Sentinel health events by operation and status over the last 7 days.</p>'+barsHtml(hi,{theme:'cyan',fill:{sec:secHealth,label:'operations'}})+'</div>');
     }
   }
 
@@ -2161,7 +2252,9 @@
       '<td class="num">'+e.tp+'</td><td class="num">'+e.fp+'</td><td class="num">'+e.fpRate+'%</td></tr>');
     cards.push('<div class="ipanel"><h3>Rule effectiveness (30d)</h3>'+
       '<p class="note">Incidents per detection with their closure verdicts: Sentinel analytics rules first, then other products\' alerts (product shown under the name). FP rate is false positives over closed incidents.</p>'+
-      moreWrap('<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+trRows(rows,8)+'</tbody></table>',rows.length,8,'detections')+'</div>');
+      (secRulePerf!=null
+        ? '<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody data-fill-list data-fill-total="'+rows.length+'">'+rows.slice(0,FILL_CAP).join('')+'</tbody></table>'+fillFoot(rows.length,secRulePerf,'detections')
+        : moreWrap('<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+trRows(rows,8)+'</tbody></table>',rows.length,8,'detections'))+'</div>');
   }
 
   // 7c. Daily ingestion trend (string-built SVG: area, line, average, three x labels)
@@ -2197,9 +2290,12 @@
       (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
         (o.templates.length>PILLS?'<button type="button" class="tagpill morepill" data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer">Show all '+o.templates.length+'</button>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
-      '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.'+
-      (opNum?' <a class="link-muted" role="button" tabindex="0" data-jump="'+opNum+'">Open the full list &rarr;</a>':'')+'</p>'+
-      moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables')+'</div>');
+      '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.</p>'+
+      // The first twelve here; every table on the report page.
+      (opNum
+        ? '<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows.slice(0,12).join('')+'</tbody></table>'+
+          (rows.length>12? fillFoot(rows.length,opNum,'tables').replace(' hidden>','>') : '')
+        : moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
   }
 
   // 7e. Playbook health (7d)
@@ -2209,7 +2305,7 @@
     const fl=(ph.failing||[]).map(f=>({label:f.playbook,value:f.failed,display:f.failed+' of '+f.runs,cls:'sev-Critical'}));
     cards.push('<div class="ipanel"><h3>Playbook health (7d)</h3>'+
       '<p class="note">'+ph.runs7d.toLocaleString()+' runs across '+ph.playbooks+' playbook'+(ph.playbooks===1?'':'s')+'; '+(ph.failing||[]).length+' with failures'+(ph.unavailable?'; run history unavailable for '+ph.unavailable:'')+'.</p>'+
-      barsHtml(items,{theme:'teal'})+(fl.length?'<p class="note" style="margin:14px 0 8px">Failing playbooks</p>'+barsHtml(fl,{theme:'rose',show:8,label:'playbooks'}):'')+'</div>');
+      barsHtml(items,{theme:'teal'})+(fl.length?'<p class="note" style="margin:14px 0 8px">Failing playbooks</p>'+barsHtml(fl,{theme:'rose',fill:{sec:secAutomation,label:'failing playbooks'}}):'')+'</div>');
   }
 
   // 7f. Threat intelligence by source (30d)
@@ -2238,9 +2334,11 @@
       : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
     const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB / 30d ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
-      '<p class="note">'+status+(lakeNum!=null?' <a class="link-muted" role="button" tabindex="0" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
-      (tierItems.length? donutMultiHtml(tierItems,String(DL.operationalTables||0),'tables') : '<p class="note">No operational tables to classify.</p>')+
-      (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet',show:8,label:'tables'}):'')+costLine+'</div>');
+      // The button under the table list opens the data lake page; without a
+      // list, the link sits in the description instead.
+      '<p class="note">'+status+(lakeNum!=null&&!ext.length?' <a class="link-muted" role="button" tabindex="0" data-jump="'+lakeNum+'">Open the data lake page &rarr;</a>':'')+'</p>'+
+      (tierItems.length? donutMultiHtml(tierItems,String(DL.operationalTables||0),'tables') : '<p class="note">No operational tables to classify.</p>')+costLine+
+      (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet',fill:{sec:lakeNum,label:'tables',keep:true}}):'')+'</div>');
   }
 
   // 8. What's new (Microsoft release communications, security-filtered)
@@ -2284,6 +2382,10 @@
   board.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
   board.querySelectorAll('[data-jump][role="button"]').forEach(a=>a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); jumpTo(+a.dataset.jump); } }));
   wireAttackGrid();
+  fillCards();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fillCards);
+  let fillTimer=null;
+  window.addEventListener('resize',()=>{ clearTimeout(fillTimer); fillTimer=setTimeout(fillCards,150); });
 
   // ---- maturity board ----
   (function(){
@@ -2318,42 +2420,73 @@
       (MAT.targetMet?'met':(MAT.areasBelowTarget||[]).length+' areas below')+'</b></div></div></div></div>';
     html+='<div class="panel"><div class="phead"><div><h2>Areas</h2><p class="note">Dashed marker = target level. Amber bars are below it.</p></div></div>'+areaBarsHtml(MAT.areas||[],tg)+'</div>';
     html+='<div class="panel" id="maturityTrend" style="display:none"><div class="phead"><div><h2>Score over time</h2><p class="note">One point per published run.</p></div></div><div id="maturityTrendBody"></div></div>';
-    if(MAT.roadmap&&MAT.roadmap.length){
-      html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
-        moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
-        trRows(MAT.roadmap.map(r=>'<tr><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
-          '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">'+fmtLift(r.overallLift)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
-        '</tbody></table>',MAT.roadmap.length,10,'gaps')+'</div>';
-    }
     if(MAT.csf&&MAT.csf.functions&&MAT.csf.functions.length){
       html+='<div class="panel"><div class="phead"><div><h2>NIST CSF 2.0 rollup</h2><p class="note">Criteria per function, by status.</p></div></div><div class="csfgrid">'+
         MAT.csf.functions.map(f=>'<div class="csfc"><h4>'+esc(f.id)+' '+esc(f.name)+'</h4>'+
           (f.criteria?donutMultiHtml([{label:'Met',value:f.met,color:'#16a34a'},{label:'Gap',value:f.gap,color:'#dc2626'},{label:'Unknown',value:f.unknown,color:'#64748b'}],String(f.criteria),'criteria'):'<p class="note">No criteria mapped.</p>')+'</div>').join('')+
         '</div><p class="note" style="margin-top:12px">'+esc(MAT.csf.source||'NIST CSF 2.0')+'. Subcategory identifiers are NIST\'s; the mapping and the outcome paraphrases are this project\'s own.</p></div>';
     }
+    if(MAT.roadmap&&MAT.roadmap.length){
+      html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
+        moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
+        trRows(MAT.roadmap.map(r=>'<tr class="frow" role="button" tabindex="0" data-crit="'+esc(r.criterionId)+'" title="Show this criterion and the findings behind it"><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
+          '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">'+fmtLift(r.overallLift)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
+        '</tbody></table>',MAT.roadmap.length,10,'gaps')+'</div>';
+    }
     html+='<div class="panel"><div class="phead"><div><h2>Criteria</h2><p class="note">Every criterion with its status and the evidence that decided it.</p></div>'+
       '<div class="filters" style="margin:0"><select id="matStatus"><option value="">All statuses</option><option>Met</option><option>Gap</option><option>Unknown</option></select>'+
       '<select id="matArea"><option value="">All areas</option>'+(MAT.areas||[]).map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('')+'</select>'+
-      '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px"></div></div>'+
+      '<input type="search" class="docsearch" id="matSearch" placeholder="Search criteria…" style="margin:0;width:220px">'+
+      '<button type="button" class="morebtn" id="matClear" style="margin:0" hidden>Clear filters</button></div></div>'+
       '<div class="fcards" id="matList" style="margin-top:14px"></div></div>';
     el.innerHTML=html;
-    const tb=el.querySelector('#matList'), sel=el.querySelector('#matStatus'), ar=el.querySelector('#matArea'), q=el.querySelector('#matSearch');
+    const tb=el.querySelector('#matList'), sel=el.querySelector('#matStatus'), ar=el.querySelector('#matArea'), q=el.querySelector('#matSearch'), clr=el.querySelector('#matClear');
     const findingIds=new Set((M.findings&&M.findings.items||[]).map(f=>f.id));
+    // The findings a criterion reads: each opens in the findings view with
+    // its evidence, remediation and references.
+    const findingsByCrit={};
+    ((M.findings&&M.findings.items)||[]).forEach(f=>(f.maturity||[]).forEach(l=>{ (findingsByCrit[l.criterionId]||(findingsByCrit[l.criterionId]=[])).push(f); }));
+    function critFindingLinks(c){
+      const fl=(findingsByCrit[c.id]||[]).slice();
+      if(findingIds.has(c.id) && !fl.some(f=>f.id===c.id)) fl.unshift({id:c.id,title:'Open finding'});
+      if(!fl.length) return '';
+      return '<div class="critfind"><span class="flabel">'+(fl.length===1?'Finding':'Findings')+'</span>'+fl.map(f=>'<a class="link-muted" role="button" tabindex="0" data-showfind="'+esc(f.id)+'" title="'+esc(f.title||'')+'">'+esc(f.id)+' &rarr;</a>').join('')+'</div>';
+    }
     function renderCriteria(){
-      const st=sel.value, av=ar.value, s=(q.value||'').toLowerCase();
-      const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s)));
-      tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'">'+
+      const st=sel.value, av=ar.value, s=(q.value||'').trim().toLowerCase();
+      // A criterion id on its own (as a roadmap entry sets it) matches that
+      // criterion only, not others whose text mentions it.
+      const exact=!!s && (MAT.criteria||[]).some(c=>c.id.toLowerCase()===s);
+      const rows=(MAT.criteria||[]).filter(c=>(!st||c.status===st)&&(!av||c.area===av)&&(!s||(exact? c.id.toLowerCase()===s : (c.id+' '+c.name+' '+(c.evidence||'')+' '+(c.guidance||'')+' '+(areaName[c.area]||c.area)).toLowerCase().includes(s))));
+      if(clr) clr.hidden=!(st||av||s);
+      tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'" data-cid="'+esc(c.id)+'">'+
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
         '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
-        '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'<div class="fc-link">'+(findingIds.has(c.id)?'<a data-showfind="'+esc(c.id)+'">Open finding &rarr;</a>':'')+'</div></div>'+
+        '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'<div class="fc-link">'+critFindingLinks(c)+'</div></div>'+
         '<div class="fc-block"><div class="flabel">Guidance</div>'+longText(c.guidance||'')+'<div class="fc-link"></div></div></div></div>').join('')||'<p class="note" style="padding:16px 18px">No criteria match.</p>';
-      tb.querySelectorAll('[data-showfind]').forEach(a=>a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)));
+      tb.querySelectorAll('[data-showfind]').forEach(a=>{ a.addEventListener('click',()=>window.showFinding(a.dataset.showfind)); a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); window.showFinding(a.dataset.showfind); } }); });
       markClamped(tb);
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
     sel.addEventListener('change',renderCriteria); ar.addEventListener('change',renderCriteria); q.addEventListener('input',renderCriteria); renderCriteria();
+    if(clr) clr.onclick=()=>{ sel.value=''; ar.value=''; q.value=''; renderCriteria(); };
+    // A roadmap entry or quick win filters the criteria list to its criterion,
+    // as a finding does in the findings view: the card opens, with the
+    // findings behind it, and Clear filters brings the full list back.
+    window.showCriterion=function(id){
+      if(activateTab) activateTab('maturity');
+      sel.value=''; ar.value=''; q.value=id; renderCriteria();
+      const card=tb.querySelector('[data-cid]');
+      if(card && !card.classList.contains('open')) toggleCard(card);
+      if(card){ card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+      bringTop(tb.closest('.panel'));
+    };
+    el.querySelectorAll('tr[data-crit]').forEach(r=>{
+      r.addEventListener('click',e=>{ if(e.target.closest('[data-ltx],[data-more],a,button')) return; window.showCriterion(r.dataset.crit); });
+      r.addEventListener('keydown',e=>{ if(e.target===r && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); window.showCriterion(r.dataset.crit); } });
+    });
     // Score history: the publisher writes maturity-history.json beside this
     // file on the site. From disk the fetch cannot run and nothing changes.
     try{
@@ -2762,6 +2895,7 @@
     document.querySelectorAll('[data-views]').forEach(el=>el.classList.toggle('hidden',!el.dataset.views.split(' ').includes(name)));
     document.querySelectorAll('.subtab').forEach(x=>{ const on=x.dataset.sub===name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on?'true':'false'); });
     balanceGrids(); markClamped();
+    if(name==='sections') fillCards();
     // The Sankey was drawn while its tab was hidden: reveal it now.
     if(name==='flow' && big) revealSankey(big);
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
