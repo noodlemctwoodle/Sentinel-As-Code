@@ -25,6 +25,11 @@
     It also flags calls to *-PnP* or *-Sac* commands that do not exist.
     Splatted calls and cmdlets with dynamic parameters are not judged.
 
+    A second check follows each entry script (publish, bootstrap, build)
+    through the files it dot-sources and fails when it calls a function
+    none of them defines: the binding check loads every file together, so
+    it cannot see a file the publisher forgot to load.
+
     The PnP.PowerShell version is read from the pnpVersion variable in
     Pipelines/Sentinel-Blueprint.yml. Both PR validation jobs install that
     version, and in CI (TF_BUILD or GITHUB_ACTIONS set) a missing version
@@ -41,8 +46,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.2.0
-    Last Updated: 2026-10-12
+    Version:      0.3.0
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.4+, Pester 5+, PnP.PowerShell (pinned version)
 #>
 
@@ -176,5 +181,54 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
         if (-not $script:pnpReady) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinnedPnP is not installed"; return }
         $problems = @(Test-SacCommandCall -Path $Path)
         $problems | Should -BeNullOrEmpty -Because ("in ${Name}:`n  " + ($problems -join "`n  "))
+    }
+}
+
+Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(-not $script:pnpAvailable -and -not $script:inCi) {
+
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        $script:spRoot = Join-Path $repoRoot 'Tools/Blueprint/SharePoint'
+        $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Blueprint.yml')
+        $null = $pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?'
+        $script:pinned = $Matches['v']
+        $script:ready = [bool](Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pinned })
+        if ($script:ready) { Import-Module PnP.PowerShell -RequiredVersion $script:pinned -ErrorAction Stop }
+
+        # The files an entry script loads: itself and everything it
+        # dot-sources as '. (Join-Path $PSScriptRoot '<path>')', followed
+        # through each loaded file in turn.
+        function Get-SacLoadedFile([string]$Path, [System.Collections.Generic.HashSet[string]]$Seen) {
+            $full = (Resolve-Path -LiteralPath $Path).Path
+            if (-not $Seen.Add($full)) { return }
+            $full
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$null, [ref]$null)
+            foreach ($c in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] -and $args[0].InvocationOperator -eq 'Dot' }, $true)) {
+                if ($c.CommandElements[0].Extent.Text -match "Join-Path \`$PSScriptRoot '([^']+)'") {
+                    Get-SacLoadedFile -Path (Join-Path (Split-Path $full) $Matches[1]) -Seen $Seen
+                }
+            }
+        }
+    }
+
+    # Each script runs on its own in a pipeline, so a function defined in a
+    # file it does not load fails only there (as ConvertTo-SacChartFallbackHtml
+    # once did in the publisher). The binding suite above loads every file
+    # together and cannot see that.
+    It '<_> defines or imports every command it calls' -ForEach @('Publish-SentinelDocsSite.ps1', 'Initialize-SentinelDocsSite.ps1', 'Build-SentinelDocsSite.ps1') {
+        if (-not $script:ready) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinned is not installed"; return }
+        $files = @(Get-SacLoadedFile -Path (Join-Path $script:spRoot $_) -Seen ([System.Collections.Generic.HashSet[string]]::new()))
+        $defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $calls = @{}
+        foreach ($f in $files) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$null, [ref]$null)
+            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) { [void]$defined.Add($d.Name) }
+            foreach ($c in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)) {
+                $n = $c.GetCommandName()
+                if ($n -and -not $calls.ContainsKey($n)) { $calls[$n] = "$(Split-Path $f -Leaf):$($c.Extent.StartLineNumber)" }
+            }
+        }
+        $missing = @($calls.Keys | Where-Object { -not $defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } | Sort-Object | ForEach-Object { "$_ ($($calls[$_]))" })
+        $missing | Should -BeNullOrEmpty -Because "$_ loads $(($files | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
     }
 }

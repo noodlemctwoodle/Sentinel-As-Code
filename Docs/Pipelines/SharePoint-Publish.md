@@ -208,7 +208,10 @@ The run fails when:
   service connection scope);
 - the dashboard web part is still not in the site's component list five
   minutes after its package was deployed (the error names the web part id
-  and says to check the site's app catalog);
+  and says to check the site's app catalog). The chart web part missing
+  does not fail the run: its charts go in as tables, the log says whether
+  the dashboard web part from the same package was listed, and those pages
+  are rebuilt next run;
 - a publish step fails outright. A failure on an individual section page
   does not stop the run: the other pages, the dashboard, the findings and
   the navigation still publish, nothing is pruned, and the run fails at the

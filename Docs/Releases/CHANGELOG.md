@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **SharePoint publish no longer fails every chart page** - the publisher
+  wrote a chart as a table, when the chart web part was missing, through a
+  function it never loaded, so 25 of 35 pages failed. It now loads it, and
+  a new test follows each SharePoint entry script through the files it
+  loads and fails on any command none of them defines. The chart web part
+  check read the component list with a raw POST that PnP sends with the
+  body `null`, and any error read as "not there yet", so a run waited five
+  minutes and gave up; it now uses `Get-PnPAvailablePageComponents`
+  through an existing page (the lookup the dashboard already relies on),
+  prints a failing lookup, and says whether the dashboard web part from the
+  same package is listed. Creating the assets library or the findings list
+  survives PnP's 100-second timeout when SharePoint finished the job anyway.
 - **Blueprint reports in full and in plain words** - nothing is cut to a
   top N any more. The collector's queries sort but no longer `take` or
   `top` (rule volumes, effectiveness, rule health, incidents by rule, CEF,

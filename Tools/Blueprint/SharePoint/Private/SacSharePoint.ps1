@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.4.0
+    Version:      0.4.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -186,7 +186,9 @@ function Initialize-SacSiteStructure {
 
     if (-not (Get-PnPList -Identity $script:SacAssetsLibraryUrl -ErrorAction SilentlyContinue)) {
         if ($PSCmdlet.ShouldProcess($script:SacAssetsLibraryUrl, 'Create assets library')) {
-            New-PnPList -Title $script:SacAssetsLibraryTitle -Template DocumentLibrary -Url $script:SacAssetsLibraryUrl -EnableVersioning | Out-Null
+            Invoke-SacCreateList -Url $script:SacAssetsLibraryUrl -Create {
+                New-PnPList -Title $script:SacAssetsLibraryTitle -Template DocumentLibrary -Url $script:SacAssetsLibraryUrl -EnableVersioning | Out-Null
+            } | Out-Null
         }
     }
     foreach ($folder in 'dashboard', 'diagrams', '_state') {
@@ -198,7 +200,9 @@ function Initialize-SacSiteStructure {
     $list = Get-PnPList -Identity $script:SacFindingsListUrl -ErrorAction SilentlyContinue
     if (-not $list) {
         if ($PSCmdlet.ShouldProcess($script:SacFindingsListUrl, 'Create findings list')) {
-            $list = New-PnPList -Title $script:SacFindingsListTitle -Template GenericList -Url $script:SacFindingsListUrl -EnableVersioning
+            $list = Invoke-SacCreateList -Url $script:SacFindingsListUrl -Create {
+                New-PnPList -Title $script:SacFindingsListTitle -Template GenericList -Url $script:SacFindingsListUrl -EnableVersioning
+            }
         }
     }
     if (-not $list) { return }
@@ -211,6 +215,50 @@ function Initialize-SacSiteStructure {
                 Set-PnPField -List $script:SacFindingsListUrl -Identity $name -Values @{ Indexed = $true } | Out-Null
             }
         }
+    }
+}
+
+function Invoke-SacCreateList {
+    <#
+    .SYNOPSIS
+        Create a list or library, and accept a create call that timed out
+        when the list exists afterwards.
+
+    .DESCRIPTION
+        Creating a library on a busy tenant can outlast PnP's 100-second
+        HTTP timeout while SharePoint still finishes the job. When the call
+        throws, the list is looked up for up to a minute; only if it never
+        appears is the original error raised.
+
+    .PARAMETER Url
+        The list's site-relative URL.
+
+    .PARAMETER Create
+        The New-PnPList call.
+
+    .OUTPUTS
+        The list.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string] $Url,
+        [Parameter(Mandatory)] [scriptblock] $Create
+    )
+    try {
+        $null = & $Create
+        return (Get-PnPList -Identity $Url -ErrorAction Stop)
+    }
+    catch {
+        $failure = $_
+        for ($i = 0; $i -lt 6; $i++) {
+            Start-Sleep -Seconds 10
+            $list = Get-PnPList -Identity $Url -ErrorAction SilentlyContinue
+            if ($list) {
+                Write-Host "  Creating $Url reported '$($failure.Exception.Message)', but it exists; carrying on." -ForegroundColor Yellow
+                return $list
+            }
+        }
+        throw $failure
     }
 }
 
@@ -598,24 +646,30 @@ function Publish-SacSectionPage {
 function Test-SacPageComponent {
     <#
     .SYNOPSIS
-        True when a client-side component (web part) is in the site's
-        component list, matched by id ignoring braces and case.
+        True when a client-side component (web part) is in the component
+        list of an existing page, matched by id ignoring braces and case.
+
+    .DESCRIPTION
+        Reads the list with Get-PnPAvailablePageComponents, the lookup the
+        dashboard page already depends on. A raw POST to
+        _api/web/GetClientSideWebParts through Invoke-PnPSPRestMethod sends
+        the body 'null' when no -Content is given, so it is not used. A
+        failed lookup throws rather than reading as "not there".
 
     .PARAMETER ComponentId
         The component id, lower case without braces.
+
+    .PARAMETER PageName
+        An existing page (name without .aspx) to read the list through.
     #>
     [CmdletBinding()]
     [OutputType([bool])]
-    param([Parameter(Mandatory)] [string] $ComponentId)
-    try {
-        $response = Invoke-PnPSPRestMethod -Method Post -Url '/_api/web/GetClientSideWebParts' -ErrorAction Stop
-        $items = if ($null -ne $response -and $response.PSObject.Properties['value']) { @($response.value) } else { @($response) }
-        return [bool](@($items | Where-Object { $_ -and ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $ComponentId }).Count)
-    }
-    catch {
-        Write-Verbose "Could not list the site's components: $($_.Exception.Message)"
-        return $false
-    }
+    param(
+        [Parameter(Mandatory)] [string] $ComponentId,
+        [Parameter(Mandatory)] [string] $PageName
+    )
+    $components = @(Get-PnPAvailablePageComponents -Page $PageName -ErrorAction Stop)
+    return [bool](@($components | Where-Object { $_ -and ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $ComponentId }).Count)
 }
 
 function Wait-SacPageComponent {
@@ -627,6 +681,9 @@ function Wait-SacPageComponent {
     .PARAMETER ComponentId
         The component id, lower case without braces.
 
+    .PARAMETER PageName
+        An existing page to read the component list through.
+
     .PARAMETER WaitSeconds
         How long to wait at most.
     #>
@@ -634,11 +691,19 @@ function Wait-SacPageComponent {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)] [string] $ComponentId,
+        [Parameter(Mandatory)] [string] $PageName,
         [int] $WaitSeconds = 300
     )
     $deadline = (Get-Date).AddSeconds($WaitSeconds)
     while ($true) {
-        if (Test-SacPageComponent -ComponentId $ComponentId) { return $true }
+        try {
+            if (Test-SacPageComponent -ComponentId $ComponentId -PageName $PageName) { return $true }
+        }
+        catch {
+            # Shown, not swallowed: a lookup that fails every time would
+            # otherwise look like a web part that never arrives.
+            Write-Host "  Could not read the component list through $PageName.aspx: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
         if ((Get-Date) -ge $deadline) { return $false }
         Write-Host '  Chart web part not available yet; retrying in 20 seconds...'
         Start-Sleep -Seconds 20

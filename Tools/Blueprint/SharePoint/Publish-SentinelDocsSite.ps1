@@ -105,7 +105,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.0
+    Version:      0.4.1
     Last Updated: 2026-10-13
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
@@ -143,6 +143,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-SacSyncPlan.ps1')
 . (Join-Path $PSScriptRoot 'Private/SacSharePoint.ps1')
+# Publish-SacSectionPage writes a chart as a table, through
+# ConvertTo-SacChartFallbackHtml, when the chart web part is missing.
+. (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 
 function Write-Step {
     param([Parameter(Mandatory)] [string] $Message)
@@ -260,10 +263,25 @@ $needsCharts = @($pagePlan | Where-Object { $_.Action -in 'Create', 'Update' } |
     }).Count -gt 0
 $chartReady = $false
 if ($needsCharts -and -not $WhatIfPreference) {
-    # Wait for it only when step 2 deployed a package this run; otherwise
-    # it is either there already or not coming, so look once.
-    $chartReady = Wait-SacPageComponent -ComponentId $script:SacChartWebPartComponentId -WaitSeconds $(if ($AppPackagePath) { 300 } else { 0 })
-    if (-not $chartReady) { Write-Host '  Chart web part not on the site; charts go in as tables and those pages are rebuilt next run.' -ForegroundColor Yellow }
+    # The component list is read through a page that already exists: the
+    # first page this run rebuilds, or the dashboard page.
+    $probe = @($pagePlan | Where-Object { $_.Action -in 'Update', 'Skip' } | ForEach-Object Name)[0]
+    if (-not $probe -and (Get-PnPPage -Identity ([string]$site.dashboard.page) -ErrorAction SilentlyContinue)) { $probe = [string]$site.dashboard.page }
+    if ($probe) {
+        # Wait for it only when step 2 deployed a package this run; otherwise
+        # it is either there already or not coming, so look once.
+        $chartReady = Wait-SacPageComponent -ComponentId $script:SacChartWebPartComponentId -PageName $probe -WaitSeconds $(if ($AppPackagePath) { 300 } else { 0 })
+        if (-not $chartReady) {
+            $sibling = try { Test-SacPageComponent -ComponentId $script:SacWebPartComponentId -PageName $probe } catch { $false }
+            $which = if ($sibling) { 'the dashboard web part from the same package is listed, the chart web part is not' } else { 'neither web part from the package is listed' }
+            Write-Host "  Chart web part not on the site ($which); charts go in as tables and those pages are rebuilt next run." -ForegroundColor Yellow
+        }
+    }
+    else {
+        # A first publish: no page exists yet to read the list through, so
+        # each new page looks the web part up itself as it is built.
+        $chartReady = $true
+    }
 }
 foreach ($step in $pagePlan) {
     if ($step.Action -eq 'Delete') { continue }

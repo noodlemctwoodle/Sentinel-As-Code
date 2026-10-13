@@ -129,6 +129,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Private/SacSharePoint.ps1')
+. (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 
 $SiteUrl = $SiteUrl.TrimEnd('/')
 if (-not $TenantAdminUrl) {

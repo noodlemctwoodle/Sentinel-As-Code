@@ -201,7 +201,10 @@ with the web part.
 In this order, so a failure part-way leaves the site consistent:
 
 1. **Structure.** Ensure the `BlueprintAssets` library and the
-   `Sentinel Findings` list and columns exist.
+   `Sentinel Findings` list and columns exist. Creating a library can
+   outlast PnP's 100-second HTTP timeout while SharePoint still finishes;
+   when the create call fails, the list is looked up for a minute and the
+   run carries on if it is there.
 2. **App.** Deploy the web part package (the dashboard and chart web
    parts) to the site collection app catalog,
    only when its version differs from the deployed one (and, on ADO, when
@@ -215,9 +218,15 @@ In this order, so a failure part-way leaves the site consistent:
    and refilled, then published once), so URLs and version history survive
    and a failed publish leaves the last good version live. Before the first
    page with a chart, the publisher checks the chart web part is in the
-   site's component list, waiting up to five minutes when step 2 deployed a
-   package this run; without it, charts go in as tables (see
-   [Charts on section pages](#charts-on-section-pages)).
+   component list (`Get-PnPAvailablePageComponents`, read through a page
+   that already exists), waiting up to five minutes when step 2 deployed a
+   package this run. A lookup that fails is printed rather than taken for a
+   slow deployment, and when the wait ends without the chart web part the
+   log says whether the dashboard web part from the same package is
+   listed. Without it, charts go in as tables (see
+   [Charts on section pages](#charts-on-section-pages)). On a first publish
+   no page exists to read the list through, so each new page looks the web
+   part up as it is built.
 5. **Dashboard.** Point the home page's web part at the uploaded dashboard,
    publish, and set it as the home page. On the first publish the web part
    is added to a full-width section; the publisher looks it up in the

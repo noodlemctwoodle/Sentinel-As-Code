@@ -760,42 +760,76 @@ Describe 'Publish-SacSectionPage' {
 
 Describe 'Test-SacPageComponent and Wait-SacPageComponent' {
 
-    BeforeAll { $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Invoke-PnPSPRestMethod' = '$Method, $Url' }) }
+    BeforeAll { $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Get-PnPAvailablePageComponents' = '$Page' }) }
     AfterAll { Remove-PnPStub $script:pnpStubs }
     BeforeEach {
         Mock Start-Sleep { }
         Mock Write-Host { }
     }
 
-    It 'finds a component SharePoint lists in braces and upper case' {
-        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @([pscustomobject]@{ Id = '{4AE8707C-CA6F-40CB-A974-C94D023DE6E5}' }) } }
-        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeTrue
-        Should -Invoke Invoke-PnPSPRestMethod -Times 1 -Exactly -ParameterFilter { $Method -eq 'Post' -and $Url -eq '/_api/web/GetClientSideWebParts' }
+    It 'finds a component SharePoint lists in braces and upper case, through an existing page' {
+        Mock Get-PnPAvailablePageComponents { [pscustomobject]@{ Id = '{4AE8707C-CA6F-40CB-A974-C94D023DE6E5}' } }
+        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'sac-11-sentinel-health' | Should -BeTrue
+        Should -Invoke Get-PnPAvailablePageComponents -Times 1 -Exactly -ParameterFilter { $Page -eq 'sac-11-sentinel-health' }
     }
 
-    It 'returns false, without throwing, when the component is not listed or the call fails' {
-        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @([pscustomobject]@{ Id = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a' }) } }
-        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeFalse
-        Mock Invoke-PnPSPRestMethod { throw 'Forbidden' }
-        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeFalse
+    It 'returns false when the component is not listed, and throws when the lookup fails' {
+        Mock Get-PnPAvailablePageComponents { [pscustomobject]@{ Id = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a' } }
+        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'p' | Should -BeFalse
+        Mock Get-PnPAvailablePageComponents { throw 'Forbidden' }
+        { Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'p' } | Should -Throw '*Forbidden*'
     }
 
     It 'keeps looking until a freshly deployed component appears' {
         $script:calls = 0
-        Mock Invoke-PnPSPRestMethod {
+        Mock Get-PnPAvailablePageComponents {
             $script:calls++
-            if ($script:calls -ge 3) { [pscustomobject]@{ value = @([pscustomobject]@{ Id = '4ae8707c-ca6f-40cb-a974-c94d023de6e5' }) } }
-            else { [pscustomobject]@{ value = @() } }
+            if ($script:calls -ge 3) { [pscustomobject]@{ Id = '4ae8707c-ca6f-40cb-a974-c94d023de6e5' } }
         }
-        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -WaitSeconds 300 | Should -BeTrue
+        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'p' -WaitSeconds 300 | Should -BeTrue
         Should -Invoke Start-Sleep -Times 2 -Exactly
     }
 
+    It 'shows a failing lookup instead of taking it for a slow deployment' {
+        Mock Get-PnPAvailablePageComponents { throw 'The remote server returned an error: (400) Bad Request.' }
+        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'p' -WaitSeconds 0 | Should -BeFalse
+        Should -Invoke Write-Host -Times 1 -ParameterFilter { "$Object" -match 'Could not read the component list through p\.aspx: .*400' }
+    }
+
     It 'looks once and gives up when there is no time to wait' {
-        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @() } }
-        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -WaitSeconds 0 | Should -BeFalse
-        Should -Invoke Invoke-PnPSPRestMethod -Times 1 -Exactly
+        Mock Get-PnPAvailablePageComponents { }
+        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -PageName 'p' -WaitSeconds 0 | Should -BeFalse
+        Should -Invoke Get-PnPAvailablePageComponents -Times 1 -Exactly
         Should -Invoke Start-Sleep -Times 0 -Exactly
+    }
+}
+
+Describe 'Invoke-SacCreateList' {
+
+    BeforeAll { $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Get-PnPList' = '$Identity' }) }
+    AfterAll { Remove-PnPStub $script:pnpStubs }
+    BeforeEach {
+        Mock Start-Sleep { }
+        Mock Write-Host { }
+    }
+
+    It 'returns the list a create call made' {
+        Mock Get-PnPList { [pscustomobject]@{ Title = 'Blueprint Assets' } }
+        (Invoke-SacCreateList -Url 'BlueprintAssets' -Create { 'created' }).Title | Should -Be 'Blueprint Assets'
+    }
+
+    It 'carries on when the create call timed out but the list exists afterwards' {
+        $script:looks = 0
+        Mock Get-PnPList { $script:looks++; if ($script:looks -ge 2) { [pscustomobject]@{ Title = 'Blueprint Assets' } } }
+        $list = Invoke-SacCreateList -Url 'BlueprintAssets' -Create { throw 'The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing.' }
+        $list.Title | Should -Be 'Blueprint Assets'
+        Should -Invoke Write-Host -Times 1 -ParameterFilter { "$Object" -match 'but it exists' }
+    }
+
+    It 'raises the original error when the list never appears' {
+        Mock Get-PnPList { }
+        { Invoke-SacCreateList -Url 'BlueprintAssets' -Create { throw 'Access denied' } } | Should -Throw '*Access denied*'
+        Should -Invoke Start-Sleep -Times 6 -Exactly
     }
 }
 
