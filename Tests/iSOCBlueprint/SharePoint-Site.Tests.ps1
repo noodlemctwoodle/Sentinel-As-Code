@@ -1265,6 +1265,15 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "matchMedia\('\(prefers-reduced-motion: reduce\)'\)"
     }
 
+    It 'animates the estate flow: beads on the strands, creeping dashes, rings that draw in' {
+        $html | Should -Match "const beads=\(tag,attrs,col,w,k,fam\)=>"
+        $html | Should -Match 'svg\.estate \.es-beads\{[^}]*pointer-events:none'
+        $html | Should -Match 'svg\.estate \.es-unc\{animation:esdash'
+        $html | Should -Match "svgEl\.querySelectorAll\('\.es-beads'\)\.forEach\(el=>el\.classList\.toggle\('es-hot'"
+        # The arcs draw in only when the viewer has not asked for less motion.
+        $html | Should -Match "if\(!\(window\.matchMedia && matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\)\)\{\s*arcs\.forEach"
+    }
+
     It 'leaves the closure split out for a snapshot collected before it' {
         $ws5 = Join-Path $outDir 'law-before-closedby'
         New-Item -ItemType Directory -Path (Join-Path $ws5 '_raw') -Force | Out-Null

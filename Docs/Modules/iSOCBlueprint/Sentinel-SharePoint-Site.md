@@ -93,6 +93,12 @@ counts shows one Closed branch and says the automation share was not
 captured. The particles stop for anyone who asks for reduced motion, and the
 drawing pauses while the Overview is not on screen.
 
+The estate flow moves too: beads run along the strands a detection rule
+reads, the band between the rings and the incident branches (faster for more
+data), the dashed "no detection rule" strands creep towards their pool, and
+each ring's arc draws in once when the page opens. Hovering a family dims the
+other strands and their beads; none of it runs for reduced motion.
+
 The estate flow is interactive: hovering a source family spotlights its
 strands, clicking a family or the "Not monitored" pool opens a table of the
 tables behind it (GB, rules reading each, monitored or not, with "Show all"),

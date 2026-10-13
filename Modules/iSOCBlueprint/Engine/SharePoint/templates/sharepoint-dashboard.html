@@ -530,6 +530,18 @@
   svg.estate.es-dim .es-strand.es-hot{opacity:1}
   svg.estate.es-dim .es-src{opacity:.45}
   svg.estate.es-dim .es-src.es-hot{opacity:1}
+  /* Motion: beads run along the strands read by a detection rule, the band
+     between the rings and the incident branches, faster for more data (the
+     alert lifecycle's lcflow); the dashed "no detection rule" strands keep
+     their dashes, which creep towards the pool; each ring's arc draws in
+     once. Beads take the strand's colour on light and near-white on dark. */
+  svg.estate .es-beads{fill:none;stroke-linecap:round;stroke-opacity:.9;pointer-events:none;animation:lcflow linear infinite}
+  html[data-theme="dark"] svg.estate .es-beads{stroke:#e6fffb;stroke-opacity:.5}
+  svg.estate .es-unc{animation:esdash 2.8s linear infinite}
+  @keyframes esdash{to{stroke-dashoffset:-38}}
+  svg.estate.es-dim .es-beads{opacity:.12;transition:opacity .15s}
+  svg.estate.es-dim .es-beads.es-hot{opacity:1}
+  svg.estate .es-arc{transition:stroke-dasharray 1.2s cubic-bezier(.22,.8,.3,1)}
   .esdetail{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:14px 16px}
   .esdetail .esd-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
   .esdetail .esd-head h3{margin:0;font-size:15px;font-weight:800}
@@ -1121,6 +1133,15 @@
     }
     const maxGb=Math.max(...sources.map(s=>s.gb),0.01);
     const strand=gb=>Math.max(2,Math.min(28,28*Math.sqrt(gb/maxGb)));
+    // A bead overlay on a strand: k (0 to 1) is its share of the largest
+    // flow and sets the speed. Beads take no pointer events, so the strand
+    // under them keeps its tooltip and click.
+    const beads=(tag,attrs,col,w,k,fam)=>{
+      const b=mk(tag,Object.assign({class:'es-beads',stroke:col,'stroke-width':Math.max(1,w*0.3).toFixed(1),'stroke-dasharray':'3 21'},attrs));
+      if(fam) b.setAttribute('data-bead-fam',fam);
+      b.style.animationDuration=(3.4-1.8*Math.max(0,Math.min(1,k))).toFixed(1)+'s';
+      return b;
+    };
     const srcX=230, poolY=398, cy=200, r=36;
     // The "Not monitored" pool sits low and right of the ingestion ring, sized
     // to its own text; unmonitored strands drop early and run in from the
@@ -1141,7 +1162,10 @@
       const tipText=s.category+': '+fmtN(s.gb)+' GB in 30 days, '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
       // Covered strands are solid in the family colour; unmonitored strands
       // keep the family colour but run dashed into the pool.
-      if(cov>0) tip(mk('path',{class:'es-strand','data-fam':s.category,d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'}),tipText);
+      if(cov>0){
+        tip(mk('path',{class:'es-strand','data-fam':s.category,d:curve(srcX,y,rings[0].x-r,cy),fill:'none',stroke:col,'stroke-opacity':'.42','stroke-width':strand(cov).toFixed(1),'stroke-linecap':'round'}),tipText);
+        beads('path',{d:curve(srcX,y,rings[0].x-r,cy)},col,strand(cov),Math.sqrt(cov/maxGb),s.category);
+      }
       if(unc>0) tip(mk('path',{class:'es-strand es-unc','data-fam':s.category,d:'M'+srcX+','+y+' C'+(srcX+90)+','+y+' '+(poolLeft-120)+','+poolY+' '+poolLeft+','+poolY,fill:'none',stroke:col,'stroke-opacity':'.34','stroke-width':strand(unc).toFixed(1),'stroke-linecap':'butt','stroke-dasharray':'12 7'}),tipText);
       tip(mk('rect',{class:'es-src','data-fam':s.category,x:srcX-14,y:y-7,width:10,height:14,rx:3,fill:col}),tipText);
       tip(mk('text',{class:'es-src','data-fam':s.category,x:srcX-22,y:y+4,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},trunc(s.category)),tipText);
@@ -1157,15 +1181,18 @@
     const bandW=Math.max(3,strand(+E.coveredGb||0));
     for(let i=0;i<rings.length-1;i++){
       mk('line',{x1:rings[i].x+r,y1:cy,x2:rings[i+1].x-r,y2:cy,'stroke-opacity':'.35','stroke-width':bandW.toFixed(1),style:'stroke:var(--brand)'});
+      beads('line',{x1:rings[i].x+r,y1:cy,x2:rings[i+1].x-r,y2:cy},'#2563eb',bandW,Math.sqrt((+E.coveredGb||0)/maxGb));
     }
     const C=2*Math.PI*r;
+    const arcs=[];
     rings.forEach(rg=>{
       const d=(E.rings&&E.rings[rg.k])||{value:0,max:0,pct:null};
       const frac=d.pct==null?0:Math.max(0,Math.min(1,d.pct/100));
       const ringTip=rg.label+': '+(d.pct==null?'not measured':d.pct+'%')+' ('+d.value+' of '+d.max+'). '+(d.label||'')+(opts.ringPage&&opts.ringPage(rg.k)!=null?' Click to open the page.':'');
       tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:cy,r:r,'stroke-width':'8',style:'fill:var(--panel);stroke:var(--ring-track)'}),ringTip);
-      tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'8','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
+      const arc=tip(mk('circle',{'data-ring':rg.k,class:'es-arc',cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'8','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
         transform:'rotate(-90 '+rg.x+' '+cy+')',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))}),ringTip);
+      arcs.push({el:arc, to:(C*frac).toFixed(1)+' '+C.toFixed(1), from:'0 '+C.toFixed(1)});
       tip(mk('text',{'data-ring':rg.k,x:rg.x,y:cy+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%'),ringTip);
       mk('text',{x:rg.x,y:cy-r-14,'text-anchor':'middle','font-size':'11','font-weight':'800',style:'fill:var(--faint)'},rg.label.toUpperCase());
       mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
@@ -1176,11 +1203,19 @@
     boxes.forEach(b=>{
       const share=(+E.incidents||0)>0? b.v/(+E.incidents): .5;
       mk('path',{d:curve(last.x+r,cy,1090,b.y),fill:'none',stroke:b.col,'stroke-opacity':'.35','stroke-width':Math.max(3,bandW*share).toFixed(1)});
+      beads('path',{d:curve(last.x+r,cy,1090,b.y)},b.col,Math.max(3,bandW*share),share);
       tip(mk('rect',{'data-inc':b.l,x:1090,y:b.y-16,width:96,height:32,rx:9,fill:b.col,'fill-opacity':'.12',stroke:b.col,'stroke-opacity':'.5'}),b.l+' incidents in the last 30 days. Click to open the incidents page.');
       tip(mk('text',{'data-inc':b.l,x:1138,y:b.y+4,'text-anchor':'middle','font-size':'12','font-weight':'800',fill:b.col},b.l+' '+b.v),b.l+' incidents in the last 30 days. Click to open the incidents page.');
     });
+    // The rings' arcs draw in from empty, once; not for reduced motion.
+    if(!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)){
+      arcs.forEach(a=>{ a.el.style.strokeDasharray=a.from; });
+      requestAnimationFrame(()=>requestAnimationFrame(()=>arcs.forEach(a=>{ a.el.style.strokeDasharray=a.to; })));
+    }
     // Interaction: spotlight a family on hover; click through on everything.
-    const spot=fam=>{ svgEl.classList.toggle('es-dim',!!fam); svgEl.querySelectorAll('.es-strand,.es-src').forEach(el=>el.classList.toggle('es-hot',!!fam&&el.getAttribute('data-fam')===fam)); };
+    const spot=fam=>{ svgEl.classList.toggle('es-dim',!!fam);
+      svgEl.querySelectorAll('.es-strand,.es-src').forEach(el=>el.classList.toggle('es-hot',!!fam&&el.getAttribute('data-fam')===fam));
+      svgEl.querySelectorAll('.es-beads').forEach(el=>el.classList.toggle('es-hot',!!fam&&el.getAttribute('data-bead-fam')===fam)); };
     svgEl.querySelectorAll('[data-fam]').forEach(el=>{
       el.addEventListener('mouseenter',()=>spot(el.getAttribute('data-fam')));
       el.addEventListener('mouseleave',()=>spot(null));
