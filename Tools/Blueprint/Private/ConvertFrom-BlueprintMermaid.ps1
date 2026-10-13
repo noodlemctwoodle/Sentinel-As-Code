@@ -58,8 +58,15 @@ function ConvertFrom-BlueprintMermaid {
         while ($i -lt $all.Count -and $all[$i].Trim() -ne '---') { $i++ }
         $i++
     }
+    # A "%% x-labels [...]" comment carries the full axis labels of an xy
+    # chart whose Mermaid labels are shortened to fit under the bars.
+    $fullLabels = $null
     for (; $i -lt $all.Count; $i++) {
-        if ($all[$i].Trim().StartsWith('%%')) { continue }
+        $comment = $all[$i].Trim()
+        if ($comment.StartsWith('%%')) {
+            if ($comment -match '^%%\s*x-labels\s+(?<list>\[.*\])\s*$') { $fullLabels = @(ConvertFrom-BpMermaidList $Matches['list']) }
+            continue
+        }
         $lines.Add($all[$i])
     }
     while ($lines.Count -and [string]::IsNullOrWhiteSpace($lines[0])) { $lines.RemoveAt(0) }
@@ -71,7 +78,7 @@ function ConvertFrom-BlueprintMermaid {
     switch -Regex ($keyword) {
         '^pie$'              { return (ConvertFrom-BpMermaidPie -Header $header -Body $body) }
         '^sankey(-beta)?$'   { return (ConvertFrom-BpMermaidSankey -Body $body) }
-        '^xychart(-beta)?$'  { return (ConvertFrom-BpMermaidXy -Body $body) }
+        '^xychart(-beta)?$'  { return (ConvertFrom-BpMermaidXy -Body $body -FullLabels $fullLabels) }
         '^timeline$'         { return (ConvertFrom-BpMermaidTimeline -Body $body) }
         '^gantt$'            { return (ConvertFrom-BpMermaidGantt -Body $body) }
         '^mindmap$'          { return (ConvertFrom-BpMermaidMindmap -Body $body) }
@@ -142,7 +149,7 @@ function ConvertFrom-BpMermaidSankey {
 }
 
 function ConvertFrom-BpMermaidXy {
-    param([string[]] $Body)
+    param([string[]] $Body, [string[]] $FullLabels)
     $title = $null
     $x = [ordered]@{ title = $null; labels = @() }
     $y = [ordered]@{ title = $null; min = $null; max = $null }
@@ -167,6 +174,7 @@ function ConvertFrom-BpMermaidXy {
                 })
         }
     }
+    if ($FullLabels -and $FullLabels.Count -eq $x.labels.Count) { $x.labels = @($FullLabels) }
     return [ordered]@{ kind = 'xy'; title = $title; data = [ordered]@{ xAxis = $x; yAxis = $y; series = $series.ToArray() } }
 }
 

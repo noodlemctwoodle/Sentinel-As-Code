@@ -230,7 +230,7 @@ function Convert-FindingBullets {
     $Count.Value += [regex]::Matches($Text, $pattern).Count
 
     # Severity word -> character style (defined in the reference doc) so
-    # the word itself is coloured, replacing the source's coloured emoji.
+    # the word itself is coloured.
     $sevStyles = @{
         'critical' = 'SevCritical'; 'high' = 'SevCritical'
         'warning'  = 'SevWarning';  'medium' = 'SevWarning'; 'moderate' = 'SevWarning'
@@ -273,34 +273,68 @@ function Convert-FindingBullets {
     return [regex]::Replace($Text, $pattern, $evaluator)
 }
 
-function Convert-SeverityEmoji {
+function Convert-StatusWords {
     <#
     .SYNOPSIS
-        Replace a status/severity emoji followed by a word (e.g.
-        '🟠 Warning', '🟢 Covered') with the word coloured via a character
-        style, dropping the emoji. Catches the severity-column tables and
-        coverage statuses that the bullet reformat does not touch. Colour
-        is keyed off the emoji, so the word itself is unchanged.
+        Colour status words through a character style: a table cell under
+        a status column (Severity, Status, Coverage, Rating) whose whole
+        text is a known status, and the value after '**Severity:**' on the
+        finding cards. Cells in any other column are left alone, so a
+        'None' elsewhere stays plain.
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory)] [string] $Text,
-        [Parameter(Mandatory)] [ref]    $Count
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $Text,
+        [Parameter(Mandatory)] [ref] $Count
     )
 
-    $map = @{ '🔴' = 'SevCritical'; '🟠' = 'SevWarning'; '🟡' = 'SevWarning'; '🟢' = 'SevLow'; '🔵' = 'SevInfo' }
-    $pattern = '(?<e>🔴|🟠|🟡|🟢|🔵)[ \t]*(?<w>[A-Za-z]+)'
-    $Count.Value += [regex]::Matches($Text, $pattern).Count
+    $columns = @{
+        'severity' = @{ 'Critical' = 'SevCritical'; 'Warning' = 'SevWarning'; 'Info' = 'SevInfo' }
+        'status'   = @{ 'Met' = 'SevLow'; 'Gap' = 'SevCritical' }
+        'coverage' = @{ 'Covered' = 'SevLow'; 'Rule and custom detection' = 'SevLow'; 'Sentinel rule' = 'SevLow'; 'Custom detection' = 'SevLow'; 'Thin' = 'SevWarning'; 'None' = 'SevCritical' }
+        'rating'   = @{ 'Strong' = 'SevLow'; 'Fair' = 'SevInfo'; 'Weak' = 'SevWarning' }
+    }
 
+    $lines = $Text -split "`n"
+    $active = $null
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = $lines[$i].TrimEnd("`r")
+        if ($line -notmatch '^\s*\|') { $active = $null; continue }
+        $cells = [regex]::Split($line.Trim().Substring(1).TrimEnd('|'), '(?<!\\)\|')
+        if ($null -eq $active) {
+            # A header row is the table line followed by its |---| separator.
+            if ($i + 1 -lt $lines.Count -and $lines[$i + 1] -match '^\s*\|[\s:|-]+\|?\s*$') {
+                $active = [System.Collections.Generic.List[object]]::new()
+                foreach ($c in $cells) { $active.Add($columns[$c.Trim().ToLowerInvariant()]) }
+                $i++
+            }
+            continue
+        }
+        $changed = $false
+        for ($c = 0; $c -lt [math]::Min($cells.Count, $active.Count); $c++) {
+            $map = $active[$c]
+            if ($null -eq $map) { continue }
+            $word = $cells[$c].Trim()
+            if ($word -and $map.ContainsKey($word)) {
+                $cells[$c] = " [$word]{custom-style=`"$($map[$word])`"} "
+                $Count.Value++
+                $changed = $true
+            }
+        }
+        if ($changed) { $lines[$i] = '|' + ($cells -join '|') + '|' }
+    }
+    $out = $lines -join "`n"
+
+    $sevStyles = $columns['severity']
+    $pattern = '\*\*Severity:\*\*[ \t]+(?<w>Critical|Warning|Info)\b'
+    $Count.Value += [regex]::Matches($out, $pattern).Count
     $evaluator = {
         param($m)
-        $style = $map[$m.Groups['e'].Value]
-        $word = $m.Groups['w'].Value
-        if ($style) { "[$word]{custom-style=`"$style`"}" } else { $m.Value }
+        $w = $m.Groups['w'].Value
+        "**Severity:** [$w]{custom-style=`"$($sevStyles[$w])`"}"
     }.GetNewClosure()
-
-    return [regex]::Replace($Text, $pattern, $evaluator)
+    return [regex]::Replace($out, $pattern, $evaluator)
 }
 
 function Get-SofficePath {
@@ -509,7 +543,7 @@ foreach ($p in $mdPaths) {
         $reformatted += $cnt.Value
 
         $ecnt = [ref]0
-        $text = Convert-SeverityEmoji -Text $text -Count $ecnt
+        $text = Convert-StatusWords -Text $text -Count $ecnt
         $recoloured += $ecnt.Value
     }
     $dest = Join-Path $work ('{0:D4}-{1}' -f $idx, (Split-Path $p -Leaf))

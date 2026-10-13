@@ -58,9 +58,15 @@ export function renderGantt(data: IGanttData, theme: IChartTheme, label: string)
   hi += pad;
 
   const labelW: number = Math.min(260, widest(tasks.map((t: ITask): string => t.label), 12)) + 14;
+  // A long task name wraps onto as many lines as it needs; its row grows.
+  const lineSets: string[][] = rows.map((row: IRow): string[] => (row.task ? wrapText(row.task.label, labelW - 14, 12) : []));
+  const heights: number[] = lineSets.map((l: string[]): number => Math.max(ROW, l.length * 14 + 12));
+  const offsets: number[] = [];
+  let total: number = 0;
+  heights.forEach((h: number): void => { offsets.push(total); total += h; });
   const top: number = 26;
   const x: (t: number) => number = (t: number): number => labelW + ((t - lo) / (hi - lo)) * PLOT_W;
-  const height: number = top + rows.length * ROW + 8;
+  const height: number = top + total + 8;
 
   let body: string = '';
   ticks(lo, hi).forEach((t: number): void => {
@@ -68,30 +74,31 @@ export function renderGantt(data: IGanttData, theme: IChartTheme, label: string)
     body += svgText(x(t), 10, [formatAxis(t, str(data.axisFormat))], { size: 11, fill: theme.muted, anchor: 'middle' });
   });
   rows.forEach((row: IRow, i: number): void => {
-    const y: number = top + i * ROW;
+    const y: number = top + offsets[i];
+    const mid: number = y + heights[i] / 2;
     if (row.heading) {
-      body += svgText(0, y + ROW / 2, [row.heading.toUpperCase()], { size: 11, weight: 600, fill: theme.muted });
+      body += svgText(0, mid, [row.heading.toUpperCase()], { size: 11, weight: 600, fill: theme.muted });
       return;
     }
     const t: ITask = row.task as ITask;
     const colour: string = t.tags.indexOf('crit') >= 0 ? '#dc2626' : t.tags.indexOf('done') >= 0 ? '#94a3b8' : theme.accent;
-    body += svgText(labelW - 12, y + ROW / 2, wrapText(t.label, labelW - 14, 12).slice(0, 1), { size: 12, fill: theme.text, anchor: 'end' });
+    body += svgText(labelW - 12, mid, lineSets[i], { size: 12, fill: theme.text, anchor: 'end', lineHeight: 14 });
     const tip: string = '<title>' + esc(t.label + ': ' + formatDay(t.date)) + '</title>';
     let right: number;
     if (t.milestone) {
       const cx: number = x(t.date);
-      const cy: number = y + ROW / 2;
+      const cy: number = mid;
       body += '<path d="M' + r(cx) + ',' + r(cy - 7) + ' L' + r(cx + 7) + ',' + r(cy) + ' L' + r(cx) + ',' + r(cy + 7) + ' L' + r(cx - 7) + ',' + r(cy) + ' Z" fill="' + esc(colour) + '">' + tip + '</path>';
       right = cx + 8;
     } else {
       const x0: number = x(t.from);
       const w: number = Math.max(4, x(t.to) - x0);
-      body += rect(x0, y + 6, w, ROW - 12, 'rx="4" fill="' + esc(colour) + '"' + (t.tags.indexOf('active') >= 0 ? '' : ' fill-opacity="0.85"')).replace('/>', '>' + tip + '</rect>');
+      body += rect(x0, mid - ROW / 2 + 6, w, ROW - 12, 'rx="4" fill="' + esc(colour) + '"' + (t.tags.indexOf('active') >= 0 ? '' : ' fill-opacity="0.85"')).replace('/>', '>' + tip + '</rect>');
       right = x0 + w;
     }
     const text: string = formatDay(t.date);
     const fits: boolean = right + 6 + textWidth(text, 11) <= labelW + PLOT_W + DATE_W;
-    body += svgText(fits ? right + 6 : (t.milestone ? x(t.date) - 9 : x(t.from) - 6), y + ROW / 2, [text],
+    body += svgText(fits ? right + 6 : (t.milestone ? x(t.date) - 9 : x(t.from) - 6), mid, [text],
       { size: 11, fill: theme.muted, anchor: fits ? 'start' : 'end' });
   });
   return svgDoc(labelW + PLOT_W + DATE_W, height, label, body);

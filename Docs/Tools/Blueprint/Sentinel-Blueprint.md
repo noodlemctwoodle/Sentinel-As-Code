@@ -419,7 +419,7 @@ checks from the Sentinel health-check script contributed to the project:
 | SAC-MON-01 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
 | SAC-DET-08 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
 | SAC-TI-02 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
-| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests up to three undeployed, non-deprecated templates per table |
+| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests every undeployed, non-deprecated template per table |
 | SAC-MON-06 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
 | SAC-AUT-02 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |
 | SAC-DET-13 Deprecated solution | `content-packages.json`, `content-product-packages.json` | an installed solution is `isDeprecated` or missing from the catalogue |

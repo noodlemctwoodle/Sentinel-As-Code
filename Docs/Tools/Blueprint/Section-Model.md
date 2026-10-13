@@ -87,7 +87,7 @@ are `\n`.
 | --- | --- |
 | `pie` | `showData`, `slices: [{ label, value }]` |
 | `sankey` | `links: [{ source, target, value }]` |
-| `xy` | `xAxis: { title, labels[] }`, `yAxis: { title, min, max }`, `series: [{ kind: bar or line, name, values[] }]` |
+| `xy` | `xAxis: { title, labels[] }`, `yAxis: { title, min, max }`, `series: [{ kind: bar or line, name, values[] }]`; when the renderer shortens the Mermaid labels to fit under the bars it writes the full names in a `%% x-labels [...]` comment, and `labels` takes those when the count matches |
 | `timeline` | `periods: [{ label, section, events[] }]` |
 | `gantt` | `dateFormat`, `axisFormat`, `sections: [{ name, tasks: [{ label, tags[], id, start, length }] }]`; `tags` from done, active, crit, milestone; `length` as Mermaid writes it (`1d`, `260d`) |
 | `mindmap` | `root: { text, children[] }`, recursive |

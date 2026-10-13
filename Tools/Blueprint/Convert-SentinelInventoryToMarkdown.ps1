@@ -343,13 +343,25 @@ function Format-Table {
     return $sb.ToString().TrimEnd()
 }
 
-function Format-Severity-Badge { param([string]$Severity)
-    switch ($Severity) {
-        'Critical' { return '🔴 Critical' }
-        'Warning'  { return '🟠 Warning'  }
-        'Info'     { return '🔵 Info'     }
-        default    { return $Severity     }
+# Pie slices for a label -> count map, largest first. Past $Limit the rest
+# fold into one "Other" slice so the pie still sums to the total; a page that
+# folds a tail always carries a table listing every item.
+function Format-PieSlices { param([System.Collections.IDictionary]$Counts, [int]$Limit = 0)
+    $sorted = @($Counts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key)
+    $shown = if ($Limit -gt 0 -and $sorted.Count -gt $Limit) { @($sorted | Select-Object -First $Limit) } else { $sorted }
+    $lines = @($shown | ForEach-Object { "    `"$($_.Key -replace '"', "'")`" : $($_.Value)" })
+    if ($shown.Count -lt $sorted.Count) {
+        $rest = (@($sorted | Select-Object -Skip $shown.Count) | Measure-Object -Property Value -Sum).Sum
+        $lines += "    `"Other ($($sorted.Count - $shown.Count))`" : $rest"
     }
+    return ,$lines
+}
+
+# Full x-axis labels for a chart whose Mermaid labels are shortened to fit
+# under the bars. Mermaid ignores a %% line; ConvertFrom-BlueprintMermaid
+# reads it, so the SharePoint chart shows the whole names.
+function Format-XyFullLabels { param([string[]]$Labels)
+    return '    %% x-labels [' + ((@($Labels) | ForEach-Object { '"' + ([string]$_ -replace '"', "'") + '"' }) -join ', ') + ']'
 }
 
 # Workspace feature-flag boolean → display string. The Sentinel API omits
@@ -470,14 +482,6 @@ function _RendererBag {
     }
     foreach ($prop in $Value.PSObject.Properties) { $bag[$prop.Name] = [long](_RendererNumber $prop.Value) }
     return $bag
-}
-function Format-Status-Badge { param([string]$Status)
-    switch ($Status) {
-        'Met'     { return '🟢 Met' }
-        'Gap'     { return '🔴 Gap' }
-        'Unknown' { return '⚪ Unknown' }
-        default   { return $Status }
-    }
 }
 
 # Source families -> ingestion -> detection -> alerts -> incidents: the
@@ -644,7 +648,7 @@ function Format-EstateRingsTable {
     function _Row([string]$Stage, [int]$Value, [int]$Of) {
         if ($Of -le 0) { return "| $Stage | $Value | $Of | _n/a_ | _n/a_ |" }
         $pct = [int][math]::Round(100.0 * $Value / $Of, 0)
-        $badge = if ($pct -ge 80) { '🟢 Strong' } elseif ($pct -ge 65) { '🔵 Fair' } else { '🟠 Weak' }
+        $badge = if ($pct -ge 80) { 'Strong' } elseif ($pct -ge 65) { 'Fair' } else { 'Weak' }
         return "| $Stage | $Value | $Of | $pct% | $badge |"
     }
     @"
@@ -816,9 +820,9 @@ $(if ($cost) {
 
 ## Top findings
 
-$(if ($top5Findings.Count -gt 0) {
+$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
 ($top5Findings | ForEach-Object {
-    "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title) — $($_.Evidence) [Learn]($($_.Learn))"
+    "- **$($_.Severity)** [$($_.Id)] $($_.Title) - $($_.Evidence) [Learn]($($_.Learn))"
 }) -join [Environment]::NewLine
 } else { '_No findings — clean run._' })
 
@@ -1431,7 +1435,7 @@ $mitreRows = foreach ($t in $tactics) {
         ID = $t.id
         Tactic = $t.name
         EnabledRules = $count
-        Coverage = if ($count -eq 0) { '🔴 None' } elseif ($count -lt 3) { '🟠 Thin' } else { '🟢 Covered' }
+        Coverage = if ($count -eq 0) { 'None' } elseif ($count -lt 3) { 'Thin' } else { 'Covered' }
     }
 }
 
@@ -1473,7 +1477,7 @@ $mitreRowsRich = foreach ($t in $tactics) {
     $subCount  = ($tacticBucket.Values | ForEach-Object { $_.Subs.Count } | Measure-Object -Sum).Sum
     if (-not $subCount) { $subCount = 0 }
     $ruleCount = $tacticCounts[$key]
-    $coverage = if ($ruleCount -eq 0) { '🔴 None' } elseif ($ruleCount -lt 3) { '🟠 Thin' } else { '🟢 Covered' }
+    $coverage = if ($ruleCount -eq 0) { 'None' } elseif ($ruleCount -lt 3) { 'Thin' } else { 'Covered' }
     [pscustomobject]@{
         ID = $t.id
         Tactic = $t.name
@@ -1504,10 +1508,10 @@ foreach ($t in $tactics) {
             Technique     = Format-MitreTechniqueCell -Id $techId -Sub $false
             SubTechniques = $subs
             Rules         = $bucket.Rules.Count
-            SampleRules   = (($bucket.Rules | Sort-Object) | Select-Object -First 3) -join '; '
+            RuleNames     = ($bucket.Rules | Sort-Object) -join '; '
         }
     }
-    [void]$detailSections.AppendLine((Format-Table -Items $techRows -Columns 'Technique','SubTechniques','Rules','SampleRules'))
+    [void]$detailSections.AppendLine((Format-Table -Items $techRows -Columns 'Technique','SubTechniques','Rules','RuleNames'))
 }
 
 # Build the bar-chart inputs from $mitreRowsRich (already sorted by tactic).
@@ -1547,11 +1551,12 @@ config:
 xychart-beta
     title "Enabled rules per MITRE tactic"
     x-axis [$mitreAxis]
+$(Format-XyFullLabels @($tactics | ForEach-Object { $_.name }))
     y-axis "Enabled rules" 0 --> $mitreYmax
     bar [$mitreBars]
 ``````
 
-**$tacticsCoveredFull 🟢 Covered · $tacticsThin 🟠 Thin · $tacticsNone 🔴 None** of $tacticsTotal tactics. Thin or uncovered tactics surface above any chart bar shorter than the threshold.
+**$tacticsCoveredFull Covered · $tacticsThin Thin · $tacticsNone None** of $tacticsTotal tactics. Thin or uncovered tactics surface above any chart bar shorter than the threshold.
 
 ## Tactic matrix
 
@@ -1593,9 +1598,7 @@ foreach ($h in $hunting) {
         }
     }
 }
-$huntPieRows = $huntByTactic.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 8 | ForEach-Object {
-    "    `"$($_.Key)`" : $($_.Value)"
-}
+$huntPieRows = Format-PieSlices -Counts $huntByTactic
 $huntChartBlock = if ($hunting.Count -gt 0 -and $huntPieRows.Count -gt 0) {
     @"
 
@@ -1675,9 +1678,7 @@ foreach ($p in $parserRows) {
     if (-not $parserByCat.ContainsKey($c)) { $parserByCat[$c] = 0 }
     $parserByCat[$c]++
 }
-$parserPieRows = $parserByCat.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 8 | ForEach-Object {
-    "    `"$($_.Key)`" : $($_.Value)"
-}
+$parserPieRows = Format-PieSlices -Counts $parserByCat -Limit 8
 $parserChartBlock = if ($parserRows.Count -gt 0 -and $parserPieRows.Count -gt 0) {
     @"
 
@@ -1732,7 +1733,6 @@ Total available: $($workbookTemplates.Count)
 $wlRows = $watchlists | ForEach-Object {
     $alias = $_.properties.watchlistAlias
     $desc  = if ($_.properties.description) { [string]$_.properties.description } else { '' }
-    if ($desc.Length -gt 90) { $desc = $desc.Substring(0, 87) + '...' }
     $usedBy = if ($alias -and $rulesByWatchlistAlias.ContainsKey($alias)) { $rulesByWatchlistAlias[$alias].Count } else { 0 }
     [pscustomobject]@{
         Name           = $_.properties.displayName
@@ -2314,7 +2314,7 @@ $tableRows = foreach ($t in $operationalTables) {
         Archive = $t.properties.archiveRetentionInDays
         Type = $t.properties.schema.tableType
         Gb90d = if ($usage) { [math]::Round([double]$usage.BillableLast90d, 2) } else { 0 }
-        Last24h = if ($usage -and [double]$usage.BillableLast24h -gt 0) { '✓' } else { '' }
+        Last24h = if ($usage -and [double]$usage.BillableLast24h -gt 0) { 'Yes' } else { '' }
         LastIngested = if ($usage) { Format-DateUtc $usage.LastIngested } else { '' }
     }
 }
@@ -2340,14 +2340,13 @@ $gbByPlan = $tableRows | Group-Object Plan | ForEach-Object {
     }
 }
 
-# Catalogue summary — Microsoft pre-defined tables that never received
-# data. Most workspaces carry hundreds of these; surface the count and a
-# short head sample rather than dumping every name.
+# Catalogue summary: Microsoft pre-defined tables that never received
+# data. Most workspaces carry hundreds of these; every name is listed.
 $catalogueOnly = @($workspaceTables | Where-Object {
     ($_.properties.schema.tableType -ne 'CustomLog') -and
     (-not $populatedTableNames.ContainsKey($_.name))
 })
-$catalogueSample = ($catalogueOnly | Select-Object -First 20 | ForEach-Object { $_.name }) -join ', '
+$catalogueOnlyRows = @($catalogueOnly | ForEach-Object { [pscustomobject]@{ Table = [string]$_.name } } | Sort-Object Table)
 
 # Detection coverage per operational table, from the enabled rules' table
 # references. Empty when the collector did not compute the mapping.
@@ -2368,7 +2367,7 @@ foreach ($cd in $customDetectionRefs) {
 $coverageRows = @($tableRows | Where-Object { $_.Gb90d -gt 0 } | ForEach-Object {
     $n = if ($rulesPerTable.ContainsKey($_.Name)) { $rulesPerTable[$_.Name] } else { 0 }
     $cdn = if ($customDetectionsPerTable.ContainsKey($_.Name)) { $customDetectionsPerTable[$_.Name] } else { 0 }
-    [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; CustomDetections = $cdn; Coverage = if ($n -gt 0 -and $cdn -gt 0) { '🟢 Rule and custom detection' } elseif ($n -gt 0) { '🟢 Sentinel rule' } elseif ($cdn -gt 0) { '🟢 Custom detection' } else { '🔴 None' } }
+    [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; CustomDetections = $cdn; Coverage = if ($n -gt 0 -and $cdn -gt 0) { 'Rule and custom detection' } elseif ($n -gt 0) { 'Sentinel rule' } elseif ($cdn -gt 0) { 'Custom detection' } else { 'None' } }
 } | Sort-Object -Property Gb90d -Descending)
 $coverageBlock = if ($ruleTableRefs.Count -eq 0) {
     '_Table-to-rule mapping was not computed in this run._'
@@ -2478,7 +2477,9 @@ Total: **$($orphans.Count)** custom ``_CL`` table(s) — delete candidates or ne
 
 ## Catalogue-only Microsoft schemas
 
-$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem; first 20 names: ``$catalogueSample$(if ($catalogueOnly.Count -gt 20) { ', …' })``.
+$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem.
+
+$(Format-Table -Items $catalogueOnlyRows -Columns 'Table')
 
 ## Classic custom tables (legacy Data Collector API)
 
@@ -2600,7 +2601,7 @@ $dcrRows = $dcrsInScope | ForEach-Object {
         Name         = $_.name
         Kind         = $_.kind
         Streams      = $streams
-        HasTransform = if (($_.properties.dataFlows.transformKql) -ne $null) { '✓' } else { '' }
+        HasTransform = if (($_.properties.dataFlows.transformKql) -ne $null) { 'Yes' } else { '' }
     }
 }
 $dcrOutOfScopeRows = $dcrsOutOfScope | ForEach-Object {
@@ -2988,7 +2989,7 @@ $(Format-Banner -Title "Estimated Monthly Cost")
 
 $(Format-Table -Items $planRows -Columns 'Plan','Gb30d','MonthlyCost')
 
-## Top tables by cost
+## Tables by cost
 
 ``````mermaid
 ---
@@ -3007,9 +3008,9 @@ xychart-beta
     bar [$(($cost.Top10TablesByCost | ForEach-Object { $_.Gb30d }) -join ', ')]
 ``````
 
-Long-tail concentration: the loudest table is always the right first cost-optimisation target. Full table names in the table below (short labels above are truncated for chart-axis fit).
+Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables under short labels; the table below lists every table with its full name.
 
-$(Format-Table -Items $cost.Top10TablesByCost -Columns 'Table','Plan','Gb30d','MonthlyCost')
+$(Format-Table -Items $allTables -Columns 'Table','Plan','Gb30d','MonthlyCost')
 
 ## Cost concentration — mindmap
 
@@ -3369,7 +3370,7 @@ $(Format-Table -Items $polRows -Columns 'Name','Scope')
 $gapRows = $gapFindings | ForEach-Object {
     [pscustomobject]@{
         ID       = "[$($_.Id)](#$(($_.Id).ToLower()))"
-        Severity = Format-Severity-Badge $_.Severity
+        Severity = $_.Severity
         Category = $_.Category
         Title    = $_.Title
     }
@@ -3473,7 +3474,7 @@ $(if ($gapFindings.Count -gt 0) {
 
 ### $($_.Id) — $($_.Title)
 
-**Severity:** $(Format-Severity-Badge $_.Severity)  ·  **Category:** $($_.Category)
+**Severity:** $($_.Severity)  ·  **Category:** $($_.Category)
 
 **Evidence**
 
@@ -3524,11 +3525,11 @@ $xdrDays  = _DaysUntilFromToday '2027-03-31'
 # Covered / Thin / None against the 3-rule threshold. Counting from the
 # same source guarantees the headline and the section-25 matrix agree.
 $tacticsTotal         = if ($tactics) { $tactics.Count } else { 14 }
-$tacticsCoveredFull   = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟢 Covered' }).Count
-$tacticsThin          = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟠 Thin'    }).Count
-$tacticsNone          = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🔴 None'    }).Count
-$thinTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🟠 Thin'    } | Select-Object -ExpandProperty Tactic)
-$noneTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq '🔴 None'    } | Select-Object -ExpandProperty Tactic)
+$tacticsCoveredFull   = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Covered' }).Count
+$tacticsThin          = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin'    }).Count
+$tacticsNone          = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None'    }).Count
+$thinTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin'    } | Select-Object -ExpandProperty Tactic)
+$noneTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None'    } | Select-Object -ExpandProperty Tactic)
 $mitreSuffix          = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Count -gt 0) {
     $parts = @()
     if ($noneTacticNames.Count -gt 0) { $parts += "uncovered: $($noneTacticNames -join ', ')" }
@@ -3623,9 +3624,9 @@ $estateBlock
 
 ## Top recommendations
 
-$(if ($top5Findings.Count -gt 0) {
+$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
     ($top5Findings | ForEach-Object {
-        "- **$(Format-Severity-Badge $_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
+        "- **$($_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
     }) -join [Environment]::NewLine
 } else { '_No findings — clean run._' })
 
@@ -3681,7 +3682,7 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
     $criteriaRows = @($mAreas | ForEach-Object {
         $areaId = $_.id
         @($_.criteria) | ForEach-Object {
-            [pscustomobject]@{ Id = $_.id; Area = $areaId; Kind = $_.kind; Criterion = $_.name; Status = (Format-Status-Badge $_.status); Effort = $_.effort; Evidence = $_.evidence }
+            [pscustomobject]@{ Id = $_.id; Area = $areaId; Kind = $_.kind; Criterion = $_.name; Status = $_.status; Effort = $_.effort; Evidence = $_.evidence }
         }
     })
     $outOfScopeLines = (@($maturity.outOfScope) | ForEach-Object { "- **$($_.area)**: $($_.reason)" }) -join [Environment]::NewLine
@@ -3752,7 +3753,7 @@ $(Format-Table -Items $roadmapRows -Columns 'Priority','Criterion','Area','Effor
 
 ## Quick wins
 
-The first five Low-effort entries on the roadmap.
+Every Low-effort entry on the roadmap, in roadmap order.
 
 $quickWinLines
 
@@ -3885,7 +3886,7 @@ function _SocOptRow {
         Title        = $Item.properties.title
         AffectedItem = $Item.properties.additionalProperties.$AffectedField
         State        = $Item.properties.state
-        Description  = ($Item.properties.description -replace '\s+', ' ' | Select-Object -First 200)
+        Description  = ($Item.properties.description -replace '\s+', ' ')
     }
 }
 $socCovRows = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_Coverage'  } | ForEach-Object { _SocOptRow $_ 'UseCaseName' }
@@ -3895,7 +3896,7 @@ $socOther   = $socOpt | Where-Object { $_.properties.recommendationTypeId -notin
         Kind         = $_.properties.recommendationTypeId
         Title        = $_.properties.title
         State        = $_.properties.state
-        Description  = ($_.properties.description -replace '\s+', ' ' | Select-Object -First 200)
+        Description  = ($_.properties.description -replace '\s+', ' ')
     }
 }
 # Chart input: bucket recommendations by category for the headline pie.
@@ -3975,9 +3976,7 @@ foreach ($r in $cefDevices) {
     if (-not $cefByVendor.ContainsKey($v)) { $cefByVendor[$v] = 0 }
     $cefByVendor[$v] += [long]$r.LogCount
 }
-$cefPieRows = $cefByVendor.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 6 | ForEach-Object {
-    "    `"$($_.Key)`" : $($_.Value)"
-}
+$cefPieRows = Format-PieSlices -Counts $cefByVendor -Limit 6
 $cefChartBlock = if ($cefDevices.Count -gt 0) {
     @"
 
@@ -4023,9 +4022,9 @@ Computers reporting duplicate SecurityEvent records within a one-hour window: ``
 
 $(Format-Table -Items $secEvtDupeRows -Columns 'Computer','DuplicateRecords','Copies','DuplicateEventIds')
 
-## Top noisy event IDs (last 7d)
+## Event IDs by billed size (last 7d)
 
-Highest-volume Windows event IDs across the Event + SecurityEvent tables, by billed size, with the record count. Each row is a candidate for filtering at the DCR transform stage.
+Every Windows event ID in the Event and SecurityEvent tables, largest billed size first, with the record count. Each row is a candidate for filtering at the DCR transform stage.
 
 $(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescription','LogCount','BilledSizeGB')
 
@@ -4035,9 +4034,9 @@ Hosts and facilities writing to ``Syslog``, by record count and billed size. One
 
 $(Format-Table -Items $syslogContribRows -Columns 'Computer','Facility','LogCount','SizeMB')
 
-## SecurityEvent top hosts (last 7d)
+## SecurityEvent hosts (last 7d)
 
-Hosts writing the most ``SecurityEvent`` records. Domain controllers lead on every estate; a member server near the top usually means an audit policy or an event-ID set that is wider than the detections need.
+Every host writing ``SecurityEvent`` records, most records first. Domain controllers lead on every estate; a member server near the top usually means an audit policy or an event-ID set that is wider than the detections need.
 
 $(Format-Table -Items $secEventHostRows -Columns 'Computer','LogCount','SizeMB')
 
@@ -4077,14 +4076,14 @@ $xdrRows = $xdrPres | ForEach-Object {
 # XDR-table-presence inputs for the bar chart. Short-label-axis with full
 # names in the table below.
 $xdrChartBlock = if ($xdrPres.Count -gt 0) {
-    $xdrAxis = ($xdrRows | Select-Object -First 12 | ForEach-Object {
+    $xdrAxis = ($xdrRows | ForEach-Object {
         $n = $_.Table
         $s = if ($n.Length -gt 12) { $n.Substring(0,12) } else { $n }
         "`"$s`""
     }) -join ', '
-    $xdrBars = ($xdrRows | Select-Object -First 12 | ForEach-Object { [long]$_.RecordCount }) -join ', '
+    $xdrBars = ($xdrRows | ForEach-Object { [long]$_.RecordCount }) -join ', '
     $xdrYmax = [long]1
-    foreach ($r in $xdrRows | Select-Object -First 12) { if ([long]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [long]$r.RecordCount } }
+    foreach ($r in $xdrRows) { if ([long]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [long]$r.RecordCount } }
     @"
 
 ## XDR table activity (last 7d)
@@ -4099,6 +4098,7 @@ config:
 xychart-beta
     title "Defender XDR tables — records ingested last 7d"
     x-axis [$xdrAxis]
+$(Format-XyFullLabels @($xdrRows | ForEach-Object { $_.Table }))
     y-axis "Records" 0 --> $($xdrYmax + ([math]::Ceiling($xdrYmax * 0.1)))
     bar [$xdrBars]
 ``````
@@ -4476,6 +4476,7 @@ config:
 xychart-beta
     title "Top 10 alerting rules — alert count (last 30d)"
     x-axis [$volAxis]
+$(Format-XyFullLabels @($top10 | ForEach-Object { $_.AlertName }))
     y-axis "Alerts" 0 --> $($volMax + ([math]::Ceiling($volMax * 0.1) + 1))
     bar [$volBars]
 ``````
@@ -4488,7 +4489,7 @@ $volumeSection = @"
 
 ## By alert volume (last 30d)
 
-The 50 most-firing rules over the last 30 days, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal — review and tune.
+Every alert name raised in the last 30 days, most alerts first, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal; review and tune.
 $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
@@ -4552,7 +4553,7 @@ $modifiedRows = $rules | ForEach-Object {
         LastModified = Format-DateUtc $lm
         Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
     }
-} | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending | Select-Object -First 50
+} | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending
 # Modifications-per-month bar over the last 12 months.
 $monthBuckets = [ordered]@{}
 $now = (Get-Date).ToUniversalTime()
@@ -4591,7 +4592,7 @@ xychart-beta
 
 Each bar is one calendar month (MM). Tempo reveals release cadence — sustained months at zero suggest abandoned content; periodic spikes usually align with vendor content-pack updates.
 
-The 50 most recently modified rules. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Tools/Test-SentinelRuleDrift.ps1) — a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
+Every rule, most recently modified first. Cross-reference with [Test-SentinelRuleDrift.ps1](../../Tools/Test-SentinelRuleDrift.ps1): a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
 $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
 "@
@@ -4903,12 +4904,12 @@ $tiTypeBlock = if ($tiTypeRows.Count -gt 0 -and ($tiTypeRows | Measure-Object -P
 $(Format-Table -Items $tiTypeRows -Columns 'ThreatType','IndicatorCount')
 "@
 } else { '' }
-# Pie of TI sources (top 6 + Other).
+# Pie of TI sources: the six largest, the rest as one Other slice. The
+# indicator table on this page lists every source.
 $tiPieBlock = if ($tiRows -and ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
-    $top6Sources = @($tiRows) | Select-Object -First 6
-    $tiPieRows = $top6Sources | ForEach-Object {
-        "    `"$($_.SourceSystem)`" : $([long]$_.IndicatorCount)"
-    }
+    $tiBySource = [ordered]@{}
+    foreach ($row in @($tiRows)) { $k = [string]$row.SourceSystem; $tiBySource[$k] = $(if ($tiBySource.Contains($k)) { $tiBySource[$k] } else { 0 }) + [long]$row.IndicatorCount }
+    $tiPieRows = Format-PieSlices -Counts $tiBySource -Limit 6
     @"
 
 ## Indicator distribution by source
@@ -5491,12 +5492,11 @@ if ($cost -and $cost.ByPlan) {
 # Migration candidates: Analytics-plan tables with ≥0.5 GB/30d are typical
 # Lake-tier candidates, particularly verbose Defender XDR advanced hunting
 # tables (Device*, Email*) and verbose security logs that don't drive
-# real-time detection. Cap to the top 10 to keep the table readable.
+# real-time detection. Every qualifying table is listed, costliest first.
 $dlCandidateRows = @()
 if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
     $dlCandidateRows = @($cost.AllTablesByCost |
         Where-Object { $_.Plan -eq 'Analytics' -and [double]$_.Gb30d -ge 0.5 } |
-        Select-Object -First 10 |
         ForEach-Object {
             [pscustomobject]@{
                 Table         = $_.Table
@@ -5632,6 +5632,7 @@ config:
 xychart-beta
     title "Lake-only retention days (beyond Analytics period)"
     x-axis [$retAxis]
+$(Format-XyFullLabels @($topRetention | ForEach-Object { $_.Table }))
     y-axis "Days" 0 --> $($retYmax + 30)
     bar [$retLakeBars]
 ``````
@@ -5961,4 +5962,4 @@ if ($script:WriteJson) {
         ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $script:SectionsRoot 'index.json') -Encoding utf8
 }
 
-Write-Information "✓ Renderer complete — output: $OutputRoot"
+Write-Information "Renderer complete, output: $OutputRoot"

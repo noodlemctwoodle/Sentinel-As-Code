@@ -178,8 +178,11 @@ When `-NoReformatFindings` is *not* set, the script also rewrites the report for
 print: `Convert-FindingBullets` turns dense finding bullets shaped like
 `- **<severity>** [<ID>](<link>) <title> - <description>` into a bold
 severity/ID/title lead line with the description beneath (resolving the title from
-the matching gap-analysis heading), and `Convert-SeverityEmoji` replaces status
-emoji such as `🟠 Warning` with the word alone, coloured via a character style. The
+the matching gap-analysis heading), and `Convert-StatusWords` colours the status
+words through a character style: a table cell under a Severity, Status, Coverage
+or Rating column whose whole text is a known status (`Warning`, `Gap`, `None`,
+`Strong`), and the value after `**Severity:**` on the finding cards. A word in any
+other column stays plain. The
 colours come from the `SevCritical`, `SevWarning`, `SevLow` and `SevInfo` character
 styles defined in the reference template; the static contents uses `TOCEntry1`
 through `TOCEntry3`.

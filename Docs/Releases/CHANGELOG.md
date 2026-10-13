@@ -6,6 +6,25 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint reports in full and in plain words** - nothing is cut to a
+  top N any more. The collector's queries sort but no longer `take` or
+  `top` (rule volumes, effectiveness, rule health, incidents by rule, CEF,
+  Syslog and SecurityEvent contributors, duplicates, event IDs, Azure
+  diagnostics), the lake query-usage capture covers every lake-retained
+  table in batches, finding evidence names every item instead of "(+ N
+  more)", SAC-MON-05 suggests every candidate template, and the maturity
+  quick wins list every Low-effort gap (the dashboard shows five with
+  Show all). The pages list every catalogue-only schema, costed table,
+  rule modification, lake migration candidate, watchlist description and
+  rule per MITRE technique; the overview's top five findings say how many
+  there are in all. Charts that fold a tail into one "Other" slice keep
+  the pie summing to the total and sit beside a table with every item,
+  and the SharePoint chart web part (1.4.1) shows whole axis and Gantt
+  labels, wrapping instead of clipping, with full names passed through a
+  `%% x-labels` comment where the Markdown axis uses short ones. The
+  coloured-circle emoji badges are gone: severities, coverage, criterion
+  status and estate ratings are plain words, and the Word report colours
+  them by column instead.
 - **Blueprint closes the gaps against health-check build 38** - a section
   by section, query by query comparison of the health-check script and its
   HTML report against the Blueprint, written up in

@@ -1107,8 +1107,9 @@
     card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); window.scrollTo({top:0,behavior:'smooth'}); }));
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
-      qw.innerHTML='<div class="qw">'+MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
-        '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>').join('')+'</div>';
+      const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
+        '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; +'+(+q.overallLift||0).toFixed(2)+'</span></div>');
+      qw.innerHTML=moreWrap('<div class="qw">'+rowsMore(qwItems,QW,'div')+'</div>', qwItems.length, QW, 'quick wins');
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
   })();
 
@@ -1551,7 +1552,7 @@
     const PILLS=3;
     const rows=M.detectionOpportunities.map(o=>'<tr><td>'+esc(o.table)+'<div class="note" style="margin:2px 0 0">'+esc(o.family)+'</div></td><td class="num">'+fmtN(o.gb30d)+' GB</td><td>'+
       (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
-        (o.templates.length>PILLS?'<button type="button" class="tagpill morepill" data-more data-all="+'+(o.templates.length-PILLS)+' more" data-less="Show fewer">+'+(o.templates.length-PILLS)+' more</button>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
+        (o.templates.length>PILLS?'<button type="button" class="tagpill morepill" data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer">Show all '+o.templates.length+'</button>':'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.'+
       (opNum?' <a class="link-muted" data-jump="'+opNum+'">Open the full list &rarr;</a>':'')+'</p>'+

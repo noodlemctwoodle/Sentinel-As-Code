@@ -97,7 +97,7 @@ table only.
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
 | `12-soc-optimization.md` | pie | recommendation-category counts | `$socTotal -gt 0` |
 | `13-data-source-hygiene.md` | pie | `$cefDevices` grouped by DeviceVendor | `$cefDevices.Count -gt 0` |
-| `14-coverage-breakdowns.md` | xychart-beta bar | `$xdrPres` top 12 by RecordCount | `$xdrPres.Count -gt 0` |
+| `14-coverage-breakdowns.md` | xychart-beta bar | every `$xdrPres` table, with `%% x-labels` full names | `$xdrPres.Count -gt 0` |
 | `15-incidents.md` | stateDiagram-v2 | `$incMttr.ClosedCount` + `$incSummary.Count` | none |
 | `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
@@ -108,7 +108,7 @@ table only.
 | `20-analytics-rules.md` (By Content Hub solution) | pie | top 8 solutions by rule count + Other | none |
 | `25-mitre-coverage.md` | xychart-beta bar (width 1400) | `$mitreRowsRich.EnabledRules` | none |
 | `26-ueba.md` | pie | `$uebaPresenceRows` by table | `$uebaTotalRows -gt 0` |
-| `27-threat-intelligence.md` | pie | `$tiRows` top 6 by IndicatorCount | `$tiRows total > 0` |
+| `27-threat-intelligence.md` | pie | `$tiRows`, the six largest sources and one Other slice for the rest | `$tiRows total > 0` |
 | `28-detection-opportunities.md` | xychart-beta bar | applicable templates / enabled rules / not yet deployed (`$templateTableRefs`, `$enabledRules`) | either count `-gt 0`; the whole page is a sentence when both reference files are absent |
 | `30-hunting-queries.md` | pie | hunting queries grouped by MITRE tactic tag | `$hunting.Count -gt 0` |
 | `35-parsers-functions.md` | pie | parsers grouped by Category | `$parserRows.Count -gt 0` |
@@ -171,7 +171,8 @@ grouped in one block.
 | `Format-Gb` | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
 | `Format-Banner` | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
 | `Format-Table` | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
-| `Format-Severity-Badge` | Severity string → coloured emoji (`🔴 Critical`, `🟠 Warning`, `🔵 Info`). | Top-recommendations bullets in 00 / 01, gap-analysis findings table |
+| `Format-PieSlices` | Label to count map → Mermaid pie lines, largest first; past a limit the rest fold into one `Other (N)` slice so the pie still sums to the total. A page that folds a tail also carries a table listing every item. | Hunting, parser, CEF vendor and TI source pies |
+| `Format-XyFullLabels` | Full x-axis labels as a `%% x-labels [...]` comment. Mermaid ignores it; `ConvertFrom-BlueprintMermaid` reads it, so the SharePoint chart shows whole names where the Markdown axis uses short ones. | MITRE, cost, XDR, alert volume and lake retention bar charts |
 | `Format-FeatureFlag` | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
 | `Format-MinutesScalar` | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
 | `Format-MitreTechniqueCell` | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
@@ -427,13 +428,14 @@ assets root).
 | [`Tools/Blueprint/Private/Get-TableTierProfile.ps1`](../../../Tools/Blueprint/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
 | [`Tools/Blueprint/Private/Get-SentinelMaturity.ps1`](../../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Tools/Blueprint/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
 | [`Tools/Blueprint/Private/Get-SentinelGap.ps1`](../../../Tools/Blueprint/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Tools/Blueprint/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
-| [`Tools/Blueprint/Private/Resources/best-practices.json`](../../../Tools/Blueprint/Private/Resources/best-practices.json) | 58-rule catalogue driving the gap engine |
+| [`Tools/Blueprint/Private/Resources/best-practices.json`](../../../Tools/Blueprint/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
 | [`Tools/Blueprint/Private/Resources/mitre-attack.json`](../../../Tools/Blueprint/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Blueprint/Private/Resources/commitment-tiers.json`](../../../Tools/Blueprint/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~225 tests) |
-| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (90 tests) |
+| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~230 tests) |
+| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (93 tests) |
 | [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (33 tests) |
+| [`Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1`](../../../Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1) | Word report rewrites: status colouring by column, finding bullets (7 tests) |
 | [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
 | [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |

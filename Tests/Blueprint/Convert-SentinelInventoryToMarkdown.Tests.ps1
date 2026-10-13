@@ -192,7 +192,7 @@ Describe 'Sentinel Blueprint renderer' {
             $script:mat | Should -Match '## Quick wins[\s\S]*- \*\*SAC-INV-02\*\*'
             $script:mat | Should -Match '\| DE Detect \| 30 \| 12 \| 18 \| 0 \|'
             # the criterion shares its id with the daily-cap finding, which fired, so the id links to it
-            $script:mat | Should -Match '\| \[SAC-LOG-03\]\(90-gap-analysis\.md#sac-log-03\) \| LOG \| practice \| A daily cap is set \| 🔴 Gap \|'
+            $script:mat | Should -Match '\| \[SAC-LOG-03\]\(90-gap-analysis\.md#sac-log-03\) \| LOG \| practice \| A daily cap is set \| Gap \|'
         }
 
         It 'links a criterion id only when the finding that shares it fired' {
@@ -470,10 +470,10 @@ Describe 'Sentinel Blueprint renderer' {
     }
 
     Context '13-data-source-hygiene.md lists log contributors' {
-        It 'shows Syslog contributors by facility and the top SecurityEvent hosts' {
+        It 'shows Syslog contributors by facility and the SecurityEvent hosts' {
             $md = Get-Content (Join-Path $script:tempWsRoot '13-data-source-hygiene.md') -Raw
             $md | Should -Match '## Syslog contributors \(last 7d\)[\s\S]*\| fw-edge-01 \| local4 \| 182000 \| 540.2 \|'
-            $md | Should -Match '## SecurityEvent top hosts \(last 7d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
+            $md | Should -Match '## SecurityEvent hosts \(last 7d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
         }
     }
 
@@ -517,9 +517,9 @@ Describe 'Sentinel Blueprint renderer' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw
             $md | Should -Match '## Tables by detection coverage'
-            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 0 \| 🔴 None \|'
+            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 0 \| None \|'
             # AuditLogs is in the fixture catalogue and read by the enabled Scheduled rule
-            $md | Should -Match '\| AuditLogs \| Analytics \| 50 \| 1 \| 0 \| 🟢 Sentinel rule \|'
+            $md | Should -Match '\| AuditLogs \| Analytics \| 50 \| 1 \| 0 \| Sentinel rule \|'
         }
     }
 
@@ -532,8 +532,8 @@ Describe 'Sentinel Blueprint renderer' {
             $script:mitre | Should -Match 'Initial Access'
         }
 
-        It 'shows zero-coverage tactics with a red marker' {
-            $script:mitre | Should -Match '🔴 None'
+        It 'marks zero-coverage tactics as None, in words' {
+            $script:mitre | Should -Match '\| None \|'
         }
 
         It 'resolves T1078 to its catalogue name (Valid Accounts)' {
@@ -1534,5 +1534,80 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
     It 'lists every table whose retention rolls into the lake and checks each is still fed' {
         $hcLake | Should -Match '## Retention that rolls into the lake[\s\S]*\| AuditLogs \| Analytics \| 30 \| 335 \| 365 \|'
         $hcLake | Should -Match '## Ingestion validation[\s\S]*\| AuditLogs \| Analytics \| 335 \|[^\n]*\| Check: '
+    }
+}
+
+Describe 'Sentinel Blueprint renderer - full reporting in plain words' {
+
+    BeforeAll {
+        $script:wideRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-wide-$(New-Guid)"
+        $wide = Join-Path $script:wideRoot 'wide'
+        New-Item -ItemType Directory -Path (Join-Path $wide '_raw') -Force | Out-Null
+        Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $wide '_raw')
+        $raw = { param($Name, $Value) ConvertTo-Json -InputObject $Value -Depth 16 | Set-Content (Join-Path $wide "_raw/$Name") }
+
+        # More of everything than any of the old cut-offs allowed: twelve
+        # costed tables, eight TI sources and CEF vendors, fifteen XDR
+        # tables and twenty-five catalogue-only schemas.
+        $cost = Get-Content (Join-Path $wide '_raw/cost-estimate.json') -Raw | ConvertFrom-Json
+        $all = @(@('FirewallLogs_CL', 'Syslog', 'DeviceProcessEvents') + @(1..9 | ForEach-Object { "WideTable$_`_CL" }))
+        $cost | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue @($all | ForEach-Object -Begin { $gb = 2400 } -Process { $gb -= 100; [pscustomobject]@{ Table = $_; Plan = 'Analytics'; Gb30d = $gb; MonthlyCost = $gb * 2 } })
+        & $raw 'cost-estimate.json' $cost
+        Remove-Item (Join-Path $wide '_raw/threat-intel-metrics.json') -Force
+        & $raw 'threat-intel-counts.json' @(1..8 | ForEach-Object { [pscustomobject]@{ SourceSystem = "Feed $_"; Count = 1000 - $_; Indicators = 100; Last = '2026-05-06T07:00:00Z' } })
+        & $raw 'cef-devices.json' @(1..8 | ForEach-Object { [pscustomobject]@{ DeviceVendor = "Vendor $_"; DeviceProduct = 'Firewall'; LogCount = 900 - $_ } })
+        & $raw 'xdr-table-presence.json' @(@('DeviceNetworkEvents') + @(1..14 | ForEach-Object { "XdrTable$_" }) | ForEach-Object { [pscustomobject]@{ Type = $_; RecordCount = 500 } })
+        $tables = @(Get-Content (Join-Path $wide '_raw/workspace-tables.json') -Raw | ConvertFrom-Json)
+        $tables += @(1..25 | ForEach-Object { [pscustomobject]@{ name = ('CatalogueOnly{0:D2}' -f $_); properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'Microsoft' } } } })
+        & $raw 'workspace-tables.json' $tables
+
+        & $script:renderer -WorkspaceName 'law-wide' -InputRoot $wide -OutputRoot $wide -ResourcesRoot $script:resources -OutputFormat Markdown, Json -InformationAction SilentlyContinue *> $null
+        $script:wide = $wide
+        $script:widePage = { param($Name) Get-Content (Join-Path $script:wide "$Name.md") -Raw }
+    }
+
+    AfterAll {
+        if ($script:wideRoot -and (Test-Path $script:wideRoot)) { Remove-Item -Recurse -Force -Path $script:wideRoot -ErrorAction SilentlyContinue }
+    }
+
+    It 'writes no emoji on any page' {
+        foreach ($f in Get-ChildItem -Path $script:tempWsRoot -Filter '*.md') {
+            Get-Content $f.FullName -Raw | Should -Not -Match '[\u2600-\u27BF]|[\uD83C-\uD83E][\uDC00-\uDFFF]' -Because $f.Name
+        }
+    }
+
+    It 'never cuts a list short with "+ N more" or a "first N" sample' {
+        foreach ($f in Get-ChildItem -Path $script:wide -Filter '*.md') {
+            $md = Get-Content $f.FullName -Raw
+            $md | Should -Not -Match '\(\+ \d+ more\)' -Because $f.Name
+            $md | Should -Not -Match 'first \d+ names|The 50 most|The first five' -Because $f.Name
+        }
+    }
+
+    It 'lists every costed table under the top-ten chart' {
+        $md = & $script:widePage '84-cost-estimate'
+        foreach ($n in 1..9) { $md | Should -Match "\| WideTable$n`_CL \| Analytics \|" }
+        $md | Should -Match '\| DeviceProcessEvents \| Analytics \| 2100 \|'
+    }
+
+    It 'lists every catalogue-only schema by name' {
+        $md = & $script:widePage '81-table-plans-retention'
+        $md | Should -Match '## Catalogue-only Microsoft schemas[\s\S]*\| CatalogueOnly01 \|[\s\S]*\| CatalogueOnly25 \|'
+    }
+
+    It 'folds the TI and CEF pie tails into one Other slice while the tables keep every row' {
+        $ti = & $script:widePage '27-threat-intelligence'
+        $ti | Should -Match '"Other \(2\)" : 1985'
+        $ti | Should -Match '\| Feed 8 \| 992 \|'
+        & $script:widePage '13-data-source-hygiene' | Should -Match '"Other \(2\)" : 1785'
+    }
+
+    It 'charts every Defender XDR table and hands SharePoint the full names' {
+        $md = & $script:widePage '14-coverage-breakdowns'
+        $md | Should -Match 'bar \[(500, ){14}500\]'
+        $md | Should -Match '%% x-labels \["DeviceNetworkEvents", "XdrTable1"'
+        $chart = @((Get-Content (Join-Path $script:wide 'sections/14-coverage-breakdowns.json') -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'xy' })[0]
+        @($chart.data.xAxis.labels).Count | Should -Be 15
+        $chart.data.xAxis.labels[0] | Should -Be 'DeviceNetworkEvents'
     }
 }

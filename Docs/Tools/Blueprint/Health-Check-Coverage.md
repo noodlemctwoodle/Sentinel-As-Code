@@ -44,7 +44,7 @@ too.
 | Permissions: Sentinel role assignments | `85-rbac.md`, "Microsoft Sentinel role assignments" (new) | SAC-GOV-04 |
 | Permissions: Log Analytics and monitoring role assignments | `85-rbac.md`, "Log Analytics and monitoring role assignments" (new) | |
 | Permissions: high-privilege assignments | `85-rbac.md`, "High-privilege assignments" (new) | SAC-GOV-06, SAC-GOV-05 |
-| Sentinel usage and table costs: top tables by cost | `84-cost-estimate.md`, "Top tables by cost"; dashboard top tables | |
+| Sentinel usage and table costs: top tables by cost | `84-cost-estimate.md`, "Tables by cost" (every table; the chart shows the ten costliest); dashboard top tables | |
 | Data retention: per-table retention overrides | `81-table-plans-retention.md`, "Tables with non-default retention" | |
 | Data retention: retention improvement recommendations | `81-table-plans-retention.md`, "Retention recommendations" (new, all three checks shown with their outcome) | SAC-LOG-07 |
 | Tables no longer receiving data, with and without rules | `81-table-plans-retention.md`, "Silent" detail with days silent, rules and verdict | SAC-MON-06, SAC-INV-01 |
@@ -61,7 +61,7 @@ too.
 | Analytics rules: MITRE ATT&CK tactic coverage | `25-mitre-coverage.md`; dashboard MITRE matrix | SAC-MON-04 |
 | Analytics rules: rule health issues | `20-analytics-rules.md`, "Rule run failures (last 7d)" | SAC-DET-14 |
 | Analytics rules: noisy rules | `15-incidents.md` and `20-analytics-rules.md`, rule effectiveness | SAC-DET-06 |
-| Analytics rules: rule effectiveness | `15-incidents.md`, "Rule effectiveness (last 30d)", up to 300 detections (Sentinel rules first) rather than the top 25 | |
+| Analytics rules: rule effectiveness | `15-incidents.md`, "Rule effectiveness (last 30d)", every detection (Sentinel rules first) rather than the top 25 | |
 | Analytics rules: tables ingested but not referenced by any rule | `28-detection-opportunities.md`, "Tables with data but no detection" with every template per table (previously three and a count); `81-table-plans-retention.md`, "Tables by detection coverage" | SAC-MON-05 |
 | Analytics rules: suggested rules for unmonitored tables | `28-detection-opportunities.md`, "Undeployed templates ready to enable"; dashboard detection opportunities | SAC-MON-05 |
 | Analytics rules: unmonitored tables with no available templates | `28-detection-opportunities.md`, "Tables with no template available" (new) | SAC-MON-05 |
@@ -86,8 +86,8 @@ too.
 | Deep dive: AzureDiagnostics by resource provider and category | `14-coverage-breakdowns.md`, per resource provider and per category (new) | SAC-LOG-18 |
 | Deep dive: Azure Firewall legacy and modern category overlap | `14-coverage-breakdowns.md`, "Azure Firewall categories (last 7d)" (new) | SAC-LOG-06 |
 | Deep dive: AzureActivity by subscription | `14-coverage-breakdowns.md` | |
-| Deep dive: SecurityEvent top event IDs by size | `13-data-source-hygiene.md`, "Top noisy event IDs (last 7d)" (record count and 15 rows new) | SAC-LOG-17 |
-| Deep dive: SecurityEvent top hosts | `13-data-source-hygiene.md`, "SecurityEvent top hosts (last 7d)" | |
+| Deep dive: SecurityEvent top event IDs by size | `13-data-source-hygiene.md`, "Event IDs by billed size (last 7d)" (every event ID with its record count) | SAC-LOG-17 |
+| Deep dive: SecurityEvent top hosts | `13-data-source-hygiene.md`, "SecurityEvent hosts (last 7d)" (every host) | |
 | Deep dive: SecurityEvent duplicates | `13-data-source-hygiene.md`, "SecurityEvent duplicates (last 1h)" (duplicated events new) | SAC-LOG-22 (new) |
 | Deep dive: Syslog contributors | `13-data-source-hygiene.md`, "Syslog contributors (last 7d)" | SAC-LOG-16 |
 | Deep dive: CEF records landing in Syslog | `13-data-source-hygiene.md`, "CEF records misrouted into Syslog" (vendor and product new) | SAC-LOG-23 (new) |
@@ -99,7 +99,7 @@ too.
 | Operations: SentinelHealth operations | `11-sentinel-health.md`, "Operations summary" | |
 | Operations: LAQueryLogs audit | `11-sentinel-health.md`, "Query logging activity" | SAC-PLT-12 (new) |
 | Operations: incident metrics (7d) | `15-incidents.md`, "Incident metrics (last 7d)" (new) | SAC-INC-05, SAC-INC-06, SAC-INC-02 |
-| Operations: alert volumes by provider | `15-incidents.md`, "Alert volumes by provider (last 7d)" (new, every alert name that fired, from up to 500 alert names, rather than the top 25) | |
+| Operations: alert volumes by provider | `15-incidents.md`, "Alert volumes by provider (last 7d)" (new, every alert name that fired rather than the top 25) | |
 | Operations: legacy Microsoft incident creation rules | `20-analytics-rules.md`, "MS Incident Creation rules" | SAC-DET-08 |
 | Operations: threat intelligence table version usage | `20-analytics-rules.md` and `27-threat-intelligence.md` | SAC-TI-02 |
 | Operations: analytics rule complexity | `20-analytics-rules.md`, "Rule complexity" | |
@@ -192,7 +192,7 @@ data. Where the window or shape differs, the note says how.
 | `LAQueryLogs` count (7 days) | `la-query-logs.json` | |
 | Incident metrics (7 days, with MTTA) | `incidents-summary.json`, `incidents-mttr.json` | 7-day columns new |
 | Alerts by provider and alert name (7 days) | `analytics-rule-volumes.json` | `ProviderName` and `Alerts7d` new |
-| `SecurityEvent` top event IDs by size | `top-event-ids.json` | `LogCount` and 15 rows new; `Event` included |
+| `SecurityEvent` top event IDs by size | `top-event-ids.json` | Every event ID rather than a top N; `LogCount` new; `Event` included |
 | `SecurityEvent` top hosts | `securityevent-top-hosts.json` | |
 | `SecurityEvent` duplicates (1 hour) | `security-event-duplicates.json` | `DuplicateRecords` new |
 | `AzureDiagnostics` by resource provider and category | `azure-diagnostics-providers.json`, `azure-diagnostics-categories.json` | |
@@ -271,4 +271,9 @@ data. Where the window or shape differs, the note says how.
   health check's empty-result fallback is not reproduced.
 - Nothing is truncated: where the report shows a top 25 or top 50, the
   Blueprint lists every row, and the dashboard shows the first entries with
-  a "Show all" control.
+  a "Show all" control. The captures carry no row cap either: their queries
+  sort but never `take` or `top`, finding evidence names every item, and a
+  chart that folds a long tail into "Other" sits beside a table listing
+  every item.
+- Status words are plain text (Critical, Warning, Covered, Gap) rather than
+  the report's coloured emoji; the Word report colours them by column.

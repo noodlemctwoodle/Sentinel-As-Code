@@ -129,7 +129,7 @@ under the label when the two cannot share a line.
 | --- | --- | --- |
 | `estate` | Overview: the four pipeline rings (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed) and the estate flow (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
 | `maturity` | Overview: the maturity card (score, level band, target marker) and quick wins. Maturity tab: overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
-| `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (top 12; the page has the full list) | `rule-table-references`, `template-table-references`, `tables-with-data` |
+| `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
 | `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
@@ -183,7 +183,10 @@ the browser as SVG and HTML, with no external libraries, in the colours of
 the section's theme. A flowchart node's link goes where the same link in
 the text would (another page, or the findings list filtered on a finding).
 Kinds it cannot draw keep their Mermaid source in `chart.source` and are
-shown as text. How each kind is drawn is in the web part's
+shown as text. Labels are never shortened: a long one wraps over as
+many lines as it needs, and an xy chart whose Mermaid labels are cut to
+fit under the bars takes the full names from a `%% x-labels` comment the
+renderer writes beside the axis. How each kind is drawn is in the web part's
 [README](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint/README.md#how-the-charts-render).
 
 While the web part is not on the site yet (a package deployed a moment ago

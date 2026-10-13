@@ -822,3 +822,31 @@ Describe 'Rules ported from health check build 38' {
         }
     }
 }
+
+Describe 'Gap evidence lists every item' {
+    BeforeAll {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+    }
+
+    It 'never cuts a list short with a "+ N more" suffix on the sample fixture' {
+        foreach ($f in $script:findings) { $f.Evidence | Should -Not -Match '\(\+ \d+ more\)' -Because $f.Id }
+    }
+
+    It 'names all nine unmapped rules, not the first five' {
+        $rules = @(1..9 | ForEach-Object {
+            [pscustomobject]@{ name = "r$_"; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = "Unmapped rule $_"; enabled = $true; entityMappings = @() } }
+        })
+        $evidence = (Test-RuleEntityMappingsPresent -Inventory ([pscustomobject]@{ AlertRules = $rules })).Evidence
+        foreach ($n in 1..9) { $evidence | Should -Match "Unmapped rule $n\b" }
+    }
+
+    It 'suggests every undeployed template for an uncovered table, not the first three' {
+        $templates = @(1..5 | ForEach-Object { [pscustomobject]@{ DisplayName = "Template $_"; Severity = 'Medium'; Tables = @('DeviceProcessEvents'); Deprecated = $false; AlreadyDeployed = $false } })
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
+            RuleTableReferences = @(); TemplateTableReferences = $templates; CustomDetectionRefs = @() }
+        $f = Test-HighVolumeTableWithoutDetection -Inventory $inv
+        @($f.Detail.Tables[0].SuggestedTemplates).Count | Should -Be 5
+        $f.Evidence | Should -Match 'Template 1, Template 2, Template 3, Template 4, Template 5'
+    }
+}

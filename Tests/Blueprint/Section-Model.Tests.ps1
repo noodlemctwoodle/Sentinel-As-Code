@@ -157,6 +157,16 @@ Describe 'ConvertFrom-BlueprintMermaid' {
         $c.data.series[0].name | Should -Be 'Warning'; $c.data.series[1].kind | Should -Be 'line'
     }
 
+    It 'takes the full axis labels from a %% x-labels comment' {
+        $c = Get-Chart "xychart-beta`n    x-axis [""DeviceProces"", ""EmailEvents""]`n    %% x-labels [""DeviceProcessEvents"", ""EmailEvents""]`n    bar [3, 1]"
+        $c.data.xAxis.labels | Should -Be @('DeviceProcessEvents', 'EmailEvents')
+    }
+
+    It 'keeps the Mermaid labels when the comment does not match them one for one' {
+        $c = Get-Chart "xychart-beta`n    x-axis [""A"", ""B""]`n    %% x-labels [""Alpha""]`n    bar [3, 1]"
+        $c.data.xAxis.labels | Should -Be @('A', 'B')
+    }
+
     It 'parses a timeline with continuation events' {
         $c = Get-Chart "timeline`n    title History`n    2024-02-15 : Created`n               : First inventory`n    2025-02-01 : Degraded"
         @($c.data.periods).Count | Should -Be 2

@@ -2341,6 +2341,252 @@
       "overallLift": 0.101,
       "priority": 10,
       "projectedScore": 2.88
+    },
+    {
+      "criterionId": "SAC-AUT-04",
+      "area": "AUT",
+      "areaName": "Automation and response",
+      "name": "Watchlists are in use",
+      "kind": "coverage",
+      "evidence": "No watchlists defined.",
+      "impact": "Watchlists hold the allow-lists, VIP lists and asset context that keep detections precise.",
+      "guidance": "Create watchlists for known-good sources, high-value assets and service accounts and reference them in rules.",
+      "effort": "Low",
+      "csf": [
+        "DE.AE-03",
+        "ID.AM-08"
+      ],
+      "areaLift": 1.11,
+      "overallLift": 0.101,
+      "priority": 11,
+      "projectedScore": 2.98
+    },
+    {
+      "criterionId": "SAC-GOV-04",
+      "area": "GOV",
+      "areaName": "Governance and access",
+      "name": "Responder role is assigned",
+      "kind": "practice",
+      "evidence": "SAC-GOV-04 fired.",
+      "impact": "Without Responder assignments analysts act through broader roles or cannot act at all.",
+      "guidance": "Assign Microsoft Sentinel Responder to the analyst group.",
+      "effort": "Low",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-02"
+      ],
+      "areaLift": 1.0,
+      "overallLift": 0.091,
+      "priority": 13,
+      "projectedScore": 3.17
+    },
+    {
+      "criterionId": "SAC-MON-01",
+      "area": "MON",
+      "areaName": "Monitoring coverage",
+      "name": "Enabled rules create incidents",
+      "kind": "practice",
+      "evidence": "SAC-MON-01 fired.",
+      "impact": "Alert-only rules fire into a void unless something else consumes the alert.",
+      "guidance": "Enable incident creation on rules that are not purely feeding correlation.",
+      "effort": "Low",
+      "csf": [
+        "DE.AE-08",
+        "RS.MA-02"
+      ],
+      "areaLift": 0.91,
+      "overallLift": 0.083,
+      "priority": 16,
+      "projectedScore": 3.43
+    },
+    {
+      "criterionId": "SAC-COV-04",
+      "area": "COV",
+      "areaName": "Telemetry coverage",
+      "name": "Cloud posture alerts flow in",
+      "kind": "coverage",
+      "evidence": "No Defender for Cloud connector.",
+      "impact": "Defender for Cloud alerts are the only signal for many resource-level attacks.",
+      "guidance": "Connect the Microsoft Defender for Cloud connector so its alerts become incidents.",
+      "effort": "Low",
+      "csf": [
+        "DE.CM-06",
+        "DE.AE-06"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 19,
+      "projectedScore": 3.67
+    },
+    {
+      "criterionId": "SAC-COV-06",
+      "area": "COV",
+      "areaName": "Telemetry coverage",
+      "name": "Entity analytics is enabled",
+      "kind": "practice",
+      "evidence": "Entity analytics is not enabled.",
+      "impact": "Entity analytics feeds the entity pages and IdentityInfo that investigations lean on.",
+      "guidance": "Enable the Entity Analytics setting with at least the Entra ID provider.",
+      "effort": "Low",
+      "csf": [
+        "DE.AE-03",
+        "RS.AN-03"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 20,
+      "projectedScore": 3.75
+    },
+    {
+      "criterionId": "SAC-DET-05",
+      "area": "DET",
+      "areaName": "Detection engineering",
+      "name": "No rules left disabled",
+      "kind": "practice",
+      "evidence": "SAC-DET-05 fired.",
+      "impact": "A disabled rule is coverage someone decided to switch off; without a reason recorded it is a silent gap.",
+      "guidance": "Re-enable or delete disabled rules; if a rule must stay off, record why in its description.",
+      "effort": "Low",
+      "csf": [
+        "DE.CM-09",
+        "PR.PS-01"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 21,
+      "projectedScore": 3.82
+    },
+    {
+      "criterionId": "SAC-INC-05",
+      "area": "INC",
+      "areaName": "Incident management",
+      "name": "Closures are acknowledged",
+      "kind": "practice",
+      "evidence": "SAC-INC-05 fired.",
+      "impact": "Incidents closed without ever being acknowledged were never looked at.",
+      "guidance": "Stop auto-closing without review; have automation assign before it closes.",
+      "effort": "Low",
+      "csf": [
+        "RS.MA-02",
+        "RS.AN-06"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 22,
+      "projectedScore": 3.9
+    },
+    {
+      "criterionId": "SAC-LOG-03",
+      "area": "LOG",
+      "areaName": "Log management and cost",
+      "name": "A daily cap is set",
+      "kind": "practice",
+      "evidence": "workspaceCapping.dailyQuotaGb is unset (-1 = unlimited).",
+      "impact": "Without a cap a runaway connector bills without limit.",
+      "guidance": "Set a daily cap at around 110% of expected ingestion and alert on it.",
+      "effort": "Low",
+      "csf": [
+        "PR.IR-04"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 23,
+      "projectedScore": 3.97
+    },
+    {
+      "criterionId": "SAC-LOG-06",
+      "area": "LOG",
+      "areaName": "Log management and cost",
+      "name": "No duplicate firewall logging",
+      "kind": "practice",
+      "evidence": "SAC-LOG-06 fired.",
+      "impact": "Azure Firewall logged to both legacy and structured tables is billed twice.",
+      "guidance": "Remove the legacy AzureDiagnostics categories once rules read the AZFW tables.",
+      "effort": "Low",
+      "csf": [
+        "PR.IR-04",
+        "PR.PS-01"
+      ],
+      "areaLift": 0.83,
+      "overallLift": 0.075,
+      "priority": 24,
+      "projectedScore": 4.05
+    },
+    {
+      "criterionId": "SAC-PLT-07",
+      "area": "PLT",
+      "areaName": "Platform and collection",
+      "name": "Connector health is clean",
+      "kind": "practice",
+      "evidence": "8 connector failure(s) in SentinelHealth in 7 days.",
+      "impact": "Failed data-fetcher runs mean a connector is silently dropping data.",
+      "guidance": "Investigate every connector failure in SentinelHealth and fix the credential, permission or endpoint behind it.",
+      "effort": "Low",
+      "csf": [
+        "DE.CM-09",
+        "ID.IM-03"
+      ],
+      "areaLift": 0.67,
+      "overallLift": 0.061,
+      "priority": 32,
+      "projectedScore": 4.62
+    },
+    {
+      "criterionId": "SAC-DET-03",
+      "area": "DET",
+      "areaName": "Detection engineering",
+      "name": "Enabled rules map entities",
+      "kind": "practice",
+      "evidence": "SAC-DET-03 fired.",
+      "impact": "Incidents without entities cannot be investigated through the graph, grouped by entity or enriched by UEBA.",
+      "guidance": "Add entity mappings (account, host, IP) to every Scheduled and NRT rule.",
+      "effort": "Low",
+      "csf": [
+        "DE.AE-03",
+        "RS.AN-03"
+      ],
+      "areaLift": 0.56,
+      "overallLift": 0.051,
+      "priority": 36,
+      "projectedScore": 4.85
+    },
+    {
+      "criterionId": "SAC-DET-07",
+      "area": "DET",
+      "areaName": "Detection engineering",
+      "name": "Content is current",
+      "kind": "practice",
+      "evidence": "Installed solutions are out of date or deprecated.",
+      "impact": "Out-of-date or deprecated solutions miss the detections Microsoft has shipped since.",
+      "guidance": "Update installed Content Hub solutions and replace deprecated ones.",
+      "effort": "Low",
+      "csf": [
+        "ID.AM-08",
+        "PR.PS-01"
+      ],
+      "areaLift": 0.56,
+      "overallLift": 0.051,
+      "priority": 37,
+      "projectedScore": 4.9
+    },
+    {
+      "criterionId": "SAC-DET-08",
+      "area": "DET",
+      "areaName": "Detection engineering",
+      "name": "Legacy incident-creation rules retired",
+      "kind": "practice",
+      "evidence": "SAC-DET-08 fired.",
+      "impact": "Legacy Microsoft incident-creation rules duplicate what the Defender XDR connector now does.",
+      "guidance": "Enable incident sync on the Defender XDR connector and disable the legacy rules.",
+      "effort": "Low",
+      "csf": [
+        "DE.AE-08",
+        "PR.PS-01"
+      ],
+      "areaLift": 0.56,
+      "overallLift": 0.051,
+      "priority": 38,
+      "projectedScore": 4.95
     }
   ],
   "csf": {

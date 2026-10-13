@@ -166,8 +166,8 @@ Describe 'Maturity assessment over the sample fixture' {
         $r[0].projectedScore | Should -BeGreaterThan $maturity.overall.score
     }
 
-    It 'picks at most five Low-effort quick wins in roadmap order' {
-        $maturity.quickWins.Count | Should -BeLessOrEqual 5
+    It 'lists every Low-effort roadmap entry as a quick win, in roadmap order' {
+        $maturity.quickWins.Count | Should -Be @($maturity.roadmap | Where-Object effort -eq 'Low').Count
         foreach ($q in $maturity.quickWins) { $q.effort | Should -Be 'Low' }
         $priorities = @($maturity.quickWins | ForEach-Object priority)
         ($priorities | Sort-Object) | Should -Be $priorities

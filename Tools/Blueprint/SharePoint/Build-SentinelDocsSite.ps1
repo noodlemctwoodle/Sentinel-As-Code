@@ -814,7 +814,8 @@ foreach ($u in ($usageRows | Where-Object { $_ } | Sort-Object { [datetime]$_.Da
 }
 
 # Tables with data that no enabled rule reads, with the undeployed templates
-# that would cover them (section 28's content, top 12 for the dashboard).
+# that would cover them (section 28's content; the dashboard shows twelve
+# and a Show all control for the rest).
 $detectionOpportunities = @()
 $uncoveredTotal = 0
 if ($ruleRefs.Count -gt 0) {

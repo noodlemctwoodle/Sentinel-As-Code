@@ -165,8 +165,8 @@ Grouped by purpose:
 - `la-query-logs` - Log Analytics query-audit activity over 7 days; zero records means query
   auditing is off (SAC-PLT-12).
 - `table-query-usage` - audited queries, distinct users and the last query per lake-retained
-  table over 30 days (`LAQueryLogs` matched against up to 60 table names taken from the
-  `workspace-tables` capture written earlier in the run); the usage evidence on the data lake
+  table over 30 days (`LAQueryLogs` matched against every such table name from the
+  `workspace-tables` capture written earlier in the run, 60 names per query); the usage evidence on the data lake
   page. Empty when no table keeps data in the lake beyond its analytics retention.
 
 **Sentinel health and posture**
@@ -188,7 +188,7 @@ Grouped by purpose:
 **Incidents**
 
 - `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
-  `incidents-detail-by-provider`, `incidents-by-rule` (up to 500 rule titles) - incident counts, mean-time-to-respond,
+  `incidents-detail-by-provider`, `incidents-by-rule` (every rule title) - incident counts, mean-time-to-respond,
   daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
   row with `Count`, `Closed` and four bags (`ByStatus`, `BySeverity`, `ByClassification`,
   `ByProvider`) whose values are real counts; closed incidents with an empty classification
@@ -211,7 +211,7 @@ Grouped by purpose:
 **Analytics and threat intelligence**
 
 - `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert` (grouped by
-  `AlertName`, `ProductName`, `AlertSeverity`, up to 500 rows so the pack and the
+  `AlertName`, `ProductName`, `AlertSeverity`, every row so the pack and the
   dashboard list every alerting rule rather than a top fifty), with the provider and the
   last 7 days' count beside the 30-day total.
 - `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
@@ -244,14 +244,14 @@ Grouped by purpose:
 - `securityevent-top-hosts` - `SecurityEvent` records and billed size by host over 7 days.
 - `ama-agents` and `ama-mma-migration` - Azure Monitor Agent inventory and MMA→AMA migration
   status.
-- `top-event-ids` - top 15 billable Windows event IDs across `Event`/`SecurityEvent` (via
-  `find`), with the record count; drives table-noise tuning.
+- `top-event-ids` - every billable Windows event ID across `Event`/`SecurityEvent` (via
+  `find`), largest first, with the record count; drives table-noise tuning.
 - `azure-activity-coverage` - per-subscription `AzureActivity` volume, surfaces subscriptions
   not shipping Activity Logs.
 - `azure-diagnostics-providers` - `AzureDiagnostics` volume by resource provider.
 - `azure-firewall-categories` - Azure Firewall rows by category, legacy `AzureFirewall*` and
-  resource-specific `AZFW*`, asked for by name so a small legacy category is not lost below
-  the top 100 of `azure-diagnostics-categories`.
+  resource-specific `AZFW*`, asked for by name so the legacy and resource-specific forms sit
+  side by side.
 - `xdr-table-presence` - record counts across the known Defender XDR table list, a quick
   "is XDR connected and producing data?" check.
 

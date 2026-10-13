@@ -213,7 +213,7 @@ auxiliary-logs / search / archive meters fold into Lake meters).
 
 ### 12. Migration candidates
 
-Top 10 Analytics-plan tables ≥0.5 GB / 30d (typical Lake-tier candidates:
+Every Analytics-plan table ≥0.5 GB / 30d, costliest first (typical Lake-tier candidates:
 verbose Defender XDR advanced hunting, raw firewall, EDR telemetry). Each
 row carries a "Consider DataLake plan if rule queries are infrequent"
 recommendation.

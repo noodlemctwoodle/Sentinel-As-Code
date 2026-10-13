@@ -254,8 +254,8 @@ function Test-RulesDisabledOrFailing {
         $extra = ''
         if ($bulk) { $extra += " $bulkCount of them were last modified on $bulkDay, which looks like a bulk change rather than rule-by-rule tuning." }
         if ($firedThenDisabled.Count -gt 0) {
-            $sample = ($firedThenDisabled | Select-Object -First 5 | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in 30d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
-            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last 30 days and were disabled since: $sample$(_SampleSuffix $firedThenDisabled.Count)."
+            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in 30d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
+            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last 30 days and were disabled since: $sample."
         }
         return New-Finding -Evidence "$($bad.Count) rule(s) disabled: $names.$extra" -Detail @{
             Count             = $bad.Count
@@ -714,9 +714,8 @@ function Test-MouldyAnalyticsRules {
         ($kind -in @('Scheduled','NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
     })
     if ($mouldy.Count -eq 0) { return $null }
-    $names = ($mouldy | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
-    $suffix = if ($mouldy.Count -gt 5) { " (+ $($mouldy.Count - 5) more)" } else { '' }
-    return New-Finding -Evidence "$($mouldy.Count) enabled Scheduled/NRT rule(s) not modified in over 12 months: $names$suffix." -Detail @{ Count = $mouldy.Count }
+    $names = ($mouldy | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    return New-Finding -Evidence "$($mouldy.Count) enabled Scheduled/NRT rule(s) not modified in over 12 months: $names." -Detail @{ Count = $mouldy.Count }
 }
 
 # ------------------------------------------------------------
@@ -748,9 +747,8 @@ function Test-AnalyticsRuleTemplateDrift {
         }
     }
     if ($drifted.Count -eq 0) { return $null }
-    $sample = ($drifted | Select-Object -First 5 | ForEach-Object { "$($_.Name) ($($_.Deployed)→$($_.Latest))" }) -join '; '
-    $suffix = if ($drifted.Count -gt 5) { " (+ $($drifted.Count - 5) more)" } else { '' }
-    return New-Finding -Evidence "$($drifted.Count) deployed rule(s) lag the latest template version: $sample$suffix." -Detail @{ Count = $drifted.Count }
+    $sample = ($drifted | ForEach-Object { "$($_.Name) ($($_.Deployed) to $($_.Latest))" }) -join '; '
+    return New-Finding -Evidence "$($drifted.Count) deployed rule(s) lag the latest template version: $sample." -Detail @{ Count = $drifted.Count }
 }
 
 # ------------------------------------------------------------
@@ -802,9 +800,8 @@ function Test-DeadAnalyticsRule {
         ($kind -in @('Scheduled','NRT')) -and $enabled -and $name -and (-not $noisy.ContainsKey($name))
     })
     if ($dead.Count -eq 0) { return $null }
-    $sample = ($dead | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
-    $suffix = if ($dead.Count -gt 5) { " (+ $($dead.Count - 5) more)" } else { '' }
-    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in 30 days: $sample$suffix." -Detail @{ Count = $dead.Count }
+    $sample = ($dead | ForEach-Object { Get-PropOrDefault $_ 'properties.displayName' '?' }) -join '; '
+    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in 30 days: $sample." -Detail @{ Count = $dead.Count }
 }
 
 # ------------------------------------------------------------
@@ -819,9 +816,8 @@ function Test-ServicePrincipalOverPrivileged {
         ($role -in @('Owner','Contributor')) -and ($type -eq 'ServicePrincipal')
     })
     if ($bad.Count -eq 0) { return $null }
-    $names = ($bad | Select-Object -First 5 | ForEach-Object { Get-PropOrDefault $_ 'DisplayName' '?' }) -join '; '
-    $suffix = if ($bad.Count -gt 5) { " (+ $($bad.Count - 5) more)" } else { '' }
-    return New-Finding -Evidence "$($bad.Count) service principal(s) hold Owner or Contributor at workspace scope: $names$suffix." -Detail @{ Count = $bad.Count }
+    $names = ($bad | ForEach-Object { Get-PropOrDefault $_ 'DisplayName' '?' }) -join '; '
+    return New-Finding -Evidence "$($bad.Count) service principal(s) hold Owner or Contributor at workspace scope: $names." -Detail @{ Count = $bad.Count }
 }
 
 # ------------------------------------------------------------
@@ -968,9 +964,8 @@ function Test-CustomLogsV1Migration {
         ($type -eq 'CustomLog') -and ($name -like '*_CL') -and $active.ContainsKey($name) -and (-not $tablesWithDcr.ContainsKey($name))
     })
     if ($clv1.Count -eq 0) { return $null }
-    $names = ($clv1 | Select-Object -First 8 | ForEach-Object { Get-PropOrDefault $_ 'name' '?' }) -join ', '
-    $suffix = if ($clv1.Count -gt 8) { " (+ $($clv1.Count - 8) more)" } else { '' }
-    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them, likely still using the HTTP Data Collector API (CLv1). Affected: $names$suffix. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
+    $names = ($clv1 | ForEach-Object { Get-PropOrDefault $_ 'name' '?' }) -join ', '
+    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them, likely still using the HTTP Data Collector API (CLv1). Affected: $names. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
 }
 
 # ------------------------------------------------------------
@@ -1096,12 +1091,6 @@ function _GetIngested7d {
     return _ToDouble (Get-PropOrDefault $Row 'BillableLast7d' 0)
 }
 
-function _SampleSuffix {
-    param([int]$Count, [int]$Shown = 5)
-    if ($Count -gt $Shown) { return " (+ $($Count - $Shown) more)" }
-    return ''
-}
-
 # ConvertFrom-Json turns ISO-8601 strings into DateTime; keep timestamps
 # in evidence text as ISO-8601 UTC whichever shape arrives.
 function _ToIsoTime {
@@ -1128,10 +1117,10 @@ function Test-NoisyFalsePositiveRule {
         (_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) -gt 70
     } | Sort-Object { -(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) })
     if ($noisy.Count -eq 0) { return $null }
-    $sample = ($noisy | Select-Object -First 5 | ForEach-Object {
+    $sample = ($noisy | ForEach-Object {
         "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
     }) -join '; '
-    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last 30 days: $sample$(_SampleSuffix $noisy.Count)." -Detail @{
+    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last 30 days: $sample." -Detail @{
         Count = $noisy.Count
         Rules = @($noisy | ForEach-Object {
             [pscustomobject]@{
@@ -1157,8 +1146,8 @@ function Test-RuleEntityMappingsPresent {
     })
     if ($unmapped.Count -eq 0) { return $null }
     $names = @($unmapped | ForEach-Object { _GetRuleLabel $_ })
-    $sample = ($names | Select-Object -First 5) -join '; '
-    return New-Finding -Evidence "$($unmapped.Count) of $($rules.Count) enabled Scheduled/NRT rule(s) have no entity mappings: $sample$(_SampleSuffix $unmapped.Count)." -Detail @{ Count = $unmapped.Count; Total = $rules.Count; Rules = $names }
+    $sample = $names -join '; '
+    return New-Finding -Evidence "$($unmapped.Count) of $($rules.Count) enabled Scheduled/NRT rule(s) have no entity mappings: $sample." -Detail @{ Count = $unmapped.Count; Total = $rules.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1176,8 +1165,8 @@ function Test-RuleCreatesIncidents {
     })
     if ($alertOnly.Count -eq 0) { return $null }
     $names = @($alertOnly | ForEach-Object { _GetRuleLabel $_ })
-    $sample = ($names | Select-Object -First 5) -join '; '
-    return New-Finding -Evidence "$($alertOnly.Count) enabled Scheduled/NRT rule(s) raise alerts without creating incidents: $sample$(_SampleSuffix $alertOnly.Count)." -Detail @{ Count = $alertOnly.Count; Rules = $names }
+    $sample = $names -join '; '
+    return New-Finding -Evidence "$($alertOnly.Count) enabled Scheduled/NRT rule(s) raise alerts without creating incidents: $sample." -Detail @{ Count = $alertOnly.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1202,7 +1191,7 @@ function Test-LegacyIncidentCreationRules {
     } else {
         'The Defender XDR connector is not syncing incidents; enable that first so alert-to-incident creation moves to XDR before these rules are retired.'
     }
-    return New-Finding -Evidence "$($legacy.Count) enabled Microsoft incident-creation rule(s): $(($names | Select-Object -First 5) -join '; ')$(_SampleSuffix $legacy.Count). $note" -Detail @{ Count = $legacy.Count; Rules = $names; XdrIncidentsConnected = $xdrIncidents }
+    return New-Finding -Evidence "$($legacy.Count) enabled Microsoft incident-creation rule(s): $($names -join '; '). $note" -Detail @{ Count = $legacy.Count; Rules = $names; XdrIncidentsConnected = $xdrIncidents }
 }
 
 # ------------------------------------------------------------
@@ -1218,7 +1207,7 @@ function Test-RulesOnLegacyThreatIntelTable {
     })
     if ($hits.Count -eq 0) { return $null }
     $names = @($hits | ForEach-Object { [string](Get-PropOrDefault $_ 'RuleName' (Get-PropOrDefault $_ 'RuleId' '?')) })
-    return New-Finding -Evidence "$($hits.Count) enabled rule(s) query ThreatIntelligenceIndicator, which stopped receiving indicators on 31 July 2025: $(($names | Select-Object -First 5) -join '; ')$(_SampleSuffix $hits.Count). They match against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
+    return New-Finding -Evidence "$($hits.Count) enabled rule(s) query ThreatIntelligenceIndicator, which stopped receiving indicators on 31 July 2025: $($names -join '; '). They match against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1265,16 +1254,15 @@ function Test-HighVolumeTableWithoutDetection {
         [pscustomobject]@{
             Table              = $name
             Gb30d              = [math]::Round((_GetBillable30d $table), 1)
-            SuggestedTemplates = @($candidates | Select-Object -First 3 | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
-            MoreTemplates      = [math]::Max(0, $candidates.Count - 3)
+            SuggestedTemplates = @($candidates | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
         }
     })
     $totalGb = [math]::Round((($rows | ForEach-Object { $_.Gb30d }) | Measure-Object -Sum).Sum, 1)
-    $sample = ($rows | Select-Object -First 5 | ForEach-Object {
+    $sample = ($rows | ForEach-Object {
         $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
         "$($_.Table) $($_.Gb30d) GB$hint"
     }) -join '; '
-    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled Sentinel rule or Defender custom detection reading them: $sample$(_SampleSuffix $rows.Count)." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
+    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled Sentinel rule or Defender custom detection reading them: $sample." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
 }
 
 # ------------------------------------------------------------
@@ -1312,10 +1300,10 @@ function Test-SilentTableWithDependentRules {
     }
     $silent = @($rulesByTable.Keys | Where-Object { -not $ingested.ContainsKey($_) -or $ingested[$_] -le 0 } | Sort-Object)
     if ($silent.Count -eq 0) { return $null }
-    $sample = ($silent | Select-Object -First 5 | ForEach-Object {
-        "$_ ($($rulesByTable[$_].Count) rule(s): $((@($rulesByTable[$_]) | Select-Object -First 3) -join ', '))"
+    $sample = ($silent | ForEach-Object {
+        "$_ ($($rulesByTable[$_].Count) rule(s): $(@($rulesByTable[$_]) -join ', '))"
     }) -join '; '
-    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in 7 days: $sample$(_SampleSuffix $silent.Count). Those rules cannot fire." -Detail @{
+    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in 7 days: $sample. Those rules cannot fire." -Detail @{
         Count  = $silent.Count
         Tables = @($silent | ForEach-Object { [pscustomobject]@{ Table = $_; Rules = @($rulesByTable[$_]) } })
     }
@@ -1331,12 +1319,12 @@ function Test-PlaybookRunFailures {
         $null -ne $_ -and (_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) -gt 0
     } | Sort-Object { -(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) })
     if ($failing.Count -eq 0) { return $null }
-    $sample = ($failing | Select-Object -First 5 | ForEach-Object {
+    $sample = ($failing | ForEach-Object {
         $last = _ToIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
         $when = if ($last) { ", last $last" } else { '' }
         "$(Get-PropOrDefault $_ 'Playbook' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last 7 days: $sample$(_SampleSuffix $failing.Count)." -Detail @{
+    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last 7 days: $sample." -Detail @{
         Count     = $failing.Count
         Playbooks = @($failing | ForEach-Object {
             [pscustomobject]@{
@@ -1373,8 +1361,8 @@ function Test-DeprecatedContentHubSolutions {
         }
     })
     if ($flagged.Count -eq 0) { return $null }
-    $sample = ($flagged | Select-Object -First 5 | ForEach-Object { "$($_.Solution) ($($_.Reason))" }) -join '; '
-    return New-Finding -Evidence "$($flagged.Count) installed Content Hub solution(s) are deprecated or no longer in the catalogue: $sample$(_SampleSuffix $flagged.Count)." -Detail @{ Count = $flagged.Count; Solutions = $flagged }
+    $sample = ($flagged | ForEach-Object { "$($_.Solution) ($($_.Reason))" }) -join '; '
+    return New-Finding -Evidence "$($flagged.Count) installed Content Hub solution(s) are deprecated or no longer in the catalogue: $sample." -Detail @{ Count = $flagged.Count; Solutions = $flagged }
 }
 
 # ------------------------------------------------------------
@@ -1477,13 +1465,12 @@ function Test-AnalyticsRuleRunFailures {
         $null -ne $_ -and (_ToInt (Get-PropOrDefault $_ 'Failures' 0)) -gt 0
     } | Sort-Object { -(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) })
     if ($failing.Count -eq 0) { return $null }
-    $sample = ($failing | Select-Object -First 5 | ForEach-Object {
+    $sample = ($failing | ForEach-Object {
         $reason = [string](Get-PropOrDefault $_ 'Reason' '')
-        if ($reason.Length -gt 80) { $reason = $reason.Substring(0, 77) + '...' }
         $why = if ($reason) { ": $reason" } else { '' }
         "$(Get-PropOrDefault $_ 'RuleName' '?') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last 7 days: $sample$(_SampleSuffix $failing.Count)." -Detail @{
+    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last 7 days: $sample." -Detail @{
         Count = $failing.Count
         Rules = @($failing | ForEach-Object {
             [pscustomobject]@{

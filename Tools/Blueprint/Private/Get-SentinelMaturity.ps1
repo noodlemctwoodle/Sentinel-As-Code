@@ -34,8 +34,8 @@
 
     The roadmap lists every Gap criterion ordered by how much the overall
     score would rise if it were met, then by effort (Low first), then by
-    id, with a running projected score. Quick wins are the first five
-    Low-effort entries. The NIST CSF 2.0 rollup counts criteria per
+    id, with a running projected score. Quick wins are every Low-effort
+    entry, in roadmap order. The NIST CSF 2.0 rollup counts criteria per
     function and per referenced subcategory.
 
     Usage:
@@ -687,7 +687,7 @@ function Get-SentinelMaturity {
         $entry | Add-Member -NotePropertyName priority -NotePropertyValue $priority -PassThru |
                  Add-Member -NotePropertyName projectedScore -NotePropertyValue ([math]::Round($running, 2)) -PassThru
     })
-    $quickWins = @($roadmap | Where-Object effort -eq 'Low' | Select-Object -First 5)
+    $quickWins = @($roadmap | Where-Object effort -eq 'Low')
 
     # ----- target ----------------------------------------------------------
     $below = @($assessed | Where-Object { $_.level -lt $TargetLevel } | ForEach-Object {

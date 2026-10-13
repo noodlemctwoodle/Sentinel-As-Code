@@ -905,7 +905,7 @@ SentinelHealth
 | summarize
     Events      = count(),
     LastEvent   = max(TimeGenerated),
-    Statuses    = make_set(Status, 10),
+    Statuses    = make_set(Status),
     Failures    = countif(Status != "Success"),
     LastFailure = maxif(TimeGenerated, Status != "Success")
     by SentinelResourceName, SentinelResourceKind, SentinelResourceType
@@ -1075,7 +1075,7 @@ SecurityIncident
     | project SystemAlertId, ProviderName, ProductName
 ) on $left.Alert == $right.SystemAlertId
 | summarize AlertCount = count() by ProviderName, ProductName, FirstRule
-| top 100 by AlertCount
+| order by AlertCount desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1113,7 +1113,6 @@ SecurityIncident
 | mv-expand AlertIds
 | summarize Incidents = dcount(IncidentNumber) by Title
 | order by Incidents desc
-| take 500
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1292,7 +1291,7 @@ Try-Capture 'cef-devices' {
 CommonSecurityLog
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count() by DeviceVendor, DeviceProduct
-| top 100 by LogCount
+| order by LogCount desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1311,7 +1310,7 @@ Syslog
 | extend Parts = split(SyslogMessage, "|")
 | extend ProductVendor = strcat(tostring(Parts[1]), "-", tostring(Parts[2]))
 | summarize LogCount = count() by Computer, ProductVendor
-| top 50 by LogCount
+| order by LogCount desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1332,8 +1331,8 @@ let DuplicateEvents = SecurityEvents
 | where count_ > 1;
 let SumPerComputer = DuplicateEvents | summarize LogCount = sum(count_) by Computer;
 DuplicateEvents
-| summarize DuplicateEventIds = make_set(EventID, 100), DuplicateRecords = count() by Computer
-| top 30 by DuplicateRecords
+| summarize DuplicateEventIds = make_set(EventID), DuplicateRecords = count() by Computer
+| order by DuplicateRecords desc
 | lookup SumPerComputer on Computer
 | project Computer, DuplicateRecords, LogCount, DuplicateEventIds
 '@
@@ -1350,7 +1349,7 @@ Try-Capture 'azure-activity-coverage' {
 AzureActivity
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count() by SubscriptionId
-| top 200 by LogCount
+| order by LogCount desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1363,7 +1362,7 @@ Try-Capture 'azure-diagnostics-providers' {
 AzureDiagnostics
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count() by ResourceProvider
-| top 200 by LogCount
+| order by LogCount desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1404,7 +1403,7 @@ find withsource = TableName1 in (Event, SecurityEvent)
 | extend EventDescription = iif(isempty(Activity), RenderedDescription, Activity)
 | project-away RenderedDescription, Activity
 | project-reorder TableName, EventID, EventDescription, BilledSizeGB, LogCount
-| top 15 by BilledSizeGB desc
+| order by BilledSizeGB desc
 '@
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1424,7 +1423,6 @@ SecurityAlert
 | summarize Alerts = count(), Alerts7d = countif(TimeGenerated > ago(7d)), ProviderName = take_any(ProviderName)
     by AlertName, ProductName, AlertSeverity
 | order by Alerts desc
-| take 500
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1470,7 +1468,6 @@ SecurityIncident
 | extend Source = iff(isempty(AlertRuleId), coalesce(Product, Provider, "Other"), "Analytics rule")
 | extend IsRule = isnotempty(AlertRuleId)
 | order by IsRule desc, Incidents desc
-| take 300
 | project-away RuleKey, IsRule
 '@
     try {
@@ -1528,7 +1525,7 @@ Try-Capture 'azure-diagnostics-categories' {
 AzureDiagnostics
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count() by ResourceProvider, Category
-| top 100 by LogCount desc
+| order by LogCount desc
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1583,7 +1580,6 @@ SentinelHealth
 | where SentinelResourceType == "Analytics Rule" and Status != "Success"
 | summarize Failures = count(), LastFailure = max(TimeGenerated), Reason = any(Description) by RuleName = SentinelResourceName, Status
 | order by Failures desc
-| take 200
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1608,7 +1604,6 @@ SecurityIncident
     by Title
 | where Total >= 5
 | order by Total desc
-| take 100
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1671,7 +1666,6 @@ Syslog
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer, Facility
 | order by LogCount desc
-| take 100
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1687,7 +1681,6 @@ SecurityEvent
 | where TimeGenerated > ago(7d)
 | summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer
 | order by LogCount desc
-| take 50
 '@
     try {
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
@@ -1700,7 +1693,9 @@ SecurityEvent
 # Audited queries per lake-retained table (LAQueryLogs, 30 days): the
 # usage evidence for tables that keep data in the lake beyond analytics
 # retention or route to the lake only. Targets come from the
-# workspace-tables capture written earlier in this run; up to 60 tables.
+# workspace-tables capture written earlier in this run. Tables go in
+# batches of 60 so the query text stays short; a failed batch fails the
+# capture, so the pages read "not captured" rather than "no queries".
 Try-Capture 'table-query-usage' {
     $targets = @()
     $tablesPath = Join-Path $rawOut 'workspace-tables.json'
@@ -1715,11 +1710,11 @@ Try-Capture 'table-query-usage' {
             if ($plan -eq 'DataLake' -or $tr -gt $r) { $targets += [string]$t.name }
         }
     }
-    $targets = @($targets | Where-Object { $_ -match '^[A-Za-z0-9_]+$' } | Select-Object -First 60)
-    if ($targets.Count -eq 0) {
-        Save-Json -FileName 'table-query-usage.json' -Data @()
-    } else {
-        $list = ($targets | ForEach-Object { '"' + $_ + '"' }) -join ','
+    $targets = @($targets | Where-Object { $_ -match '^[A-Za-z0-9_]+$' } | Sort-Object -Unique)
+    $usage = [System.Collections.Generic.List[object]]::new()
+    for ($b = 0; $b -lt $targets.Count; $b += 60) {
+        $batch = @($targets[$b..([math]::Min($b + 59, $targets.Count - 1))])
+        $list = ($batch | ForEach-Object { '"' + $_ + '"' }) -join ','
         $kql = @"
 LAQueryLogs
 | where TimeGenerated > ago(30d)
@@ -1729,15 +1724,11 @@ LAQueryLogs
     | project T
 )
 | summarize Queries = count(), Users = dcount(AADEmail), LastQuery = max(TimeGenerated) by Table = T
-| order by Queries desc
 "@
-        try {
-            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
-            Save-Json -FileName 'table-query-usage.json' -Data ($result.Results)
-        } catch {
-            Save-Json -FileName 'table-query-usage.json' -Data @()
-        }
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        foreach ($row in @($result.Results)) { if ($row) { $usage.Add($row) } }
     }
+    Save-Json -FileName 'table-query-usage.json' -Data @($usage | Sort-Object @{ Expression = { [long]$_.Queries }; Descending = $true }, Table)
 }
 
 # Defender XDR custom detections: the other detection logic that reads this
@@ -1883,4 +1874,4 @@ if ($suspectEmpty) {
     Write-Host "If you expected non-zero counts: check RBAC (Microsoft Sentinel Reader at workspace scope is required for automation rules, watchlists, hunting queries, and incidents), and confirm the workspace has been used since deployment."
 }
 
-Write-Information "✓ Sentinel inventory exported to $rawOut"
+Write-Information "Sentinel inventory exported to $rawOut"

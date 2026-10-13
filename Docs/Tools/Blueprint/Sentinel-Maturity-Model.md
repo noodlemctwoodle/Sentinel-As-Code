@@ -117,7 +117,8 @@ Every Gap criterion goes on the roadmap with:
 - `projectedScore`: the overall score after this and every entry above it.
 
 The order is `overallLift` descending, then effort (Low first), then id.
-**Quick wins** are the first five Low-effort entries in that order.
+**Quick wins** are every Low-effort entry, in that order. The dashboard
+shows the first five with a "Show all" control.
 
 ## The NIST CSF 2.0 rollup
 
@@ -188,7 +189,7 @@ areas              [{id, name, description, score, level, levelName, met, gap, u
                      weight, effort, impact, guidance, csf[], source}]}]
 roadmap            [{priority, criterionId, area, areaName, name, kind, evidence, impact,
                      guidance, effort, csf[], areaLift, overallLift, projectedScore}]
-quickWins          the first five Low-effort roadmap entries
+quickWins          every Low-effort roadmap entry, in roadmap order
 csf                {source, functions[{id, name, criteria, met, gap, unknown}],
                     subcategories[{id, function, outcome, met, gap, unknown, criteriaIds[]}]}
 outOfScope         [{area, reason}]

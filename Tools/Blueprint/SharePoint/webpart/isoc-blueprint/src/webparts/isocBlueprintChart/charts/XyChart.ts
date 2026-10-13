@@ -61,7 +61,7 @@ function vertical(labels: string[], series: ISeries[], axis: IAxis, theme: IChar
   const plotH: number = 240;
   const tickW: number = widest(axis.ticks.map(fmt), 11);
   const left: number = tickW + 14 + (yTitle ? 22 : 0);
-  const wrapped: string[][] = labels.map((l: string): string[] => wrapText(l, band - 6, FONT_SIZE).slice(0, 2));
+  const wrapped: string[][] = labels.map((l: string): string[] => wrapText(l, band - 6, FONT_SIZE));
   const labelLines: number = wrapped.reduce((m: number, w: string[]): number => Math.max(m, w.length), 1);
   const top: number = 26;
   const bottom: number = 12 + labelLines * 15 + (xTitle ? 22 : 0);
@@ -111,7 +111,10 @@ function horizontal(labels: string[], series: ISeries[], axis: IAxis, theme: ICh
   const left: number = labelW + 16;
   const plotW: number = 440;
   const barH: number = series.length > 1 ? 14 : 18;
-  const rowH: number = barH * series.length + 12;
+  // Every label is shown whole: rows grow to fit the longest wrapped name.
+  const wrapped: string[][] = labels.map((l: string): string[] => wrapText(l, labelW, FONT_SIZE));
+  const maxLines: number = wrapped.reduce((m: number, w: string[]): number => Math.max(m, w.length), 1);
+  const rowH: number = Math.max(barH * series.length + 12, maxLines * 14 + 8);
   const top: number = 8;
   const plotH: number = rowH * labels.length;
   const valueW: number = widest(axis.ticks.map(fmt), 11) + 12;
@@ -126,9 +129,8 @@ function horizontal(labels: string[], series: ISeries[], axis: IAxis, theme: ICh
     body += svgText(x, top + plotH + 12, [fmt(t)], { size: 11, fill: theme.muted, anchor: 'middle' });
   });
   labels.forEach((l: string, i: number): void => {
-    const y0: number = top + rowH * i + 6;
-    const lines: string[] = wrapText(l, labelW, FONT_SIZE).slice(0, 2);
-    body += svgText(left - 10, y0 + (barH * series.length) / 2, lines, { size: FONT_SIZE, fill: theme.text, anchor: 'end', lineHeight: 14 });
+    const y0: number = top + rowH * i + (rowH - barH * series.length) / 2;
+    body += svgText(left - 10, y0 + (barH * series.length) / 2, wrapped[i], { size: FONT_SIZE, fill: theme.text, anchor: 'end', lineHeight: 14 });
     series.forEach((s: ISeries, si: number): void => {
       const v: number = i < s.values.length ? s.values[i] : 0;
       const x: number = scale(v);
