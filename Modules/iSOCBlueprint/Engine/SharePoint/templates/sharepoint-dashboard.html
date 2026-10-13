@@ -479,6 +479,15 @@
   table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
   table.doct tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
   table.doct td.num,table.doct th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  /* Sortable column titles: the title is a button; a small arrow shows the
+     order, faint until the column is sorted. */
+  table.doct th .thsort{all:unset;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;white-space:inherit}
+  table.doct th .thsort:hover{color:var(--ink)}
+  table.doct th .thsort:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+  table.doct th .sorti{flex:none;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:.3}
+  table.doct th[aria-sort="ascending"],table.doct th[aria-sort="descending"]{color:var(--ink)}
+  table.doct th[aria-sort="ascending"] .sorti{border-top:0;border-bottom:5px solid var(--brand);opacity:1}
+  table.doct th[aria-sort="descending"] .sorti{border-top-color:var(--brand);opacity:1}
   table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
   .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
   .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
@@ -2648,6 +2657,37 @@
       return uniq.slice(0,6);
     }
 
+    // Column sorting: selecting a column title sorts the table by it,
+    // ascending, then descending, then back to the page's order. A column
+    // whose cells are all numbers (commas, a currency sign, a percent, or a
+    // unit such as GB or d allowed; KB to TB scaled) sorts by value, any
+    // other in natural text order (Rule 2 before Rule 10). Empty cells go
+    // last either way. The row filter keeps working on the sorted rows.
+    const SORT_UNITS={kb:1e3,mb:1e6,gb:1e9,tb:1e12};
+    const sortNum=s=>{ const m=/^\s*[£$€]?\s*([+-]?[\d,]*\.?\d+)\s*(%|[a-z]{1,4})?\s*$/i.exec(s); if(!m) return null;
+      const v=parseFloat(m[1].replace(/,/g,'')); if(isNaN(v)) return null; return v*(SORT_UNITS[(m[2]||'').toLowerCase()]||1); };
+    const sortCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
+    function sortTable(table, th){
+      const tb=table.tBodies[0]; if(!tb) return;
+      const ci=th.cellIndex, rows=[...tb.rows];
+      rows.forEach((r,i)=>{ if(r.dataset.i==null) r.dataset.i=i; });
+      const next={none:'ascending',ascending:'descending',descending:'none'}[th.getAttribute('aria-sort')||'none'];
+      table.querySelectorAll('thead th').forEach(h=>h.setAttribute('aria-sort','none'));
+      th.setAttribute('aria-sort',next);
+      let order;
+      if(next==='none'){ order=rows.slice().sort((a,b)=>a.dataset.i-b.dataset.i); }
+      else {
+        const vals=rows.map(r=>(r.cells[ci]?r.cells[ci].textContent:'').trim()), filled=vals.filter(v=>v!=='');
+        const numeric=filled.length>0 && filled.every(v=>sortNum(v)!==null), dir=next==='ascending'?1:-1;
+        order=rows.map((r,i)=>({r, v:vals[i], n:numeric?sortNum(vals[i]):0, i:+r.dataset.i}))
+          .sort((a,b)=>{
+            if(a.v===''||b.v==='') return (a.v==='')-(b.v==='') || a.i-b.i;
+            const c=numeric? a.n-b.n : sortCollator.compare(a.v,b.v);
+            return c? c*dir : a.i-b.i;
+          }).map(k=>k.r);
+      }
+      const frag=document.createDocumentFragment(); order.forEach(r=>frag.appendChild(r)); tb.appendChild(frag);
+    }
     function tableHtml(b, idx){
       const many = b.rows.length>12;
       const wrapCols = b.headers.map(h=>/name|title|datatypes|role|remediation|evidence|finding|description|principal|resource|query|source|identifier|statuses|surface|appliesto|capability|meter|tags/i.test(h));
@@ -2655,7 +2695,7 @@
       // and cells then right-align together so the figures sit under the title.
       const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
       const numCols = b.headers.map((h,ci)=> !wrapCols[ci] && b.rows.some(r=>plain(r[ci])!=='') && b.rows.every(r=>plain(r[ci])===''||isNum(plain(r[ci]))));
-      const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'">'+h+'</th>').join('')+'</tr></thead>';
+      const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'" aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'+h+'<span class="sorti" aria-hidden="true"></span></button></th>').join('')+'</tr></thead>';
       const body=b.rows.map(r=>'<tr>'+r.map((c,ci)=>{
           const num = numCols[ci];
           const cell = formatCell(c);
@@ -2726,6 +2766,7 @@
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
       content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
       // wire per-table filters
+      content.querySelectorAll('table.doct thead th').forEach(th=>{ const b=th.querySelector('.thsort'); if(b) b.onclick=()=>sortTable(th.closest('table'), th); });
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{
         inp.oninput=()=>{
           const t=document.getElementById(inp.dataset.for); const q=inp.value.toLowerCase();

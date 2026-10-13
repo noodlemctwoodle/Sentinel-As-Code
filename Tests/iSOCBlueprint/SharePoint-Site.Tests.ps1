@@ -1412,6 +1412,18 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.bar\.lake \.bf\{background:linear-gradient'
     }
 
+    It 'sorts any Report table by a column title: ascending, descending, then the page order' {
+        $html | Should -Match 'aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'
+        $html | Should -Match 'function sortTable\(table, th\)\{'
+        $html | Should -Match "const next=\{none:'ascending',ascending:'descending',descending:'none'\}"
+        # Numbers with a unit sort by value (KB to TB scaled); text sorts naturally.
+        $html | Should -Match 'const SORT_UNITS=\{kb:1e3,mb:1e6,gb:1e9,tb:1e12\};'
+        $html | Should -Match 'new Intl\.Collator\(undefined,\{numeric:true,sensitivity:''base''\}\)'
+        # Wired on every rendered table.
+        $html | Should -Match "content\.querySelectorAll\('table\.doct thead th'\)\.forEach"
+        $html | Should -Match 'table\.doct th\[aria-sort="ascending"\] \.sorti'
+    }
+
     It 'shows the NIST CSF rollup above the roadmap' {
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')

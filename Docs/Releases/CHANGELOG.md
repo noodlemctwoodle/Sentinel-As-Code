@@ -6,6 +6,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Sortable report tables** - every table in the dashboard's Report tab
+  sorts by a column when you select its title: ascending, descending, then
+  back to the page's order, with an arrow showing which. Numbers sort by
+  value, units and sizes included, text in natural order, empty cells
+  last, and the row filter keeps working on the sorted rows.
 - **One button template; evidence never shows "?" or an empty bullet** -
   every dashboard button now comes from one template (`sbtn()` and the
   `.sbtn` class), so Show all, Expand, Clear filters, Close, zoom, the

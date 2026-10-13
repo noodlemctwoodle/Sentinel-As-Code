@@ -231,7 +231,13 @@ table, and only when a column clearly holds an amount (a count, cost,
 volume or total); a table with no such column gets no chart. A link to
 another section opens it in the Report tab, and a link to a finding opens
 it in the findings view, or the gap analysis page when this run's
-findings list does not hold it. The Markdown pages refer to one another by
+findings list does not hold it. Every table's column titles sort it:
+select one for ascending, again for descending, and a third time for the
+page's own order; a small arrow shows which. A column of numbers sorts by
+value, units included (sizes from KB to TB are scaled, so 512 MB sorts
+below 65 GB, and days, percentages and currency read as numbers), and any
+other column in natural order (Rule 2 before Rule 10); empty cells go last.
+Sorting and the row filter work together. The Markdown pages refer to one another by
 file name (`90-gap-analysis.md`); the Report tab and the native pages show
 the section's title instead ("Gap Analysis"), and a file name mentioned in
 plain text becomes a link to that section.
