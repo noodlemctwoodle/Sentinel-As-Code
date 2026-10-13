@@ -4,6 +4,26 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## Unreleased
+
+- **Analytics rule sub-techniques reach the workspace again** - every GA
+  version of the alert rules API (2024-09-01 to 2025-09-01) leaves out
+  `subTechniques` and `sentinelEntitiesMappings`: a PUT on GA succeeds and
+  silently drops them. When `Deploy-CustomContent.ps1` moved from
+  `2025-07-01-preview` to GA `2025-09-01`, a rule's sub-techniques (the
+  `T####.###` entries in `relevantTechniques`) stopped being deployed, and
+  Content Hub rules lost the sub-techniques their templates carry. Every
+  `alertRules` call in `Deploy-CustomContent.ps1`,
+  `Deploy-SentinelContentHub.ps1` and `Test-SentinelRuleDrift.ps1` now uses
+  `$script:AlertRuleApiVersion` (`2025-07-01-preview`); everything else
+  stays on GA. The drift detector also writes a rule's sub-techniques into
+  the YAML it creates when it absorbs a Content Hub or orphan rule. Rules
+  deployed while the deployer was on GA are only re-sent when they change,
+  so to backfill their sub-techniques run the deploy pipeline once with
+  **Smart Deployment** off (custom rules) and **Force Content
+  Redeployment** on (Content Hub rules; a rule customised in the portal is
+  still skipped, as before).
+
 ## 26.10.0
 
 The iSOC Blueprint release. The Documenter becomes `iSOCBlueprint`, a

@@ -400,7 +400,11 @@ The serialiser emits the same field set the rest of the repo's Custom rules
 use: `id`, `name`, `description`, `severity`, scheduling fields (Scheduled
 only), `enabled`, `tactics`, `relevantTechniques`, `query` (block scalar),
 `entityMappings`, `eventGroupingSettings`, `incidentConfiguration`,
-`version: 1.0.0`, `kind`, and `tags`. The rule's existing resource GUID is
+`version: 1.0.0`, `kind`, and `tags`. `relevantTechniques` holds the
+rule's techniques and sub-techniques in one sorted list; the detector lists
+rules with the preview alert rules API (`2025-07-01-preview`, the version
+the deployers write them with) because every GA version leaves out
+`subTechniques`. The rule's existing resource GUID is
 reused as the YAML's `id:` value, and the YAML is tagged with
 `AbsorbedFromPortal-ContentHub` plus the originating solution name for audit.
 

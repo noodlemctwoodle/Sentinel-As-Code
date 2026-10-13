@@ -337,6 +337,7 @@ them in `BeforeAll` after the dot-source so the functions can see them:
 ```powershell
 $script:DiffSnippetLength  = 0
 $script:SentinelApiVersion = '2025-09-01'
+$script:AlertRuleApiVersion = '2025-07-01-preview'
 $script:ManagedRuleKinds   = @('Fusion', 'MicrosoftSecurityIncidentCreation')
 ```
 

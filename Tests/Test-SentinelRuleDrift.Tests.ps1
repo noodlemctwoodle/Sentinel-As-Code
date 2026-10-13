@@ -75,6 +75,7 @@ BeforeAll {
     # Script-scoped constants the extracted functions reference
     $script:DiffSnippetLength  = 0
     $script:SentinelApiVersion = '2025-09-01'
+    $script:AlertRuleApiVersion = '2025-07-01-preview'
     $script:ManagedRuleKinds   = @(
         'Fusion'
         'MicrosoftSecurityIncidentCreation'
@@ -746,6 +747,16 @@ Describe 'New-AbsorbedRuleYaml' {
         $yaml | Should -Match '(?ms)^relevantTechniques:\r?\n- T1078\r?\n- T1078\.004'
     }
 
+    It 'keeps the API''s subTechniques in relevantTechniques, each after its parent' {
+        # The preview API returns sub-techniques in their own array; dropping
+        # them would strip them from the absorbed rule.
+        $rule = New-DeployedFullRule
+        $rule.properties.techniques = @('T1110', 'T1078')
+        $rule.properties | Add-Member -NotePropertyName subTechniques -NotePropertyValue @('T1110.003', 'T1078.004') -Force
+        $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'Orphan'
+        $yaml | Should -Match '(?ms)^relevantTechniques:\r?\n- T1078\r?\n- T1078\.004\r?\n- T1110\r?\n- T1110\.003\r?\n'
+    }
+
     It 'tags the YAML with the absorption provenance' {
         $rule = New-DeployedFullRule
         $yaml = New-AbsorbedRuleYaml -DeployedRule $rule -Provenance 'ContentHub' -SolutionName 'Microsoft Defender XDR'
@@ -838,5 +849,17 @@ Describe 'Save-AbsorbedRule' {
         $rule = New-DeployedScheduledForSave -DisplayName 'No solution attribution'
         $result = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'ContentHub'
         $result.Path | Should -Match 'AbsorbedFromPortal[\\/]+ContentHub[\\/]+Unattributed[\\/]+'
+    }
+}
+
+Describe 'Alert rules API version' {
+    # Every GA version of alertRules leaves out subTechniques and
+    # sentinelEntitiesMappings: a PUT on GA succeeds and silently drops them.
+    It 'sends every alertRules call with the pinned preview version' {
+        $text = Get-Content -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/Test-SentinelRuleDrift.ps1') -Raw
+        $text | Should -Match '(?m)^\$script:AlertRuleApiVersion\s*=\s*"\d{4}-\d{2}-\d{2}-preview"'
+        $calls = [regex]::Matches($text, '(?:alertRules|baseAlertUri\})[^"\r\n]*\?api-version=\$\(\$script:(\w+)\)')
+        $calls.Count | Should -BeGreaterThan 0
+        @($calls | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) | Should -Be @('AlertRuleApiVersion')
     }
 }

@@ -135,12 +135,14 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-28
-    Version:        1.1.1
-    Last Updated:   2026-09-01
+    Version:        1.1.2
+    Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
 
     API versions:
-      - Sentinel : 2025-09-01 (GA)
+      - Sentinel    : 2025-09-01 (GA)
+      - Alert rules : 2025-07-01-preview (only preview returns a rule's
+                      subTechniques, which an absorbed rule's YAML keeps)
 
 .LINK
     https://learn.microsoft.com/rest/api/securityinsights/alert-rules
@@ -201,6 +203,12 @@ $InformationPreference = "Continue"
 # ---------------------------------------------------------------------------
 $script:SentinelApiVersion = "2025-09-01"
 
+# Alert rules are listed with the preview API, the version the deployers
+# write them with: every GA version leaves out subTechniques, so a rule
+# absorbed into the repo would lose its sub-techniques. The compared fields
+# are the same on both versions.
+$script:AlertRuleApiVersion = "2025-07-01-preview"
+
 # Reserved for future use; full text is always written to JSON and Markdown so reviewers
 # can see the complete diff. Intentionally kept here to make the constant easy to find
 # if we ever need to bound JSON size for huge KQL queries.
@@ -234,7 +242,7 @@ function Get-ExistingAnalyticsRules {
 
     Write-PipelineMessage "Fetching deployed Analytics Rules..." -Level Info
 
-    $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
+    $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:AlertRuleApiVersion)"
     $ruleList = [System.Collections.Generic.List[object]]::new()
     $result = Invoke-SentinelApi -Uri $rulesUrl -Method Get -Headers $script:AuthHeader
     if ($result.PSObject.Properties.Name -contains "value") {
@@ -722,13 +730,15 @@ function New-AbsorbedRuleYaml {
         }
     }
 
-    # relevantTechniques (API field is 'techniques'; YAML uses 'relevantTechniques')
-    if ($props.PSObject.Properties.Name -contains 'techniques' -and $props.techniques) {
-        $techArray = @($props.techniques)
-        if ($techArray.Count -gt 0) {
-            $lines.Add("relevantTechniques:")
-            foreach ($t in $techArray) { $lines.Add("- $t") }
-        }
+    # relevantTechniques: the API's 'techniques' (T####) and 'subTechniques'
+    # (T####.###) in one list, as the YAML holds them; the deployer splits
+    # them again. Sorted, so each sub-technique follows its parent.
+    $techArray = @(foreach ($field in 'techniques', 'subTechniques') {
+            if ($props.PSObject.Properties.Name -contains $field -and $props.$field) { @($props.$field) }
+        }) | Where-Object { $_ } | ForEach-Object { [string]$_ } | Sort-Object -Unique
+    if (@($techArray).Count -gt 0) {
+        $lines.Add("relevantTechniques:")
+        foreach ($t in $techArray) { $lines.Add("- $t") }
     }
 
     # query (block scalar)

@@ -116,13 +116,16 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-03-20
-    Version:        2.1.1
-    Last Updated:   2026-09-01
+    Version:        2.1.2
+    Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, Az.Accounts
 
     API versions:
-      - Sentinel  : 2025-09-01 (GA)
-      - Workbooks : 2022-04-01 (Microsoft.Insights/workbooks, used when a
+      - Sentinel    : 2025-09-01 (GA)
+      - Alert rules : 2025-07-01-preview (every GA version drops
+                      subTechniques and sentinelEntitiesMappings, which
+                      solution rule templates carry)
+      - Workbooks   : 2022-04-01 (Microsoft.Insights/workbooks, used when a
                     solution ships a workbook alongside its rules)
 
 .LINK
@@ -195,6 +198,13 @@ $InformationPreference = "Continue"
 # Constants
 # ---------------------------------------------------------------------------
 $script:SentinelApiVersion    = "2025-09-01"
+# Alert rules use the preview API. Every GA version of alertRules
+# (2024-09-01 to 2025-09-01) leaves out subTechniques and
+# sentinelEntitiesMappings, so a PUT on GA succeeds and silently drops them
+# (a solution rule's sub-techniques never reached the workspace), and the
+# GA schema has no NRT kind. 2025-07-01-preview matches
+# Deploy-CustomContent.ps1. Everything else stays on GA.
+$script:AlertRuleApiVersion = "2025-07-01-preview"
 $script:DeploymentApiVersion  = "2024-11-01"
 $script:MetadataApiVersion    = "2025-09-01"
 
@@ -600,7 +610,7 @@ function Get-ExistingAnalyticsRules {
 
     Write-PipelineMessage "Fetching existing Analytics Rules..." -Level Info
 
-    $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
+    $rulesUrl = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:AlertRuleApiVersion)"
     $ruleList = [System.Collections.Generic.List[object]]::new()
     $result = Invoke-SentinelApi -Uri $rulesUrl -Method Get -Headers $script:AuthHeader
     if ($result.PSObject.Properties.Name -contains "value") {
@@ -1095,7 +1105,7 @@ function Deploy-AnalyticsRules {
             # api-version which may not support NRT kind
             if ($needsUpdate -and $existingRule) {
                 try {
-                    $deleteUri = "${baseAlertUri}$($existingRule.name)?api-version=$($script:SentinelApiVersion)"
+                    $deleteUri = "${baseAlertUri}$($existingRule.name)?api-version=$($script:AlertRuleApiVersion)"
                     Invoke-SentinelApi -Uri $deleteUri -Method Delete -Headers $script:AuthHeader | Out-Null
                 }
                 catch {
@@ -1154,7 +1164,7 @@ function Deploy-AnalyticsRules {
         }
 
         $ruleId = if ($needsUpdate -and $existingRule) { $existingRule.name } else { (New-Guid).Guid }
-        $alertUri = "${baseAlertUri}${ruleId}?api-version=$($script:SentinelApiVersion)"
+        $alertUri = "${baseAlertUri}${ruleId}?api-version=$($script:AlertRuleApiVersion)"
 
         try {
             $jsonBody = $ruleBody | ConvertTo-Json -Depth 50 -Compress
@@ -1691,6 +1701,7 @@ function Invoke-Main {
     Write-PipelineMessage "================================================================" -Level Section
     Write-PipelineMessage "  Microsoft Sentinel Content Hub Deployment" -Level Section
     Write-PipelineMessage "  API Version: $($script:SentinelApiVersion) (GA)" -Level Info
+    Write-PipelineMessage "  Alert rules API Version: $($script:AlertRuleApiVersion) (preview; GA drops sub-techniques)" -Level Info
     Write-PipelineMessage "  Script Version: 2.0.0" -Level Info
     Write-PipelineMessage "================================================================" -Level Section
 

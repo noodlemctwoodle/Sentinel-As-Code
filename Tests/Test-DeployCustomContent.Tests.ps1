@@ -300,3 +300,15 @@ Describe 'Test-ContentDependencies' {
         @($result.Missing) | Should -Not -Contain 'table:TableA'
     }
 }
+
+Describe 'Alert rules API version' {
+    # Every GA version of alertRules leaves out subTechniques and
+    # sentinelEntitiesMappings: a PUT on GA succeeds and silently drops them.
+    It 'sends every alertRules call with the pinned preview version' {
+        $text = Get-Content -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'Deploy/content/Deploy-CustomContent.ps1') -Raw
+        $text | Should -Match '(?m)^\$script:AlertRuleApiVersion\s*=\s*"\d{4}-\d{2}-\d{2}-preview"'
+        $calls = [regex]::Matches($text, '(?:alertRules|baseAlertUri\})[^"\r\n]*\?api-version=\$\(\$script:(\w+)\)')
+        $calls.Count | Should -BeGreaterThan 0
+        @($calls | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) | Should -Be @('AlertRuleApiVersion')
+    }
+}

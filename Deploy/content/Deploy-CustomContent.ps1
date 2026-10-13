@@ -11,9 +11,10 @@
     playbooks, workbooks, hunting queries, and automation rules.
 
     It is designed to run in Azure DevOps (ADO) pipelines using a Service Principal
-    or Managed Identity for authentication. The script uses the latest GA API version
-    (2025-07-01-preview) for Sentinel operations, enabling sub-technique
-    mappings, sentinelEntitiesMappings, and native NRT rule support.
+    or Managed Identity for authentication. Sentinel operations use the GA API
+    (2025-09-01), except analytics rules, which use 2025-07-01-preview: every GA
+    version of the alert rules API leaves out sub-technique mappings and
+    sentinelEntitiesMappings, and has no NRT kind.
 
     Key capabilities:
     - Deploy KQL parsers/functions from YAML files (workspace functions)
@@ -124,13 +125,14 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-03-20
-    Version:        1.1.1
-    Last Updated:   2026-09-01
+    Version:        1.1.2
+    Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
 
     API versions:
-      - Sentinel             : 2025-07-01-preview (preview is required for the
-                               newer rule properties this deployer sets)
+      - Sentinel             : 2025-09-01 (GA; watchlists, automation rules)
+      - Alert rules          : 2025-07-01-preview (every GA version drops
+                               subTechniques and sentinelEntitiesMappings)
       - Log Analytics tables : 2022-10-01 (read to decide whether a rule can
                                deploy enabled or must deploy disabled)
 
@@ -214,9 +216,15 @@ Import-Module (Join-Path $PSScriptRoot '../../Modules/Sentinel.Common/Sentinel.C
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-# Bumped from "2025-07-01-preview" to GA. The other deployers were already
-# on GA; this brings the whole repo onto the same version pin.
+# GA for every Sentinel call except alert rules (below).
 $script:SentinelApiVersion  = "2025-09-01"
+# Alert rules use the preview API. Every GA version of alertRules
+# (2024-09-01 to 2025-09-01) leaves out subTechniques and
+# sentinelEntitiesMappings, so a PUT on GA succeeds and silently drops them
+# (a rule's sub-techniques never reached the workspace), and the GA schema
+# has no NRT kind. 2025-07-01-preview is the version this deployer used
+# before the GA pin. Everything else stays on GA.
+$script:AlertRuleApiVersion = "2025-07-01-preview"
 $script:WorkbookApiVersion  = "2022-04-01"
 $script:SavedSearchApiVersion = "2025-07-01"
 $script:SummaryRuleApiVersion = "2025-07-01"
@@ -606,7 +614,7 @@ function Invoke-PreFlightChecks {
     # If state claims many items deployed but workspace is empty, invalidate state
     if ($script:DeploymentState -and $script:DeploymentState.deployedItems.Count -gt 0) {
         try {
-            $rulesUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:SentinelApiVersion)"
+            $rulesUri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules?api-version=$($script:AlertRuleApiVersion)"
             $rulesResponse = Invoke-SentinelApi -Uri $rulesUri -Method Get -Headers $script:AuthHeader
             $existingRuleCount = @($rulesResponse.value).Count
 
@@ -991,7 +999,8 @@ function Deploy-CustomDetections {
                 $allTechniques = [array]$rule[$techKey]
                 # Parent techniques (T####) go in 'techniques'
                 $properties.techniques = [array]($allTechniques | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
-                # Sub-techniques (T####.###) go in 'subTechniques' (preview API)
+                # Sub-techniques (T####.###) go in 'subTechniques', which only the
+                # preview API keeps ($script:AlertRuleApiVersion)
                 $subTechs = @($allTechniques | Where-Object { $_ -match '\.' } | Select-Object -Unique)
                 if ($subTechs -and $subTechs.Count -gt 0) {
                     $properties.subTechniques = $subTechs
@@ -1021,7 +1030,7 @@ function Deploy-CustomDetections {
                 properties = $properties
             } | ConvertTo-Json -Depth 20
 
-            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=$($script:SentinelApiVersion)"
+            $uri = "$($script:BaseUri)/providers/Microsoft.SecurityInsights/alertRules/$($ruleId)?api-version=$($script:AlertRuleApiVersion)"
 
             if ($WhatIf) {
                 Write-PipelineMessage "[WhatIf] Would deploy detection: $ruleName ($ruleKind, $($rule['severity']))" -Level Info
