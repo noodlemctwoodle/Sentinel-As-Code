@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The iSOC Blueprint chart web part** - the `isoc-blueprint` package
+  (1.4.0) adds a second web part that draws every chart on the SharePoint
+  section pages from its data: donuts, columns and bars, lines, Sankey
+  flows, timelines, Gantt runways, mind maps, flowcharts, state, class and
+  sequence diagrams and user journeys, as SVG and HTML with no script
+  libraries, in the section's theme colours. Flowchart, state and class
+  diagrams share a layered layout that breaks cycles, routes an edge that
+  skips ranks round the nodes in between and boxes subgraphs. Links on
+  flowchart nodes go to the site page or the filtered findings list. The
+  publisher already places it; until a site has 1.4.0, charts go in as
+  tables. In the section model, a flowchart node now carries a `target`
+  for its link, the same as a text run's, and the renderer names the
+  series of its two multi-series charts (daily ingestion: Billable and
+  Free; agent fleet: AMA and MMA), so their legends say what each series
+  is.
 - **The SharePoint site is built from the section model** - the site
   builder reads `sections/*.json` and no Markdown, so a Blueprint rendered
   with `-OutputFormat Json` is all it needs (a snapshot from before the

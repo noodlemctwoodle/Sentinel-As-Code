@@ -708,8 +708,8 @@ xychart-beta
     title "Daily ingestion, GB (billable and free)"
     x-axis [$labels]
     y-axis "GB" 0 --> $([math]::Ceiling($max * 1.1) + 1)
-    line [$bill]
-    line [$free]
+    line "Billable" [$bill]
+    line "Free" [$free]
 ``````
 
 First line billable GB, second line free (Sentinel-benefit and non-billable) GB, from ``Usage``. A step up that no connector change explains is the usual first sign of a runaway source.
@@ -4920,8 +4920,8 @@ xychart-beta
     title "Agent fleet — AMA vs MMA per machine type"
     x-axis [$mtAxis]
     y-axis "Machines" 0 --> $($yMax + 1)
-    bar [$amaArr]
-    bar [$mmaArr]
+    bar "AMA" [$amaArr]
+    bar "MMA" [$mmaArr]
 ``````
 
 Two bars per machine type — AMA first, MMA second. A workspace mid-migration shows MMA bars sitting alongside AMA; a fully-migrated workspace has zero MMA bars across the board.

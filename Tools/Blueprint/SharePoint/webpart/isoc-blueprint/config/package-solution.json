@@ -3,7 +3,7 @@
   "solution": {
     "name": "isoc-blueprint-client-side-solution",
     "id": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
-    "version": "1.3.0.0",
+    "version": "1.4.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -16,10 +16,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "Interactive Sentinel workspace dashboard"
+        "default": "iSOC Blueprint dashboard and section charts"
       },
       "longDescription": {
-        "default": "Renders the self-contained Sentinel Blueprint dashboard (data flow, posture, findings, sections) as the home page of a generated iSOC Blueprint SharePoint site."
+        "default": "Renders the self-contained Sentinel Blueprint dashboard (data flow, posture, findings, sections) as the home page of a generated iSOC Blueprint SharePoint site, and draws the charts on its section pages from the Blueprint's chart data."
       },
       "screenshotPaths": [],
       "videoUrl": "",
@@ -28,9 +28,9 @@
     "features": [
       {
         "title": "isoc-blueprint Feature",
-        "description": "Activates the Sentinel workspace dashboard web part.",
+        "description": "Activates the iSOC Blueprint dashboard and chart web parts.",
         "id": "9263dd27-c9d1-46fa-9f98-8afa37475bb2",
-        "version": "1.3.0.0"
+        "version": "1.4.0.0"
       }
     ]
   },

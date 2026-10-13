@@ -353,7 +353,8 @@ Describe 'Sentinel Blueprint renderer' {
             $md = Get-Content (Join-Path $script:tempWsRoot '80-workspace.md') -Raw
             $md | Should -Match '### Daily ingestion \(last 30 days\)'
             $md | Should -Match 'x-axis \["05-04", "05-05", "05-06"\]'
-            $md | Should -Match 'line \[41\.2, 39\.8, 12\.6\]'
+            $md | Should -Match 'line "Billable" \[41\.2, 39\.8, 12\.6\]'
+            $md | Should -Match 'line "Free" \['
         }
     }
 

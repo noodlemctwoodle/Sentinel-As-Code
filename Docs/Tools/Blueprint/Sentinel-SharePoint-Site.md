@@ -176,11 +176,15 @@ SharePoint text web part keeps:
 
 Each chart is the iSOC Blueprint chart web part (component id
 `4ae8707c-ca6f-40cb-a974-c94d023de6e5`, in the same `isoc-blueprint`
-package as the dashboard web part). Its `chartJson` property holds the
-chart block from the section model (kind, title and data, see
-[Charts](Section-Model.md#charts)), and the web part draws it in the
-browser with no external libraries. Kinds it cannot draw keep their Mermaid
-source in `chart.source` and are shown as text.
+package as the dashboard web part from version 1.4.0). Its `chartJson`
+property holds the chart block from the section model (kind, title and
+data, see [Charts](Section-Model.md#charts)), and the web part draws it in
+the browser as SVG and HTML, with no external libraries, in the colours of
+the section's theme. A flowchart node's link goes where the same link in
+the text would (another page, or the findings list filtered on a finding).
+Kinds it cannot draw keep their Mermaid source in `chart.source` and are
+shown as text. How each kind is drawn is in the web part's
+[README](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint/README.md#how-the-charts-render).
 
 While the web part is not on the site yet (a package deployed a moment ago
 can take a few minutes to register, or the package on the site predates

@@ -178,6 +178,13 @@ Describe 'ConvertTo-SharePointPageSegments' {
             Join-Html $r | Should -Match 'After\.'
             $r.Warnings | Should -BeNullOrEmpty
         }
+        It 'maps a flowchart node''s link to the site, with a raw ampersand for the web part' {
+            $flow = ConvertTo-Segments "# T`n`n``````mermaid`nflowchart LR`n    A[Group] --> B[Owner] --> C[Parser]`n    click A href `"90-gap-analysis.md#sac-gov-06`"`n    click B href `"20-analytics-rules.md#volume`"`n    click C href `"../../Content/Parsers/x.yaml`"`n```````n"
+            $nodes = @(($flow.Segments | Where-Object type -eq 'chart').chart.data.nodes)
+            ($nodes | Where-Object id -eq 'A').href | Should -Be '~site/Lists/SentinelFindings/AllItems.aspx?FilterField1=FindingId&FilterValue1=SAC-GOV-06'
+            ($nodes | Where-Object id -eq 'B').href | Should -Be '~site/SitePages/sac-20-analytics-rules.aspx'
+            ($nodes | Where-Object id -eq 'C').href | Should -BeNullOrEmpty
+        }
         It 'keeps the Mermaid source only for a chart kind it cannot draw' {
             ($r.Segments | Where-Object type -eq 'chart').chart.Contains('source') | Should -BeFalse
             $other = ConvertTo-Segments "# T`n`n``````mermaid`nquadrantChart`n    title Q`n```````n"
@@ -438,6 +445,46 @@ Describe 'SharePoint helpers' {
             $info.Title | Should -Be 'isoc-blueprint-client-side-solution'
         }
         finally { Remove-Item $dir -Recurse -Force }
+    }
+}
+
+Describe 'Web part package' {
+
+    BeforeAll {
+        $script:wp = Join-Path $repoRoot 'Tools/Blueprint/SharePoint/webpart/isoc-blueprint'
+        # SPFx config and manifests allow // comments, which ConvertFrom-Json does not.
+        function Read-Jsonc([string] $Path) {
+            (Get-Content -LiteralPath $Path -Raw) -replace '(?m)^\s*//.*$', '' -replace '(?m)\s+//[^"\r\n]*$', '' | ConvertFrom-Json
+        }
+        $script:bundled = @((Read-Jsonc (Join-Path $wp 'config/config.json')).bundles.PSObject.Properties.Value |
+                ForEach-Object { $_.components })
+    }
+
+    It 'carries one version in package.json, its lock file and the solution' {
+        $version = (Get-Content (Join-Path $wp 'package.json') -Raw | ConvertFrom-Json).version
+        $lock = Get-Content (Join-Path $wp 'package-lock.json') -Raw | ConvertFrom-Json -AsHashtable
+        $lock.version | Should -Be $version
+        $lock.packages[''].version | Should -Be $version
+        $solution = (Read-Jsonc (Join-Path $wp 'config/package-solution.json')).solution
+        $solution.version | Should -Be "$version.0"
+        @($solution.features)[0].version | Should -Be "$version.0"
+    }
+
+    It 'bundles every web part from its source and manifest' {
+        $bundled.Count | Should -BeGreaterOrEqual 2
+        foreach ($c in $bundled) {
+            Test-Path (Join-Path $wp $c.manifest) | Should -BeTrue -Because $c.manifest
+            $source = ($c.entrypoint -replace '^\./lib/', 'src/') -replace '\.js$', '.ts'
+            Test-Path (Join-Path $wp $source) | Should -BeTrue -Because $source
+        }
+    }
+
+    It 'declares the component ids the publisher looks for, without custom script' {
+        $manifests = @($bundled | ForEach-Object { Read-Jsonc (Join-Path $wp $_.manifest) })
+        $ids = @($manifests | ForEach-Object { ([string]$_.id).ToLowerInvariant() })
+        $ids | Should -Contain $script:SacWebPartComponentId
+        $ids | Should -Contain $script:SacChartWebPartComponentId
+        $manifests | ForEach-Object { $_.requiresCustomScript | Should -BeFalse -Because $_.alias }
     }
 }
 

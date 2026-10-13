@@ -91,7 +91,7 @@ are `\n`.
 | `timeline` | `periods: [{ label, section, events[] }]` |
 | `gantt` | `dateFormat`, `axisFormat`, `sections: [{ name, tasks: [{ label, tags[], id, start, length }] }]`; `tags` from done, active, crit, milestone; `length` as Mermaid writes it (`1d`, `260d`) |
 | `mindmap` | `root: { text, children[] }`, recursive |
-| `flowchart` | `direction`, `groups: [{ id, label, parent }]`, `nodes: [{ id, label, group, class, fill, stroke, color, href, tooltip }]`, `edges: [{ from, to, label, style: solid, dotted or thick, arrow }]` |
+| `flowchart` | `direction`, `groups: [{ id, label, parent }]`, `nodes: [{ id, label, group, class, fill, stroke, color, href, tooltip, target }]`, `edges: [{ from, to, label, style: solid, dotted or thick, arrow }]`; a node's `target` says what its `href` points at, the same as a link run's (null without a link) |
 | `sequence` | `autonumber`, `participants: [{ id, label, kind }]`, `steps`: messages `{ kind: message, from, to, text, dashed }`, notes `{ kind: note, position, over[], text }`, blocks `{ kind: block, block, text }` and `{ kind: end }` |
 | `state` | `states: [{ id, label, parent }]`, `transitions: [{ from, to, label, parent }]` (`[*]` is start or end), `notes: [{ state, position, text }]` |
 | `class` | `classes: [{ name, members[] }]`, `relations: [{ from, to, kind, label }]`, `notes: [{ for, text }]` |

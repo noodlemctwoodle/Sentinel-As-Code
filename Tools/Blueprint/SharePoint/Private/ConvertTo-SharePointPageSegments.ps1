@@ -304,7 +304,7 @@ function ConvertTo-SharePointPageSegments {
         if ($null -eq $b) { continue }
         if ([string]$b.type -eq 'chart') {
             & $flush
-            $chart = [ordered]@{ kind = [string]$b.kind; title = $b.title; data = $b.data }
+            $chart = [ordered]@{ kind = [string]$b.kind; title = $b.title; data = (ConvertTo-SacChartData -Chart $b -FindingsListUrl $FindingsListUrl) }
             if ($chart.kind -eq 'other') { $chart.source = [string]$b.source }
             $segments.Add(@{ type = 'chart'; chart = $chart })
             continue
@@ -319,6 +319,37 @@ function ConvertTo-SharePointPageSegments {
         Segments = $segments.ToArray()
         Warnings = $warnings.ToArray()
     }
+}
+
+function ConvertTo-SacChartData {
+    <#
+    .SYNOPSIS
+        A chart's data for the chart web part. A flowchart node's link is
+        mapped the way a text run's is: a site URL ('~site/...'), or none
+        when the target has no page on the site. Other kinds pass through.
+
+    .PARAMETER Chart
+        A chart block from the section model.
+
+    .PARAMETER FindingsListUrl
+        Site-relative URL of the findings list.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Chart,
+        [Parameter(Mandatory)] [string] $FindingsListUrl
+    )
+    if ([string]$Chart.kind -ne 'flowchart' -or $null -eq $Chart.data) { return $Chart.data }
+    # A copy, so the section model itself is left as it was read.
+    $data = $Chart.data | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable -Depth 32
+    foreach ($n in @($data.nodes)) {
+        if ($null -eq $n) { continue }
+        $href = $null
+        if ($n['href'] -and $n['target']) { $href = ConvertTo-SacSiteLink -Run $n -FindingsListUrl $FindingsListUrl }
+        # The web part escapes attribute values itself, so the URL is raw.
+        $n['href'] = $(if ($href) { $href.Replace('&amp;', '&') } else { $null })
+    }
+    return $data
 }
 
 function ConvertTo-SacChartFallbackHtml {

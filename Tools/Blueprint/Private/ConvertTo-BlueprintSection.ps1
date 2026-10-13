@@ -27,7 +27,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, ConvertFrom-BlueprintMermaid.ps1
 
@@ -139,6 +139,10 @@ function ConvertTo-BpBlockList {
                 $info = [string]$b.Info
                 if ($info -eq 'mermaid') {
                     $chart = ConvertFrom-BlueprintMermaid -Source $text
+                    # A flowchart node's click link gets a target, the same as a text run's.
+                    if ($chart.kind -eq 'flowchart' -and $chart.data) {
+                        foreach ($n in @($chart.data.nodes)) { $n.target = $(if ($n.href) { Get-BpLinkTarget $n.href } else { $null }) }
+                    }
                     [ordered]@{ type = 'chart'; kind = $chart.kind; title = $chart.title; data = $chart.data; source = $text }
                 }
                 else { [ordered]@{ type = 'code'; language = $(if ($info) { $info } else { $null }); text = $text } }

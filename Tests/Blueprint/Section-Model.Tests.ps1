@@ -209,6 +209,14 @@ flowchart LR
             ($f.data.nodes | Where-Object id -eq 'R2').fill | Should -Be '#5b1a1a'
             ($f.data.nodes | Where-Object id -eq 'P2').href | Should -Be '90-gap-analysis.md#sac-gov-06'
         }
+        It 'gives a node''s click link a target, the same as a text run''s' {
+            $md = "# T`n`n``````mermaid`nflowchart LR`n    P1[Group] --> R1[Owner]`n    click P1 href `"90-gap-analysis.md#sac-gov-06`" `"SAC-GOV-06`"`n```````n"
+            $nodes = @((ConvertTo-Model $md).blocks[0].data.nodes)
+            $p1 = $nodes | Where-Object id -eq 'P1'
+            $p1.target.kind | Should -Be 'finding'
+            $p1.target.id | Should -Be 'SAC-GOV-06'
+            ($nodes | Where-Object id -eq 'R1').target | Should -BeNullOrEmpty
+        }
     }
 
     It 'parses a sequence diagram with notes' {
