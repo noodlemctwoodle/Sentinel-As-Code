@@ -6,6 +6,19 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The SharePoint site is built from the section model** - the site
+  builder reads `sections/*.json` and no Markdown, so a Blueprint rendered
+  with `-OutputFormat Json` is all it needs (a snapshot from before the
+  section model is converted on the fly). Each chart on a section page is
+  now the iSOC Blueprint chart web part, carrying the chart's data in its
+  `chartJson` property, rather than a pre-rendered PNG; nothing is
+  rendered for the site any more, so the GitHub SharePoint workflow no
+  longer installs mermaid-cli. While the chart web part is not on the
+  site, a chart goes in as a table of its data (pie, sankey, bar and line)
+  and the page is rebuilt on the next run. The bundle has no `diagrams/`
+  folder, and the publisher recycles the diagram images earlier runs
+  uploaded. A table capped at 500 rows now links to the dashboard, which
+  has every row.
 - **Blueprint sections as JSON: the section model** - every run now writes
   each section as `sections/<id>.json`, plus `sections/index.json`, in a
   shape published as a JSON Schema (`Tools/Blueprint/Schemas/`): typed

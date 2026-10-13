@@ -14,16 +14,21 @@
 
       1. Structure   the 'Blueprint Assets' library and the 'Sentinel
                      Findings' list (with its columns) exist
-      2. App         the dashboard web part's .sppkg is deployed to the
-                     site collection app catalog, only when its version
-                     differs from what is deployed (-AppPackagePath)
-      3. Assets      dashboard HTML, its model and the diagrams uploaded;
+      2. App         the isoc-blueprint .sppkg (the dashboard and chart
+                     web parts) is deployed to the site collection app
+                     catalog, only when its version differs from what is
+                     deployed (-AppPackagePath)
+      3. Assets      dashboard HTML and its model uploaded (and diagrams,
+                     from a bundle built before charts became data);
                      when the model carries a maturity assessment, one
                      entry is appended to the score history the dashboard
                      draws as a trend
       4. Pages       section pages created or rebuilt, skipping any whose
-                     content hash matches the last publish; per-page
-                     failures are collected rather than stopping the run
+                     content hash matches the last publish; each chart is
+                     placed as the chart web part, or as a table while the
+                     web part is not on the site (that page is rebuilt on
+                     the next run); per-page failures are collected rather
+                     than stopping the run
       5. Dashboard   the home page hosts the dashboard web part, pointed at
                      the uploaded HTML on every run
       6. Findings    list items added, updated, reopened, resolved or
@@ -100,8 +105,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.3.0
-    Last Updated: 2026-10-09
+    Version:      0.4.0
+    Last Updated: 2026-10-13
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
 #>
@@ -247,15 +252,28 @@ Write-Host "  Plan: $(($pagePlan | Group-Object Action | ForEach-Object { "$($_.
 
 $pageErrors = [System.Collections.Generic.List[string]]::new()
 $publishedHashes = @{}
+# Charts are drawn by the chart web part, which a package deployed a moment
+# ago in step 2 may not have registered yet. A page built without it holds
+# its charts as tables and is left unrecorded, so the next run rebuilds it.
+$needsCharts = @($pagePlan | Where-Object { $_.Action -in 'Create', 'Update' } | ForEach-Object {
+        $doc = $pageDocs[$_.Name]; if ($doc) { @($doc.segments | Where-Object type -eq 'chart') }
+    }).Count -gt 0
+$chartReady = $false
+if ($needsCharts -and -not $WhatIfPreference) {
+    # Wait for it only when step 2 deployed a package this run; otherwise
+    # it is either there already or not coming, so look once.
+    $chartReady = Wait-SacPageComponent -ComponentId $script:SacChartWebPartComponentId -WaitSeconds $(if ($AppPackagePath) { 300 } else { 0 })
+    if (-not $chartReady) { Write-Host '  Chart web part not on the site; charts go in as tables and those pages are rebuilt next run.' -ForegroundColor Yellow }
+}
 foreach ($step in $pagePlan) {
     if ($step.Action -eq 'Delete') { continue }
     $hash = ($desired | Where-Object Name -eq $step.Name | Select-Object -First 1).Hash
     if ($step.Action -eq 'Skip') { $publishedHashes[$step.Name] = $hash; continue }
     Assert-TokenFresh "page $($step.Name)"
     try {
-        Publish-SacSectionPage -PageDoc $pageDocs[$step.Name] -Create:($step.Action -eq 'Create') -WebServerRelativeUrl $webRel
-        if (-not $WhatIfPreference) { $publishedHashes[$step.Name] = $hash }
-        Write-Host "  $($step.Action): $($step.Name)"
+        $native = Publish-SacSectionPage -PageDoc $pageDocs[$step.Name] -Create:($step.Action -eq 'Create') -WebServerRelativeUrl $webRel -ChartComponentAvailable:$chartReady
+        if (-not $WhatIfPreference -and $native) { $publishedHashes[$step.Name] = $hash }
+        Write-Host "  $($step.Action): $($step.Name)$(if (-not $native) { ' (charts as tables)' })"
     }
     catch {
         $pageErrors.Add("$($step.Name): $($_.Exception.Message)")

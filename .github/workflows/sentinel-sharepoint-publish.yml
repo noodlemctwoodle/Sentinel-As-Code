@@ -12,13 +12,14 @@
 #
 # What it does:
 #   1. Downloads the Blueprint run's 'sentinel-docs-<ws>-<runId>' artefact.
-#   2. Builds the dashboard web part package (isoc-blueprint.sppkg).
-#   3. Pre-renders the Mermaid diagrams (the GitHub Blueprint leaves them as
-#      fences, since GitHub renders Mermaid natively; SharePoint does not).
-#   4. Builds the site bundle (Build-SentinelDocsSite.ps1).
-#   5. Signs in as the SharePoint publisher identity (OIDC) and publishes the
+#   2. Builds the web part package (isoc-blueprint.sppkg: the dashboard and
+#      chart web parts).
+#   3. Builds the site bundle from the section model (Build-SentinelDocsSite.ps1).
+#      Charts are data, drawn by the dashboard and the chart web part, so
+#      nothing is pre-rendered.
+#   4. Signs in as the SharePoint publisher identity (OIDC) and publishes the
 #      bundle (Publish-SentinelDocsSite.ps1).
-#   6. Uploads the bundle and package as a 30-day run artefact.
+#   5. Uploads the bundle and package as a 30-day run artefact.
 #
 # CRITICAL: REPOSITORY PRIVACY
 # ---------------------------------------------------------------------------
@@ -86,7 +87,6 @@ permissions:
 env:
   PNP_VERSION:         "3.4.1"
   NODE_VERSION:        "22"
-  MERMAID_CLI_VERSION: "11"
   WEB_PART_DIR:        Tools/Blueprint/SharePoint/webpart/isoc-blueprint
 
 jobs:
@@ -161,7 +161,9 @@ jobs:
               Write-Error "No '$env:WORKSPACE_NAME/_raw' in the downloaded artefact. Check SENTINEL_WORKSPACE matches the Blueprint run."
               exit 1
           }
-          Write-Host "Snapshot: $ws ($((Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count) Markdown files)"
+          $sections = Join-Path $ws 'sections'
+          if (Test-Path $sections) { Write-Host "Snapshot: $ws ($((Get-ChildItem $sections -Filter '*.json' -Exclude 'index.json' | Measure-Object).Count) section files)" }
+          else { Write-Host "Snapshot: $ws (no section model; the build converts the $((Get-ChildItem $ws -Filter '*.md' | Measure-Object).Count) Markdown files)" }
 
       - name: Set up Node
         uses: actions/setup-node@v5
@@ -170,7 +172,7 @@ jobs:
           cache:                 npm
           cache-dependency-path: ${{ env.WEB_PART_DIR }}/package-lock.json
 
-      - name: Build the dashboard web part package
+      - name: Build the web part package
         shell: pwsh
         working-directory: ${{ env.WEB_PART_DIR }}
         run: |
@@ -182,14 +184,6 @@ jobs:
           $pkg = Join-Path (Get-Location) 'sharepoint/solution/isoc-blueprint.sppkg'
           if (-not (Test-Path $pkg)) { throw "Package not produced at $pkg" }
           Write-Host "Built $pkg ($([math]::Round((Get-Item $pkg).Length / 1KB, 1)) KB)"
-
-      - name: Pre-render Mermaid to PNG
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npm install -g "@mermaid-js/mermaid-cli@$env:MERMAID_CLI_VERSION"
-          if ($LASTEXITCODE -ne 0) { throw "mermaid-cli install failed ($LASTEXITCODE)" }
-          ./Tools/Blueprint/Convert-MermaidToImage.ps1 -Root blueprint -Format png
 
       - name: Install PnP.PowerShell
         shell: pwsh

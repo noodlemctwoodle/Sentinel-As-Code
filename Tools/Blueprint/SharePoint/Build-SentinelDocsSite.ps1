@@ -7,10 +7,12 @@
 
 .DESCRIPTION
     Reads one Blueprint workspace folder (the _raw/*.json snapshot that
-    Export-SentinelInventory.ps1 writes, the section *.md files that
-    Convert-SentinelInventoryToMarkdown.ps1 renders next to it, and any
-    assets/*.png that Convert-MermaidToImage.ps1 produced) and writes
-    everything Publish-SentinelDocsSite.ps1 needs into one folder:
+    Export-SentinelInventory.ps1 writes and the section model, sections/*.json,
+    that Convert-SentinelInventoryToMarkdown.ps1 renders next to it) and
+    writes everything Publish-SentinelDocsSite.ps1 needs into one folder.
+    No Markdown is read: a run rendered with -OutputFormat Json is enough.
+    A snapshot rendered before the section model existed has only the
+    NN-name.md files; those are converted on the fly instead.
 
       index.html          the interactive dashboard: a single self-contained
                           HTML file (inline CSS and JS, data embedded as
@@ -19,10 +21,8 @@
       site.json           site descriptor: product name, workspace, the
                           section list with page names, families and hashes
       pages/<page>.json   one file per section: title and the ordered
-                          segments (HTML for Text web parts, image
-                          references for Image web parts)
-      diagrams/*.png      the pre-rendered diagrams the pages reference,
-                          when the snapshot has any
+                          segments (HTML for Text web parts, chart data for
+                          the isoc-blueprint chart web part)
       findings.json       gap-analysis findings plus per-check outcomes,
                           for the findings list
 
@@ -32,20 +32,18 @@
     Azure release-communications RSS), fetched at build time and baked into
     the dashboard. Pass -SkipWhatsNew to build fully offline.
 
-    Mermaid does not need to be pre-rendered: the dashboard draws its own
-    charts. When Convert-MermaidToImage.ps1 already ran on the snapshot
-    (the ADO Blueprint does when its Charts option is ticked), the section
-    pages carry those diagrams; otherwise each Mermaid block is left out of
-    its page and the build log says how many.
+    Charts come from the section model as data. The dashboard draws its own,
+    and each section page places the chart web part, which draws the chart
+    from that data; nothing is pre-rendered.
 
 .PARAMETER Source
-    Blueprint workspace folder: the directory that contains _raw/ and the
-    rendered section files (for example SecurityDocs/law-sentinel-prod).
+    Blueprint workspace folder: the directory that contains _raw/ and
+    sections/ (for example SecurityDocs/law-sentinel-prod).
 
 .PARAMETER OutputRoot
-    Bundle folder. Defaults to '<Source>/sharepoint'. The pages/ and
-    diagrams/ subfolders are cleared at the start of each build so a
-    removed section never lingers.
+    Bundle folder. Defaults to '<Source>/sharepoint'. The pages/ subfolder
+    is cleared at the start of each build so a removed section never
+    lingers.
 
 .PARAMETER ProductName
     Product name shown on the dashboard, in page titles and in the site
@@ -69,7 +67,8 @@
 
 .PARAMETER MaxTableRows
     Maximum body rows per table on a native page. Defaults to 500. Longer
-    tables are cut with a note pointing at the Markdown output.
+    tables are cut with a note linking to the dashboard, whose copy of the
+    section has every row.
 
 .OUTPUTS
     [string] The bundle folder path.
@@ -93,8 +92,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.3.0
-    Last Updated: 2026-10-12
+    Version:      0.4.0
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 #>
 
@@ -133,6 +132,10 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
+# Only for snapshots rendered before the section model: their Markdown is
+# converted with the renderer's own converter.
+. (Join-Path $PSScriptRoot '../Private/ConvertFrom-BlueprintMermaid.ps1')
+. (Join-Path $PSScriptRoot '../Private/ConvertTo-BlueprintSection.ps1')
 
 $script:DashboardPage   = 'Dashboard'
 $script:FindingsListUrl = 'Lists/SentinelFindings'
@@ -246,146 +249,116 @@ $script:MitreTactics = [ordered]@{
 $script:MitreCoveredThreshold = 3
 
 # ---------------------------------------------------------------------------
-# Markdown -> structured blocks for the dashboard's Sections tab. The native
-# pages use ConvertTo-SharePointPageSegments instead; the dashboard keeps its
-# own light parser because its charts, stat chips and table filters work off
-# these blocks.
+# Section model -> structured blocks for the dashboard's Sections tab. The
+# native pages use ConvertTo-SharePointPageSegments; the dashboard has its own
+# block shape because its charts, stat chips and table filters work off it.
 # ---------------------------------------------------------------------------
 
-function Format-InlineMarkdown {
-    param([string] $Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    $s = $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;')
-    $s = [regex]::Replace($s, '`([^`]+)`', '<code>$1</code>')
-    # Links: keep real http(s) links; render internal .md cross-references as
-    # plain emphasised text.
-    $s = [regex]::Replace($s, '\[([^\]]+)\]\(([^)]+)\)', {
-            param($m)
-            $txt = $m.Groups[1].Value; $url = $m.Groups[2].Value
-            if ($url -match '^https?://') { "<a href=`"$url`" target=`"_blank`" rel=`"noopener`">$txt</a>" }
-            else { "<span class=`"xref`">$txt</span>" }
-        })
-    $s = [regex]::Replace($s, '\*\*([^*]+)\*\*', '<strong>$1</strong>')
-    $s = [regex]::Replace($s, '(?<!\*)\*(?!\*)([^*]+)\*(?!\*)', '<em>$1</em>')
-    return $s
+function ConvertTo-SectionRunsHtml {
+    <#
+    .SYNOPSIS
+        Dashboard HTML for text runs: web links open in a new tab, links to
+        other sections and findings show as cross-reference text.
+    #>
+    param([object[]] $Runs)
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($r in @($Runs)) {
+        if ($null -eq $r) { continue }
+        if ($r.break) { [void]$sb.Append('<br>'); continue }
+        $h = ConvertTo-HtmlText ([string]$r.text)
+        if ($r.code) { $h = "<code>$h</code>" }
+        if ($r.strike) { $h = "<s>$h</s>" }
+        if ($r.italic) { $h = "<em>$h</em>" }
+        if ($r.bold) { $h = "<strong>$h</strong>" }
+        if ($r.href) {
+            if ([string]$r.target.kind -eq 'external') { $h = "<a href=`"$(ConvertTo-HtmlText ([string]$r.href))`" target=`"_blank`" rel=`"noopener`">$h</a>" }
+            else { $h = "<span class=`"xref`">$h</span>" }
+        }
+        [void]$sb.Append($h)
+    }
+    return $sb.ToString()
 }
 
-function Split-TableRow {
-    param([string] $Row)
-    $r = $Row.Trim()
-    $r = $r -replace '^\|', '' -replace '\|\s*$', ''
-    return @($r -split '\|' | ForEach-Object { $_.Trim() })
+function Get-SectionListItems {
+    # A list's items, nested lists flattened in reading order.
+    param($List)
+    foreach ($item in @($List.items)) {
+        ConvertTo-SectionRunsHtml @($item.text)
+        foreach ($b in @($item.blocks)) { if ($b -and [string]$b.type -eq 'list') { Get-SectionListItems $b } }
+    }
 }
 
 function ConvertTo-SectionBlocks {
     <#
     .SYNOPSIS
-        Parse one Blueprint Markdown file into an ordered list of render
-        blocks: headings, prose, notes (callouts), lists and tables. Image
-        references, code fences (Mermaid source), raw anchors, horizontal
-        rules and the standard metadata header are dropped.
+        Turn one section from the section model into the dashboard's render
+        blocks: headings, prose, notes (callouts), lists and tables. Charts
+        (the dashboard draws its own), code and rules are left out.
     #>
-    param([string] $Path)
+    param($Section)
 
-    $lines = @(Get-Content -LiteralPath $Path -Encoding utf8)
-    $blocks = [System.Collections.ArrayList]::new()
-    $para = [System.Collections.Generic.List[string]]::new()
-
-    $flush = {
-        if ($para.Count) {
-            [void]$blocks.Add([ordered]@{ t = 'p'; html = (Format-InlineMarkdown (($para -join ' ').Trim())) })
-            $para.Clear()
-        }
-    }
-
-    $i = 0
-    while ($i -lt $lines.Count) {
-        $ln = $lines[$i]
-
-        if ($ln -match '^\s*```') {
-            # Fenced block (Mermaid when not pre-rendered). The dashboard draws
-            # its own charts, so the source is skipped rather than shown as text.
-            & $flush
-            $i++
-            while ($i -lt $lines.Count -and $lines[$i] -notmatch '^\s*```') { $i++ }
-            $i++; continue
-        }
-        if ($ln -match '^\s*$') { & $flush; $i++; continue }
-        if ($ln -match '^#\s') { & $flush; $i++; continue }                  # H1 = title, captured separately
-        if ($ln -match '^!\[') { $i++; continue }                             # image reference -> drop
-        if ($ln -match '^\s*<a id="[^"]*"></a>\s*$') { $i++; continue }      # finding anchor -> drop
-        if ($ln -match '^\s*-{3,}\s*$') { & $flush; $i++; continue }         # horizontal rule -> drop
-
-        if ($ln -match '^(#{2,6})\s+(.*)') {
-            & $flush
-            [void]$blocks.Add([ordered]@{ t = 'h'; lvl = $Matches[1].Length; html = (Format-InlineMarkdown $Matches[2].Trim()) })
-            $i++; continue
-        }
-
-        if ($ln -match '^>\s?(.*)') {
-            $buf = [System.Collections.Generic.List[string]]::new()
-            while ($i -lt $lines.Count -and $lines[$i] -match '^>\s?(.*)') { $buf.Add($Matches[1]); $i++ }
-            $joined = ($buf -join "`n")
-            if ($joined -match '\*\*Workspace\*\*' -and $joined -match 'Blueprint') { continue }   # metadata header
-            & $flush
-            # Preserve structure inside the callout: an optional lead line + bullet items.
-            $noteTitle = ''
-            $noteItems = [System.Collections.Generic.List[string]]::new()
-            $noteText = [System.Collections.Generic.List[string]]::new()
-            foreach ($bl in $buf) {
-                $t = $bl.Trim()
-                if ($t -eq '') { continue }
-                if ($t -match '^[-*+]\s+(.*)') { $noteItems.Add((Format-InlineMarkdown $Matches[1].Trim())) }
-                elseif ($noteItems.Count -eq 0 -and $noteText.Count -eq 0 -and $t -notmatch '\s') { $noteTitle = (Format-InlineMarkdown $t) }
-                elseif ($noteItems.Count -eq 0 -and $noteText.Count -eq 0 -and $t -match '^[A-Za-z][\w &/-]{1,24}$') { $noteTitle = (Format-InlineMarkdown $t) }
-                else { $noteText.Add((Format-InlineMarkdown $t)) }
+    $blocks = [System.Collections.Generic.List[object]]::new()
+    foreach ($b in @($Section.blocks)) {
+        if ($null -eq $b) { continue }
+        switch ([string]$b.type) {
+            'heading' { $blocks.Add([ordered]@{ t = 'h'; lvl = [int]$b.level; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
+            'paragraph' { $blocks.Add([ordered]@{ t = 'p'; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
+            'list' { $blocks.Add([ordered]@{ t = 'ul'; items = @(Get-SectionListItems $b) }) }
+            'table' {
+                $blocks.Add([ordered]@{
+                        t       = 'table'
+                        headers = @(@($b.columns) | ForEach-Object { ConvertTo-SectionRunsHtml @($_.text) })
+                        align   = @(@($b.columns) | ForEach-Object { if ($_.align) { [string]$_.align } else { 'left' } })
+                        rows    = @(foreach ($row in @($b.rows)) { , @(foreach ($cell in @($row)) { ConvertTo-SectionRunsHtml @($cell) }) })
+                    })
             }
-            $note = [ordered]@{ t = 'note'; title = $noteTitle; items = $noteItems.ToArray(); paras = $noteText.ToArray() }
-            if (-not $note.title -and -not $note.items.Count -and -not $note.paras.Count) {
-                $note.paras = @((Format-InlineMarkdown ($joined -replace "`n", ' ')))
-            }
-            [void]$blocks.Add($note)
-            continue
-        }
-
-        if ($ln -match '^\|') {
-            & $flush
-            $tbl = [System.Collections.Generic.List[string]]::new()
-            while ($i -lt $lines.Count -and $lines[$i] -match '^\|') { $tbl.Add($lines[$i]); $i++ }
-            if ($tbl.Count -lt 1) { continue }
-            $headers = @(Split-TableRow $tbl[0] | ForEach-Object { Format-InlineMarkdown $_ })
-            $align = @()
-            $dataStart = 1
-            if ($tbl.Count -gt 1 -and $tbl[1] -match '^[\|\s:\-]+$') {
-                foreach ($c in (Split-TableRow $tbl[1])) {
-                    if ($c -match '^:-+:$') { $align += 'center' }
-                    elseif ($c -match '-+:$') { $align += 'right' }
-                    else { $align += 'left' }
+            'note' {
+                # A callout: an optional short lead line, bullet items, paragraphs.
+                $inner = @($b.blocks | Where-Object { $_ })
+                $title = ''
+                $first = $inner | Select-Object -First 1
+                if ($inner.Count -gt 1 -and $first -and [string]$first.type -eq 'paragraph') {
+                    $lead = ((@($first.text) | ForEach-Object { if ($_.text) { $_.text } }) -join '').Trim()
+                    if ($lead -match '^[A-Za-z][\w &/-]{1,24}$') { $title = ConvertTo-SectionRunsHtml @($first.text); $inner = @($inner | Select-Object -Skip 1) }
                 }
-                $dataStart = 2
+                $blocks.Add([ordered]@{
+                        t     = 'note'
+                        title = $title
+                        items = @($inner | Where-Object { [string]$_.type -eq 'list' } | ForEach-Object { Get-SectionListItems $_ })
+                        paras = @($inner | Where-Object { [string]$_.type -eq 'paragraph' } | ForEach-Object { ConvertTo-SectionRunsHtml @($_.text) })
+                    })
             }
-            $rows = [System.Collections.ArrayList]::new()
-            for ($r = $dataStart; $r -lt $tbl.Count; $r++) {
-                [void]$rows.Add(@(Split-TableRow $tbl[$r] | ForEach-Object { Format-InlineMarkdown $_ }))
-            }
-            [void]$blocks.Add([ordered]@{ t = 'table'; headers = $headers; align = $align; rows = $rows.ToArray() })
-            continue
+            default { }
         }
-
-        if ($ln -match '^\s*[-*+]\s+(.*)' -or $ln -match '^\s*\d+\.\s+(.*)') {
-            & $flush
-            $items = [System.Collections.ArrayList]::new()
-            while ($i -lt $lines.Count -and ($lines[$i] -match '^\s*[-*+]\s+(.*)' -or $lines[$i] -match '^\s*\d+\.\s+(.*)')) {
-                [void]$items.Add((Format-InlineMarkdown $Matches[1].Trim())); $i++
-            }
-            [void]$blocks.Add([ordered]@{ t = 'ul'; items = $items.ToArray() })
-            continue
-        }
-
-        $para.Add($ln.Trim()); $i++
     }
-    & $flush
     return $blocks.ToArray()
+}
+
+function Get-SectionModels {
+    <#
+    .SYNOPSIS
+        The run's sections from the section model (sections/index.json and
+        sections/<id>.json), in reading order. A snapshot rendered before
+        the section model existed has only NN-name.md files; those are
+        converted on the fly with the same converter the renderer uses.
+    #>
+    param([Parameter(Mandatory)] [string] $Source)
+    $dir = Join-Path $Source 'sections'
+    $indexPath = Join-Path $dir 'index.json'
+    if (Test-Path -LiteralPath $indexPath) {
+        $index = Get-Content -LiteralPath $indexPath -Raw -Encoding utf8 | ConvertFrom-Json -AsHashtable -Depth 64
+        foreach ($entry in @($index.sections)) {
+            $path = Join-Path $dir ([string]$entry.file)
+            if (-not (Test-Path -LiteralPath $path)) { $buildWarnings.Add("sections/$($entry.file) is listed in sections/index.json but missing."); continue }
+            Get-Content -LiteralPath $path -Raw -Encoding utf8 | ConvertFrom-Json -AsHashtable -Depth 64
+        }
+        return
+    }
+    $md = @(Get-ChildItem -LiteralPath $Source -Filter '*.md' | Where-Object { $_.BaseName -match '^\d+-' } | Sort-Object Name)
+    if ($md.Count) { $buildWarnings.Add("No sections/ in $Source (rendered before the section model); converted the $($md.Count) Markdown sections instead.") }
+    foreach ($f in $md) {
+        ConvertTo-BlueprintSection -Markdown (Get-Content -LiteralPath $f.FullName -Raw -Encoding utf8) -Id $f.BaseName
+    }
 }
 
 function ConvertTo-HtmlText {
@@ -995,50 +968,33 @@ if ($maturityModel) {
     $headlineByNum[91] = if ($null -ne $maturityModel.overall.score) { "Score $($maturityModel.overall.score) / 5" } else { 'Not assessed' }
 }
 
-$assetsDir = Join-Path $Source 'assets'
 $sections = @()
 $siteSections = @()
 $pageDocs = @()
-$diagramFiles = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-$unrenderedDiagrams = 0
+$chartCount = 0
 
-foreach ($md in (Get-ChildItem -LiteralPath $Source -Filter '*.md' | Where-Object { $_.Name -ne 'index.md' } | Sort-Object Name)) {
-    if ($md.BaseName -notmatch '^(\d+)-(.*)$') { continue }
-    $num = [int]$Matches[1]
+foreach ($sec in @(Get-SectionModels -Source $Source)) {
+    if ($null -eq $sec.order) { continue }
+    $id = [string]$sec.id
+    $num = [int]$sec.order
     $family = Get-SectionFamily -Number $num
-    $pageName = Get-SacPageName -FileName $md.Name
+    $pageName = Get-SacPageName -FileName $id
 
-    $markdown = Get-Content -LiteralPath $md.FullName -Raw -Encoding utf8
-    $converted = ConvertTo-SharePointPageSegments -Markdown $markdown -FileName $md.Name -FindingsListUrl $script:FindingsListUrl -MaxTableRows $MaxTableRows
+    $converted = ConvertTo-SharePointPageSegments -Section $sec -FindingsListUrl $script:FindingsListUrl -MaxTableRows $MaxTableRows
     foreach ($w in $converted.Warnings) { $buildWarnings.Add($w) }
-    $unrenderedDiagrams += $converted.UnrenderedDiagrams
+    $segments = @($converted.Segments)
+    $chartCount += @($segments | Where-Object { $_.type -eq 'chart' }).Count
 
-    $secTitle = if ($converted.Title) { $converted.Title } else { ($md.BaseName -replace '^\d+-', '' -replace '-', ' ') }
+    $secTitle = if ($converted.Title) { $converted.Title } else { ($id -replace '^\d+-', '' -replace '-', ' ') }
+    $hash = Get-ContentHash -Text (([ordered]@{ title = $secTitle; segments = $segments }) | ConvertTo-Json -Depth 32 -Compress)
 
-    # Keep only image segments whose file exists, so a page never references
-    # a diagram the publisher cannot upload.
-    $segments = @()
-    foreach ($seg in $converted.Segments) {
-        if ($seg.type -eq 'image') {
-            $assetPath = Join-Path $assetsDir $seg.file
-            if (-not (Test-Path -LiteralPath $assetPath)) {
-                $buildWarnings.Add("$($md.Name) : diagram assets/$($seg.file) is missing and was left out.")
-                continue
-            }
-            [void]$diagramFiles.Add($seg.file)
-        }
-        $segments += $seg
-    }
-
-    $hash = Get-ContentHash -Text (([ordered]@{ title = $secTitle; segments = $segments }) | ConvertTo-Json -Depth 8 -Compress)
-
-    $blocks = ConvertTo-SectionBlocks -Path $md.FullName
+    $blocks = ConvertTo-SectionBlocks -Section $sec
     $tableRows = 0
-    foreach ($b in $blocks) { if ($b.t -eq 'table') { $tableRows += $b.rows.Count } }
+    foreach ($b in $blocks) { if ($b.t -eq 'table') { $tableRows += @($b.rows).Count } }
 
     $sections += [ordered]@{
         num       = $num
-        file      = $md.Name
+        file      = "sections/$id.json"
         page      = $pageName
         title     = $secTitle
         family    = $family
@@ -1046,12 +1002,12 @@ foreach ($md in (Get-ChildItem -LiteralPath $Source -Filter '*.md' | Where-Objec
         tableRows = $tableRows
         blocks    = $blocks
     }
-    $siteSections += [ordered]@{ num = $num; file = $md.Name; page = $pageName; title = $secTitle; family = $family; hash = $hash }
-    $pageDocs += [ordered]@{ name = $pageName; file = $md.Name; num = $num; title = $secTitle; family = $family; hash = $hash; segments = $segments }
+    $siteSections += [ordered]@{ num = $num; file = "sections/$id.json"; page = $pageName; title = $secTitle; family = $family; hash = $hash }
+    $pageDocs += [ordered]@{ name = $pageName; file = "sections/$id.json"; num = $num; title = $secTitle; family = $family; hash = $hash; segments = $segments }
 }
 
 if ($sections.Count -eq 0) {
-    $buildWarnings.Add("No rendered section files (NN-name.md) under $Source. Run Convert-SentinelInventoryToMarkdown.ps1 first; the site will have a dashboard and findings but no section pages.")
+    $buildWarnings.Add("No sections under $Source. Run Convert-SentinelInventoryToMarkdown.ps1 first; the site will have a dashboard and findings but no section pages.")
 }
 
 # ---- What's new (Microsoft release-communications RSS, security-filtered) ----
@@ -1117,7 +1073,7 @@ $model = [ordered]@{
     generatedBlueprintUtc = $generatedBuildUtc
 }
 
-Write-Log "  Sections   : $($sections.Count)   Diagrams: $($diagramFiles.Count)$(if ($unrenderedDiagrams) { " (+$unrenderedDiagrams Mermaid not pre-rendered, left out; the dashboard draws its own charts)" })" Info
+Write-Log "  Sections   : $($sections.Count)   Charts: $chartCount (drawn by the chart web part)" Info
 Write-Log "  Findings   : $($findings.total)   Rules enabled: $($counts.rulesEnabled)/$($counts.rulesTotal)   MITRE: $mitreCovered/$($mitre.Count)" Info
 Write-Log "  Maturity   : $(if ($maturityModel -and $null -ne $maturityModel.overall.score) { "$($maturityModel.overall.score) / 5 ($($maturityModel.overall.levelName)), target $($maturityModel.targetLevel)" } else { 'not assessed' })   Uncovered: $(if ($ruleRefs.Count -gt 0) { "$uncoveredTotal table(s), $($estate.uncoveredGb) GB" } else { 'n/a' })" Info
 
@@ -1146,14 +1102,14 @@ if ($null -eq $checks) {
 # ---------------------------------------------------------------------------
 
 $pagesDir = Join-Path $OutputRoot 'pages'
-$diagramsDir = Join-Path $OutputRoot 'diagrams'
 
 if ($PSCmdlet.ShouldProcess($OutputRoot, 'Prepare bundle folder')) {
     New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
-    foreach ($d in $pagesDir, $diagramsDir) {
+    # diagrams/ is what a bundle built before charts became data carried.
+    foreach ($d in $pagesDir, (Join-Path $OutputRoot 'diagrams')) {
         if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force }
-        New-Item -ItemType Directory -Path $d -Force | Out-Null
     }
+    New-Item -ItemType Directory -Path $pagesDir -Force | Out-Null
 }
 
 # Dashboard. EscapeHtml encodes <, >, & and quotes as \uXXXX so no value in
@@ -1170,12 +1126,6 @@ Write-BundleJson -Path (Join-Path $OutputRoot 'model.json') -Data $model -What '
 
 foreach ($p in $pageDocs) {
     Write-BundleJson -Path (Join-Path $pagesDir "$($p.name).json") -Data $p -What 'Write page'
-}
-foreach ($file in $diagramFiles) {
-    $dest = Join-Path $diagramsDir $file
-    if ($PSCmdlet.ShouldProcess($dest, 'Copy diagram')) {
-        Copy-Item -LiteralPath (Join-Path $assetsDir $file) -Destination $dest -Force
-    }
 }
 
 Write-BundleJson -Path (Join-Path $OutputRoot 'findings.json') -Data $findingsDoc -What 'Write findings'
@@ -1198,12 +1148,14 @@ $site = [ordered]@{
     findingsList  = [ordered]@{ title = $script:FindingsTitle; url = $script:FindingsListUrl }
     familyOrder   = @(Get-SectionFamilyOrder)
     sections      = $siteSections
-    diagrams      = @($diagramFiles | Sort-Object)
+    # Always empty now that charts are data: the publisher recycles the
+    # diagram images an earlier bundle uploaded.
+    diagrams      = @()
     warnings      = $buildWarnings.ToArray()
 }
 Write-BundleJson -Path (Join-Path $OutputRoot 'site.json') -Data $site -What 'Write site descriptor'
 
 foreach ($w in $buildWarnings) { Write-Log "  ! $w" Warning }
-Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $($diagramFiles.Count) diagrams, $($findingList.Count) findings)" Success
+Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $chartCount charts, $($findingList.Count) findings)" Success
 
 return $OutputRoot

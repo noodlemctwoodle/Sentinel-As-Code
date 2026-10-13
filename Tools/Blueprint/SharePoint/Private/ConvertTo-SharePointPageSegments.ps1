@@ -2,34 +2,32 @@
 
 <#
 .SYNOPSIS
-    Convert one Blueprint Markdown section into the HTML segments that make
-    up a native SharePoint page.
+    Convert one Blueprint section from the section model into the segments
+    that make up a native SharePoint page.
 
 .DESCRIPTION
     A modern SharePoint page is a list of web parts. Text goes into Text web
     parts, which accept a limited HTML vocabulary (h2 to h4, paragraphs,
-    lists, links, tables, blockquotes, pre). Images need their own Image web
-    part. This converter turns a rendered Blueprint section into that shape:
+    lists, links, tables, blockquotes, pre); each chart goes into the
+    isoc-blueprint chart web part, which draws it from its data. This
+    converter reads a section from the section model (sections/<id>.json,
+    Docs/Tools/Blueprint/Section-Model.md) and writes that shape directly,
+    with no Markdown involved:
 
-      1. Markdown to HTML with PowerShell's built-in ConvertFrom-Markdown
-         (Markdig, which renders pipe tables).
-      2. The H1 becomes the page title and is removed from the body, along
-         with the metadata banner the renderer writes under it.
-      3. The HTML is cut down to what a Text web part keeps: headings
-         clamped to h2-h4, id/class attributes and anchor stubs removed,
-         code blocks flattened to <pre>, horizontal rules dropped, tables
-         wrapped in the responsive table markup the SharePoint editor uses.
-      4. Links are rewritten for the site: links to other section files go
-         to their generated page, finding links go to the findings
-         list filtered on that id, and repository-relative links become
-         plain text (they mean nothing on SharePoint).
-      5. Mermaid blocks that were not pre-rendered are left out, so
-         unescaped diagram source never reaches the page. The dashboard
-         draws its own charts, so the site does not need the PNGs; a page
-         carries a diagram only when Convert-MermaidToImage.ps1 already ran.
-      6. The result is split into one segment per H2 and at every image, so
-         each Text web part stays a manageable size and diagrams sit where
-         they were in the Markdown.
+      1. The section title becomes the page title, without the '(TOC x.y)'
+         cross-reference some titles carry.
+      2. Blocks become Text web part HTML: headings clamped to h2-h4,
+         paragraphs, lists (nested), notes as blockquotes, tables in the
+         responsive markup the SharePoint editor uses (capped at
+         -MaxTableRows), code as <pre>. Horizontal rules are dropped.
+      3. Links follow each run's target: another section goes to its
+         generated page, a finding to the findings list filtered on its id,
+         a URL stays a link, and same-page anchors and repository paths
+         become plain text (they mean nothing on SharePoint).
+      4. Each chart becomes its own segment carrying the chart's kind, title
+         and data for the chart web part.
+      5. The HTML is split at every H2 and at every chart, so each Text web
+         part stays a manageable size and charts sit where they were.
 
     Links to pages and lists use a '~site/' prefix. The publisher replaces
     it with the target web's server-relative URL, so the converter has no
@@ -41,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.0
-    Last Updated: 2026-10-08
+    Version:      0.2.0
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -52,10 +50,12 @@
 function Get-SacPageName {
     <#
     .SYNOPSIS
-        Return the SharePoint page name (no .aspx) for a section file name.
+        Return the SharePoint page name (no .aspx) for a section id or file
+        name.
 
     .PARAMETER FileName
-        Section file name, for example '25-mitre-coverage.md'.
+        Section id or file name, for example '25-mitre-coverage' or
+        '25-mitre-coverage.md'.
 
     .OUTPUTS
         [string] For example 'sac-25-mitre-coverage'.
@@ -72,7 +72,7 @@ function Get-SacPageName {
 function Get-SacSectionTitle {
     <#
     .SYNOPSIS
-        Clean a renderer H1 for use as a page title.
+        Clean a section title for use as a page title.
 
     .DESCRIPTION
         Removes the '(TOC x.y)' suffix some renderer titles carry, which is a
@@ -80,7 +80,7 @@ function Get-SacSectionTitle {
         page title.
 
     .PARAMETER Title
-        The raw H1 text.
+        The section title.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -89,79 +89,20 @@ function Get-SacSectionTitle {
     return ($Title -replace '\s*\(TOC[^)]*\)\s*$', '').Trim()
 }
 
-function ConvertTo-SacTableHtml {
-    <#
-    .SYNOPSIS
-        Rewrite one Markdig <table> into SharePoint editor table markup,
-        capping the number of body rows.
-
-    .PARAMETER TableHtml
-        A single '<table>...</table>' fragment from Markdig, attributes
-        already stripped.
-
-    .PARAMETER MaxRows
-        Maximum body rows to keep. Extra rows are replaced by one note row.
-
-    .OUTPUTS
-        [pscustomobject] Html (string) and Truncated (int, rows dropped).
-    #>
-    [CmdletBinding()]
-    [OutputType([pscustomobject])]
-    param(
-        [Parameter(Mandatory)] [string] $TableHtml,
-        [Parameter(Mandatory)] [int] $MaxRows
-    )
-
-    $rows = [regex]::Matches($TableHtml, '<tr>(.*?)</tr>', 'Singleline')
-    $headerCells = 0
-    $out = [System.Text.StringBuilder]::new()
-    [void]$out.Append('<div class="canvasRteResponsiveTable"><div class="tableWrapper"><table title="Table"><tbody>')
-
-    $bodyRows = 0
-    $dropped = 0
-    foreach ($row in $rows) {
-        $inner = $row.Groups[1].Value
-        $isHeader = $inner -match '<th>'
-        if ($isHeader) {
-            $cells = [regex]::Matches($inner, '<th>(.*?)</th>', 'Singleline')
-            $headerCells = $cells.Count
-            # The renderer uses '| | |' headers for key/value tables. An
-            # all-empty header row would show as a blank bold band.
-            if (-not ($cells | Where-Object { $_.Groups[1].Value.Trim() })) { continue }
-            [void]$out.Append('<tr>')
-            foreach ($c in $cells) { [void]$out.Append('<td><strong>' + $c.Groups[1].Value.Trim() + '</strong></td>') }
-            [void]$out.Append('</tr>')
-            continue
-        }
-        if ($bodyRows -ge $MaxRows) { $dropped++; continue }
-        $bodyRows++
-        $cells = [regex]::Matches($inner, '<td>(.*?)</td>', 'Singleline')
-        [void]$out.Append('<tr>')
-        foreach ($c in $cells) { [void]$out.Append('<td>' + $c.Groups[1].Value.Trim() + '</td>') }
-        [void]$out.Append('</tr>')
-    }
-
-    if ($dropped -gt 0) {
-        $span = [math]::Max($headerCells, 1)
-        [void]$out.Append("<tr><td colspan=`"$span`"><em>$dropped more rows not shown here. The full table is in the Blueprint Markdown output.</em></td></tr>")
-    }
-    [void]$out.Append('</tbody></table></div></div>')
-
-    return [pscustomobject]@{ Html = $out.ToString(); Truncated = $dropped }
+function ConvertTo-SacHtmlText {
+    param([AllowEmptyString()] [AllowNull()] [string] $Text)
+    if (-not $Text) { return '' }
+    return $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;')
 }
 
 function ConvertTo-SacSiteLink {
     <#
     .SYNOPSIS
-        Rewrite one href from the renderer's Markdown into a site URL, or
-        return $null when the link should become plain text.
+        Turn a run's link target into a site URL, or $null when the link
+        should become plain text.
 
-    .PARAMETER Href
-        The href as Markdig emitted it.
-
-    .PARAMETER CurrentFile
-        The section file being converted, so same-page finding anchors can
-        be recognised.
+    .PARAMETER Run
+        One text run from the section model, with href and target.
 
     .PARAMETER FindingsListUrl
         Site-relative URL of the findings list.
@@ -169,44 +110,158 @@ function ConvertTo-SacSiteLink {
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory)] [AllowEmptyString()] [string] $Href,
-        [Parameter(Mandatory)] [AllowEmptyString()] [string] $CurrentFile,
+        [Parameter(Mandatory)] $Run,
+        [Parameter(Mandatory)] [string] $FindingsListUrl
+    )
+    $target = $Run.target
+    switch ([string]$target.kind) {
+        'external' { return [string]$Run.href }
+        'finding' { return "~site/$FindingsListUrl/AllItems.aspx?FilterField1=FindingId&amp;FilterValue1=$([string]$target.id)" }
+        'section' {
+            # SharePoint makes its own heading anchors, so the anchor is dropped;
+            # the contents page has no page of its own.
+            if ([string]$target.section -eq 'index') { return $null }
+            return "~site/SitePages/$(Get-SacPageName -FileName ([string]$target.section)).aspx"
+        }
+        default { return $null }
+    }
+}
+
+function ConvertTo-SacRunsHtml {
+    <#
+    .SYNOPSIS
+        HTML for a list of text runs, for a Text web part.
+
+    .PARAMETER Runs
+        Text runs from the section model.
+
+    .PARAMETER FindingsListUrl
+        Site-relative URL of the findings list.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [AllowNull()] [AllowEmptyCollection()] [object[]] $Runs,
+        [Parameter(Mandatory)] [string] $FindingsListUrl
+    )
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($r in @($Runs)) {
+        if ($null -eq $r) { continue }
+        if ($r.break) { [void]$sb.Append('<br>'); continue }
+        $h = ConvertTo-SacHtmlText ([string]$r.text)
+        if ($r.code) { $h = "<code>$h</code>" }
+        if ($r.strike) { $h = "<s>$h</s>" }
+        if ($r.italic) { $h = "<em>$h</em>" }
+        if ($r.bold) { $h = "<strong>$h</strong>" }
+        if ($r.href) {
+            $url = ConvertTo-SacSiteLink -Run $r -FindingsListUrl $FindingsListUrl
+            if ($url) { $h = "<a href=`"$url`">$h</a>" }
+        }
+        [void]$sb.Append($h)
+    }
+    return $sb.ToString()
+}
+
+function ConvertTo-SacTableHtml {
+    <#
+    .SYNOPSIS
+        SharePoint editor table markup for one table block, capping the
+        number of body rows.
+
+    .PARAMETER Table
+        A table block from the section model.
+
+    .PARAMETER MaxRows
+        Maximum body rows to keep. Extra rows are replaced by one note row.
+
+    .PARAMETER FindingsListUrl
+        Site-relative URL of the findings list.
+
+    .OUTPUTS
+        [pscustomobject] Html (string) and Truncated (int, rows dropped).
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] [int] $MaxRows,
         [Parameter(Mandatory)] [string] $FindingsListUrl
     )
 
-    $decoded = [System.Net.WebUtility]::HtmlDecode($Href)
+    $out = [System.Text.StringBuilder]::new()
+    [void]$out.Append('<div class="canvasRteResponsiveTable"><div class="tableWrapper"><table title="Table"><tbody>')
 
-    if ($decoded -match '^(https?|mailto):') { return $Href }
-
-    # Finding links: '90-gap-analysis.md#sac-gov-06' or '#sac-gov-06' (and the retired sent-NNN anchors).
-    if ($decoded -match '^(?:(?<file>[^#]*\.md))?#(?<id>(?:sent-\d+|sac-[a-z]{2,4}-\d{2}))$') {
-        $id = $Matches['id'].ToUpperInvariant()
-        return "~site/$FindingsListUrl/AllItems.aspx?FilterField1=FindingId&amp;FilterValue1=$id"
+    $columns = @($Table.columns)
+    $headers = @($columns | ForEach-Object { ConvertTo-SacRunsHtml -Runs @($_.text) -FindingsListUrl $FindingsListUrl })
+    # The renderer uses '| | |' headers for key/value tables. An all-empty
+    # header row would show as a blank bold band.
+    if (@($headers | Where-Object { $_.Trim() }).Count) {
+        [void]$out.Append('<tr>')
+        foreach ($h in $headers) { [void]$out.Append("<td><strong>$h</strong></td>") }
+        [void]$out.Append('</tr>')
     }
 
-    # Another section: 'NN-name.md' or 'NN-name.md#anchor'. SharePoint makes
-    # its own heading anchors, so the fragment is dropped.
-    if ($decoded -match '^(?<file>\d{2}-[A-Za-z0-9-]+\.md)(?:#.*)?$') {
-        return "~site/SitePages/$(Get-SacPageName -FileName $Matches['file']).aspx"
+    $rows = @($Table.rows)
+    $dropped = [math]::Max(0, $rows.Count - $MaxRows)
+    foreach ($row in ($rows | Select-Object -First $MaxRows)) {
+        [void]$out.Append('<tr>')
+        foreach ($cell in @($row)) { [void]$out.Append('<td>' + (ConvertTo-SacRunsHtml -Runs @($cell) -FindingsListUrl $FindingsListUrl) + '</td>') }
+        [void]$out.Append('</tr>')
     }
+    if ($dropped -gt 0) {
+        $span = [math]::Max($columns.Count, 1)
+        [void]$out.Append("<tr><td colspan=`"$span`"><em>$dropped more rows not shown here. The full table, with a filter, is under this section on the <a href=`"~site/SitePages/Dashboard.aspx`">dashboard</a>'s Sections tab.</em></td></tr>")
+    }
+    [void]$out.Append('</tbody></table></div></div>')
+    return [pscustomobject]@{ Html = $out.ToString(); Truncated = $dropped }
+}
 
-    # In-page anchors, index.md and repository-relative paths mean nothing
-    # once the content lives on SharePoint.
-    return $null
+function ConvertTo-SacBlocksHtml {
+    # HTML for blocks that stay inside one Text web part (lists, notes, tables).
+    param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings)
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($b in @($Blocks)) {
+        if ($null -eq $b) { continue }
+        switch ([string]$b.type) {
+            'heading' {
+                $lvl = [int]$b.level
+                $tag = if ($lvl -le 2) { 'h2' } elseif ($lvl -eq 3) { 'h3' } else { 'h4' }
+                [void]$sb.Append("<$tag>" + (ConvertTo-SacRunsHtml -Runs @($b.text) -FindingsListUrl $FindingsListUrl) + "</$tag>")
+            }
+            'paragraph' { [void]$sb.Append('<p>' + (ConvertTo-SacRunsHtml -Runs @($b.text) -FindingsListUrl $FindingsListUrl) + '</p>') }
+            'list' {
+                $tag = if ($b.ordered) { 'ol' } else { 'ul' }
+                $start = if ($b.ordered -and $b.start) { " start=`"$([int]$b.start)`"" } else { '' }
+                [void]$sb.Append("<$tag$start>")
+                foreach ($item in @($b.items)) {
+                    [void]$sb.Append('<li>' + (ConvertTo-SacRunsHtml -Runs @($item.text) -FindingsListUrl $FindingsListUrl))
+                    if (@($item.blocks).Count) { [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @($item.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings)) }
+                    [void]$sb.Append('</li>')
+                }
+                [void]$sb.Append("</$tag>")
+            }
+            'note' { [void]$sb.Append('<blockquote>' + (ConvertTo-SacBlocksHtml -Blocks @($b.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings) + '</blockquote>') }
+            'table' {
+                $t = ConvertTo-SacTableHtml -Table $b -MaxRows $MaxTableRows -FindingsListUrl $FindingsListUrl
+                if ($t.Truncated -gt 0) { $Warnings.Add("$Id : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown).") }
+                [void]$sb.Append($t.Html)
+            }
+            'code' { [void]$sb.Append('<pre>' + (ConvertTo-SacHtmlText ([string]$b.text)) + '</pre>') }
+            'chart' { $Warnings.Add("$Id : a chart nested in a list or note is not shown.") }
+            default { }
+        }
+    }
+    return $sb.ToString()
 }
 
 function ConvertTo-SharePointPageSegments {
     <#
     .SYNOPSIS
-        Convert one section's Markdown into a title and an ordered list of
-        page segments.
+        Convert one section from the section model into a page title and
+        an ordered list of page segments.
 
-    .PARAMETER Markdown
-        Full text of one rendered section file.
-
-    .PARAMETER FileName
-        The section file name, for example '90-gap-analysis.md'. Used to
-        resolve same-page finding anchors.
+    .PARAMETER Section
+        One section from the section model (sections/<id>.json).
 
     .PARAMETER FindingsListUrl
         Site-relative URL of the findings list. Defaults to
@@ -217,105 +272,26 @@ function ConvertTo-SharePointPageSegments {
 
     .OUTPUTS
         [pscustomobject] with:
-          Title    : cleaned H1, or '' when the file has none
+          Title    : the page title
           Segments : ordered array of hashtables, each either
                      @{ type = 'html'; html = '...' } or
-                     @{ type = 'image'; file = '<name>.png'; alt = '...' }
-          Warnings : array of strings (truncated tables, images that are
-                     not pre-rendered assets)
-          UnrenderedDiagrams : number of Mermaid blocks left out
+                     @{ type = 'chart'; chart = @{ kind; title; data } }
+                     (kind 'other' also carries source)
+          Warnings : array of strings (truncated tables, charts that could
+                     not be placed)
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param(
-        [Parameter(Mandatory)] [AllowEmptyString()] [string] $Markdown,
-        [Parameter(Mandatory)] [string] $FileName,
+        [Parameter(Mandatory)] $Section,
         [string] $FindingsListUrl = 'Lists/SentinelFindings',
         [int] $MaxTableRows = 500
     )
 
     $warnings = [System.Collections.Generic.List[string]]::new()
+    $id = [string]$Section.id
+    $title = Get-SacSectionTitle -Title ([string]$Section.title)
 
-    # ---- Markdown pre-processing ------------------------------------------
-    $lines = [System.Collections.Generic.List[string]]::new()
-    foreach ($l in ($Markdown -split "`r?`n")) { $lines.Add($l) }
-
-    $title = ''
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($lines[$i] -match '^#\s+(.+)$') {
-            $title = Get-SacSectionTitle -Title $Matches[1]
-            $lines.RemoveAt($i)
-            # The renderer's metadata banner is the first blockquote after
-            # the H1: '> **Workspace** `ws` · **Generated** ... · **Blueprint** v...'
-            $j = $i
-            while ($j -lt $lines.Count -and $lines[$j] -match '^\s*$') { $j++ }
-            if ($j -lt $lines.Count -and $lines[$j] -match '^>' ) {
-                $end = $j
-                while ($end -lt $lines.Count -and $lines[$end] -match '^>') { $end++ }
-                $block = ($lines.GetRange($j, $end - $j) -join "`n")
-                if ($block -match '\*\*Workspace\*\*' -and $block -match 'Blueprint') {
-                    $lines.RemoveRange($j, $end - $j)
-                }
-            }
-            break
-        }
-    }
-
-    # Raw finding anchors the renderer emits above each finding card.
-    $body = (@($lines | Where-Object { $_ -notmatch '^\s*<a id="[^"]*"></a>\s*$' })) -join "`n"
-
-    # ---- Markdown to HTML -------------------------------------------------
-    $html = if ([string]::IsNullOrWhiteSpace($body)) { '' } else { (ConvertFrom-Markdown -InputObject $body).Html }
-
-    # ---- HTML clean-up ------------------------------------------------------
-    # Unrendered Mermaid. Markdig leaves the diagram body unescaped inside
-    # <pre class="mermaid">, so it must never reach the page as-is. Leaving
-    # it out is expected, not a fault: the dashboard draws its own charts.
-    $mermaidPattern = '<pre class="mermaid">.*?</pre>|<pre><code class="language-mermaid">.*?</code></pre>'
-    $mermaidCount = [regex]::Matches($html, $mermaidPattern, 'Singleline').Count
-    if ($mermaidCount -gt 0) { $html = [regex]::Replace($html, $mermaidPattern, '', 'Singleline') }
-
-    # Decorative SVG (GitHub alert icons) and horizontal rules.
-    $html = [regex]::Replace($html, '<svg\b.*?</svg>', '', 'Singleline')
-    $html = [regex]::Replace($html, '<hr\s*/?>', '')
-
-    # Code blocks: <pre><code ...>x</code></pre> -> <pre>x</pre>.
-    $html = [regex]::Replace($html, '<pre><code[^>]*>(.*?)</code></pre>', '<pre>$1</pre>', 'Singleline')
-
-    # Strip id/class/style attributes from every tag. The Text web part
-    # ignores or rejects most of them, and Markdig's ids would collide with
-    # SharePoint's own heading anchors.
-    $html = [regex]::Replace($html, '\s(?:id|class|style)="[^"]*"', '')
-
-    # Headings: the Text web part styles h2-h4 only. H1 is the page title.
-    $html = [regex]::Replace($html, '<(/?)h([1-6])>', {
-            param($m)
-            $lvl = [int]$m.Groups[2].Value
-            $mapped = if ($lvl -le 2) { 2 } elseif ($lvl -eq 3) { 3 } else { 4 }
-            "<$($m.Groups[1].Value)h$mapped>"
-        })
-
-    # GitHub alert containers become blockquotes.
-    $html = [regex]::Replace($html, '<div>\s*<p>(Note|Tip|Important|Warning|Caution)</p>(.*?)</div>',
-        '<blockquote><p><strong>$1</strong></p>$2</blockquote>', 'Singleline')
-
-    # Links.
-    $html = [regex]::Replace($html, '<a href="([^"]*)"([^>]*)>(.*?)</a>', {
-            param($m)
-            $target = ConvertTo-SacSiteLink -Href $m.Groups[1].Value -CurrentFile $FileName -FindingsListUrl $FindingsListUrl
-            if ($null -eq $target) { return $m.Groups[3].Value }
-            "<a href=`"$target`">$($m.Groups[3].Value)</a>"
-        }, 'Singleline')
-
-    # Tables.
-    $html = [regex]::Replace($html, '<table>.*?</table>', {
-            param($m)
-            $t = ConvertTo-SacTableHtml -TableHtml $m.Value -MaxRows $MaxTableRows
-            if ($t.Truncated -gt 0) { $warnings.Add("$FileName : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown).") }
-            $t.Html
-        }, 'Singleline')
-
-    # ---- Split into segments ------------------------------------------------
     $segments = [System.Collections.Generic.List[hashtable]]::new()
     $buffer = [System.Text.StringBuilder]::new()
     $flush = {
@@ -324,34 +300,61 @@ function ConvertTo-SharePointPageSegments {
         [void]$buffer.Clear()
     }
 
-    $tokenPattern = '(?<img><p>\s*<img\s[^>]*>\s*</p>|<img\s[^>]*>)|(?<h2><h2>)'
-    $pos = 0
-    foreach ($m in [regex]::Matches($html, $tokenPattern, 'Singleline')) {
-        [void]$buffer.Append($html.Substring($pos, $m.Index - $pos))
-        $pos = $m.Index + $m.Length
-        if ($m.Groups['h2'].Success) {
+    foreach ($b in @($Section.blocks)) {
+        if ($null -eq $b) { continue }
+        if ([string]$b.type -eq 'chart') {
             & $flush
-            [void]$buffer.Append('<h2>')
+            $chart = [ordered]@{ kind = [string]$b.kind; title = $b.title; data = $b.data }
+            if ($chart.kind -eq 'other') { $chart.source = [string]$b.source }
+            $segments.Add(@{ type = 'chart'; chart = $chart })
             continue
         }
-        & $flush
-        $tag = $m.Groups['img'].Value
-        $src = if ($tag -match 'src="([^"]*)"') { [System.Net.WebUtility]::HtmlDecode($Matches[1]) } else { '' }
-        $alt = if ($tag -match 'alt="([^"]*)"') { [System.Net.WebUtility]::HtmlDecode($Matches[1]) } else { 'Diagram' }
-        if ($src -match '^(?:\./)?assets/(?<f>[A-Za-z0-9._-]+\.(?:png|jpg|jpeg|gif|svg))$') {
-            $segments.Add(@{ type = 'image'; file = $Matches['f']; alt = $(if ($alt) { $alt } else { 'Diagram' }) })
-        }
-        else {
-            $warnings.Add("$FileName : image '$src' is not a pre-rendered asset and was left out.")
-        }
+        if ([string]$b.type -eq 'heading' -and [int]$b.level -le 2) { & $flush }
+        [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @($b) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings))
     }
-    [void]$buffer.Append($html.Substring($pos))
     & $flush
 
     return [pscustomobject]@{
         Title    = $title
         Segments = $segments.ToArray()
         Warnings = $warnings.ToArray()
-        UnrenderedDiagrams = $mermaidCount
     }
+}
+
+function ConvertTo-SacChartFallbackHtml {
+    <#
+    .SYNOPSIS
+        Text web part HTML for a chart, used when the chart web part is not
+        available on the site: the chart's data as a table, or its title.
+
+    .PARAMETER Chart
+        A chart segment's chart (kind, title, data).
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] $Chart)
+
+    $sb = [System.Text.StringBuilder]::new()
+    if ($Chart.title) { [void]$sb.Append('<p><strong>' + (ConvertTo-SacHtmlText ([string]$Chart.title)) + '</strong></p>') }
+    # @() keeps a one-row chart a list of rows rather than one row's cells.
+    $rows = @(switch ([string]$Chart.kind) {
+        'pie' { foreach ($s in @($Chart.data.slices)) { , @([string]$s.label, [string]$s.value) } }
+        'sankey' { foreach ($l in @($Chart.data.links)) { , @("$($l.source) to $($l.target)", [string]$l.value) } }
+        'xy' {
+            $labels = @($Chart.data.xAxis.labels)
+            for ($i = 0; $i -lt $labels.Count; $i++) {
+                , @([string]$labels[$i], ((@($Chart.data.series) | ForEach-Object { [string]@($_.values)[$i] }) -join ' / '))
+            }
+        }
+        default { }
+    })
+    if ($rows.Count) {
+        [void]$sb.Append('<div class="canvasRteResponsiveTable"><div class="tableWrapper"><table title="Table"><tbody>')
+        foreach ($r in $rows) { [void]$sb.Append('<tr><td>' + (ConvertTo-SacHtmlText $r[0]) + '</td><td>' + (ConvertTo-SacHtmlText $r[1]) + '</td></tr>') }
+        [void]$sb.Append('</tbody></table></div></div>')
+    }
+    else {
+        [void]$sb.Append('<p><em>This chart is drawn by the iSOC Blueprint chart web part, which is not on this site yet.</em></p>')
+    }
+    return $sb.ToString()
 }

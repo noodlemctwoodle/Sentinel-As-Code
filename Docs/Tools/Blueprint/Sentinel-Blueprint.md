@@ -516,9 +516,9 @@ The Pester suite is fully offline:
   every chart kind the Mermaid parser reads, and the renderer's
   `sections/*.json` validated against the schemas.
 - `SharePoint-Site.Tests.ps1` covers the section families, the
-  Markdown-to-page conversion, the publish planners, the maturity history
-  helper, the publisher's SharePoint steps against stand-in PnP functions and
-  an offline bundle build.
+  section-model-to-page conversion, the publish planners, the maturity
+  history helper, the publisher's SharePoint steps (chart web part placement
+  included) against stand-in PnP functions and an offline bundle build.
 - `SharePoint-PnPCalls.Tests.ps1` checks that every PnP.PowerShell call in the
   SharePoint scripts binds against the pinned PnP version (skipped when that
   version is not installed).

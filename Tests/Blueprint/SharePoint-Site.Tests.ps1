@@ -4,8 +4,9 @@
 <#
 .SYNOPSIS
     Tests for the iSOC Blueprint SharePoint site generator: section
-    families, Markdown-to-page conversion, the sync planners, the pure
-    SharePoint helpers, and an end-to-end bundle build against the fixture.
+    families, section-model-to-page conversion, the sync planners, the
+    SharePoint helpers and the publisher's page and chart placement, and an
+    end-to-end bundle build against the fixture.
 
 .DESCRIPTION
     Nothing here needs SharePoint or PnP.PowerShell: the functions that
@@ -13,8 +14,9 @@
     its decisions in pure planning functions (Get-SacSyncPlan.ps1) and the
     page conversion in ConvertTo-SharePointPageSegments.ps1, so both are
     exercised directly. The build test renders the deliberately-broken
-    fixture to Markdown, adds a synthetic pre-rendered diagram, and runs
-    Build-SentinelDocsSite.ps1 offline (-SkipWhatsNew) into a temp folder.
+    fixture (the section model, and Markdown alone for an older snapshot)
+    and runs Build-SentinelDocsSite.ps1 offline (-SkipWhatsNew) into a temp
+    folder.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/Blueprint/SharePoint-Site.Tests.ps1 -Output Detailed
@@ -27,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.3.0
-    Last Updated: 2026-10-12
+    Version:      0.4.0
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -39,9 +41,14 @@ BeforeAll {
     . (Join-Path $sp 'Private/ConvertTo-SharePointPageSegments.ps1')
     . (Join-Path $sp 'Private/Get-SacSyncPlan.ps1')
     . (Join-Path $sp 'Private/SacSharePoint.ps1')
+    . (Join-Path $script:repoRoot 'Tools/Blueprint/Private/ConvertFrom-BlueprintMermaid.ps1')
+    . (Join-Path $script:repoRoot 'Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1')
 
+    # Pages are built from the section model; these tests write the section
+    # as Markdown for readability and convert it the way the renderer does.
     function ConvertTo-Segments([string]$Markdown, [string]$File = '20-analytics-rules.md', [int]$Max = 500) {
-        ConvertTo-SharePointPageSegments -Markdown $Markdown -FileName $File -MaxTableRows $Max
+        $section = ConvertTo-BlueprintSection -Markdown $Markdown -Id ([System.IO.Path]::GetFileNameWithoutExtension($File))
+        ConvertTo-SharePointPageSegments -Section $section -MaxTableRows $Max
     }
     function Join-Html($Result) { ($Result.Segments | Where-Object { $_.type -eq 'html' } | ForEach-Object { $_.html }) -join "`n" }
 
@@ -155,48 +162,54 @@ Describe 'ConvertTo-SharePointPageSegments' {
         It 'keeps external links' { $html | Should -Match 'href="https://learn.microsoft.com/azure/sentinel/"' }
     }
 
-    Context 'mermaid' {
+    Context 'charts' {
         BeforeAll {
-            $md = "# T`n`n## Chart`n`n``````mermaid`npie title X`n  `"A`" : 1`n  B --> C`n```````n`nAfter."
+            $md = "# T`n`n## Chart`n`n``````mermaid`npie title X`n  `"A`" : 1`n```````n`nAfter."
             $script:r = ConvertTo-Segments $md '25-mitre-coverage.md'
         }
-        It 'never leaks diagram source into the page' {
-            $html = Join-Html $r
-            $html | Should -Not -Match 'pie title'
-            $html | Should -Not -Match '-->'
+        It 'turns a chart into a chart segment carrying its data' {
+            $c = ($r.Segments | Where-Object type -eq 'chart').chart
+            $c.kind | Should -Be 'pie'
+            $c.title | Should -Be 'X'
+            $c.data.slices[0].label | Should -Be 'A'
         }
-        It 'leaves the diagram out quietly: no placeholder, no warning' {
-            Join-Html $r | Should -Not -Match 'Diagram not rendered'
+        It 'never puts chart source in the page HTML' {
+            Join-Html $r | Should -Not -Match 'pie title'
             Join-Html $r | Should -Match 'After\.'
             $r.Warnings | Should -BeNullOrEmpty
         }
-        It 'counts the diagram it left out' { $r.UnrenderedDiagrams | Should -Be 1 }
+        It 'keeps the Mermaid source only for a chart kind it cannot draw' {
+            ($r.Segments | Where-Object type -eq 'chart').chart.Contains('source') | Should -BeFalse
+            $other = ConvertTo-Segments "# T`n`n``````mermaid`nquadrantChart`n    title Q`n```````n"
+            ($other.Segments | Where-Object type -eq 'chart').chart.source | Should -Match 'quadrantChart'
+        }
     }
 
-    Context 'images and splitting' {
+    Context 'splitting' {
         BeforeAll {
             $md = @(
-                '# T', '', 'Intro.', '', '## One', '', 'Before.', '', '![Diagram](assets/abc123def456.png)', '',
-                'After.', '', '## Two', '', 'Second.', '', '![x](https://example.com/x.png)'
+                '# T', '', 'Intro.', '', '## One', '', 'Before.', '', '```mermaid', 'pie title P', '    "A" : 1', '```', '',
+                'After.', '', '## Two', '', 'Second.'
             ) -join "`n"
             $script:r = ConvertTo-Segments $md
         }
-        It 'splits at every H2 and image, in order' {
+        It 'splits at every H2 and chart, in order' {
             $types = @($r.Segments | ForEach-Object type)
-            $types | Should -Be @('html', 'html', 'image', 'html', 'html')
-        }
-        It 'turns pre-rendered assets into image segments' {
-            $img = $r.Segments | Where-Object type -eq 'image'
-            $img.file | Should -Be 'abc123def456.png'
-            $img.alt | Should -Be 'Diagram'
-        }
-        It 'leaves out images that are not pre-rendered assets, with a warning' {
-            Join-Html $r | Should -Not -Match 'example.com'
-            $r.Warnings -join ' ' | Should -Match 'example.com/x.png'
+            $types | Should -Be @('html', 'html', 'chart', 'html', 'html')
         }
         It 'starts each H2 segment with its heading' {
             ($r.Segments | Where-Object { $_.type -eq 'html' -and $_.html -match '^<h2>' }).Count | Should -Be 2
         }
+    }
+
+    Context 'lists, notes and code' {
+        BeforeAll {
+            $script:html = Join-Html (ConvertTo-Segments "# T`n`n- one`n  - nested`n`n3. third`n`n> A note with **bold**`n`n``````kusto`nT | take 1`n```````n")
+        }
+        It 'nests a sub-list inside its item' { $html | Should -Match '<ul><li>one<ul><li>nested</li></ul></li></ul>' }
+        It 'keeps an ordered list''s start' { $html | Should -Match '<ol start="3"><li>third</li></ol>' }
+        It 'renders a note as a blockquote' { $html | Should -Match '<blockquote><p>A note with <strong>bold</strong></p></blockquote>' }
+        It 'escapes code into pre' { $html | Should -Match '<pre>T \| take 1' }
     }
 
     Context 'tables' {
@@ -216,6 +229,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $html | Should -Match 'r5'
             $html | Should -Not -Match '>r6<'
             $html | Should -Match '2 more rows not shown'
+            $html | Should -Match 'href="~site/SitePages/Dashboard.aspx"'
             $r.Warnings -join ' ' | Should -Match 'capped at 5 rows'
         }
     }
@@ -224,6 +238,31 @@ Describe 'ConvertTo-SharePointPageSegments' {
         $r = ConvertTo-Segments ''
         $r.Title | Should -Be ''
         $r.Segments.Count | Should -Be 0
+    }
+}
+
+Describe 'ConvertTo-SacChartFallbackHtml' {
+
+    It 'writes a one-slice pie as one row of label and value' {
+        $html = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'pie'; title = 'Rules'; data = @{ slices = @(@{ label = 'Scheduled'; value = 3 }) } }
+        $html | Should -Match '<p><strong>Rules</strong></p>'
+        $html | Should -Match '<tr><td>Scheduled</td><td>3</td></tr>'
+        ([regex]::Matches($html, '<tr>')).Count | Should -Be 1
+    }
+
+    It 'writes every sankey link and every xy label, joining the series' {
+        $sankey = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'sankey'; data = @{ links = @(@{ source = 'A'; target = 'B'; value = 2 }, @{ source = 'B'; target = 'C'; value = 1 }) } }
+        ([regex]::Matches($sankey, '<tr>')).Count | Should -Be 2
+        $sankey | Should -Match '<td>A to B</td><td>2</td>'
+        $xy = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'xy'; data = @{ xAxis = @{ labels = @('Mon', 'Tue') }; series = @(@{ values = @(1, 2) }, @{ values = @(5, 6) }) } }
+        $xy | Should -Match '<td>Tue</td><td>2 / 6</td>'
+    }
+
+    It 'says what draws a chart it cannot tabulate, and escapes the title' {
+        $html = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'flowchart'; title = 'A <b> B'; data = @{ nodes = @() } }
+        $html | Should -Match 'A &lt;b&gt; B'
+        $html | Should -Match 'chart web part'
+        $html | Should -Not -Match '<table'
     }
 }
 
@@ -585,6 +624,134 @@ Describe 'Get-SacCatalogApp' {
     }
 }
 
+Describe 'Publish-SacSectionPage' {
+
+    BeforeAll {
+        $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Get-PnPPage' = '$Identity'; 'Add-PnPPage' = '$Name, $LayoutType, $Title' })
+        # A stand-in for the PnP Core page object: records the controls it is
+        # given and counts component lookups.
+        function New-FakePage([object[]] $Components) {
+            $page = [pscustomobject]@{
+                PageTitle  = ''
+                Sections   = @([pscustomobject]@{ Columns = @('column') })
+                Components = $Components
+                Lookups    = 0
+                Controls   = [System.Collections.Generic.List[object]]::new()
+                Published  = $false
+            }
+            $page | Add-Member ScriptMethod ClearPage { $this.Controls.Clear() }
+            $page | Add-Member ScriptMethod AddSection { param($Template, $Order, $Zone) }
+            $page | Add-Member ScriptMethod AvailablePageComponents { param($Name) $this.Lookups++; $this.Components }
+            $page | Add-Member ScriptMethod NewWebPart { param($Component) [pscustomobject]@{ Kind = 'webpart'; Component = $Component; PropertiesJson = $null } }
+            $page | Add-Member ScriptMethod NewTextPart { param($Html) [pscustomobject]@{ Kind = 'text'; Html = $Html } }
+            $page | Add-Member ScriptMethod AddControl { param($Control, $Column, $Order, $Zone) $this.Controls.Add($Control) }
+            $page | Add-Member ScriptMethod Save { param($Name) $Name }
+            $page | Add-Member ScriptMethod Publish { param($Comment) $this.Published = $true }
+            $page
+        }
+        $script:chartComponent = [pscustomobject]@{ Id = '{4AE8707C-CA6F-40CB-A974-C94D023DE6E5}'; Name = 'IsocBlueprintChartWebPart' }
+        $script:pageDoc = [pscustomobject]@{
+            name     = 'sac-25-mitre-coverage'
+            title    = 'MITRE coverage'
+            segments = @(
+                [pscustomobject]@{ type = 'html'; html = '<p><a href="~site/SitePages/sac-20-analytics-rules.aspx">Rules</a></p>' }
+                [pscustomobject]@{ type = 'chart'; chart = [pscustomobject]@{ kind = 'pie'; title = 'By tactic'; data = [pscustomobject]@{ slices = @([pscustomobject]@{ label = 'Execution'; value = 4 }) } } }
+                [pscustomobject]@{ type = 'chart'; chart = [pscustomobject]@{ kind = 'flowchart'; title = 'Flow'; data = [pscustomobject]@{ nodes = @([pscustomobject]@{ id = 'a'; label = 'A'; href = '~site/SitePages/sac-00-overview.aspx' }) } } }
+            )
+        }
+    }
+    AfterAll { Remove-PnPStub $script:pnpStubs }
+
+    It 'places every chart as the chart web part, looking the component up once per page' {
+        $script:fake = New-FakePage @([pscustomobject]@{ Id = 'other' }, $script:chartComponent)
+        Mock Get-PnPPage { $script:fake }
+        $native = Publish-SacSectionPage -PageDoc $script:pageDoc -WebServerRelativeUrl '/sites/isoc' -ChartComponentAvailable
+        $native | Should -BeTrue
+        $fake.Lookups | Should -Be 1
+        @($fake.Controls | Where-Object Kind -eq 'webpart').Count | Should -Be 2
+        $fake.Controls[1].Component | Should -Be $script:chartComponent
+        $fake.Published | Should -BeTrue
+    }
+
+    It 'stores the chart as JSON in the chartJson property, with site links resolved' {
+        $script:fake = New-FakePage @($script:chartComponent)
+        Mock Get-PnPPage { $script:fake }
+        Publish-SacSectionPage -PageDoc $script:pageDoc -WebServerRelativeUrl '/sites/isoc' -ChartComponentAvailable | Out-Null
+        $pie = ($fake.Controls[1].PropertiesJson | ConvertFrom-Json).chartJson | ConvertFrom-Json
+        $pie.kind | Should -Be 'pie'
+        $pie.data.slices[0].label | Should -Be 'Execution'
+        $flow = ($fake.Controls[2].PropertiesJson | ConvertFrom-Json).chartJson | ConvertFrom-Json
+        $flow.data.nodes[0].href | Should -Be '/sites/isoc/SitePages/sac-00-overview.aspx'
+        $fake.Controls[0].Html | Should -Match 'href="/sites/isoc/SitePages/sac-20-analytics-rules.aspx"'
+    }
+
+    It 'writes charts as tables, and says so, when the chart web part is not available' {
+        $script:fake = New-FakePage @($script:chartComponent)
+        Mock Get-PnPPage { $script:fake }
+        $native = Publish-SacSectionPage -PageDoc $script:pageDoc -WebServerRelativeUrl '/sites/isoc'
+        $native | Should -BeFalse
+        $fake.Lookups | Should -Be 0
+        @($fake.Controls | Where-Object Kind -eq 'webpart').Count | Should -Be 0
+        $fake.Controls[1].Html | Should -Match '<td>Execution</td><td>4</td>'
+    }
+
+    It 'falls back to tables when the page cannot find the component' {
+        $script:fake = New-FakePage @([pscustomobject]@{ Id = 'other' })
+        Mock Get-PnPPage { $script:fake }
+        Publish-SacSectionPage -PageDoc $script:pageDoc -WebServerRelativeUrl '/sites/isoc' -ChartComponentAvailable | Should -BeFalse
+        @($fake.Controls | Where-Object Kind -eq 'text').Count | Should -Be 3
+    }
+
+    It 'reports a page with no charts as complete without looking for the component' {
+        $script:fake = New-FakePage @()
+        Mock Get-PnPPage { $script:fake }
+        $doc = [pscustomobject]@{ name = 'sac-00-overview'; title = 'Overview'; segments = @([pscustomobject]@{ type = 'html'; html = '<p>x</p>' }) }
+        Publish-SacSectionPage -PageDoc $doc -WebServerRelativeUrl '/sites/isoc' -ChartComponentAvailable | Should -BeTrue
+        $fake.Lookups | Should -Be 0
+    }
+}
+
+Describe 'Test-SacPageComponent and Wait-SacPageComponent' {
+
+    BeforeAll { $script:pnpStubs = Install-PnPStub ([ordered]@{ 'Invoke-PnPSPRestMethod' = '$Method, $Url' }) }
+    AfterAll { Remove-PnPStub $script:pnpStubs }
+    BeforeEach {
+        Mock Start-Sleep { }
+        Mock Write-Host { }
+    }
+
+    It 'finds a component SharePoint lists in braces and upper case' {
+        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @([pscustomobject]@{ Id = '{4AE8707C-CA6F-40CB-A974-C94D023DE6E5}' }) } }
+        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeTrue
+        Should -Invoke Invoke-PnPSPRestMethod -Times 1 -Exactly -ParameterFilter { $Method -eq 'Post' -and $Url -eq '/_api/web/GetClientSideWebParts' }
+    }
+
+    It 'returns false, without throwing, when the component is not listed or the call fails' {
+        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @([pscustomobject]@{ Id = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a' }) } }
+        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeFalse
+        Mock Invoke-PnPSPRestMethod { throw 'Forbidden' }
+        Test-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' | Should -BeFalse
+    }
+
+    It 'keeps looking until a freshly deployed component appears' {
+        $script:calls = 0
+        Mock Invoke-PnPSPRestMethod {
+            $script:calls++
+            if ($script:calls -ge 3) { [pscustomobject]@{ value = @([pscustomobject]@{ Id = '4ae8707c-ca6f-40cb-a974-c94d023de6e5' }) } }
+            else { [pscustomobject]@{ value = @() } }
+        }
+        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -WaitSeconds 300 | Should -BeTrue
+        Should -Invoke Start-Sleep -Times 2 -Exactly
+    }
+
+    It 'looks once and gives up when there is no time to wait' {
+        Mock Invoke-PnPSPRestMethod { [pscustomobject]@{ value = @() } }
+        Wait-SacPageComponent -ComponentId '4ae8707c-ca6f-40cb-a974-c94d023de6e5' -WaitSeconds 0 | Should -BeFalse
+        Should -Invoke Invoke-PnPSPRestMethod -Times 1 -Exactly
+        Should -Invoke Start-Sleep -Times 0 -Exactly
+    }
+}
+
 Describe 'Publish-SacAppPackage' {
 
     BeforeAll {
@@ -736,12 +903,6 @@ Describe 'Build-SentinelDocsSite against the fixture' {
             -WorkspaceName 'law-sentinel-test' -InputRoot $ws -OutputRoot $ws `
             -ResourcesRoot (Join-Path $repoRoot 'Tools/Blueprint/Private/Resources') -InformationAction SilentlyContinue *> $null
 
-        # Simulate Convert-MermaidToImage for one section: a pre-rendered
-        # asset and the image reference that replaces its fence.
-        New-Item -ItemType Directory -Path (Join-Path $ws 'assets') -Force | Out-Null
-        [System.IO.File]::WriteAllBytes((Join-Path $ws 'assets/0123456789ab.png'), [byte[]](0x89, 0x50, 0x4E, 0x47))
-        Add-Content -Path (Join-Path $ws '25-mitre-coverage.md') -Value "`n![Diagram](assets/0123456789ab.png)`n"
-
         $script:mdFiles = @(Get-ChildItem $ws -Filter '*.md' | Where-Object { $_.Name -ne 'index.md' -and $_.BaseName -match '^\d+-' })
         $script:bundle = & (Join-Path $repoRoot 'Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws -SkipWhatsNew 6> $null
         $script:site = Get-Content (Join-Path $bundle 'site.json') -Raw | ConvertFrom-Json
@@ -770,11 +931,37 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         }
     }
 
-    It 'copies the referenced diagram and references it from the page' {
-        $site.diagrams | Should -Contain '0123456789ab.png'
-        Join-Path $bundle 'diagrams/0123456789ab.png' | Should -Exist
-        $page = Get-Content (Join-Path $bundle 'pages/sac-25-mitre-coverage.json') -Raw | ConvertFrom-Json
-        ($page.segments | Where-Object type -eq 'image').file | Should -Be '0123456789ab.png'
+    It 'places every chart in the section model as a chart segment' {
+        $chartBlocks = 0
+        foreach ($f in Get-ChildItem (Join-Path $ws 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json') {
+            $chartBlocks += ([regex]::Matches((Get-Content $f.FullName -Raw), '"type":\s*"chart"')).Count
+        }
+        $segments = 0
+        foreach ($p in Get-ChildItem (Join-Path $bundle 'pages') -Filter '*.json') {
+            $segments += @((Get-Content $p.FullName -Raw | ConvertFrom-Json).segments | Where-Object type -eq 'chart').Count
+        }
+        $segments | Should -Be $chartBlocks
+        $segments | Should -BeGreaterThan 0
+        @($site.diagrams).Count | Should -Be 0
+    }
+
+    It 'builds the same pages with no Markdown, and from Markdown alone for an older snapshot' {
+        # Section model only: delete every Markdown file first.
+        $jsonOnly = Join-Path $outDir 'json-only/law-sentinel-test'
+        New-Item -ItemType Directory -Path $jsonOnly -Force | Out-Null
+        Copy-Item -Path (Join-Path $ws '_raw'), (Join-Path $ws 'sections') -Destination $jsonOnly -Recurse
+        $b1 = & (Join-Path $repoRoot 'Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1') -Source $jsonOnly -SkipWhatsNew 6> $null
+        # Markdown only: an artefact rendered before the section model.
+        $mdOnly = Join-Path $outDir 'md-only/law-sentinel-test'
+        New-Item -ItemType Directory -Path $mdOnly -Force | Out-Null
+        Copy-Item -Path (Join-Path $ws '_raw') -Destination $mdOnly -Recurse
+        Copy-Item -Path (Join-Path $ws '*.md') -Destination $mdOnly
+        $b2 = & (Join-Path $repoRoot 'Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1') -Source $mdOnly -SkipWhatsNew 6> $null
+
+        $hashes = { param($b) (Get-Content (Join-Path $b 'site.json') -Raw | ConvertFrom-Json).sections | ForEach-Object { "$($_.page)=$($_.hash)" } }
+        $h0 = @(& $hashes $bundle); $h1 = @(& $hashes $b1); $h2 = @(& $hashes $b2)
+        $h1 | Should -Be $h0
+        $h2 | Should -Be $h0
     }
 
     It 'never leaks Mermaid source into page HTML' {

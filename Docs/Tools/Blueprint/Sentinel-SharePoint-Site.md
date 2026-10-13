@@ -6,7 +6,7 @@ navigation, the findings list and the dashboard home page are generated; a
 pipeline keeps the site in step with every Blueprint run.
 
 > Companion pages: [Sentinel Blueprint](Sentinel-Blueprint.md) produces the
-> snapshot and Markdown this site is built from.
+> snapshot and the [section model](Section-Model.md) this site is built from.
 > [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md) covers
 > the CI/CD wiring, identity and secrets.
 
@@ -17,10 +17,10 @@ One communication site per workspace, containing:
 | Part | What it is | Where |
 | --- | --- | --- |
 | **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, a Maturity tab, every section with charts and table filters, and findings. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
-| **Section pages** | One modern page per Blueprint section (35 or so), as native text and image web parts, so they are searchable, printable and readable without JavaScript. | `SitePages/sac-<NN>-<name>.aspx` |
+| **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Maturity, Findings & references) with its pages, and Findings. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the pre-rendered diagrams, the publisher's state file and the maturity score history. | `BlueprintAssets` library |
+| **Assets** | The dashboard HTML and data, the publisher's state file and the maturity score history. | `BlueprintAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -51,8 +51,8 @@ All under [`Tools/Blueprint/SharePoint/`](../../../Tools/Blueprint/SharePoint):
 | [`Publish-SentinelDocsSite.ps1`](../../../Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | [`Initialize-SentinelDocsSite.ps1`](../../../Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/sharepoint-dashboard.html`](../../../Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
-| [`webpart/isoc-blueprint/`](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint) | The SPFx web part that hosts the dashboard on the home page. See its [README](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint/README.md). |
-| `Private/` | Section families, Markdown-to-page conversion, the sync planners and the PnP wrappers. |
+| [`webpart/isoc-blueprint/`](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Tools/Blueprint/SharePoint/webpart/isoc-blueprint/README.md). |
+| `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
 
 ### The bundle
 
@@ -62,9 +62,8 @@ All under [`Tools/Blueprint/SharePoint/`](../../../Tools/Blueprint/SharePoint):
 | --- | --- |
 | `index.html` | The self-contained dashboard (inline CSS and JS, data embedded as JSON with HTML-safe escaping) |
 | `model.json` | The dashboard's data model |
-| `site.json` | Product name, workspace, section list with page names, families and content hashes, diagrams, build warnings |
-| `pages/<page>.json` | Per section: title and ordered segments (HTML for text web parts, image references for image web parts) |
-| `diagrams/*.png` | The pre-rendered diagrams the pages use, when the snapshot has any |
+| `site.json` | Product name, workspace, section list with page names, families and content hashes, build warnings. Its `diagrams` list is always empty now that charts are data; the publisher recycles the images earlier bundles uploaded. |
+| `pages/<page>.json` | Per section: title and ordered segments, `html` for a text web part or `chart` (kind, title, data) for the chart web part |
 | `findings.json` | Findings plus per-check outcomes |
 
 Nothing in the build contacts SharePoint or Azure, so you can inspect a
@@ -146,27 +145,49 @@ The source families used by the estate flow come from
 `Tools/Blueprint/Private/Get-TableFamily.ps1`, which the Markdown renderer
 also uses, so the Markdown pack and the dashboard agree.
 
-Mermaid does not need pre-rendering for the site: the dashboard draws its
-own charts. If [`Convert-MermaidToImage.ps1`](../../../Tools/Blueprint/Convert-MermaidToImage.ps1)
-already ran on the snapshot (the ADO Blueprint does when **Charts** is
-ticked), the section pages carry those diagrams. Otherwise each Mermaid
-block is left out of its page, and the build log gives the count.
+Nothing is pre-rendered for the site. Charts reach it as data in the
+section model: the dashboard draws its own, and the section pages place the
+chart web part.
 
 ### How a section becomes a page
 
-The Markdown is converted with PowerShell's built-in `ConvertFrom-Markdown`,
-then cut down to what a SharePoint text web part keeps:
+The build reads `sections/index.json` and each `sections/<id>.json`, the
+[section model](Section-Model.md) the renderer writes. It reads no Markdown,
+so a Blueprint rendered with `-OutputFormat Json` is all it needs. A
+snapshot rendered before the section model existed has only the
+`NN-name.md` files; the build converts those with the renderer's own
+converter and logs a warning. Each section is then cut down to what a
+SharePoint text web part keeps:
 
-- The H1 becomes the page title; the metadata banner under it is dropped.
-- Headings are clamped to h2 to h4, and ids, classes and anchor stubs are
-  removed.
+- The section's title becomes the page title (the metadata banner is not
+  part of the model).
+- Headings are clamped to h2 to h4, with no ids or anchor stubs.
 - Tables use the SharePoint editor's responsive table markup and are capped
-  at 500 rows (`-MaxTableRows`), with a note pointing at the Markdown output.
-- Links to other sections go to their page. Finding links (`SAC-<AREA>-NN`)
-  go to the findings list filtered on that id. Repository-relative links become plain
-  text.
-- The content is split into one text web part per H2, with an image web part
-  wherever a diagram sits.
+  at 500 rows (`-MaxTableRows`). A longer table says how many rows are not
+  shown and links to the dashboard, whose copy has every row and a filter.
+- Links follow their target in the model: another section goes to its
+  page, a finding (`SAC-<AREA>-NN`) goes to the findings list filtered on
+  that id, a web URL is kept, and a repository path or an in-page anchor
+  becomes plain text.
+- The content is split into one text web part per H2, and each chart gets
+  its own web part in the place it sits in the section.
+
+#### Charts on section pages
+
+Each chart is the iSOC Blueprint chart web part (component id
+`4ae8707c-ca6f-40cb-a974-c94d023de6e5`, in the same `isoc-blueprint`
+package as the dashboard web part). Its `chartJson` property holds the
+chart block from the section model (kind, title and data, see
+[Charts](Section-Model.md#charts)), and the web part draws it in the
+browser with no external libraries. Kinds it cannot draw keep their Mermaid
+source in `chart.source` and are shown as text.
+
+While the web part is not on the site yet (a package deployed a moment ago
+can take a few minutes to register, or the package on the site predates
+it), the publisher writes each chart as a text web part instead: a table of
+its data for pie, sankey and bar or line charts, otherwise its title and a
+note. Such a page is not recorded as published, so the next run rebuilds it
+with the web part.
 
 ### What a publish does
 
@@ -174,18 +195,22 @@ In this order, so a failure part-way leaves the site consistent:
 
 1. **Structure.** Ensure the `BlueprintAssets` library and the
    `Sentinel Findings` list and columns exist.
-2. **App.** Deploy the web part package to the site collection app catalog,
+2. **App.** Deploy the web part package (the dashboard and chart web
+   parts) to the site collection app catalog,
    only when its version differs from the deployed one (and, on ADO, when
    **SharePoint: deploy the web part if it changed** is ticked). A package
    with the same solution id under an older solution name is removed first,
    because SharePoint keeps one catalog file per solution id.
-3. **Assets.** Upload the dashboard and any new diagrams. When the bundle
-   carries a maturity assessment, append its score to the history (see
-   below).
+3. **Assets.** Upload the dashboard. When the bundle carries a maturity
+   assessment, append its score to the history (see below).
 4. **Pages.** Create or rebuild each section page, skipping pages whose
    content hash matches the last publish. Pages are rebuilt in place (cleared
    and refilled, then published once), so URLs and version history survive
-   and a failed publish leaves the last good version live.
+   and a failed publish leaves the last good version live. Before the first
+   page with a chart, the publisher checks the chart web part is in the
+   site's component list, waiting up to five minutes when step 2 deployed a
+   package this run; without it, charts go in as tables (see
+   [Charts on section pages](#charts-on-section-pages)).
 5. **Dashboard.** Point the home page's web part at the uploaded dashboard,
    publish, and set it as the home page. On the first publish the web part
    is added to a full-width section; the publisher looks it up in the
@@ -199,8 +224,9 @@ In this order, so a failure part-way leaves the site consistent:
    batch.
 7. **Navigation.** Rebuild the top navigation from the pages that exist,
    only when it differs from the plan.
-8. **Prune.** Send pages and diagrams the bundle no longer has to the recycle
-   bin, only when every page published.
+8. **Prune.** Send pages the bundle no longer has, and the diagram images
+   earlier versions uploaded, to the recycle bin, only when every page
+   published.
 
 A failed section page is reported and retried on the next run; it never
 stops the rest of the publish.
@@ -286,9 +312,6 @@ plan, then queue it again without what-if; on GitHub, run the workflow with
 From the repository root, against a downloaded Blueprint artefact:
 
 ```powershell
-# Optional: diagrams on the section pages (needs Node and @mermaid-js/mermaid-cli)
-./Tools/Blueprint/Convert-MermaidToImage.ps1 -Root ./artefact -Format png
-
 # Build the bundle into ./artefact/law-sentinel-prod/sharepoint
 ./Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1 -Source ./artefact/law-sentinel-prod
 
@@ -333,4 +356,5 @@ the Markdown.
 
 - [Sentinel Blueprint](Sentinel-Blueprint.md): the collector and renderer.
 - [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md): CI/CD wiring, identity, secrets.
-- [Sentinel Word Report](Sentinel-Word-Report.md): the same Markdown as a `.docx`.
+- [Blueprint section model](Section-Model.md): the JSON the pages are built from.
+- [Sentinel Word Report](Sentinel-Word-Report.md): the Blueprint as a `.docx`.

@@ -88,22 +88,17 @@ manual run.
    (`download: current`); on GitHub the chosen Blueprint run's.
 3. **Locate** `<workspace>/_raw` in it, and fail if the workspace name does
    not match.
-4. **Build the web part package**: Node 22, `npm ci`, `npm run package`
-   (clean, bundle, package). The lock file resolves from the public npm
-   registry (`.npmrc`), and the npm cache is keyed on it.
-5. **Mermaid** (GitHub only): the GitHub workflow pre-renders with
-   `@mermaid-js/mermaid-cli@11` and
-   [`Convert-MermaidToImage.ps1`](../../Tools/Blueprint/Convert-MermaidToImage.ps1),
-   because the GitHub Blueprint leaves Mermaid fences for GitHub to render.
-   The ADO stage renders nothing: the dashboard draws its own charts, and
-   the section pages reuse the PNGs only when the Document stage already
-   made them (**Charts** ticked). Otherwise each diagram is left out of its
-   page, and the build log gives the count.
-6. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
+4. **Build the web part package** (the dashboard and chart web parts):
+   Node 22, `npm ci`, `npm run package` (clean, bundle, package). The lock
+   file resolves from the public npm registry (`.npmrc`), and the npm cache
+   is keyed on it. Nothing else is rendered: charts reach the site as data
+   in the [section model](../Tools/Blueprint/Section-Model.md), drawn by the
+   dashboard and the chart web part.
+5. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
    has).
-7. **Build the site bundle** with
+6. **Build the site bundle** with
    [`Build-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1).
-8. **Sign in and publish.** Request a SharePoint token for the tenant's
+7. **Sign in and publish.** Request a SharePoint token for the tenant's
    SharePoint host through the federated credential
    (`az account get-access-token --resource https://<tenant>.sharepoint.com`),
    mask it, and run
@@ -111,7 +106,7 @@ manual run.
    with `-AccessToken`. On ADO the whole step runs inside one `AzureCLI@2`
    task bound to the service connection; on GitHub it follows the
    `azure-login-oidc` composite action with `allow-no-subscriptions`.
-9. **Publish the bundle and package** as an artefact, even when the publish
+8. **Publish the bundle and package** as an artefact, even when the publish
    failed, so you can see exactly what was being published.
 
 ## Variables, secrets and identity
@@ -190,7 +185,7 @@ publish uses. Run that what-if first in your own tenant.
   publish changes and in what order.
 - A run **artefact** (`sharepoint-site` on ADO, `sharepoint-site-<ws>-<runId>`
   on GitHub, 30 days) with the bundle (`index.html`, `model.json`,
-  `site.json`, `pages/`, `diagrams/`, `findings.json`) and the `.sppkg`.
+  `site.json`, `pages/`, `findings.json`) and the `.sppkg`.
 
 The artefact holds the same tenant configuration as the Blueprint's. The
 GitHub workflow refuses to run on a public repository for that reason (the
@@ -224,7 +219,6 @@ forced by the platforms:
 | --- | --- | --- | --- |
 | Chaining | A stage of the Blueprint run, ticked at queue time | `workflow_run` after the Blueprint | One pipeline with options on ADO; GitHub keeps a separate workflow so the publisher's federated credential binds to its own environment |
 | Sign-in | One `AzureCLI@2` task around token + publish | `azure-login-oidc` with `allow-no-subscriptions`, then a `pwsh` step | `AzureCLI@2` owns the federated sign-in on ADO |
-| Mermaid pre-render | None; reuses the Document stage's PNGs when **Charts** was ticked | Does the work | The dashboard does not need PNGs; the ADO run already has them when the Markdown pack or Word report wanted them |
 | Privacy guard | None needed (ADO repos are private) | Refuses public repositories | Same as the Blueprint pair |
 | Federated subject | Service connection subject | `environment:sharepoint-publish` | Platform mechanism |
 
