@@ -70,6 +70,26 @@ Azure resources that host Sentinel content.
 | --- | --- |
 | [Sentinel Common Module](Modules/Sentinel-Common-Module.md) | The shared `Modules/Sentinel.Common` module (SemVer 1.1.1): `Write-PipelineMessage`, `Invoke-SentinelApi`, `Connect-AzureEnvironment` and the KQL-discovery helpers reused across the deployer scripts |
 
+## iSOCBlueprint - `Modules/iSOCBlueprint/`, `Docs/iSOCBlueprint/`
+
+The read-only workspace documentation, gap analysis and maturity assessment,
+as a PowerShell module: `New-iSOCBlueprint` produces JSON, Markdown, a Word
+report or a SharePoint site in one command, and eleven more commands run each
+step on its own.
+
+| Doc | What it covers |
+| --- | --- |
+| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the twelve commands, what each needs, the layout, and the move from `Tools/Blueprint` |
+| [Sentinel Blueprint](iSOCBlueprint/Sentinel-Blueprint.md) | Read-only daily inventory + gap-analysis that renders a Markdown documentation pack from a live workspace |
+| [Renderer Design](iSOCBlueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
+| [Section Model](iSOCBlueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
+| [References & Conventions](iSOCBlueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
+| [Maturity Model](iSOCBlueprint/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
+| [Health check cross-reference](iSOCBlueprint/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Blueprint, page by page, with the gap rule that covers it |
+| [Data Lake Coverage](iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) | What the Blueprint captures and renders for the Microsoft Sentinel data lake tier |
+| [Word Report](iSOCBlueprint/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
+| [SharePoint Site](iSOCBlueprint/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
+
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)
 
 Eight Azure DevOps pipelines, seven of them mirrored by GitHub Actions workflows. Start at
@@ -126,22 +146,6 @@ exists, this one builds a new one.
 | Doc | What it covers |
 | --- | --- |
 | [DCR from Schema](Tools/DcrFromSchema/Dcr-From-Schema.md) | Full reference for `New-DcrFromSchema.ps1`: the accepted schema shapes, table plans, every documented limit and the Microsoft page it came from, how pasted input is sanitised, the guid-to-string reconciliation, the two-template deployment order, and troubleshooting |
-
-### Blueprint - `Tools/Blueprint/`
-
-The read-only documentation generator.
-
-| Doc | What it covers |
-| --- | --- |
-| [Sentinel Blueprint](Tools/Blueprint/Sentinel-Blueprint.md) | Read-only daily inventory + gap-analysis that renders a Markdown documentation pack from a live workspace |
-| [Renderer Design](Tools/Blueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
-| [Section Model](Tools/Blueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
-| [References & Conventions](Tools/Blueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
-| [Maturity Model](Tools/Blueprint/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
-| [Health check cross-reference](Tools/Blueprint/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Blueprint, page by page, with the gap rule that covers it |
-| [Data Lake Coverage](Tools/Blueprint/Sentinel-Data-Lake-Coverage.md) | What the Blueprint captures and renders for the Microsoft Sentinel data lake tier |
-| [Word Report](Tools/Blueprint/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
-| [SharePoint Site](Tools/Blueprint/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
 
 ## Toolkit - companion VS Code extension
 

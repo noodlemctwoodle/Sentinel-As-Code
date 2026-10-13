@@ -34,7 +34,7 @@ for first, but it does not exist. Workspace-level `/settings`,
 
 ### Blueprint capture method
 
-The exporter ([`Tools/Blueprint/Export-SentinelInventory.ps1`](../../../Tools/Blueprint/Export-SentinelInventory.ps1),
+The exporter ([`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1),
 `Try-Capture 'sentinel-data-lake'`) does a single Resource Graph query
 across every subscription the executing identity can read:
 
@@ -71,7 +71,7 @@ workspace table is auto-mirrored to Lake at the same retention by default.
 
 ## What section 88 renders
 
-[`88-sentinel-data-lake.md`](../../../Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1)
+[`88-sentinel-data-lake.md`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
 (emitted by `Write-Section '88-sentinel-data-lake.md' $lakeBody`, the block
 build-up starts a few hundred lines earlier) is the user-facing surface. It
 composes the following blocks; each is rendered conditionally on captured
@@ -223,7 +223,7 @@ recommendation.
 This block uses an ingest-volume heuristic. A second, independent
 Lake-candidate signal exists in the gap checker: `Test-DataLakeMirroringCandidate`
 (`SAC-LOG-14`, "Data Lake mirroring candidate") in
-[`Private/GapChecks.ps1`](../../../Tools/Blueprint/Private/GapChecks.ps1)
+[`Private/GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
 flags Analytics-plan tables with `totalRetentionInDays > 365`, a retention
 heuristic, and surfaces via the report's Findings/Gaps section rather than
 Section 88. The two lists can disagree (a table can be high-volume but
@@ -253,7 +253,7 @@ mirror", "Analytics + Lake extended" and "Data lake only" boxes instead of
 one "Analytics plan" box), and a "Sentinel data lake" panel on the Insights
 tab with the enrolment status, the tier distribution donut, the top tables
 by lake-only retention and the lake cost split. The tier counts come from
-[`Tools/Blueprint/Private/Get-TableTierProfile.ps1`](../../../Tools/Blueprint/Private/Get-TableTierProfile.ps1),
+[`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1),
 which section 88 also calls, so the page's pie and the dashboard's donut
 are the same numbers. The build's `dataLake` model key carries them; see
 [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
@@ -273,10 +273,10 @@ node.
 
 ### `84-cost-estimate.md`, Sankey + cost split
 
-The cost calculator ([`Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1`](../../../Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1))
+The cost calculator ([`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1))
 recognises the `DataLake` plan as one of the four ingestion buckets
 (Analytics / Basic / Auxiliary / DataLake). Unit prices come from the
-`cost-meters.json` catalogue ([`Tools/Blueprint/Private/Resources/cost-meters.json`](../../../Tools/Blueprint/Private/Resources/cost-meters.json)),
+`cost-meters.json` catalogue ([`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json)),
 which maps Azure Retail Prices meter names to plan categories:
 
 ```json
@@ -326,7 +326,7 @@ retention chart.
   query / advanced data insights) per table, because the Retail Prices API
   names meters at the catalogue level, not per-workspace-usage. A sibling
   tool already closes most of this gap outside the Blueprint pipeline:
-  [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1)
+  [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1)
   computes distinct per-table `LakeIngestCost`, `LakeProcCost` and
   `LakeStorageCost` fields (3 of the 5 Lake meters) via KQL mirrored
   against the workspace. It is not integrated into the Blueprint's
@@ -338,7 +338,7 @@ retention chart.
 - **Lake-resident asset detection breadth.** The asset-data block detects
   five known families. As Lake expands its auto-ingested system tables
   (Defender threat intelligence, Microsoft Purview signals, etc.) the
-  pattern list in [`Convert-SentinelInventoryToMarkdown.ps1`](../../../Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1)
+  pattern list in [`Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
   (search `_TopologyBucketFor` / asset table detection) should be
   extended.
 - **CMK incompatibility surface.** "Lake doesn't support CMK" is currently
@@ -362,12 +362,12 @@ retention chart.
 
 | File | Role |
 |---|---|
-| [`Tools/Blueprint/Export-SentinelInventory.ps1`](../../../Tools/Blueprint/Export-SentinelInventory.ps1) | `Try-Capture 'sentinel-data-lake'` (Resource Graph query) |
-| [`Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1`](../../../Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
-| [`Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1`](../../../Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
-| [`Tools/Blueprint/Private/Resources/cost-meters.json`](../../../Tools/Blueprint/Private/Resources/cost-meters.json) | Lake meter → category mapping |
-| [`Tools/Blueprint/Private/GapChecks.ps1`](../../../Tools/Blueprint/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
-| [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
+| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | `Try-Capture 'sentinel-data-lake'` (Resource Graph query) |
+| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |
+| [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
+| [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
 / Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`

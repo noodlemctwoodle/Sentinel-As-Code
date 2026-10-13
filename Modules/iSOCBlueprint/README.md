@@ -57,6 +57,26 @@ Only the steps a run uses need their tools. Check first with:
 Test-iSOCBlueprintPrerequisite | Format-Table Name, Step, Required, Found, Version
 ```
 
+## Guides
+
+The guides for what the Blueprint produces and how it works are in
+[`Docs/iSOCBlueprint/`](../../Docs/iSOCBlueprint):
+
+- [Sentinel Blueprint](../../Docs/iSOCBlueprint/Sentinel-Blueprint.md): the
+  operating guide: outputs, running it in CI and locally, permissions, the gap
+  engine and the cost estimate.
+- [Maturity Model](../../Docs/iSOCBlueprint/Sentinel-Maturity-Model.md): the
+  assessment, its criteria and the roadmap.
+- [SharePoint Site](../../Docs/iSOCBlueprint/Sentinel-SharePoint-Site.md): the
+  generated site, its set-up and privacy.
+- [Word Report](../../Docs/iSOCBlueprint/Sentinel-Word-Report.md): the Word
+  toolchain.
+- [Section Model](../../Docs/iSOCBlueprint/Section-Model.md): the JSON format.
+- [Renderer Design](../../Docs/iSOCBlueprint/Blueprint-Renderer-Design.md),
+  [Data Lake Coverage](../../Docs/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md),
+  [Health check cross-reference](../../Docs/iSOCBlueprint/Health-Check-Coverage.md)
+  and [References](../../Docs/iSOCBlueprint/Blueprint-References.md).
+
 ## Layout
 
 ```

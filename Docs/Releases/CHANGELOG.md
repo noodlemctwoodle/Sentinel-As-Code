@@ -466,7 +466,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   host on the data-source hygiene page) and `table-query-usage` (audited
   queries per lake-retained table, the last column of the lake usage
   evidence). `best-practices.json` is 2.3.0 with 59 rules. A new
-  [Health-Check-Coverage.md](../Tools/Blueprint/Health-Check-Coverage.md)
+  [Health-Check-Coverage.md](../iSOCBlueprint/Health-Check-Coverage.md)
   maps every section of the contributed health check to its Blueprint
   page.
 - **Sections cross-referenced with the health check** - six subsections

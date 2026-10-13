@@ -13,7 +13,7 @@ one read-only pass against the workspace.
 | Export script | [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) |
 | Companion workbook | [`Content/Workbooks/SentinelDataLake/workbook.json`](../../Content/Workbooks/SentinelDataLake/workbook.json) |
 | Workbook metadata | [`Content/Workbooks/SentinelDataLake/metadata.json`](../../Content/Workbooks/SentinelDataLake/metadata.json) (`sourceId: SentinelDataLake`) |
-| Blueprint coverage of Lake | [`Blueprint/Sentinel-Data-Lake-Coverage.md`](Blueprint/Sentinel-Data-Lake-Coverage.md) |
+| Blueprint coverage of Lake | [`Blueprint/Sentinel-Data-Lake-Coverage.md`](../iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) |
 
 The folder holds both the workbook (`workbook.json`, deployed like any other
 custom workbook by the Workbooks stage of
@@ -144,7 +144,7 @@ Three parameters are mandatory; everything else has a default.
 `-CompressionRatio` is a tunable modelling input here (default `10`); it is not
 the same figure as the fixed 6:1 compression Microsoft documents for the Lake
 storage meter, which is described in the
-[Data Lake coverage doc](Blueprint/Sentinel-Data-Lake-Coverage.md). Adjust it
+[Data Lake coverage doc](../iSOCBlueprint/Sentinel-Data-Lake-Coverage.md). Adjust it
 if you want the export to model a different assumption.
 
 ### Analytics commitment-tier rates
@@ -229,10 +229,10 @@ copied Windows example fails helpfully instead of cryptically.
 
 ## Relationship to the Blueprint Data Lake coverage
 
-The [Sentinel Blueprint](Blueprint/Sentinel-Blueprint.md) renders a Data
+The [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) renders a Data
 Lake section (Section 88) as part of its automatic inventory report; what that
 section captures and renders is documented in
-[Sentinel Data Lake, Blueprint coverage](Blueprint/Sentinel-Data-Lake-Coverage.md).
+[Sentinel Data Lake, Blueprint coverage](../iSOCBlueprint/Sentinel-Data-Lake-Coverage.md).
 
 The two tools are complementary, not overlapping:
 
@@ -256,8 +256,8 @@ owner, run this exporter.
 
 - [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) - the export script
 - [`Content/Workbooks/SentinelDataLake/workbook.json`](../../Content/Workbooks/SentinelDataLake/workbook.json) - the companion in-portal workbook
-- [Sentinel Data Lake, Blueprint coverage](Blueprint/Sentinel-Data-Lake-Coverage.md) - what the Blueprint reports about Lake
-- [Sentinel Blueprint](Blueprint/Sentinel-Blueprint.md) - the inventory-and-report tool
+- [Sentinel Data Lake, Blueprint coverage](../iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) - what the Blueprint reports about Lake
+- [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) - the inventory-and-report tool
 - [Microsoft Sentinel Data Lake overview](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview)
 - [Data lake tier billing](https://learn.microsoft.com/azure/sentinel/billing#data-lake-tier)
 - [ImportExcel module](https://github.com/dfinke/ImportExcel)

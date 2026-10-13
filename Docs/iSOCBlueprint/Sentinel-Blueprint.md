@@ -6,6 +6,8 @@ setting, every DCR/DCE, an estimated monthly cost and a findings list scored aga
 the documented Microsoft Learn best practices.
 
 > Operating guide (this page): for users running the tool and consuming its output.
+> The tool is the [`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md)
+> PowerShell module; its README lists the commands and what each needs.
 > For renderer internals (chart system, helpers, Mermaid-safety rules, how to add
 > charts), see [Blueprint-Renderer-Design.md](Blueprint-Renderer-Design.md).
 
@@ -91,11 +93,11 @@ topology that matches your setup:
 ## What it produces
 
 A folder per workspace under `SecurityDocs/<workspace>/`. The collector
-(`Export-SentinelInventory.ps1`) writes the `_raw/` JSON snapshot; the renderer
-(`Convert-SentinelInventoryToMarkdown.ps1`) turns that snapshot into **35 numbered
+(`Export-iSOCBlueprintInventory`) writes the `_raw/` JSON snapshot; the renderer
+(`ConvertTo-iSOCBlueprint`) turns that snapshot into **35 numbered
 sections**, written twice: as the [section model](Section-Model.md) in `sections/`
 (typed JSON, what the SharePoint site is built from and what to build on) and as
-Markdown files with an `index.md` contents page (`-OutputFormat Json` skips the
+Markdown files with an `index.md` contents page (`-Format Json` skips the
 Markdown):
 
 ```
@@ -249,7 +251,7 @@ The run-pipeline panel exposes three further parameters:
 - *Charts: Mermaid to PNG* (`prerenderChartsToPng`, **default ON**):
   ADO Repos and wiki render `mermaid` fences as plain code and block inline SVG,
   so the pipeline installs `@mermaid-js/mermaid-cli` and converts each fenced chart
-  to a PNG via `Convert-MermaidToImage.ps1`. This step is ADO-only; the GitHub
+  to a PNG via `ConvertTo-iSOCBlueprintChartImage`. This step is ADO-only; the GitHub
   workflow ships the raw fences because GitHub renders Mermaid natively. It is
   skipped on a run that writes no Markdown (SharePoint only). Untick it to skip
   the Node/mmdc install on a fast run.
@@ -291,28 +293,36 @@ so an operator who tries it is told exactly why.
 ### Locally
 
 ```powershell
-# 1. Connect with an account that has the read-only roles described below.
+# 1. Connect with an account that has the read-only roles described below,
+#    and load the module.
 Connect-AzAccount
+Import-Module ./Modules/iSOCBlueprint
 
-# 2. Run the collector. Writes to ./SecurityDocs/<workspace>/_raw/.
-#    -SubscriptionId, -ResourceGroup and -WorkspaceName are all mandatory.
-#    Add -PlaybookResourceGroup when playbooks live in a separate RG.
-./Tools/Blueprint/Export-SentinelInventory.ps1 `
+# 2. Collect and render in one line. Writes ./SecurityDocs/<workspace>/:
+#    the _raw/ snapshot, sections/*.json and the Markdown pages.
+#    -ResourceGroup and -WorkspaceName are required; -SubscriptionId
+#    defaults to the current Az context. Add -PlaybookResourceGroup when
+#    playbooks live in a separate RG, and Word or SharePoint to -Format for
+#    those outputs too.
+New-iSOCBlueprint `
     -SubscriptionId        'sub-guid' `
     -ResourceGroup         'rg-sentinel-prod' `
     -WorkspaceName         'law-sentinel-prod' `
     -PlaybookResourceGroup 'rg-sentinel-automation' `
-    -IncludePreview
+    -IncludePreview `
+    -Format Json, Markdown
 
-# 3. Render. Writes ./SecurityDocs/<workspace>/sections/*.json and *.md
-#    (add -OutputFormat Json for the section model only).
-./Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1 `
-    -WorkspaceName 'law-sentinel-prod'
+# Or step by step: collect, then render (-Format Json for the section
+# model only). Re-render an existing snapshot without collecting again with
+# New-iSOCBlueprint -WorkspaceName <ws> -SkipCollection.
+Export-iSOCBlueprintInventory -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod' |
+    ConvertTo-iSOCBlueprint
 ```
 
-Open `SecurityDocs/<workspace>/index.md` in your editor.
+Open `SecurityDocs/<workspace>/index.md` in your editor. To check what the
+machine can produce first, run `Test-iSOCBlueprintPrerequisite`.
 
-At the end of a collector run the script prints a **Capture summary** table: it
+At the end of a collection the collector prints a **Capture summary** table: it
 re-reads a set of files that are almost always populated on an active workspace
 (`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`) plus a
 set that should be populated *if the feature is in use* (`automation-rules`,
@@ -356,9 +366,9 @@ Learn pages the tool depends on.
 ## How the gap engine works
 
 The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
-in [`Tools/Blueprint/Private/GapChecks.ps1`](../../../Tools/Blueprint/Private/GapChecks.ps1),
-dispatched by the engine in [`Tools/Blueprint/Private/Get-SentinelGap.ps1`](../../../Tools/Blueprint/Private/Get-SentinelGap.ps1).
-The rules live in [`Tools/Blueprint/Private/Resources/best-practices.json`](../../../Tools/Blueprint/Private/Resources/best-practices.json),
+in [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1),
+dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
+The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
 
@@ -465,7 +475,7 @@ result cells arrive as strings, so the checks read numbers through small
 1. Write `Test-MyNewRule` in `GapChecks.ps1`.
 2. Add a row to `best-practices.json` referencing it by name.
 3. Add a fixture-driven Pester test under
-   `Tests/Blueprint/Get-SentinelGap.Tests.ps1`.
+   `Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`.
 
 That's the complete change. If the rule reads a capture that can be
 absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
@@ -476,7 +486,7 @@ absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 ## How the maturity assessment works
 
 After the gap engine, the collector runs
-[`Tools/Blueprint/Private/Get-SentinelMaturity.ps1`](../../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1)
+[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
 over the same `_raw/` folder and the per-rule outcomes, and writes
 `maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
 resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
@@ -496,7 +506,7 @@ Categories are informational: `Cost`, `Coverage`, `Operational`, `Identity`,
 ## How the cost estimator works
 
 The `84-cost-estimate.md` page is produced by
-[`Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1`](../../../Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1).
+[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1).
 It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 
@@ -508,7 +518,7 @@ In short:
    [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
    for the workspace's region (anonymous, no auth).
 4. Sentinel free-benefit-eligible tables (in
-   [`Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json))
+   [`Private/Resources/sentinel-benefit-tables.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
    have their unit price set to zero **on the assumption the benefit is active** -
    the estimator does not itself check whether the workspace actually qualifies.
    Detecting a Defender plan that would activate the benefit is deferred to gap rule
@@ -534,13 +544,13 @@ Blueprint is a planning tool, not a billing tool.
 ## Tests
 
 ```powershell
-Invoke-Pester -Path Tests/Blueprint -Output Detailed
+Invoke-Pester -Path Tests/iSOCBlueprint -Output Detailed
 ```
 
 The Pester suite is fully offline:
 
 - `Get-SentinelGap.Tests.ps1` runs the gap engine against the deliberately-broken
-  fixture under `Tests/Blueprint/Fixtures/sample/_raw` and asserts that each
+  fixture under `Tests/iSOCBlueprint/Fixtures/sample/_raw` and asserts that each
   rule fires (or doesn't) for the conditions encoded in the fixture.
 - `Convert-SentinelInventoryToMarkdown.Tests.ps1` invokes the renderer on the
   same fixture, copies output to a temp folder and asserts that every expected
@@ -550,7 +560,8 @@ The Pester suite is fully offline:
   `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
 - `Get-KqlTableReferences.Tests.ps1` runs the table-to-rule builder over the
   fixture rules and templates and asserts equality with the hand-authored
-  reference files (it imports `Sentinel.Common`, so it needs `Az.Accounts`).
+  reference files (it dot-sources the module's copy of the Sentinel.Common
+  KQL helpers, so it needs no Azure modules).
 - `Get-SentinelMaturity.Tests.ps1` scores the fixture, checks named criteria,
   the roadmap order and the NIST CSF rollup, runs synthetic criteria for the
   scoring arithmetic and guards the criteria file's schema.
@@ -564,8 +575,14 @@ The Pester suite is fully offline:
 - `SharePoint-PnPCalls.Tests.ps1` checks that every PnP.PowerShell call in the
   SharePoint scripts binds against the pinned PnP version (skipped when that
   version is not installed).
+- `Module.Tests.ps1`, `Module-Standalone.Tests.ps1` and `Pipelines.Tests.ps1`
+  cover the module itself: the manifest and help, each command's parameter
+  mapping, a run from a copy outside the repository, and every call the
+  pipelines make to it. While `Tools/Blueprint` still exists,
+  `Migration-Map.Tests.ps1`, `Engine-Copy.Tests.ps1` and `Parity.Tests.ps1`
+  hold the module's engine to it.
 
-All the suites live under `Tests/Blueprint/` and are picked up automatically
+All the suites live under `Tests/iSOCBlueprint/` and are picked up automatically
 by the existing PR-validation workflow (`Invoke-PRValidation.ps1` runs every
 suite and emits an NUnit 2.5 report).
 
@@ -579,7 +596,7 @@ sovereign cloud, connect once before running the collector:
 
 ```powershell
 Connect-AzAccount -Environment AzureUsGovernment
-./Tools/Blueprint/Export-SentinelInventory.ps1 -ResourceGroup <rg> -WorkspaceName <ws>
+Export-iSOCBlueprintInventory -ResourceGroup <rg> -WorkspaceName <ws>
 ```
 
 No URL substitution or per-cloud branching is needed inside the helper.
@@ -587,7 +604,7 @@ No URL substitution or per-cloud branching is needed inside the helper.
 Token refresh is handled automatically by `Az.Accounts` 2.x+. Long-running
 collections (a workspace with hundreds of analytics rules and thousands of
 tables-with-data rows can take ten or more minutes end-to-end) do not need
-manual `Get-AzAccessToken` calls in the capture script. The
+manual `Get-AzAccessToken` calls in the collector. The
 `Invoke-AzRestMethod` cmdlet refreshes the bearer token when it is within
 ~5 minutes of expiry.
 
@@ -606,7 +623,7 @@ diagnostic-settings pipelines that never appear in those two endpoints, so
 rendering section 10 purely from those two captures makes well-instrumented
 workspaces look almost empty.
 
-[`Tools/Blueprint/Private/Get-EffectiveConnectors.ps1`](../../../Tools/Blueprint/Private/Get-EffectiveConnectors.ps1)
+[`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1)
 synthesises a unified ingestion view by walking the five captures in this
 order, with each later step skipping any table already claimed by an earlier
 one (precedence avoids double-counting):
@@ -655,7 +672,7 @@ billable data or wasn't seen in the 90-day usage window.
   reference of API versions, modules, and Microsoft Learn pages.
 - [Sentinel SharePoint Site](Sentinel-SharePoint-Site.md): the generated
   SharePoint site built from this tool's output.
-- [`Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1): sister
+- [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1): sister
   read-only tool that detects portal-edited rules. The Blueprint answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
   repo?".

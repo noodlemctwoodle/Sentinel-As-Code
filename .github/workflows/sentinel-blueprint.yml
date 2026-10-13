@@ -124,7 +124,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event.repository.private }}" != "true" ]; then
-            echo "::error ::This workflow produces SecurityDocs/, which contains tenant configuration, and publishes it as a run artefact (and optionally a PR). The repository '${{ github.repository }}' is PUBLIC, where both are world-readable. Move this pipeline to a private repository. See Docs/Tools/Blueprint/Sentinel-Blueprint.md for the recommended topology."
+            echo "::error ::This workflow produces SecurityDocs/, which contains tenant configuration, and publishes it as a run artefact (and optionally a PR). The repository '${{ github.repository }}' is PUBLIC, where both are world-readable. Move this pipeline to a private repository. See Docs/iSOCBlueprint/Sentinel-Blueprint.md for the recommended topology."
             exit 1
           fi
           echo "Repository is private — collection may proceed."

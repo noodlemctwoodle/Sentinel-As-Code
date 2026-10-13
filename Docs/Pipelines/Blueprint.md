@@ -21,7 +21,7 @@ steps, the secrets and variables consumed, authentication, artefacts, and
 the GitHub / ADO mapping. For what the invoked collector and renderer
 scripts actually do (the inventory it gathers, the sections it renders,
 the gap analysis, the topology guidance), see
-[Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md). This
+[Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md). This
 page does not duplicate that.
 
 > **Both pipelines require a private repository.** The Blueprint produces
@@ -29,7 +29,7 @@ page does not duplicate that.
 > names, rule details, RBAC principals, cost figures). On GitHub this is
 > enforced by an unconditional privacy guard step (below); on ADO it
 > relies on ADO repos being private by default within a project. See the
-> [tool doc's topology options](../Tools/Blueprint/Sentinel-Blueprint.md#topology-options).
+> [tool doc's topology options](../iSOCBlueprint/Sentinel-Blueprint.md#topology-options).
 
 ---
 
@@ -77,7 +77,7 @@ with `workflow_dispatch` for on-demand runs.
 | --- | --- | --- | --- |
 | `include-preview` | boolean | `false` | Passes `-IncludePreview` to the collector (Content Hub product packages, summary rules, pricings, data lake feature flag). |
 | `open-pull-request` | boolean | `true` | Whether to open / refresh the rolling docs PR after the artefact is uploaded. On a scheduled run the PR always opens (subject to the private-repo guard). |
-| `target-maturity-level` | choice (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against (see [Sentinel-Maturity-Model.md](../Tools/Blueprint/Sentinel-Maturity-Model.md)). Scheduled runs use the default. |
+| `target-maturity-level` | choice (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against (see [Sentinel-Maturity-Model.md](../iSOCBlueprint/Sentinel-Maturity-Model.md)). Scheduled runs use the default. |
 
 ### Job `document`
 
@@ -157,7 +157,7 @@ Authentication is **OIDC** via the `azure-login-oidc` composite action
 (no stored client secret). The Blueprint SP needs a federated credential
 trusting subject `repo:<owner>/<repo>:ref:refs/heads/main` with audience
 `api://AzureADTokenExchange`, and the read-only role set documented in the
-[tool doc](../Tools/Blueprint/Sentinel-Blueprint.md): Microsoft
+[tool doc](../iSOCBlueprint/Sentinel-Blueprint.md): Microsoft
 Sentinel Reader and Log Analytics Reader (workspace scope), Reader
 (resource-group scope), Monitoring Reader and Reader (subscription scope).
 
@@ -357,15 +357,15 @@ permanently).
 
 ## See also
 
-- [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) -
+- [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) -
   operating guide: what the collector gathers, the rendered sections, the
   gap analysis, and full topology options.
-- [Blueprint Renderer Design](../Tools/Blueprint/Blueprint-Renderer-Design.md) -
+- [Blueprint Renderer Design](../iSOCBlueprint/Blueprint-Renderer-Design.md) -
   renderer internals and the chart / Mermaid-safety system.
 - [Pipelines overview](README.md) - the full set of ADO pipelines and
   GitHub workflows, and where this one sits.
 - [Word-Report.md](Word-Report.md) and
   [SharePoint-Publish.md](SharePoint-Publish.md) - the two optional
   stages of this pipeline on ADO.
-- [Sentinel Word Report](../Tools/Blueprint/Sentinel-Word-Report.md) -
+- [Sentinel Word Report](../iSOCBlueprint/Sentinel-Word-Report.md) -
   what the `.docx` converter does and how to run it locally.

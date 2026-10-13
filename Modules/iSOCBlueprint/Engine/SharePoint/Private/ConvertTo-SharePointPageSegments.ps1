@@ -11,7 +11,7 @@
     lists, links, tables, blockquotes, pre); each chart goes into the
     isoc-blueprint chart web part, which draws it from its data. This
     converter reads a section from the section model (sections/<id>.json,
-    Docs/Tools/Blueprint/Section-Model.md) and writes that shape directly,
+    Docs/iSOCBlueprint/Section-Model.md) and writes that shape directly,
     with no Markdown involved:
 
       1. The section title becomes the page title, without the '(TOC x.y)'

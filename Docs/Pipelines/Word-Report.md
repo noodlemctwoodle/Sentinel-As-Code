@@ -10,7 +10,7 @@ This page documents the **stage mechanics** (how it is switched on, agent,
 steps, outputs, and the GitHub parity story). For what the invoked converter
 actually does to the Markdown (pandoc styling, the LibreOffice page-numbered
 table of contents, the reference template, and how to run it locally), see the
-tool page: [Sentinel Word Report](../Tools/Blueprint/Sentinel-Word-Report.md).
+tool page: [Sentinel Word Report](../iSOCBlueprint/Sentinel-Word-Report.md).
 This page does not repeat that detail.
 
 ## At a glance
@@ -29,7 +29,7 @@ This page does not repeat that detail.
 
 ## Purpose
 
-The [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) writes a
+The [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) writes a
 folder of numbered Markdown section files plus an `assets/` image store to
 `SecurityDocs/<workspace>/`. That is good for browsing in a repository but
 awkward to hand to a stakeholder. This stage closes the gap: it takes the
@@ -172,6 +172,6 @@ absent); see the tool page for that. Only the CI wiring is ADO-specific.
 
 ## Related
 
-- [Sentinel Word Report (tool / renderer)](../Tools/Blueprint/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
+- [Sentinel Word Report (tool / renderer)](../iSOCBlueprint/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
 - [Blueprint pipeline](Blueprint.md) - the pipeline this stage belongs to, with the other two outputs.
-- [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md) - the tool that produces the Markdown this stage renders.
+- [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) - the tool that produces the Markdown this stage renders.

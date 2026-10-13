@@ -99,7 +99,7 @@ $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $
             Changes = @(
                 @{
                     Find    = @'
-$refSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Docs/Tools/Blueprint/Blueprint-References.md'
+$refSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Docs/iSOCBlueprint/Blueprint-References.md'
 '@
                     Replace = @'
 $refSrc = Join-Path $PSScriptRoot 'Private/Resources/Blueprint-References.md'

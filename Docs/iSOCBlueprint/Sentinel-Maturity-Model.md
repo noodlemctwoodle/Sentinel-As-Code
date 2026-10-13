@@ -25,9 +25,9 @@ reads the number as more than it is.
 The methodology is this project's own. It borrows nothing from any
 commercial or trademarked maturity model: the areas, the criteria, the
 scale and the scoring are defined in
-[`Private/Resources/maturity-criteria.json`](../../../Tools/Blueprint/Private/Resources/maturity-criteria.json)
+[`Private/Resources/maturity-criteria.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
 and computed by
-[`Private/Get-SentinelMaturity.ps1`](../../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1).
+[`Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1).
 The criterion set, the estate-flow view and the detection-headroom idea
 come from the Sentinel health-check script written by Lasitha R, who gave
 it to the project.
@@ -125,7 +125,7 @@ shows the first five with a "Show all" control.
 Findings (the gap analysis) and criteria are one assessment. A criterion
 whose source is a gap rule, directly or inside `allOf` / `anyOf`, is
 decided by that rule's finding, so
-[`Private/Get-FindingMaturityLink.ps1`](../../../Tools/Blueprint/Private/Get-FindingMaturityLink.ps1)
+[`Private/Get-FindingMaturityLink.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1)
 maps each finding to the criteria it decides and joins their status and
 `overallLift` from `maturity.json`. Page 90 shows it in a Maturity column and
 on every finding card, and the dashboard as a chip on each finding with a
@@ -222,17 +222,13 @@ metrics            every computed metric, null where not captured or not computa
    sentences, and one or two CSF subcategory ids that exist in the
    reference block (add the subcategory there if it is new).
 3. Add an assertion to
-   [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1)
+   [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
    and regenerate the fixture's `maturity.json`:
 
    ```powershell
-   . ./Tools/Blueprint/Private/Get-SentinelGap.ps1
-   . ./Tools/Blueprint/Private/Get-SentinelMaturity.ps1
-   $raw = './Tests/Blueprint/Fixtures/sample/_raw'
-   $res = './Tools/Blueprint/Private/Resources'
-   $out = [System.Collections.Generic.List[object]]::new()
-   $null = Get-SentinelGap -InputRoot $raw -ResourcesRoot $res -RulesPath "$res/best-practices.json" -GapChecksPath './Tools/Blueprint/Private/GapChecks.ps1' -OutcomeCollector $out
-   Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $res -CriteriaPath "$res/maturity-criteria.json" -GapOutcomes $out.ToArray() |
+   Import-Module ./Modules/iSOCBlueprint -Force
+   $raw = './Tests/iSOCBlueprint/Fixtures/sample/_raw'
+   Get-iSOCBlueprintMaturity -Path $raw |
        ConvertTo-Json -Depth 16 | Set-Content "$raw/maturity.json" -Encoding UTF8
    ```
 

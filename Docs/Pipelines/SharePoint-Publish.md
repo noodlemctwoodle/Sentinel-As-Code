@@ -13,7 +13,7 @@ published from the Sentinel Blueprint's output:
 This page covers the **pipeline mechanics**: triggers, inputs, steps,
 identity and outputs. For what the generated site contains, the one-time
 bootstrap and running the scripts locally, see the tool page:
-[Sentinel SharePoint Site](../Tools/Blueprint/Sentinel-SharePoint-Site.md).
+[Sentinel SharePoint Site](../iSOCBlueprint/Sentinel-SharePoint-Site.md).
 
 ## At a glance
 
@@ -96,7 +96,7 @@ manual run.
    Node 22, `npm ci`, `npm run package` (clean, bundle, package). The lock
    file resolves from the public npm registry (`.npmrc`), and the npm cache
    is keyed on it. Nothing else is rendered: charts reach the site as data
-   in the [section model](../Tools/Blueprint/Section-Model.md), drawn by the
+   in the [section model](../iSOCBlueprint/Section-Model.md), drawn by the
    dashboard and the chart web part.
 5. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
    has).
@@ -232,7 +232,7 @@ forced by the platforms:
 
 ## Related
 
-- [Sentinel SharePoint Site](../Tools/Blueprint/Sentinel-SharePoint-Site.md): what is generated, the bootstrap, running locally, privacy.
+- [Sentinel SharePoint Site](../iSOCBlueprint/Sentinel-SharePoint-Site.md): what is generated, the bootstrap, running locally, privacy.
 - [Blueprint pipeline](Blueprint.md): the pipeline this stage belongs to on ADO, and the producer of the artefact the GitHub workflow publishes.
-- [Sentinel Blueprint](../Tools/Blueprint/Sentinel-Blueprint.md): the collector and renderer.
+- [Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md): the collector and renderer.
 - [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md): creating a workload identity federation service connection.

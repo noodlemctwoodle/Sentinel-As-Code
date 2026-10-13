@@ -1,6 +1,6 @@
 // The chart block of the Blueprint section model, as the publisher stores it
 // in the web part's chartJson property. Shapes follow
-// Docs/Tools/Blueprint/Section-Model.md (Charts). The JSON carries null for
+// Docs/iSOCBlueprint/Section-Model.md (Charts). The JSON carries null for
 // absent values, so every field is read as optional and checked at runtime.
 
 export interface IChart {

@@ -1163,7 +1163,7 @@ Modern Sentinel workspaces ingest most of their data through DCRs and diagnostic
 4. **Diagnostic** — derived from enabled diagnostic-setting log categories. Skipped when already claimed.
 5. **Active-table** — a remaining table receiving billable data (>0 GB in the last 24h) that no captured ingestion mechanism explains. Surfaces as a visibility signal.
 
-See ``Docs/Tools/Blueprint/Sentinel-Blueprint.md`` for the design note.
+See ``Docs/iSOCBlueprint/Sentinel-Blueprint.md`` for the design note.
 
 ``CatalogueConnector`` is the data connector the connector catalogue credits with the table: the row's own connector for a classic connector, otherwise the connectors that list the table when there are at most three (marked when connected), otherwise how many connectors share it.
 
@@ -3722,7 +3722,7 @@ Write-Section '02-deprecated-legacy-features.md' $legacyBody
 
 # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
 # Private/Get-SentinelMaturity.ps1; methodology and criteria:
-# Docs/Tools/Blueprint/Sentinel-Maturity-Model.md.
+# Docs/iSOCBlueprint/Sentinel-Maturity-Model.md.
 $maturityBody = if (-not $maturityOk) {
 @"
 $(Format-Banner -Title "Maturity Assessment")
@@ -6107,7 +6107,7 @@ Curated Microsoft Learn entry points for the topics covered in this report. Dist
 # ---------------------------------------------------------------------------
 # Section: 99 — references
 # ---------------------------------------------------------------------------
-$refSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Docs/Tools/Blueprint/Blueprint-References.md'
+$refSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Docs/iSOCBlueprint/Blueprint-References.md'
 if (Test-Path $refSrc) {
     if ($script:WriteMarkdown) {
         Copy-Item -Path $refSrc -Destination (Join-Path $OutputRoot '99-references.md') -Force

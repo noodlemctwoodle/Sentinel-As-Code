@@ -67,4 +67,4 @@ beneath it.
 | `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html` | | |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Tools/WebParts/isoc-blueprint/**` | | SPFx web part source; not PowerShell, so it stays out of the module |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needs Az.Accounts, the renderer does not |
-| `Docs/Tools/Blueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |
+| `Docs/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

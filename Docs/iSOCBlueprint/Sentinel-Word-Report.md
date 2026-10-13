@@ -17,8 +17,8 @@ API), so the document opens fully paginated with no "update fields" prompt.
 > The reason is practical: the page-numbered contents needs LibreOffice plus
 > `python3-uno` on the agent, which the Ubuntu ADO image installs cleanly, and
 > the Blueprint Markdown it consumes is committed to the private ADO mirror in
-> the first place. You can still run the scripts locally on any platform (see
-> [How to run it](#how-to-run-it)).
+> the first place. You can still run it locally on any platform with the
+> module's `Export-iSOCBlueprintWord` (see [How to run it](#how-to-run-it)).
 
 ---
 
@@ -46,18 +46,18 @@ labels, and the workspace provenance line shown once under the overview.
 
 ## The pieces
 
-Everything lives under
-[`Tools/Blueprint/Report/`](../../../Tools/Blueprint/Report):
+The command is [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
+from the iSOCBlueprint module. What it runs lives under
+[`Modules/iSOCBlueprint/Engine/Report/`](../../Modules/iSOCBlueprint/Engine/Report):
 
 | File | Role |
 |---|---|
-| [`Convert-MarkdownToWord.ps1`](../../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. This is what the pipeline runs. |
-| [`Update-WordToc.py`](../../../Tools/Blueprint/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
-| [`Convert-FolderToWordReport.ps1`](../../../Tools/Blueprint/Report/Convert-FolderToWordReport.ps1) | A generic, sibling converter that renders *any* folder tree (JSON, CSV, code, logs, Markdown) into a single `.docx`. Handy for turning the Blueprint's `_raw/` JSON snapshot into a browsable document. Not used by the pipeline. |
-| [`templates/sentinel-report-reference.docx`](../../../Tools/Blueprint/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
+| [`Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
+| [`Update-WordToc.py`](../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
+| [`templates/sentinel-report-reference.docx`](../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
 The stage that stitches these together lives in
-[`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml).
+[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml).
 
 ---
 
@@ -82,10 +82,10 @@ rather than a report.
 
 ### Why pandoc, not Word COM automation
 
-Both PowerShell scripts are pure PowerShell 7 plus the pandoc binary. There is no
+The converter is pure PowerShell 7 plus the pandoc binary. There is no
 `New-Object -ComObject Word.Application`, so the toolchain runs on macOS, Linux and
-Windows alike (the COM route is Windows-only). Neither script imports
-`Sentinel.Common` or touches Azure, so they are safe to run anywhere.
+Windows alike (the COM route is Windows-only). It does not touch Azure, so it is
+safe to run anywhere.
 
 ### Why LibreOffice for the contents
 
@@ -103,7 +103,7 @@ LibreOffice.
 
 ## Table-of-contents strategies
 
-`Convert-MarkdownToWord.ps1` supports three `-Toc` modes:
+`Export-iSOCBlueprintWord` (through `Convert-MarkdownToWord.ps1`) supports three `-Toc` modes:
 
 | `-Toc` value | Result | External tools |
 |---|---|---|
@@ -123,7 +123,7 @@ the macro finishes.
 
 ## Prerequisites
 
-**Always required (both scripts):** pandoc on PATH.
+**Always required:** pandoc on PATH.
 
 ```
 macOS    brew install pandoc
@@ -139,21 +139,22 @@ Ubuntu   sudo apt-get install -y libreoffice-writer python3-uno
 macOS    brew install --cask libreoffice   (the app bundle carries its own python)
 ```
 
-Both scripts require **PowerShell 7.2+**. `Update-WordToc.py` requires a `python3`
+The module requires **PowerShell 7.2+**. `Update-WordToc.py` requires a `python3`
 that carries the `uno` module (`python3 -c 'import uno'` should succeed); on Ubuntu
-that is the `python3-uno` package.
+that is the `python3-uno` package. `Test-iSOCBlueprintPrerequisite -Step Word`
+reports which of these a machine has.
 
 ---
 
 ## Parameters
 
-### `Convert-MarkdownToWord.ps1`
+### `Export-iSOCBlueprintWord`
 
 | Parameter | Default | Purpose |
 |---|---|---|
-| `-Source` (required) | | Folder containing the Markdown, walked recursively. |
-| `-OutputPath` | `<Source-leaf>.docx` beside `-Source` | Destination `.docx`. |
-| `-Title` | leaf name of `-Source` | Document title, rendered above the contents. |
+| `-Path` (required; alias `-Source`) | | Folder containing the Markdown, walked recursively. Takes the `Path` of `ConvertTo-iSOCBlueprint`'s output from the pipeline. |
+| `-OutputPath` | `<Path-leaf>.docx` beside `-Path` | Destination `.docx`. |
+| `-Title` | leaf name of `-Path` | Document title, rendered above the contents. |
 | `-ReferenceDoc` | bundled `templates/sentinel-report-reference.docx` when present | Pandoc reference doc supplying the house styles. |
 | `-NoReferenceDoc` | off | Ignore the bundled template and use pandoc's plain defaults. |
 | `-Toc` | `Baked` | Contents strategy: `Baked`, `Field` or `Styled` (see above). |
@@ -187,30 +188,6 @@ colours come from the `SevCritical`, `SevWarning`, `SevLow` and `SevInfo` charac
 styles defined in the reference template; the static contents uses `TOCEntry1`
 through `TOCEntry3`.
 
-### `Convert-FolderToWordReport.ps1`
-
-The generic converter renders an arbitrary folder tree, grouping files by their
-top-level subfolder (a level-1 heading) with each file under its own level-2
-heading, so the contents reads folder then file.
-
-| Parameter | Default | Purpose |
-|---|---|---|
-| `-Source` (required) | | Folder whose contents become the report, walked recursively. |
-| `-OutputPath` | `<Source-leaf>.docx` beside `-Source` | Destination `.docx`. |
-| `-Title` | leaf name of `-Source` | Document title. |
-| `-ReferenceDoc` | none | Optional pandoc reference `.docx` (no bundled default here). |
-| `-MaxFileKB` | `1024` | Per-file size ceiling in KB; larger files are truncated with a note. `0` disables truncation. |
-| `-TableRowLimit` | `200` | CSV/TSV files with at most this many data rows render as a Markdown table; larger ones fall back to a code block. |
-| `-KeepMarkdown` | off | Keep the intermediate Markdown (beside `-OutputPath` with a `.md` extension) for debugging. |
-
-It renders each file by type: `.json` pretty-printed in a fenced block, `.csv`/`.tsv`
-as a Markdown table or code block, code and log files (`.kql`, `.yaml`, `.ps1`,
-`.xml`, `.bicep`, `.sql`, `.log`, `.txt` and similar) fenced with a language hint,
-`.md` inlined as-is, and binary or unreadable files noted and skipped with their
-size. Code fences use tildes rather than backticks, because file content very
-commonly contains backticks but almost never tildes. This converter uses pandoc's
-plain `--toc` field (like `-Toc Field` above); it does not bake page numbers.
-
 ---
 
 ## How to run it
@@ -220,54 +197,52 @@ plain `--toc` field (like `-Toc Field` above); it does not bake page numbers.
 Render the Blueprint Markdown for one workspace into a paginated report:
 
 ```powershell
-./Tools/Blueprint/Report/Convert-MarkdownToWord.ps1 `
-    -Source     '/private/tmp/SEC-UKS-PROD-SIEM-WS' `
-    -OutputPath "$HOME/Desktop/SEC-UKS-PROD-SIEM-WS.docx" `
-    -Title      'SEC-UKS-PROD-SIEM-WS - Sentinel Documentation'
+Import-Module ./Modules/iSOCBlueprint
+
+# Charts are Mermaid fences until they are images, and pandoc drops fences:
+# draw them first (needs mmdc), then convert.
+ConvertTo-iSOCBlueprintChartImage -Path ./SecurityDocs
+Export-iSOCBlueprintWord `
+    -Path       ./SecurityDocs/law-sentinel-prod `
+    -OutputPath ./law-sentinel-prod.docx `
+    -Title      'law-sentinel-prod - Sentinel Documentation'
 ```
+
+Or collect, render, draw the charts and convert in one line with
+`New-iSOCBlueprint -ResourceGroup <rg> -WorkspaceName <ws> -Format Word -ChartImages`.
 
 With pandoc, LibreOffice and `python3-uno` all present this produces a baked,
 page-numbered contents. On a machine missing LibreOffice or the UNO bindings it
 falls back to a static `Styled` contents automatically. To force a no-LibreOffice
 run, pass `-Toc Styled` (static list) or `-Toc Field` (Word populates on open).
 
-To turn the Blueprint's raw JSON snapshot into a browsable document instead:
-
-```powershell
-./Tools/Blueprint/Report/Convert-FolderToWordReport.ps1 `
-    -Source '/private/tmp/SEC-UKS-PROD-SIEM-WS/_raw'
-```
-
 ### Azure DevOps pipeline
 
 The `WordReport` stage of
-[`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml)
+[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml)
 runs on `ubuntu-latest` after the `Document` stage and renders that run's
 artefact. To run it: **Pipelines -> Sentinel-Blueprint -> Run pipeline**,
 tick **Export: Word report** (and leave **Charts** on), then download
 the artefact from **Build summary -> Published artefacts ->
-`sentinel-word-report`**. See [Word-Report.md](../../Pipelines/Word-Report.md).
+`sentinel-word-report`**. See [Word-Report.md](../Pipelines/Word-Report.md).
 
-| Parameter | Default | Purpose |
-|---|---|---|
-| `sourcePath` | `SecurityDocs/SEC-UKS-PROD-SIEM-WS` | The Blueprint output folder to render (must contain the section `.md` files and the `assets/` image folder; `_raw/` is ignored). |
-| `title` | `SEC-UKS-PROD-SIEM-WS - Sentinel Documentation` | Document title. |
-| `outputName` | `SEC-UKS-PROD-SIEM-WS.docx` | Output `.docx` file name. |
-| `pandocVersion` | `3.10` | Pandoc release to install on the agent. |
+The stage takes no inputs of its own: it renders `<workspace>` from the run's
+`sentinel-docs` artefact with the title `<workspace> - Sentinel Documentation`
+into `<workspace>.docx`. The pipeline variable `pandocVersion` (`3.10`) picks the
+pandoc release installed on the agent.
 
 The pipeline installs `libreoffice-writer`, `python3-uno`, `fonts-liberation` and
-the requested pandoc `.deb`, runs `Convert-MarkdownToWord.ps1 -Toc Baked`, and then
+the requested pandoc `.deb`, runs `Export-iSOCBlueprintWord -Toc Baked`, and then
 **verifies the bake actually happened**: it opens the produced `.docx`, reads
 `word/document.xml`, and counts LibreOffice's `__RefHeading` anchors. If the count is
 zero the TOC field came out empty, so the build fails rather than publishing a broken
 document. On success it publishes the `.docx` as the artefact `sentinel-word-report`.
 
-The Markdown this pipeline consumes is produced upstream by
-[`Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml), which
-commits `SecurityDocs/<workspace>/` to the private ADO mirror; this pipeline checks
-that out and converts it. Because the Blueprint output carries detailed tenant
-configuration, keep the ADO project private and treat the resulting `.docx` as
-sensitive.
+The Markdown this stage consumes is the `Document` stage's output from the same
+run of [`Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml), read
+from the `sentinel-docs` artefact. Because the Blueprint output carries detailed
+tenant configuration, keep the ADO project private and treat the resulting
+`.docx` as sensitive.
 
 ---
 
@@ -277,9 +252,8 @@ sensitive.
   collection and gap analysis are the Blueprint's job.
 - **Not a Word installation.** It never touches Word or COM; pandoc and LibreOffice
   do all the work, so it runs headless on any platform.
-- **Not tied to Sentinel.** Both scripts are content-agnostic and import nothing
-  from `Sentinel.Common`. `Convert-FolderToWordReport.ps1` in particular is a
-  general folder-to-Word converter.
+- **Not tied to Sentinel.** The converter is content-agnostic: it renders
+  whatever Markdown pack it is given.
 
 ---
 

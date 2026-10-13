@@ -41,7 +41,7 @@
 #       sentinelRegion
 #       sharePointSiteUrl        (SharePoint stage only)
 #   - Azure Service Connection $(serviceConnection) with the read-only role
-#     set documented in Docs/Tools/Blueprint/Sentinel-Blueprint.md:
+#     set documented in Docs/iSOCBlueprint/Sentinel-Blueprint.md:
 #       - Microsoft Sentinel Reader   (workspace scope)
 #       - Log Analytics Reader        (workspace scope)
 #       - Reader                      (resource group scope)
@@ -153,7 +153,7 @@ parameters:
     default: true
 
   # Optional override. Sentinel-As-Code's convention is that Logic App
-  # playbooks live in a dedicated RG (e.g. SEC-UKS-PROD-AUTO-RG) separate
+  # playbooks live in a dedicated RG (e.g. rg-sentinel-automation) separate
   # from the Sentinel RG. Left blank, the collector step uses
   # $(sentinelResourceGroup) from the variable group. The default is a
   # single space, not "": the run panel treats an empty default as no
@@ -165,7 +165,7 @@ parameters:
     default: " "
 
   # The level the maturity assessment measures the workspace against
-  # (Docs/Tools/Blueprint/Sentinel-Maturity-Model.md): 1 Initial,
+  # (Docs/iSOCBlueprint/Sentinel-Maturity-Model.md): 1 Initial,
   # 2 Developing, 3 Established, 4 Measured, 5 Optimised.
   - name: targetMaturityLevel
     displayName: "Maturity: target level (3 = Established)"

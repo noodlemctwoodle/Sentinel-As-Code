@@ -344,8 +344,8 @@ Solutions Analyzer CSVs in the Azure-Sentinel repository
 (<https://github.com/Azure/Azure-Sentinel/tree/master/Tools/Solutions%20Analyzer>),
 taking a connector's tables from its own mapping where Microsoft publishes one
 and otherwise from every table its solution's content uses. Refresh the copy
-with `./Tools/Blueprint/Update-ConnectorCatalogue.ps1` (it reads the Toolkit's
-file on GitHub by default, or a local path with `-Source`).
+with `Update-iSOCBlueprintConnectorCatalogue` (it reads the Toolkit's file on
+GitHub by default, or a local path with `-Source`).
 
 ## Sentinel free benefit
 
