@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) — 40 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 1 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
+| Test files | [`Tests/`](../../Tests) - 43 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 4 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -167,6 +167,9 @@ workbook-export suites.
 | Blueprint table families | [`Tests/Blueprint/Get-TableFamily.Tests.ps1`](../../Tests/Blueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
 | Blueprint lake tiers | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
 | iSOCBlueprint migration map | [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move of the Blueprint into the `iSOCBlueprint` module: every file under `Tools/Blueprint` has a row in [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md), every row names a real file and a known action, copies keep their place in the tree, and every edit in [`Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1) is listed on its file's row and still matches its source exactly once |
+| iSOCBlueprint engine copy | [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | Every file the map copies into `Modules/iSOCBlueprint/Engine` equals its `Tools/Blueprint` source with only the listed edits applied (binary files by hash), the engine holds nothing the map does not account for, and the vendored copies (two `Sentinel.Common` KQL helpers, `Blueprint-References.md`) equal their originals. Fails when a fix lands in one copy only |
+| iSOCBlueprint module | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | The manifest (valid, exports one command per `Public/` file, no required modules, version not older than the newest CHANGELOG release), each command's help and file header, the prerequisite list against the engine scripts' `#Requires`, the engine runner (null parameters left out, common parameters passed on, strict mode off), each command's parameter mapping with the engine mocked, and `New-iSOCBlueprint`'s step selection and refusals |
+| iSOCBlueprint standalone | [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders the fixture (page 99 from its own copy, GitHub links), builds the SharePoint bundle offline, runs the findings and maturity commands, and loads every engine file it references from inside itself |
 
 The YAML / JSON schema suites use `-ForEach` to generate one `It` block
 per file, so per-file pass/fail surfaces directly in the PR check UI

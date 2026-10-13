@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/noodlemctwoodle/Sentinel-As-Code/Tools/Blueprint/Schemas/section-index.schema.json",
+  "title": "Blueprint section index",
+  "description": "sections/index.json: the sections of one Blueprint run, in reading order.",
+  "type": "object",
+  "required": ["schemaVersion", "meta", "sections"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "workspace": { "type": "string" },
+        "generatedUtc": { "type": ["string", "null"] },
+        "blueprintVersion": { "type": ["string", "null"] }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "file"],
+        "properties": {
+          "id": { "type": "string" },
+          "order": { "type": ["integer", "null"] },
+          "title": { "type": ["string", "null"] },
+          "file": { "type": "string", "description": "The section file, relative to sections/." }
+        }
+      }
+    }
+  }
+}

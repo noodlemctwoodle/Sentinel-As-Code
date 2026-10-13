@@ -1,7 +1,7 @@
 ---
 name: PowerShell scripts and modules
-description: Conventions for Deploy/**/*.ps1, Tools/**/*.ps1 and Modules/**/*.psm1 files.
-applyTo: "Deploy/**/*.ps1,Tools/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
+description: Conventions for Deploy/**/*.ps1, Tools/**/*.ps1 and Modules/** PowerShell files.
+applyTo: "Deploy/**/*.ps1,Tools/**/*.ps1,Modules/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
 ---
 
 # PowerShell scripts and modules
@@ -255,6 +255,12 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
    inline duplication caused bug-fix-in-one-copy regressions. If a
    shared helper doesn't fit your need, add a new export to
    `Sentinel.Common.psm1` (with a Pester test) rather than inlining.
+   The one sanctioned copy is the `iSOCBlueprint` module's
+   `Engine/Private/Vendor/SentinelCommon.Kql.ps1`, which carries
+   `Remove-KqlComments` and `Get-KqlBareIdentifiers` so the module stands
+   alone. `Tests/iSOCBlueprint/Engine-Copy.Tests.ps1` fails while either
+   differs from `Sentinel.Common`: fix the shared module first, then copy
+   the function across.
 2. **PSGallery module pins.** Every workflow / pipeline pins
    `powershell-yaml` and `Pester` to specific versions (env vars
    `YAML_VERSION` / `PESTER_VERSION`). New scripts that need a
