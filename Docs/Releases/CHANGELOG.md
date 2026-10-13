@@ -6,6 +6,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Area scores on the Overview's maturity card** - the card lists every
+  capability area's score against the target, weakest first, with the
+  areas below target in amber; selecting one opens the Assessment with the
+  criteria filtered to that area. Quick wins beside it fill to the same
+  height, so the two cards end level with their buttons in line.
 - **Every diagram draws in the dashboard** - the Report tab drew only pie
   and bar charts, so 14 diagrams across 11 pages (the incident lifecycle
   and analyst journey, flowcharts, sankeys, a gantt, a timeline, a mind

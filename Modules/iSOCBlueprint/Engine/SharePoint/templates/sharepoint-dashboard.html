@@ -343,6 +343,27 @@
   /* On the dark screen the flow sits straight on the card, as the alert lifecycle does. */
   html[data-theme="dark"] .flowbox.estatebox{background:transparent;border-color:transparent}
   .mat-band{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0 10px}
+  /* The maturity card fills its height: the areas list, then the button at its foot. */
+  #maturityCard{display:flex;flex-direction:column}
+  #maturityCard>.btn{margin-top:auto;align-self:flex-start}
+  /* Quick wins fill to the maturity card's height, the button level with its. */
+  #quickWinsCard{display:flex;flex-direction:column}
+  #quickWins,#quickWins>.morewrap{flex:1;display:flex;flex-direction:column}
+  #quickWins .qw{margin-bottom:14px}
+  #quickWins .qwfoot{margin-top:auto;align-self:flex-start}
+  .flowgrid.filling{align-items:start}
+  .mat-areas{display:flex;flex-direction:column;gap:4px;margin:16px 0 14px}
+  .mat-areas .mah{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:0 6px 4px}
+  .mat-areas .mau{font-size:11.5px;color:var(--faint);margin:4px 6px 0}
+  .ma{display:grid;grid-template-columns:minmax(0,1fr) 40% 34px;align-items:center;gap:12px;font-size:12px;cursor:pointer;padding:4px 6px;border-radius:7px;transition:background .12s}
+  .ma:hover,.ma:focus-visible{background:var(--chip);outline:none}
+  .ma .man{color:var(--ink-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ma .mab{position:relative;height:7px;border-radius:99px;background:var(--line-2)}
+  .ma .mab i{position:absolute;left:0;top:0;bottom:0;width:var(--w);border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--accent))}
+  .ma.below .mab i{background:linear-gradient(90deg,#d97706,#f59e0b)}
+  .ma .mab b{position:absolute;top:-3px;bottom:-3px;left:var(--t);width:2px;border-radius:2px;background:var(--amber)}
+  .ma .mav{text-align:right;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ma.below .mav{color:var(--amber)}
   .mat-band .lvl{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint);padding:8px 4px;border-radius:9px;
     background:var(--chip);border:1px solid var(--line-2);line-height:1.2}
   .mat-band .lvl b{display:block;font-size:15px;color:var(--ink-2)}
@@ -923,7 +944,7 @@
 
     <div class="flowgrid">
       <div class="panel" id="maturityCard"></div>
-      <div class="panel"><div class="phead"><div><h2>Quick wins</h2><p class="note">Low-effort gaps that lift the maturity score most.</p></div></div><div id="quickWins"></div></div>
+      <div class="panel" id="quickWinsCard"><div class="phead"><div><h2>Quick wins</h2><p class="note">Low-effort gaps that lift the maturity score most.</p></div></div><div id="quickWins"></div></div>
     </div>
 
     <div class="panel">
@@ -1628,6 +1649,46 @@
         (auto==null? 'Not captured in this snapshot' : num(auto)+' of '+num(closed)+' closed')+'</div></div>';
   })();
 
+  // Each capability area's score against the target, weakest first, for the
+  // Overview's maturity card; an area below the target is amber, and a row
+  // opens the Assessment with the criteria filtered to that area.
+  function matAreasHtml(areas, tg){
+    const scored=areas.filter(a=>a.score!=null).slice().sort((a,b)=>(+a.score)-(+b.score)||String(a.name).localeCompare(String(b.name)));
+    const unscored=areas.filter(a=>a.score==null);
+    if(!scored.length) return '';
+    const row=a=>{ const s=+a.score, below=a.level<tg;
+      return '<div class="ma'+(below?' below':'')+'" role="button" tabindex="0" data-area="'+esc(a.id)+'" title="'+esc(a.name+': '+s.toFixed(2)+' of 5'+(below?', below the target':'')+'. Show its criteria')+'">'+
+        '<span class="man">'+esc(a.name)+'</span><span class="mab"><i style="--w:'+(s/5*100).toFixed(1)+'%"></i><b style="--t:'+(tg/5*100)+'%"></b></span><span class="mav">'+s.toFixed(1)+'</span></div>'; };
+    return '<div class="mat-areas"><div class="mah">By area, weakest first</div>'+scored.map(row).join('')+
+      (unscored.length? '<div class="mau">Not assessed: '+unscored.map(a=>esc(a.name)).join(', ')+'</div>' : '')+'</div>';
+  }
+
+  // fillQuickWins: the quick wins beside the maturity card show QW_MIN
+  // entries, then as many more as fit without growing past that card, so
+  // the two end level with their buttons in line. The rest sit behind Show
+  // all; when every quick win fits, the button opens the roadmap instead.
+  // Stacked on a narrow screen there is nothing to match, so QW_STACKED
+  // show. Runs with the Overview shown, on resize and once fonts load.
+  const QW_MIN=3, QW_STACKED=5;
+  function fillQuickWins(){
+    const card=document.getElementById('quickWinsCard'), mat=document.getElementById('maturityCard');
+    const list=card&&card.querySelector('.qw'); if(!list || !mat || !card.clientWidth) return;
+    const wrap=list.closest('.morewrap'); if(wrap.classList.contains('open')) return;
+    const items=[...list.children], more=card.querySelector('.qwmore'), road=card.querySelector('.qwroad');
+    const set=n=>{
+      items.forEach((r,i)=>{ r.hidden=i>=n; if(i>=n) r.setAttribute('data-mr',''); else r.removeAttribute('data-mr'); });
+      more.hidden=n>=items.length; road.hidden=n<items.length;
+    };
+    const grid=card.parentElement; grid.classList.add('filling');
+    let n=Math.min(QW_MIN,items.length); set(n);
+    if(card.offsetTop===mat.offsetTop){
+      const target=mat.offsetHeight;
+      while(n<items.length){ set(n+1); if(card.offsetHeight>target){ set(n); break; } n++; }
+    } else set(Math.min(QW_STACKED,items.length));
+    grid.classList.remove('filling');
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+
   // ---- maturity card + quick wins ----
   const MAT = M.maturity || null;
   const lvlNames = (MAT&&MAT.levels&&MAT.levels.length)? MAT.levels.map(l=>l.name) : ['Not in place','Initial','Developing','Established','Measured','Optimised'];
@@ -1642,23 +1703,37 @@
         '<div class="meter"><div class="mf" style="--w:'+(sc/5*100).toFixed(1)+'%"></div><div class="mt" style="--t:'+(tg/5*100)+'%"></div></div>'+
         '<div class="matcap">Target level '+tg+' ('+esc(MAT.targetLevelName)+'): '+(MAT.targetMet?'met in every area.':below+' of '+total+' areas below target.')+' '+
         MAT.totals.met+' criteria met &middot; '+MAT.totals.gap+' gaps &middot; '+MAT.totals.unknown+' unknown.</div>'+
+        matAreasHtml(MAT.areas||[], tg)+
         sbtn('Open the assessment','data-go="maturity"',{go:true,cls:'btn'});
     } else {
       card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">Not assessed in this snapshot.</p></div></div>'+
         '<p class="note">The collector writes maturity.json after the gap analysis. This run has none, or no criterion could be evaluated.</p>';
     }
     card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); bringTop(); }));
+    card.querySelectorAll('.ma[data-area]').forEach(r=>{
+      const go=()=>{ if(typeof window.showMaturityArea==='function') window.showMaturityArea(r.dataset.area); };
+      r.addEventListener('click',go);
+      r.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } });
+    });
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
-      const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi" role="button" tabindex="0" data-crit="'+esc(q.criterionId)+'" title="Show this criterion and the findings behind it"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
+      const qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi" role="button" tabindex="0" data-crit="'+esc(q.criterionId)+'" title="Show this criterion and the findings behind it"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
         '<div class="qwg">'+longText(q.guidance||'')+'</div></div><span class="qwl">'+esc(q.area)+' &middot; '+fmtLift(q.overallLift)+'</span></div>');
-      qw.innerHTML=moreWrap('<div class="qw">'+rowsMore(qwItems,QW,'div')+'</div>', qwItems.length, QW, 'quick wins');
+      const qwAll='Show all '+qwItems.length+' quick wins';
+      qw.innerHTML='<div class="morewrap"><div class="qw">'+qwItems.join('')+'</div>'+
+        sbtn(qwAll,'data-more data-all="'+qwAll+'" data-less="Show fewer" hidden',{cls:'qwfoot qwmore'})+
+        sbtn('Open the roadmap','hidden',{go:true,cls:'qwfoot qwroad'})+'</div>';
+      qw.querySelector('.qwroad').addEventListener('click',()=>{ if(typeof window.showRoadmap==='function') window.showRoadmap(); });
       qw.querySelectorAll('.qwi[data-crit]').forEach(r=>{
         const go=()=>{ if(typeof window.showCriterion==='function') window.showCriterion(r.dataset.crit); };
         r.addEventListener('click',e=>{ if(e.target.closest('[data-ltx],[data-more],a,button')) return; go(); });
         r.addEventListener('keydown',e=>{ if(e.target===r && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); go(); } });
       });
     } else { qw.innerHTML='<p class="note">'+(MAT?'No Low-effort gaps remain; the rest of the roadmap is Medium or High effort.':'Not assessed in this snapshot.')+'</p>'; }
+    fillQuickWins();
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(fillQuickWins);
+    let qwTimer=null;
+    window.addEventListener('resize',()=>{ clearTimeout(qwTimer); qwTimer=setTimeout(fillQuickWins,150); });
   })();
 
   // ---- contents: one card per section family ----
@@ -2503,7 +2578,7 @@
         '</div><p class="note" style="margin-top:12px">'+esc(MAT.csf.source||'NIST CSF 2.0')+'. Subcategory identifiers are NIST\'s; the mapping and the outcome paraphrases are this project\'s own.</p></div>';
     }
     if(MAT.roadmap&&MAT.roadmap.length){
-      html+='<div class="panel"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
+      html+='<div class="panel" id="matRoadmap"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
         moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
         trRows(MAT.roadmap.map(r=>'<tr class="frow" role="button" tabindex="0" data-crit="'+esc(r.criterionId)+'" title="Show this criterion and the findings behind it"><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
           '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">'+fmtLift(r.overallLift)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
@@ -2551,6 +2626,17 @@
     // A roadmap entry or quick win filters the criteria list to its criterion,
     // as a finding does in the findings view: the card opens, with the
     // findings behind it, and Clear filters brings the full list back.
+    // An area picked on the Overview's maturity card filters the criteria to it.
+    // The Overview's quick wins open the roadmap when every one is showing.
+    window.showRoadmap=function(){
+      if(activateTab) activateTab('maturity');
+      bringTop(document.getElementById('matRoadmap')||tb.closest('.panel'));
+    };
+    window.showMaturityArea=function(areaId){
+      if(activateTab) activateTab('maturity');
+      sel.value=''; q.value=''; ar.value=areaId; renderCriteria();
+      bringTop(tb.closest('.panel'));
+    };
     window.showCriterion=function(id){
       if(activateTab) activateTab('maturity');
       sel.value=''; ar.value=''; q.value=id; renderCriteria();
@@ -3224,6 +3310,7 @@
     document.querySelectorAll('.subtab').forEach(x=>{ const on=x.dataset.sub===name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on?'true':'false'); });
     balanceGrids(); markClamped();
     if(name==='sections') fillCards();
+    if(name==='overview') fillQuickWins();
     if(name==='sectionsdoc' && window.layoutDoc) window.layoutDoc();
     // The Sankey was drawn while its tab was hidden: reveal it now.
     if(name==='flow' && big) revealSankey(big);

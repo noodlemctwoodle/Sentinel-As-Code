@@ -1402,6 +1402,32 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'function critFindingLinks\(c\)'
     }
 
+    It 'lists every area on the Overview maturity card, weakest first, each opening its criteria' {
+        $html | Should -Match 'function matAreasHtml\(areas, tg\)'
+        $html | Should -Match 'matAreasHtml\(MAT\.areas\|\|\[\], tg\)\+'
+        $html | Should -Match 'data-area="''\+esc\(a\.id\)\+''"'
+        # Areas without a score are named, not dropped.
+        $html | Should -Match 'Not assessed: '
+        $html | Should -Match 'window\.showMaturityArea=function\(areaId\)\{'
+        $html | Should -Match 'sel\.value=''''; q\.value=''''; ar\.value=areaId; renderCriteria\(\);'
+        # The button sits at the foot of the card.
+        $html | Should -Match '#maturityCard>\.btn\{margin-top:auto;'
+    }
+
+    It 'fills the quick wins to the maturity card beside them, the two buttons in line' {
+        $html | Should -Match '<div class="panel" id="quickWinsCard">'
+        $html | Should -Match 'function fillQuickWins\(\)\{'
+        $html | Should -Match 'const QW_MIN=3, QW_STACKED=5;'
+        # As many as fit without growing past the maturity card.
+        $html | Should -Match 'while\(n<items\.length\)\{ set\(n\+1\); if\(card\.offsetHeight>target\)\{ set\(n\); break; \} n\+\+; \}'
+        # The rest behind Show all; when all fit, the button opens the roadmap.
+        $html | Should -Match 'more\.hidden=n>=items\.length; road\.hidden=n<items\.length;'
+        $html | Should -Match 'window\.showRoadmap=function\(\)\{'
+        $html | Should -Match '<div class="panel" id="matRoadmap">'
+        $html | Should -Match '#quickWins \.qwfoot\{margin-top:auto;align-self:flex-start\}'
+        $html | Should -Match "if\(name==='overview'\) fillQuickWins\(\);"
+    }
+
     It 'shows only the critical findings on the Overview, with a button to every finding' {
         $html | Should -Match "topF = allF\.filter\(f=>f\.severity==='Critical'\)"
         $html | Should -Match 'sbtn\(''All ''\+allF\.length\.toLocaleString\(\)\+'' findings in the assessment'',''data-go="findings"'''
