@@ -1,6 +1,6 @@
-# Sentinel Word Report
+# iSOC Blueprint Word Report
 
-A pandoc-based toolchain that turns Sentinel Blueprint Markdown into a single,
+A pandoc-based toolchain that turns iSOC Blueprint Markdown into a single,
 styled Word (`.docx`) report with a real, page-numbered table of contents. The
 table of contents is populated by LibreOffice (driven headlessly over the UNO
 API), so the document opens fully paginated with no "update fields" prompt.
@@ -46,18 +46,18 @@ labels, and the workspace provenance line shown once under the overview.
 
 ## The pieces
 
-The command is [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
+The command is [`Export-iSOCBlueprintWord`](../../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
 from the iSOCBlueprint module. What it runs lives under
-[`Modules/iSOCBlueprint/Engine/Report/`](../../Modules/iSOCBlueprint/Engine/Report):
+[`Modules/iSOCBlueprint/Engine/Report/`](../../../Modules/iSOCBlueprint/Engine/Report):
 
 | File | Role |
 |---|---|
-| [`Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
-| [`Update-WordToc.py`](../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
-| [`templates/sentinel-report-reference.docx`](../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
+| [`Convert-MarkdownToWord.ps1`](../../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
+| [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
+| [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
 The stage that stitches these together lives in
-[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml).
+[`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml).
 
 ---
 
@@ -219,12 +219,12 @@ run, pass `-Toc Styled` (static list) or `-Toc Field` (Word populates on open).
 ### Azure DevOps pipeline
 
 The `WordReport` stage of
-[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml)
+[`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml)
 runs on `ubuntu-latest` after the `Document` stage and renders that run's
 artefact. To run it: **Pipelines -> Sentinel-Blueprint -> Run pipeline**,
 tick **Export: Word report** (and leave **Charts** on), then download
 the artefact from **Build summary -> Published artefacts ->
-`sentinel-word-report`**. See [Word-Report.md](../Pipelines/Word-Report.md).
+`sentinel-word-report`**. See [Word-Report.md](../../Pipelines/Word-Report.md).
 
 The stage takes no inputs of its own: it renders `<workspace>` from the run's
 `sentinel-docs` artefact with the title `<workspace> - Sentinel Documentation`
@@ -239,7 +239,7 @@ zero the TOC field came out empty, so the build fails rather than publishing a b
 document. On success it publishes the `.docx` as the artefact `sentinel-word-report`.
 
 The Markdown this stage consumes is the `Document` stage's output from the same
-run of [`Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml), read
+run of [`Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml), read
 from the `sentinel-docs` artefact. Because the Blueprint output carries detailed
 tenant configuration, keep the ADO project private and treat the resulting
 `.docx` as sensitive.

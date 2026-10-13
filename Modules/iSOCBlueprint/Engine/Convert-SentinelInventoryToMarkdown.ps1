@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.3
+    Version:        0.4.4
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -1186,7 +1186,7 @@ Modern Sentinel workspaces ingest most of their data through DCRs and diagnostic
 4. **Diagnostic** — derived from enabled diagnostic-setting log categories. Skipped when already claimed.
 5. **Active-table** — a remaining table receiving billable data (>0 GB in the last 24h) that no captured ingestion mechanism explains. Surfaces as a visibility signal.
 
-See ``Docs/iSOCBlueprint/Sentinel-Blueprint.md`` for the design note.
+See ``Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md`` for the design note.
 
 ``CatalogueConnector`` is the data connector the connector catalogue credits with the table: the row's own connector for a classic connector, otherwise the connectors that list the table when there are at most three (marked when connected), otherwise how many connectors share it.
 
@@ -3745,7 +3745,7 @@ Write-Section '02-deprecated-legacy-features.md' $legacyBody
 
 # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
 # Private/Get-SentinelMaturity.ps1; methodology and criteria:
-# Docs/iSOCBlueprint/Sentinel-Maturity-Model.md.
+# Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md.
 $maturityBody = if (-not $maturityOk) {
 @"
 $(Format-Banner -Title "Maturity Assessment")
@@ -3814,7 +3814,7 @@ The maturity assessment and the [gap analysis](90-gap-analysis.md) are one asses
 
 **Overall:** $overallText  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $($mAreas.Count)  ·  **Criteria:** $($maturity.totals.met) met · $($maturity.totals.gap) gaps · $($maturity.totals.unknown) unknown
 
-Unknown criteria are those whose input was not captured or could not be measured in this run; they never count against the workspace. Confidence says how much of an area could be evaluated. The scoring, and every criterion's source, is in [Sentinel-Maturity-Model.md](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Docs/iSOCBlueprint/Sentinel-Maturity-Model.md).
+Unknown criteria are those whose input was not captured or could not be measured in this run; they never count against the workspace. Confidence says how much of an area could be evaluated. The scoring, and every criterion's source, is in [Sentinel-Maturity-Model.md](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md).
 
 ## Area scores
 

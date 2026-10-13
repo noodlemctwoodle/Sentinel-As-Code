@@ -56,7 +56,7 @@ avoids `Az.ResourceGraph` - it lists DCRs and their associations by calling
 `Invoke-AzRestMethod` directly against the ARM REST API, so `Az.Accounts` (for
 the authenticated context) is the only module it needs.
 
-## Sentinel Blueprint
+## iSOC Blueprint
 
 The read-only Blueprint, the
 [`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md) module, records its

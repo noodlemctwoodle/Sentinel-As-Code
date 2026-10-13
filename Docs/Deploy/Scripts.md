@@ -314,7 +314,7 @@ site with `Initialize-iSOCBlueprintSite`, which needs your own PnP
 sign-in app and grants this app FullControl on that one site; and the first
 pipeline run, queued with **Export: SharePoint site** and **SharePoint:
 what-if** ticked. See
-[Sentinel SharePoint Site](../iSOCBlueprint/Sentinel-SharePoint-Site.md#setting-it-up).
+[iSOC Blueprint SharePoint Site](../Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#setting-it-up).
 
 ## Deploy-SentinelContentHub.ps1
 
@@ -1536,6 +1536,6 @@ assessment) is the PowerShell module
 [`Modules/iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md):
 `New-iSOCBlueprint` produces any output in one command, and eleven more
 commands run each step on its own. It is documented separately. See
-[Sentinel Blueprint](../iSOCBlueprint/Sentinel-Blueprint.md) for the
+[iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) for the
 inventory export model, Markdown/Word report generation, and diagram
 rendering.

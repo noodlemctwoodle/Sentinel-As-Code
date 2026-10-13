@@ -1,9 +1,9 @@
 # iSOCBlueprint
 
-A PowerShell module that documents a security operations workspace and
-assesses it against best practice and a maturity model. One command produces
-the Blueprint as JSON, Markdown, a Word report, a SharePoint site, or any mix
-of them. Today it documents Microsoft Sentinel workspaces; the public commands
+A PowerShell module that produces the iSOC Blueprint: it documents a security
+operations workspace and assesses it against best practice and a maturity
+model. One command produces the Blueprint as JSON, Markdown, a Word report, a
+SharePoint site, or any mix of them. Today it documents Microsoft Sentinel workspaces; the public commands
 avoid the product name so other sources can be added.
 
 ```powershell
@@ -60,22 +60,22 @@ Test-iSOCBlueprintPrerequisite | Format-Table Name, Step, Required, Found, Versi
 ## Guides
 
 The guides for what the Blueprint produces and how it works are in
-[`Docs/iSOCBlueprint/`](../../Docs/iSOCBlueprint):
+[`Docs/Modules/iSOCBlueprint/`](../../Docs/Modules/iSOCBlueprint):
 
-- [Sentinel Blueprint](../../Docs/iSOCBlueprint/Sentinel-Blueprint.md): the
+- [iSOC Blueprint](../../Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md): the
   operating guide: outputs, running it in CI and locally, permissions, the gap
   engine and the cost estimate.
-- [Maturity Model](../../Docs/iSOCBlueprint/Sentinel-Maturity-Model.md): the
+- [Maturity Model](../../Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md): the
   assessment, its criteria and the roadmap.
-- [SharePoint Site](../../Docs/iSOCBlueprint/Sentinel-SharePoint-Site.md): the
+- [SharePoint Site](../../Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md): the
   generated site, its set-up and privacy.
-- [Word Report](../../Docs/iSOCBlueprint/Sentinel-Word-Report.md): the Word
+- [Word Report](../../Docs/Modules/iSOCBlueprint/Sentinel-Word-Report.md): the Word
   toolchain.
-- [Section Model](../../Docs/iSOCBlueprint/Section-Model.md): the JSON format.
-- [Renderer Design](../../Docs/iSOCBlueprint/Blueprint-Renderer-Design.md),
-  [Data Lake Coverage](../../Docs/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md),
-  [Health check cross-reference](../../Docs/iSOCBlueprint/Health-Check-Coverage.md)
-  and [References](../../Docs/iSOCBlueprint/Blueprint-References.md).
+- [Section Model](../../Docs/Modules/iSOCBlueprint/Section-Model.md): the JSON format.
+- [Renderer Design](../../Docs/Modules/iSOCBlueprint/Blueprint-Renderer-Design.md),
+  [Data Lake Coverage](../../Docs/Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md),
+  [Health check cross-reference](../../Docs/Modules/iSOCBlueprint/Health-Check-Coverage.md)
+  and [References](../../Docs/Modules/iSOCBlueprint/Blueprint-References.md).
 
 ## Layout
 

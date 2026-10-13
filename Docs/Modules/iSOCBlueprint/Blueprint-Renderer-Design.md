@@ -1,6 +1,6 @@
-# Sentinel Blueprint, renderer design spec
+# iSOC Blueprint, renderer design spec
 
-> Maintainer-facing reference for [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1).
+> Maintainer-facing reference for [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1).
 > The user-facing operating guide is the sibling [`Sentinel-Blueprint.md`](Sentinel-Blueprint.md).
 
 This doc captures the design of the renderer, what each chart is driven
@@ -193,7 +193,7 @@ grouped in one block.
 
 External helpers used by the renderer:
 
-- `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1), 
+- `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate`, used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-Raw`.
@@ -384,9 +384,9 @@ proper lags the Mermaid spec and drops the experimental types the
 renderer emits (`xychart-beta`, `sankey-beta`), and ADO blocks inline SVG
 for security so an SVG `<img>` shows as a broken image.
 
-[`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1)
+[`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1)
 is the ADO-only third stage that closes that gap. In the ADO pipeline
-([`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml))
+([`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml))
 it runs immediately after the renderer, gated behind the pipeline's
 `prerenderChartsToPng` parameter (default on, so it can be switched off
 per-run, labelled **Charts: Mermaid to PNG** in the run panel). When
@@ -425,31 +425,31 @@ assets root).
 
 | Path | Role |
 |---|---|
-| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | The renderer this spec describes |
-| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | Stage 1, produces `_raw/*.json` |
-| [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
-| [`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~250 tests) |
-| [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |
-| [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | Connector catalogue resource guards and helpers (13 tests) |
-| [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (37 tests) |
-| [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | Word report rewrites: status colouring by column, finding bullets (7 tests) |
-| [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
-| [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
-| [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
-| [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
+| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | The renderer this spec describes |
+| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | Stage 1, produces `_raw/*.json` |
+| [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
+| [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
+| [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~250 tests) |
+| [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |
+| [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | Connector catalogue resource guards and helpers (13 tests) |
+| [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (37 tests) |
+| [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | Word report rewrites: status colouring by column, finding bullets (7 tests) |
+| [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
+| [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
+| [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
+| [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | `Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 
 ## How to extend the renderer
@@ -512,8 +512,8 @@ assets root).
    triggers a read-only-variable write error.
 
 ### Adding a new gap rule
-Out of scope for this renderer spec, see the [`best-practices.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json)
-schema and [`GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+Out of scope for this renderer spec, see the [`best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json)
+schema and [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
 pattern. The renderer consumes the gap output via `_raw/gap-analysis.json`
 and writes the 90-gap-analysis.md page; new rules surface automatically.
 

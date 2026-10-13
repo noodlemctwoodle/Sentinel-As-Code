@@ -1,13 +1,13 @@
-# Sentinel SharePoint Site
+# iSOC Blueprint SharePoint Site
 
 Generates and publishes an **iSOC Blueprint** SharePoint Online site for one
-Sentinel workspace from the Sentinel Blueprint's output. Every page, the
+Sentinel workspace from the iSOC Blueprint's output. Every page, the
 navigation, the findings list and the dashboard home page are generated; a
 pipeline keeps the site in step with every Blueprint run.
 
-> Companion pages: [Sentinel Blueprint](Sentinel-Blueprint.md) produces the
+> Companion pages: [iSOC Blueprint](Sentinel-Blueprint.md) produces the
 > snapshot and the [section model](Section-Model.md) this site is built from.
-> [SharePoint Publish pipeline](../Pipelines/SharePoint-Publish.md) covers
+> [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md) covers
 > the CI/CD wiring, identity and secrets.
 
 ## What gets generated
@@ -43,18 +43,18 @@ means resolved". A snapshot with no gap analysis at all resolves nothing.
 
 ## The pieces
 
-The three SharePoint commands of the [iSOCBlueprint module](../../Modules/iSOCBlueprint/README.md),
+The three SharePoint commands of the [iSOCBlueprint module](../../../Modules/iSOCBlueprint/README.md),
 each running a script under
-[`Modules/iSOCBlueprint/Engine/SharePoint/`](../../Modules/iSOCBlueprint/Engine/SharePoint),
+[`Modules/iSOCBlueprint/Engine/SharePoint/`](../../../Modules/iSOCBlueprint/Engine/SharePoint),
 with the dashboard template and the web part source:
 
 | Command (script) | Job |
 | --- | --- |
-| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint workspace folder into a site bundle in `<workspace>/sharepoint/`. |
-| `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
-| `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
-| [`templates/sharepoint-dashboard.html`](../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
-| [`Modules/iSOCBlueprint/WebParts/`](../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../Modules/iSOCBlueprint/WebParts/README.md). |
+| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint workspace folder into a site bundle in `<workspace>/sharepoint/`. |
+| `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
+| `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
+| [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
+| [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |
 | `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
 
 ### The bundle
@@ -190,7 +190,7 @@ shown as text. Labels are never shortened: a long one wraps over as
 many lines as it needs, and an xy chart whose Mermaid labels are cut to
 fit under the bars takes the full names from a `%% x-labels` comment the
 renderer writes beside the axis. How each kind is drawn is in the web part's
-[README](../../Modules/iSOCBlueprint/WebParts/README.md#how-the-charts-render).
+[README](../../../Modules/iSOCBlueprint/WebParts/README.md#how-the-charts-render).
 
 While the web part is not on the site yet (a package deployed a moment ago
 can take a few minutes to register, or the package on the site predates
@@ -275,16 +275,16 @@ reports what it would append and writes nothing.
 
 ### 1. App registrations
 
-On Azure DevOps, [`Deploy/setup/Setup-SharePointPublisher.ps1`](../../Deploy/setup/Setup-SharePointPublisher.ps1)
+On Azure DevOps, [`Deploy/setup/Setup-SharePointPublisher.ps1`](../../../Deploy/setup/Setup-SharePointPublisher.ps1)
 creates the publisher app, grants its SharePoint permission, creates the
 `sc-sentinel-sharepoint` service connection and adds the federated
 credential in one idempotent run (`-WhatIf` first). The table below is what
 it sets up; on GitHub the federated credential is added by hand as the
-[pipeline page](../Pipelines/SharePoint-Publish.md) describes.
+[pipeline page](../../Pipelines/SharePoint-Publish.md) describes.
 
 | App | Used by | Needs |
 | --- | --- | --- |
-| **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../Pipelines/SharePoint-Publish.md)). No secrets. On ADO, Reader on one empty resource group so the `AzureCLI@2` task can select a subscription; no other Azure role. |
+| **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../../Pipelines/SharePoint-Publish.md)). No secrets. On ADO, Reader on one empty resource group so the `AzureCLI@2` task can select a subscription; no other Azure role. |
 | **Your PnP sign-in app** | You, for the bootstrap and local runs | Delegated SharePoint `AllSites.FullControl` and Microsoft Graph `Sites.FullControl.All` (to grant the publisher access), with admin consent. |
 
 If you do not have a PnP sign-in app yet, PnP.PowerShell creates one and
@@ -325,7 +325,7 @@ group (the publisher bootstrap sets it when given `-SharePointSiteUrl`), or
 `SHAREPOINT_SITE_URL` on GitHub. On ADO, queue `Sentinel-Blueprint` with
 **Export: SharePoint site** and **SharePoint: what-if** ticked, read the
 plan, then queue it again without what-if; on GitHub, run the workflow with
-`what-if` first. See [SharePoint Publish pipeline](../Pipelines/SharePoint-Publish.md).
+`what-if` first. See [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md).
 
 ## Running it locally
 
@@ -349,7 +349,7 @@ Without `-SiteUrl` it builds the bundle and stops, so you can open
 
 The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its
-[README](../../Modules/iSOCBlueprint/WebParts/README.md).
+[README](../../../Modules/iSOCBlueprint/WebParts/README.md).
 
 ## Privacy
 
@@ -379,7 +379,7 @@ the Markdown.
 
 ## Related
 
-- [Sentinel Blueprint](Sentinel-Blueprint.md): the collector and renderer.
-- [SharePoint Publish pipeline](../Pipelines/SharePoint-Publish.md): CI/CD wiring, identity, secrets.
+- [iSOC Blueprint](Sentinel-Blueprint.md): the collector and renderer.
+- [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md): CI/CD wiring, identity, secrets.
 - [Blueprint section model](Section-Model.md): the JSON the pages are built from.
-- [Sentinel Word Report](Sentinel-Word-Report.md): the Blueprint as a `.docx`.
+- [iSOC Blueprint Word Report](Sentinel-Word-Report.md): the Blueprint as a `.docx`.

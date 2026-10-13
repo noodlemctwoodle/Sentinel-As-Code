@@ -1,12 +1,15 @@
-# Sentinel Blueprint
+# iSOC Blueprint
 
-A read-only inventory-and-gap-analysis tool that runs daily against a live Microsoft
-Sentinel workspace and produces a Markdown report of every artefact, every workspace
-setting, every DCR/DCE, an estimated monthly cost and a findings list scored against
-the documented Microsoft Learn best practices.
+A read-only documentation and assessment tool for a live Microsoft Sentinel
+workspace. It records every artefact, every workspace setting and every DCR/DCE,
+estimates the monthly cost, scores a findings list against the documented
+Microsoft Learn best practices and rates the workspace on a maturity model. The
+results come out as JSON (the section model), Markdown, a Word report or a
+SharePoint site. It runs from the pipelines (daily on GitHub, on demand on Azure
+DevOps) or locally from the `iSOCBlueprint` module.
 
 > Operating guide (this page): for users running the tool and consuming its output.
-> The tool is the [`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md)
+> The tool is the [`iSOCBlueprint`](../../../Modules/iSOCBlueprint/README.md)
 > PowerShell module; its README lists the commands and what each needs.
 > For renderer internals (chart system, helpers, Mermaid-safety rules, how to add
 > charts), see [Blueprint-Renderer-Design.md](Blueprint-Renderer-Design.md).
@@ -51,9 +54,9 @@ Two downstream outputs build on the artefact:
 - **SharePoint site.** The SharePoint Publish pipeline runs after every
   successful Blueprint run and keeps a generated iSOC Blueprint site in
   step: a page per section, navigation, a findings list with history and
-  the interactive dashboard. See [Sentinel SharePoint Site](Sentinel-SharePoint-Site.md).
+  the interactive dashboard. See [iSOC Blueprint SharePoint Site](Sentinel-SharePoint-Site.md).
 - **Word report.** An ADO-only pipeline renders the Markdown into a
-  page-numbered `.docx`. See [Sentinel Word Report](Sentinel-Word-Report.md).
+  page-numbered `.docx`. See [iSOC Blueprint Word Report](Sentinel-Word-Report.md).
 
 ---
 
@@ -366,9 +369,9 @@ Learn pages the tool depends on.
 ## How the gap engine works
 
 The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
-in [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1),
-dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
-The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
+in [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1),
+dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
+The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
 
@@ -486,7 +489,7 @@ absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 ## How the maturity assessment works
 
 After the gap engine, the collector runs
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
+[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
 over the same `_raw/` folder and the per-rule outcomes, and writes
 `maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
 resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
@@ -506,7 +509,7 @@ Categories are informational: `Cost`, `Coverage`, `Operational`, `Identity`,
 ## How the cost estimator works
 
 The `84-cost-estimate.md` page is produced by
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1).
+[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1).
 It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 
@@ -518,7 +521,7 @@ In short:
    [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
    for the workspace's region (anonymous, no auth).
 4. Sentinel free-benefit-eligible tables (in
-   [`Private/Resources/sentinel-benefit-tables.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
+   [`Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
    have their unit price set to zero **on the assumption the benefit is active** -
    the estimator does not itself check whether the workspace actually qualifies.
    Detecting a Defender plan that would activate the benefit is deferred to gap rule
@@ -624,7 +627,7 @@ diagnostic-settings pipelines that never appear in those two endpoints, so
 rendering section 10 purely from those two captures makes well-instrumented
 workspaces look almost empty.
 
-[`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1)
+[`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1)
 synthesises a unified ingestion view by walking the five captures in this
 order, with each later step skipping any table already claimed by an earlier
 one (precedence avoids double-counting):
@@ -671,9 +674,9 @@ billable data or wasn't seen in the 90-day usage window.
 
 - [`Blueprint-References.md`](Blueprint-References.md): durable
   reference of API versions, modules, and Microsoft Learn pages.
-- [Sentinel SharePoint Site](Sentinel-SharePoint-Site.md): the generated
+- [iSOC Blueprint SharePoint Site](Sentinel-SharePoint-Site.md): the generated
   SharePoint site built from this tool's output.
-- [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1): sister
+- [`Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1): sister
   read-only tool that detects portal-edited rules. The Blueprint answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
   repo?".

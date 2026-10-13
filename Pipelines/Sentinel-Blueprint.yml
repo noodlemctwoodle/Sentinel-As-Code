@@ -41,7 +41,7 @@
 #       sentinelRegion
 #       sharePointSiteUrl        (SharePoint stage only)
 #   - Azure Service Connection $(serviceConnection) with the read-only role
-#     set documented in Docs/iSOCBlueprint/Sentinel-Blueprint.md:
+#     set documented in Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md:
 #       - Microsoft Sentinel Reader   (workspace scope)
 #       - Log Analytics Reader        (workspace scope)
 #       - Reader                      (resource group scope)
@@ -165,7 +165,7 @@ parameters:
     default: " "
 
   # The level the maturity assessment measures the workspace against
-  # (Docs/iSOCBlueprint/Sentinel-Maturity-Model.md): 1 Initial,
+  # (Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md): 1 Initial,
   # 2 Developing, 3 Established, 4 Measured, 5 Optimised.
   - name: targetMaturityLevel
     displayName: "Maturity: target level (3 = Established)"

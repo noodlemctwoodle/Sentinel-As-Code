@@ -11,7 +11,7 @@
     repository, so it can run on its own: Remove-KqlComments and
     Get-KqlBareIdentifiers from Modules/Sentinel.Common (the shared module
     needs Az.Accounts; rendering does not), and Blueprint-References.md
-    from Docs/iSOCBlueprint (page 99 of every report). A copy that drifts
+    from Docs/Modules/iSOCBlueprint (page 99 of every report). A copy that drifts
     from its original reintroduces the fix-in-one-place bug the shared
     module exists to prevent, so this suite fails until both sides match.
     Fix the original first, then copy it across.
@@ -27,7 +27,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 
@@ -70,7 +70,7 @@ Describe 'Vendored KQL helpers' {
 
 Describe 'Vendored references page' {
     It 'Blueprint-References.md matches the docs copy' {
-        $docs = Join-Path $script:repoRoot 'Docs/iSOCBlueprint/Blueprint-References.md'
+        $docs = Join-Path $script:repoRoot 'Docs/Modules/iSOCBlueprint/Blueprint-References.md'
         $shipped = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md'
         (Get-FileHash -LiteralPath $shipped).Hash | Should -Be (Get-FileHash -LiteralPath $docs).Hash
     }

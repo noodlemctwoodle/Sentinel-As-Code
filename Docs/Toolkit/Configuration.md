@@ -94,7 +94,7 @@ formatted, and validated.
 Analytics rules declare the connectors they depend on in
 `requiredDataConnectors`. The Toolkit ships a Content Hub connector catalogue
 (631 connectors covering 744 tables) that maps Log Analytics tables to the
-connector that provides them. The Sentinel Blueprint reads the same catalogue
+connector that provides them. The iSOC Blueprint reads the same catalogue
 (copied by `Update-iSOCBlueprintConnectorCatalogue` in the
 [iSOCBlueprint module](../../Modules/iSOCBlueprint/README.md)) to name the
 connector behind each table in a workspace. When your workspace uses connectors or tables the

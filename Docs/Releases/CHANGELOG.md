@@ -39,11 +39,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   XDR, can follow. The Blueprint pipelines (Azure DevOps and both GitHub
   workflows) run the module. The Blueprint now lives in
   `Modules/iSOCBlueprint` (its scripts under `Engine/`), its tests in
-  `Tests/iSOCBlueprint` and its docs in `Docs/iSOCBlueprint`, with the
+  `Tests/iSOCBlueprint` and its docs in `Docs/Modules/iSOCBlueprint` (beside
+  the Sentinel.Common module doc, as `Docs/` mirrors the repository), with the
   SharePoint web part source in `Modules/iSOCBlueprint/WebParts`;
   [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md) records where
-  each file went. `Convert-FolderToWordReport.ps1`, a generic folder-to-Word
-  dump that nothing called, is retired.
+  each file went. The README and the docs call the product the iSOC
+  Blueprint (page 99 of the report takes the new title too); the pipeline
+  and workflow names are unchanged. `Convert-FolderToWordReport.ps1`, a
+  generic folder-to-Word dump that nothing called, is retired.
 - **Findings and maturity grouped as the Assessment** - the gap analysis
   (page 90) and the maturity assessment (page 91) are now presented as one
   assessment. On SharePoint both pages and the findings list sit under one
@@ -121,7 +124,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 - **Blueprint closes the gaps against health-check build 38** - a section
   by section, query by query comparison of the health-check script and its
   HTML report against the Blueprint, written up in
-  `Docs/iSOCBlueprint/Health-Check-Coverage.md`. The collector gains six
+  `Docs/Modules/iSOCBlueprint/Health-Check-Coverage.md`. The collector gains six
   captures (linked storage accounts, the agent heartbeat mix, per-table
   threat intelligence volumes, indicator health, TAXII clients and Azure
   Firewall diagnostic categories) and extends nine (connector health
@@ -192,11 +195,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   mindmap, flowchart, sequence, state, class and journey) with its
   Mermaid kept alongside. No Markdown in it. `ConvertTo-iSOCBlueprint
   -Format` writes Markdown, Json or both (the default). See
-  `Docs/iSOCBlueprint/Section-Model.md`.
+  `Docs/Modules/iSOCBlueprint/Section-Model.md`.
 - **The Documenter is now Blueprint** - the tool, its pipelines and its
   docs take the product's name, and now live in the iSOCBlueprint module
   (above): `Modules/iSOCBlueprint/`, `Tests/iSOCBlueprint/`,
-  `Docs/iSOCBlueprint/`; `Documenter.psd1` is `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
+  `Docs/Modules/iSOCBlueprint/`; `Documenter.psd1` is `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
   (definition `Sentinel-Blueprint`), the GitHub workflow is
   `.github/workflows/sentinel-blueprint.yml` ("Sentinel Blueprint"), and
   the SharePoint workflow follows it by that name and takes
@@ -486,7 +489,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   host on the data-source hygiene page) and `table-query-usage` (audited
   queries per lake-retained table, the last column of the lake usage
   evidence). `best-practices.json` is 2.3.0 with 59 rules. A new
-  [Health-Check-Coverage.md](../iSOCBlueprint/Health-Check-Coverage.md)
+  [Health-Check-Coverage.md](../Modules/iSOCBlueprint/Health-Check-Coverage.md)
   maps every section of the contributed health check to its Blueprint
   page.
 - **Sections cross-referenced with the health check** - six subsections

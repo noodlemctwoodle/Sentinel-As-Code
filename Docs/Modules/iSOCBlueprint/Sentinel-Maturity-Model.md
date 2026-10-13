@@ -32,9 +32,9 @@ maturity card and maturity view on the dashboard. The longer list is under
 **Basis.** The model is a custom one based on the SOC-CMM framework. The
 areas, the criteria, the scale and the scoring are this project's own,
 adapted to what a Sentinel workspace can show, and are defined in
-[`Private/Resources/maturity-criteria.json`](../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
+[`Private/Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
 and computed by
-[`Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1).
+[`Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1).
 The score is not an official SOC-CMM rating or certification, and this
 project is not affiliated with or endorsed by the SOC-CMM project; SOC-CMM
 is a trademark of its owner. The criterion set, the estate-flow view and
@@ -139,7 +139,7 @@ shows the first five with a "Show all" control.
 Findings (the gap analysis) and criteria are one assessment. A criterion
 whose source is a gap rule, directly or inside `allOf` / `anyOf`, is
 decided by that rule's finding, so
-[`Private/Get-FindingMaturityLink.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1)
+[`Private/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1)
 maps each finding to the criteria it decides and joins their status and
 `overallLift` from `maturity.json`. Page 90 shows it in a Maturity column and
 on every finding card, and the dashboard as a chip on each finding with a
@@ -236,7 +236,7 @@ metrics            every computed metric, null where not captured or not computa
    sentences, and one or two CSF subcategory ids that exist in the
    reference block (add the subcategory there if it is new).
 3. Add an assertion to
-   [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
+   [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
    and regenerate the fixture's `maturity.json`:
 
    ```powershell
@@ -252,7 +252,7 @@ text, so a mistake fails the PR gate rather than the nightly run.
 
 ## Related
 
-- [Sentinel Blueprint](Sentinel-Blueprint.md): the collector, the gap
+- [iSOC Blueprint](Sentinel-Blueprint.md): the collector, the gap
   engine and the output tree.
 - [Renderer design](Blueprint-Renderer-Design.md): how
   `91-maturity-assessment.md` is drawn.

@@ -1,4 +1,4 @@
-# Blueprint section model
+# iSOC Blueprint section model
 
 Every Blueprint run writes its sections as JSON, under
 `SecurityDocs/<workspace>/sections/`, in a shape published as a JSON Schema.
@@ -7,8 +7,8 @@ is built from it, and you can build on it too, without parsing Markdown.
 
 | File | What it is | Schema |
 | --- | --- | --- |
-| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json) |
-| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) |
+| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json) |
+| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) |
 
 The Markdown pack (`NN-name.md`) carries the same sections as Markdown, for the
 docs pull request and the Word report. The renderer writes both by default;
@@ -114,12 +114,12 @@ list of sections.
 ## How it is made
 
 The renderer
-([`Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1))
+([`Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1))
 composes each section, then
-[`ConvertTo-BlueprintSection`](../../Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1)
+[`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1)
 parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
 and runs, and
-[`ConvertFrom-BlueprintMermaid`](../../Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+[`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
 turns each Mermaid chart into data. Consumers only ever see the model, so a
 section can later build its blocks directly without changing this contract.
 
@@ -129,10 +129,10 @@ section can later build its blocks directly without changing this contract.
 its meaning, bumps it; adding an optional field or a new block type, run
 flag, link kind or chart kind does not, so a consumer should ignore what it
 does not know. Tests validate every section the fixture renders against the
-schemas ([`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1)).
+schemas ([`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../../Tests/iSOCBlueprint/Section-Model.Tests.ps1)).
 
 ## Related
 
-- [Sentinel Blueprint](Sentinel-Blueprint.md): what the Blueprint collects and renders.
+- [iSOC Blueprint](Sentinel-Blueprint.md): what the Blueprint collects and renders.
 - [Renderer design](Blueprint-Renderer-Design.md): what drives each section and chart.
 - [SharePoint site](Sentinel-SharePoint-Site.md): the site built from this model.

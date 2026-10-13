@@ -44,8 +44,9 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 | `Content/AutomationRules/` | Sentinel automation rules (JSON) | [Docs/Content/Automation-Rules.md](../Docs/Content/Automation-Rules.md) |
 | `Infra/` | Subscription-scoped infra templates | [Docs/Infra/Bicep.md](../Docs/Infra/Bicep.md) |
 | `Modules/Sentinel.Common/` | Shared deployer + KQL discovery helpers (PowerShell module) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
+| `Modules/iSOCBlueprint/` | The iSOC Blueprint: read-only workspace documentation and assessment (PowerShell module, with its SharePoint web parts) | [Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md](../Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md) |
 | `Deploy/` | Content + infra deployment scripts and `sentinel-deployment.config` | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
-| `Tools/` | CI / maintenance / reporting scripts (manifest, drift, PR validation, Blueprint) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
+| `Tools/` | CI / maintenance / reporting scripts (manifest, drift, PR validation) | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md) |
 | `Tests/` | Pester suites (schema + module unit tests) | [Docs/Tests/Pester-Tests.md](../Docs/Tests/Pester-Tests.md) |
 | `dependencies.json` | Auto-derived content dependency graph | [Docs/Tools/Dependency-Manifest.md](../Docs/Tools/Dependency-Manifest.md) |
 

@@ -6,13 +6,13 @@ site. One package, two web parts:
 | Web part | Component id | Where | What it does |
 | --- | --- | --- | --- |
 | **Sentinel workspace dashboard** (`src/webparts/isocBlueprint`) | `a2fd5aa3-01c5-431e-8c98-66f76c89803a` | The home page | Fetches the dashboard HTML the publisher uploaded to the site's **Blueprint Assets** library (by default `BlueprintAssets/dashboard/index.html`) with the viewer's own SharePoint session, and renders it in a same-origin iframe that grows to the dashboard's full height. |
-| **iSOC Blueprint chart** (`src/webparts/isocBlueprintChart`) | `4ae8707c-ca6f-40cb-a974-c94d023de6e5` | Each chart on a section page | Draws one chart from the chart block the publisher stores in its `chartJson` property (kind, title and data from the [section model](../../../Docs/iSOCBlueprint/Section-Model.md#charts)), as SVG and HTML, with no script libraries and nothing fetched. |
+| **iSOC Blueprint chart** (`src/webparts/isocBlueprintChart`) | `4ae8707c-ca6f-40cb-a974-c94d023de6e5` | Each chart on a section page | Draws one chart from the chart block the publisher stores in its `chartJson` property (kind, title and data from the [section model](../../../Docs/Modules/iSOCBlueprint/Section-Model.md#charts)), as SVG and HTML, with no script libraries and nothing fetched. |
 
 You do not normally build or deploy this by hand. The SharePoint publish
 pipelines build the `.sppkg` on every run and
 `Publish-SentinelDocsSite.ps1` deploys it to the site's own app catalog
 whenever its version changes. See
-[Sentinel SharePoint Site](../../../Docs/iSOCBlueprint/Sentinel-SharePoint-Site.md).
+[iSOC Blueprint SharePoint Site](../../../Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md).
 
 ## Build locally
 

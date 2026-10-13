@@ -22,7 +22,7 @@
     - [3.1 Baseline runtime](#31-baseline-runtime)
     - [3.2 Modules required to validate the project](#32-modules-required-to-validate-the-project)
     - [3.3 Modules required to use (deploy) the project](#33-modules-required-to-use-deploy-the-project)
-    - [3.4 Sentinel Blueprint modules](#34-sentinel-blueprint-modules)
+    - [3.4 iSOC Blueprint modules](#34-isoc-blueprint-modules)
     - [3.5 External (non-module) dependencies](#35-external-non-module-dependencies)
     - [3.6 Permissions](#36-permissions)
       - [3.6.1 Pipeline service principal (deploy + content)](#361-pipeline-service-principal-deploy--content)
@@ -204,7 +204,7 @@ Scripts marked **(auto)** install the module on first run if it is missing.
 Pre-installing avoids interactive prompts in non-interactive contexts such as
 pipelines.
 
-### 3.4 Sentinel Blueprint modules
+### 3.4 iSOC Blueprint modules
 
 The read-only Blueprint pins its own module set. The collector imports the Az
 modules; the renderer only needs `powershell-yaml`.
@@ -353,7 +353,7 @@ clone and run the project directly on the Cloud PC. On the image, install:
   installed for all users so engineers never need a per-session `Install-Module`
   step.
 - **The external binaries from Section 3.5** - git, plus pandoc and Node.js
-  where the Sentinel Blueprint Word export and mermaid diagrams are required, so
+  where the iSOC Blueprint Word export and mermaid diagrams are required, so
   the full validation and documentation flow runs on the host.
 - [Visual Studio Code](https://code.visualstudio.com/) - the recommended editor
   for authoring rules, scripts, Bicep and pipeline changes, and the desktop
