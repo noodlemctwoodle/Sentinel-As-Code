@@ -150,3 +150,77 @@ export interface ILifecycleCount {
   label: string;
   count: number;
 }
+
+// Proportions of a whole: one card per meter, a stacked bar of its parts.
+// A part's tone is ok, warn, bad, info, neutral, violet, teal, cyan or rose.
+export interface IMetersData {
+  meters: IMeter[];
+}
+
+export interface IMeter {
+  title?: string;
+  caption?: string;
+  total?: number;
+  parts: IMeterPart[];
+}
+
+export interface IMeterPart {
+  label: string;
+  value: number;
+  tone?: string;
+}
+
+// The analytics rule kinds, with what each carries and how many are in use.
+export interface IRuleKindsData {
+  total?: number;
+  common?: string[];
+  kinds: IRuleKind[];
+}
+
+export interface IRuleKind {
+  kind: string;
+  label?: string;
+  summary?: string;
+  fields?: string[];
+  deployed?: number;
+  enabled?: number;
+  legacy?: boolean;
+}
+
+// The alert-to-response chain: phases of numbered steps, each step ok,
+// missing or risk on this workspace, with the finding behind it.
+export interface IResponseChainData {
+  phases: IChainPhase[];
+}
+
+export interface IChainPhase {
+  name: string;
+  figure?: string;
+  steps: IChainStep[];
+}
+
+export interface IChainStep {
+  n: number;
+  action: string;
+  actor?: string;
+  target?: string;
+  state?: string;
+  finding?: string;
+}
+
+// The workspace topology: source families, the workspace's table plans and
+// rules, and the destinations downstream.
+export interface ITopologyData {
+  sources: ITopologyItem[];
+  sourceTotal?: number;
+  rules?: number;
+  plans?: ITopologyItem[];
+  downstream?: ITopologyItem[];
+}
+
+export interface ITopologyItem {
+  name: string;
+  count?: number;
+  inUse?: boolean;
+  detail?: string;
+}

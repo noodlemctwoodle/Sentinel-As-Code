@@ -6,6 +6,19 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Purpose-built graphics for the rule kinds, the response chain, the
+  topology, detection headroom and Content Hub** - the SharePoint site and
+  the dashboard no longer draw these from their Mermaid. The rule taxonomy
+  is a card per kind with how many are deployed and enabled, what it does
+  and its own settings; the alert-to-response chain shows its phases with
+  this workspace's figures and tags any step a fired finding marks missing
+  or at risk; the workspace topology lists every source family (the rest
+  behind Show all), the table plans in use and the destinations; detection
+  headroom and Content Hub show proportions (templates deployed or not and
+  ready to enable by solution; packages by status and by source) instead
+  of charts that repeated their figures. Figure tiles after a chart now
+  sit in their own row rather than stacked inside the chart's card, and a
+  donut's total no longer overflows its ring. Chart web part 1.6.0.
 - **A purpose-built incident lifecycle and a journey map** - the
   incident lifecycle on the Incidents page was a generic state diagram;
   on SharePoint and in the dashboard it is now its own graphic: stage

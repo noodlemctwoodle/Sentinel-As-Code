@@ -61,6 +61,19 @@ export function fmt(value: number): string {
   return rounded.toLocaleString('en-GB');
 }
 
+// A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
+export function compact(value: number): string {
+  const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [size, unit] of units) {
+    if (Math.abs(value) >= size) {
+      const x: number = value / size;
+      const digits: number = Math.abs(x) >= 100 ? 0 : Math.abs(x) >= 10 ? 1 : 2;
+      return parseFloat(x.toFixed(digits)).toString() + unit;
+    }
+  }
+  return fmt(value);
+}
+
 // Only links the publisher writes: web URLs, mail and site-relative paths.
 export function safeHref(href: unknown): string | undefined {
   const h: string = str(href).trim();

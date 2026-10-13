@@ -1511,7 +1511,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "return d\? d\+'d '\+h\+'h' : h\? h\+'h '\+mi\+'m' : mi\+' min';"
         $html | Should -Match '\.length\*2 < tiles\.length\) return '''';'
         # Adjacent lines share one grid; the tiles line up through subgrid.
-        $html.Contains('.replace(/<\/div><\/div><div class="kvtiles">/g,''</div>'')') | Should -BeTrue
+        # Only a tile grid's marked end joins the next, never a chart card's.
+        $html.Contains('.replace(/<\/div><!--\/kv--><div class="kvtiles">/g,'''')') | Should -BeTrue
+        $html.Contains("+'</div><!--/kv-->';") | Should -BeTrue
+        $html.Contains('<\/div><\/div><div class="kvtiles">') | Should -BeFalse
         $html | Should -Match '\.kvt\{display:grid;grid-row:span 3;grid-template-rows:subgrid;'
     }
 
@@ -1558,6 +1561,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $charts[1].title | Should -BeNullOrEmpty
         $charts[2].title | Should -Be 'Closed incidents by classification (30d)'
         $html | Should -Match 'function renderIncidentLifecycle\(data, theme\)'
+        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology') {
+            $html | Should -Match ('function ' + $fn + '\(data, theme\)')
+        }
     }
 
     It 'marks report headings and callouts without a coloured edge bar' {

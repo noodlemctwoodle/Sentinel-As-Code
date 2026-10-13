@@ -92,7 +92,7 @@
           "then": {
             "required": ["kind", "source"],
             "properties": {
-              "kind": { "enum": ["pie", "sankey", "xy", "timeline", "gantt", "mindmap", "flowchart", "sequence", "state", "class", "journey", "incident-lifecycle", "other"] },
+              "kind": { "enum": ["pie", "sankey", "xy", "timeline", "gantt", "mindmap", "flowchart", "sequence", "state", "class", "journey", "incident-lifecycle", "meters", "rule-kinds", "response-chain", "topology", "other"] },
               "title": { "type": ["string", "null"] },
               "data": { "type": ["object", "null"], "description": "Chart data; its shape depends on kind (see Docs/Modules/iSOCBlueprint/Section-Model.md). null for kind other." },
               "source": { "type": "string", "description": "The chart as Mermaid, for consumers that render Mermaid and for the Markdown export." }

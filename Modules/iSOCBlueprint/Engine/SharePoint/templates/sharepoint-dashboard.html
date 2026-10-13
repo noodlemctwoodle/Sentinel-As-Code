@@ -2210,6 +2210,15 @@
       '<div class="pielegend">'+legend+'</div></div>';
   }
   // multi-segment donut with a centre total from [{label,value,color}]
+  // A figure too long for a donut's hole goes compact (2.36M), with the
+  // exact one on hover; the legend keeps every exact figure.
+  function holeFigure(text){
+    const s=String(text), n=+s.replace(/,/g,'');
+    if(s.length<=7 || !isFinite(n) || Math.abs(n)<1e3) return '<div class="dmsv">'+esc(s)+'</div>';
+    const u=[[1e9,'B'],[1e6,'M'],[1e3,'K']].find(([v])=>Math.abs(n)>=v), x=n/u[0];
+    const c=parseFloat(x.toFixed(Math.abs(x)>=100?0:Math.abs(x)>=10?1:2))+u[1];
+    return '<div class="dmsv" title="'+esc(s)+'">'+esc(c)+'</div>';
+  }
   function donutMultiHtml(items, centreBig, centreSmall){
     const total=items.reduce((a,i)=>a+i.value,0)||1;
     let acc=0; const segs=items.map(i=>{ const start=acc/total*360; acc+=i.value; const end=acc/total*360;
@@ -2218,7 +2227,7 @@
       '<span class="pv">'+esc(i.display!=null?i.display:i.value)+'</span>'+
       '<span class="pp">'+Math.round(i.value/total*100)+'%</span></div>').join('');
     return '<div class="piewrap"><div class="dms" style="--pie:conic-gradient('+segs+')">'+
-      '<div class="dmshole"><div><div class="dmsv">'+esc(centreBig)+'</div>'+
+      '<div class="dmshole"><div>'+holeFigure(centreBig)+
       '<div class="dmsk">'+esc(centreSmall)+'</div></div></div></div>'+
       '<div class="pielegend">'+legend+'</div></div>';
   }
@@ -3060,7 +3069,7 @@
         return {k,v,cap,tip};
       });
       if(tiles.filter(x=>/^[£$€]?\s*\d/.test(plain(x.v))).length*2 < tiles.length) return '';
-      return '<div class="kvtiles">'+tiles.map(x=>'<div class="kvt"'+(x.tip?' title="'+esc(x.tip)+'"':'')+'><div class="kvk">'+x.k+'</div><div class="kvv">'+x.v+'</div>'+(x.cap?'<div class="kvc">'+x.cap+'</div>':'')+'</div>').join('')+'</div>';
+      return '<div class="kvtiles">'+tiles.map(x=>'<div class="kvt"'+(x.tip?' title="'+esc(x.tip)+'"':'')+'><div class="kvk">'+x.k+'</div><div class="kvv">'+x.v+'</div>'+(x.cap?'<div class="kvc">'+x.cap+'</div>':'')+'</div>').join('')+'</div><!--/kv-->';
     }
     let layoutDocTimer=null;
     window.addEventListener('resize',()=>{ clearTimeout(layoutDocTimer); layoutDocTimer=setTimeout(layoutDoc,150); });
@@ -3079,8 +3088,10 @@
         if(b.t==='table') return (ownCharts?'':chartFromTable(b))+tableHtml(b, ti++);
         return '';
       };
-      // Lines of figures one after another share one grid of tiles.
-      const blocksHtml=list=>list.map(blockHtml).join('').replace(/<\/div><\/div><div class="kvtiles">/g,'</div>');
+      // Lines of figures one after another share one grid of tiles. Only a
+      // tile grid's own end (marked) joins the next: a chart card before a
+      // line of figures keeps its own end, and the tiles their own row.
+      const blocksHtml=list=>list.map(blockHtml).join('').replace(/<\/div><!--\/kv--><div class="kvtiles">/g,'');
       // The intro, then one block per main section, which layoutDoc may
       // gather into tabs.
       const intro=[], groups=[];

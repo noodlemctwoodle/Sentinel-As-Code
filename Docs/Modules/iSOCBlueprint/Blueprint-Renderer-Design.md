@@ -109,7 +109,7 @@ table only.
 | `15-incidents.md` | stateDiagram-v2, with a `%% visual incident-lifecycle` line for the SharePoint graphic | `$incSummary` (ByStatus, ByClassification, ClosedBy, OpenBySeverity, Unified) + `$incMttr` (closed, acknowledged, MTTA, MTTR) + whether SAC-INC-05 fired | none |
 | `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
-| `20-analytics-rules.md` | classDiagram | per-kind deployed-count notes | none |
+| `20-analytics-rules.md` | classDiagram, with a `%% visual rule-kinds` line | rules deployed and enabled per kind (`$ruleKindCounts`) | none |
 | `21-rule-performance.md` (By alert volume) | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
 | `20-analytics-rules.md` (Microsoft-managed rules) | pie | Microsoft rules grouped by Severity | `$msRules.Count -gt 0` |
 | `20-analytics-rules.md` (Recent modifications) | xychart-beta bar | per-month bucket counts (last 12mo) | none |
@@ -117,19 +117,19 @@ table only.
 | `25-mitre-coverage.md` | xychart-beta bar (width 1400) | `$mitreRowsRich.EnabledRules` | none |
 | `26-ueba.md` | pie | `$uebaPresenceRows` by table | `$uebaTotalRows -gt 0` |
 | `27-threat-intelligence.md` | pie | `$tiRows`, the six largest sources and one Other slice for the rest | `$tiRows total > 0` |
-| `28-detection-opportunities.md` | xychart-beta bar | applicable templates / enabled rules / not yet deployed (`$templateTableRefs`, `$enabledRules`) | either count `-gt 0`; the whole page is a sentence when both reference files are absent |
+| `28-detection-opportunities.md` | xychart-beta bar, with a `%% visual meters` line (applicable templates deployed or not; templates ready to enable by solution) | applicable templates / enabled rules / not yet deployed (`$templateTableRefs`, `$enabledRules`, `$readyTemplates`) | either count `-gt 0`; the whole page is a sentence when both reference files are absent |
 | `30-hunting-queries.md` | pie | hunting queries grouped by MITRE tactic tag | `$hunting.Count -gt 0` |
 | `35-parsers-functions.md` | pie | parsers grouped by Category | `$parserRows.Count -gt 0` |
 | `38-summary-rules.md` | pie | summary rules grouped by Active/Status | `$summaryRows.Count -gt 0` |
 | `40-workbooks.md` | pie | saved vs available templates | none |
 | `50-watchlists.md` | pie | watchlists grouped by Source | `$wlRows.Count -gt 0` |
-| `60-automation-rules-playbooks.md` | sequenceDiagram | static alert-to-response chain | none |
+| `60-automation-rules-playbooks.md` | sequenceDiagram, with a `%% visual response-chain` line | alert-to-response chain by phase, with this workspace's counts and the steps SAC-AUT-01, SAC-AUT-05 and SAC-INC-05 mark missing or at risk | none |
 | `60-automation-rules-playbooks.md` | pie | `$playbookRuns` succeeded vs failed (7d) | total runs `-gt 0` |
-| `70-content-hub.md` | pie | packages grouped by source kind | none |
+| `70-content-hub.md` | pie, with a `%% visual meters` line (packages by status and by source) | packages grouped by source kind and by catalogue status | none |
 | `80-workspace.md` | timeline | `$wsCreated` + static platform deadlines | none |
 | `80-workspace.md` | xychart-beta line (two series) | `$usageDaily` billable and free GB per day | `$usageDaily.Count -ge 2` |
 | `81-table-plans-retention.md` | pie | tables grouped by plan | none |
-| `83-data-collection.md` | flowchart (LR, 3 subgraphs) | `$connectors` → workspace → downstream | none |
+| `83-data-collection.md` | flowchart (LR, 3 subgraphs), with a `%% visual topology` line (every source family, none rolled up) | `$connectors` → workspace → downstream | none |
 | `84-cost-estimate.md` | xychart-beta bar | `$cost.Top10TablesByCost` | inside the `if ($cost)` branch |
 | `84-cost-estimate.md` | mindmap | top 8 cost tables tree | inside the `if ($cost)` branch |
 | `84-cost-estimate.md` | sankey-beta | source → table → billing tier | inside the `if ($cost)` branch |

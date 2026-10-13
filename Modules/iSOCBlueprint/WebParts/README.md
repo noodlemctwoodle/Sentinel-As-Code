@@ -77,6 +77,10 @@ tried in a plain browser page:
 | `flowchart`, `state`, `class` | A layered layout ([`GraphLayout.ts`](src/webparts/isocBlueprintChart/charts/GraphLayout.ts)): cycles broken, an edge that skips ranks routed round the nodes in between, groups boxed |
 | `sequence` | Lifelines with numbered messages, notes and blocks |
 | `journey` | A journey map: the stages across the top, a curve through every step's score (smooth at the top, friction at the bottom) with each point coloured by its score, and the step and its actors underneath |
+| `meters` | Purpose-built: a card per whole, its size, a stacked bar of its parts and a legend row per part with its count and share |
+| `rule-kinds` | Purpose-built: the fields every rule carries, then a card per kind with how many are deployed and enabled, what it does and its own settings |
+| `response-chain` | Purpose-built: the alert-to-response phases in order with this workspace's figures, each step numbered, and a step a fired finding marks missing or at risk tagged with it |
+| `topology` | Purpose-built: every source family with its count (the rest behind Show all), the workspace with each table plan in use or not, and the destinations downstream |
 | `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
 
 A chart with a purpose-built graphic carries its data on a

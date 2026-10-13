@@ -83,7 +83,9 @@ Mermaid in `source` (the Markdown export uses it, and a consumer that renders
 Mermaid can too). `data` is null only for kind `other`. Line breaks in labels
 are `\n`.
 
-A chart with a purpose-built graphic (so far the incident lifecycle) carries
+A chart with a purpose-built graphic (the incident lifecycle, rule kinds,
+the response chain, the topology, and the meters on the detection
+opportunities and Content Hub pages) carries
 its data on a `%% visual <kind> {json}` line inside its Mermaid. Mermaid
 ignores the line, so the Markdown export draws the diagram as before; the
 section model gives the chart that kind and the JSON as its data, and
@@ -104,6 +106,10 @@ ignored and the Mermaid is read as usual.
 | `class` | `classes: [{ name, members[] }]`, `relations: [{ from, to, kind, label }]`, `notes: [{ for, text }]` |
 | `journey` | `sections: [{ name, tasks: [{ label, score, actors[] }] }]` |
 | `incident-lifecycle` | `days`, `raised`, `new`, `active`, `closed` (the window's incidents at their current status), `acknowledged` and `unacknowledged` (the closed ones picked up first, and those closed straight from New), `mttaMinutes`, `mttrMinutes`, `unified` (raised through Defender XDR), `openBySeverity`, `classification` and `closedBy` as `[{ label, count }]`, and `check: { id, fired }` (SAC-INC-05, and whether it fired in this run); a figure the capture lacks is null |
+| `meters` | `meters: [{ title, caption, total, parts: [{ label, value, tone }] }]`; `tone` is ok, warn, bad, info, neutral, violet, teal, cyan or rose |
+| `rule-kinds` | `total` (all rules), `common[]` (the fields every rule carries), `kinds: [{ kind, label, summary, fields[], deployed, enabled, legacy }]` |
+| `response-chain` | `phases: [{ name, figure, steps: [{ n, action, actor, target, state, finding }] }]`; `state` is missing or risk when `finding` fired in this run, otherwise empty |
+| `topology` | `sources: [{ name, count }]` (every source family), `sourceTotal`, `rules` (enabled), `plans` and `downstream` as `[{ name, inUse, detail }]` |
 | `other` | null |
 
 ## The index

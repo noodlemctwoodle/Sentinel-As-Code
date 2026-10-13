@@ -1,5 +1,5 @@
 import { type IPieData, type IPieSlice } from './ChartTypes';
-import { type IChartTheme, colourFor, esc, fmt, list, num, r, str, svgDoc, svgText } from './ChartKit';
+import { type IChartTheme, colourFor, compact, esc, fmt, list, num, r, str, svgDoc, svgText, textWidth } from './ChartKit';
 
 interface ISlice {
   label: string;
@@ -32,8 +32,14 @@ export function renderPie(data: IPieData, theme: IChartTheme, label: string): st
       angle += sweep;
     });
   }
+  // The total fits inside the hole: a large one in compact form (2.36M),
+  // the legend keeping every exact figure, and smaller type if need be.
+  const room: number = INNER * 2 - 18;
+  let shown: string = total > 0 ? fmt(total) : '0';
+  if (textWidth(shown, 26, true) > room) { shown = compact(total); }
+  const size: number = Math.max(14, Math.min(26, Math.floor(26 * room / Math.max(room, textWidth(shown, 26, true)))));
   const centre: string =
-    svgText(c, c - 8, [total > 0 ? fmt(total) : '0'], { size: 26, weight: 600, fill: theme.text, anchor: 'middle' }) +
+    svgText(c, c - 8, [shown], { size: size, weight: 600, fill: theme.text, anchor: 'middle' }) +
     svgText(c, c + 18, ['total'], { size: 12, fill: theme.muted, anchor: 'middle' });
   const chart: string = svgDoc(SIZE, SIZE, label, ring + centre);
 

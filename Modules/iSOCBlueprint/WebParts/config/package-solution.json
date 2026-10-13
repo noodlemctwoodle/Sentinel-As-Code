@@ -3,7 +3,7 @@
   "solution": {
     "name": "isoc-blueprint-client-side-solution",
     "id": "7f7eb9c2-a720-45f1-ab47-7772da011e1d",
-    "version": "1.5.0.0",
+    "version": "1.6.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -30,7 +30,7 @@
         "title": "isoc-blueprint Feature",
         "description": "Activates the iSOC Blueprint dashboard and chart web parts.",
         "id": "9263dd27-c9d1-46fa-9f98-8afa37475bb2",
-        "version": "1.5.0.0"
+        "version": "1.6.0.0"
       }
     ]
   },

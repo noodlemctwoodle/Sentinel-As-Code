@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: 37c700641ec00975edd55ab512307cf8061f9f8d123d2fadbd72660610bc296b */
+   sources-sha256: 4bd7f73ae32bd20325cfe986e016fd71e1e3c7c24be89b81bbe4ca87eb6d6ba6 */
 (function(){
 'use strict';
  var defs={};
@@ -12,7 +12,7 @@
 // chart builds a string of markup; anything taken from the chart data goes
 // through esc() first.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
+exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.compact = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
 exports.FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 // The dashboard's series colours, so a chart reads the same on both.
 exports.SERIES = [
@@ -58,6 +58,19 @@ function fmt(value) {
     return rounded.toLocaleString('en-GB');
 }
 exports.fmt = fmt;
+// A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
+function compact(value) {
+    const units = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+    for (const [size, unit] of units) {
+        if (Math.abs(value) >= size) {
+            const x = value / size;
+            const digits = Math.abs(x) >= 100 ? 0 : Math.abs(x) >= 10 ? 1 : 2;
+            return parseFloat(x.toFixed(digits)).toString() + unit;
+        }
+    }
+    return fmt(value);
+}
+exports.compact = compact;
 // Only links the publisher writes: web URLs, mail and site-relative paths.
 function safeHref(href) {
     const h = str(href).trim();
@@ -1205,6 +1218,44 @@ function scoreColour(score) {
 }
 
 };
+ defs['MetersChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderMeters = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// Proportions of a whole, one card each: what the whole is and its size,
+// then a stacked bar of its parts and a legend row per part with its
+// count and share. For figures that are parts of something (templates
+// deployed or not, packages up to date or not), where a bar chart of the
+// same numbers would only repeat the tiles beside it.
+const TONE = {
+    ok: Visual_1.OK, warn: Visual_1.WARN, bad: Visual_1.BAD, info: Visual_1.INFO, neutral: Visual_1.NEUTRAL,
+    violet: '#7c3aed', teal: '#0d9488', cyan: '#0891b2', rose: '#db2777'
+};
+function renderMeters(data, theme) {
+    const meters = (0, ChartKit_1.list)(data && data.meters);
+    if (!meters.length) {
+        return '';
+    }
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        meters.map((m) => one(m, theme)).join('') + '</div>';
+}
+exports.renderMeters = renderMeters;
+function one(m, theme) {
+    const parts = (0, ChartKit_1.list)(m.parts).map((p, i) => ({
+        label: (0, ChartKit_1.str)(p.label), value: Math.max(0, (0, ChartKit_1.num)(p.value)), colour: TONE[(0, ChartKit_1.str)(p.tone)] || ChartKit_1.SERIES[i % ChartKit_1.SERIES.length]
+    }));
+    const total = !(0, ChartKit_1.isNil)(m.total) ? (0, ChartKit_1.num)(m.total) : parts.reduce((s, p) => s + p.value, 0);
+    const head = '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
+        '<div style="min-width:0">' + (0, Visual_1.eyebrow)((0, ChartKit_1.str)(m.title), theme) + (0, Visual_1.sub)((0, ChartKit_1.str)(m.caption), theme) + '</div>' +
+        '<div style="flex:none;font-size:26px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums">' + (0, Visual_1.count)(total) + '</div></div>';
+    return (0, Visual_1.card)(head +
+        '<div style="margin:12px 0 10px">' + (0, Visual_1.meter)(parts, theme, 12) + '</div>' +
+        parts.map((p) => (0, Visual_1.legendRow)(p, total, theme)).join(''), theme);
+}
+
+};
  defs['MindmapChart']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1342,7 +1393,15 @@ function renderPie(data, theme, label) {
             angle += sweep;
         });
     }
-    const centre = (0, ChartKit_1.svgText)(c, c - 8, [total > 0 ? (0, ChartKit_1.fmt)(total) : '0'], { size: 26, weight: 600, fill: theme.text, anchor: 'middle' }) +
+    // The total fits inside the hole: a large one in compact form (2.36M),
+    // the legend keeping every exact figure, and smaller type if need be.
+    const room = INNER * 2 - 18;
+    let shown = total > 0 ? (0, ChartKit_1.fmt)(total) : '0';
+    if ((0, ChartKit_1.textWidth)(shown, 26, true) > room) {
+        shown = (0, ChartKit_1.compact)(total);
+    }
+    const size = Math.max(14, Math.min(26, Math.floor(26 * room / Math.max(room, (0, ChartKit_1.textWidth)(shown, 26, true)))));
+    const centre = (0, ChartKit_1.svgText)(c, c - 8, [shown], { size: size, weight: 600, fill: theme.text, anchor: 'middle' }) +
         (0, ChartKit_1.svgText)(c, c + 18, ['total'], { size: 12, fill: theme.muted, anchor: 'middle' });
     const chart = (0, ChartKit_1.svgDoc)(SIZE, SIZE, label, ring + centre);
     const showData = !data || data.showData !== false;
@@ -1378,6 +1437,103 @@ function annulus(c, a0, a1, colour, tip) {
     const d = 'M' + point(c, OUTER, a0) + ' A' + OUTER + ',' + OUTER + ' 0 ' + large + ' 1 ' + point(c, OUTER, a1) +
         ' L' + point(c, INNER, a1) + ' A' + INNER + ',' + INNER + ' 0 ' + large + ' 0 ' + point(c, INNER, a0) + ' Z';
     return '<path d="' + d + '" fill="' + (0, ChartKit_1.esc)(colour) + '">' + (tip ? '<title>' + (0, ChartKit_1.esc)(tip) + '</title>' : '') + '</path>';
+}
+
+};
+ defs['ResponseChainChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderResponseChain = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The alert-to-response chain as the target shape against this workspace:
+// the phases in order, each with this workspace's figure, and its numbered
+// steps; a step this workspace is missing, or has at risk, carries the
+// finding that says so.
+const STATE = {
+    ok: { colour: Visual_1.OK, label: 'In place' },
+    missing: { colour: Visual_1.BAD, label: 'Missing' },
+    risk: { colour: Visual_1.WARN, label: 'At risk' }
+};
+function renderResponseChain(data, theme) {
+    const phases = (0, ChartKit_1.list)(data && data.phases).filter((p) => (0, ChartKit_1.list)(p.steps).length > 0);
+    if (!phases.length) {
+        return '';
+    }
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        phases.map((p, i) => phase(p, i, theme)).join('') + '</div>';
+}
+exports.renderResponseChain = renderResponseChain;
+function phase(p, index, theme) {
+    const steps = (0, ChartKit_1.list)(p.steps);
+    const worst = steps.some((s) => s.state === 'missing') ? 'missing'
+        : steps.some((s) => s.state === 'risk') ? 'risk' : '';
+    const head = '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="flex:none;font-size:10.5px;font-weight:800;color:' + (0, ChartKit_1.esc)(theme.muted) + ';font-variant-numeric:tabular-nums">' + (index + 1) + '</span>' +
+        (0, Visual_1.eyebrow)((0, ChartKit_1.str)(p.name), theme) + '</div>' +
+        ((0, ChartKit_1.str)(p.figure) ? '<div style="font-size:13px;font-weight:750;margin:6px 0 2px">' + (0, ChartKit_1.esc)(p.figure) + '</div>' : '');
+    const body = steps.map((s) => step(s, theme)).join('');
+    return (0, Visual_1.card)(head + '<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">' + body + '</div>', theme, worst ? STATE[worst].colour : undefined);
+}
+function step(s, theme) {
+    const state = STATE[(0, ChartKit_1.str)(s.state)];
+    const dot = state && s.state !== 'ok' ? state.colour : theme.accent;
+    const flag = state && s.state !== 'ok'
+        ? '<div style="margin-top:4px">' + (0, Visual_1.pill)(state.label + ((0, ChartKit_1.str)(s.finding) ? ' · ' + (0, ChartKit_1.str)(s.finding) : ''), state.colour) + '</div>'
+        : '';
+    return '<div style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start">' +
+        '<span style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;' +
+        'color:' + (0, ChartKit_1.esc)(dot) + ';background:' + (0, ChartKit_1.tint)(dot, theme.dark ? 0.2 : 0.12) + '">' + (0, ChartKit_1.esc)(s.n) + '</span>' +
+        '<div style="min-width:0"><div style="font-weight:650;line-height:1.35">' + (0, ChartKit_1.esc)(s.action) + '</div>' +
+        '<div style="font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:1px">' + (0, ChartKit_1.esc)(s.actor) + ((0, ChartKit_1.str)(s.target) ? ' → ' + (0, ChartKit_1.esc)(s.target) : '') + '</div>' +
+        flag + '</div></div>';
+}
+
+};
+ defs['RuleKindsChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderRuleKinds = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The analytics rule kinds: what every rule carries, then one card per
+// kind with how many this workspace has deployed and enabled, what the
+// kind does and the settings only it has. A kind with none deployed is
+// shown faded, so the reader sees what is not in use as well.
+const COLOUR = {
+    Scheduled: Visual_1.INFO, NRT: '#0d9488', Fusion: '#7c3aed', MicrosoftSecurityIncidentCreation: Visual_1.WARN,
+    ThreatIntelligence: '#0891b2', MLBehaviorAnalytics: '#db2777'
+};
+function renderRuleKinds(data, theme) {
+    const kinds = (0, ChartKit_1.list)(data && data.kinds);
+    if (!kinds.length) {
+        return '';
+    }
+    const total = (0, ChartKit_1.num)(data.total);
+    const common = (0, ChartKit_1.list)(data.common).map((f) => (0, ChartKit_1.str)(f));
+    const base = common.length
+        ? (0, Visual_1.card)('<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px">' + (0, Visual_1.eyebrow)('Every rule carries', theme) +
+            common.map((f) => (0, Visual_1.chip)(f, theme, true)).join('') + '</div>', theme)
+        : '';
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + base +
+        '<div style="display:grid;grid-template-columns:repeat(' + (0, Visual_1.balancedColumns)(kinds.length, 5) + ',minmax(170px,1fr));gap:12px">' +
+        kinds.map((k) => kindCard(k, total, theme)).join('') + '</div></div>';
+}
+exports.renderRuleKinds = renderRuleKinds;
+function kindCard(k, total, theme) {
+    const colour = COLOUR[(0, ChartKit_1.str)(k.kind)] || Visual_1.INFO;
+    const deployed = (0, ChartKit_1.num)(k.deployed);
+    const enabled = (0, ChartKit_1.num)(k.enabled);
+    const fields = (0, ChartKit_1.list)(k.fields).map((f) => (0, ChartKit_1.str)(f));
+    const head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        (0, Visual_1.eyebrow)((0, ChartKit_1.str)(k.label) || (0, ChartKit_1.str)(k.kind), theme, colour) + (k.legacy ? (0, Visual_1.pill)('Legacy', Visual_1.WARN) : '') + '</div>';
+    const inner = head +
+        (0, Visual_1.figure)((0, Visual_1.count)(deployed), theme) +
+        (0, Visual_1.sub)(deployed > 0 ? (0, Visual_1.count)(enabled) + ' enabled' : 'None deployed', theme) +
+        '<div style="margin:9px 0 10px">' + (0, Visual_1.share)(deployed, total, colour, theme) + '</div>' +
+        '<div style="font-size:12px;line-height:1.5;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(k.summary) + '</div>' +
+        (fields.length ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px">' + fields.map((f) => (0, Visual_1.chip)(f, theme, true)).join('') + '</div>' : '');
+    return (0, Visual_1.card)(inner, theme, deployed > 0 ? colour : undefined, deployed > 0 ? '' : 'opacity:.62');
 }
 
 };
@@ -1830,6 +1986,177 @@ function renderTimeline(data, theme) {
 exports.renderTimeline = renderTimeline;
 
 };
+ defs['TopologyChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderTopology = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// How data reaches the workspace and where it goes: every source family
+// with how many sources feed it, the workspace with the table plans in use
+// (and those not in use, faded), and the destinations downstream.
+const SRC = '#2563eb';
+const WSP = '#d97706';
+const DST = '#0d9488';
+function renderTopology(data, theme) {
+    const sources = (0, ChartKit_1.list)(data && data.sources);
+    if (!sources.length) {
+        return '';
+    }
+    const cols = 'minmax(220px,1.15fr) 40px minmax(210px,1fr) 40px minmax(190px,.95fr)';
+    return '<div style="display:grid;grid-template-columns:' + cols + ';min-width:760px;align-items:stretch;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        sourcesCard(sources, (0, ChartKit_1.num)(data.sourceTotal), theme) + (0, Visual_1.arrow)(SRC, WSP) + workspaceCard(data, theme) + (0, Visual_1.arrow)(WSP, DST) + downstreamCard((0, ChartKit_1.list)(data.downstream), theme) +
+        '</div>';
+}
+exports.renderTopology = renderTopology;
+function sourcesCard(sources, total, theme) {
+    const max = Math.max(1, ...sources.map((s) => (0, ChartKit_1.num)(s.count)));
+    const rows = sources.map((s) => '<div style="padding:4px 0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px">' +
+        '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (0, ChartKit_1.esc)(s.name) + '">' + (0, ChartKit_1.esc)(s.name) + '</span>' +
+        '<span style="flex:none;font-weight:750;font-variant-numeric:tabular-nums">' + (0, Visual_1.count)((0, ChartKit_1.num)(s.count)) + '</span></div>' +
+        '<div style="margin-top:3px">' + (0, Visual_1.share)((0, ChartKit_1.num)(s.count), max, SRC, theme) + '</div></div>');
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('Connected sources', theme, SRC) + (0, Visual_1.figure)((0, Visual_1.count)(total || sources.reduce((a, s) => a + (0, ChartKit_1.num)(s.count), 0)), theme) +
+        (0, Visual_1.sub)(sources.length + ' families, by sources feeding each', theme) +
+        '<div style="margin-top:10px">' + (0, Visual_1.showAll)(rows, 10, 'families', theme) + '</div>', theme);
+}
+function workspaceCard(data, theme) {
+    const plans = (0, ChartKit_1.list)(data.plans);
+    const rules = (0, ChartKit_1.num)(data.rules);
+    const plan = (p) => {
+        const on = !!p.inUse;
+        return '<div style="border-radius:9px;padding:7px 9px;border:1px solid ' + (on ? (0, ChartKit_1.tint)(Visual_1.OK, 0.35) : (0, ChartKit_1.esc)(theme.line)) + ';background:' + (on ? (0, ChartKit_1.tint)(Visual_1.OK, theme.dark ? 0.12 : 0.06) : 'transparent') + (on ? '' : ';opacity:.6') + '">' +
+            '<div style="font-size:12px;font-weight:700">' + (0, ChartKit_1.esc)(p.name) + '</div>' +
+            '<div style="font-size:11px;color:' + (0, ChartKit_1.esc)(on ? theme.text : theme.muted) + ';margin-top:1px">' + (0, ChartKit_1.esc)(on ? ((0, ChartKit_1.str)(p.detail) || 'In use') : 'Not in use') + '</div></div>';
+    };
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('Sentinel workspace', theme, WSP) +
+        '<div style="font-size:15px;font-weight:800;margin-top:5px">Log Analytics workspace</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 12px;font-size:12.5px">' +
+        '<span style="padding:3px 9px;border-radius:8px;background:' + (0, ChartKit_1.tint)(WSP, 0.16) + ';font-weight:700">' + (0, Visual_1.count)(rules) + ' enabled analytics rules</span>' +
+        '<span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">→</span><span style="padding:3px 9px;border-radius:8px;background:' + (0, ChartKit_1.tint)(WSP, 0.16) + ';font-weight:700">Incidents</span></div>' +
+        (0, Visual_1.eyebrow)('Table plans', theme) +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-top:6px">' + plans.map(plan).join('') + '</div>', theme, WSP);
+}
+function downstreamCard(items, theme) {
+    const rows = items.map((d) => {
+        const on = !!d.inUse;
+        return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:7px 0;border-top:1px solid ' + (0, ChartKit_1.esc)(theme.line) + (on ? '' : ';opacity:.6') + '">' +
+            '<span style="font-size:12.5px;font-weight:650">' + (0, ChartKit_1.esc)(d.name) + '</span>' +
+            '<span style="flex:none;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;color:' + (0, ChartKit_1.esc)(on ? theme.text : Visual_1.NEUTRAL) + '">' + (0, ChartKit_1.esc)(on ? ((0, ChartKit_1.str)(d.detail) || 'Yes') : 'None') + '</span></div>';
+    }).join('');
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('Downstream', theme, DST) + '<div style="margin-top:8px">' + rows + '</div>', theme);
+}
+
+};
+ defs['Visual']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.note = exports.balancedColumns = exports.showAll = exports.arrow = exports.legendRow = exports.share = exports.meter = exports.chip = exports.pill = exports.sub = exports.figure = exports.eyebrow = exports.card = exports.pct = exports.count = exports.NEUTRAL = exports.INFO = exports.BAD = exports.WARN = exports.OK = void 0;
+const ChartKit_1 = require("./ChartKit");
+// The building blocks of the purpose-built graphics, so every one reads in
+// the site's style: soft cards on a hairline border, small spaced capitals
+// over large tabular figures, tinted fills and pills for meaning, never a
+// coloured edge bar. Each returns markup with inline styles, which both
+// the SharePoint web part and the dashboard can show as they are.
+exports.OK = '#16a34a';
+exports.WARN = '#d97706';
+exports.BAD = '#dc2626';
+exports.INFO = '#2563eb';
+exports.NEUTRAL = '#64748b';
+function count(n) {
+    return Math.round(n).toLocaleString('en-GB');
+}
+exports.count = count;
+function pct(part, whole) {
+    return whole > 0 ? Math.round(part / whole * 100) + '%' : '0%';
+}
+exports.pct = pct;
+function card(inner, theme, colour, extra) {
+    const fill = colour ? (0, ChartKit_1.tint)(colour, theme.dark ? 0.12 : 0.05) : 'transparent';
+    const edge = colour ? (0, ChartKit_1.tint)(colour, 0.35) : (0, ChartKit_1.esc)(theme.line);
+    return '<div style="min-width:0;border:1px solid ' + edge + ';border-radius:12px;padding:12px 14px;background:' + fill + (extra ? ';' + extra : '') + '">' + inner + '</div>';
+}
+exports.card = card;
+function eyebrow(text, theme, colour) {
+    return '<div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(colour || theme.muted) + '">' + (0, ChartKit_1.esc)(text) + '</div>';
+}
+exports.eyebrow = eyebrow;
+function figure(value, theme, size) {
+    return '<div style="font-size:' + (size || 26) + 'px;font-weight:800;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + (0, ChartKit_1.esc)(value) + '</div>';
+}
+exports.figure = figure;
+function sub(text, theme) {
+    return text ? '<div style="font-size:12px;line-height:1.45;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:3px">' + (0, ChartKit_1.esc)(text) + '</div>' : '';
+}
+exports.sub = sub;
+function pill(text, colour, solid) {
+    return '<span style="display:inline-block;white-space:nowrap;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:800;' +
+        (solid ? 'background:' + (0, ChartKit_1.esc)(colour) + ';color:#fff' : 'background:' + (0, ChartKit_1.tint)(colour, 0.16) + ';color:' + (0, ChartKit_1.esc)(colour)) + '">' + (0, ChartKit_1.esc)(text) + '</span>';
+}
+exports.pill = pill;
+function chip(text, theme, mono) {
+    return '<span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;border:1px solid ' + (0, ChartKit_1.esc)(theme.line) + ';color:' + (0, ChartKit_1.esc)(theme.text) +
+        (mono ? ';font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace' : '') + '">' + (0, ChartKit_1.esc)(text) + '</span>';
+}
+exports.chip = chip;
+// A stacked bar of parts, each sized by its value, with a hairline gap.
+function meter(parts, theme, height) {
+    const shown = parts.filter((p) => (0, ChartKit_1.num)(p.value) > 0);
+    if (!shown.length) {
+        return '<div style="height:' + (height || 10) + 'px;border-radius:99px;background:' + (0, ChartKit_1.esc)(theme.line) + '"></div>';
+    }
+    return '<div style="display:flex;gap:2px;height:' + (height || 10) + 'px;border-radius:99px;overflow:hidden">' +
+        shown.map((p) => '<span title="' + (0, ChartKit_1.esc)(p.label + ': ' + count(p.value)) + '" style="flex:' + (0, ChartKit_1.num)(p.value) + ' 1 0;min-width:3px;background:' + (0, ChartKit_1.esc)(p.colour) + '"></span>').join('') +
+        '</div>';
+}
+exports.meter = meter;
+// One share of a whole: a single bar filled to its fraction.
+function share(value, of, colour, theme) {
+    const w = of > 0 ? Math.max(0, Math.min(100, value / of * 100)) : 0;
+    return '<div style="height:6px;border-radius:99px;background:' + (0, ChartKit_1.tint)(colour, theme.dark ? 0.2 : 0.14) + '"><div style="height:100%;border-radius:99px;width:' + w.toFixed(1) + '%;background:' + (0, ChartKit_1.esc)(colour) + '"></div></div>';
+}
+exports.share = share;
+// A legend row: swatch, label, count and its share of the total.
+function legendRow(p, total, theme) {
+    return '<div style="display:grid;grid-template-columns:10px minmax(0,1fr) auto 42px;gap:8px;align-items:center;font-size:12px;padding:2px 0">' +
+        '<span style="width:10px;height:10px;border-radius:3px;background:' + (0, ChartKit_1.esc)(p.colour) + '"></span>' +
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (0, ChartKit_1.esc)(p.label) + '</span>' +
+        '<span style="font-weight:700;font-variant-numeric:tabular-nums">' + count(p.value) + '</span>' +
+        '<span style="text-align:right;color:' + (0, ChartKit_1.esc)(theme.muted) + ';font-variant-numeric:tabular-nums">' + pct(p.value, total) + '</span></div>';
+}
+exports.legendRow = legendRow;
+// A right-pointing connector between two columns, shaded between colours.
+function arrow(from, to) {
+    return '<div style="display:flex;align-items:center;padding:0 4px"><div style="position:relative;flex:1;height:2px;margin-right:7px;background:linear-gradient(90deg,' + (0, ChartKit_1.esc)(from) + ',' + (0, ChartKit_1.esc)(to) + ')">' +
+        '<span style="position:absolute;right:-7px;top:-4px;border-left:8px solid ' + (0, ChartKit_1.esc)(to) + ';border-top:5px solid transparent;border-bottom:5px solid transparent"></span></div></div>';
+}
+exports.arrow = arrow;
+// The first rows of a list, and the rest behind a Show all that needs no
+// script, so a long list is complete but does not swamp its card.
+function showAll(rows, first, noun, theme) {
+    if (rows.length <= first) {
+        return rows.join('');
+    }
+    return rows.slice(0, first).join('') +
+        '<details style="margin-top:4px"><summary style="display:inline-block;cursor:pointer;margin:6px 0 4px;padding:3px 10px;border-radius:8px;font-size:11.5px;font-weight:700;' +
+        'color:' + (0, ChartKit_1.esc)(theme.accent) + ';background:' + (0, ChartKit_1.tint)(theme.accent, theme.dark ? 0.16 : 0.08) + '">Show all ' + rows.length + ' ' + (0, ChartKit_1.esc)(noun) + '</summary>' +
+        rows.slice(first).join('') + '</details>';
+}
+exports.showAll = showAll;
+// Columns for n cards so the rows balance: six make three and three, never
+// five and one. At most max columns.
+function balancedColumns(n, max) {
+    if (n <= max) {
+        return Math.max(1, n);
+    }
+    return Math.ceil(n / Math.ceil(n / max));
+}
+exports.balancedColumns = balancedColumns;
+function note(text, theme) {
+    return '<p style="margin:0;font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(text) + '</p>';
+}
+exports.note = note;
+
+};
  defs['XyChart']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1986,6 +2313,10 @@ const ClassChart_1 = require("./ClassChart");
 const SequenceChart_1 = require("./SequenceChart");
 const JourneyChart_1 = require("./JourneyChart");
 const IncidentLifecycleChart_1 = require("./IncidentLifecycleChart");
+const MetersChart_1 = require("./MetersChart");
+const RuleKindsChart_1 = require("./RuleKindsChart");
+const ResponseChainChart_1 = require("./ResponseChainChart");
+const TopologyChart_1 = require("./TopologyChart");
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
 // the chart's Mermaid source (when it has one) rather than nothing.
@@ -2025,6 +2356,10 @@ function draw(chart, theme, label) {
         case 'sequence': return (0, SequenceChart_1.renderSequence)(data, theme, label);
         case 'journey': return (0, JourneyChart_1.renderJourney)(data, theme);
         case 'incident-lifecycle': return (0, IncidentLifecycleChart_1.renderIncidentLifecycle)(data, theme);
+        case 'meters': return (0, MetersChart_1.renderMeters)(data, theme);
+        case 'rule-kinds': return (0, RuleKindsChart_1.renderRuleKinds)(data, theme);
+        case 'response-chain': return (0, ResponseChainChart_1.renderResponseChain)(data, theme);
+        case 'topology': return (0, TopologyChart_1.renderTopology)(data, theme);
         default: return '';
     }
 }
@@ -2032,7 +2367,8 @@ function describe(kind) {
     const names = {
         pie: 'Pie chart', xy: 'Bar chart', sankey: 'Flow diagram', timeline: 'Timeline', gantt: 'Schedule',
         mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
-        sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle'
+        sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
+        meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology'
     };
     return names[kind] || 'Chart';
 }

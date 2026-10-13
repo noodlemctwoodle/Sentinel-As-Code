@@ -415,6 +415,14 @@ function Format-XyFullLabels { param([string[]]$Labels)
     return '    %% x-labels [' + ((@($Labels) | ForEach-Object { '"' + ([string]$_ -replace '"', "'") + '"' }) -join ', ') + ']'
 }
 
+# A purpose-built graphic's data on a Mermaid comment line. Mermaid ignores
+# it, so the Markdown export keeps its diagram; ConvertFrom-BlueprintMermaid
+# reads the kind and the JSON, and the SharePoint site and the dashboard
+# draw the graphic made for that kind instead of the Mermaid.
+function Format-VisualLine { param([string]$Kind, $Data)
+    return "    %% visual $Kind " + ($Data | ConvertTo-Json -Compress -Depth 8)
+}
+
 # Workspace feature-flag boolean → display string. The Sentinel API omits
 # these fields when they're at their default value (= False), so a missing
 # property must render as "False" not as an empty cell. Otherwise readers
@@ -1380,15 +1388,52 @@ $correlationState = if ($fusionEnabled -and $m365DefenderConnected) {
     '**No Fusion rule deployed, no Defender XDR connector.** No ML-based incident correlation. Either enable the Fusion rule for multi-source correlation, or onboard to the Defender unified portal to inherit the Defender XDR Correlation Engine.'
 }
 
+# The rule kinds as data for the SharePoint graphic: every kind with its
+# settings, what it does, and how many this workspace deploys and enables.
+$ruleKindEnabled = @{}
+foreach ($r in $rules) {
+    if (-not ($r.properties -and $r.properties.enabled -eq $true)) { continue }
+    $k = if ($r.kind) { [string]$r.kind } else { 'unknown' }
+    if (-not $ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] = 0 }
+    $ruleKindEnabled[$k]++
+}
+$ruleKindDefs = @(
+    [ordered]@{ kind = 'Scheduled'; label = 'Scheduled'; summary = 'A KQL query on a schedule; raises an alert when its results pass a threshold.'; fields = @('queryFrequency', 'queryPeriod', 'triggerThreshold', 'query'); legacy = $false }
+    [ordered]@{ kind = 'NRT'; label = 'Near real time'; summary = 'A KQL query run every minute with no threshold, for detections that cannot wait.'; fields = @('query', 'eventGrouping'); legacy = $false }
+    [ordered]@{ kind = 'Fusion'; label = 'Fusion'; summary = 'Microsoft machine learning that correlates low-fidelity alerts into high-fidelity incidents.'; fields = @('alertRuleTemplateName', 'sourceSettings'); legacy = $false }
+    [ordered]@{ kind = 'MicrosoftSecurityIncidentCreation'; label = 'Microsoft incident creation'; summary = 'Turns alerts from a Microsoft security product into incidents: the pattern from before Defender XDR.'; fields = @('productFilter', 'severitiesFilter', 'displayNamesFilter', 'displayNamesExcludeFilter'); legacy = $true }
+    [ordered]@{ kind = 'ThreatIntelligence'; label = 'Threat intelligence'; summary = 'Matches Microsoft threat intelligence indicators against the workspace logs.'; fields = @('templateVersion'); legacy = $false }
+    [ordered]@{ kind = 'MLBehaviorAnalytics'; label = 'ML behaviour analytics'; summary = 'Built-in machine learning anomaly detections, such as unusual SSH or RDP sign-ins.'; fields = @('alertRuleTemplateName'); legacy = $false }
+)
+$ruleKindItems = [System.Collections.Generic.List[object]]::new()
+foreach ($d in $ruleKindDefs) {
+    $n = if ($ruleKindCounts.ContainsKey($d.kind)) { $ruleKindCounts[$d.kind] } else { 0 }
+    # The five kinds every workspace can have always show; ML behaviour analytics only when deployed.
+    if ($d.kind -eq 'MLBehaviorAnalytics' -and $n -eq 0) { continue }
+    $item = [ordered]@{}; foreach ($key in $d.Keys) { $item[$key] = $d[$key] }
+    $item.deployed = $n
+    $item.enabled = $(if ($ruleKindEnabled.ContainsKey($d.kind)) { $ruleKindEnabled[$d.kind] } else { 0 })
+    $ruleKindItems.Add($item)
+}
+foreach ($k in @($ruleKindCounts.Keys | Where-Object { $_ -notin @($ruleKindDefs | ForEach-Object { $_.kind }) } | Sort-Object)) {
+    $ruleKindItems.Add([ordered]@{ kind = $k; label = $k; summary = 'A rule kind this report does not describe.'; fields = @(); legacy = $false; deployed = $ruleKindCounts[$k]; enabled = $(if ($ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] } else { 0 }) })
+}
+$ruleKindsVisualLine = Format-VisualLine -Kind 'rule-kinds' -Data ([ordered]@{
+    total  = $rules.Count
+    common = @('id', 'kind', 'displayName', 'severity', 'enabled', 'lastModifiedUtc', 'tactics', 'techniques')
+    kinds  = $ruleKindItems.ToArray()
+})
+
 $rulesBody = @"
 $(Format-Banner -Title "Analytics Rules")
 
 ## Rule taxonomy
 
-Sentinel's ``alertRules`` API surfaces five kinds of detection logic under a single base. The class diagram documents the polymorphism — useful when later sections refer to "MS Incident Creation rules" because those rules have a completely different shape from Scheduled:
+Sentinel's ``alertRules`` API surfaces every kind of detection logic under a single base: the fields every rule carries, then the settings only each kind has, with how many of each this workspace deploys. Worth knowing when later sections refer to "MS Incident Creation rules", because those rules have a completely different shape from Scheduled:
 
 ``````mermaid
 classDiagram
+$ruleKindsVisualLine
     class AlertRule {
         +string id
         +string kind
@@ -2109,6 +2154,34 @@ $autoOppRows = @(Read-RawArray 'incident-title-stats.json' | Where-Object { $_ }
     }
 } | Sort-Object -Property @{ Expression = 'Total'; Descending = $true })
 $autoOppCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'incident-title-stats.json')
+# The alert-to-response chain as data for the SharePoint graphic: the target
+# shape's steps by phase, each marked where a fired finding says this
+# workspace is missing it or has it at risk.
+$chainState = { param([string]$Id, [string]$State) if ($script:FiredFindingIds.ContainsKey($Id)) { [ordered]@{ state = $State; finding = $Id } } else { [ordered]@{ state = ''; finding = '' } } }
+$chainStep = { param([int]$N, [string]$Actor, [string]$Target, [string]$Action, $Flag)
+    $s = [ordered]@{ n = $N; actor = $Actor; target = $Target; action = $Action; state = ''; finding = '' }
+    if ($Flag) { $s.state = $Flag.state; $s.finding = $Flag.finding }
+    $s
+}
+$aut01 = & $chainState 'SAC-AUT-01' 'missing'
+$responseChainVisualLine = Format-VisualLine -Kind 'response-chain' -Data ([ordered]@{ phases = @(
+    [ordered]@{ name = 'Ingest'; figure = "$(@($connectors).Count) data connectors"; steps = @(
+        (& $chainStep 1 'Data source' 'DCR / Logs Ingestion' 'Event sent' $null),
+        (& $chainStep 2 'DCR / Logs Ingestion' 'Workspace table' 'Ingested after transform, about 5 minutes' $null)) }
+    [ordered]@{ name = 'Detect'; figure = "$($enabledRules.Count) enabled analytics rules"; steps = @(
+        (& $chainStep 3 'Analytics rule' 'Workspace table' 'KQL query on a schedule' $null),
+        (& $chainStep 4 'Analytics rule' 'Incident' 'Incident created' $null)) }
+    [ordered]@{ name = 'Automate'; figure = "$autoCount automation rules, $pbCount playbooks"; steps = @(
+        (& $chainStep 5 'Incident' 'Automation rule' 'Trigger: incident created' $null),
+        (& $chainStep 6 'Automation rule' 'Incident' 'Assign owner, tag tactic, set Active' $aut01),
+        (& $chainStep 7 'Automation rule' 'Playbook' 'Run playbook' $aut01),
+        (& $chainStep 8 'Playbook' 'Incident' 'Add an enrichment comment' $aut01)) }
+    [ordered]@{ name = 'Notify'; figure = ''; steps = @(
+        (& $chainStep 9 'Playbook' 'Microsoft Teams' 'Post to the SOC channel' (& $chainState 'SAC-AUT-05' 'risk')),
+        (& $chainStep 10 'Microsoft Teams' 'SOC analyst' 'Notification' $null)) }
+    [ordered]@{ name = 'Respond'; figure = ''; steps = @(
+        (& $chainStep 11 'SOC analyst' 'Incident' 'Acknowledge and investigate' (& $chainState 'SAC-INC-05' 'risk'))) }
+) })
 Write-Section '60-automation-rules-playbooks.md' (@"
 $(Format-Banner -Title "Automation Rules and Playbooks")
 
@@ -2120,6 +2193,7 @@ The sequence below documents the handoff path an automation-enriched response ch
 
 ``````mermaid
 sequenceDiagram
+$responseChainVisualLine
     autonumber
     participant DS as Data source
     participant DCR as DCR / Logs Ingest
@@ -2240,6 +2314,23 @@ $sourcePieRows = $sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Va
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
+# The installed packages as proportions for the SharePoint graphic: how
+# many are current and how many need attention, and where they come from.
+$cpStatusCount = { param([string]$S) @($cpRows | Where-Object { [string]$_.Status -eq $S }).Count }
+$sourceTone = @{ Solution = 'info'; Community = 'violet'; Standalone = 'teal' }
+$contentHubVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters = @(
+    [ordered]@{ title = 'Installed packages'; caption = 'Against the Content Hub catalogue'; total = $cpRows.Count; parts = @(
+        [ordered]@{ label = 'Up to date'; value = (& $cpStatusCount 'Up to date'); tone = 'ok' }
+        [ordered]@{ label = 'Update available'; value = (& $cpStatusCount 'Update available'); tone = 'warn' }
+        [ordered]@{ label = 'Deprecated'; value = (& $cpStatusCount 'Deprecated'); tone = 'bad' }
+        [ordered]@{ label = 'Not in catalogue'; value = (& $cpStatusCount 'Not in catalogue'); tone = 'rose' }
+        [ordered]@{ label = 'Not checked'; value = (& $cpStatusCount ''); tone = 'neutral' }
+    ) }
+    [ordered]@{ title = 'By source'; caption = 'Who publishes each package'; total = $cpRows.Count; parts = @($sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
+        [ordered]@{ label = [string]$_.Key; value = [int]$_.Value; tone = $(if ($sourceTone.ContainsKey([string]$_.Key)) { $sourceTone[[string]$_.Key] } else { 'neutral' }) }
+    }) }
+) })
+
 Write-Section '70-content-hub.md' (@"
 $(Format-Banner -Title "Content Hub and Repositories")
 
@@ -2247,6 +2338,7 @@ $(Format-Banner -Title "Content Hub and Repositories")
 
 ``````mermaid
 pie showData title Installed Content Hub packages by source
+$contentHubVisualLine
 $($sourcePieRows -join [Environment]::NewLine)
 ``````
 
@@ -2913,6 +3005,29 @@ if (@($workbooksSaved).Count -gt 0) {
     $dstEdges += '    WS --> WB'
 }
 $hasDownstream = $dstNodes.Count -gt 0
+# The topology as data for the SharePoint graphic: every source family
+# (none rolled up), the table plans in use and not, and the destinations.
+$planTableCounts = @{}
+foreach ($t in $workspaceTables) { $pl = [string]$t.properties.plan; if ($pl) { if (-not $planTableCounts.ContainsKey($pl)) { $planTableCounts[$pl] = 0 }; $planTableCounts[$pl]++ } }
+$planDetail = { param([string]$Plan) if ($planTableCounts.ContainsKey($Plan)) { "$($planTableCounts[$Plan]) table$(if ($planTableCounts[$Plan] -ne 1) { 's' })" } else { 'In use' } }
+$topologyVisualLine = Format-VisualLine -Kind 'topology' -Data ([ordered]@{
+    sources     = @($sortedBuckets | ForEach-Object { [ordered]@{ name = [string]$_.Name; count = [int]$_.Count } })
+    sourceTotal = @($effective).Count
+    rules       = $enabledRules.Count
+    plans       = @(
+        [ordered]@{ name = 'Analytics'; inUse = $true; detail = 'Default plan' }
+        [ordered]@{ name = 'Basic'; inUse = $hasBasic; detail = (& $planDetail 'Basic') }
+        [ordered]@{ name = 'Auxiliary'; inUse = $hasAuxiliary; detail = (& $planDetail 'Auxiliary') }
+        [ordered]@{ name = 'Data Lake'; inUse = $hasDataLake; detail = 'Enrolled' }
+        [ordered]@{ name = 'Long-term archive'; inUse = $hasArchive; detail = "$archiveTables table$(if ($archiveTables -ne 1) { 's' })" }
+    )
+    downstream  = @(
+        [ordered]@{ name = 'Defender XDR portal'; inUse = [bool]$m365DefenderConnected; detail = 'Connected' }
+        [ordered]@{ name = 'Playbooks'; inUse = $hasPlaybooks; detail = "$(@($playbooks).Count)" }
+        [ordered]@{ name = 'Data export'; inUse = ($dataExportCount -gt 0); detail = "$dataExportCount destination$(if ($dataExportCount -ne 1) { 's' })" }
+        [ordered]@{ name = 'Workbooks'; inUse = (@($workbooksSaved).Count -gt 0); detail = "$(@($workbooksSaved).Count)" }
+    )
+})
 $dstClassLine = ''
 if ($hasDownstream) {
     $dstIds = $dstNodes | ForEach-Object { ($_ -split '\[')[0].Trim() }
@@ -2923,10 +3038,11 @@ $(Format-Banner -Title "Data Collection Rules and Endpoints")
 
 ## Workspace topology
 
-Every captured ingestion source appears on the left, grouped into product-family buckets (the count after the bucket name is the number of distinct sources contributing). Workspace-side and downstream nodes only render when the underlying state supports them — a workspace with no Data Lake won't show a Data Lake node; the Defender XDR portal only appears when the M365 Defender connector is enabled.
+Every captured ingestion source, grouped into product families with the number of distinct sources feeding each; then the workspace, its analytics rules and the table plans it uses; then where its data goes. A plan or destination shows as in use only when the capture supports it: the Data Lake only when the tenant is enrolled, the Defender XDR portal only when the Microsoft 365 Defender connector is enabled.
 
 ``````mermaid
 flowchart LR
+$topologyVisualLine
     subgraph SRC["Connected sources"]
         direction TB
 $($srcLines -join [Environment]::NewLine)
@@ -4592,7 +4708,7 @@ $lifecycleVisual = [ordered]@{
     closedBy       = ConvertTo-LifecycleList -Bag $(if ($incSummary -and $incSummary.PSObject.Properties['ClosedBy']) { _RendererBag $incSummary.ClosedBy } else { $null }) -Labels @{ AutomationRule = 'Automation rule'; DefenderXdr = 'Defender XDR' }
     check          = [ordered]@{ id = 'SAC-INC-05'; fired = $script:FiredFindingIds.ContainsKey('SAC-INC-05') }
 }
-$lifecycleVisualLine = '    %% visual incident-lifecycle ' + ($lifecycleVisual | ConvertTo-Json -Compress -Depth 6)
+$lifecycleVisualLine = Format-VisualLine -Kind 'incident-lifecycle' -Data $lifecycleVisual
 
 $incidentBody = @"
 $(Format-Banner -Title "Incidents  (TOC 4.10)")
@@ -5448,6 +5564,20 @@ $readyTemplates = @($undeployedTemplates | Where-Object {
 $readyInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'Yes' }).Count
 $readyNotInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'No' }).Count
 $readyBuiltIn = @($readyTemplates | Where-Object { $_.'Solution installed' -eq '' }).Count
+# The headroom as proportions for the SharePoint graphic: how much of the
+# template catalogue is deployed, and of what is ready to enable, how much
+# comes from a solution already installed.
+$headroomVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters = @(
+    [ordered]@{ title = 'Applicable templates'; caption = 'Rule templates in the catalogue, deprecated ones left out'; total = $applicableTemplates.Count; parts = @(
+        [ordered]@{ label = 'Deployed'; value = ($applicableTemplates.Count - $undeployedTemplates.Count); tone = 'ok' }
+        [ordered]@{ label = 'Not yet deployed'; value = $undeployedTemplates.Count; tone = 'violet' }
+    ) }
+    [ordered]@{ title = 'Ready to enable'; caption = 'Not yet deployed, and their tables have data'; total = $readyTemplates.Count; parts = @(
+        [ordered]@{ label = 'Solution installed'; value = $readyInstalled; tone = 'ok' }
+        [ordered]@{ label = 'Solution not installed'; value = $readyNotInstalled; tone = 'warn' }
+        [ordered]@{ label = 'Built-in'; value = $readyBuiltIn; tone = 'info' }
+    ) }
+) })
 $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
 @"
 
@@ -5459,6 +5589,7 @@ config:
     height: 380
 ---
 xychart-beta
+$headroomVisualLine
     title "Detection headroom"
     x-axis ["Applicable templates", "Enabled rules", "Not yet deployed"]
     y-axis "Count" 0 --> $([math]::Max($applicableTemplates.Count, $enabledRules.Count) + 2)

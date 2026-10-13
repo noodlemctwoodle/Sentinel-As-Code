@@ -396,6 +396,30 @@ Describe 'Renderer section model output' {
         $d.check.fired | Should -BeTrue
     }
 
+    It 'gives each diagram with a purpose-built graphic its kind and data' {
+        $charts = { param($id) @((Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' }) }
+        $rk = @(& $charts '20-analytics-rules')[0]
+        $rk.kind | Should -Be 'rule-kinds'
+        @($rk.data.kinds.kind)[0..4] | Should -Be @('Scheduled', 'NRT', 'Fusion', 'MicrosoftSecurityIncidentCreation', 'ThreatIntelligence')
+        @($rk.data.common) | Should -Contain 'displayName'
+        $hr = @(& $charts '28-detection-opportunities')[0]
+        $hr.kind | Should -Be 'meters'
+        @($hr.data.meters.title) | Should -Be @('Applicable templates', 'Ready to enable')
+        $rc = @(& $charts '60-automation-rules-playbooks')[0]
+        $rc.kind | Should -Be 'response-chain'
+        @($rc.data.phases.name) | Should -Be @('Ingest', 'Detect', 'Automate', 'Notify', 'Respond')
+        @($rc.data.phases.steps).Count | Should -Be 11
+        $ch = @(& $charts '70-content-hub')[0]
+        $ch.kind | Should -Be 'meters'
+        @($ch.data.meters[0].parts.label) | Should -Be @('Up to date', 'Update available', 'Deprecated', 'Not in catalogue', 'Not checked')
+        $tp = @(& $charts '83-data-collection')[0]
+        $tp.kind | Should -Be 'topology'
+        @($tp.data.plans.name) | Should -Be @('Analytics', 'Basic', 'Auxiliary', 'Data Lake', 'Long-term archive')
+        @($tp.data.sources).Count | Should -BeGreaterThan 0
+        # The Markdown keeps its Mermaid; the graphic's data rides on a comment line.
+        (Get-Content (Join-Path $dirs.Both '83-data-collection.md') -Raw) | Should -Match '(?m)^flowchart LR\r?\n    %% visual topology \{'
+    }
+
     It 'carries every Mermaid chart as a chart block' {
         $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid').Count } | Measure-Object -Sum).Sum
         $charts = 0
