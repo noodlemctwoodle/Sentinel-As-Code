@@ -6,6 +6,50 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **MITRE coverage with sub-techniques, and no wall of rule names** - page
+  25 now covers tactics, techniques and sub-techniques. Sentinel returns a
+  rule's sub-techniques in a separate `subTechniques` array that every GA
+  version of the alert rules API leaves out, so the collector reads alert
+  rules with the preview version (`2024-10-01-preview`, falling back to GA
+  with a warning) and the renderer reads both arrays; a snapshot collected
+  before this shows no sub-techniques until it is collected again. Each
+  technique now sits under the tactics ATT&CK gives it rather than every
+  tactic on the rule (a rule tagged Initial Access and Credential Access no
+  longer puts Brute Force under Initial Access). Each tactic's table lists
+  its techniques, then their sub-techniques on rows of their own, with the
+  number of enabled rules and how many of the technique's sub-techniques
+  are covered ("1 of 4"); tactics nothing covers are listed in one line.
+  The rule names leave the technique tables for a new table at the end of
+  the page, one row per enabled rule with its tactics, techniques and
+  sub-techniques. The tactic summary under the chart, which printed no
+  numbers, is filled in.
+- **Dashboard: real charts, working links, pages that open at the top** -
+  in the Report tab the dashboard now draws each section's own pie and bar
+  charts (the maturity page's area scores, for example) instead of
+  dropping them; a chart drawn from a table appears only on a section
+  with no chart of its own and only from a column that holds an amount,
+  so the maturity Areas table is no longer charted by its Unknown count.
+  Links to another section or to a finding, which showed as bold text that
+  did nothing (so some ids were bold and others not), are now links: a
+  section opens in the Report tab, a finding in the findings view (or the
+  gap analysis page when the run's list does not hold it). Following any
+  link or tab starts at the top of what it opens: on SharePoint the page
+  scrolls, not the dashboard's iframe, so the dashboard now scrolls the
+  page. Finding cards no longer show the "was SENT-NNN" chip; the old ids
+  are listed in the operating guide, and the findings search still finds
+  a finding by its old id.
+- **iSOC Blueprint names throughout** - the GitHub workflow is now "iSOC
+  Blueprint", and the SharePoint publish workflow triggers on that name
+  (both change together; a `workflow_run` trigger only fires once the
+  default branch carries the new names). The ADO pipeline's log sections
+  and snapshot commit author, the publisher app's default name (`iSOC
+  Blueprint SharePoint publisher`; the set-up script renames an app it
+  finds under the Sentinel Blueprint or Sentinel Documenter name rather
+  than creating a second one), the report footer, page publish comments
+  and the web part's package details (web part 1.4.2, so the publisher
+  redeploys it) all say iSOC Blueprint. The ADO pipeline's display name is
+  set in Azure DevOps, not in the YAML, and is unchanged.
+
 - **What the maturity score covers, and a findings summary** - the maturity
   assessment now says what it is based on and what it covers wherever the
   score appears (page 91, the overview's maturity line, the dashboard's

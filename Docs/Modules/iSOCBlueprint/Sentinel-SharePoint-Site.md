@@ -99,7 +99,10 @@ data with its family, GB, rule count and coverage.
 Findings (on their tab and on the Overview) and the maturity criteria use
 one card layout: a card per item with the pill, id and title on the first
 line and a chevron at its far right, chips beneath (category, area and
-retired id; area, kind and effort for criteria), the criterion's impact
+what closing it does to the maturity score; area, kind and effort for
+criteria; ids from before the SAC scheme are not shown, though the
+findings search still finds a finding by its old id, see
+[Sentinel-Blueprint.md](Sentinel-Blueprint.md#ids-before-the-sac-scheme)), the criterion's impact
 line, then Evidence beside Remediation (or Guidance), each clamped to
 three lines. The Microsoft Learn link sits under the remediation text and
 a criterion's "Open finding" link under its evidence. Every card is the
@@ -127,6 +130,21 @@ Every card grid balances its rows (five cards become three and two,
 never four and one) and a short last row widens to fill the band. The
 Sankey sizes each column to its longest label and stacks the GB value
 under the label when the two cannot share a line.
+
+The Report tab shows every section from the section model. It draws the
+section's own pie and xy (bar) charts from their data; the other chart
+kinds appear on the section's SharePoint page, where the chart web part
+draws them. A section with no chart of its own gets one drawn from a short
+table, and only when a column clearly holds an amount (a count, cost,
+volume or total); a table with no such column gets no chart. A link to
+another section opens it in the Report tab, and a link to a finding opens
+it in the findings view, or the gap analysis page when this run's
+findings list does not hold it.
+
+Following a link or a tab starts at the top of what it opens. On
+SharePoint the web part grows its iframe to the dashboard's full height
+and the SharePoint page does the scrolling, so the dashboard scrolls the
+host page (with `scrollIntoView`) rather than its own window.
 
 | Model key | Panel | Source captures |
 | --- | --- | --- |

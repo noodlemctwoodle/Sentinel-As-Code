@@ -226,8 +226,8 @@ metrics            every computed metric, null where not captured or not computa
 
 ## Adding a criterion
 
-1. Decide what decides it. If a SENT rule already checks the condition,
-   use `{"kind": "gapRule", "rule": "SENT-0NN"}`. If a number from the
+1. Decide what decides it. If a gap rule already checks the condition,
+   use `{"kind": "gapRule", "rule": "SAC-<AREA>-NN"}`. If a number from the
    captures decides it, add the metric to `New-MaturityMetrics` (null when
    the file is absent) and use `{"kind": "metric", "path": "...", "op":
    "gt|ge|eq|lt|le", "value": ...}`. Combine with `allOf` or `anyOf`.

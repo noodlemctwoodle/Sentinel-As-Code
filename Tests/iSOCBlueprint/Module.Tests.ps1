@@ -32,7 +32,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -171,6 +171,24 @@ Describe 'Prerequisites' {
     It 'answers yes or no with -Quiet' {
         Test-iSOCBlueprintPrerequisite -Step Site -Quiet | Should -BeOfType [bool]
         Test-iSOCBlueprintPrerequisite -Step Site -Quiet | Should -BeTrue
+    }
+}
+
+Describe 'Collector API versions' {
+    It 'reads alert rules with the preview API, which carries subTechniques, and falls back to GA' {
+        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
+        $block = [regex]::Match($collector, "(?s)Try-Capture 'alert-rules' \{.*?\n\}").Value
+        $block | Should -Match '/alertRules" -ApiVersion \$apiVersions\.SentinelPreview'
+        $block | Should -Match '(?s)catch \{.*/alertRules" -ApiVersion \$apiVersions\.Sentinel\s'
+    }
+}
+
+Describe 'SharePoint publisher name' {
+    It 'defaults to the iSOC Blueprint name and renames an app found under an earlier one' {
+        $setup = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/setup/Setup-SharePointPublisher.ps1') -Raw
+        $init = Get-Content -LiteralPath (Join-Path $script:engineRoot 'SharePoint/Initialize-SentinelDocsSite.ps1') -Raw
+        foreach ($s in $setup, $init) { $s | Should -Match "\`$PublisherAppName = 'iSOC Blueprint SharePoint publisher'" }
+        $setup | Should -Match "foreach \(\`$legacyName in 'Sentinel Blueprint SharePoint publisher', 'Sentinel Documenter SharePoint publisher'\)"
     }
 }
 

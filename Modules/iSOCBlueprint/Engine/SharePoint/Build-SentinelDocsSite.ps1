@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.3
+    Version:      0.5.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -264,8 +264,10 @@ $script:MitreCoveredThreshold = 3
 function ConvertTo-SectionRunsHtml {
     <#
     .SYNOPSIS
-        Dashboard HTML for text runs: web links open in a new tab, links to
-        other sections and findings show as cross-reference text.
+        Dashboard HTML for text runs: web links open in a new tab; links to
+        another section or to a finding become in-dashboard links (the
+        dashboard opens the section in its Report tab, or the finding in its
+        findings view). A link to an anchor on the same page shows as text.
     #>
     param([object[]] $Runs)
     $sb = [System.Text.StringBuilder]::new()
@@ -278,8 +280,19 @@ function ConvertTo-SectionRunsHtml {
         if ($r.italic) { $h = "<em>$h</em>" }
         if ($r.bold) { $h = "<strong>$h</strong>" }
         if ($r.href) {
-            if ([string]$r.target.kind -eq 'external') { $h = "<a href=`"$(ConvertTo-HtmlText ([string]$r.href))`" target=`"_blank`" rel=`"noopener`">$h</a>" }
-            else { $h = "<span class=`"xref`">$h</span>" }
+            switch ([string]$r.target.kind) {
+                'external' { $h = "<a href=`"$(ConvertTo-HtmlText ([string]$r.href))`" target=`"_blank`" rel=`"noopener`">$h</a>" }
+                'finding' {
+                    # The page the finding's anchor is on (90, the gap analysis)
+                    # is the fallback when the finding is not in this run's list.
+                    $page = if ([string]$r.href -match '^(\d+)-') { [int]$Matches[1] } else { 90 }
+                    $h = "<a class=`"xref`" href=`"#`" data-xfind=`"$(ConvertTo-HtmlText ([string]$r.target.id))`" data-xsec=`"$page`">$h</a>"
+                }
+                'section' {
+                    if ([string]$r.target.section -match '^(\d+)') { $h = "<a class=`"xref`" href=`"#`" data-xsec=`"$([int]$Matches[1])`">$h</a>" }
+                }
+                default { }
+            }
         }
         [void]$sb.Append($h)
     }
@@ -299,8 +312,10 @@ function ConvertTo-SectionBlocks {
     <#
     .SYNOPSIS
         Turn one section from the section model into the dashboard's render
-        blocks: headings, prose, notes (callouts), lists and tables. Charts
-        (the dashboard draws its own), code and rules are left out.
+        blocks: headings, prose, notes (callouts), lists, tables, and the pie
+        and xy charts, which the dashboard draws from their data. The other
+        chart kinds (the chart web part draws them on the section's page),
+        code and rules are left out.
     #>
     param($Section)
 
@@ -311,6 +326,11 @@ function ConvertTo-SectionBlocks {
             'heading' { $blocks.Add([ordered]@{ t = 'h'; lvl = [int]$b.level; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
             'paragraph' { $blocks.Add([ordered]@{ t = 'p'; html = (ConvertTo-SectionRunsHtml @($b.text)) }) }
             'list' { $blocks.Add([ordered]@{ t = 'ul'; items = @(Get-SectionListItems $b) }) }
+            'chart' {
+                if ([string]$b.kind -in 'pie', 'xy' -and $null -ne $b.data) {
+                    $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = [string]$b.title; data = $b.data })
+                }
+            }
             'table' {
                 $blocks.Add([ordered]@{
                         t       = 'table'
@@ -403,7 +423,7 @@ if (-not $WorkspaceName) {
 if (-not $Title)      { $Title = "$WorkspaceName - $ProductName" }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $Source 'sharepoint' }
 
-Write-Log "Sentinel Blueprint -> SharePoint site bundle" Section
+Write-Log "iSOC Blueprint -> SharePoint site bundle" Section
 Write-Log "  Source     : $Source"
 Write-Log "  Workspace  : $WorkspaceName"
 Write-Log "  Product    : $ProductName"

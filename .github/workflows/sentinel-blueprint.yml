@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# GitHub Actions Workflow: Sentinel Blueprint
+# GitHub Actions Workflow: iSOC Blueprint
 # ---------------------------------------------------------------------------
 # Daily snapshot of every aspect of a Microsoft Sentinel workspace, rendered
 # to Markdown. Output is delivered through TWO channels:
@@ -49,7 +49,7 @@
 #   SENTINEL_WORKSPACE             — Log Analytics workspace name
 # ---------------------------------------------------------------------------
 
-name: Sentinel Blueprint
+name: iSOC Blueprint
 
 on:
   schedule:
@@ -232,7 +232,7 @@ jobs:
             Review only, do not merge: merging would commit tenant
             configuration to main.
           body: |
-            # Sentinel Blueprint Snapshot: `${{ vars.SENTINEL_WORKSPACE }}`
+            # iSOC Blueprint Snapshot: `${{ vars.SENTINEL_WORKSPACE }}`
 
             > **Review only, do not merge.** Merging would commit tenant
             > configuration to `main` permanently. Treat this PR as a viewer:

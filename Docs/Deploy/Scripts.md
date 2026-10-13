@@ -244,7 +244,7 @@ credential) with one idempotent run, and prints the
 | `-SubscriptionId` | Yes | Subscription the connection is scoped to. |
 | `-ReaderResourceGroup` | Yes | Existing resource group the publisher gets Reader on. |
 | `-ServiceConnectionName` | No | Defaults to `sc-sentinel-sharepoint`, what the pipeline expects. |
-| `-PublisherAppName` | No | Display name of the app to find or create. Default `Sentinel Blueprint SharePoint publisher`. |
+| `-PublisherAppName` | No | Display name of the app to find or create. Default `iSOC Blueprint SharePoint publisher`. When no app has that name, an app under an earlier default (`Sentinel Blueprint SharePoint publisher`, then `Sentinel Documenter SharePoint publisher`) is renamed to it rather than a second publisher created. |
 | `-PublisherAppId` | No | Use an existing app registration instead of creating one. |
 | `-SharePointSiteUrl` | No | Written to `sharePointSiteUrl` in the variable group. |
 | `-VariableGroupName` | No | Defaults to `sentinel-deployment`. |

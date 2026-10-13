@@ -19,7 +19,7 @@ bootstrap and running the scripts locally, see the tool page:
 
 | Property | Azure DevOps | GitHub Actions |
 | --- | --- | --- |
-| Trigger | **Export: SharePoint site** (`publishSharePointSite`) on a `Sentinel-Blueprint` run; the stage follows `Document` in the same run | `workflow_run`: every successful "Sentinel Blueprint" run on `main`, plus `workflow_dispatch` |
+| Trigger | **Export: SharePoint site** (`publishSharePointSite`) on a `Sentinel-Blueprint` run; the stage follows `Document` in the same run | `workflow_run`: every successful "iSOC Blueprint" run on `main`, plus `workflow_dispatch` |
 | Schedule | None (the ADO Blueprint is manual) | None of its own (follows the Blueprint's 06:00 UTC cron) |
 | Input | The same run's `sentinel-docs` artefact (`download: current`) | The Blueprint run's `sentinel-docs-<ws>-<runId>` artefact |
 | Agent | `ubuntu-latest`, its own job | `ubuntu-latest`, environment `sharepoint-publish` |
@@ -68,7 +68,7 @@ latest snapshot.
   `publishSharePointSite` is ticked, and runs after `Document` succeeds,
   reading the artefact of the run it belongs to. There is no pipeline
   resource and no chained trigger.
-- **GitHub.** `workflow_run` on "Sentinel Blueprint", `completed`, `main`,
+- **GitHub.** `workflow_run` on "iSOC Blueprint", `completed`, `main`,
   gated on `conclusion == 'success'`. `workflow_dispatch` takes an optional
   `blueprint-run-id`; blank means the latest successful Blueprint run on
   `main`, which is what a chained run would use.

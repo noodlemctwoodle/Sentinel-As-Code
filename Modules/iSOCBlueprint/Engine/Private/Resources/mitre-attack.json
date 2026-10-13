@@ -1,5 +1,5 @@
 {
-  "$comment": "MITRE ATT&CK Enterprise catalogue used by the Sentinel Blueprint MITRE coverage section (25-mitre-coverage.md) and the gap engine (SAC-MON-04 MITRE-tactic-coverage). Tactics carry both shortname (kebab, STIX canonical) and sentinelShortName (PascalCase, what Sentinel rule tactics[] arrays return). Techniques carry tacticsSentinel as the PascalCase counterpart. Regenerated from the upstream STIX bundle at mitre-attack/attack-stix-data; bump the version field when MITRE realigns.",
+  "$comment": "MITRE ATT&CK Enterprise catalogue used by the iSOC Blueprint MITRE coverage section (25-mitre-coverage.md) and the gap engine (SAC-MON-04 MITRE-tactic-coverage). Tactics carry both shortname (kebab, STIX canonical) and sentinelShortName (PascalCase, what Sentinel rule tactics[] arrays return). Techniques carry tacticsSentinel as the PascalCase counterpart. Regenerated from the upstream STIX bundle at mitre-attack/attack-stix-data; bump the version field when MITRE realigns.",
   "version": "v18.0",
   "generatedAt": "2026-05-13T21:36:17Z",
   "source": "https://github.com/mitre-attack/attack-stix-data/blob/master/enterprise-attack/enterprise-attack-18.0.json",

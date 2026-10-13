@@ -120,7 +120,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.2.1
+    Version:        0.3.0
     Last Updated:   2026-10-13
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
@@ -152,7 +152,7 @@ param(
     [string]$ServiceConnectionName = 'sc-sentinel-sharepoint',
 
     [Parameter(Mandatory = $false)]
-    [string]$PublisherAppName = 'Sentinel Blueprint SharePoint publisher',
+    [string]$PublisherAppName = 'iSOC Blueprint SharePoint publisher',
 
     [Parameter(Mandatory = $false)]
     [string]$PublisherAppId,
@@ -252,10 +252,16 @@ if ($PublisherAppId) {
     $safeName = $PublisherAppName.Replace("'", "''")
     $app = Get-MgApplication -Filter "displayName eq '$safeName'" -ErrorAction Stop | Select-Object -First 1
     if (-not $app) {
-        # Before the Documenter was renamed Blueprint the default display name
-        # was this one. Rename that app rather than create a second publisher.
-        $legacyName = 'Sentinel Documenter SharePoint publisher'
-        $legacy = Get-MgApplication -Filter "displayName eq '$legacyName'" -ErrorAction Stop | Select-Object -First 1
+        # Earlier default display names, newest first: the Sentinel Blueprint
+        # before the product became the iSOC Blueprint, and the Documenter
+        # before that. Rename the app found rather than create a second
+        # publisher.
+        $legacy = $null
+        foreach ($legacyName in 'Sentinel Blueprint SharePoint publisher', 'Sentinel Documenter SharePoint publisher') {
+            if ($legacyName -eq $PublisherAppName) { continue }
+            $legacy = Get-MgApplication -Filter "displayName eq '$legacyName'" -ErrorAction Stop | Select-Object -First 1
+            if ($legacy) { break }
+        }
         if ($legacy) {
             if ($PSCmdlet.ShouldProcess($legacyName, "Rename app registration to '$PublisherAppName'")) {
                 Update-MgApplication -ApplicationId $legacy.Id -DisplayName $PublisherAppName -ErrorAction Stop
@@ -355,7 +361,7 @@ if ($endpoint) {
         name          = $ServiceConnectionName
         type          = 'azurerm'
         url           = 'https://management.azure.com/'
-        description   = 'Sentinel Blueprint SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
+        description   = 'iSOC Blueprint SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
         authorization = @{ scheme = 'WorkloadIdentityFederation'; parameters = @{ tenantid = $tenantId; serviceprincipalid = $app.AppId } }
         data          = @{ environment = 'AzureCloud'; scopeLevel = 'Subscription'; subscriptionId = $SubscriptionId; subscriptionName = $subscriptionName; creationMode = 'Manual' }
         isShared      = $false

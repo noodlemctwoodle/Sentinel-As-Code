@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Combine a folder of Markdown files into a single, formatted Word
-    (.docx) report via Pandoc. Built for Sentinel Blueprint output.
+    (.docx) report via Pandoc. Built for iSOC Blueprint output.
 
 .DESCRIPTION
     Collects every .md file under -Source (recursively), concatenates
@@ -123,7 +123,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-25
-    Version:        1.0.3
+    Version:        1.0.4
     Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, pandoc on PATH
 #>

@@ -84,7 +84,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-10-13
     Permissions:  SharePoint administrator; delegated Sites.FullControl.All on the sign-in app
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
@@ -111,7 +111,7 @@ param(
     [string]$PublisherAppId,
 
     [Parameter(Mandatory = $false)]
-    [string]$PublisherAppName = 'Sentinel Blueprint SharePoint publisher',
+    [string]$PublisherAppName = 'iSOC Blueprint SharePoint publisher',
 
     [Parameter(Mandatory = $true)]
     [string]$ClientId,

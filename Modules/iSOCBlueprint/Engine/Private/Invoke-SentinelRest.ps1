@@ -51,9 +51,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.0
-    Last Updated:   2026-09-01
-    Component:      Sentinel Blueprint
+    Version:        0.1.1
+    Last Updated:   2026-10-13
+    Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts
 
     API versions:

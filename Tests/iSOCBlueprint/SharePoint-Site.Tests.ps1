@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.4.2
+    Version:      0.5.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1024,6 +1024,47 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'writes the bundle into <Source>/sharepoint' {
         $bundle | Should -Be (Join-Path $ws 'sharepoint')
         foreach ($f in 'index.html', 'model.json', 'site.json', 'findings.json') { Join-Path $bundle $f | Should -Exist }
+    }
+
+    It 'carries each section''s pie and xy charts for the Report tab, and no other kind' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $charts = @($model.sections | ForEach-Object { @($_.blocks) } | Where-Object { $_.t -eq 'chart' })
+        $charts.Count | Should -BeGreaterThan 0
+        @($charts | Where-Object { $_.kind -notin 'pie', 'xy' }).Count | Should -Be 0
+        # The maturity page's area scores, which the dashboard used to drop
+        # and replace with a chart of the Areas table's last number column.
+        $area = @($model.sections | Where-Object num -EQ 91 | ForEach-Object { @($_.blocks) } | Where-Object { $_.t -eq 'chart' })[0]
+        $area.kind | Should -Be 'xy'
+        $area.data.yAxis.max | Should -Be 5
+        @(@($area.data.series)[0].values).Count | Should -Be @($area.data.xAxis.labels).Count
+    }
+
+    It 'makes links to sections and findings dashboard links rather than bold text' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $text = ($model.sections | ConvertTo-Json -Depth 32 -Compress) -replace '\\"', '"'
+        $text | Should -Not -Match '<span class="xref">'
+        $text | Should -Match '<a class="xref" href="#" data-xsec="\d+">'
+        # A finding link names the page its anchor is on, for when the finding
+        # is not in this run's list.
+        $text | Should -Match '<a class="xref" href="#" data-xfind="SAC-[A-Z]+-\d{2}" data-xsec="90">'
+    }
+
+    It 'shows no id from before the SAC scheme on a finding card' {
+        # The search still matches an old id; the card no longer shows it.
+        $card = [regex]::Match($script:html, '(?s)function findingCard\(f\)\{.*?\n  \}').Value
+        $card | Should -Not -BeNullOrEmpty
+        $card | Should -Not -Match 'legacyId'
+    }
+
+    It 'scrolls with scrollIntoView, which moves the SharePoint page around the iframe' {
+        # window.scrollTo inside the auto-height iframe moves nothing; the
+        # only call left is the fallback inside bringTop.
+        $script:html | Should -Match 'function bringTop\('
+        ([regex]::Matches($script:html, 'window\.scrollTo\(')).Count | Should -Be 1
+    }
+
+    It 'charts a table only from a column that clearly holds an amount' {
+        $script:html | Should -Not -Match 'valCol=numCols\[numCols\.length-1\]'
     }
 
     It 'gives every page the same hash when built again in a fresh process' {

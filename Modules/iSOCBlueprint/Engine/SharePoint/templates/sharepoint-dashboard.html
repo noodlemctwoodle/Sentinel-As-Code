@@ -432,7 +432,7 @@
   .docbody li{margin:4px 0}
   .docbody code{background:var(--chip);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;font-size:12px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-  .docbody .xref{font-weight:700;color:var(--ink)}
+  .docbody a.xref{cursor:pointer}
   /* callout — clean left-rule, no heavy box */
   .docnote{position:relative;margin:16px 0;padding:2px 2px 2px 16px;border-left:3px solid color-mix(in srgb,var(--brand) 55%,var(--line));
     color:var(--ink-2);font-size:13px;line-height:1.6}
@@ -471,7 +471,7 @@
   .docstat .sv{font-size:17px;font-weight:800;letter-spacing:-.02em;line-height:1}
   .docstat .sk{font-size:10.5px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
 
-  /* auto chart from a section table */
+  /* charts in the Report tab: the section's own, or one drawn from a table */
   .docchart{margin:16px 0;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);
     padding:16px 18px;background:var(--panel)}
   .docchart .cct{font-size:13px;font-weight:750;color:var(--ink);margin-bottom:3px}
@@ -482,6 +482,11 @@
   .cbar .cf{height:100%;border-radius:999px;width:var(--w,0%);
     background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .6s cubic-bezier(.22,.8,.3,1)}
   .cbar .cv{font-size:12.5px;font-weight:750;color:var(--ink);min-width:58px;text-align:right;font-variant-numeric:tabular-nums}
+  .cbar .cts{display:grid;gap:3px}
+  .cbar .ct.thin{height:7px}
+  .cbar .cf.solid{background:var(--c)}
+  .docchart .legend{margin-top:10px}
+  .docchart .piewrap{margin-top:12px}
 
   /* What's new */
   .wn{display:flex;flex-direction:column;gap:2px}
@@ -788,6 +793,21 @@
   // cross-tab navigation hooks (assigned later, used by the gap-analysis buttons)
   let gotoDocSection = null;   // (num) => void  — open a section in the Sections tab
   let activateTab = null;      // (name) => void — switch the top-level tab
+  // Bring an element's top into view, so a link opens at the top of what it
+  // shows rather than at the old scroll position. On SharePoint the web part
+  // grows its iframe to the dashboard's full height and the SharePoint page
+  // does the scrolling, so window.scrollTo here moves nothing; scrollIntoView
+  // scrolls every scrolling ancestor, the host page's included. With
+  // onlyIfAbove, an element whose top is already on screen stays put.
+  function bringTop(el, onlyIfAbove){
+    el=el||document.body;
+    if(onlyIfAbove){
+      let top=el.getBoundingClientRect().top;
+      try{ if(window.frameElement) top+=window.frameElement.getBoundingClientRect().top; }catch(e){}
+      if(top>=0) return;
+    }
+    try{ el.scrollIntoView({block:'start'}); }catch(e){ window.scrollTo(0,0); }
+  }
   const famColor = {
     'Entra ID / Identity':'#3b6fb0','Defender XDR':'#2b8c9e','Threat Intelligence':'#7a5a9e',
     'Azure / Syslog':'#c2912b','Custom logs':'#8a6d3b','Other':'#64748b'
@@ -833,7 +853,7 @@
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
       '<span class="fc-actions"><button type="button" class="fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
-      '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+maturityChip(f)+(f.legacyId?'<span class="fchip" title="Id before the SAC scheme">was '+esc(f.legacyId)+'</span>':'')+'</div>'+
+      '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+maturityChip(f)+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'<div class="fc-link"></div></div>'+
       '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'<div class="fc-link">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Microsoft Learn &rarr;</a>':'')+'</div></div></div></div>';
   }
@@ -943,12 +963,13 @@
                    M.sections.find(s=>/gap analysis/i.test(s.title)))||{}).num;
   function openGap(e){ if(e&&e.preventDefault)e.preventDefault();
     if(activateTab) activateTab('sectionsdoc');
-    if(gotoDocSection && gapNum!=null) gotoDocSection(gapNum); }
+    if(gotoDocSection && gapNum!=null) gotoDocSection(gapNum);
+    bringTop(); }
   const gapBtn=document.getElementById('gapBtn');
   gapBtn.href='#'; gapBtn.onclick=openGap;
   if(gapNum==null){ gapBtn.style.display='none'; }
   document.getElementById('foot').textContent =
-    'Generated from the Sentinel Blueprint _raw snapshot. Tenant configuration — keep private.';
+    'Generated from the iSOC Blueprint _raw snapshot. Tenant configuration: keep private.';
 
   // ---- glance stat tiles ----
   const c = M.counts, cost = M.cost;
@@ -957,7 +978,7 @@
   const secRetention = findSecNum(/retention/i, secOverview);
   const secCost = findSecNum(/monthly cost/i, secOverview);
   const secInventory = findSecNum(/workspace inventory/i, secOverview);
-  const jumpTo = num => { if(num==null) return; if(activateTab) activateTab('sectionsdoc'); if(gotoDocSection) gotoDocSection(num); };
+  const jumpTo = num => { if(num==null) return; if(activateTab) activateTab('sectionsdoc'); if(gotoDocSection) gotoDocSection(num); bringTop(); };
   const pills = [
     {k:'Region', v:w.region, ic:ICON.globe, sec:secOverview},
     {k:'SKU', v:w.sku, ic:ICON.tag, sec:secOverview},
@@ -1180,7 +1201,7 @@
       card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">Not assessed in this snapshot.</p></div></div>'+
         '<p class="note">The collector writes maturity.json after the gap analysis. This run has none, or no criterion could be evaluated.</p>';
     }
-    card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); window.scrollTo({top:0,behavior:'smooth'}); }));
+    card.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{ if(activateTab) activateTab(b.dataset.go); bringTop(); }));
     const qw=document.getElementById('quickWins');
     if(MAT && MAT.quickWins && MAT.quickWins.length){
       const QW=5, qwItems=MAT.quickWins.map((q,i)=>'<div class="qwi"><span class="qwn">'+(i+1)+'</span><div><div class="qwt"><span class="cid">'+esc(q.criterionId)+'</span> &middot; '+esc(q.name)+'</div>'+
@@ -1853,7 +1874,9 @@
       if(labelCol<0 || numCols.length===0) return '';
       // pick the numeric column with the most spread / meaning (prefer GB/cost/count-ish)
       let valCol = numCols.find(ci=>/gb|cost|count|total|alerts|events|rows|tables|value|usd|£|\$/i.test(b.headers[ci]));
-      if(valCol==null) valCol=numCols[numCols.length-1];
+      // No column that clearly holds an amount: no chart. Falling back to the
+      // last number column charted whatever it held (an Unknown count, say).
+      if(valCol==null) return '';
       const items=b.rows.map(r=>({label:r[labelCol].replace(/<[^>]+>/g,''), v:toNum(r[valCol]), disp:r[valCol].replace(/<[^>]+>/g,'')}))
         .filter(x=>x.label);
       const max=Math.max(...items.map(x=>x.v),0);
@@ -1865,6 +1888,41 @@
       return '<div class="docchart"><div class="cct">'+esc(b.headers[labelCol])+' &middot; '+esc(b.headers[valCol])+'</div>'+
         '<div class="ccn">Visualised from the table below.</div>'+bars+'</div>';
     }
+
+    // The section model's own charts (pie and xy; the other kinds are drawn
+    // by the chart web part on the section's SharePoint page).
+    const PAL=['#2563eb','#6d5efc','#0d9488','#d97706','#db2777','#16a34a','#0891b2','#a16207','#64748b','#dc2626'];
+    const SEVC={High:'#dc2626',Medium:'#d97706',Low:'#eab308',Informational:'#64748b',Info:'#64748b',Warning:'#d97706',Critical:'#991b1b'};
+    const fmtNum=v=>{ const n=+v; if(!isFinite(n)) return String(v==null?'':v); return Number.isInteger(n)? n.toLocaleString('en-GB') : n.toLocaleString('en-GB',{maximumFractionDigits:2}); };
+    const oneLine=s=>String(s==null?'':s).replace(/\s*\n\s*/g,' ');
+    function pieChartHtml(b){
+      const sl=((b.data&&b.data.slices)||[]).filter(x=>+x.value>0);
+      if(!sl.length) return '';
+      const total=sl.reduce((a,x)=>a+(+x.value),0);
+      const items=sl.map((x,i)=>({label:oneLine(x.label), value:+x.value, display:fmtNum(x.value), color:SEVC[oneLine(x.label)]||PAL[i%PAL.length]}));
+      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+
+        donutMultiHtml(items, fmtNum(total), 'total')+'</div>';
+    }
+    function xyChartHtml(b){
+      const d=b.data||{}, labels=((d.xAxis&&d.xAxis.labels)||[]).map(oneLine);
+      const series=(d.series||[]).filter(x=>x&&x.values&&x.values.length);
+      if(!labels.length||!series.length) return '';
+      const peak=Math.max(0,...series.map(x=>Math.max(0,...x.values.map(v=>+v||0))));
+      const yMax=(d.yAxis&&+d.yAxis.max>0)? Math.max(+d.yAxis.max,peak) : peak;
+      if(!(yMax>0)) return '';
+      const multi=series.length>1;
+      const col=si=>SEVC[series[si].name]||PAL[si%PAL.length];
+      const rows=labels.map((lbl,i)=>{
+        const bars=series.map((x,si)=>{ const v=+x.values[i]||0;
+          return '<div class="ct'+(multi?' thin':'')+'"><div class="cf'+(multi?' solid':'')+'" style="--w:'+(v>0?Math.max(2,v/yMax*100):0)+'%'+(multi?';--c:'+col(si):'')+'"></div></div>'; }).join('');
+        return '<div class="cbar"><div class="cl" title="'+esc(lbl)+'">'+esc(lbl)+'</div><div class="cts">'+bars+'</div>'+
+          '<div class="cv">'+series.map(x=>esc(fmtNum(x.values[i]))).join(' / ')+'</div></div>';
+      }).join('');
+      const legend=multi? '<div class="legend">'+series.map((x,si)=>'<span><i style="background:'+col(si)+'"></i>'+esc(x.name||('Series '+(si+1)))+'</span>').join('')+'</div>' : '';
+      const axis=d.yAxis&&d.yAxis.title? esc(oneLine(d.yAxis.title))+(d.yAxis.max!=null&&+d.yAxis.max>0&&+d.yAxis.min===0?', 0 to '+esc(fmtNum(d.yAxis.max)):'') : '';
+      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+rows+legend+'</div>';
+    }
+    const chartHtml=b=> b.kind==='pie'? pieChartHtml(b) : b.kind==='xy'? xyChartHtml(b) : '';
 
     // Summary stat chips: only clean, meaningful ones — a numeric key/value table
     // (e.g. "Connectors 3") yields a chip per row; generic data tables do not.
@@ -1942,12 +2000,14 @@
       const s=secs.find(x=>x.num===num)||secs[0];
       let body='';
       let ti=0;
+      const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
       (s.blocks||[]).forEach(b=>{
         if(b.t==='h'){ body+= (b.lvl>=4?'<h4>':'<h3>')+b.html+(b.lvl>=4?'</h4>':'</h3>'); }
         else if(b.t==='p'){ body+='<p>'+b.html+'</p>'; }
         else if(b.t==='note'){ body+=noteHtml(b); }
         else if(b.t==='ul'){ body+='<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>'; }
-        else if(b.t==='table'){ const ch=chartFromTable(b); body+=ch; body+=tableHtml(b, ti++); }
+        else if(b.t==='chart'){ body+=chartHtml(b); }
+        else if(b.t==='table'){ if(!ownCharts) body+=chartFromTable(b); body+=tableHtml(b, ti++); }
       });
       // summary stat chips
       const stats=statsForSection(s);
@@ -1970,8 +2030,19 @@
       if(typeof fitIframe==='function') fitIframe();
     }
 
+    // Links to another section open it here; links to a finding open it in
+    // the findings view, or its section when this run's list does not hold
+    // it. Both start at the top of what they open.
+    const listedFindings=new Set(((M.findings&&M.findings.items)||[]).map(f=>f.id));
+    content.addEventListener('click',e=>{
+      const a=e.target.closest('a.xref'); if(!a||!content.contains(a)) return;
+      e.preventDefault();
+      if(a.dataset.xfind && listedFindings.has(a.dataset.xfind) && typeof window.showFinding==='function'){ window.showFinding(a.dataset.xfind); return; }
+      const num=+a.dataset.xsec;
+      if(a.dataset.xsec!=null && secs.some(x=>x.num===num)){ gotoDocSection(num); bringTop(content,true); }
+    });
     function wireNav(){
-      nav.querySelectorAll('.docitem').forEach(el=>el.onclick=()=>render(+el.dataset.num));
+      nav.querySelectorAll('.docitem').forEach(el=>el.onclick=()=>{ render(+el.dataset.num); bringTop(content,true); });
     }
     nav.innerHTML=navHtml('');
     wireNav();
@@ -2015,7 +2086,8 @@
   findClear.onclick=()=>{ clearFindingFilters(); renderFindings(); };
   renderFindings();
   // Open the Assessment tab's findings view on one finding (used by the criteria cards).
-  window.showFinding=function(id){ clearFindingFilters(); findQ.value=id; if(activateTab) activateTab('findings'); renderFindings(); };
+  window.showFinding=function(id){ clearFindingFilters(); findQ.value=id; if(activateTab) activateTab('findings'); renderFindings();
+    bringTop(document.querySelector('[data-view="findings"] .filters')); };
 
   // ---- findings summary: the same kind of picture the maturity view gives ----
   (function(){
@@ -2141,7 +2213,7 @@
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{
-    const activate=()=>{ activateTab(lastOf[t.dataset.tab]||t.dataset.tab); window.scrollTo({top:0,behavior:'smooth'}); };
+    const activate=()=>{ activateTab(lastOf[t.dataset.tab]||t.dataset.tab); bringTop(); };
     t.onclick=activate;
     t.tabIndex=0;
     t.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); } };

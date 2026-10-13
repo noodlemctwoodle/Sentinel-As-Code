@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Azure DevOps Pipeline: Sentinel Blueprint (manual)
+# Azure DevOps Pipeline: iSOC Blueprint (manual)
 # ---------------------------------------------------------------------------
 # Read-only inventory, gap analysis and maturity assessment of a Microsoft
 # Sentinel workspace, with the three documentation outputs as tick boxes at
@@ -304,7 +304,7 @@ stages:
                 $params['PlaybookResourceGroup'] = $playbookRg
                 $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
 
-                Write-Host "##[section]Sentinel Blueprint - Collector"
+                Write-Host "##[section]iSOC Blueprint - Collector"
                 Write-Host "============================================================"
                 Write-Host "  Subscription : $(azureSubscriptionId)"
                 Write-Host "  Resource Grp : $(sentinelResourceGroup)"
@@ -326,7 +326,7 @@ stages:
                 $ErrorActionPreference = 'Stop'
 
                 $formats = '$(renderFormats)' -split ','
-                Write-Host "##[section]Sentinel Blueprint - Renderer"
+                Write-Host "##[section]iSOC Blueprint - Renderer"
                 Write-Host "  Output       : $($formats -join ', ')"
                 Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
                 ConvertTo-iSOCBlueprint `
@@ -370,7 +370,7 @@ stages:
                 script: |
                   $ErrorActionPreference = 'Stop'
 
-                  Write-Host "##[section]Sentinel Blueprint - Mermaid pre-render (PNG)"
+                  Write-Host "##[section]iSOC Blueprint - Mermaid pre-render (PNG)"
                   Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
                   ConvertTo-iSOCBlueprintChartImage `
                       -Path "$(Build.SourcesDirectory)/SecurityDocs" `
@@ -445,7 +445,7 @@ stages:
               fi
 
               git config user.email "noreply@sentinel-as-code.local"
-              git config user.name  "Sentinel Blueprint"
+              git config user.name  "iSOC Blueprint"
 
               # Reset the rolling docs branch from the LATEST target tip so
               # the branch always descends from the current target. Mirrors
@@ -484,7 +484,7 @@ stages:
               OVERVIEW_PATH="SecurityDocs/$(sentinelWorkspaceName)/00-overview.md"
               PR_BODY_FILE="$(mktemp)"
               {
-                echo "# Sentinel Blueprint Snapshot: $(sentinelWorkspaceName)"
+                echo "# iSOC Blueprint Snapshot: $(sentinelWorkspaceName)"
                 echo ""
                 echo "**Generated:** $(date -u +%Y-%m-%dT%H:%MZ)"
                 BUILD_URL="$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"

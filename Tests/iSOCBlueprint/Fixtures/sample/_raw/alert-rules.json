@@ -97,6 +97,9 @@
       "techniques": [
         "T1110"
       ],
+      "subTechniques": [
+        "T1110.003"
+      ],
       "alertRuleTemplateName": null,
       "lastModifiedUtc": "2026-09-01T08:00:00Z",
       "query": "ThreatIntelligenceIndicator\n| where Active == true\n| join kind=inner (SigninLogs | project IPAddress) on $left.NetworkIP == $right.IPAddress",

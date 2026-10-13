@@ -30,8 +30,8 @@ literal string.
 
 | Surface | Version | `$apiVersions` key | Why |
 |---|---|---|---|
-| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers connectors, alert rules, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, settings, threat-intelligence metrics. |
-| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Content Hub product packages, SOC-optimisation recommendations, `pricings` resource, `hunts`. |
+| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers connectors, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, settings, threat-intelligence metrics. |
+| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations, `pricings` resource, `hunts`. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
 | `Microsoft.OperationalInsights/workspaces/tables` | `2025-02-01` (falls back to `2023-09-01`) | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`, and on the newer version `schema.tableSubType` (Classic or DCR-based), `lastPlanModifiedDate` and the `*AsDefault` retention flags. A region that does not serve the newer version gets the older one, with a warning in the run log. |
 | `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms; REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |

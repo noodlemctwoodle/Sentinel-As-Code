@@ -216,7 +216,16 @@ block and read back by the section-01 headline.
 - **`$mitreRowsRich`**, array of `{ ID, Tactic, EnabledRules, Techniques,
   SubTechniques, Coverage }`. Built once in the section-25 block; consumed
   by the 25 matrix table, the 25 bar chart, and the section-01 MITRE
-  headline row.
+  headline row. It comes from `$mitreHierarchy` (tactic, then technique,
+  then sub-technique, each with the set of enabled rules mapping it). A
+  rule's ids are its `techniques` and its `subTechniques` (only the preview
+  alertRules API returns the second; older snapshots list sub-techniques in
+  `techniques`), with each sub-technique's parent added. A technique goes
+  under the rule's tactics that ATT&CK lists for it, else under its own
+  ATT&CK tactics, else (unknown to the catalogue) under the rule's tactics.
+  `$ruleAttackRows` (one row per enabled rule with its tactics, techniques
+  and sub-techniques) is the table at the end of page 25, so no table on
+  the page carries a list of rule names in a cell.
 - **`$populatedTableNames`**, hashtable of table names with billable data in
   the last 90 days. Consumed by 81 (operational subset filter) + 84
   (cost calculation gating).

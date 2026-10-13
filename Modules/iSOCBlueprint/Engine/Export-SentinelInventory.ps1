@@ -73,9 +73,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.2
+    Version:        0.5.0
     Last Updated:   2026-10-13
-    Component:      Sentinel Blueprint
+    Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
     API versions:
@@ -353,7 +353,16 @@ Try-Capture 'data-connector-definitions' {
 }
 
 Try-Capture 'alert-rules' {
-    $rules = Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.Sentinel
+    # The preview API: each rule's sub-techniques come in their own
+    # subTechniques array, which every GA version leaves out (the MITRE page
+    # needs it). A tenant that refuses the preview call gets the GA list,
+    # without sub-techniques, and a warning in the run log.
+    $rules = try {
+        Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.SentinelPreview
+    } catch {
+        Write-Warning "alertRules $($apiVersions.SentinelPreview) not served ($($_.Exception.Message)); falling back to $($apiVersions.Sentinel), which leaves out sub-techniques."
+        Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.Sentinel
+    }
     $script:AlertRules = @($rules)
     Save-Json -FileName 'alert-rules.json' -Data $rules
 }

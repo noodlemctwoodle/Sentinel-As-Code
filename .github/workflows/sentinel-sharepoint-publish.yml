@@ -2,9 +2,9 @@
 # GitHub Actions Workflow: Sentinel SharePoint Publish
 # ---------------------------------------------------------------------------
 # Publishes the iSOC Blueprint SharePoint site for one Sentinel workspace from
-# the Sentinel Blueprint's output. Mirrors the SharePoint stage of Pipelines/Sentinel-Blueprint.yml.
+# the iSOC Blueprint's output. Mirrors the SharePoint stage of Pipelines/Sentinel-Blueprint.yml.
 #
-# Trigger: runs after every successful "Sentinel Blueprint" run on main
+# Trigger: runs after every successful "iSOC Blueprint" run on main
 # (workflow_run), using that run's artefact, and on demand
 # (workflow_dispatch, defaulting to the latest successful Blueprint run on
 # main). The Blueprint has its own 06:00 UTC schedule; this workflow has
@@ -53,7 +53,7 @@ name: Sentinel SharePoint Publish
 
 on:
   workflow_run:
-    workflows: ["Sentinel Blueprint"]
+    workflows: ["iSOC Blueprint"]
     types: [completed]
     branches: [main]
 
@@ -136,7 +136,7 @@ jobs:
                        --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
           fi
           if ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
-            echo "::error ::No Blueprint run to publish (got '$run_id'). Run the Sentinel Blueprint first, or pass blueprint-run-id."
+            echo "::error ::No Blueprint run to publish (got '$run_id'). Run the iSOC Blueprint first, or pass blueprint-run-id."
             exit 1
           fi
           echo "Publishing Blueprint run $run_id"

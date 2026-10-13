@@ -3,7 +3,7 @@
 
 <#
 .SYNOPSIS
-    Tests for the Sentinel Blueprint gap-analysis engine.
+    Tests for the iSOC Blueprint gap-analysis engine.
 
 .DESCRIPTION
     Drives Get-SentinelGap with the deliberately-broken fixture under
@@ -70,7 +70,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.3.1
+    Version:      0.3.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>

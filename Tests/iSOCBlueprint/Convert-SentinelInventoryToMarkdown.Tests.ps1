@@ -3,7 +3,7 @@
 
 <#
 .SYNOPSIS
-    Tests for the Sentinel Blueprint renderer.
+    Tests for the iSOC Blueprint renderer.
 
 .DESCRIPTION
     Drives Convert-SentinelInventoryToMarkdown.ps1 against the fixture under
@@ -31,7 +31,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.2.2
+    Version:      0.3.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -69,7 +69,7 @@ AfterAll {
     }
 }
 
-Describe 'Sentinel Blueprint renderer' {
+Describe 'iSOC Blueprint renderer' {
 
     Context 'produces every expected section file' {
 
@@ -570,6 +570,41 @@ Describe 'Sentinel Blueprint renderer' {
 
         It 'still links each cell back to attack.mitre.org' {
             $script:mitre | Should -Match 'https://attack\.mitre\.org/techniques/T1078/'
+        }
+
+        It 'reads sub-techniques from the subTechniques array as well as from techniques' {
+            # The second fixture rule carries T1110.003 only in subTechniques,
+            # the shape the preview alertRules API returns.
+            $script:mitre | Should -Match 'T1110\.003 — Password Spraying'
+        }
+
+        It 'places a technique under the tactics ATT&CK gives it, not every tactic on the rule' {
+            # The first rule is tagged Initial Access and Credential Access and
+            # maps T1078 (an Initial Access technique) and T1110 (Credential
+            # Access only).
+            $initial = [regex]::Match($script:mitre, '(?s)### TA0001 · Initial Access(.*?)(?=\n### |\n## )').Groups[1].Value
+            $credential = [regex]::Match($script:mitre, '(?s)### TA0006 · Credential Access(.*?)(?=\n### |\n## )').Groups[1].Value
+            $initial | Should -Match 'T1078 — Valid Accounts'
+            $initial | Should -Not -Match 'T1110'
+            $credential | Should -Match 'T1110 — Brute Force'
+            $credential | Should -Not -Match 'T1078 — Valid Accounts'
+        }
+
+        It 'gives each sub-technique its own row with the parent''s coverage of sub-techniques' {
+            $script:mitre | Should -Match '\| \[T1078 — Valid Accounts\]\([^)]+\) \|  \| 1 \| 1 of 4 \|'
+            $script:mitre | Should -Match '\|  \| \[T1078\.004 — Cloud Accounts\]\([^)]+\) \| 1 \|  \|'
+        }
+
+        It 'lists every enabled rule once with its mapping, and no rule names in a technique table' {
+            $script:mitre | Should -Match '\| Failed logons across multiple accounts \| Credential Access \| T1110 \| T1110\.003 \|'
+            $script:mitre | Should -Match '\| Suspicious sign-in from rare country \| Initial Access, Credential Access \| T1078, T1110 \| T1078\.004 \|'
+            $script:mitre | Should -Not -Match 'RuleNames'
+            $script:mitre | Should -Not -Match 'base only'
+        }
+
+        It 'fills in the tactic summary under the chart' {
+            $script:mitre | Should -Match '\*\*0 Covered · 2 Thin · 12 None\*\* of 14 tactics'
+            $script:mitre | Should -Match 'Enabled rules map \*\*2\*\* techniques and \*\*2\*\* sub-techniques'
         }
     }
 
@@ -1245,7 +1280,7 @@ Describe 'Sentinel Blueprint renderer' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer — empty-state safety' {
+Describe 'iSOC Blueprint renderer — empty-state safety' {
     # When a _raw/*.json file is missing, the renderer must NOT emit phantom
     # table rows with all-null cells (the @($null) + ForEach-Object bug).
     # Verified by removing specific raw files and re-running the renderer.
@@ -1349,7 +1384,7 @@ Describe 'Sentinel Blueprint renderer — empty-state safety' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer - snapshots from before the rename' {
+Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
     # The collector wrote DocumenterVersion before the Documenter became
     # Blueprint; a snapshot like that must still show its version.
 
@@ -1386,7 +1421,7 @@ Describe 'Sentinel Blueprint renderer - snapshots from before the rename' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer - bookmarks on the hunting page' {
+Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     BeforeAll {
         $script:bmOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-bookmarks-test-$(New-Guid)"
         $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
@@ -1424,7 +1459,7 @@ Describe 'Sentinel Blueprint renderer - bookmarks on the hunting page' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
+Describe 'iSOC Blueprint renderer - sections from health check build 38' {
 
     BeforeAll {
         $script:hcRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-hc38-$(New-Guid)"
@@ -1564,7 +1599,7 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer - full reporting in plain words' {
+Describe 'iSOC Blueprint renderer - full reporting in plain words' {
 
     BeforeAll {
         $script:wideRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-wide-$(New-Guid)"
@@ -1639,7 +1674,7 @@ Describe 'Sentinel Blueprint renderer - full reporting in plain words' {
     }
 }
 
-Describe 'Sentinel Blueprint renderer - connector catalogue, saved searches and Sentinel pricing' {
+Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sentinel pricing' {
 
     BeforeAll {
         $script:catRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-catalogue-$(New-Guid)"
@@ -1713,7 +1748,7 @@ Describe 'Sentinel Blueprint renderer - connector catalogue, saved searches and 
     }
 }
 
-Describe 'Sentinel Blueprint renderer - findings and maturity as one assessment' {
+Describe 'iSOC Blueprint renderer - findings and maturity as one assessment' {
 
     BeforeAll {
         $script:gap90 = Get-Content (Join-Path $script:tempWsRoot '90-gap-analysis.md') -Raw

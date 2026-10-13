@@ -139,7 +139,7 @@ SecurityDocs/
     ├── 20-analytics-rules.md          all rules by kind, Microsoft-managed, recent modifications, by Content Hub solution, Defender XDR custom detections
     ├── 21-rule-performance.md         alert volume per rule, rule effectiveness, noisy rules
     ├── 22-rule-health-quality.md      rule run failures, rules without entity mappings, alert-only rules, stale rules, template drift, complexity
-    ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
+    ├── 25-mitre-coverage.md           ATT&CK tactics, techniques and sub-techniques covered, every rule's mapping
     ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
     ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
     ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable
@@ -241,7 +241,7 @@ private ADO project. Reuses the `sentinel-deployment` variable group and the
 pipelines already depend on. Pushes to `origin` on the ADO agent, which is
 the **ADO repo only**, never GitHub.
 
-> Pipelines → **Sentinel Blueprint** → Run pipeline. *Export: SharePoint
+> Pipelines → the pipeline built from `Pipelines/Sentinel-Blueprint.yml` → Run pipeline. *Export: SharePoint
 > site* and *Collector: include preview APIs* are ticked by default; untick
 > the SharePoint export for a workspace with no site. To skip the PR step and get only the
 > artefact, untick *Export: Markdown (docs pull request in this repo)*. The
@@ -279,7 +279,7 @@ skipped on a public repo so the upstream doesn't accrue a permanent daily red
 failure; a manual `workflow_dispatch` still starts and then hits the guard,
 so an operator who tries it is told exactly why.
 
-> Actions → **Sentinel Blueprint** → Run workflow → optionally tick
+> Actions → **iSOC Blueprint** → Run workflow → optionally tick
 > `include-preview`. There is no artefact-only path on a public repo: the guard
 > fails the run before collection whether `open-pull-request` is on or off, so
 > move the workflow to a private repo (or use the ADO pipeline against a private
@@ -424,6 +424,75 @@ its retired `SENT-NNN` id as `legacyId` (catalogue 3.0.0); the SharePoint
 findings list recognises an item filed under the legacy id and moves it
 to the new id instead of resolving one finding and adding another. Rules
 added from 3.1.0 never had a `SENT-NNN` id, so they carry no `legacyId`.
+The dashboard and the report show only the current id; the old ids are
+listed below.
+
+### Ids before the SAC scheme
+
+Every rule that had a `SENT-NNN` id, with the id it carries now
+(59 rules).
+
+| Old id | Id | Rule |
+| --- | --- | --- |
+| SENT-001 | SAC-LOG-03 | Daily cap not configured on the Log Analytics workspace |
+| SENT-002 | SAC-LOG-07 | Workspace default retention below the 90-day Sentinel free benefit |
+| SENT-003 | SAC-LOG-08 | High-volume table on Analytics plan with no DCR transform |
+| SENT-004 | SAC-COV-07 | Recommended data connectors not deployed |
+| SENT-005 | SAC-COV-05 | User & Entity Behaviour Analytics (UEBA) disabled |
+| SENT-006 | SAC-MON-04 | MITRE ATT&CK tactic with zero enabled detection rules |
+| SENT-007 | SAC-DET-05 | Analytics rules disabled or in error state |
+| SENT-008 | SAC-DET-09 | High-severity rule templates not deployed |
+| SENT-009 | SAC-GOV-06 | Owner or Contributor RBAC at workspace scope |
+| SENT-010 | SAC-PLT-08 | Diagnostic settings on the Log Analytics workspace not configured |
+| SENT-011 | SAC-AUT-05 | Playbook managed identity lacks the Microsoft Sentinel Responder role |
+| SENT-012 | SAC-LOG-09 | DCR transform missing on noisy custom tables |
+| SENT-013 | SAC-DET-07 | Content Hub solution updates available |
+| SENT-014 | SAC-PLT-11 | Sentinel still on Azure portal: Defender XDR migration deadline 2027-03-31 |
+| SENT-015 | SAC-LOG-10 | Workspace on PerGB2018 while sustained ingest exceeds the next commitment-tier break-even |
+| SENT-016 | SAC-LOG-02 | High-volume Analytics-plan table is a Basic/Auxiliary candidate |
+| SENT-017 | SAC-LOG-11 | Long-term data on Analytics interactive retention rather than archive |
+| SENT-018 | SAC-LOG-12 | Total ingest > 500 GB/day but no dedicated cluster |
+| SENT-019 | SAC-LOG-13 | Sentinel free benefit not detected on a workspace with eligible Defender plans |
+| SENT-020 | SAC-PLT-05 | Workspace replication disabled in a paired-region production tenant |
+| SENT-021 | SAC-PLT-06 | Public network access enabled for ingestion or query (no AMPLS) |
+| SENT-022 | SAC-PLT-09 | Sentinel or Log Analytics resource provider not registered on the subscription |
+| SENT-023 | SAC-LOG-14 | Eligible tables not yet evaluated for Sentinel Data Lake mirroring |
+| SENT-024 | SAC-GOV-07 | disableLocalAuth is false on the workspace (shared-key ingestion permitted) |
+| SENT-025 | SAC-GOV-08 | enableLogAccessUsingOnlyResourcePermissions misconfigured for the chosen access model |
+| SENT-026 | SAC-INV-01 | Silent table: had ingestion historically but nothing in the last 7 days |
+| SENT-027 | SAC-INV-04 | Orphan table: schema deployed but no data in the last 90 days |
+| SENT-028 | SAC-PLT-10 | Connected data connector is not delivering data |
+| SENT-029 | SAC-INC-06 | Incident MTTR above the 24-hour SOC efficiency threshold |
+| SENT-030 | SAC-INC-05 | Majority of incidents closed without ever being acknowledged |
+| SENT-031 | SAC-DET-04 | Enabled detection rule not modified in over 12 months |
+| SENT-032 | SAC-DET-10 | Deployed analytics rule lags behind the latest template version |
+| SENT-033 | SAC-DET-11 | Single analytics rule accounts for over 30 % of total alert volume |
+| SENT-034 | SAC-AUT-01 | No automation rules defined: every incident hits analysts manually |
+| SENT-035 | SAC-DET-12 | Enabled rule has produced zero alerts in the last 90 days |
+| SENT-036 | SAC-DET-06 | Analytics rule closes mostly as false positive |
+| SENT-037 | SAC-DET-03 | Enabled analytics rule has no entity mappings |
+| SENT-038 | SAC-MON-01 | Enabled analytics rule does not create incidents |
+| SENT-039 | SAC-GOV-05 | Service principal granted Owner or Contributor at workspace scope |
+| SENT-040 | SAC-GOV-04 | No identity holds the Microsoft Sentinel Responder role |
+| SENT-041 | SAC-DET-08 | Legacy Microsoft incident-creation rules still enabled |
+| SENT-042 | SAC-GOV-03 | No deletion-protection lock on the Sentinel workspace |
+| SENT-043 | SAC-LOG-15 | CommonSecurityLog volume warrants a custom-table split to a vendor _CL |
+| SENT-044 | SAC-LOG-16 | Syslog volume warrants a facility-based DCR filter or _CL split |
+| SENT-045 | SAC-LOG-17 | SecurityEvent or WindowsEvent volume warrants an XPath filter on the AMA DCR |
+| SENT-046 | SAC-LOG-18 | AzureDiagnostics carrying multiple resource providers: switch to resource-specific tables |
+| SENT-047 | SAC-PLT-02 | Custom log table still using the HTTP Data Collector API (CLv1): retirement 2026-09-14 |
+| SENT-048 | SAC-PLT-03 | Legacy Log Analytics agent (MMA / OMS) still heartbeating: retired 2024-08-31 |
+| SENT-049 | SAC-TI-01 | Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table: stopped 2025-07-31 |
+| SENT-050 | SAC-TI-02 | Enabled analytics rule queries the retired ThreatIntelligenceIndicator table |
+| SENT-051 | SAC-MON-05 | High-volume table with no enabled analytics rule reading it |
+| SENT-052 | SAC-MON-06 | Table that enabled analytics rules depend on has gone silent |
+| SENT-053 | SAC-AUT-02 | Playbook runs failed in the last 7 days |
+| SENT-054 | SAC-DET-13 | Installed Content Hub solution is deprecated or no longer in the catalogue |
+| SENT-055 | SAC-TI-05 | Threat intelligence relies on a single feed |
+| SENT-056 | SAC-LOG-06 | Azure Firewall logs collected twice (AzureDiagnostics and resource-specific tables) |
+| SENT-057 | SAC-INC-02 | Most incidents are closed without a classification |
+| SENT-058 | SAC-HNT-01 | No hunting activity recorded |
+| SENT-059 | SAC-DET-14 | Analytics rule runs are failing |
 
 The catalogue holds 66 rules. Version 3.1.0 added seven that close the
 remaining gaps against health-check build 38 (see
