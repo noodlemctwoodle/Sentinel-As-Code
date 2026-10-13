@@ -94,7 +94,7 @@ stages:
                 if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
                     Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
                 }
-                # PnP.PowerShell for Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1,
+                # PnP.PowerShell for Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1,
                 # which checks every PnP call in the SharePoint scripts against the
                 # version the Blueprint pipeline pins. Read from that pipeline so
                 # the two cannot drift; the suite fails in CI when it is missing.

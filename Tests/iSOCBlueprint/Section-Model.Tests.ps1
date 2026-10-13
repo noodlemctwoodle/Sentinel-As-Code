@@ -12,29 +12,29 @@
     they are exercised directly on small inputs. The renderer is then run
     over the fixture twice, with both output formats and with -OutputFormat
     Json, and every section file and the index are validated against
-    Tools/Blueprint/Schemas.
+    Modules/iSOCBlueprint/Engine/Schemas.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Section-Model.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Section-Model.Tests.ps1 -Output Detailed
 
 .NOTES
-    File:         Tests/Blueprint/Section-Model.Tests.ps1
+    File:         Tests/iSOCBlueprint/Section-Model.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (renderer)
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $private = Join-Path $script:repoRoot 'Tools/Blueprint/Private'
+    $private = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private'
     . (Join-Path $private 'ConvertFrom-BlueprintMermaid.ps1')
     . (Join-Path $private 'ConvertTo-BlueprintSection.ps1')
-    $script:sectionSchema = Join-Path $script:repoRoot 'Tools/Blueprint/Schemas/section.schema.json'
-    $script:indexSchema = Join-Path $script:repoRoot 'Tools/Blueprint/Schemas/section-index.schema.json'
+    $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section.schema.json'
+    $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json'
 
     function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') { ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id }
     function Get-Chart([string] $Source) { ConvertFrom-BlueprintMermaid -Source $Source }
@@ -267,9 +267,9 @@ flowchart LR
 Describe 'Renderer section model output' {
 
     BeforeAll {
-        $fixtureRaw = Join-Path $script:repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-        $renderer = Join-Path $script:repoRoot 'Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1'
-        $resources = Join-Path $script:repoRoot 'Tools/Blueprint/Private/Resources'
+        $fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+        $renderer = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
+        $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $script:root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-model-test-$(New-Guid)"
         $script:dirs = @{}
         foreach ($mode in 'Both', 'Json') {

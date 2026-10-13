@@ -88,7 +88,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      # The SharePoint PnP call check (Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1)
+      # The SharePoint PnP call check (Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1)
       # needs the PnP.PowerShell version the Blueprint pipeline pins, read
       # from there so the two cannot drift. The suite fails in CI without it.
       - name: Read the pinned PnP.PowerShell version

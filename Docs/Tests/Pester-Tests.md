@@ -8,7 +8,7 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) - 44 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 13 under [`Tests/Blueprint/`](../../Tests/Blueprint) and 5 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
+| Test files | [`Tests/`](../../Tests) - 44 suites total: 26 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites) and 18 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
 | PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
@@ -127,7 +127,7 @@ ruleset can require independently:
 
 The `validate` job points Pester at the whole `Tests/` tree (`Run.Path` is
 set to the folder, not an explicit file list), so every suite below runs in
-the gate, including the `Tests/Blueprint/` and `Tests/iSOCBlueprint/` suites and the Copilot /
+the gate, including the `Tests/iSOCBlueprint/` suites and the Copilot /
 workbook-export suites.
 
 | Suite | File | Coverage |
@@ -153,19 +153,19 @@ workbook-export suites.
 | Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
 | Export-SentinelWorkbooks | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation, parity against existing `Content/Workbooks/<Folder>/` names, `Format-WorkbookJson` round-trip |
 | New-DcrFromSchema | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../Tests/Test-NewDcrFromSchema.Tests.ps1) | The full pure surface of the DCR-from-schema wizard: `Import-TableSpec` (three schema shapes, plus the refusal when handed a data sample), `Remove-JsonNoise` / `ConvertTo-StraightPunctuation` / `ConvertTo-SafeText` (paste repair that respects string state), `Get-ColumnIssue` and `Test-TableName` (the documented Azure Monitor limits), `Resolve-TableSchema` / `Repair-TableSchema` (duplicate and case handling, what is safe to auto-fix), `ConvertTo-StreamColumn` and `Get-DefaultTransform` (the guid-to-string reconciliation), `Test-TransformKql`, `Compare-TableSchema`, `Format-DeploymentError` (nested ARM preflight errors), both ARM template builders, and an end-to-end pass over all five shipped example schemas |
-| Blueprint renderer | [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Blueprint Markdown from the `Tests/Blueprint/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
-| Blueprint gap engine | [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
-| Blueprint REST wrapper | [`Tests/Blueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
-| Blueprint section model | [`Tests/Blueprint/Section-Model.Tests.ps1`](../../Tests/Blueprint/Section-Model.Tests.ps1) | The Markdown-to-section-model converter, the Mermaid chart parser (every chart kind) and the renderer's `sections/*.json` validated against the schemas, with both output formats |
-| Blueprint SharePoint site | [`Tests/Blueprint/SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1) | Section families, section-model-to-page conversion (charts as chart segments, the stand-in tables), the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, section pages with the chart web part, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture, from the section model and from Markdown alone (no SharePoint or PnP needed) |
-| Blueprint SharePoint PnP calls | [`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`; and each entry script (publish, bootstrap, build) defines or loads every command it calls. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
-| Blueprint table references | [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
-| Blueprint maturity engine | [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
-| Blueprint custom detections | [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (imports `Sentinel.Common`) |
-| Blueprint Word report | [`Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1) | The Word report's Markdown rewrites: status words coloured only under a Severity, Status, Coverage or Rating column, the finding-card severity, and the finding bullets |
-| Blueprint connector catalogue | [`Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1) | The shipped `connector-catalogue.json` (provenance, unique ids, the core Microsoft connectors) and its helpers: connector ids from classic and codeless connectors, 7-day activity with free tables, connected connectors against the catalogue, the connector and solution labels for a table |
-| Blueprint table families | [`Tests/Blueprint/Get-TableFamily.Tests.ps1`](../../Tests/Blueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
-| Blueprint lake tiers | [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
+| Blueprint renderer | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Blueprint Markdown from the `Tests/iSOCBlueprint/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
+| Blueprint gap engine | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
+| Blueprint REST wrapper | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
+| Blueprint section model | [`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1) | The Markdown-to-section-model converter, the Mermaid chart parser (every chart kind) and the renderer's `sections/*.json` validated against the schemas, with both output formats |
+| Blueprint SharePoint site | [`Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1) | Section families, section-model-to-page conversion (charts as chart segments, the stand-in tables), the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, section pages with the chart web part, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture, from the section model and from Markdown alone (no SharePoint or PnP needed) |
+| Blueprint SharePoint PnP calls | [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`; and each entry script (publish, bootstrap, build) defines or loads every command it calls. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
+| Blueprint table references | [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
+| Blueprint maturity engine | [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
+| Blueprint custom detections | [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (dot-sources the module's copy of the Sentinel.Common KQL helpers) |
+| Blueprint Word report | [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | The Word report's Markdown rewrites: status words coloured only under a Severity, Status, Coverage or Rating column, the finding-card severity, and the finding bullets |
+| Blueprint connector catalogue | [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | The shipped `connector-catalogue.json` (provenance, unique ids, the core Microsoft connectors) and its helpers: connector ids from classic and codeless connectors, 7-day activity with free tables, connected connectors against the catalogue, the connector and solution labels for a table |
+| Blueprint table families | [`Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
+| Blueprint lake tiers | [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | The shared tier classifier behind page 88, the dashboard's lake panel and the billing flow: the four categories, Basic and Auxiliary side counts, extended-retention rows, the not-enrolled case |
 | iSOCBlueprint migration map | [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | The move of the Blueprint into the `iSOCBlueprint` module: every file under `Tools/Blueprint` has a row in [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md), every row names a real file and a known action, copies keep their place in the tree, and every edit in [`Engine-Edits.psd1`](../../Tests/iSOCBlueprint/Engine-Edits.psd1) is listed on its file's row and still matches its source exactly once |
 | iSOCBlueprint engine copy | [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | Every file the map copies into `Modules/iSOCBlueprint/Engine` equals its `Tools/Blueprint` source with only the listed edits applied (binary files by hash), the engine holds nothing the map does not account for, and the vendored copies (two `Sentinel.Common` KQL helpers, `Blueprint-References.md`) equal their originals. Fails when a fix lands in one copy only |
 | iSOCBlueprint module | [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | The manifest (valid, exports one command per `Public/` file, no required modules, version not older than the newest CHANGELOG release), each command's help and file header, the prerequisite list against the engine scripts' `#Requires`, the engine runner (null parameters left out, common parameters passed on, strict mode off), each command's parameter mapping with the engine mocked, and `New-iSOCBlueprint`'s step selection and refusals |
@@ -389,65 +389,69 @@ using Pester `Mock` to stub Az PowerShell calls.
 
 ### The Blueprint suites source differently
 
-The thirteen suites under [`Tests/Blueprint/`](../../Tests/Blueprint) do not
-go through the AST-extraction helper. They dot-source specific Blueprint
-files directly (including files under `Tools/Blueprint/Private/`) and drive
-them against a fixed JSON fixture corpus rather than mocking Azure:
+The Blueprint suites under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint)
+do not go through the AST-extraction helper. They dot-source specific files
+of the module's engine directly (including files under
+`Modules/iSOCBlueprint/Engine/Private/`) and drive them against a fixed JSON
+fixture corpus rather than mocking Azure. The module's own suites
+(`Migration-Map`, `Engine-Copy`, `Module`, `Module-Standalone`, `Parity`)
+are described in the validate table above.
 
-- [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1)
-  reshapes `Tests/Blueprint/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
-  layout the renderer [`Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1`](../../Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1)
+- [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1)
+  reshapes `Tests/iSOCBlueprint/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
+  layout the renderer [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
   expects, runs it, and asserts the rendered Markdown (plus an empty-state /
   busy-workspace safety pass).
-- [`Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1)
-  dot-sources [`Tools/Blueprint/Private/Get-SentinelGap.ps1`](../../Tools/Blueprint/Private/Get-SentinelGap.ps1)
+- [`Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1)
+  dot-sources [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1)
   and feeds it a deliberately-broken fixture so each gap-analysis rule fires.
-- [`Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1)
-  dot-sources [`Tools/Blueprint/Private/Invoke-SentinelRest.ps1`](../../Tools/Blueprint/Private/Invoke-SentinelRest.ps1)
+- [`Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1)
+  dot-sources [`Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1)
   and asserts URL construction (how `-ApiVersion` is appended when the path
   already carries a query string or its own `api-version`).
-- [`Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1)
-  imports `Modules/Sentinel.Common` (so it needs `Az.Accounts`, like the
-  module's own suite) and dot-sources
-  [`Tools/Blueprint/Private/Get-KqlTableReferences.ps1`](../../Tools/Blueprint/Private/Get-KqlTableReferences.ps1).
-- [`Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1)
+- [`Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1)
+  dot-sources the module's copy of the two Sentinel.Common KQL helpers
+  (`Engine/Private/Vendor/SentinelCommon.Kql.ps1`, so it needs no Azure
+  modules) and
+  [`Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1).
+- [`Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
   dot-sources the gap engine and
-  [`Tools/Blueprint/Private/Get-SentinelMaturity.ps1`](../../Tools/Blueprint/Private/Get-SentinelMaturity.ps1),
+  [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1),
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
-- [`Convert-MarkdownToWord.Tests.ps1`](../../Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1)
+- [`Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1)
   loads only the functions of
-  [`Tools/Blueprint/Report/Convert-MarkdownToWord.ps1`](../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1)
+  [`Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1)
   through the PowerShell parser (the script itself runs pandoc) and drives
   them on small Markdown strings; no pandoc, no fixture.
-- [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1)
+- [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1)
   dot-sources
-  [`Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1`](../../Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1),
+  [`Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1),
   checks the shipped catalogue and drives the helpers against a small
   catalogue written to a temporary file; no Azure modules.
-- [`Get-TableFamily.Tests.ps1`](../../Tests/Blueprint/Get-TableFamily.Tests.ps1)
+- [`Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1)
   dot-sources
-  [`Tools/Blueprint/Private/Get-TableFamily.ps1`](../../Tools/Blueprint/Private/Get-TableFamily.ps1)
+  [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1)
   and maps table and product names to source families.
-- [`Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1)
+- [`Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1)
   dot-sources
-  [`Tools/Blueprint/Private/Get-TableTierProfile.ps1`](../../Tools/Blueprint/Private/Get-TableTierProfile.ps1)
+  [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1)
   and classifies a hand-built set of five tables with and without lake
   enrolment; no fixture, no Azure modules.
-- [`Section-Model.Tests.ps1`](../../Tests/Blueprint/Section-Model.Tests.ps1)
-  dot-sources the section model helpers under [`Tools/Blueprint/Private/`](../../Tools/Blueprint/Private),
+- [`Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1)
+  dot-sources the section model helpers under [`Modules/iSOCBlueprint/Engine/Private/`](../../Modules/iSOCBlueprint/Engine/Private),
   converts small inputs directly, then renders the fixture with both output
   formats and with `-OutputFormat Json` and validates every `sections/*.json`
-  against [`Tools/Blueprint/Schemas/`](../../Tools/Blueprint/Schemas).
-- [`SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1)
-  dot-sources the helpers under [`Tools/Blueprint/SharePoint/Private/`](../../Tools/Blueprint/SharePoint/Private)
-  and runs [`Build-SentinelDocsSite.ps1`](../../Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1)
+  against [`Modules/iSOCBlueprint/Engine/Schemas/`](../../Modules/iSOCBlueprint/Engine/Schemas).
+- [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
+  dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private)
+  and runs [`Build-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)
   offline against the rendered fixture. The publisher's decisions live in pure
   planning functions, and the functions that call PnP run against stand-in
   functions (`Install-PnPStub`), so nothing needs SharePoint or PnP.PowerShell.
   `Publish-SacSectionPage` runs against a stand-in page object that records
   the web parts it is given.
-- [`SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1)
+- [`SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1)
   parses the SharePoint scripts and checks every PnP.PowerShell call against
   the real parameter metadata of the version `Pipelines/Sentinel-Blueprint.yml`
   pins (`pnpVersion`), so a call that cannot bind fails here instead of in a
@@ -615,8 +619,8 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-All 22 suites are listed below: 19 root-level `Tests/*.Tests.ps1` plus the 3
-under `Tests/Blueprint/`. Counts are approximate (some suites use `-ForEach`
+Root-level `Tests/*.Tests.ps1` suites and the 18 under `Tests/iSOCBlueprint/`
+are listed below. Counts are approximate (some suites use `-ForEach`
 to generate per-file `It` blocks at discovery time, so the count grows with
 the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 
@@ -642,19 +646,24 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
-| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Blueprint Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections, the sections added for health-check build 38, full lists with no emoji, the connector catalogue, other saved searches and Sentinel pricing, the pages split out for health-check granularity (02, 16, 21, 22, 89), findings linked to the maturity criteria they decide, and empty-state safety | ~250 |
-| [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour, the rules ported from health-check build 38, evidence that names every item, SAC-PLT-10 against the connector catalogue | 97 |
-| [`Tests/Blueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/Blueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
-| [`Tests/Blueprint/Section-Model.Tests.ps1`](../../Tests/Blueprint/Section-Model.Tests.ps1) | `ConvertTo-BlueprintSection`, `ConvertFrom-BlueprintMermaid`, renderer `sections/*.json` against the schemas | 46 |
-| [`Tests/Blueprint/SharePoint-Site.Tests.ps1`](../../Tests/Blueprint/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `ConvertTo-SacChartFallbackHtml`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacSectionPage`, `Test-SacPageComponent`, `Wait-SacPageComponent`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, the web part package (versions, bundles, component ids), offline bundle build (page hashes the same when rebuilt in a fresh process) | 123 |
-| [`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in `Tools/Blueprint/SharePoint/` binds against it; each entry script loads every command it calls | 11 |
-| [`Tests/Blueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/Blueprint/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
-| [`Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/Blueprint/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
-| [`Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1) | `Convert-StatusWords`, `Convert-FindingBullets` | 7 |
-| [`Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1) | `connector-catalogue.json` guards, `Import-ConnectorCatalogue`, `Get-WorkspaceConnectorId`, `Get-TableActivity`, `Get-ConnectorCatalogueStatus`, `Get-TableConnectorLabel`, `Get-TableSolutionLabel` | 13 |
-| [`Tests/Blueprint/Get-TableFamily.Tests.ps1`](../../Tests/Blueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily`, `Get-ProductFamily` | 20 |
-| [`Tests/Blueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/Blueprint/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
-| [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards, `Get-FindingMaturityLink` | 37 |
+| [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Blueprint Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections, the sections added for health-check build 38, full lists with no emoji, the connector catalogue, other saved searches and Sentinel pricing, the pages split out for health-check granularity (02, 16, 21, 22, 89), findings linked to the maturity criteria they decide, and empty-state safety | ~250 |
+| [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour, the rules ported from health-check build 38, evidence that names every item, SAC-PLT-10 against the connector catalogue | 97 |
+| [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
+| [`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1) | `ConvertTo-BlueprintSection`, `ConvertFrom-BlueprintMermaid`, renderer `sections/*.json` against the schemas | 46 |
+| [`Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `ConvertTo-SacChartFallbackHtml`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacSectionPage`, `Test-SacPageComponent`, `Wait-SacPageComponent`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, the web part package (versions, bundles, component ids), offline bundle build (page hashes the same when rebuilt in a fresh process) | 123 |
+| [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in `Modules/iSOCBlueprint/Engine/SharePoint/` binds against it; each entry script loads every command it calls | 11 |
+| [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
+| [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
+| [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | `Convert-StatusWords`, `Convert-FindingBullets` | 7 |
+| [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | `connector-catalogue.json` guards, `Import-ConnectorCatalogue`, `Get-WorkspaceConnectorId`, `Get-TableActivity`, `Get-ConnectorCatalogueStatus`, `Get-TableConnectorLabel`, `Get-TableSolutionLabel` | 13 |
+| [`Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily`, `Get-ProductFamily` | 20 |
+| [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | `Get-TableTier` and `Get-TableTierProfile` over a hand-built table set, enrolled and not | 10 |
+| [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | `Get-SentinelMaturity` over the fixture, synthetic scoring cases, `maturity-criteria.json` schema guards, `Get-FindingMaturityLink` | 37 |
+| [`Tests/iSOCBlueprint/Migration-Map.Tests.ps1`](../../Tests/iSOCBlueprint/Migration-Map.Tests.ps1) | Every `Tools/Blueprint` file has a row in `MIGRATION.md`; every row and edit is valid | ~260 (per-file) |
+| [`Tests/iSOCBlueprint/Engine-Copy.Tests.ps1`](../../Tests/iSOCBlueprint/Engine-Copy.Tests.ps1) | The engine equals `Tools/Blueprint` apart from the listed edits; vendored copies equal their originals | ~85 (per-file) |
+| [`Tests/iSOCBlueprint/Module.Tests.ps1`](../../Tests/iSOCBlueprint/Module.Tests.ps1) | Manifest, help, file headers, prerequisites, the engine runner, parameter mapping, `New-iSOCBlueprint` step selection | ~90 |
+| [`Tests/iSOCBlueprint/Module-Standalone.Tests.ps1`](../../Tests/iSOCBlueprint/Module-Standalone.Tests.ps1) | The module copied outside the repository renders, builds the site and runs the assessments | 8 |
+| [`Tests/iSOCBlueprint/Parity.Tests.ps1`](../../Tests/iSOCBlueprint/Parity.Tests.ps1) | The module and `Tools/Blueprint` produce the same report, section model, site bundle, findings and maturity | ~130 (per-file) |
 
 Add new entries to this table as you cover more scripts.
 

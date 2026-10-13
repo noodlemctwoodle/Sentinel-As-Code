@@ -19,31 +19,31 @@
     Invoke-AzRestMethod and capture the URL the helper would have sent.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Invoke-SentinelRest.Tests.ps1
+    Invoke-Pester -Path Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1
 
     Runs the URL-construction suite. Needs no Azure auth; the REST call
     is mocked.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Invoke-SentinelRest.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1 -Output Detailed
 
     Runs with per-assertion output, showing the URL the helper would
     have sent.
 
 .NOTES
-    File:         Tests/Blueprint/Invoke-SentinelRest.Tests.ps1
+    File:         Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $script:repoRoot 'Tools/Blueprint/Private/Invoke-SentinelRest.ps1')
+    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1')
 }
 
 Describe 'Invoke-SentinelRest URL construction' {

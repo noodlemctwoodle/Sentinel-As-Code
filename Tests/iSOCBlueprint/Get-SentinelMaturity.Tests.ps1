@@ -21,32 +21,32 @@
         every CSF id is in the reference, no em-dash in the text.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Get-SentinelMaturity.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1 -Output Detailed
 
 .NOTES
-    File:         Tests/Blueprint/Get-SentinelMaturity.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.0
-    Last Updated: 2026-10-09
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Tools/Blueprint/Private/Resources'
+    $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $script:criteriaPath = Join-Path $script:resourcesDir 'maturity-criteria.json'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
 
-    . (Join-Path $script:repoRoot 'Tools/Blueprint/Private/Get-SentinelGap.ps1')
-    . (Join-Path $script:repoRoot 'Tools/Blueprint/Private/Get-SentinelMaturity.ps1')
+    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
+    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1')
 
     $script:outcomes = [System.Collections.Generic.List[object]]::new()
     $null = Get-SentinelGap -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `
-        -RulesPath $script:rulesPath -GapChecksPath (Join-Path $script:repoRoot 'Tools/Blueprint/Private/GapChecks.ps1') `
+        -RulesPath $script:rulesPath -GapChecksPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1') `
         -OutcomeCollector $script:outcomes
 
     $script:maturity = Get-SentinelMaturity -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `
@@ -422,9 +422,9 @@ Describe 'maturity-criteria.json schema guards' {
 Describe 'Get-FindingMaturityLink' {
     BeforeAll {
         $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $root 'Tools/Blueprint/Private/Get-FindingMaturityLink.ps1')
-        $script:criteriaPath = Join-Path $root 'Tools/Blueprint/Private/Resources/maturity-criteria.json'
-        $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/Blueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
+        . (Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1')
+        $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json'
+        $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/iSOCBlueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
         $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity
     }
 

@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Drives Get-SentinelGap with the deliberately-broken fixture under
-    Tests/Blueprint/Fixtures/sample/_raw and asserts that each rule fires
+    Tests/iSOCBlueprint/Fixtures/sample/_raw and asserts that each rule fires
     against the conditions encoded in the fixture.
 
     The fixture is constructed so several SENT-* rules fire by design:
@@ -53,44 +53,44 @@
     expected-IDs list.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Get-SentinelGap.Tests.ps1
+    Invoke-Pester -Path Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1
 
     Runs the full gap-analysis suite against the deliberately-broken
     fixture.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Get-SentinelGap.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1 -Output Detailed
 
     Runs with per-assertion output, for identifying which SENT-* rule
     stopped firing.
 
 .NOTES
-    File:         Tests/Blueprint/Get-SentinelGap.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.3.0
-    Last Updated: 2026-10-09
+    Version:      0.3.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Tools/Blueprint/Private/Resources'
+    $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
-    $script:gapChecks    = Join-Path $script:repoRoot 'Tools/Blueprint/Private/GapChecks.ps1'
-    $script:gapEngine    = Join-Path $script:repoRoot 'Tools/Blueprint/Private/Get-SentinelGap.ps1'
+    $script:gapChecks    = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+    $script:gapEngine    = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1'
 }
 
 BeforeAll {
     $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $fixtureRaw   = Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-    $resourcesDir = Join-Path $repoRoot 'Tools/Blueprint/Private/Resources'
+    $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+    $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-    $gapChecks    = Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1'
-    $gapEngine    = Join-Path $repoRoot 'Tools/Blueprint/Private/Get-SentinelGap.ps1'
+    $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+    $gapEngine    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1'
 
     . $gapEngine
 
@@ -457,7 +457,7 @@ Describe 'Sentinel gap-analysis engine' {
 Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
         function New-Rule($name, $title, $enabled, $modified) {
             [pscustomobject]@{ name = $name; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified } }
         }
@@ -495,7 +495,7 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
 Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT rules' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
         $script:quiet = [pscustomobject]@{
             AlertRules = @(
                 [pscustomobject]@{ name = 'off'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Switched off'; enabled = $false } },
@@ -518,7 +518,7 @@ Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT
 Describe 'No-detection check counts Defender custom detections as coverage' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
         $script:tables = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
     }
 
@@ -543,7 +543,7 @@ Describe 'No-detection check counts Defender custom detections as coverage' {
 Describe 'Sentinel gap-analysis rule catalogue' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $script:catalogue = Get-Content (Join-Path $repoRoot 'Tools/Blueprint/Private/Resources/best-practices.json') -Raw | ConvertFrom-Json
+        $script:catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json') -Raw | ConvertFrom-Json
         $script:areaIds = @('DET', 'PLT', 'COV', 'AUT', 'MON', 'INC', 'INV', 'TI', 'HNT', 'LOG', 'GOV')
     }
 
@@ -580,11 +580,11 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
 
     BeforeAll {
         $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $fixtureRaw   = Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-        $resourcesDir = Join-Path $repoRoot 'Tools/Blueprint/Private/Resources'
+        $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-        $gapChecks    = Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1'
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/Get-SentinelGap.ps1')
+        $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
 
         # A copy of the fixture without the files the collector only writes
         # when its capture succeeds. "Not captured" must not read as "none".
@@ -654,11 +654,11 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
 
     BeforeAll {
         $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $fixtureRaw   = Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
-        $resourcesDir = Join-Path $repoRoot 'Tools/Blueprint/Private/Resources'
+        $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-        $gapChecks    = Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1'
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/Get-SentinelGap.ps1')
+        $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
 
         $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
         $script:outcomes = [System.Collections.Generic.List[object]]::new()
@@ -721,10 +721,10 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
     }
 
     It 'returns the same findings with or without a collector' {
-        $plain = Get-SentinelGap -InputRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tests/Blueprint/Fixtures/sample/_raw') `
-            -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Blueprint/Private/Resources') `
-            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Blueprint/Private/Resources/best-practices.json') `
-            -GapChecksPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tools/Blueprint/Private/GapChecks.ps1')
+        $plain = Get-SentinelGap -InputRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tests/iSOCBlueprint/Fixtures/sample/_raw') `
+            -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources') `
+            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json') `
+            -GapChecksPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
         @($plain | ForEach-Object Id) | Should -Be @($withCollector | ForEach-Object Id)
     }
 }
@@ -732,7 +732,7 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
 Describe 'Rules ported from health check build 38' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
         function New-Table([string] $Name, [int] $Analytics, [int] $Total, [string] $Plan = 'Analytics') {
             [pscustomobject]@{ name = $Name; properties = [pscustomobject]@{ plan = $Plan; retentionInDays = $Analytics; totalRetentionInDays = $Total } }
         }
@@ -826,7 +826,7 @@ Describe 'Rules ported from health check build 38' {
 Describe 'Gap evidence lists every item' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
     }
 
     It 'never cuts a list short with a "+ N more" suffix on the sample fixture' {
@@ -854,8 +854,8 @@ Describe 'Gap evidence lists every item' {
 Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Tools/Blueprint/Private/GapChecks.ps1')
-        $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Tools/Blueprint/Private/Resources/connector-catalogue.json')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json')
         $script:inv = {
             param([object[]]$Connectors, [object[]]$Tables)
             [pscustomobject]@{ DataConnectors = $Connectors; TablesWithData = $Tables; ConnectorCatalogue = $script:catalogue }

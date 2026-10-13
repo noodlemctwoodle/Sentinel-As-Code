@@ -14,18 +14,18 @@
     card and a finding bullet keeps its colour.
 
 .NOTES
-    File:         Tests/Blueprint/Convert-MarkdownToWord.Tests.ps1
+    File:         Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
-    $path = Join-Path $PSScriptRoot '../../Tools/Blueprint/Report/Convert-MarkdownToWord.ps1'
+    $path = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$null)
     foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -in 'Convert-StatusWords', 'Convert-FindingBullets' }, $true)) {
         . ([scriptblock]::Create($fn.Extent.Text))

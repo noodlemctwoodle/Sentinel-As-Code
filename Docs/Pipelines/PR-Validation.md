@@ -82,7 +82,7 @@ status check that the branch-protection ruleset can require independently.
   3. [`./.github/actions/setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules)
      with the pinned Pester + powershell-yaml versions and that PnP.PowerShell
      version, for the SharePoint PnP call check
-     (`Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1`).
+     (`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`).
   4. Run `Tools/Invoke-PRValidation.ps1` with `-InstallModules:$false` (the
      composite action already installed the modules). This is the single
      cross-platform entrypoint that both CI systems call, so test discovery,

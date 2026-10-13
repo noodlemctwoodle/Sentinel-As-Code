@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Drives Convert-SentinelInventoryToMarkdown.ps1 against the fixture under
-    Tests/Blueprint/Fixtures/sample/_raw and asserts that the expected Markdown
+    Tests/iSOCBlueprint/Fixtures/sample/_raw and asserts that the expected Markdown
     section files are produced and contain the headings + signal phrases the
     template promises.
 
@@ -15,33 +15,33 @@
     fixture or the working tree.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1
+    Invoke-Pester -Path Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1
 
     Runs the full renderer suite against the sample fixture.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1 -Output Detailed
 
     Runs with per-assertion output, for working out which section file
     failed to render.
 
 .NOTES
-    File:         Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1
+    File:         Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.2.0
-    Last Updated: 2026-10-09
+    Version:      0.2.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/Blueprint/Fixtures/sample'
+    $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:renderer   = Join-Path $script:repoRoot 'Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1'
-    $script:resources  = Join-Path $script:repoRoot 'Tools/Blueprint/Private/Resources'
+    $script:renderer   = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
+    $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-test-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:outDir -Force | Out-Null

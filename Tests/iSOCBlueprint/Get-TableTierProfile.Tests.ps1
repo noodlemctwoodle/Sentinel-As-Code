@@ -13,18 +13,18 @@
     a tenant that is not enrolled.
 
 .NOTES
-    File:         Tests/Blueprint/Get-TableTierProfile.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.0
-    Last Updated: 2026-10-12
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Tools/Blueprint/Private/Get-TableTierProfile.ps1')
+    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1')
 
     function New-TierTable {
         param([string]$Name, [string]$Plan = 'Analytics', [int]$Retention = 30, [int]$Total = 30)

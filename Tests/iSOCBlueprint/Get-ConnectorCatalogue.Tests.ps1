@@ -7,28 +7,28 @@
 
 .DESCRIPTION
     Two parts. Guards over the shipped resource
-    (Tools/Blueprint/Private/Resources/connector-catalogue.json): its
+    (Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json): its
     provenance fields, unique ids and table lists. Then the helpers in
-    Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1 against a small
+    Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1 against a small
     hand-built catalogue: connector ids from classic and codeless
     connectors, 7-day activity with free tables included, the per-connector
     status (receiving, silent, not in the catalogue) and the table and
     solution labels.
 
 .NOTES
-    File:         Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1')
-    $script:resource = Join-Path $PSScriptRoot '../../Tools/Blueprint/Private/Resources/connector-catalogue.json'
+    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1')
+    $script:resource = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json'
 
     $script:testCatalogue = Join-Path ([System.IO.Path]::GetTempPath()) "connector-catalogue-$(New-Guid).json"
     @{

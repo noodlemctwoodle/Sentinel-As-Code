@@ -12,19 +12,19 @@
     renderer and the SharePoint site build rely on them agreeing.
 
 .NOTES
-    File:         Tests/Blueprint/Get-TableFamily.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.0
-    Last Updated: 2026-10-12
+    Version:      0.1.1
+    Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Tools/Blueprint/Private/Get-TableFamily.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1')
 }
 
 Describe 'Get-TableFamily' {

@@ -53,7 +53,7 @@
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $fixture = Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
+    $fixture = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $work = Join-Path ([System.IO.Path]::GetTempPath()) "isoc-parity-$([guid]::NewGuid().ToString('N'))"
     $old = Join-Path $work 'old/SecurityDocs/law-parity'
     $new = Join-Path $work 'new/SecurityDocs/law-parity'

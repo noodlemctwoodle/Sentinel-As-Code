@@ -1,5 +1,5 @@
 #Requires -Version 7.2
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, Az.Accounts
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
 .SYNOPSIS
@@ -7,35 +7,36 @@
     rules and rule templates to the tables they read.
 
 .DESCRIPTION
-    Imports Sentinel.Common (for Get-KqlBareIdentifiers), dot-sources
-    Tools/Blueprint/Private/Get-KqlTableReferences.ps1 and runs the builder
+    Dot-sources the module's copy of Sentinel.Common's KQL helpers (for
+    Get-KqlBareIdentifiers) and
+    Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1, then runs the builder
     over the fixture rules and templates. The expected output is the pair of
     hand-authored reference files in the fixture, so a change in either the
     extractor or the fixture shows up as a diff here rather than as a wrong
     gap finding later.
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/Get-KqlTableReferences.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1 -Output Detailed
 
     Runs the suite with per-assertion output.
 
 .NOTES
-    File:         Tests/Blueprint/Get-KqlTableReferences.Tests.ps1
+    File:         Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.0
-    Last Updated: 2026-10-09
-    Requires:     PowerShell 7.2+, Pester 5+, Az.Accounts (Sentinel.Common import)
+    Version:      0.1.1
+    Last Updated: 2026-10-13
+    Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    Import-Module (Join-Path $repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
-    . (Join-Path $repoRoot 'Tools/Blueprint/Private/Get-KqlTableReferences.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1')
 
-    $raw = Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw'
+    $raw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:rules     = Get-Content (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json
     $script:templates = Get-Content (Join-Path $raw 'alert-rule-templates.json') -Raw | ConvertFrom-Json
     $script:expectedRuleRefs     = Get-Content (Join-Path $raw 'rule-table-references.json') -Raw | ConvertFrom-Json

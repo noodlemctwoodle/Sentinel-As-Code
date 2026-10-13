@@ -38,7 +38,7 @@ one in the site's app catalog. Bump all of:
 - `solution.version` and `features[0].version` in
   `config/package-solution.json` (four-part, for example `1.4.0.0`)
 
-`Tests/Blueprint/SharePoint-Site.Tests.ps1` fails when they disagree. Keep
+`Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1` fails when they disagree. Keep
 `solution.id` and each web part's `id` as they are: the publisher finds
 the web parts by those ids. Renaming the
 solution (its `name` or the `.sppkg` file) is fine: the publisher sees the

@@ -43,7 +43,7 @@ BeforeAll {
     $script:work = Join-Path $TestDrive 'work'
     $script:ws = Join-Path $script:work 'SecurityDocs/law-standalone'
     New-Item -ItemType Directory -Path $script:ws -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'Tests/Blueprint/Fixtures/sample/_raw') -Destination $script:ws -Recurse
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw') -Destination $script:ws -Recurse
 
     Push-Location $script:work
     $script:report = ConvertTo-iSOCBlueprint -WorkspaceName law-standalone *>&1 | Where-Object { $_ -is [pscustomobject] }

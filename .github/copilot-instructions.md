@@ -170,8 +170,8 @@ Conventional commit format: `type(scope): brief description`.
 
 ## Testing
 
-Every PR runs the full Pester suite (37 files: 26 under `Tests/*.Tests.ps1`
-plus 11 under `Tests/Blueprint/`) plus the schema gates. `Invoke-PRValidation.ps1`
+Every PR runs the full Pester suite (44 files: 26 under `Tests/*.Tests.ps1`
+plus 18 under `Tests/iSOCBlueprint/`) plus the schema gates. `Invoke-PRValidation.ps1`
 runs every suite and emits an NUnit 2.5 XML report. To run locally before
 pushing:
 

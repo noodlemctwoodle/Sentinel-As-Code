@@ -10,7 +10,7 @@
     The publisher only meets SharePoint in a pipeline run, so a call that
     cannot bind (an unknown parameter, or two parameters that sit in
     different parameter sets) used to surface one run at a time. This suite
-    parses Tools/Blueprint/SharePoint/*.ps1 and Private/*.ps1 and, for each
+    parses Modules/iSOCBlueprint/Engine/SharePoint/*.ps1 and Private/*.ps1 and, for each
     call to a PnP.PowerShell cmdlet or to one of the scripts' own functions,
     checks that:
 
@@ -38,15 +38,15 @@
     CurrentUser to run it).
 
 .EXAMPLE
-    Invoke-Pester -Path Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1 -Output Detailed
+    Invoke-Pester -Path Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1 -Output Detailed
 
 .NOTES
-    File:         Tests/Blueprint/SharePoint-PnPCalls.Tests.ps1
+    File:         Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.3.0
+    Version:      0.3.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.4+, Pester 5+, PnP.PowerShell (pinned version)
 #>
@@ -57,7 +57,7 @@ BeforeDiscovery {
     $script:pnpVersion = if ($pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') { $Matches['v'] } else { '' }
     $script:pnpAvailable = [bool]($script:pnpVersion -and (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
     $script:inCi = [bool]($env:TF_BUILD -or $env:GITHUB_ACTIONS)
-    $sp = Join-Path $repoRoot 'Tools/Blueprint/SharePoint'
+    $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     $script:scriptFiles = @(
         Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
         Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
@@ -77,11 +77,11 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
         # The scripts' own functions, and the Blueprint helpers the build
         # script uses, defined in a throwaway module so Get-Command sees
         # their parameters. Only definitions are evaluated, no script body.
-        $sp = Join-Path $repoRoot 'Tools/Blueprint/SharePoint'
+        $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
         $sources = @(
             Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
             Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
-            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Tools/Blueprint/Private') -Filter '*.ps1' -File
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private') -Filter '*.ps1' -File
         )
         $definitions = foreach ($file in $sources) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
@@ -188,7 +188,7 @@ Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(
 
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $script:spRoot = Join-Path $repoRoot 'Tools/Blueprint/SharePoint'
+        $script:spRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
         $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Blueprint.yml')
         $null = $pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?'
         $script:pinned = $Matches['v']
