@@ -122,14 +122,18 @@ SecurityDocs/
     │   └── ...
     ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
     ├── 00-overview.md                 headline counts, top findings, cost summary
-    ├── 01-live-snapshot.md            workspace-at-a-glance, legacy features still in use, regenerated every run
+    ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
+    ├── 02-deprecated-legacy-features.md  retirement deadlines, legacy features still in use
     ├── 10-data-connectors.md          classic + CCF + synthesised effective view with the connector behind each table, connected connectors against the connector catalogue, Defender XDR unification
     ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
     ├── 13-data-source-hygiene.md      CEF/Syslog hygiene with vendors, SecurityEvent duplicates, noisy event IDs, Syslog and SecurityEvent contributors
     ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics per category / Azure Firewall categories / XDR coverage by source, Entra ID table presence
-    ├── 15-incidents.md                incident MTTA/MTTR, 7-day incident metrics, incidents and alert volumes by provider, incidents by rule
-    ├── 20-analytics-rules.md          all rules by kind, by alert volume with effectiveness, Microsoft-managed, recent modifications, by Content Hub solution, rule complexity, rule run failures, Defender XDR custom detections
+    ├── 15-incidents.md                incident MTTA/MTTR, outcomes, 7-day incident metrics, incidents by rule and by provider
+    ├── 16-alerts.md                   alert volume by severity, detection source and provider
+    ├── 20-analytics-rules.md          all rules by kind, Microsoft-managed, recent modifications, by Content Hub solution, Defender XDR custom detections
+    ├── 21-rule-performance.md         alert volume per rule, rule effectiveness, noisy rules
+    ├── 22-rule-health-quality.md      rule run failures, rules without entity mappings, alert-only rules, stale rules, template drift, complexity
     ├── 25-mitre-coverage.md           ATT&CK matrix, uncovered tactics flagged
     ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
     ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
@@ -144,14 +148,15 @@ SecurityDocs/
     ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants, automation opportunities
     ├── 70-content-hub.md              installed solutions + repos
     ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
-    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, retention recommendations, silent tables by detection impact, classic (Data Collector API) tables
+    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
     ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
     ├── 83-data-collection.md          DCRs, DCEs, transforms
     ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if, Sentinel pricing settings
     ├── 85-rbac.md                     role assignments, by role, Sentinel and monitoring roles, high-privilege assignments
     ├── 86-subscription-context.md     signed-in identity, subscription, tenant, RPs, locks, policy
     ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace, agent heartbeat mix by OS and version
-    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, retention into the lake, ingestion validation, usage evidence, migration candidates
+    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, usage evidence, migration candidates
+    ├── 89-retention.md                retention checks, per-table overrides, retention that rolls into the lake, ingestion validation
     ├── 90-gap-analysis.md             every finding with remediation + Learn link
     ├── 91-maturity-assessment.md     maturity scale, maturity by area, open gaps and their impact, roadmap, quick wins, NIST CSF rollup
     ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
@@ -178,7 +183,7 @@ headline. The five most important pages day-to-day are:
 
 | When you want to know… | Read |
 |---|---|
-| Are we losing money on data we don't query? | `81-table-plans-retention.md`, `84-cost-estimate.md` |
+| Are we losing money on data we don't query? | `81-table-plans-retention.md`, `84-cost-estimate.md`, `89-retention.md` |
 | Did a connector break overnight? | `10-data-connectors.md`, plus the **Silent tables** appendix in `81-…` |
 | What MITRE coverage gaps do we have? | `25-mitre-coverage.md` |
 | Where can we apply Microsoft's best practice? | `90-gap-analysis.md` |
@@ -189,16 +194,23 @@ Beyond those headline pages the report groups into families:
 - **Operational health**: `11-sentinel-health.md` (SentinelHealth events and
   failed ingestion or schema operations, last 7 days), `12-soc-optimization.md` (SOC Optimization recommendations),
   `13-data-source-hygiene.md` (CEF/Syslog hygiene, agent dual-collection, noisy
-  events) and `15-incidents.md` (MTTA/MTTR and the loudest rules).
-- **Analytics**: `20-analytics-rules.md` holds the whole rule estate on one
-  page: every rule by kind, the mouldy and template-drifted rules, the
-  Microsoft incident-creation rules, then the top rules by alert volume with
-  their incident outcomes, the Microsoft-managed rules, recent modifications
-  and the Content Hub solution breakdown; `26-ueba.md` and
+  events), `15-incidents.md` (MTTA/MTTR, outcomes, incidents by rule and
+  provider) and `16-alerts.md` (alert volume by severity, product and
+  provider).
+- **Analytics**: `20-analytics-rules.md` is the rule inventory (every rule by
+  kind, the Microsoft incident-creation and Microsoft-managed rules, recent
+  modifications, the Content Hub solution breakdown, the Defender XDR custom
+  detections); `21-rule-performance.md` holds alert volume per rule with the
+  incident outcomes and the noisy rules; `22-rule-health-quality.md` holds
+  run failures, the entity-mapping and incident-creation anti-patterns,
+  stale rules, template drift and query complexity; `26-ueba.md` and
   `27-threat-intelligence.md` cover UEBA configuration and indicator counts.
 - **Data platform**: `36-data-export.md`, `37-search-restore.md`,
-  `38-summary-rules.md`, `87-azure-monitor-agents.md` and
-  `88-sentinel-data-lake.md` document the ingestion, retention and Data Lake surface.
+  `38-summary-rules.md`, `87-azure-monitor-agents.md`,
+  `88-sentinel-data-lake.md` and `89-retention.md` document the ingestion,
+  retention and Data Lake surface.
+- **Retirements**: `02-deprecated-legacy-features.md` sets the platform
+  deadlines against the legacy features this workspace still uses.
 - **Coverage**: `14-coverage-breakdowns.md` attributes AzureActivity /
   AzureDiagnostics / XDR ingestion back to its source.
 

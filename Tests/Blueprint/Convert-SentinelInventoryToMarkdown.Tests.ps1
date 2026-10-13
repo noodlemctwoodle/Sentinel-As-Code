@@ -74,12 +74,12 @@ Describe 'Sentinel Blueprint renderer' {
     Context 'produces every expected section file' {
 
         $expected = @(
-            'index.md','00-overview.md','01-live-snapshot.md',
+            'index.md','00-overview.md','01-live-snapshot.md','02-deprecated-legacy-features.md',
             '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
             '13-data-source-hygiene.md',
             '14-coverage-breakdowns.md',
-            '15-incidents.md',
-            '20-analytics-rules.md',
+            '15-incidents.md','16-alerts.md',
+            '20-analytics-rules.md','21-rule-performance.md','22-rule-health-quality.md',
             '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
             '28-detection-opportunities.md',
             '30-hunting-queries.md','35-parsers-functions.md',
@@ -88,6 +88,7 @@ Describe 'Sentinel Blueprint renderer' {
             '70-content-hub.md','80-workspace.md','81-table-plans-retention.md',
             '82-dedicated-cluster.md','83-data-collection.md','84-cost-estimate.md',
             '85-rbac.md','86-subscription-context.md','87-azure-monitor-agents.md',
+            '88-sentinel-data-lake.md','89-retention.md',
             '90-gap-analysis.md','91-maturity-assessment.md',
             '96-references-microsoft.md','99-references.md'
         )
@@ -245,26 +246,30 @@ Describe 'Sentinel Blueprint renderer' {
             $script:inc15 | Should -Match '"Undetermined" : 15'
         }
 
-        It 'tables the rule effectiveness with the source and the false-positive rate' {
-            $script:inc15 | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
+        It 'points to the rule effectiveness on 21-rule-performance.md, which tables it with the source and the false-positive rate' {
+            $script:inc15 | Should -Match '\[21-rule-performance\.md\]\(21-rule-performance\.md\)'
+            $script:inc15 | Should -Not -Match '## Rule effectiveness'
+            Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
         }
     }
 
-    Context '15-incidents.md breaks alert volume down the way the dashboard does' {
+    Context '15-incidents.md and 16-alerts.md break incidents and alert volume down the way the dashboard does' {
         BeforeAll {
             $script:inc15b = Get-Content (Join-Path $script:tempWsRoot '15-incidents.md') -Raw
+            $script:alerts16 = Get-Content (Join-Path $script:tempWsRoot '16-alerts.md') -Raw
         }
 
-        It 'tables alert volume by severity with shares that add up' {
-            $script:inc15b | Should -Match '## Alert volume by severity \(last 30d\)'
-            $script:inc15b | Should -Match '\| High \| 430 \| 76\.1% \|'
-            $script:inc15b | Should -Match '\| Medium \| 135 \| 23\.9% \|'
+        It 'tables alert volume by severity with shares that add up, on the alerts page' {
+            $script:alerts16 | Should -Match '## Alert volume by severity \(last 30d\)'
+            $script:alerts16 | Should -Match '\| High \| 430 \| 76\.1% \|'
+            $script:alerts16 | Should -Match '\| Medium \| 135 \| 23\.9% \|'
+            $script:inc15b | Should -Not -Match '## Alert volume by severity'
         }
 
         It 'tables alerts by detection source with Sentinel rules named as Microsoft Sentinel' {
-            $script:inc15b | Should -Match '## Alerts by detection source \(last 30d\)'
-            $script:inc15b | Should -Match '\| Microsoft Sentinel \| 525 \| 3 \| 92\.9% \|'
-            $script:inc15b | Should -Match '\| Azure Active Directory Identity Protection \| 40 \| 1 \| 7\.1% \|'
+            $script:alerts16 | Should -Match '## Alerts by detection source \(last 30d\)'
+            $script:alerts16 | Should -Match '\| Microsoft Sentinel \| 525 \| 3 \| 92\.9% \|'
+            $script:alerts16 | Should -Match '\| Azure Active Directory Identity Protection \| 40 \| 1 \| 7\.1% \|'
         }
 
         It 'lists every rule with incidents instead of a top 25' {
@@ -288,27 +293,35 @@ Describe 'Sentinel Blueprint renderer' {
         }
     }
 
-    Context '20-analytics-rules.md carries the merged analytics subsections' {
+    Context '20-analytics-rules.md is the rule inventory; 21 and 22 carry performance and quality' {
         BeforeAll {
             $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $script:perfMd = Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw
         }
 
-        It 'has the four former deep-dive pages as H2 subsections, in order' {
+        It 'keeps the inventory subsections on 20, in order, and alert volume on 21' {
             $heads = [regex]::Matches($script:rulesMd, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }
-            $heads | Should -Contain 'By alert volume (last 30d)'
+            $heads | Should -Not -Contain 'By alert volume (last 30d)'
             $heads | Should -Contain 'Microsoft-managed rules'
             $heads | Should -Contain 'Recent modifications'
             $heads | Should -Contain 'By Content Hub solution'
-            ([array]::IndexOf($heads, 'By alert volume (last 30d)')) | Should -BeLessThan ([array]::IndexOf($heads, 'Microsoft-managed rules'))
+            ([array]::IndexOf($heads, 'Microsoft-managed rules')) | Should -BeLessThan ([array]::IndexOf($heads, 'Recent modifications'))
             ([array]::IndexOf($heads, 'Recent modifications')) | Should -BeLessThan ([array]::IndexOf($heads, 'By Content Hub solution'))
+            $perfHeads = [regex]::Matches($script:perfMd, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }
+            $perfHeads | Should -Be @('By alert volume (last 30d)', 'Rule effectiveness (last 30d)', 'Noisy rules (closed mostly as false positive)')
         }
 
-        It 'keeps the charts and tables of the merged pages' {
-            $script:rulesMd | Should -Match '### Top 10 noisy rules by alert volume'
+        It 'keeps the charts and tables, each on its page' {
+            $script:perfMd | Should -Match '### Top 10 noisy rules by alert volume'
             $script:rulesMd | Should -Match 'pie showData title Microsoft-managed rules by severity'
             $script:rulesMd | Should -Match 'Rule modifications per month'
             $script:rulesMd | Should -Match 'pie showData title Analytics rules by Content Hub solution'
-            $script:rulesMd | Should -Match '### Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| Analytics rule \| 10 \| 8 \|'
+            $script:perfMd | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*Failed logons across multiple accounts \| Analytics rule \| 10 \| 8 \|'
+        }
+
+        It 'lists the noisy analytics rule (24 closed, 79.2% false positive) on 21' {
+            $script:perfMd | Should -Match '## Noisy rules \(closed mostly as false positive\)[\s\S]*\| Suspicious sign-in from rare country \| 30 \| 24 \| 19 \| 79\.2 \|'
+            ($script:perfMd -split '## Noisy rules')[1] | Should -Not -Match 'Failed logons across multiple accounts'
         }
 
         It 'ends with the Learn links once' {
@@ -425,9 +438,9 @@ Describe 'Sentinel Blueprint renderer' {
         }
     }
 
-    Context '20-analytics-rules.md scores rule complexity' {
+    Context '22-rule-health-quality.md scores rule complexity' {
         It 'scores the fixture rule from its query shape' {
-            $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $md = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
             $md | Should -Match '## Rule complexity'
             $md | Should -Match '\| Suspicious sign-in from rare country \| Scheduled \| 4 \| 159 \| 1 \| 1 \| 1 \| 1 \|  \| Yes \|'
         }
@@ -486,9 +499,9 @@ Describe 'Sentinel Blueprint renderer' {
         }
     }
 
-    Context '20-analytics-rules.md reports rule run failures' {
+    Context '22-rule-health-quality.md reports rule run failures' {
         It 'lists the failing rule with its reason' {
-            $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $md = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
             $md | Should -Match '## Rule run failures \(last 7d\)'
             $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 2026-05-06 06:15 \| Query execution exceeded the 2 minute timeout. \|'
         }
@@ -1145,29 +1158,31 @@ Describe 'Sentinel Blueprint renderer' {
         }
     }
 
-    Context '20-analytics-rules.md surfaces mouldy + template-mismatch sub-tables' {
+    Context '22-rule-health-quality.md surfaces stale rules, template drift and the anti-patterns' {
         BeforeAll {
             $script:rulesMd = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
+            $script:qualityMd = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
         }
 
-        It 'renders the per-kind aggregate count header' {
+        It 'renders the per-kind aggregate count header on the inventory page' {
             $script:rulesMd | Should -Match 'Scheduled-Enabled \| Scheduled-Disabled \| NRT-Enabled \| NRT-Disabled'
         }
 
-        It 'renders the Mouldy rules section heading' {
-            $script:rulesMd | Should -Match '## Mouldy rules'
+        It 'lists the suspicious-sign-in rule as stale (lastModifiedUtc > 1y)' {
+            $script:qualityMd | Should -Match '## Stale rules \(enabled, last modified over a year ago\)[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| High \| 2024-01-15 \|'
         }
 
-        It 'lists the suspicious-sign-in rule as mouldy (lastModifiedUtc > 1y)' {
-            $script:rulesMd | Should -Match 'Suspicious sign-in from rare country'
+        It 'shows the suspicious-sign-in rule as behind its template (1.0.0 vs 1.2.0)' {
+            $script:qualityMd | Should -Match '## Rules behind their latest template version[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| 1\.0\.0 \| 1\.2\.0 \|'
         }
 
-        It 'renders the Template mismatch section heading' {
-            $script:rulesMd | Should -Match '## Template mismatch'
+        It 'lists the rule with no entity mappings and the rule that creates no incidents' {
+            $script:qualityMd | Should -Match '## Rules without entity mappings[\s\S]*\| Failed logons across multiple accounts \| Scheduled \| Medium \|'
+            $script:qualityMd | Should -Match '## Rules that raise alerts without incidents[\s\S]*\| Failed logons across multiple accounts \| Scheduled \| Medium \|'
         }
 
-        It 'shows the suspicious-sign-in rule as version-mismatched (1.0.0 vs 1.2.0)' {
-            $script:rulesMd | Should -Match '\| Suspicious sign-in from rare country \| Scheduled \| 1\.0\.0 \| 1\.2\.0 \|'
+        It 'no longer carries those sections on the inventory page' {
+            $script:rulesMd | Should -Not -Match '## Mouldy rules|## Template mismatch|## Rule complexity|## Rule run failures|## By alert volume'
         }
     }
 
@@ -1319,7 +1334,7 @@ Describe 'Sentinel Blueprint renderer — empty-state safety' {
         }
 
         It '15-incidents.md and 30-hunting-queries.md show empty states' {
-            (Get-Content (Join-Path $script:emptyWsRoot '15-incidents.md') -Raw) | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*?_None\._'
+            (Get-Content (Join-Path $script:emptyWsRoot '21-rule-performance.md') -Raw) | Should -Match '## Rule effectiveness \(last 30d\)[\s\S]*?_None\._'
             (Get-Content (Join-Path $script:emptyWsRoot '30-hunting-queries.md') -Raw) | Should -Match '## Hunts[\s\S]*?_None\._'
         }
     }
@@ -1430,14 +1445,14 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
             & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
         }
         $script:hc = @{}
-        foreach ($n in '01-live-snapshot', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene', '14-coverage-breakdowns', '15-incidents', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention', '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '91-maturity-assessment') {
+        foreach ($n in '01-live-snapshot', '02-deprecated-legacy-features', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene', '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention', '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
             $script:hc[$n] = & $page $full "$n.md"
         }
         $script:hcOld = @{}
         foreach ($n in '14-coverage-breakdowns', '15-incidents', '27-threat-intelligence', '36-data-export', '87-azure-monitor-agents') {
             $script:hcOld[$n] = & $page $old "$n.md"
         }
-        $script:hcLake = & $page $lake '88-sentinel-data-lake.md'
+        $script:hcLake = & $page $lake '89-retention.md'
     }
 
     AfterAll {
@@ -1462,8 +1477,9 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
     }
 
     It 'shows all three retention checks with their outcome' {
-        $hc['81-table-plans-retention'] | Should -Match '## Retention recommendations[\s\S]*\| Default retention covers the free 90 days \| Action needed \|'
-        $hc['81-table-plans-retention'] | Should -Match '\| Long retention is set per table \| OK \|'
+        $hc['89-retention'] | Should -Match '## Retention recommendations[\s\S]*\| Default retention covers the free 90 days \| Action needed \|'
+        $hc['89-retention'] | Should -Match '\| Long retention is set per table \| OK \|'
+        $hc['81-table-plans-retention'] | Should -Not -Match '## Retention recommendations'
     }
 
     It 'lists the agent heartbeat mix with the legacy agent named' {
@@ -1483,7 +1499,7 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
     It 'adds the 7-day incident metrics, incidents by provider and alert volumes by provider' {
         $hc['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*\| Incidents \| 14 \|[\s\S]*\| Raised through Defender XDR \(unified\) \| 5 \|[\s\S]*\| MTTA \(incidents closed in the window\) \| 60\.5 min \|'
         $hc['15-incidents'] | Should -Match '## Incidents by provider \(last 30d\)[\s\S]*\| Microsoft XDR \| 12 \|'
-        $hc['15-incidents'] | Should -Match '## Alert volumes by provider \(last 7d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 4 \|'
+        $hc['16-alerts'] | Should -Match '## Alert volumes by provider \(last 7d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 4 \|'
     }
 
     It 'shows unified incidents and legacy alert paths on the unification table' {
@@ -1517,9 +1533,11 @@ Describe 'Sentinel Blueprint renderer - sections from health check build 38' {
         $hc['91-maturity-assessment'] | Should -Not -Match 'Top 20 of'
     }
 
-    It 'summarises the legacy features still in use on the live snapshot' {
-        $hc['01-live-snapshot'] | Should -Match '## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 August 2024 \| In use \| 8 machine'
-        $hc['01-live-snapshot'] | Should -Match '\| Retired ThreatIntelligenceIndicator table \(ingestion\) \| Not in use \|'
+    It 'lists the legacy features still in use on their own page and counts them on the live snapshot' {
+        $hc['02-deprecated-legacy-features'] | Should -Match '## Platform deprecation runway[\s\S]*## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 August 2024 \| In use \| 8 machine'
+        $hc['02-deprecated-legacy-features'] | Should -Match '\| Retired ThreatIntelligenceIndicator table \(ingestion\) \| Not in use \|'
+        $hc['01-live-snapshot'] | Should -Match '\| Legacy features still in use \| \d+ of \d+ checked; see \[02-deprecated-legacy-features\.md\]'
+        $hc['01-live-snapshot'] | Should -Not -Match '## Legacy features still in use|## Platform deprecation runway'
     }
 
     It 'says a newer capture was not taken rather than claiming there is nothing' {
@@ -1662,7 +1680,7 @@ Describe 'Sentinel Blueprint renderer - connector catalogue, saved searches and 
     }
 
     It 'lists deprecated connectors still connected among the legacy features' {
-        & $script:catPage '01-live-snapshot' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector\(s\): AI Analyst Darktrace via AMA \|'
+        & $script:catPage '02-deprecated-legacy-features' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector\(s\): AI Analyst Darktrace via AMA \|'
     }
 
     It 'names the connector that would fill a catalogue-only schema and the solutions behind tables with no template' {

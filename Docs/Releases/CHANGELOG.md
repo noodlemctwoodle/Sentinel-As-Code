@@ -6,6 +6,22 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint pages split to the health check's granularity** - five new
+  pages take sections from the pages that had grown largest:
+  `02-deprecated-legacy-features.md` (the deadline runway and the legacy
+  features still in use, from 01), `16-alerts.md` (alert volume by
+  severity, detection source and provider, from 15),
+  `21-rule-performance.md` (alert volume per rule, rule effectiveness and
+  a new noisy-rules table, from 20 and 15, which carried the effectiveness
+  table twice), `22-rule-health-quality.md` (run failures, complexity,
+  stale rules, template drift, and two new tables for rules without entity
+  mappings and rules that create no incidents, from 20) and
+  `89-retention.md` (the retention checks and per-table overrides from 81,
+  the retention that rolls into the lake and ingestion validation from
+  88). Existing page names are unchanged; the source pages link to the new
+  ones, the contents page and SharePoint navigation include them, and
+  `Health-Check-Coverage.md` gains a map from the report's 28 sections to
+  the Blueprint pages.
 - **Blueprint data connector catalogue** - the Blueprint now reads the
   Sentinel as Code Toolkit's connector catalogue (about 630 Content Hub
   connectors and the tables each writes, from Microsoft's Solutions

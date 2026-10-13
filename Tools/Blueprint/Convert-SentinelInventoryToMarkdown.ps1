@@ -1385,23 +1385,11 @@ $correlationState
 |---:|---:|---:|---:|---:|---:|---:|
 | $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) | $schedEnabled | $schedDisabled | $nrtEnabled | $nrtDisabled |
 
-Per-rule alert volumes and incident outcomes, the Microsoft-managed rules, recent modifications and the Content Hub solution breakdown follow below on this page; tables no enabled rule reads, with the templates that would cover them, are in [28-detection-opportunities.md](28-detection-opportunities.md).
+The Microsoft-managed rules, recent modifications, the Content Hub solution breakdown and the Defender XDR custom detections follow below on this page. Alert volume and incident outcomes per rule are in [21-rule-performance.md](21-rule-performance.md); run failures, complexity, stale rules, template drift and the entity-mapping and incident-creation anti-patterns are in [22-rule-health-quality.md](22-rule-health-quality.md); tables no enabled rule reads, with the templates that would cover them, are in [28-detection-opportunities.md](28-detection-opportunities.md).
 
 ## All rules
 
 $(Format-Table -Items $ruleRows -Columns 'Kind','Name','Severity','Enabled','Tactics')
-
-## Mouldy rules — enabled but last modified over a year ago
-
-Rules in this table are still firing but haven't been reviewed in over twelve months. Stale thresholds, deprecated KQL operators, and dropped data sources are all common causes. Each row is a candidate for explicit re-review or retirement.
-
-$(Format-Table -Items $mouldyRows -Columns 'Name','Kind','Severity','LastModified')
-
-## Template mismatch — rules behind their latest template version
-
-Rules where the deployed ``templateVersion`` is older than the version available in the Content Hub catalogue. Update via the rule's "Update from template" action in the portal, or re-deploy from the matching repo YAML.
-
-$(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','LatestVersion')
 
 ## MS Incident Creation rules
 
@@ -2558,43 +2546,7 @@ Operational tables with data in the last 90 days, the number of enabled Sentinel
 
 $coverageBlock
 
-## Tables with non-default retention
-
-Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last 90 days. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
-
-$( $nonDefaultRows = @($tableRows | Where-Object {
-        ($_.Interactive -ne $workspace.properties.retentionInDays -or $_.Total -ne $workspace.properties.retentionInDays) -and ($_.Gb90d -gt 0)
-    } | Sort-Object -Property Gb90d -Descending)
-   Format-Table -Items $nonDefaultRows -Columns 'Name','Plan','Interactive','Total','Archive','Gb90d' )
-
-## Retention recommendations
-
-The three workspace-level retention checks, each shown whether or not it needs action.
-
-$( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
-   $cheaperTier = @($tableRows | Where-Object { [string]$_.Plan -in @('Basic', 'Auxiliary', 'DataLake') })
-   $overrides = @($tableRows | Where-Object { [string]$_.Interactive -and ([int]$_.Interactive) -ne $defaultRet })
-   $retRecs = @(
-       [pscustomobject]@{
-           Check = 'Default retention covers the free 90 days'
-           Status = $(if ($defaultRet -lt 90) { 'Action needed' } else { 'OK' })
-           Detail = "Workspace default is $defaultRet days."
-           Recommendation = 'Raise the default to at least 90 days: the first 90 days of retention are included with Microsoft Sentinel ([SAC-LOG-07]).'
-       }
-       [pscustomobject]@{
-           Check = 'Long retention uses a cheaper tier'
-           Status = $(if ($defaultRet -gt 90 -and $cheaperTier.Count -eq 0) { 'Action needed' } else { 'OK' })
-           Detail = "Default $defaultRet days; $($cheaperTier.Count) table(s) on the Basic, Auxiliary or data lake plan."
-           Recommendation = 'Move high-volume tables that few rules read to the data lake tier, which bills well below the Analytics rate and keeps data for up to 12 years.'
-       }
-       [pscustomobject]@{
-           Check = 'Long retention is set per table'
-           Status = $(if ($defaultRet -gt 180 -and $overrides.Count -eq 0) { 'Action needed' } else { 'OK' })
-           Detail = "Default $defaultRet days; $($overrides.Count) table(s) override it."
-           Recommendation = 'Keep the default short and extend retention only on the tables that need it, rather than holding every table for the longest period any one of them needs.'
-       }
-   )
-   Format-Table -Items $retRecs -Columns 'Check','Status','Detail','Recommendation' )
+Retention per table, with the workspace-level retention checks and what rolls into the lake, is in [89-retention.md](89-retention.md).
 
 [Table plans (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans) · [Retention & archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive) · [Manage table tiers in Sentinel](https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention)
 "@
@@ -3668,6 +3620,54 @@ pie showData title Findings by severity (current run)
     "Info"     : $($gapBySeverity.Info)
 ``````
 
+## Workspace at a glance
+
+| Indicator | Value |
+|---|---:|
+| Workspace SKU | ``$($workspace.properties.sku.name)`` |
+| Default retention | $($workspace.properties.retentionInDays) days |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
+| Data connectors | $($connectors.Count) |
+| Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
+| MITRE tactics — Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
+| Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
+| Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
+| Maturity (overall / target) | $maturityCell |
+| Legacy features still in use | $(@($legacyRows | Where-Object Status -eq 'In use').Count) of $(@($legacyRows | Where-Object Status -ne 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
+$estateBlock
+
+## Top recommendations
+
+$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
+    ($top5Findings | ForEach-Object {
+        "- **$($_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
+    }) -join [Environment]::NewLine
+} else { '_No findings — clean run._' })
+
+## Where to read more
+
+| Concern | See |
+|---|---|
+| Retirements and legacy features | [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
+| Connectors and ingestion | [10-data-connectors.md](10-data-connectors.md), [83-data-collection.md](83-data-collection.md) |
+| Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [21-rule-performance.md](21-rule-performance.md), [22-rule-health-quality.md](22-rule-health-quality.md), [25-mitre-coverage.md](25-mitre-coverage.md), [28-detection-opportunities.md](28-detection-opportunities.md) |
+| Workspace, tables, retention | [80-workspace.md](80-workspace.md), [81-table-plans-retention.md](81-table-plans-retention.md), [89-retention.md](89-retention.md) |
+| Cost | [84-cost-estimate.md](84-cost-estimate.md) |
+| Operational health | [11-sentinel-health.md](11-sentinel-health.md), [12-soc-optimization.md](12-soc-optimization.md), [15-incidents.md](15-incidents.md), [16-alerts.md](16-alerts.md) |
+| Identity and access | [85-rbac.md](85-rbac.md) |
+| Findings vs. best practice | [90-gap-analysis.md](90-gap-analysis.md) |
+| Maturity and roadmap | [91-maturity-assessment.md](91-maturity-assessment.md) |
+"@
+Write-Section '01-live-snapshot.md' $execBody
+
+# Section 02: retired and retiring platform features, with the deadlines
+# still ahead and whether this workspace uses each one.
+$legacyBody = @"
+$(Format-Banner -Title "Deprecated and Legacy Features")
+
+What Microsoft has retired or is retiring on the Sentinel platform, and whether this workspace still depends on any of it. Each row links to the page with the detail.
+
 ## Platform deprecation runway
 
 ``````mermaid
@@ -3694,44 +3694,9 @@ Each retired or retiring feature the Blueprint can see, whether this workspace s
 
 $(Format-Table -Items $legacyRows -Columns 'Feature','Status','Evidence','Where')
 
-## Workspace at a glance
-
-| Indicator | Value |
-|---|---:|
-| Workspace SKU | ``$($workspace.properties.sku.name)`` |
-| Default retention | $($workspace.properties.retentionInDays) days |
-| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
-| Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
-| Data connectors | $($connectors.Count) |
-| Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
-| MITRE tactics — Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
-| Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
-| Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
-| Maturity (overall / target) | $maturityCell |
-$estateBlock
-
-## Top recommendations
-
-$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
-    ($top5Findings | ForEach-Object {
-        "- **$($_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
-    }) -join [Environment]::NewLine
-} else { '_No findings — clean run._' })
-
-## Where to read more
-
-| Concern | See |
-|---|---|
-| Connectors and ingestion | [10-data-connectors.md](10-data-connectors.md), [83-data-collection.md](83-data-collection.md) |
-| Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [25-mitre-coverage.md](25-mitre-coverage.md), [28-detection-opportunities.md](28-detection-opportunities.md) |
-| Workspace, tables, retention | [80-workspace.md](80-workspace.md), [81-table-plans-retention.md](81-table-plans-retention.md) |
-| Cost | [84-cost-estimate.md](84-cost-estimate.md) |
-| Operational health | [11-sentinel-health.md](11-sentinel-health.md), [12-soc-optimization.md](12-soc-optimization.md), [15-incidents.md](15-incidents.md) |
-| Identity and access | [85-rbac.md](85-rbac.md) |
-| Findings vs. best practice | [90-gap-analysis.md](90-gap-analysis.md) |
-| Maturity and roadmap | [91-maturity-assessment.md](91-maturity-assessment.md) |
+[What's new and deprecated in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/whats-new)
 "@
-Write-Section '01-live-snapshot.md' $execBody
+Write-Section '02-deprecated-legacy-features.md' $legacyBody
 
 # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
 # Private/Get-SentinelMaturity.ps1; methodology and criteria:
@@ -4017,7 +3982,7 @@ $(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 $socChartBlock
 
-> Before tuning based on these recommendations, cross-reference [20-analytics-rules.md](20-analytics-rules.md) — the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
+> Before tuning based on these recommendations, cross-reference [21-rule-performance.md](21-rule-performance.md): the highest-volume rules are usually the right place to start, regardless of which row of this section flagged them.
 
 ## Coverage recommendations
 
@@ -4419,7 +4384,7 @@ $mttrLine
 
 $dailyLine
 
-> When triaging a high MTTR, cross-reference [20-analytics-rules.md](20-analytics-rules.md) for the rules driving raw alert load — high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
+> Alert volumes are in [16-alerts.md](16-alerts.md), and alert volume and closure verdicts per rule in [21-rule-performance.md](21-rule-performance.md). When triaging a high MTTR, start with the rules driving raw alert load: high alert volume from a single rule usually inflates time-to-acknowledge for everything else in the queue.
 
 ## Incident lifecycle
 
@@ -4483,28 +4448,11 @@ Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Wo
 
 ## Incidents by rule (last 30d)
 
-Every rule title that produced an incident in the last 30 days, busiest first. Alert volume per rule is in [20-analytics-rules.md](20-analytics-rules.md#by-alert-volume-last-30d).
+Every rule title that produced an incident in the last 30 days, busiest first. Alert volume per rule is in [21-rule-performance.md](21-rule-performance.md#by-alert-volume-last-30d).
 
 $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
 
-## Alert volume by severity (last 30d)
-
-Alerts raised in the last 30 days grouped by severity, from ``SecurityAlert`` across every product, not only Sentinel rules.
-
-$(Format-Table -Items $alertSeverityRows -Columns 'Severity','Alerts','Share')
-
-## Alerts by detection source (last 30d)
-
-Which security product raised the alert volume. Sentinel analytics rules appear as Microsoft Sentinel; the rest are first-party detections that run inside their product. ``Rules`` is the number of distinct detections per product.
-
-$(Format-Table -Items $alertSourceRows -Columns 'Source','Alerts','Rules','Share')
 $incOutcomeBlock
-
-## Rule effectiveness (last 30d)
-
-Incidents per detection with their closure verdicts: Sentinel analytics rules first (``Source`` is "Analytics rule"), then alerts from Defender XDR, Entra ID Protection and other products, keyed by alert name with the product as the source. ``FPRate`` is false positives over closed incidents, in percent; [SAC-DET-06] fires on analytics rules at 20 or more closed and above 70%. The full table is repeated in [20-analytics-rules.md](20-analytics-rules.md) next to the alert volumes.
-
-$(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
 
 ## Incident detail by provider / product / first rule (last 7d)
 
@@ -4524,15 +4472,37 @@ Which service created the incident. ``Microsoft XDR`` (or ``Microsoft 365 Defend
 
 $(Format-Table -Items $incProviderRows -Columns 'Provider','Incidents' -EmptyMessage $(if ($incSummary -and -not $incSummary.PSObject.Properties['ByProvider']) { '_Not captured in this snapshot._' } else { '_None._' }))
 
+[Sentinel incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
+"@
+Write-Section '15-incidents.md' $incidentBody
+
+# Section 16: alerts, across every product that raises them.
+$alertsBody = @"
+$(Format-Banner -Title "Alerts")
+
+> Aggregate-only, like the incidents page: alert names, products and counts from ``SecurityAlert``, never alert payloads or entities. Incidents are in [15-incidents.md](15-incidents.md); alert volume per rule with its closure verdicts is in [21-rule-performance.md](21-rule-performance.md).
+
+## Alert volume by severity (last 30d)
+
+Alerts raised in the last 30 days grouped by severity, from ``SecurityAlert`` across every product, not only Sentinel rules.
+
+$(Format-Table -Items $alertSeverityRows -Columns 'Severity','Alerts','Share')
+
+## Alerts by detection source (last 30d)
+
+Which security product raised the alert volume. Sentinel analytics rules appear as Microsoft Sentinel; the rest are first-party detections that run inside their product. ``Rules`` is the number of distinct detections per product.
+
+$(Format-Table -Items $alertSourceRows -Columns 'Source','Alerts','Rules','Share')
+
 ## Alert volumes by provider (last 7d)
 
 Every alert name that fired in the last 7 days, with the provider and product that raised it, busiest first.
 
 $(Format-Table -Items $alertProvider7dRows -Columns 'Provider','Product','Alert','Severity','Alerts' -EmptyMessage $(if ($alert7dCaptured -or $alertVolumes.Count -eq 0) { '_No alerts in the last 7 days._' } else { '_Not captured in this snapshot._' }))
 
-[Sentinel incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
+[Sentinel alerts and incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
 "@
-Write-Section '15-incidents.md' $incidentBody
+Write-Section '16-alerts.md' $alertsBody
 
 # Section 21 — Rules by alert volume (TOC 4.11.2)
 $ruleVolumes = Read-RawArray 'analytics-rule-volumes.json'
@@ -4582,11 +4552,17 @@ $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 
-### Rule effectiveness (last 30d)
+## Rule effectiveness (last 30d)
 
 Incidents per detection with their closure verdicts: Sentinel analytics rules first, then alerts from other products keyed by alert name with the product as ``Source``. ``FPRate`` is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
 
 $(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','Closed','TP','FP','BP','Undetermined','FPRate')
+
+## Noisy rules (closed mostly as false positive)
+
+Sentinel analytics rules with 20 or more incidents closed in the last 30 days and more than 70% of them closed as false positive: the rules to tune first ([SAC-DET-06]). Alerts from other products are tuned in their own portal, so they are not listed.
+
+$(Format-Table -Items @($effectivenessRows | Where-Object { $_.Source -eq 'Analytics rule' -and $_.Closed -ge 20 -and [double]$_.FPRate -gt 70 } | Sort-Object @{ Expression = { [double]$_.FPRate }; Descending = $true }, Rule) -Columns 'Rule','Incidents','Closed','FP','FPRate' -EmptyMessage $(if ($ruleEffectiveness.Count) { '_No analytics rule closed mostly as false positive._' } else { '_Not captured in this snapshot._' }))
 "@
 
 # Section 22 — Microsoft security rules (TOC 4.11.3)
@@ -4738,6 +4714,23 @@ Rules grouped by the Content Hub solution that ships them, derived from the meta
 $(Format-Table -Items $bySolution -Columns 'Solution','Rule','Enabled','Severity')
 "@
 
+# Stale rules and template drift for section 22, moved from the rule
+# inventory on section 20.
+$staleSection = @"
+
+## Stale rules (enabled, last modified over a year ago)
+
+Rules in this table are still firing but haven't been reviewed in over twelve months. Stale thresholds, deprecated KQL operators, and dropped data sources are all common causes. Each row is a candidate for explicit re-review or retirement.
+
+$(Format-Table -Items $mouldyRows -Columns 'Name','Kind','Severity','LastModified')
+
+## Rules behind their latest template version
+
+Rules where the deployed ``templateVersion`` is older than the version available in the Content Hub catalogue. Update via the rule's "Update from template" action in the portal, or re-deploy from the matching repo YAML.
+
+$(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','LatestVersion')
+"@
+
 # Rule complexity: a heuristic over each Scheduled or NRT rule's query, so
 # the longest, most joined queries (the ones that time out or quietly
 # return nothing after a schema change) are easy to find. Idea from the
@@ -4821,7 +4814,48 @@ $analyticsLinks = @"
 "@
 # Each part begins with a newline and ends without one; joining with a
 # newline keeps a blank line between a table and the next heading.
-Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $volumeSection, $msRulesSection, $modificationsSection, $solutionSection, $complexitySection, $ruleHealthSection, $customDetectionSection, $analyticsLinks) -join [Environment]::NewLine)
+Write-Section '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $msRulesSection, $modificationsSection, $solutionSection, $customDetectionSection, $analyticsLinks) -join [Environment]::NewLine)
+
+# Section 21: how the rules perform, alert volume and closure verdicts.
+Write-Section '21-rule-performance.md' (@(
+    "$(Format-Banner -Title "Rule Performance")`n`nHow much each detection fires and how its incidents are closed. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); alerts by severity, product and provider are in [16-alerts.md](16-alerts.md).",
+    $volumeSection,
+    $analyticsLinks) -join [Environment]::NewLine)
+
+# Section 22: rule health and quality. Rules that fail to run, rules hard to
+# trust, and the anti-patterns the health check lists: no entity mappings,
+# alerts that never become incidents, rules nobody has touched in a year.
+$scheduledEnabled22 = @($rules | Where-Object { $_ -and $_.kind -in @('Scheduled', 'NRT') -and (_RProp (_RProp $_ 'properties') 'enabled' $false) })
+$noEntityRows = @($scheduledEnabled22 | Where-Object { @(_RProp (_RProp $_ 'properties') 'entityMappings' @() | Where-Object { $_ }).Count -eq 0 } | ForEach-Object {
+    [pscustomobject]@{ Rule = [string](_RProp $_.properties 'displayName' $_.name); Kind = $_.kind; Severity = [string](_RProp $_.properties 'severity' '') }
+} | Sort-Object Rule)
+$alertOnlyRows = @($scheduledEnabled22 | Where-Object {
+    $ic = _RProp (_RProp $_ 'properties') 'incidentConfiguration'
+    $ic -and $ic.PSObject.Properties['createIncident'] -and -not [bool]$ic.createIncident
+} | ForEach-Object {
+    [pscustomobject]@{ Rule = [string](_RProp $_.properties 'displayName' $_.name); Kind = $_.kind; Severity = [string](_RProp $_.properties 'severity' '') }
+} | Sort-Object Rule)
+$antiPatternSection = @"
+
+## Rules without entity mappings
+
+Enabled Scheduled and NRT rules that map no entities. Their incidents carry no account, host or IP to pivot on, so they cannot join the investigation graph, entity pages or UEBA, and automation that acts on entities has nothing to act on ([SAC-DET-03]).
+
+$(Format-Table -Items $noEntityRows -Columns 'Rule','Kind','Severity' -EmptyMessage $(if ($scheduledEnabled22.Count) { '_Every enabled Scheduled and NRT rule maps at least one entity._' } else { '_No enabled Scheduled or NRT rules._' }))
+
+## Rules that raise alerts without incidents
+
+Enabled Scheduled and NRT rules with incident creation turned off. Their alerts land in ``SecurityAlert`` but never reach the incident queue, so nobody triages them unless something else picks them up ([SAC-MON-01]).
+
+$(Format-Table -Items $alertOnlyRows -Columns 'Rule','Kind','Severity' -EmptyMessage '_Every enabled Scheduled and NRT rule creates incidents._')
+"@
+Write-Section '22-rule-health-quality.md' (@(
+    "$(Format-Banner -Title "Rule Health and Quality")`n`nWhether the analytics rules run, and whether they are built to be trusted and triaged. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); how often each rule fires is in [21-rule-performance.md](21-rule-performance.md).",
+    $ruleHealthSection,
+    $antiPatternSection,
+    $staleSection,
+    $complexitySection,
+    $analyticsLinks) -join [Environment]::NewLine)
 
 # Section 26 — UEBA (TOC 4.16)
 # Two signals are surfaced:
@@ -5212,7 +5246,7 @@ $headroomChart
 
 ## Tables with data but no detection (last 30d)
 
-"Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alert volumes by product in [20-analytics-rules.md](20-analytics-rules.md) before treating a row as unprotected.
+"Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alerts by detection source in [16-alerts.md](16-alerts.md) before treating a row as unprotected.
 
 $(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','TemplateCount','Templates')
 
@@ -5868,7 +5902,8 @@ $(Format-Table -Items $lakeSignals -Columns 'Signal','Value','Interpretation')
 $lakeResourceBlock
 $lakeArchitectureBlock
 $tierChartBlock
-$retentionChartBlock
+
+Retention per table, including the retention that rolls into the lake and whether each such table is still being fed, is in [89-retention.md](89-retention.md).
 $lakeTablesBlock
 $lakeUsageBlock
 $assetDataBlock
@@ -5928,6 +5963,63 @@ $(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Colu
 [Sentinel graph (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-graph-overview)
 "@
 Write-Section '88-sentinel-data-lake.md' $lakeBody
+
+# Section 89: retention. The workspace-level checks and per-table overrides
+# (formerly on section 81) and the retention that rolls into the lake
+# (formerly on section 88), in one place.
+$retentionLakeBlock = if ($retentionChartBlock) { $retentionChartBlock } else { @"
+
+## Retention that rolls into the lake
+
+_No table keeps data beyond its analytics retention, so nothing rolls into the lake or into long-term retention._
+"@ }
+$retentionBody = @"
+$(Format-Banner -Title "Retention")
+
+How long each table keeps its data and whether the workspace is set up to keep it cheaply. Analytics retention is the period a table stays fully queryable; total retention adds long-term retention beyond it, which bills against the data lake storage meter once the tenant is on the data lake. Table plans are in [81-table-plans-retention.md](81-table-plans-retention.md) and the data lake in [88-sentinel-data-lake.md](88-sentinel-data-lake.md).
+
+## Retention recommendations
+
+The three workspace-level retention checks, each shown whether or not it needs action.
+
+$( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
+   $cheaperTier = @($tableRows | Where-Object { [string]$_.Plan -in @('Basic', 'Auxiliary', 'DataLake') })
+   $overrides = @($tableRows | Where-Object { [string]$_.Interactive -and ([int]$_.Interactive) -ne $defaultRet })
+   $retRecs = @(
+       [pscustomobject]@{
+           Check = 'Default retention covers the free 90 days'
+           Status = $(if ($defaultRet -lt 90) { 'Action needed' } else { 'OK' })
+           Detail = "Workspace default is $defaultRet days."
+           Recommendation = 'Raise the default to at least 90 days: the first 90 days of retention are included with Microsoft Sentinel ([SAC-LOG-07]).'
+       }
+       [pscustomobject]@{
+           Check = 'Long retention uses a cheaper tier'
+           Status = $(if ($defaultRet -gt 90 -and $cheaperTier.Count -eq 0) { 'Action needed' } else { 'OK' })
+           Detail = "Default $defaultRet days; $($cheaperTier.Count) table(s) on the Basic, Auxiliary or data lake plan."
+           Recommendation = 'Move high-volume tables that few rules read to the data lake tier, which bills well below the Analytics rate and keeps data for up to 12 years.'
+       }
+       [pscustomobject]@{
+           Check = 'Long retention is set per table'
+           Status = $(if ($defaultRet -gt 180 -and $overrides.Count -eq 0) { 'Action needed' } else { 'OK' })
+           Detail = "Default $defaultRet days; $($overrides.Count) table(s) override it."
+           Recommendation = 'Keep the default short and extend retention only on the tables that need it, rather than holding every table for the longest period any one of them needs.'
+       }
+   )
+   Format-Table -Items $retRecs -Columns 'Check','Status','Detail','Recommendation' )
+
+## Tables with non-default retention
+
+Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last 90 days. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
+
+$( $nonDefaultRows = @($tableRows | Where-Object {
+        ($_.Interactive -ne $workspace.properties.retentionInDays -or $_.Total -ne $workspace.properties.retentionInDays) -and ($_.Gb90d -gt 0)
+    } | Sort-Object -Property Gb90d -Descending)
+   Format-Table -Items $nonDefaultRows -Columns 'Name','Plan','Interactive','Total','Archive','Gb90d' )
+$retentionLakeBlock
+
+[Data retention (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure) · [Manage data tiers and retention in Sentinel](https://learn.microsoft.com/azure/sentinel/manage-data-overview)
+"@
+Write-Section '89-retention.md' $retentionBody
 
 # Section 96 — User-facing Microsoft references (TOC 6.x)
 Write-Section '96-references-microsoft.md' (@"
@@ -6012,21 +6104,25 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 
 | Section | TOC | Description |
 |---|---|---|
-| [00-overview.md](00-overview.md) | — | Headline counts, top findings, cost summary |
+| [00-overview.md](00-overview.md) | - | Headline counts, top findings, cost summary |
 | [01-live-snapshot.md](01-live-snapshot.md) | 1 | Workspace-at-a-glance — regenerates every pipeline run |
+| [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) | - | Retirement deadlines and the legacy features still in use |
 | [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
 | [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
-| [13-data-source-hygiene.md](13-data-source-hygiene.md) | — | CEF/Syslog hygiene, agent dual-collection, top noisy events |
-| [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | — | AzureActivity / AzureDiagnostics / XDR coverage by source |
-| [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR + top alerting rules |
-| [20-analytics-rules.md](20-analytics-rules.md) | 4.11 | All detection rules by kind, alert volume and effectiveness, Microsoft-managed rules, recent modifications, Content Hub solution |
+| [13-data-source-hygiene.md](13-data-source-hygiene.md) | - | CEF/Syslog hygiene, agent dual-collection, top noisy events |
+| [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | - | AzureActivity / AzureDiagnostics / XDR coverage by source |
+| [15-incidents.md](15-incidents.md) | 4.10 | Incident MTTA/MTTR, outcomes, incidents by rule and by provider |
+| [16-alerts.md](16-alerts.md) | 4.10 | Alert volume by severity, detection source and provider |
+| [20-analytics-rules.md](20-analytics-rules.md) | 4.11 | All detection rules by kind, Microsoft-managed rules, recent modifications, Content Hub solution, Defender XDR custom detections |
+| [21-rule-performance.md](21-rule-performance.md) | 4.11.2 | Alert volume per rule, rule effectiveness, noisy rules |
+| [22-rule-health-quality.md](22-rule-health-quality.md) | - | Rule run failures, entity-mapping and incident-creation anti-patterns, stale rules, template drift, complexity |
 | [25-mitre-coverage.md](25-mitre-coverage.md) | 3.2 | Tactic + technique + sub-technique coverage |
 | [26-ueba.md](26-ueba.md) | 4.16 | UEBA configuration |
 | [27-threat-intelligence.md](27-threat-intelligence.md) | 4.17 | Indicator counts by source, STIX objects, feeds |
-| [28-detection-opportunities.md](28-detection-opportunities.md) | — | Tables with data but no detection, templates ready to enable |
+| [28-detection-opportunities.md](28-detection-opportunities.md) | - | Tables with data but no detection, templates ready to enable |
 | [30-hunting-queries.md](30-hunting-queries.md) | 4.15 | Hunting queries |
-| [35-parsers-functions.md](35-parsers-functions.md) | — | Parsers and functions |
+| [35-parsers-functions.md](35-parsers-functions.md) | - | Parsers and functions |
 | [36-data-export.md](36-data-export.md) | 4.3.3 | Data export configuration |
 | [37-search-restore.md](37-search-restore.md) | 4.3.4 | Search jobs / restore logs |
 | [38-summary-rules.md](38-summary-rules.md) | 4.3.5 | Summary rules |
@@ -6035,18 +6131,19 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [60-automation-rules-playbooks.md](60-automation-rules-playbooks.md) | 4.13 | Automation rules + playbooks + MI grants |
 | [70-content-hub.md](70-content-hub.md) | 4.6 | Solutions installed + repositories |
 | [80-workspace.md](80-workspace.md) | 4.2 | SKU, retention, networking, feature flags |
-| [81-table-plans-retention.md](81-table-plans-retention.md) | 4.3.1-2 | Per-table plan, retention, activity |
+| [81-table-plans-retention.md](81-table-plans-retention.md) | 4.3.1 | Per-table plan, activity, detection coverage |
 | [82-dedicated-cluster.md](82-dedicated-cluster.md) | 4.2.2 | Dedicated cluster, CMK, AZ |
-| [83-data-collection.md](83-data-collection.md) | — | DCRs and DCEs |
-| [84-cost-estimate.md](84-cost-estimate.md) | — | Estimated monthly cost |
+| [83-data-collection.md](83-data-collection.md) | - | DCRs and DCEs |
+| [84-cost-estimate.md](84-cost-estimate.md) | - | Estimated monthly cost |
 | [85-rbac.md](85-rbac.md) | 4.4 | Role assignments |
 | [86-subscription-context.md](86-subscription-context.md) | 4.1 | Subscription, tenant, RPs, locks, policy |
 | [87-azure-monitor-agents.md](87-azure-monitor-agents.md) | 4.5 | AMA agents heartbeating into the workspace |
-| [88-sentinel-data-lake.md](88-sentinel-data-lake.md) | — | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
-| [90-gap-analysis.md](90-gap-analysis.md) | — | Findings against MS Learn best practices |
-| [91-maturity-assessment.md](91-maturity-assessment.md) | — | Maturity by area, roadmap, quick wins, NIST CSF rollup |
+| [88-sentinel-data-lake.md](88-sentinel-data-lake.md) | - | Sentinel Data Lake enrollment, Lake-tier tables, migration candidates |
+| [89-retention.md](89-retention.md) | 4.3.2 | Retention checks, per-table overrides, retention that rolls into the lake, ingestion validation |
+| [90-gap-analysis.md](90-gap-analysis.md) | - | Findings against MS Learn best practices |
+| [91-maturity-assessment.md](91-maturity-assessment.md) | - | Maturity by area, roadmap, quick wins, NIST CSF rollup |
 | [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
-| [99-references.md](99-references.md) | — | Blueprint's own API versions and modules |
+| [99-references.md](99-references.md) | - | Blueprint's own API versions and modules |
 "@
 Write-Section 'index.md' $indexBody
 

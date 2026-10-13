@@ -21,6 +21,43 @@ methodology (see [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md)); the
 health check's SOC-CMM naming, levels and identifiers were not carried
 over.
 
+## Page map
+
+The report's 28 numbered sections against the Blueprint pages that hold
+them. The Blueprint groups by topic rather than copying the report's two
+deep-dive sections, so those spread over several pages; the table below
+lists each subsection.
+
+| Report section | Blueprint pages |
+| --- | --- |
+| 1 Summary | `00-overview.md`, `01-live-snapshot.md` |
+| 2 Tenant and subscription | `86-subscription-context.md` |
+| 3 Log Analytics workspace, ingestion summary | `80-workspace.md`, `81-table-plans-retention.md` |
+| 4 Data export | `36-data-export.md` |
+| 5 Workspace resilience | `80-workspace.md` |
+| 6 Permissions | `85-rbac.md` |
+| 7 Sentinel usage and table costs | `84-cost-estimate.md` |
+| 8 Data retention and improvements | `89-retention.md` |
+| 9 Microsoft Sentinel data lake | `88-sentinel-data-lake.md` |
+| 10 Deprecated and legacy features | `02-deprecated-legacy-features.md`; agent heartbeat mix on `87-azure-monitor-agents.md` |
+| 11 Classic tables | `81-table-plans-retention.md` |
+| 12 Content Hub solutions | `70-content-hub.md` |
+| 13 Analytics rules | `20-analytics-rules.md`, `21-rule-performance.md`, `22-rule-health-quality.md`; MITRE on `25-mitre-coverage.md`; unmonitored tables on `28-detection-opportunities.md` |
+| 14 Summary rules | `38-summary-rules.md` |
+| 15 Auxiliary tier candidates | `88-sentinel-data-lake.md`, "Migration candidates" |
+| 16 Automation rules, 17 Playbooks | `60-automation-rules-playbooks.md` |
+| 18 Watchlists | `50-watchlists.md` |
+| 19 Hunting | `30-hunting-queries.md` |
+| 20 UEBA and entity analytics | `26-ueba.md` |
+| 21 Threat intelligence and feeds | `27-threat-intelligence.md` |
+| 22 Ingestion and cost recommendations | `84-cost-estimate.md`, `90-gap-analysis.md` |
+| 23 Data collection rules | `83-data-collection.md`; connector and DCR health on `11-sentinel-health.md` |
+| 24 Configuration and ingestion deep dive | `87-azure-monitor-agents.md`, `14-coverage-breakdowns.md`, `13-data-source-hygiene.md`, `37-search-restore.md`, `10-data-connectors.md` |
+| 25 Operations deep dive | `11-sentinel-health.md`, `15-incidents.md`, `16-alerts.md`, `27-threat-intelligence.md`, `22-rule-health-quality.md`, `12-soc-optimization.md` |
+| 26 Sentinel and Defender XDR unification | `10-data-connectors.md` |
+| 27 SOC maturity assessment | `91-maturity-assessment.md` |
+| 28 Findings and recommended actions | `90-gap-analysis.md` |
+
 ## Sections
 
 The report numbers its sections in the HTML; the script names them. Sections
@@ -45,23 +82,23 @@ too.
 | Permissions: Log Analytics and monitoring role assignments | `85-rbac.md`, "Log Analytics and monitoring role assignments" (new) | |
 | Permissions: high-privilege assignments | `85-rbac.md`, "High-privilege assignments" (new) | SAC-GOV-06, SAC-GOV-05 |
 | Sentinel usage and table costs: top tables by cost | `84-cost-estimate.md`, "Tables by cost" (every table; the chart shows the ten costliest); dashboard top tables | |
-| Data retention: per-table retention overrides | `81-table-plans-retention.md`, "Tables with non-default retention" | |
-| Data retention: retention improvement recommendations | `81-table-plans-retention.md`, "Retention recommendations" (new, all three checks shown with their outcome) | SAC-LOG-07 |
+| Data retention: per-table retention overrides | `89-retention.md`, "Tables with non-default retention" | |
+| Data retention: retention improvement recommendations | `89-retention.md`, "Retention recommendations" (new, all three checks shown with their outcome) | SAC-LOG-07 |
 | Tables no longer receiving data, with and without rules | `81-table-plans-retention.md`, "Silent" detail with days silent, rules and verdict | SAC-MON-06, SAC-INV-01 |
 | Data lake: tables ingested into the lake | `88-sentinel-data-lake.md`, tier distribution and "Lake-only tables" | |
-| Data lake: analytics retention that rolls into the lake | `88-sentinel-data-lake.md`, "Retention that rolls into the lake" (now every table, with volume and rules, rather than the top ten) | |
-| Data lake: ingestion validation | `88-sentinel-data-lake.md`, "Ingestion validation" (new) | |
+| Data lake: analytics retention that rolls into the lake | `89-retention.md`, "Retention that rolls into the lake" (now every table, with volume and rules, rather than the top ten) | |
+| Data lake: ingestion validation | `89-retention.md`, "Ingestion validation" (new) | |
 | Data lake: which lake tables are used | `88-sentinel-data-lake.md`, "Lake usage evidence" | SAC-LOG-21 (new) |
 | Data lake: tables that should move to the lake | `88-sentinel-data-lake.md`, "Migration candidates" | SAC-LOG-02 |
 | Data lake: analytics tables with no long-term retention | `88-sentinel-data-lake.md`, "Analytics tables without extended lake retention" | SAC-LOG-14 |
-| Deprecated and legacy features | `01-live-snapshot.md`, "Legacy features still in use" (new) | SAC-PLT-03, SAC-PLT-02, SAC-TI-01, SAC-TI-02, SAC-DET-08, SAC-LOG-06 |
+| Deprecated and legacy features | `02-deprecated-legacy-features.md`, "Legacy features still in use" with the deadline runway (new) | SAC-PLT-03, SAC-PLT-02, SAC-TI-01, SAC-TI-02, SAC-DET-08, SAC-LOG-06 |
 | Deprecated and legacy features: agent heartbeat mix | `87-azure-monitor-agents.md`, "Agent heartbeat mix" (new) | SAC-PLT-03 |
 | Classic tables: inventory, still receiving data, dormant | `81-table-plans-retention.md`, "Classic custom tables (legacy Data Collector API)" | SAC-PLT-02, SAC-INV-04 |
 | Content Hub solutions: updates and deprecations | `70-content-hub.md` | SAC-DET-07, SAC-DET-13 |
 | Analytics rules: MITRE ATT&CK tactic coverage | `25-mitre-coverage.md`; dashboard MITRE matrix | SAC-MON-04 |
-| Analytics rules: rule health issues | `20-analytics-rules.md`, "Rule run failures (last 7d)" | SAC-DET-14 |
-| Analytics rules: noisy rules | `15-incidents.md` and `20-analytics-rules.md`, rule effectiveness | SAC-DET-06 |
-| Analytics rules: rule effectiveness | `15-incidents.md`, "Rule effectiveness (last 30d)", every detection (Sentinel rules first) rather than the top 25 | |
+| Analytics rules: rule health issues | `22-rule-health-quality.md`, "Rule run failures (last 7d)" | SAC-DET-14 |
+| Analytics rules: noisy rules | `21-rule-performance.md`, "Noisy rules (closed mostly as false positive)" | SAC-DET-06 |
+| Analytics rules: rule effectiveness | `21-rule-performance.md`, "Rule effectiveness (last 30d)", every detection (Sentinel rules first) rather than the top 25 | |
 | Analytics rules: tables ingested but not referenced by any rule | `28-detection-opportunities.md`, "Tables with data but no detection" with every template per table (previously three and a count); `81-table-plans-retention.md`, "Tables by detection coverage" | SAC-MON-05 |
 | Analytics rules: suggested rules for unmonitored tables | `28-detection-opportunities.md`, "Undeployed templates ready to enable"; dashboard detection opportunities | SAC-MON-05 |
 | Analytics rules: unmonitored tables with no available templates | `28-detection-opportunities.md`, "Tables with no template available" (new) | SAC-MON-05 |
@@ -99,13 +136,13 @@ too.
 | Operations: SentinelHealth operations | `11-sentinel-health.md`, "Operations summary" | |
 | Operations: LAQueryLogs audit | `11-sentinel-health.md`, "Query logging activity" | SAC-PLT-12 (new) |
 | Operations: incident metrics (7d) | `15-incidents.md`, "Incident metrics (last 7d)" (new) | SAC-INC-05, SAC-INC-06, SAC-INC-02 |
-| Operations: alert volumes by provider | `15-incidents.md`, "Alert volumes by provider (last 7d)" (new, every alert name that fired rather than the top 25) | |
+| Operations: alert volumes by provider | `16-alerts.md`, "Alert volumes by provider (last 7d)" (new, every alert name that fired rather than the top 25) | |
 | Operations: legacy Microsoft incident creation rules | `20-analytics-rules.md`, "MS Incident Creation rules" | SAC-DET-08 |
 | Operations: threat intelligence table version usage | `20-analytics-rules.md` and `27-threat-intelligence.md` | SAC-TI-02 |
-| Operations: analytics rule complexity | `20-analytics-rules.md`, "Rule complexity" | |
-| Operations: rules without entity mappings | `90-gap-analysis.md` | SAC-DET-03 |
-| Operations: rules producing alerts only | `90-gap-analysis.md` | SAC-MON-01 |
-| Operations: stale rules | `20-analytics-rules.md`, mouldy rules | SAC-DET-04 |
+| Operations: analytics rule complexity | `22-rule-health-quality.md`, "Rule complexity" | |
+| Operations: rules without entity mappings | `22-rule-health-quality.md`, "Rules without entity mappings" (new) | SAC-DET-03 |
+| Operations: rules producing alerts only | `22-rule-health-quality.md`, "Rules that raise alerts without incidents" (new) | SAC-MON-01 |
+| Operations: stale rules | `22-rule-health-quality.md`, "Stale rules" | SAC-DET-04 |
 | Operations: SOC optimization recommendations | `12-soc-optimization.md` | |
 | Sentinel and Defender XDR unification | `10-data-connectors.md`, "Defender XDR unification", with unified incidents, Defender XDR alerts and the retired Azure Security Center path (new) | SAC-DET-08, SAC-PLT-11 |
 | Maturity: scope of this assessment | `91-maturity-assessment.md`, header and "Out of scope" | |
@@ -231,7 +268,7 @@ data. Where the window or shape differs, the note says how.
 | Silent tables nothing depends on | SAC-INV-01 |
 | Classic tables still on the Data Collector API, ingesting, or empty | SAC-PLT-02, SAC-INV-04 |
 | Analytics retention longer than total retention | SAC-LOG-20 (new) |
-| Lake tables with no or stale ingestion | SAC-INV-01, SAC-MON-06; page 88 ingestion validation |
+| Lake tables with no or stale ingestion | SAC-INV-01, SAC-MON-06; page 89 ingestion validation |
 | Lake tables with no usage | SAC-LOG-21 (new) |
 | High-volume tables paying full analytics retention | SAC-LOG-02, SAC-LOG-11 |
 | Analytics tables with no long-term lake retention | SAC-LOG-14 |

@@ -92,7 +92,7 @@ table only.
 | `00-overview.md` | sankey-beta | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
 | `01-live-snapshot.md` | pie | `$gapBySeverity` (reused) | none |
 | `01-live-snapshot.md` | sankey-beta | `$estate` (same block as 00) | `$estate.TotalGb -gt 0` |
-| `01-live-snapshot.md` | gantt | static deadlines + `_DaysUntilFromToday` | none |
+| `02-deprecated-legacy-features.md` | gantt | static deadlines + `_DaysUntilFromToday` | none |
 | `10-data-connectors.md` | pie | `$connectors` grouped by `kind` | none |
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
 | `12-soc-optimization.md` | pie | recommendation-category counts | `$socTotal -gt 0` |
@@ -102,7 +102,7 @@ table only.
 | `15-incidents.md` | pie | `$incSummary.ByClassification` (closed incidents by verdict) | bag total `-gt 0` |
 | `15-incidents.md` | journey | static SOC analyst flow | none |
 | `20-analytics-rules.md` | classDiagram | per-kind deployed-count notes | none |
-| `20-analytics-rules.md` (By alert volume) | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
+| `21-rule-performance.md` (By alert volume) | xychart-beta bar | `$ruleVolumes` top 10 by Alerts | `$ruleVolumes.Count -gt 0` |
 | `20-analytics-rules.md` (Microsoft-managed rules) | pie | Microsoft rules grouped by Severity | `$msRules.Count -gt 0` |
 | `20-analytics-rules.md` (Recent modifications) | xychart-beta bar | per-month bucket counts (last 12mo) | none |
 | `20-analytics-rules.md` (By Content Hub solution) | pie | top 8 solutions by rule count + Other | none |
@@ -130,7 +130,7 @@ table only.
 | `86-subscription-context.md` | pie | resource-providers grouped by State | `$rpRows.Count -gt 0` |
 | `87-azure-monitor-agents.md` | xychart-beta bar (conditional) | AMA vs MMA per machine type | `$totalAgents -ge 3` (else sentence) |
 | `88-sentinel-data-lake.md` | pie | `$tierPieRows` (tables by tier configuration) | `$tierPieRows.Count -ge 2` |
-| `88-sentinel-data-lake.md` | xychart-beta bar (width 1400, height 480) | `$topRetention` Lake-only retention days | inside the same `$tierPieRows.Count -ge 2` branch |
+| `89-retention.md` | xychart-beta bar (width 1400, height 480) | `$topRetention` Lake-only retention days | inside the same `$tierPieRows.Count -ge 2` branch |
 | `88-sentinel-data-lake.md` | flowchart (LR, three tiers) | static Lake ingest / mirror / promote / query paths | `$hasDataLake` |
 | `90-gap-analysis.md` | xychart-beta grouped bar | `$gapByCategory` × Warning/Info | `$gapFindings.Count -gt 0` |
 | `91-maturity-assessment.md` | xychart-beta bar | `$maturity.areas[].score` on a fixed 0 to 5 axis | `$maturityOk` (else a "not produced" sentence) |
@@ -433,7 +433,7 @@ assets root).
 | [`Tools/Blueprint/Private/Resources/mitre-attack.json`](../../../Tools/Blueprint/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json`](../../../Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
 | [`Tools/Blueprint/Private/Resources/commitment-tiers.json`](../../../Tools/Blueprint/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
-| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~240 tests) |
+| [`Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/Blueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~245 tests) |
 | [`Tests/Blueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |
 | [`Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1`](../../../Tests/Blueprint/Get-ConnectorCatalogue.Tests.ps1) | Connector catalogue resource guards and helpers (13 tests) |
 | [`Tests/Blueprint/Get-SentinelMaturity.Tests.ps1`](../../../Tests/Blueprint/Get-SentinelMaturity.Tests.ps1) | Maturity-engine Pester suite (33 tests) |

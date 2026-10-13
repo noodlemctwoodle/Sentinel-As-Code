@@ -115,9 +115,11 @@ Every operational table grouped into one of:
 Suppressed when fewer than 2 buckets are populated (single-slice pies are
 visually meaningless).
 
-### 6. Retention split (xychart-beta bar, conditional)
+### 6. Retention split (xychart-beta bar, conditional), on `89-retention.md`
 
-Top 10 tables by Lake-only retention days (the portion of total retention
+This block now renders on the retention page, `89-retention.md`, beside
+the workspace retention checks and the per-table overrides; page 88 links
+to it. Top 10 tables by Lake-only retention days (the portion of total retention
 that bills against the Lake-storage meter). Renders only when at least
 one table has `totalRetentionInDays > retentionInDays`.
 
