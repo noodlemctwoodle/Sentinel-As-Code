@@ -23,8 +23,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   XDR, can follow. The Blueprint pipelines (Azure DevOps and both GitHub
   workflows) run the module. The Blueprint now lives in
   `Modules/iSOCBlueprint` (its scripts under `Engine/`), its tests in
-  `Tests/iSOCBlueprint`, its docs in `Docs/iSOCBlueprint` and the SharePoint
-  web part source in `Tools/WebParts/isoc-blueprint`;
+  `Tests/iSOCBlueprint` and its docs in `Docs/iSOCBlueprint`, with the
+  SharePoint web part source in `Modules/iSOCBlueprint/WebParts`;
   [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md) records where
   each file went. `Convert-FolderToWordReport.ps1`, a generic folder-to-Word
   dump that nothing called, is retired.

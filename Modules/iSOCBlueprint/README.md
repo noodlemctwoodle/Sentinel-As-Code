@@ -95,6 +95,7 @@ Engine/              the Blueprint itself, as scripts
   Report/                                 Word conversion
   SharePoint/                             site bundle, publisher, set-up
   Schemas/                                section model JSON schemas
+WebParts/            SPFx solution for the dashboard and chart web parts
 MIGRATION.md         where each file came from
 ```
 
@@ -102,10 +103,14 @@ The public commands are thin: each maps its parameters onto one engine
 script, runs it and returns an object describing what it wrote. The engine
 scripts keep the layout and behaviour they had before the module.
 
-The SharePoint web part (an SPFx solution, not PowerShell) lives outside the
-module in [`Tools/WebParts/isoc-blueprint`](../../Tools/WebParts/isoc-blueprint);
-the pipelines build its package and pass it to `Publish-iSOCBlueprintSite
--AppPackagePath`.
+The SharePoint web parts, the dashboard and the chart, are an SPFx solution
+(TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit
+with the module because the dashboard they host is the engine's
+`SharePoint/templates/sharepoint-dashboard.html` and the module's
+`Publish-iSOCBlueprintSite -AppPackagePath` deploys their package; the module
+itself loads nothing from the folder. The pipelines build the package with
+`npm ci` and `npm run package` in `WebParts/` and pass
+`WebParts/sharepoint/solution/isoc-blueprint.sppkg` to the publish.
 
 ## Where it came from
 

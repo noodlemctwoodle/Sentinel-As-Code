@@ -54,7 +54,7 @@ with the dashboard template and the web part source:
 | `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/sharepoint-dashboard.html`](../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
-| [`Tools/WebParts/isoc-blueprint/`](../../Tools/WebParts/isoc-blueprint) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../Tools/WebParts/isoc-blueprint/README.md). |
+| [`Modules/iSOCBlueprint/WebParts/`](../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../Modules/iSOCBlueprint/WebParts/README.md). |
 | `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
 
 ### The bundle
@@ -190,7 +190,7 @@ shown as text. Labels are never shortened: a long one wraps over as
 many lines as it needs, and an xy chart whose Mermaid labels are cut to
 fit under the bars takes the full names from a `%% x-labels` comment the
 renderer writes beside the axis. How each kind is drawn is in the web part's
-[README](../../Tools/WebParts/isoc-blueprint/README.md#how-the-charts-render).
+[README](../../Modules/iSOCBlueprint/WebParts/README.md#how-the-charts-render).
 
 While the web part is not on the site yet (a package deployed a moment ago
 can take a few minutes to register, or the package on the site predates
@@ -349,7 +349,7 @@ Without `-SiteUrl` it builds the bundle and stops, so you can open
 
 The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its
-[README](../../Tools/WebParts/isoc-blueprint/README.md).
+[README](../../Modules/iSOCBlueprint/WebParts/README.md).
 
 ## Privacy
 

@@ -477,7 +477,7 @@ Describe 'SharePoint helpers' {
 Describe 'Web part package' {
 
     BeforeAll {
-        $script:wp = Join-Path $repoRoot 'Tools/WebParts/isoc-blueprint'
+        $script:wp = Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts'
         # SPFx config and manifests allow // comments, which ConvertFrom-Json does not.
         function Read-Jsonc([string] $Path) {
             (Get-Content -LiteralPath $Path -Raw) -replace '(?m)^\s*//.*$', '' -replace '(?m)\s+//[^"\r\n]*$', '' | ConvertFrom-Json

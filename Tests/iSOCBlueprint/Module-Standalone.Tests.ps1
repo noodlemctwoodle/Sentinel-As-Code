@@ -8,9 +8,9 @@
 
 .DESCRIPTION
     The module is meant to be usable on its own, installed anywhere. This
-    suite copies Modules/iSOCBlueprint to a folder outside the repository,
-    imports it from there and runs the offline steps over the fixture
-    inventory: render both formats, build the SharePoint bundle, and run
+    suite copies Modules/iSOCBlueprint, less the web part source, to a
+    folder outside the repository, imports it from there and runs the
+    offline steps over the fixture inventory: render both formats, build the SharePoint bundle, and run
     the gap analysis and the maturity assessment. A step that still reached
     into the repository (the shared module, the docs, a relative path two
     folders up) would fail or produce a gap here, such as a missing page 99.
@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (the renderer)
 #>
@@ -34,8 +34,13 @@
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:copy = Join-Path $TestDrive 'modules/iSOCBlueprint'
-    New-Item -ItemType Directory -Path (Split-Path -Parent $script:copy) -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint') -Destination (Split-Path -Parent $script:copy) -Recurse -Force
+    # Everything but the web part source, as an installed module would ship:
+    # the module loads nothing from WebParts/, and a locally built
+    # node_modules there would make the copy slow.
+    New-Item -ItemType Directory -Path $script:copy -Force | Out-Null
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint') -Force |
+        Where-Object Name -ne 'WebParts' |
+        Copy-Item -Destination $script:copy -Recurse -Force
 
     Remove-Module iSOCBlueprint -ErrorAction SilentlyContinue
     Import-Module (Join-Path $script:copy 'iSOCBlueprint.psd1') -Force
@@ -58,6 +63,11 @@ AfterAll {
 Describe 'iSOCBlueprint outside the repository' {
     It 'is loaded from the copy, not the repository' {
         (Get-Module iSOCBlueprint).ModuleBase | Should -Be $script:copy
+    }
+
+    It 'runs without the web part source beside it' {
+        Test-Path -LiteralPath (Join-Path $script:copy 'WebParts') | Should -BeFalse
+        @((Get-Module iSOCBlueprint).ExportedFunctions.Keys).Count | Should -Be 12
     }
 
     It 'renders the Markdown report and the section model from the default folder' {

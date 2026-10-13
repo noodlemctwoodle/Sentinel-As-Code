@@ -10,7 +10,7 @@
     folders, and the Documenter later became the iSOCBlueprint module
     (Tools/Documenter, later Tools/Blueprint, became
     Modules/iSOCBlueprint/Engine, its SharePoint web part became
-    Tools/WebParts/isoc-blueprint, and Tests/Documenter became
+    Modules/iSOCBlueprint/WebParts, and Tests/Documenter became
     Tests/iSOCBlueprint). Tracked files move automatically when you
     merge or rebase the restructure (git rename detection reconciles your
     customisations). This helper catches stragglers (untracked custom
@@ -53,7 +53,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.2
+    Version:        0.1.3
     Last Updated:   2026-10-13
     Requires:       PowerShell 7.2+, git
 #>
@@ -104,7 +104,7 @@ $moveMap = [ordered]@{
     'Tests/Documenter'                      = 'Tests/iSOCBlueprint'
     'Tests/Blueprint'                       = 'Tests/iSOCBlueprint'
     # The web part first, so the folder below does not carry it into the engine.
-    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Tools/WebParts/isoc-blueprint'
+    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Modules/iSOCBlueprint/WebParts'
     'Tools/Blueprint'                       = 'Modules/iSOCBlueprint/Engine'
 }
 
