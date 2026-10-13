@@ -33,6 +33,30 @@ DevOps) or locally from the `iSOCBlueprint` module.
 > If your source-of-truth lives in a public GitHub repo and you need the
 > Blueprint, see [Topology options](#topology-options) below.
 
+### Keeping the output off a public GitHub repo
+
+In the public-GitHub-plus-private-ADO setup (topology B), the output may
+live in the private ADO repo (the pipeline's review-only snapshot branches)
+but never in GitHub. Four layers keep it out:
+
+| Layer | What it stops |
+| --- | --- |
+| `.gitignore`: `SecurityDocs/`, `BlueprintRuns/` and any `_raw/` outside a test `Fixtures/` folder | A plain `git add` of output written with the default or any `-OutputPath` |
+| The ADO pipeline pushes only to its own `origin`, the ADO repo | The snapshot branch (`git add -f SecurityDocs`) reaching GitHub from the agent |
+| The GitHub workflow refuses to collect on a public repo | A run, or its artefact, on GitHub |
+| [`.githooks/pre-push`](../../../.githooks/pre-push) | A push to any `github.com` remote whose commits add Blueprint output (a forced add, or a fetched ADO snapshot branch pushed on), from any worktree |
+
+The pre-push hook is the only layer that needs installing, once per clone:
+
+```bash
+cp .githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push" && chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-push"
+```
+
+It checks every commit the push uploads, so a branch that added output and
+removed it later is still refused: take the output out of the history first.
+`Tests/iSOCBlueprint/Module.Tests.ps1` fails the PR gate if any output is
+tracked, and runs the hook against a throwaway repository.
+
 ---
 
 ## Delivery channels

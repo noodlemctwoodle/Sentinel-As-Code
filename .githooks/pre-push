@@ -1,0 +1,65 @@
+#!/bin/sh
+#
+# .githooks/pre-push
+#
+# Refuses a push to a GitHub remote when any commit being pushed adds or
+# changes iSOC Blueprint output: SecurityDocs/, BlueprintRuns/, or a _raw/
+# folder anywhere but under a test Fixtures/ folder. That output is tenant
+# configuration (workspace ids, rule details, RBAC principals, cost, network
+# ACLs) and must never reach the public GitHub repository. Pushes to any
+# other remote, such as the private Azure DevOps repo that holds the
+# Blueprint pipeline's review-only snapshot branches, are not checked.
+#
+# Install once per clone; it then covers every worktree:
+#   cp .githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
+#   chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-push"
+#
+# Repository:   Sentinel-As-Code
+# Author:       noodlemctwoodle
+# Created:      2026-10-13
+# Version:      1.0.0
+# Last Updated: 2026-10-13
+
+remote="$1"
+url="$2"
+
+case "$url" in
+    *github.com[:/]*) ;;
+    *) exit 0 ;;
+esac
+
+blocked='(^|/)(SecurityDocs|BlueprintRuns)/|(^|/)_raw/'
+allowed='^Tests/(.*/)?Fixtures/'
+found=''
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # A deleted ref sends an all-zero id: nothing is uploaded.
+    case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+
+    # The commits this push uploads: those after what the remote has, or,
+    # for a new ref (or one whose remote tip is not here), every commit no
+    # branch on the remote already holds.
+    if case "$remote_sha" in *[!0]*) true ;; *) false ;; esac && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+        commits=$(git rev-list "$remote_sha..$local_sha")
+    else
+        commits=$(git rev-list "$local_sha" --not --remotes="$remote")
+    fi
+
+    for c in $commits; do
+        # -m lists a merge's changes against each parent; deletions are
+        # left out so a clean-up commit can still go.
+        paths=$(git diff-tree -m --root -r --no-commit-id --name-only --diff-filter=d "$c" | grep -E "$blocked" | grep -v -E "$allowed")
+        if [ -n "$paths" ]; then
+            found="$found$paths
+"
+        fi
+    done
+done
+
+if [ -n "$found" ]; then
+    echo "pre-push: refused. Commits in this push add iSOC Blueprint output (tenant configuration) in these folders, which must never reach GitHub ($url):" >&2
+    printf '%s' "$found" | sed 's#/[^/]*$##' | sort -u | sed 's/^/  /' >&2
+    echo "Take them out of the branch history before pushing to GitHub. Pushes to Azure DevOps are not checked." >&2
+    exit 1
+fi
+exit 0

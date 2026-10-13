@@ -32,7 +32,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -189,6 +189,61 @@ Describe 'SharePoint publisher name' {
         $init = Get-Content -LiteralPath (Join-Path $script:engineRoot 'SharePoint/Initialize-SentinelDocsSite.ps1') -Raw
         foreach ($s in $setup, $init) { $s | Should -Match "\`$PublisherAppName = 'iSOC Blueprint SharePoint publisher'" }
         $setup | Should -Match "foreach \(\`$legacyName in 'Sentinel Blueprint SharePoint publisher', 'Sentinel Documenter SharePoint publisher'\)"
+    }
+}
+
+Describe 'Blueprint output stays off GitHub' {
+    # Output from a real workspace is tenant configuration. Only the test
+    # fixtures' _raw folders may be tracked.
+    BeforeAll {
+        $script:blocked = '(^|/)(SecurityDocs|BlueprintRuns)/|(^|/)_raw/'
+        $script:allowed = '^Tests/(.*/)?Fixtures/'
+        $script:hook = Join-Path $script:repoRoot '.githooks/pre-push'
+    }
+
+    It 'is not tracked anywhere in the repository' {
+        $tracked = @(git -C $script:repoRoot ls-files) | Where-Object { $_ -match $script:blocked -and $_ -notmatch $script:allowed }
+        $tracked | Should -BeNullOrEmpty
+    }
+
+    It 'is ignored by git wherever the module writes it' {
+        foreach ($p in 'SecurityDocs/ws/_raw/a.json', 'BlueprintRuns/ws/sections/index.json', 'out/ws/_raw/a.json') {
+            git -C $script:repoRoot check-ignore -q --no-index $p
+            $LASTEXITCODE | Should -Be 0 -Because "$p is Blueprint output"
+        }
+        git -C $script:repoRoot check-ignore -q --no-index 'Tests/iSOCBlueprint/Fixtures/sample/_raw/new.json'
+        $LASTEXITCODE | Should -Be 1 -Because 'fixture captures are tracked'
+    }
+
+    It 'pre-push refuses a GitHub push that carries it and lets the rest through' -Skip:(-not (Get-Command sh -ErrorAction SilentlyContinue)) {
+        $repo = Join-Path $TestDrive 'hook-repo'
+        git init -q $repo
+        git -C $repo config user.email 'test@example.com'
+        git -C $repo config user.name 'test'
+        $commit = {
+            param([string] $Path, [switch] $Force)
+            $full = Join-Path $repo $Path
+            New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force | Out-Null
+            '{}' | Set-Content -LiteralPath $full
+            if ($Force) { git -C $repo add -f -- $Path } else { git -C $repo add -- $Path }
+            git -C $repo commit -q -m $Path
+            git -C $repo rev-parse HEAD
+        }
+        $clean = & $commit 'README.md'
+        $fixture = & $commit 'Tests/iSOCBlueprint/Fixtures/sample/_raw/alert-rules.json'
+        $leak = & $commit 'SecurityDocs/law-test/_raw/alert-rules.json' -Force
+        $zero = '0' * 40
+        $push = {
+            param([string] $Url, [string] $Sha)
+            Push-Location $repo
+            try { "refs/heads/main $Sha refs/heads/main $zero" | sh $script:hook origin $Url 2>$null | Out-Null; $LASTEXITCODE }
+            finally { Pop-Location }
+        }
+        & $push 'https://github.com/owner/repo.git' $clean | Should -Be 0
+        & $push 'https://github.com/owner/repo.git' $fixture | Should -Be 0
+        & $push 'https://github.com/owner/repo.git' $leak | Should -Be 1
+        & $push 'git@github.com:owner/repo.git' $leak | Should -Be 1
+        & $push 'https://dev.azure.com/org/project/_git/repo' $leak | Should -Be 0
     }
 }
 

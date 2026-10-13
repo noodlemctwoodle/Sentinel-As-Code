@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Blueprint output kept off the public GitHub repo** - a new
+  `.githooks/pre-push` hook refuses any push to a `github.com` remote whose
+  commits add Blueprint output (`SecurityDocs/`, `BlueprintRuns/`, or a
+  `_raw/` folder outside a test `Fixtures/` folder), from any worktree once
+  installed (`cp .githooks/pre-push "$(git rev-parse
+  --git-common-dir)/hooks/pre-push"`, then `chmod +x`). Pushes to Azure
+  DevOps, where the pipeline keeps its review-only snapshot branches, are
+  not checked. `.gitignore` adds `BlueprintRuns/` and any `_raw/` outside
+  the fixtures, and the module suite fails the PR gate if any output is
+  tracked. See "Keeping the output off a public GitHub repo" in the
+  operating guide.
 - **MITRE coverage with sub-techniques, and no wall of rule names** - page
   25 now covers tactics, techniques and sub-techniques. Sentinel returns a
   rule's sub-techniques in a separate `subTechniques` array that every GA
