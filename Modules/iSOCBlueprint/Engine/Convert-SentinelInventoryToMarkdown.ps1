@@ -699,6 +699,19 @@ function Format-EstateSankey {
     }
     if ($rows.Count -eq 0) { return '_Nothing to draw._' }
     $height = [math]::Max(360, 40 * $Estate.Sources.Count + 200)
+    # The estate as data for the SharePoint graphic: every family's GB and
+    # the part a detection reads, and the four stages as in use of a whole.
+    $visual = Format-VisualLine -Kind 'estate' -Data ([ordered]@{
+        totalGb   = [math]::Round([double]$Estate.TotalGb, 2)
+        coveredGb = [math]::Round([double]$Estate.CoveredGb, 2)
+        sources   = @($Estate.Sources | Sort-Object { -[double]$_.Gb } | ForEach-Object { [ordered]@{ name = [string]$_.Category; gb = [math]::Round([double]$_.Gb, 2); coveredGb = [math]::Round([double]$_.CoveredGb, 2); tables = [int]$_.Tables; covered = [int]$_.Covered } })
+        stages    = @(
+            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables seen in 90 days still receiving data'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in 30 days" }
+            [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$($Estate.RulesEnabled) enabled rules" }
+            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$($Estate.Alerts) alerts in 30 days" }
+            [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$($Estate.IncidentsOpen) still open" }
+        )
+    })
     @"
 ``````mermaid
 ---
@@ -709,6 +722,7 @@ config:
     height: $height
 ---
 sankey-beta
+$visual
 
 $($rows -join [Environment]::NewLine)
 ``````
@@ -740,9 +754,11 @@ $estateBlock = if ($estate.Sources.Count -gt 0 -and $estate.TotalGb -gt 0) {
 
 ## Estate flow
 
-Where the last 30 days of billable data came from, how much of it an enabled analytics rule reads, and what the detections produced. Ribbon width is GB; the counts sit in the node labels.
+Where the last 30 days of billable data came from, how much of it an enabled analytics rule reads, and what the detections produced.
 
 $(Format-EstateSankey -Estate $estate)
+
+<!-- bp:shown-in-graphic -->
 
 $(Format-EstateRingsTable -Estate $estate)
 
@@ -763,7 +779,7 @@ _No billable ingestion in the last 30 days, so there is no flow to draw._$family
 }
 
 $maturityHeadline = if ($maturityOk -and $null -ne $maturity.overall.score) {
-    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count). Scored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
+    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count)`n`nScored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
 } elseif ($maturityOk) {
     "_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md)."
 } else { '_Maturity assessment not available for this run._' }
@@ -2401,9 +2417,6 @@ $timelineEvents += [pscustomobject]@{
         "First captured connector inventory"
     )
 }
-$timelineEvents += [pscustomobject]@{ Date = '2024-08-31'; Lines = @('Microsoft MMA / OMS retired') }
-$timelineEvents += [pscustomobject]@{ Date = '2025-02-01'; Lines = @('MMA ingestion degraded') }
-$timelineEvents += [pscustomobject]@{ Date = '2025-07-31'; Lines = @('Legacy ThreatIntelligenceIndicator ingestion stopped') }
 # Tables-in-use: operational subset (tables that have received billable
 # data in 90 days, plus CustomLog tables). The 800+ Microsoft-defined
 # schemas the workspace never ingested are catalogue, not deployment —
@@ -2416,8 +2429,6 @@ $timelineEvents += [pscustomobject]@{
         "$($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($operationalTables.Count) tables receiving data ($($workspaceTables.Count) in catalogue)"
     )
 }
-$timelineEvents += [pscustomobject]@{ Date = '2026-09-14'; Lines = @('HTTP Data Collector API retires — verify no _CL tables affected') }
-$timelineEvents += [pscustomobject]@{ Date = '2027-03-31'; Lines = @('Sentinel Azure portal retires (forced Defender XDR move)') }
 
 if ($wsCreatedShort -ne 'unknown') {
     $timelineEvents = @($timelineEvents | Where-Object { $_.Date -ge $wsCreatedShort })
@@ -2433,18 +2444,33 @@ $timelineBody = ($timelineEvents | ForEach-Object {
     } else { $first }
 }) -join [Environment]::NewLine
 
+# The workspace's own history as data for the SharePoint graphic. Platform
+# retirements live on 02-deprecated-legacy-features.md and are not repeated.
+$workspaceAgeVisualLine = Format-VisualLine -Kind 'workspace-age' -Data ([ordered]@{
+    created         = $(if ($wsCreatedShort -ne 'unknown') { $wsCreatedShort } else { $null })
+    today           = $todayShort
+    ageDays         = $(if ($null -ne $wsAgeDays) { [int]$wsAgeDays } else { $null })
+    sku             = [string]$workspace.properties.sku.name
+    retentionDays   = [int]$workspace.properties.retentionInDays
+    rulesEnabled    = $enabledRules.Count
+    connectors      = @($connectors).Count
+    tablesReceiving = @($operationalTables).Count
+    tablesCatalogue = @($workspaceTables).Count
+})
+
 $wsBody = @"
 $(Format-Banner -Title "Workspace Inventory")
 
-## Workspace + platform history
+## Workspace history
 
 ``````mermaid
 timeline
-    title Workspace history — $WorkspaceName
+$workspaceAgeVisualLine
+    title Workspace history: $WorkspaceName
 $timelineBody
 ``````
 
-Mixes platform-side deprecations with workspace-specific events (created date, current ingest profile, upcoming deadlines).
+When the workspace was created and on what terms, and what it holds today. Platform retirements and their dates are on [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md).
 
 ## Provenance
 
@@ -3871,15 +3897,6 @@ $(Format-Banner -Title "Live snapshot")
 
 > Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above — not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
 
-## Findings by severity
-
-``````mermaid
-pie showData title Findings by severity (current run)
-    "Critical" : $($gapBySeverity.Critical)
-    "Warning"  : $($gapBySeverity.Warning)
-    "Info"     : $($gapBySeverity.Info)
-``````
-
 ## Workspace at a glance
 
 | Indicator | Value |
@@ -3895,7 +3912,8 @@ pie showData title Findings by severity (current run)
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 | Maturity (overall / target) | $maturityCell |
 | Legacy features still in use | $(@($legacyRows | Where-Object Status -eq 'In use').Count) of $(@($legacyRows | Where-Object Status -ne 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
-$estateBlock
+
+The findings by severity and the estate flow, from source families through detection to incidents, are on [00-overview.md](00-overview.md).
 
 ## Top recommendations
 
@@ -3923,6 +3941,21 @@ Write-Section '01-live-snapshot.md' $execBody
 
 # Section 02: retired and retiring platform features, with the deadlines
 # still ahead and whether this workspace uses each one.
+# The runway as data for the SharePoint graphic: each deadline, and whether
+# this workspace still uses what it retires (null when it cannot say).
+$runwayUse = { param([bool]$Captured, [bool]$InUse) if ($Captured) { $InUse } else { $null } }
+$mmaCaptured = & $has01 'ama-mma-migration.json'
+$tiCaptured = (& $has01 'threat-intel-tables.json') -or (& $has01 'alert-rules.json')
+$tipConnectors = @($connectors | Where-Object { $_ -and [string]$_.kind -eq 'ThreatIntelligence' }).Count
+$runwayVisualLine = Format-VisualLine -Kind 'runway' -Data ([ordered]@{ today = $today; items = @(
+    [ordered]@{ label = 'MMA / OMS agent retired'; date = '2024-08-31'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = "$mmaMachines01 machine$(if ($mmaMachines01 -ne 1) { 's' })" }
+    [ordered]@{ label = 'MMA ingestion degraded'; date = '2025-02-01'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = "$mmaMachines01 machine$(if ($mmaMachines01 -ne 1) { 's' })" }
+    [ordered]@{ label = 'Legacy threat intelligence ingestion stopped'; date = '2025-07-31'; state = 'done'; inUse = (& $runwayUse $tiCaptured ($tiLegacyRows01 -gt 0 -or $tiLegacyRules01 -gt 0)); evidence = "$tiLegacyRows01 records, $tiLegacyRules01 rules" }
+    [ordered]@{ label = 'HTTP Data Collector API retires'; date = '2026-09-14'; state = 'crit'; inUse = (& $runwayUse (& $has01 'workspace-tables.json') ($classicTables01.Count -gt 0)); evidence = "$($classicTables01.Count) classic table$(if ($classicTables01.Count -ne 1) { 's' })" }
+    [ordered]@{ label = 'Sentinel in the Azure portal retires (move to the Defender portal)'; date = '2027-03-31'; state = 'crit'; inUse = $null; evidence = '' }
+    [ordered]@{ label = 'Legacy threat intelligence platform connector deprecates'; date = '2027-06-30'; state = 'active'; inUse = (& $runwayUse (& $has01 'data-connectors-classic.json') ($tipConnectors -gt 0)); evidence = 'connector connected' }
+) })
+
 $legacyBody = @"
 $(Format-Banner -Title "Deprecated and Legacy Features")
 
@@ -3932,6 +3965,7 @@ What Microsoft has retired or is retiring on the Sentinel platform, and whether 
 
 ``````mermaid
 gantt
+$runwayVisualLine
     title Microsoft Sentinel platform deprecation runway
     dateFormat YYYY-MM-DD
     axisFormat %b %Y

@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: 2a4d2ead0be2124a0c0689628cc9ed5d16db9a484cdffcce7e952aad96428d02 */
+   sources-sha256: ca27cafa60def0b08a7e93392c5e2ce2f79feea260d48f83bfc748668762b4da */
 (function(){
 'use strict';
  var defs={};
@@ -467,6 +467,80 @@ function sourcesCard(sources, totalGb, theme) {
         '<div style="margin-top:8px">' + rows + '</div>', theme);
 }
 function gb(v) {
+    return (v >= 100 ? Math.round(v).toLocaleString('en-GB') : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString()) + ' GB';
+}
+
+};
+ defs['EstateChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderEstate = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The estate in the last 30 days: every source family's billable GB split
+// into what an enabled detection reads and what nothing reads, then the
+// pipeline from ingestion to incidents as four stages, each with the share
+// that made it through and a rating (80% and over strong, 65% fair).
+const READ = '#0d9488';
+const STAGE = ['#2563eb', '#0d9488', '#d97706', '#7c3aed'];
+function renderEstate(data, theme) {
+    const sources = (0, ChartKit_1.list)(data && data.sources);
+    const stages = (0, ChartKit_1.list)(data && data.stages);
+    if (!sources.length && !stages.length) {
+        return '';
+    }
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        (stages.length ? pipeline(stages, theme) : '') + (sources.length ? families(sources, data, theme) : '') + '</div>';
+}
+exports.renderEstate = renderEstate;
+function pipeline(stages, theme) {
+    const cols = [];
+    stages.forEach((s, i) => {
+        if (i) {
+            cols.push('40px');
+        }
+        cols.push('minmax(150px,1fr)');
+    });
+    let out = '<div style="display:grid;grid-template-columns:' + cols.join(' ') + ';min-width:' + (stages.length * 160 + 120) + 'px;align-items:stretch">';
+    stages.forEach((s, i) => {
+        const colour = STAGE[i % STAGE.length];
+        if (i) {
+            out += (0, Visual_1.arrow)(STAGE[(i - 1) % STAGE.length], colour);
+        }
+        const value = (0, ChartKit_1.num)(s.value);
+        const of = (0, ChartKit_1.num)(s.of);
+        const p = of > 0 ? value / of : 0;
+        const rating = of <= 0 ? '' : p >= 0.8 ? (0, Visual_1.pill)('Strong', Visual_1.OK) : p >= 0.65 ? (0, Visual_1.pill)('Fair', Visual_1.WARN) : (0, Visual_1.pill)('Weak', Visual_1.BAD);
+        out += (0, Visual_1.card)('<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">' + (0, Visual_1.eyebrow)((0, ChartKit_1.str)(s.name), theme, colour) + rating + '</div>' +
+            (0, Visual_1.figure)(of > 0 ? (0, Visual_1.pct)(value, of) : 'n/a', theme) +
+            (0, Visual_1.sub)((0, Visual_1.count)(value) + ' of ' + (0, Visual_1.count)(of) + ' ' + (0, ChartKit_1.str)(s.label), theme) +
+            '<div style="margin:9px 0 8px">' + (0, Visual_1.share)(value, of, colour, theme) + '</div>' +
+            ((0, ChartKit_1.str)(s.detail) ? '<div style="font-size:12px;font-weight:700">' + (0, ChartKit_1.esc)(s.detail) + '</div>' : ''), theme, colour);
+    });
+    return out + '</div>';
+}
+function families(sources, data, theme) {
+    const total = (0, ChartKit_1.num)(data.totalGb) || sources.reduce((a, s) => a + (0, ChartKit_1.num)(s.gb), 0);
+    const covered = (0, ChartKit_1.num)(data.coveredGb);
+    const max = Math.max(...sources.map((s) => (0, ChartKit_1.num)(s.gb)));
+    const rows = sources.map((s) => {
+        const gb = (0, ChartKit_1.num)(s.gb);
+        const read = Math.min(gb, (0, ChartKit_1.num)(s.coveredGb));
+        const parts = [{ label: 'Read by a detection', value: read, colour: READ }, { label: 'Not monitored', value: gb - read, colour: Visual_1.NEUTRAL }];
+        return '<div style="display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(120px,2fr) 76px 150px;gap:12px;align-items:center;padding:6px 0;border-top:1px solid ' + (0, ChartKit_1.esc)(theme.line) + '">' +
+            '<span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (0, ChartKit_1.esc)(s.name) + '">' + (0, ChartKit_1.esc)(s.name) + '</span>' +
+            '<div style="width:' + (max > 0 ? gb / max * 100 : 0).toFixed(1) + '%;min-width:6px">' + (0, Visual_1.meter)(parts, theme, 8) + '</div>' +
+            '<span style="text-align:right;font-weight:750;font-variant-numeric:tabular-nums">' + gbText(gb) + '</span>' +
+            '<span style="text-align:right;font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, Visual_1.pct)(read, gb) + ' read · ' + (0, Visual_1.count)((0, ChartKit_1.num)(s.covered)) + '/' + (0, Visual_1.count)((0, ChartKit_1.num)(s.tables)) + ' tables</span></div>';
+    });
+    const key = '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:6px">' +
+        '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + READ + '"></span>Read by an enabled detection</span>' +
+        '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + Visual_1.NEUTRAL + '"></span>Not monitored (ingested and billed, read by no detection)</span></div>';
+    return (0, Visual_1.card)('<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
+        '<div>' + (0, Visual_1.eyebrow)('Source families', theme) + (0, Visual_1.sub)(gbText(total) + ' billable in 30 days, ' + (0, Visual_1.pct)(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
+        key + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'families', theme) + '</div>', theme);
+}
+function gbText(v) {
     return (v >= 100 ? Math.round(v).toLocaleString('en-GB') : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString()) + ' GB';
 }
 
@@ -1705,6 +1779,91 @@ function kindCard(k, total, theme) {
 }
 
 };
+ defs['RunwayChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderRunway = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// Platform retirements on a time axis: each deadline a numbered marker
+// placed by its date, today marked, the past muted; then a card per
+// deadline with its date, how long ago or how far off it is, and whether
+// this workspace still uses what it retires.
+const DAY = 86400000;
+function renderRunway(data, theme) {
+    const today = Date.parse((0, ChartKit_1.str)(data && data.today)) || Date.now();
+    const items = (0, ChartKit_1.list)(data && data.items)
+        .map((i) => ({ item: i, at: Date.parse((0, ChartKit_1.str)(i.date)) }))
+        .filter((p) => !isNaN(p.at))
+        .sort((a, b) => a.at - b.at);
+    if (!items.length) {
+        return '';
+    }
+    const first = Math.min(items[0].at, today);
+    const last = Math.max(items[items.length - 1].at, today);
+    const pad = Math.max(60 * DAY, (last - first) * 0.06);
+    const lo = first - pad;
+    const hi = last + pad;
+    const x = (t) => (t - lo) / (hi - lo) * 100;
+    return '<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        axis(items, today, lo, hi, x, theme) +
+        '<div style="display:grid;grid-template-columns:repeat(' + (0, Visual_1.balancedColumns)(items.length, 5) + ',minmax(170px,1fr));gap:10px">' +
+        items.map((p, i) => itemCard(p, i, today, theme)).join('') + '</div></div>';
+}
+exports.renderRunway = renderRunway;
+function colourOf(p, today) {
+    if (p.at < today) {
+        return Visual_1.NEUTRAL;
+    }
+    return (0, ChartKit_1.str)(p.item.state) === 'crit' ? Visual_1.BAD : Visual_1.WARN;
+}
+function axis(items, today, lo, hi, x, theme) {
+    let ticks = '';
+    for (let y = new Date(lo).getUTCFullYear() + 1; Date.UTC(y, 0, 1) < hi; y++) {
+        ticks += '<span style="position:absolute;left:' + x(Date.UTC(y, 0, 1)).toFixed(2) + '%;top:44px;transform:translateX(-50%);font-size:10.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + y + '</span>' +
+            '<span style="position:absolute;left:' + x(Date.UTC(y, 0, 1)).toFixed(2) + '%;top:30px;width:1px;height:8px;background:' + (0, ChartKit_1.esc)(theme.line) + '"></span>';
+    }
+    const tx = x(today).toFixed(2);
+    const markers = items.map((p, i) => {
+        const c = colourOf(p, today);
+        return '<span title="' + (0, ChartKit_1.esc)((0, ChartKit_1.str)(p.item.label) + ', ' + (0, ChartKit_1.str)(p.item.date)) + '" style="position:absolute;left:' + x(p.at).toFixed(2) + '%;top:22px;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;' +
+            'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:' + c + ';box-shadow:0 0 0 3px ' + (0, ChartKit_1.esc)(theme.surface) + '">' + (i + 1) + '</span>';
+    }).join('');
+    return (0, Visual_1.card)('<div style="position:relative;height:62px;margin:0 10px">' +
+        '<div style="position:absolute;left:0;right:0;top:21px;height:3px;border-radius:99px;background:linear-gradient(90deg,' + (0, ChartKit_1.tint)(Visual_1.NEUTRAL, 0.35) + ' ' + tx + '%,' + (0, ChartKit_1.tint)(theme.accent, 0.55) + ' ' + tx + '%)"></div>' +
+        ticks +
+        '<span style="position:absolute;left:' + tx + '%;top:0;bottom:16px;width:2px;background:' + (0, ChartKit_1.esc)(theme.accent) + '"></span>' +
+        '<span style="position:absolute;left:' + tx + '%;top:-2px;transform:translateX(6px);font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:' + (0, ChartKit_1.esc)(theme.accent) + '">Today</span>' +
+        markers + '</div>', theme);
+}
+function itemCard(p, index, today, theme) {
+    const c = colourOf(p, today);
+    const days = Math.round((p.at - today) / DAY);
+    const when = days < 0 ? when2(-days) + ' ago' : days === 0 ? 'Today' : 'In ' + when2(days);
+    const status = days < 0 ? (0, Visual_1.pill)('Retired', Visual_1.NEUTRAL) : (0, Visual_1.pill)((0, ChartKit_1.str)(p.item.state) === 'crit' ? 'Retiring' : 'Deprecating', c);
+    const use = p.item.inUse;
+    const usage = (0, ChartKit_1.isNil)(use) ? (0, Visual_1.pill)('Not readable from the workspace', Visual_1.NEUTRAL)
+        : use ? (0, Visual_1.pill)('In use' + ((0, ChartKit_1.str)(p.item.evidence) ? ': ' + (0, ChartKit_1.str)(p.item.evidence) : ''), Visual_1.BAD) : (0, Visual_1.pill)('Not in use', Visual_1.OK);
+    const date = new Date(p.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return (0, Visual_1.card)('<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;background:' + c + '">' + (index + 1) + '</span>' +
+        '<span style="font-size:12px;font-weight:800;font-variant-numeric:tabular-nums">' + (0, ChartKit_1.esc)(date) + '</span>' +
+        '<span style="font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(when) + '</span></div>' +
+        '<div style="font-weight:700;line-height:1.35;margin:7px 0 8px">' + (0, ChartKit_1.esc)(p.item.label) + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:5px">' + status + usage + '</div>', theme, days >= 0 ? c : undefined, days < 0 ? 'opacity:.85' : '');
+}
+function when2(days) {
+    if (days < 45) {
+        return days + ' day' + (days === 1 ? '' : 's');
+    }
+    const months = Math.round(days / 30.4);
+    if (months < 18) {
+        return months + ' month' + (months === 1 ? '' : 's');
+    }
+    return (Math.round(days / 365.25 * 10) / 10) + ' years';
+}
+
+};
  defs['SankeyChart']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -2325,6 +2484,49 @@ function note(text, theme) {
 exports.note = note;
 
 };
+ defs['WorkspaceAgeChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderWorkspaceAge = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The workspace's own history: when it was created and on what terms, how
+// old it is, and what it holds today. Platform retirements are on the
+// deprecated features page, so they are not repeated here.
+function renderWorkspaceAge(data, theme) {
+    if (!data) {
+        return '';
+    }
+    const created = Date.parse((0, ChartKit_1.str)(data.created));
+    const today = Date.parse((0, ChartKit_1.str)(data.today)) || Date.now();
+    const fmtDate = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const age = (0, ChartKit_1.num)(data.ageDays);
+    const ageText = (0, ChartKit_1.isNil)(data.ageDays) ? 'Age unknown' : age >= 730 ? (Math.round(age / 365.25 * 10) / 10) + ' years old' : age >= 60 ? Math.round(age / 30.4) + ' months old' : (0, Visual_1.count)(age) + ' days old';
+    const terms = [(0, ChartKit_1.str)(data.sku), (0, ChartKit_1.isNil)(data.retentionDays) ? '' : (0, Visual_1.count)((0, ChartKit_1.num)(data.retentionDays)) + '-day retention'].filter((t) => !!t)
+        .map((t) => (0, Visual_1.chip)(t, theme)).join(' ');
+    const span = '<div style="margin:14px 0 4px">' +
+        '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;margin-bottom:6px">' +
+        '<span><b>Created</b> <span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(isNaN(created) ? 'unknown' : fmtDate(created)) + '</span></span>' +
+        '<span><b>Documented</b> <span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, ChartKit_1.esc)(fmtDate(today)) + '</span></span></div>' +
+        '<div style="position:relative;height:12px;border-radius:99px;background:linear-gradient(90deg,' + (0, ChartKit_1.tint)(theme.accent, 0.35) + ',' + (0, ChartKit_1.esc)(theme.accent) + ')">' +
+        '<span style="position:absolute;left:-3px;top:-3px;width:18px;height:18px;border-radius:50%;background:' + (0, ChartKit_1.esc)(theme.accent) + ';box-shadow:0 0 0 3px ' + (0, ChartKit_1.esc)(theme.surface) + '"></span>' +
+        '<span style="position:absolute;right:-3px;top:-3px;width:18px;height:18px;border-radius:50%;background:' + (0, ChartKit_1.esc)(theme.accent) + ';box-shadow:0 0 0 3px ' + (0, ChartKit_1.esc)(theme.surface) + '"></span></div></div>';
+    const tile = (label, value, note) => (0, ChartKit_1.isNil)(value) ? '' : (0, Visual_1.card)((0, Visual_1.eyebrow)(label, theme) + (0, Visual_1.figure)((0, Visual_1.count)((0, ChartKit_1.num)(value)), theme, 22) + (0, Visual_1.sub)(note || '', theme), theme);
+    const tiles = [
+        tile('Analytics rules enabled', data.rulesEnabled),
+        tile('Data connectors', data.connectors),
+        tile('Tables receiving data', data.tablesReceiving, (0, ChartKit_1.isNil)(data.tablesCatalogue) ? '' : 'of ' + (0, Visual_1.count)((0, ChartKit_1.num)(data.tablesCatalogue)) + ' in the catalogue')
+    ].join('');
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        (0, Visual_1.card)('<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">' +
+            '<div>' + (0, Visual_1.eyebrow)('Workspace lifespan', theme) + (0, Visual_1.figure)(ageText, theme) + '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px">' + terms + '</div></div>' + span, theme) +
+        (tiles ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">' + tiles + '</div>' : '') +
+        '</div>';
+}
+exports.renderWorkspaceAge = renderWorkspaceAge;
+
+};
  defs['XyChart']=function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -2488,6 +2690,9 @@ const TopologyChart_1 = require("./TopologyChart");
 const CostBreakdownChart_1 = require("./CostBreakdownChart");
 const AccessChart_1 = require("./AccessChart");
 const LakeChart_1 = require("./LakeChart");
+const EstateChart_1 = require("./EstateChart");
+const RunwayChart_1 = require("./RunwayChart");
+const WorkspaceAgeChart_1 = require("./WorkspaceAgeChart");
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
 // the chart's Mermaid source (when it has one) rather than nothing.
@@ -2534,6 +2739,9 @@ function draw(chart, theme, label) {
         case 'cost-breakdown': return (0, CostBreakdownChart_1.renderCostBreakdown)(data, theme);
         case 'access': return (0, AccessChart_1.renderAccess)(data, theme);
         case 'lake': return (0, LakeChart_1.renderLake)(data, theme);
+        case 'estate': return (0, EstateChart_1.renderEstate)(data, theme);
+        case 'runway': return (0, RunwayChart_1.renderRunway)(data, theme);
+        case 'workspace-age': return (0, WorkspaceAgeChart_1.renderWorkspaceAge)(data, theme);
         default: return '';
     }
 }
@@ -2543,7 +2751,8 @@ function describe(kind) {
         mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
         sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
         meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology',
-        'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers'
+        'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers',
+        estate: 'Estate flow', runway: 'Retirement runway', 'workspace-age': 'Workspace history'
     };
     return names[kind] || 'Chart';
 }

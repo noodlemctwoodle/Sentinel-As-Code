@@ -1,5 +1,6 @@
 import {
-  type IAccessData, type IChart, type IClassData, type ICostBreakdownData, type IFlowData, type ILakeData, type IGanttData, type IIncidentLifecycleData, type IJourneyData,
+  type IAccessData, type IChart, type IClassData, type ICostBreakdownData, type IEstateData, type IFlowData, type ILakeData,
+  type IRunwayData, type IWorkspaceAgeData, type IGanttData, type IIncidentLifecycleData, type IJourneyData,
   type IMetersData, type IMindmapNode, type IPieData, type IResponseChainData, type IRuleKindsData, type ISankeyData,
   type ISequenceData, type IStateData, type ITimelineData, type ITopologyData, type IXyData
 } from './ChartTypes';
@@ -23,6 +24,9 @@ import { renderTopology } from './TopologyChart';
 import { renderCostBreakdown } from './CostBreakdownChart';
 import { renderAccess } from './AccessChart';
 import { renderLake } from './LakeChart';
+import { renderEstate } from './EstateChart';
+import { renderRunway } from './RunwayChart';
+import { renderWorkspaceAge } from './WorkspaceAgeChart';
 
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
@@ -69,6 +73,9 @@ function draw(chart: IChart, theme: IChartTheme, label: string): string {
     case 'cost-breakdown': return renderCostBreakdown(data as ICostBreakdownData, theme);
     case 'access': return renderAccess(data as IAccessData, theme);
     case 'lake': return renderLake(data as ILakeData, theme);
+    case 'estate': return renderEstate(data as IEstateData, theme);
+    case 'runway': return renderRunway(data as IRunwayData, theme);
+    case 'workspace-age': return renderWorkspaceAge(data as IWorkspaceAgeData, theme);
     default: return '';
   }
 }
@@ -79,7 +86,8 @@ function describe(kind: string): string {
     mindmap: 'Mind map', flowchart: 'Diagram', state: 'State diagram', class: 'Class diagram',
     sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
     meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology',
-    'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers'
+    'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers',
+    estate: 'Estate flow', runway: 'Retirement runway', 'workspace-age': 'Workspace history'
   };
   return names[kind] || 'Chart';
 }

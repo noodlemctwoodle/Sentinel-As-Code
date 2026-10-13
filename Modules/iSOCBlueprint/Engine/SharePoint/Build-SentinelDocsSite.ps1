@@ -381,6 +381,8 @@ function ConvertTo-SectionBlocks {
                 }
             }
             'table' {
+                # A table a graphic on the page shows in full is left to the exports.
+                if ($b.inGraphic -eq $true) { break }
                 $blocks.Add([ordered]@{
                         t       = 'table'
                         headers = @(@($b.columns) | ForEach-Object { ConvertTo-SectionRunsHtml @($_.text) })

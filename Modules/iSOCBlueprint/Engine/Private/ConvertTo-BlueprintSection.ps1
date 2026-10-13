@@ -33,8 +33,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.0
-    Last Updated: 2026-10-13
+    Version:      0.4.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+, ConvertFrom-BlueprintMermaid.ps1
 
     This file defines functions rather than running. Per-parameter detail
@@ -47,6 +47,10 @@ $script:BpSectionSchemaVersion = 1
 # 2,700 short rows as too deeply nested; 500 leaves room for long cells.
 $script:BpTableChunkRows = 500
 $script:BpTableContinues = '<!-- bp:table-continues -->'
+# Before a table a purpose-built graphic on the same page shows in full: the
+# table keeps its place in the Markdown and Word exports, and is flagged
+# inGraphic so the SharePoint pages and the dashboard do not show it twice.
+$script:BpShownInGraphic = '<!-- bp:shown-in-graphic -->'
 
 function ConvertTo-BlueprintSection {
     <#
@@ -227,7 +231,9 @@ function ConvertTo-BpBlockList {
             }
             'Table' {
                 $Context.content = $true
-                ConvertTo-BpTable -Table $b
+                $table = ConvertTo-BpTable -Table $b
+                if ($Context.inGraphic) { $table.inGraphic = $true; $Context.inGraphic = $false }
+                $table
             }
             'FencedCodeBlock' {
                 $Context.content = $true
@@ -253,6 +259,7 @@ function ConvertTo-BpBlockList {
                 if ($html -match '^<a\s+id="([^"]+)"\s*>\s*</a>$') { $Context.anchor = $Matches[1]; break }
                 # Split-BpLongTable's seam; Join-BpTableChunk removes it.
                 if ($html -eq $script:BpTableContinues) { [ordered]@{ type = 'tableContinues' }; break }
+                if ($html -eq $script:BpShownInGraphic) { $Context.inGraphic = $true; break }
                 $Context.content = $true
                 [ordered]@{ type = 'html'; html = $html }
             }

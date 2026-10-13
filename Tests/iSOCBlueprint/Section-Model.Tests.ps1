@@ -320,6 +320,15 @@ flowchart LR
         $c.kind | Should -Be 'state'
     }
 
+    It 'flags a table a graphic shows in full, and only that table' {
+        $m = ConvertTo-Model "# T`n`n<!-- bp:shown-in-graphic -->`n`n| A | B |`n|---|---|`n| 1 | 2 |`n`n| C | D |`n|---|---|`n| 3 | 4 |"
+        $tables = @($m.blocks | Where-Object { $_.type -eq 'table' })
+        $tables.Count | Should -Be 2
+        $tables[0].inGraphic | Should -BeTrue
+        $tables[1].Contains('inGraphic') | Should -BeFalse
+        @($m.blocks | Where-Object { $_.type -eq 'html' }).Count | Should -Be 0
+    }
+
     It 'returns kind other, with no data, for an unknown chart' {
         $c = Get-Chart "quadrantChart`n    title X"
         $c.kind | Should -Be 'other'; $c.data | Should -BeNullOrEmpty
@@ -429,6 +438,22 @@ Describe 'Renderer section model output' {
         $lk = @(& $charts '88-sentinel-data-lake' | Where-Object { $_.kind -eq 'lake' })
         $lk.Count | Should -Be 1
         @($lk[0].data.uses.name) | Should -Contain 'KQL jobs'
+        $es = @(& $charts '00-overview' | Where-Object { $_.kind -eq 'estate' })
+        $es.Count | Should -Be 1
+        @($es[0].data.stages.name) | Should -Be @('Ingestion', 'Detection', 'Alerts', 'Incidents')
+        # The stage table the estate graphic shows in full stays in the export, flagged.
+        $ov = Get-Content (Join-Path $dirs.Both 'sections/00-overview.json') -Raw | ConvertFrom-Json
+        @($ov.blocks | Where-Object { $_.type -eq 'table' -and $_.inGraphic }).Count | Should -Be 1
+        # 01 does not repeat 00's findings pie and estate flow.
+        @(& $charts '01-live-snapshot').Count | Should -Be 0
+        $rw = @(& $charts '02-deprecated-legacy-features')[0]
+        $rw.kind | Should -Be 'runway'
+        @($rw.data.items).Count | Should -Be 6
+        $rw.data.items[4].inUse | Should -BeNullOrEmpty
+        $wa = @(& $charts '80-workspace' | Where-Object { $_.kind -eq 'workspace-age' })
+        $wa.Count | Should -Be 1
+        # Platform deadlines are on 02, not repeated in the workspace history.
+        (Get-Content (Join-Path $dirs.Both '80-workspace.md') -Raw) | Should -Not -Match 'HTTP Data Collector API retires'
         # The Markdown keeps its Mermaid; the graphic's data rides on a comment line.
         (Get-Content (Join-Path $dirs.Both '83-data-collection.md') -Raw) | Should -Match '(?m)^flowchart LR\r?\n    %% visual topology \{'
     }

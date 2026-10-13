@@ -240,8 +240,10 @@ Describe 'iSOC Blueprint renderer' {
             $script:liveSnap | Should -Match 'of 14'
         }
 
-        It 'carries the estate flow and the maturity row' {
-            $script:liveSnap | Should -Match 'sankey-beta'
+        It 'points to the overview for the estate flow rather than repeating it, and carries the maturity row' {
+            $script:liveSnap | Should -Not -Match 'sankey-beta'
+            $script:liveSnap | Should -Not -Match '```mermaid'
+            $script:liveSnap | Should -Match 'the estate flow, from source families through detection to incidents, are on \[00-overview\.md\]'
             $script:liveSnap | Should -Match '\| Maturity \(overall / target\) \| 1\.59 / 3 \(Initial, target Established\) \|'
             $script:liveSnap | Should -Match '\(91-maturity-assessment\.md\)'
         }

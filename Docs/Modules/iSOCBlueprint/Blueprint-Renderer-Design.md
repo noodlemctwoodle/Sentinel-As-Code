@@ -97,10 +97,8 @@ table only.
 | Section | Chart type | Data source | Conditional guard |
 |---|---|---|---|
 | `00-overview.md` | pie | `$gapBySeverity` | none (always renders) |
-| `00-overview.md` | sankey-beta | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
-| `01-live-snapshot.md` | pie | `$gapBySeverity` (reused) | none |
-| `01-live-snapshot.md` | sankey-beta | `$estate` (same block as 00) | `$estate.TotalGb -gt 0` |
-| `02-deprecated-legacy-features.md` | gantt | static deadlines + `_DaysUntilFromToday` | none |
+| `00-overview.md` | sankey-beta, with a `%% visual estate` line (every family's GB and the part a detection reads; the four stages as in use of a whole); the stage table after it is marked `bp:shown-in-graphic` | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
+| `02-deprecated-legacy-features.md` | gantt, with a `%% visual runway` line (each deadline and whether this workspace still uses what it retires) | static deadlines + `_DaysUntilFromToday` + the legacy-feature captures | none |
 | `10-data-connectors.md` | pie | `$connectors` grouped by `kind` | none |
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
 | `12-soc-optimization.md` | pie | recommendation-category counts | `$socTotal -gt 0` |
@@ -126,7 +124,7 @@ table only.
 | `60-automation-rules-playbooks.md` | sequenceDiagram, with a `%% visual response-chain` line | alert-to-response chain by phase, with this workspace's counts and the steps SAC-AUT-01, SAC-AUT-05 and SAC-INC-05 mark missing or at risk | none |
 | `60-automation-rules-playbooks.md` | pie | `$playbookRuns` succeeded vs failed (7d) | total runs `-gt 0` |
 | `70-content-hub.md` | pie, with a `%% visual meters` line (packages by status and by source) | packages grouped by source kind and by catalogue status | none |
-| `80-workspace.md` | timeline | `$wsCreated` + static platform deadlines | none |
+| `80-workspace.md` | timeline, with a `%% visual workspace-age` line | `$wsCreated` and today (platform deadlines are on 02, not repeated) | none |
 | `80-workspace.md` | xychart-beta line (two series) | `$usageDaily` billable and free GB per day | `$usageDaily.Count -ge 2` |
 | `81-table-plans-retention.md` | pie | tables grouped by plan | none |
 | `83-data-collection.md` | flowchart (LR, 3 subgraphs), with a `%% visual topology` line (every source family, none rolled up) | `$connectors` → workspace → downstream | none |

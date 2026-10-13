@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **The estate flow, the retirement runway and the workspace history,
+  and no repeated diagrams** - on SharePoint and in the dashboard the
+  estate flow shows the four pipeline stages with each one's share and
+  rating, and every source family's GB split into what a detection reads
+  and what nothing reads; the deprecation runway places each deadline on
+  a time axis with today marked and says whether this workspace still
+  uses what it retires; the workspace history shows its age, terms and
+  what it holds. The Live snapshot no longer repeats the Overview's
+  findings chart and estate flow, the workspace history no longer
+  repeats the platform deadlines, and a table a graphic shows in full is
+  left to the Markdown and Word exports. The Overview's maturity line
+  reads as tiles again. Chart web part 1.8.0.
 - **One cost view, an access matrix and a data lake graphic** - the
   Estimated Monthly Cost page drew the same data four ways (a bar chart,
   a mind map, a flow diagram and a compact flow); the mind map and the

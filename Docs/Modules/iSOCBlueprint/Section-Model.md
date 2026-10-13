@@ -85,13 +85,20 @@ are `\n`.
 
 A chart with a purpose-built graphic (the incident lifecycle, rule kinds,
 the response chain, the topology, the cost breakdown, the role
-assignments, the data lake tiers, and the meters on the detection
-opportunities and Content Hub pages) carries
+assignments, the data lake tiers, the estate, the retirement runway, the
+workspace history, and the meters on the detection opportunities and
+Content Hub pages) carries
 its data on a `%% visual <kind> {json}` line inside its Mermaid. Mermaid
 ignores the line, so the Markdown export draws the diagram as before; the
 section model gives the chart that kind and the JSON as its data, and
 `source` keeps the Mermaid. A visual line whose JSON does not parse is
 ignored and the Mermaid is read as usual.
+
+A table that such a graphic shows in full follows a
+`<!-- bp:shown-in-graphic -->` comment. The table block then carries
+`inGraphic: true`: the Markdown and Word exports keep the table, and the
+SharePoint pages and the dashboard leave it out rather than show the same
+figures twice.
 
 | `kind` | `data` |
 | --- | --- |
@@ -114,6 +121,9 @@ ignored and the Mermaid is read as usual.
 | `cost-breakdown` | `currency`, `monthlyTotal`, `totalGb`, `plans: [{ name, gb, cost }]`, `sources: [{ name, gb, tables: [{ table, gb, tier }] }]` (every table, none bucketed) |
 | `access` | `bands: [{ name, tone, findings[], roles: [{ role, users, groups, servicePrincipals }] }]`; `findings` lists the fired SAC-GOV-05 and SAC-GOV-06 on the broad-roles band |
 | `lake` | `analyticsOnly`, `mirrored`, `extended`, `lakeOnly` (operational tables by tier configuration), `retentionYears`, `uses: [{ name, detail }]` |
+| `estate` | `totalGb`, `coveredGb`, `sources: [{ name, gb, coveredGb, tables, covered }]`, `stages: [{ name, value, of, label, detail }]` (ingestion, detection, alerts, incidents) |
+| `runway` | `today`, `items: [{ label, date, state, inUse, evidence }]`; `state` is done, crit or active; `inUse` is null when the workspace cannot say |
+| `workspace-age` | `created`, `today`, `ageDays`, `sku`, `retentionDays`, `rulesEnabled`, `connectors`, `tablesReceiving`, `tablesCatalogue` |
 | `other` | null |
 
 ## The index

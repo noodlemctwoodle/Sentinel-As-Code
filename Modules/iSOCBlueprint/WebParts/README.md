@@ -84,6 +84,9 @@ tried in a plain browser page:
 | `cost-breakdown` | Purpose-built: the monthly estimate, billable GB and cost by plan, and every source family's GB, each opening (no script) to every one of its tables and its billing rate |
 | `access` | Purpose-built: role assignments in bands (broad, Microsoft Sentinel, Log Analytics and monitoring, other), each role split by users, groups and service principals; the broad band carries the fired SAC-GOV findings |
 | `lake` | Purpose-built: the Analytics tier with how much is mirrored or kept longer in the lake, the lake-only tier, the lake, and the ways it is worked with |
+| `estate` | Purpose-built: the four pipeline stages (ingestion, detection, alerts, incidents) with each one's share and rating, and every source family's GB split into what a detection reads and what nothing reads |
+| `runway` | Purpose-built: platform retirements on a time axis with today marked, and a card per deadline with how far off it is and whether this workspace still uses what it retires |
+| `workspace-age` | Purpose-built: how old the workspace is, its SKU and retention, its span from creation, and what it holds today |
 | `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
 
 A chart with a purpose-built graphic carries its data on a

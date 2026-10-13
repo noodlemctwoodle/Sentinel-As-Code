@@ -287,3 +287,56 @@ export interface ILakeUse {
   name: string;
   detail?: string;
 }
+
+// The estate: source families with the GB a detection reads, and the four
+// pipeline stages as in use of a whole.
+export interface IEstateData {
+  totalGb?: number;
+  coveredGb?: number;
+  sources?: IEstateSource[];
+  stages?: IEstateStage[];
+}
+
+export interface IEstateSource {
+  name: string;
+  gb: number;
+  coveredGb?: number;
+  tables?: number;
+  covered?: number;
+}
+
+export interface IEstateStage {
+  name: string;
+  value: number;
+  of: number;
+  label?: string;
+  detail?: string;
+}
+
+// Platform retirements with their dates and whether this workspace uses
+// what each retires (inUse null when the workspace cannot say).
+export interface IRunwayData {
+  today?: string;
+  items: IRunwayItem[];
+}
+
+export interface IRunwayItem {
+  label: string;
+  date: string;
+  state?: string;
+  inUse?: boolean;
+  evidence?: string;
+}
+
+// The workspace's own history: created, age, terms and what it holds.
+export interface IWorkspaceAgeData {
+  created?: string;
+  today?: string;
+  ageDays?: number;
+  sku?: string;
+  retentionDays?: number;
+  rulesEnabled?: number;
+  connectors?: number;
+  tablesReceiving?: number;
+  tablesCatalogue?: number;
+}

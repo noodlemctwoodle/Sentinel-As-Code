@@ -384,6 +384,8 @@ function ConvertTo-SharePointPageSegments {
     foreach ($b in @($Section.blocks)) {
         if ($null -eq $b) { continue }
         if ([string]$b.type -eq 'heading') { $lastHeading = (@($b.text) | ForEach-Object { [string]$_.text }) -join '' }
+        # A table a graphic on the page shows in full is left to the exports.
+        if ([string]$b.type -eq 'table' -and $b.inGraphic -eq $true) { continue }
         if ([string]$b.type -eq 'chart') {
             & $flush
             $chartTitle = $b.title

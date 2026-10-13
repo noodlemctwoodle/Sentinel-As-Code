@@ -121,6 +121,15 @@ Describe 'ConvertTo-SharePointPageSegments' {
         It 'does not put the H1 in the body' { Join-Html $r | Should -Not -Match '<h1' }
     }
 
+    Context 'tables a graphic shows in full' {
+        It 'leaves out a table flagged inGraphic, keeping the rest' {
+            $md = "# T`n`n<!-- bp:shown-in-graphic -->`n`n| Stage | Share |`n|---|---|`n| Ingestion | 87% |`n`n| Family | GB |`n|---|---|`n| Entra | 4 |"
+            $html = Join-Html (ConvertTo-Segments $md)
+            $html | Should -Not -Match 'Ingestion'
+            $html | Should -Match 'Entra'
+        }
+    }
+
     Context 'chart titles' {
         It 'drops a chart title that repeats the heading above it, and keeps the rest' {
             $md = @(
@@ -1560,8 +1569,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $charts[0].data.raised | Should -Be 40
         $charts[1].title | Should -BeNullOrEmpty
         $charts[2].title | Should -Be 'Closed incidents by classification (30d)'
+        # The overview's stage table is in the estate graphic, so the dashboard leaves it out.
+        $ov = @($model.sections | Where-Object { $_.num -eq 0 })[0]
+        @($ov.blocks | Where-Object { $_.t -eq 'table' -and (@($_.headers) -join ' ') -match 'Rating' }).Count | Should -Be 0
         $html | Should -Match 'function renderIncidentLifecycle\(data, theme\)'
-        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology', 'renderCostBreakdown', 'renderAccess', 'renderLake') {
+        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology', 'renderCostBreakdown', 'renderAccess', 'renderLake', 'renderEstate', 'renderRunway', 'renderWorkspaceAge') {
             $html | Should -Match ('function ' + $fn + '\(data, theme\)')
         }
     }
