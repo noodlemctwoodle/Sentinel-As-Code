@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.9.0
+    Version:      0.10.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -138,6 +138,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-AttackCoverage.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-TemplateSolution.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-FindingMaturityLink.ps1')
 # Only for snapshots rendered before the section model: their Markdown is
@@ -867,6 +868,7 @@ if ($ruleRefs.Count -gt 0) {
         -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
     } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
     $uncoveredTotal = $uncovered.Count
+    $tplSolutions = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
     foreach ($t in $uncovered) {
         $name = [string]$t.DataType
         $cands = @($undeployed | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName)
@@ -874,7 +876,7 @@ if ($ruleRefs.Count -gt 0) {
             table     = $name
             family    = (Get-TableFamily $name)
             gb30d     = [math]::Round((ConvertTo-BuildNumber $t.BillableLast30d), 2)
-            templates = @($cands | ForEach-Object { [ordered]@{ name = $_.DisplayName; severity = $_.Severity } })
+            templates = @($cands | ForEach-Object { $sol = Get-TemplateSolution -Map $tplSolutions -TemplateId ([string]$_.TemplateId); [ordered]@{ name = $_.DisplayName; severity = $_.Severity; solution = $sol.Solution; installed = $sol.Installed } })
         }
     }
 }

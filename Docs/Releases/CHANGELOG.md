@@ -6,6 +6,16 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Detection opportunities name each template's solution** - the rule
+  templates do not say which Content Hub solution they come from, so the
+  page listed every template name in one cell per table. The Blueprint now
+  reads the solutions' own content lists (installed and catalogue) to
+  name each template's solution and whether it is installed: the tables
+  view shows a template count and the solutions they come from, the
+  ready-to-enable list gains Solution and Solution installed columns, and
+  the dashboard's opportunity pills show the solution on hover. In the
+  Report tab any long semicolon list in a table cell shows as chips with
+  Show all instead of a wall of text.
 - **Report pages end level with the contents list; inner tabs on tall
   pages** - no Report page runs past the bottom of the contents list. A
   page that fits grows its tables into any space left; a taller page

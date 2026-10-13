@@ -148,12 +148,14 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the highest-volume uncovered table first with no suggestion' {
-            $script:opp | Should -Match '\| Table \| Gb30d \| TemplateCount \| Templates \|'
+            $script:opp | Should -Match '\| Table \| GB \(30d\) \| Templates \| From solutions \|'
             $script:opp | Should -Match '\| FirewallLogs_CL \| 2000 \| 0 \|\s+\|'
         }
 
         It 'suggests the undeployed template for OfficeActivity and never the deprecated one' {
-            $script:opp | Should -Match '\| OfficeActivity \| 400 \| 1 \| Data exfiltration \|'
+            # The fixture's packages list no contents, so its templates are built-in.
+            $script:opp | Should -Match '\| OfficeActivity \| 400 \| 1 \| Built-in \(1\) \|'
+            $script:opp | Should -Match '\| Data exfiltration \| Built-in \| +\| High \|'
             $script:opp | Should -Not -Match 'Deprecated\] Firewall'
         }
 
@@ -168,7 +170,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists ready templates highest severity first' {
-            $script:opp | Should -Match '## Undeployed templates ready to enable[\s\S]*\| Data exfiltration \| Scheduled \| High \|[\s\S]*\| Low-severity noise \| Scheduled \| Low \|'
+            $script:opp | Should -Match '## Undeployed templates ready to enable[\s\S]*\| Data exfiltration \| Built-in \| +\| High \| Scheduled \|[\s\S]*\| Low-severity noise \| Built-in \| +\| Low \| Scheduled \|'
         }
     }
 
@@ -1866,5 +1868,41 @@ Describe 'Every report page opens with what it covers' {
             $md | Should -Match 'No dedicated cluster linked to this workspace'
             $md | Should -Not -Match '\| Property \| Value \|'
         } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
+    }
+}
+
+Describe 'Detection opportunities name each template''s Content Hub solution' {
+    BeforeAll {
+        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TemplateSolution.ps1')
+        $dep = { param($ids) [pscustomobject]@{ operator = 'AND'; criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule'; version = '1.0.0' } }) + @([pscustomobject]@{ contentId = 'wb-1'; kind = 'Workbook' }) } }
+        $script:installed = @([pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('AAAA-1', 'aaaa-2')) } })
+        $script:catalogue = @(
+            [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('aaaa-1', 'aaaa-2')) } }
+            [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Azure Activity'; dependencies = [pscustomobject]@{ criteria = @([pscustomobject]@{ operator = 'OR'; criteria = (& $dep @('bbbb-1')).criteria }) } } }
+        )
+        $script:map = Get-TemplateSolutionMap -Installed $script:installed -Catalogue $script:catalogue
+    }
+
+    It 'reads analytics rule ids from nested package dependencies, installed winning over the catalogue' {
+        (Get-TemplateSolution -Map $script:map -TemplateId 'aaaa-1').Installed | Should -BeTrue
+        (Get-TemplateSolution -Map $script:map -TemplateId 'BBBB-1').Solution | Should -Be 'Azure Activity'
+        (Get-TemplateSolution -Map $script:map -TemplateId 'bbbb-1').Installed | Should -BeFalse
+        $none = Get-TemplateSolution -Map $script:map -TemplateId 'cccc-1'
+        $none.Solution | Should -Be 'Built-in'
+        $none.Installed | Should -BeNullOrEmpty
+        $script:map.ContainsKey('wb-1') | Should -BeFalse
+    }
+
+    It 'summarises a table''s templates by solution, installed first then by count' {
+        $t = @('aaaa-1', 'aaaa-2', 'bbbb-1', 'cccc-1') | ForEach-Object { [pscustomobject]@{ TemplateId = $_ } }
+        Format-TemplateSolutionSummary -Templates $t -Map $script:map | Should -Be 'Microsoft Entra ID (2, installed); Azure Activity (1); Built-in (1)'
+    }
+
+    It 'shows counts and solutions per table, and each template with its solution, on the page' {
+        $md = Get-Content (Join-Path $script:tempWsRoot '28-detection-opportunities.md') -Raw
+        $md | Should -Match '\| Table \| GB \(30d\) \| Templates \| From solutions \|'
+        $md | Should -Match '\| Template \| Solution \| Solution installed \| Severity \| Kind \| Tactics \| Tables \|'
+        $md | Should -Not -Match 'top 25 by volume'
+        $md | Should -Not -Match '\| TemplateCount \|'
     }
 }

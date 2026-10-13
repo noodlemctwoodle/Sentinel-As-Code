@@ -1470,6 +1470,16 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.kvc\{[^}]*overflow-wrap:anywhere\}'
     }
 
+    It 'shows a long list in a Report table cell as chips with Show all, and template solutions on the card' {
+        $html | Should -Match 'const CELL_CHIPS=3;'
+        $html | Should -Match 'function listCell\(c\)\{'
+        $html | Should -Match "const chips=c\? listCell\(c\) : ''; if\(chips\) return chips;"
+        $html | Should -Match '\.cellchips \.tagpill\.inst\{'
+        $html | Should -Match "t\.installed===true\?' \(installed\)'"
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) | ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
+    }
+
     It 'shows the NIST CSF rollup above the roadmap' {
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeGreaterThan 0
         $html.IndexOf('NIST CSF 2.0 rollup</h2>') | Should -BeLessThan $html.IndexOf('<h2>Roadmap</h2>')

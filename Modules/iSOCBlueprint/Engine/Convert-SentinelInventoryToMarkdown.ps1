@@ -149,6 +149,7 @@ if (-not (Test-Path $OutputRoot)) {
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AttackCoverage.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-SearchRestoreTable.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-TemplateSolution.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-FindingMaturityLink.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
@@ -5329,30 +5330,47 @@ $uncoveredTables = @($tablesWithData | Where-Object {
     -not $enabledTableSet.ContainsKey([string]$_.DataType) -and
     ([string]$_.DataType) -notin $operationalOnlyTables
 } | Sort-Object { _RendererNumber $_.BillableLast30d } -Descending)
+# The Content Hub solution each template comes from, and whether it is
+# installed, from the packages' own content lists (Get-TemplateSolution).
+$templateSolutionMap = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
 $opportunityRows = @($uncoveredTables | ForEach-Object {
     $name = [string]$_.DataType
     $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
     [pscustomobject]@{
-        Table              = $name
-        Gb30d              = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
-        TemplateCount      = $cands.Count
-        Templates          = (($cands | ForEach-Object { $_.DisplayName }) -join '; ')
+        Table                       = $name
+        'GB (30d)'                  = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
+        Templates                   = $cands.Count
+        'From solutions'            = (Format-TemplateSolutionSummary -Templates $cands -Map $templateSolutionMap)
+        TemplateCount               = $cands.Count
+        Gb30d                       = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
     }
 })
 $installedSolutionNames = @(Read-RawArray 'content-packages.json' | Where-Object { $_ } | ForEach-Object { [string](_RProp (_RProp $_ 'properties') 'displayName' '') } | Where-Object { $_ })
 $noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object {
     [pscustomobject]@{
-        Table     = $_.Table
-        Gb30d     = $_.Gb30d
-        Solutions = $(if ($connectorCatalogue) { Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames } else { '' })
+        Table      = $_.Table
+        'GB (30d)' = $_.Gb30d
+        Solutions  = $(if ($connectorCatalogue) { Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames } else { '' })
     }
 })
 $readyTemplates = @($undeployedTemplates | Where-Object {
     $tbls = @($_.Tables)
     @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
 } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | ForEach-Object {
-    [pscustomobject]@{ Template = $_.DisplayName; Kind = $_.Kind; Severity = $_.Severity; Tactics = (@($_.Tactics) -join ', '); Tables = (@($_.Tables) -join ', ') }
+    $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
+    [pscustomobject]@{
+        Template             = $_.DisplayName
+        Solution             = $sol.Solution
+        'Solution installed' = $(if ($sol.Installed -eq $true) { 'Yes' } elseif ($sol.Installed -eq $false) { 'No' } else { '' })
+        Severity             = $_.Severity
+        Kind                 = $_.Kind
+        Tactics              = (@($_.Tactics) -join ', ')
+        Tables               = (@($_.Tables) -join ', ')
+    }
 })
+$readyInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'Yes' }).Count
+$readyNotInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'No' }).Count
+$readyBuiltIn = @($readyTemplates | Where-Object { $_.'Solution installed' -eq '' }).Count
 $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
 @"
 
@@ -5384,27 +5402,29 @@ $(Format-Banner -Title "Detection Opportunities")
 Which ingested tables no enabled analytics rule reads, and which rule templates would cover them. The template list is the workspace's own alert-rule template catalogue, so a suggestion here can be enabled from Content Hub without a new data source. Deprecated templates and templates already deployed are never suggested.
 $headroomChart
 
-**$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection (top 25 by volume)
+**$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection
 
 ## Tables with data but no detection (last 30d)
 
 "Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alerts by detection source in [16-alerts.md](16-alerts.md) before treating a row as unprotected.
 
-$(Format-Table -Items $opportunityRows -Columns 'Table','Gb30d','TemplateCount','Templates')
+``Templates`` counts the undeployed templates that read the table, and ``From solutions`` the Content Hub solutions they come from, marking those installed; Built-in templates ship with Sentinel rather than in a solution. Every template is listed, with its solution, under **Undeployed templates ready to enable** below: filter that list by a table's name to see its templates.
+
+$(Format-Table -Items $opportunityRows -Columns 'Table','GB (30d)','Templates','From solutions')
 
 ## Tables with no template available
 
 Tables above with no undeployed, non-deprecated template that reads them. Covering one of these means writing a custom rule, or a Defender XDR custom detection, rather than enabling a template. ``Solutions`` names the Content Hub solutions that ship the table, from the connector catalogue, marking the ones installed: installing one usually brings rule templates for it. A blank means no Content Hub solution ships the table, as for most custom tables.
 
-$(Format-Table -Items $noTemplateRows -Columns 'Table','Gb30d','Solutions' -EmptyMessage '_Every table above has at least one template available._')
+$(Format-Table -Items $noTemplateRows -Columns 'Table','GB (30d)','Solutions' -EmptyMessage '_Every table above has at least one template available._')
 
 [SAC-MON-05] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
 
 ## Undeployed templates ready to enable
 
-Templates that are not deployed, not deprecated, and read at least one table that has data. Highest severity first.
+Templates that are not deployed, not deprecated, and read at least one table that has data, highest severity first, with the Content Hub solution each comes from. **$readyInstalled** come from solutions already installed and can be enabled as they are; **$readyNotInstalled** are in solutions not installed, which Sentinel still offers as gallery templates (installing the solution keeps them current); **$readyBuiltIn** are built-in templates no solution ships.
 
-$(Format-Table -Items $readyTemplates -Columns 'Template','Kind','Severity','Tactics','Tables')
+$(Format-Table -Items $readyTemplates -Columns 'Template','Solution','Solution installed','Severity','Kind','Tactics','Tables')
 
 [SOC optimization (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@

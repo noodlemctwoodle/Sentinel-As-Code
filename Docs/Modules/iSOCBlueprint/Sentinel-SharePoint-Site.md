@@ -262,7 +262,12 @@ MTTR: ... · Closed: ...") shows as a row of tiles, label above figure,
 lined up across the row however the labels wrap; a duration in minutes
 reads in days and hours with the exact minutes in its tooltip, and a
 bracketed qualifier ("last 30d") becomes a caption. A line that is mostly
-text, such as a finding's severity and category, stays as text. The Markdown pages refer to one another by
+text, such as a finding's severity and category, stays as text. A table
+cell holding a list of four or more items separated by semicolons (the
+solutions behind a table's templates, a finding's evidence list) shows as
+chips: the first three, then Show all for the rest, with a lead-in such as
+"146 rule(s) disabled:" kept as text above them; a solution marked
+installed is tinted green. The Markdown pages refer to one another by
 file name (`90-gap-analysis.md`); the Report tab and the native pages show
 the section's title instead ("Gap Analysis"), and a file name mentioned in
 plain text becomes a link to that section.

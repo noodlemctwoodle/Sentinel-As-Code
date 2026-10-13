@@ -514,6 +514,9 @@
   table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
   .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
   .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
+  .cellchips{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .cellchips .tagpill{white-space:normal}
+  .cellchips .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
   .cellk{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px}
   .tagpill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;
     background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2)}
@@ -2353,7 +2356,7 @@
   if(M.detectionOpportunities && M.detectionOpportunities.length){
     const PILLS=3;
     const rows=M.detectionOpportunities.map(o=>'<tr><td>'+esc(o.table)+'<div class="note" style="margin:2px 0 0">'+esc(o.family)+'</div></td><td class="num">'+fmtN(o.gb30d)+' GB</td><td>'+
-      (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
+      (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+(t.solution?' title="'+esc(t.solution+(t.installed===true?' (installed)':t.installed===false?' (solution not installed)':''))+'"':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
         (o.templates.length>PILLS?sbtn('Show all '+o.templates.length,'data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer"',{cls:'morepill'}):'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.</p>'+
@@ -2745,7 +2748,22 @@
 
     // Render an ugly serialized cell ("description=…, tactics=A,B, techniques=T1,T2")
     // as clean text + labelled pills. Leaves ordinary cells untouched.
+    // A list of four or more items in a cell, separated by "; " (template
+    // names, the solutions they come from), reads as chips: the first
+    // CELL_CHIPS, then Show all for the rest, so nothing is hidden and the
+    // row stays short. A solution marked "installed" is tinted.
+    const CELL_CHIPS=3;
+    function listCell(c){
+      const items=String(c).split(/(?<!&[a-z0-9#]{1,8});\s+/i).map(x=>x.trim()).filter(Boolean);
+      if(items.length<4) return '';
+      // A lead-in before the list ("146 rule(s) disabled: ...") stays text.
+      let lead='';
+      const m=/^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
+      return lead+'<div class="morewrap cellchips">'+items.map((x,i)=>'<span class="tagpill'+(/,\s*installed\)$/.test(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+
+        sbtn('Show all '+items.length,'data-more data-all="Show all '+items.length+'" data-less="Show fewer"',{cls:'morepill'})+'</div>';
+    }
     function formatCell(c){
+      const chips=c? listCell(c) : ''; if(chips) return chips;
       if(!c || !/^[a-z][a-z0-9]*=/i.test(c)) return c;
       const parts = c.split(/,\s*(?=[a-zA-Z][a-zA-Z0-9]*=)/);
       if(parts.length<2 && !/^(description|tactics|techniques)=/i.test(c)) return c;
