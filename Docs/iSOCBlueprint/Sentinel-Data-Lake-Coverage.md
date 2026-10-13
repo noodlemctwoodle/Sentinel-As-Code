@@ -155,7 +155,7 @@ evidence". "Analytics tables without extended lake retention" lists the
 ingesting Analytics-plan tables whose total retention equals their
 analytics retention, with their rule count, so a team can confirm that
 nothing is kept past analytics retention on purpose. Both ideas come from
-the health check contributed by Lasitha R.
+the health check contributed by thinkndle.
 
 ### 8. Auto-ingested asset data
 

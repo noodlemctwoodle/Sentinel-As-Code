@@ -79,10 +79,18 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.2
+    Version:        0.4.3
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
+
+    Credit and thanks: the estate flow, the detection opportunities
+    page, the automation opportunities title-to-action map, the rule
+    complexity idea and the page sections added to match the health
+    check's report are based on the Sentinel health-check script by
+    thinkndle, kindly given to the Sentinel-As-Code project. Thank you,
+    thinkndle, for sharing your work so generously; it shaped much of
+    the Blueprint's health, coverage and maturity reporting.
 #>
 
 [CmdletBinding()]
@@ -1965,7 +1973,7 @@ pie showData title Playbook runs by outcome (7d)
 # Automation opportunities: incident titles that are frequent, close fast
 # or close mostly as false positives, with a suggested response per title
 # family. The title-to-action map is ported from the health check
-# contributed by Lasitha R.
+# contributed by thinkndle.
 $autoPlaybookMap = @(
     @{ Pattern = 'brute.?force|password.?spray|failed.?(sign|log).?in'; Action = 'Disable the account on threshold, require an MFA reset, notify IAM and tag the incident as identity attack'; Playbook = 'Disable-AADUser / Confirm-AADRiskyUser' }
     @{ Pattern = 'impossible travel|atypical travel|anomalous (sign|log).?in'; Action = 'Trigger an MFA challenge, revoke sessions, raise the Entra ID Protection risk and notify the manager'; Playbook = 'Block-AADUser-Sessions' }
@@ -4776,7 +4784,7 @@ $(Format-Table -Items $mismatchRows -Columns 'Name','Kind','CurrentVersion','Lat
 # Rule complexity: a heuristic over each Scheduled or NRT rule's query, so
 # the longest, most joined queries (the ones that time out or quietly
 # return nothing after a schema change) are easy to find. Idea from the
-# health check contributed by Lasitha R; the scoring here is this project's.
+# health check contributed by thinkndle; the scoring here is this project's.
 $complexityRows = @($(foreach ($r in $rules) {
     if (-not $r -or $r.kind -notin @('Scheduled', 'NRT')) { continue }
     $props = _RProp $r 'properties'

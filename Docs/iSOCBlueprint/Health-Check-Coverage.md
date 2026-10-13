@@ -1,7 +1,7 @@
 # Health check cross-reference
 
-Where everything in `Invoke-SentinelHealthCheck.ps1` (contributed by
-Lasitha R) lives in the Blueprint. This edition checks the copy delivered
+Where everything in the Sentinel health-check script (contributed by
+thinkndle) lives in the Blueprint. This edition checks the copy delivered
 on 13 October 2026, which reports build 2026.09.25.3, and the HTML layout
 preview that came with it. The health check is a one-off interactive script
 with a single HTML report; its content is ported layer by layer (collector

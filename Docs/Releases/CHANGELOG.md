@@ -321,7 +321,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Get-ProductFamily` helper, so both outputs agree.
 - **Sentinel health check folded into the Blueprint and the iSOC Blueprint
   site** - the content of the Sentinel health-check script written by
-  Lasitha R, who gave it to the project, now lands on the Blueprint's own
+  thinkndle, who gave it to the project, now lands on the Blueprint's own
   layers and is refreshed by the daily pipelines. Thirteen new gap rules
   (SENT-036, 037, 038, 041 and 050 to 058: noisy rules, missing entity
   mappings, alert-only rules, legacy incident-creation rules, rules on the
@@ -342,7 +342,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   executive summary with pipeline rings, the estate flow, a maturity card
   and quick wins; a Maturity tab and five Insights panels are new; every
   publish records the score so the tab draws a trend. The criterion set,
-  the estate-flow view and the detection-headroom idea are Lasitha R's;
+  the estate-flow view and the detection-headroom idea are thinkndle's;
   the methodology, scoring and taxonomy are the project's own and carry no
   third-party model's name. Also fixed on the way: the live-snapshot MITRE
   headline counted hunting-query tags instead of the 14-tactic catalogue,

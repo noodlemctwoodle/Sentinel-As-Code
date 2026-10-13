@@ -92,9 +92,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.2
+    Version:      0.4.3
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
+
+    Credit and thanks: the data behind the dashboard's estate flow,
+    maturity and insight panels is based on the Sentinel health-check
+    script by thinkndle, kindly given to the Sentinel-As-Code project.
+    Thank you, thinkndle, for sharing your work so generously; it shaped
+    much of the Blueprint's health, coverage and maturity reporting.
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

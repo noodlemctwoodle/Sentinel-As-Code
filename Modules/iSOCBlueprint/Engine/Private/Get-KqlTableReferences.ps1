@@ -39,14 +39,18 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, SentinelCommon.Kql.ps1 (dot-sourced by the caller)
 
     This file defines functions rather than running. Per-parameter detail
-    lives on the function's own help block. The table-to-rule mapping and
-    the template-suggestion idea come from the Sentinel health-check script
-    written by Lasitha R, who gave it to this project.
+    lives on the function's own help block.
+
+    Credit and thanks: the table-to-rule mapping and the
+    template-suggestion idea are based on the Sentinel health-check
+    script by thinkndle, kindly given to the Sentinel-As-Code project.
+    Thank you, thinkndle, for sharing your work so generously; it shaped
+    much of the Blueprint's health, coverage and maturity reporting.
 #>
 
 # ASIM parsers and the im/ASim function families are functions, not tables.

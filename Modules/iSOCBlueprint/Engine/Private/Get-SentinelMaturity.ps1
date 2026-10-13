@@ -53,15 +53,19 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
-    lives on the function's own help block. The criterion set and the
-    roadmap idea come from the Sentinel health-check script written by
-    Lasitha R, who gave it to this project; the scoring, the Unknown
-    handling and the area taxonomy are this project's own.
+    lives on the function's own help block.
+
+    Credit and thanks: the criterion set and the roadmap idea are based
+    on the Sentinel health-check script by thinkndle, kindly given to
+    the Sentinel-As-Code project. Thank you, thinkndle, for sharing your
+    work so generously; it shaped much of the Blueprint's health,
+    coverage and maturity reporting. The scoring, the Unknown handling
+    and the area taxonomy are this project's own.
 #>
 
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {

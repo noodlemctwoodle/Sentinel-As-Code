@@ -1,6 +1,7 @@
 {
+  "$comment": "Credit and thanks: the gap rules ported from the health check's checks are based on the Sentinel health-check script by thinkndle, kindly given to the Sentinel-As-Code project. Thank you, thinkndle, for sharing your work so generously; it shaped much of the Blueprint's health, coverage and maturity reporting.",
   "$schema": "best-practices.schema.json",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "rules": [
     {
       "id": "SAC-LOG-03",

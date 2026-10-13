@@ -39,7 +39,7 @@ The score is not an official SOC-CMM rating or certification, and this
 project is not affiliated with or endorsed by the SOC-CMM project; SOC-CMM
 is a trademark of its owner. The criterion set, the estate-flow view and
 the detection-headroom idea come from the Sentinel health-check script
-written by Lasitha R, who gave it to the project.
+written by thinkndle, who gave it to the project.
 
 Both statements live once, as `methodology.basis` and `methodology.scope`
 in the criteria file. The assessment copies them into `maturity.json`, and

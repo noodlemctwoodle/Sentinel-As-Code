@@ -73,7 +73,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.4.1
+    Version:        0.4.2
     Last Updated:   2026-10-13
     Component:      Sentinel Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -83,6 +83,14 @@
       - Everything else      : passed per collector through Invoke-SentinelRest,
                                so a provider version can be bumped in one place
                                without touching this script
+
+    Credit and thanks: many of the captures added to match the health
+    check (rule effectiveness and run health, hunts, playbook runs, the
+    agent heartbeat mix, threat intelligence volumes and indicator
+    health, among others) are based on the Sentinel health-check script
+    by thinkndle, kindly given to the Sentinel-As-Code project. Thank
+    you, thinkndle, for sharing your work so generously; it shaped much
+    of the Blueprint's health, coverage and maturity reporting.
 
 .LINK
     https://learn.microsoft.com/azure/governance/resource-graph/first-query-rest-api
