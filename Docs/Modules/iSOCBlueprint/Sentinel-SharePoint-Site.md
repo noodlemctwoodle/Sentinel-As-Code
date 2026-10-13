@@ -16,7 +16,7 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the four estate pipeline rings, the estate flow, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the estate flow with its pipeline figures, the maturity card with quick wins, top findings and a contents card per family), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
@@ -156,8 +156,21 @@ entry, every table by cost).
 
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels
-(MITRE matrix, content inventory, detection opportunities, what's new)
-between them, so a long table never shares a row with a short donut.
+(the ATT&CK grid, content inventory, detection opportunities, what's new)
+between them, so a long table never shares a row with a short donut. The
+**ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
+kill-chain order with the techniques covered out of the total, and a cell
+per technique an analytics rule maps, shaded by the enabled rules that map
+it, with its sub-techniques as chips. A tactic a rule names that the
+Enterprise matrix does not have (an ATT&CK for ICS one such as Impair
+Process Control) gets a column of its own after the fourteen, so every
+mapped technique shows. "Include disabled" adds the disabled
+rules (a cell only they cover is dashed: covered once they are enabled),
+"Every technique" adds the uncovered techniques, the search finds a rule or
+a technique, and selecting a cell lists every rule mapped to it with its
+status, severity, kind and sub-techniques. The grid links to the MITRE
+page and the MITRE page back to the grid. The content inventory's tiles
+open their pages in the Report tab.
 Every card grid balances its rows (five cards become three and two,
 never four and one) and a short last row widens to fill the band. The
 Sankey sizes each column to its longest label and stacks the GB value
@@ -180,8 +193,9 @@ host page (with `scrollIntoView`) rather than its own window.
 
 | Model key | Panel | Source captures |
 | --- | --- | --- |
-| `estate` | Overview: the four pipeline rings (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed) and the estate flow (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
+| `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
+| `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics and sub-technique total, `subNames` for the sub-techniques a rule maps, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
 | `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope) and quick wins. Assessment tab, maturity view: the basis and scope note, overall donut, one bar per area against the target, roadmap, NIST CSF 2.0 rollup, every criterion with status and evidence (filter and search), and the score history once two runs have published | `maturity.json` |
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |

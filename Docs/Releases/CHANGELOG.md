@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **ATT&CK coverage grid, every rule on the MITRE page, a linked
+  dashboard** - the dashboard's Insights tab replaces its tactic bars with
+  an ATT&CK grid laid out like MITRE's Navigator: a column per tactic in
+  kill-chain order, a cell per technique shaded by the enabled rules that
+  map it, sub-techniques as chips, and a column of its own for a tactic
+  outside the Enterprise matrix (ATT&CK for ICS); "Include disabled" shows what the
+  disabled rules would cover (dashed), "Every technique" shows the gaps,
+  a search finds a rule or technique, and selecting a cell lists every
+  rule mapped to it. Page 25's rule table now lists every rule, enabled
+  and disabled, with a Status column, and says how many techniques the
+  disabled rules would add; its tactic tables still count enabled rules.
+  The page and the grid read one helper (`Get-AttackCoverage`) and link to
+  each other. The content inventory's tiles open their pages, and the four
+  estate pipeline cards become a strip of figures inside the estate flow
+  card, each opening its page. The dashboard model gains `attack`.
 - **Dark mode cards and the estate flow restyled** - in dark mode every
   dashboard card takes the alert lifecycle's look, a teal-tinted glow
   fading to near-black, with a darker base panel colour so donut holes and

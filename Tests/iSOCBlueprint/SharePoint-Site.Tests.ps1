@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.6.0
+    Version:      0.7.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1286,7 +1286,6 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'gives every card the dark screen in dark mode, below hover and accent rules' {
         $html | Should -Match 'html\[data-theme="dark"\] :where\(\.hero,\.panel,\.pill,\.ipanel,\.ctcard,\.docnav,\.docpanel,\.card,\.fcard\)'
-        $html | Should -Match 'html\[data-theme="dark"\] \.outcome\.ringcard\{\s*background:radial-gradient'
     }
 
     It 'draws the estate flow in the alert lifecycle style with the same layout and links' {
@@ -1295,6 +1294,55 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "(?s)class:'es-arc'.{0,400}?filter:'url\(#esGlow\)'"
         $html | Should -Match "mk\('circle',\{'data-inc':b\.l"
         $html | Should -Match "svgEl\.querySelectorAll\('\[data-inc\]'\)"
+    }
+
+    It 'carries the ATT&CK grid: tactics in kill-chain order, every technique, every rule and its cells' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $a = $model.attack
+        @($a.tactics).Count | Should -Be 14
+        $a.tactics[0].id | Should -Be 'TA0043'
+        $a.tactics[13].id | Should -Be 'TA0040'
+        @($a.techniques).Count | Should -BeGreaterThan 200
+        @($a.techniques | Where-Object { $_.id -match '\.' }).Count | Should -Be 0
+        @($a.rules).Count | Should -Be 5
+        @($a.rules | Where-Object { -not $_.enabled }).name | Should -Be 'Lateral movement detected'
+        # A cell only a disabled rule covers is carried, for the "Include disabled" view.
+        $lateral = @($a.cells | Where-Object { $_.tactic -eq 'LateralMovement' -and $_.technique -eq 'T1021' })[0]
+        $a.rules[@($lateral.rules)[0]].enabled | Should -BeFalse
+        $lateral.subs[0].id | Should -Be 'T1021.001'
+        $a.subNames.'T1021.001' | Should -Be 'Remote Desktop Protocol'
+        # Brute Force sits under Credential Access only, as on the MITRE page.
+        @($a.cells | Where-Object technique -EQ 'T1110').tactic | Should -Be 'CredentialAccess'
+    }
+
+    It 'links the ATT&CK grid, the MITRE page and the inventory to the report' {
+        $html | Should -Match 'id="akPanel"[\s\S]*id="akGrid"'
+        $html | Should -Match "function wireAttackGrid\(\)"
+        $html | Should -Match 'data-ak-rules="all">Include disabled'
+        $html | Should -Match 'data-ak-show="all">Every technique'
+        $html | Should -Match "Open the MITRE page &rarr;"
+        $html | Should -Match "data-akopen>Open the ATT&amp;CK grid &rarr;"
+        $html | Should -Match "\{k:'Connectors', v:c\.connectors, ic:ICON\.ingest, sec:secAt\(10\)\}"
+    }
+
+    It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-AttackCoverage.ps1')
+        $catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json') -Raw | ConvertFrom-Json
+        $rule = [pscustomobject]@{ name = 'ics'; kind = 'Scheduled'; properties = [pscustomobject]@{
+                displayName = 'Process control tampering'; enabled = $true; severity = 'High'
+                tactics = @('ImpairProcessControl'); techniques = @('T0831') } }
+        $cov = Get-AttackCoverage -Rules @($rule) -Catalogue $catalogue
+        @($cov.Cells.Keys) | Should -Be @('ImpairProcessControl')
+        @($cov.Cells['ImpairProcessControl'].Keys) | Should -Be @('T0831')
+        # The dashboard appends columns for such tactics and sizes the grid to fit.
+        $html | Should -Match 'const extra=\[\.\.\.new Set\(A\.cells\.map\(c=>c\.tactic\)\.filter\(t=>!known\.has\(t\)\)\)\]'
+        $html | Should -Match "grid\.style\.gridTemplateColumns='repeat\('\+cols\.length"
+    }
+
+    It 'shows the pipeline figures as a strip inside the estate flow card, not as separate cards' {
+        $html | Should -Match 'id="estateLegend"></div>\s*<div class="lc-strip es-strip" id="estateRings"></div>'
+        $html | Should -Not -Match 'Estate pipeline \(30 days\)'
+        $html | Should -Match 'class="lc-kpi es-kpi"''\+\(d\.sec!=null\?'' role="button"'
     }
 
     It 'leaves the closure split out for a snapshot collected before it' {

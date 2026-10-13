@@ -301,6 +301,9 @@
   .invc .iic svg{width:16px;height:16px}
   .invc .iv{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--ink)}
   .invc .ik{font-size:11px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .invc{position:relative} .invc.clickable{cursor:pointer}
+  .invc.clickable:hover,.invc.clickable:focus-visible{border-color:color-mix(in srgb,var(--brand) 40%,var(--line));outline:none}
+  .invc .pgo{position:absolute;top:12px;right:12px;color:var(--faint);opacity:.6}
   /* split bar */
   .split{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--line-2)}
   .split .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;min-width:46px}
@@ -670,8 +673,15 @@
   .lc-spin{transform-box:fill-box;transform-origin:center;animation:lcspin 48s linear infinite}
   .lc-spin.rev{animation-duration:70s;animation-direction:reverse}
   @keyframes lcspin{to{transform:rotate(360deg)}}
-  .lc-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:4px;border-top:1px solid var(--lc-line)}
-  .lc-kpi{padding:14px 16px 8px;border-left:1px solid var(--lc-line)} .lc-kpi:first-child{border-left:0}
+  .lc-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:4px;border-top:1px solid var(--lc-line,var(--line))}
+  .lc-kpi{padding:14px 16px 8px;border-left:1px solid var(--lc-line,var(--line))} .lc-kpi:first-child{border-left:0}
+  .es-strip{margin-top:14px}
+  .es-kpi[role="button"]{cursor:pointer;border-radius:0}
+  .es-kpi[role="button"]:hover .k,.es-kpi[role="button"]:focus-visible .k{color:var(--brand-ink)}
+  .es-kpi:focus-visible{outline:none}
+  .es-pct{font-size:12.5px;font-weight:800;margin-left:10px}
+  .es-bar{height:4px;border-radius:999px;background:var(--line-2);margin:8px 0 5px;overflow:hidden}
+  .es-bar i{display:block;height:100%;border-radius:999px}
   .lc-kpi .k{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:.04em}
   .lc-kpi .v{font-size:26px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--ink)}
   .lc-kpi .v small{font-size:12px;font-weight:650;color:var(--muted);margin-left:3px}
@@ -680,11 +690,40 @@
   .lc-chip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:5px;color:#0b1220}
   .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
   .lc-spark polyline{stroke:var(--lc-glow)}
+  /* ---------- ATT&CK coverage grid (Insights) ---------- */
+  .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
+  .ak-tools .docsearch{margin:0;width:220px}
+  .ak-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .ak-seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer}
+  .ak-seg button.on{background:var(--brand);color:#fff}
+  .ak-key{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .ak-key i{display:inline-block;width:14px;height:11px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
+  .ak-scroll{overflow-x:auto;padding-bottom:6px}
+  .ak-grid{display:grid;grid-template-columns:repeat(14,minmax(118px,1fr));gap:6px;min-width:1700px;align-items:start}
+  .ak-col{display:flex;flex-direction:column;gap:5px}
+  .ak-th{position:relative;padding:8px 9px 10px;border-radius:9px;background:var(--panel-soft);border:1px solid var(--line);min-height:58px}
+  .ak-th b{display:block;font-size:12px;line-height:1.2;color:var(--ink)}
+  .ak-th span{font-size:10.5px;color:var(--muted)}
+  .ak-th i{position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0 0 9px 9px;background:linear-gradient(90deg,var(--green) var(--p),var(--line-2) var(--p))}
+  .ak-cell{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:11.5px;line-height:1.25}
+  .ak-cell[role="button"]{cursor:pointer}
+  .ak-cell[role="button"]:hover,.ak-cell[role="button"]:focus-visible{border-color:var(--brand);outline:none}
+  .ak-cell .id{display:flex;justify-content:space-between;gap:6px;font-size:10px;font-weight:800;color:var(--faint)}
+  .ak-cell .ct{color:var(--ink);font-size:11px} .ak-cell .ak-dis{color:var(--amber);margin-left:3px}
+  .ak-cell .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-2);font-weight:650;margin-top:2px}
+  .ak-cell.h1,.ak-key .h1{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
+  .ak-cell.h2,.ak-key .h2{background:color-mix(in srgb,var(--green) 28%,var(--panel));border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
+  .ak-cell.h3,.ak-key .h3{background:color-mix(in srgb,var(--green) 44%,var(--panel));border-color:color-mix(in srgb,var(--green) 65%,var(--line))}
+  .ak-cell.off,.ak-key .off{background:transparent;border-style:dashed;border-color:color-mix(in srgb,var(--amber) 60%,var(--line))}
+  .ak-cell.gap{opacity:.5} .ak-key .gap{background:transparent;opacity:.6}
+  .ak-cell.sel{box-shadow:0 0 0 2px var(--brand)}
+  .ak-subs{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+  .ak-sub{font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand-ink)}
+  .ak-sub.off{background:transparent;border:1px dashed color-mix(in srgb,var(--amber) 60%,var(--line));color:var(--muted)}
   /* Dark mode: every card gets the alert lifecycle's screen, a teal-tinted
      glow fading to near-black. The coloured posture cards keep their own
      colours; :where keeps this below any hover or accent rule. */
-  html[data-theme="dark"] :where(.hero,.panel,.pill,.ipanel,.ctcard,.docnav,.docpanel,.card,.fcard),
-  html[data-theme="dark"] .outcome.ringcard{
+  html[data-theme="dark"] :where(.hero,.panel,.pill,.ipanel,.ctcard,.docnav,.docpanel,.card,.fcard){
     background:radial-gradient(120% 140% at 50% 42%,#0c1d26 0%,#070e18 55%,#04070d 100%);border-color:#13202f}
   @media(prefers-reduced-motion:reduce){*{animation:none !important}}
   /* Drop the tab strip to its own full-width row before it can overflow the bar.
@@ -757,9 +796,6 @@
     <div class="seclabel">Security posture</div>
     <div class="posture" id="outcomes"></div>
 
-    <div class="seclabel">Estate pipeline (30 days)</div>
-    <div class="posture rings" id="estateRings"></div>
-
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
@@ -767,6 +803,7 @@
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
+      <div class="lc-strip es-strip" id="estateRings"></div>
       <div id="estateDetail" class="hidden"></div>
     </div>
 
@@ -1097,7 +1134,10 @@
       '<div class="big">'+o.big+'</div>'+(o.unit?'<div class="unit">'+o.unit+'</div>':'')+
       '<div class="s">'+o.s+'</div></div>').join('');
 
-  // ---- estate pipeline rings ----
+  // ---- estate pipeline figures ----
+  // The four pipeline measures as a strip under the estate flow (as the
+  // alert lifecycle carries its figures): value of total, the share as a
+  // bar in the ring's tone, and a click through to the page behind it.
   const E = M.estate || null;
   const ringTone = f => f>=.8 ? 'var(--green)' : (f>=.65 ? 'var(--brand)' : 'var(--amber)');
   (function(){
@@ -1105,20 +1145,26 @@
     if(!E || !E.rings){ el.innerHTML='<p class="note">Estate pipeline not available in this snapshot.</p>'; return; }
     const R=E.rings;
     const defs=[
-      {k:'ingestion', h:'Ingestion', ic:ICON.ingest, unit:'tables still receiving data', s:'of the tables seen in 90 days'},
-      {k:'detection', h:'Detection', ic:ICON.crosshair, unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection'},
-      {k:'alerts', h:'Alerts', ic:ICON.bolt, unit:'enabled rules that fired (30d)', s:(E.alerts||0).toLocaleString()+' alerts in 30 days'},
-      {k:'incidents', h:'Incidents', ic:ICON.flag, unit:'closed of created (30d)', s:(E.incidentsOpen||0)+' still open'}
+      {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables seen in 90 days', sec:findSecNum(/table plans/i,null)},
+      {k:'detection', h:'Detection', unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection', sec:findSecNum(/detection opportunities/i,null)},
+      {k:'alerts', h:'Alerts', unit:'enabled rules that fired (30d)', s:(E.alerts||0).toLocaleString()+' alerts in 30 days', sec:findSecNum(/^analytics rules/i,null)},
+      {k:'incidents', h:'Incidents', unit:'closed of created (30d)', s:(E.incidentsOpen||0).toLocaleString()+' still open', sec:findSecNum(/^incidents/i,null)}
     ];
     el.innerHTML=defs.map(d=>{
       const r=R[d.k]||{value:0,max:0,pct:null};
       const pct=r.pct==null?null:Math.round(r.pct);
       const tone=pct==null?'var(--slate)':ringTone(pct/100);
-      return '<div class="outcome ringcard"><div class="row"><div><div class="oic">'+d.ic+'</div></div>'+
-        (pct==null?'<span class="note">n/a</span>':'<div class="ring tone" style="--p:'+pct+';--rc:'+tone+'"><span>'+pct+'%</span></div>')+'</div>'+
-        '<h3 style="margin-top:14px">'+esc(d.h)+'</h3><div class="big">'+r.value+' <span style="font-size:14px;color:var(--muted)">/ '+r.max+'</span></div>'+
-        '<div class="unit">'+esc(d.unit)+'</div><div class="s">'+esc(d.s)+'</div></div>';
+      return '<div class="lc-kpi es-kpi"'+(d.sec!=null?' role="button" tabindex="0" data-sec="'+d.sec+'" title="Open in the Report tab"':'')+'>'+
+        '<div class="k">'+esc(d.h)+'</div>'+
+        '<div class="v">'+Number(r.value).toLocaleString()+'<small>/ '+Number(r.max).toLocaleString()+'</small>'+(pct==null?'':'<span class="es-pct" style="color:'+tone+'">'+pct+'%</span>')+'</div>'+
+        '<div class="es-bar"><i style="width:'+(pct||0)+'%;background:'+tone+'"></i></div>'+
+        '<div class="s">'+esc(d.unit)+'; '+esc(d.s)+'</div></div>';
     }).join('');
+    el.querySelectorAll('[data-sec]').forEach(k=>{
+      const n=+k.dataset.sec;
+      k.addEventListener('click',()=>jumpTo(n));
+      k.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); jumpTo(n); } });
+    });
   })();
 
   // ---- estate flow ----
@@ -1724,6 +1770,92 @@
   document.getElementById('topFindings').innerHTML=moreWrap('<div class="fcards">'+rowsMore(topF.map(findingCard),6,'div')+'</div>', topF.length, 6, 'findings');
   markClamped(document.getElementById('topFindings'));
 
+  // ---- ATT&CK coverage grid (Insights) ----
+  // A Navigator-style matrix from M.attack: one column per tactic in
+  // kill-chain order, a cell per technique shaded by the enabled rules that
+  // map it, its sub-techniques as chips. "Include disabled" adds the
+  // disabled rules (a cell only they cover is dashed: covered once they are
+  // enabled); "Every technique" adds the uncovered ones, to show the gaps.
+  // Selecting a cell lists every rule mapped to it.
+  const akState={rules:'enabled', show:'covered', q:'', sel:null};
+  function renderAttackGrid(){
+    const A=M.attack, grid=document.getElementById('akGrid'); if(!A||!grid) return;
+    const R=A.rules, on=i=>R[i].enabled, q=akState.q.trim().toLowerCase();
+    const byTac={}; A.cells.forEach(c=>{ (byTac[c.tactic]||(byTac[c.tactic]={}))[c.technique]=c; });
+    const techs={}; A.techniques.forEach(t=>techs[t.id]=t);
+    const sname=id=>(A.subNames&&A.subNames[id])||id;
+    // Tactics a rule names that the Enterprise matrix does not have (ATT&CK
+    // for ICS ones, say) get columns of their own after it, so every mapped
+    // technique is shown.
+    const known=new Set(A.tactics.map(t=>t.short));
+    const extra=[...new Set(A.cells.map(c=>c.tactic).filter(t=>!known.has(t)))].sort()
+      .map(s=>({id:'', name:s.replace(/([a-z])([A-Z])/g,'$1 $2'), short:s, other:true}));
+    const cols=A.tactics.concat(extra).map(tac=>{
+      const here=byTac[tac.short]||{};
+      const inTactic=A.techniques.filter(t=>(t.tactics||[]).indexOf(tac.short)>=0);
+      let ids=Object.keys(here);
+      if(akState.show==='all') inTactic.forEach(t=>{ if(ids.indexOf(t.id)<0) ids.push(t.id); });
+      const rows=ids.map(id=>{
+        const c=here[id], t=techs[id]||{id:id,name:id,subTotal:0};
+        const en=c? c.rules.filter(on).length : 0, dis=c? c.rules.length-en : 0;
+        const subs=c? c.subs.map(s=>({id:s.id, en:s.rules.filter(on).length, all:s.rules.length})) : [];
+        const match=!q || (id+' '+t.name).toLowerCase().includes(q) || (c && c.rules.some(i=>R[i].name.toLowerCase().includes(q))) || subs.some(s=>(s.id+' '+sname(s.id)).toLowerCase().includes(q));
+        return {id, t, c, en, dis, subs, match};
+      }).filter(r=>r.match && (r.en>0 || (akState.rules==='all' && r.dis>0) || akState.show==='all'))
+        .sort((a,b)=>(b.en-a.en)||((akState.rules==='all'?b.dis-a.dis:0))||a.id.localeCompare(b.id));
+      const coveredHere=Object.keys(here).filter(id=>here[id].rules.some(on)).length;
+      return {tac, rows, coveredHere, total:inTactic.length};
+    });
+    const heat=n=>n>=4?'h3':n>=2?'h2':n>=1?'h1':'';
+    grid.style.gridTemplateColumns='repeat('+cols.length+',minmax(118px,1fr))';
+    grid.style.minWidth=(cols.length*122)+'px';
+    grid.innerHTML=cols.map(col=>{
+      const pct=col.total? Math.round(col.coveredHere/col.total*100) : 0;
+      const sub=col.tac.other? 'ICS or other matrix' : col.coveredHere+' of '+col.total+' techniques';
+      return '<div class="ak-col"><div class="ak-th" title="'+esc((col.tac.id?col.tac.id+' ':'')+col.tac.name)+'"><b>'+esc(col.tac.name)+'</b><span>'+sub+'</span>'+(col.tac.other?'':'<i style="--p:'+pct+'%"></i>')+'</div>'+
+        col.rows.map(r=>{
+          const cls=r.en>0? heat(r.en) : (r.dis>0 && akState.rules==='all')? 'off' : 'gap';
+          const sel=akState.sel&&akState.sel.tactic===col.tac.short&&akState.sel.technique===r.id;
+          const count=r.en>0||r.dis>0? (r.en+(akState.rules==='all'&&r.dis? '<span class="ak-dis">+'+r.dis+'</span>' : '')) : '';
+          const tip=r.id+' '+r.t.name+': '+r.en+' enabled rule'+(r.en===1?'':'s')+(r.dis? ', '+r.dis+' disabled' : '')+(r.t.subTotal? '; '+r.subs.filter(s=>s.en||akState.rules==='all').length+' of '+r.t.subTotal+' sub-techniques mapped' : '');
+          const subs=r.subs.filter(s=>s.en||akState.rules==='all').map(s=>'<span class="ak-sub'+(s.en?'':' off')+'" title="'+esc(s.id+' '+sname(s.id))+'">'+esc(s.id.slice(s.id.indexOf('.')))+'</span>').join('');
+          return '<div class="ak-cell '+cls+(sel?' sel':'')+'" '+(r.c?'role="button" tabindex="0" ':'')+'data-ak="'+esc(col.tac.short)+'|'+esc(r.id)+'" title="'+esc(tip)+'">'+
+            '<div class="id"><span>'+esc(r.id)+'</span><span class="ct">'+count+'</span></div><div class="nm">'+esc(r.t.name)+'</div>'+(subs?'<div class="ak-subs">'+subs+'</div>':'')+'</div>';
+        }).join('')+'</div>';
+    }).join('');
+    grid.querySelectorAll('.ak-cell[role="button"]').forEach(el=>{
+      const pick=()=>{ const [tactic,technique]=el.dataset.ak.split('|'); akState.sel=(akState.sel&&akState.sel.tactic===tactic&&akState.sel.technique===technique)? null : {tactic,technique}; renderAttackGrid(); renderAttackDetail(); };
+      el.addEventListener('click',pick);
+      el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } });
+    });
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+  function renderAttackDetail(){
+    const A=M.attack, el=document.getElementById('akDetail'); if(!A||!el) return;
+    const s=akState.sel; if(!s){ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); return; }
+    const c=A.cells.find(x=>x.tactic===s.tactic&&x.technique===s.technique); if(!c){ akState.sel=null; return renderAttackDetail(); }
+    const t=A.techniques.find(x=>x.id===c.technique)||{name:c.technique,subTotal:0}, tac=A.tactics.find(x=>x.short===c.tactic)||{name:c.tactic.replace(/([a-z])([A-Z])/g,'$1 $2')};
+    const sname=id=>(A.subNames&&A.subNames[id])||id;
+    const url=id=>'https://attack.mitre.org/techniques/'+id.replace('.','/')+'/';
+    const order=c.rules.slice().sort((a,b)=>(A.rules[b].enabled-A.rules[a].enabled)||A.rules[a].name.localeCompare(A.rules[b].name));
+    const rows=order.map(i=>{ const r=A.rules[i]; const subs=c.subs.filter(x=>x.rules.indexOf(i)>=0).map(x=>'<a href="'+esc(url(x.id))+'" target="_blank" rel="noopener" title="'+esc(sname(x.id))+'">'+esc(x.id)+'</a>').join(', ');
+      return '<tr><td>'+esc(r.name)+'</td><td><span class="st '+(r.enabled?'Met':'Gap')+'">'+(r.enabled?'Enabled':'Disabled')+'</span></td><td>'+esc(r.severity||'')+'</td><td>'+esc(r.kind||'')+'</td><td>'+(subs||'<span class="note">None</span>')+'</td></tr>'; });
+    const en=c.rules.filter(i=>A.rules[i].enabled).length;
+    el.innerHTML='<div class="esdetail"><div class="esd-head"><h3><a href="'+esc(url(c.technique))+'" target="_blank" rel="noopener">'+esc(c.technique+' '+t.name)+'</a></h3>'+
+      '<p class="note">'+esc(tac.name)+' &middot; '+en+' enabled and '+(c.rules.length-en)+' disabled rule'+(c.rules.length===1?'':'s')+(t.subTotal? ' &middot; '+c.subs.length+' of '+t.subTotal+' sub-techniques mapped' : '')+'</p><a data-ak-close>Close</a></div>'+
+      '<table class="tbl"><thead><tr><th>Rule</th><th>Status</th><th>Severity</th><th>Kind</th><th>Sub-techniques</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+    el.classList.remove('hidden');
+    el.querySelector('[data-ak-close]').addEventListener('click',()=>{ akState.sel=null; renderAttackGrid(); renderAttackDetail(); });
+    if(typeof window.fitIframe==='function') window.fitIframe();
+  }
+  function wireAttackGrid(){
+    const panel=document.getElementById('akPanel'); if(!panel) return;
+    panel.querySelectorAll('[data-ak-rules]').forEach(b=>b.addEventListener('click',()=>{ akState.rules=b.dataset.akRules; panel.querySelectorAll('[data-ak-rules]').forEach(x=>x.classList.toggle('on',x===b)); renderAttackGrid(); renderAttackDetail(); }));
+    panel.querySelectorAll('[data-ak-show]').forEach(b=>b.addEventListener('click',()=>{ akState.show=b.dataset.akShow; panel.querySelectorAll('[data-ak-show]').forEach(x=>x.classList.toggle('on',x===b)); renderAttackGrid(); }));
+    const s=panel.querySelector('#akSearch'); if(s) s.addEventListener('input',()=>{ akState.q=s.value; renderAttackGrid(); });
+    renderAttackGrid();
+  }
+
   // ---- insights board (visual Sections) ----
   const board = document.getElementById('insightsBoard');
   const fmt = n => (Math.round(n*100)/100).toLocaleString();
@@ -1780,19 +1912,34 @@
 
   const cards = [];
 
-  // 1. MITRE ATT&CK coverage matrix (full width) — rule-count heat + status
-  const mMax = Math.max(1, ...M.mitre.map(t=>t.rules));
-  const mcls = s => s==='Covered'?'cov':(s==='Thin'?'thin':'gap');
-  const mrows = M.mitre.map(t=>{
-    const cls=mcls(t.status);
-    return '<div class="mrow '+cls+'"><div class="mt" title="'+esc(t.tactic)+'">'+esc(t.tactic)+'</div>'+
-      '<div class="mheat"><div class="mfill" style="--w:'+Math.max(6,t.rules/mMax*100)+'%"></div>'+
-      '<span class="mn">'+t.rules+'</span></div>'+
-      '<span class="mstat">'+esc(t.status)+'</span></div>';
-  }).join('');
-  cards.push('<div class="ipanel full"><h3>Detection coverage by MITRE ATT&amp;CK tactic</h3>'+
-    '<p class="note">'+M.mitreCovered+' of '+M.mitre.length+' tactics covered by at least '+(M.mitreCoveredThreshold||3)+' enabled analytics rules (Thin: 1-'+((M.mitreCoveredThreshold||3)-1)+', None: 0). Bar length = enabled rules mapped to each tactic.</p>'+
-    '<div class="mitreg">'+mrows+'</div></div>');
+  // 1. MITRE ATT&CK coverage (full width): the technique grid, which
+  //    wireAttackGrid fills once the board is built; a snapshot without the
+  //    attack model keeps the tactic bars.
+  const mitreSec = findSecNum(/mitre/i, null);
+  if(M.attack && M.attack.tactics && M.attack.tactics.length){
+    const nOn=M.attack.rules.filter(r=>r.enabled).length;
+    cards.push('<div class="ipanel full" id="akPanel"><h3>Detection coverage by MITRE ATT&amp;CK technique</h3>'+
+      '<p class="note">Each column is a tactic; each cell a technique an analytics rule maps, shaded by the enabled rules that map it, with its sub-techniques. '+nOn+' of '+M.attack.rules.length+' rules are enabled. Select a cell for its rules.'+
+      (mitreSec!=null?' <a class="link-muted" data-jump="'+mitreSec+'">Open the MITRE page &rarr;</a>':'')+'</p>'+
+      '<div class="ak-tools"><div class="ak-seg" role="group" aria-label="Rules"><button type="button" class="on" data-ak-rules="enabled">Enabled rules</button><button type="button" data-ak-rules="all">Include disabled</button></div>'+
+      '<div class="ak-seg" role="group" aria-label="Techniques"><button type="button" class="on" data-ak-show="covered">Covered techniques</button><button type="button" data-ak-show="all">Every technique</button></div>'+
+      '<input type="search" class="docsearch" id="akSearch" placeholder="Find a rule or technique" aria-label="Find a rule or technique">'+
+      '<span class="ak-key"><i class="h1"></i>1 rule<i class="h2"></i>2 to 3<i class="h3"></i>4 or more<i class="off"></i>disabled rules only<i class="gap"></i>not covered</span></div>'+
+      '<div class="ak-scroll"><div class="ak-grid" id="akGrid"></div></div><div id="akDetail" class="hidden"></div></div>');
+  } else {
+    const mMax = Math.max(1, ...M.mitre.map(t=>t.rules));
+    const mcls = s => s==='Covered'?'cov':(s==='Thin'?'thin':'gap');
+    const mrows = M.mitre.map(t=>{
+      const cls=mcls(t.status);
+      return '<div class="mrow '+cls+'"><div class="mt" title="'+esc(t.tactic)+'">'+esc(t.tactic)+'</div>'+
+        '<div class="mheat"><div class="mfill" style="--w:'+Math.max(6,t.rules/mMax*100)+'%"></div>'+
+        '<span class="mn">'+t.rules+'</span></div>'+
+        '<span class="mstat">'+esc(t.status)+'</span></div>';
+    }).join('');
+    cards.push('<div class="ipanel full"><h3>Detection coverage by MITRE ATT&amp;CK tactic</h3>'+
+      '<p class="note">'+M.mitreCovered+' of '+M.mitre.length+' tactics covered by at least '+(M.mitreCoveredThreshold||3)+' enabled analytics rules (Thin: 1-'+((M.mitreCoveredThreshold||3)-1)+', None: 0). Bar length = enabled rules mapped to each tactic.</p>'+
+      '<div class="mitreg">'+mrows+'</div></div>');
+  }
 
   // 2. Analytics rules enabled (donut)
   const enPct = c.rulesTotal? Math.round(c.rulesEnabled/c.rulesTotal*100):0;
@@ -1893,17 +2040,20 @@
   }
 
   // 7. Content inventory (full)
+  // Each tile opens its page in the Report tab.
+  const secAt = n => (M.sections||[]).some(s=>s.num===n)? n : null;
   const inv = [
-    {k:'Connectors', v:c.connectors, ic:ICON.ingest},
-    {k:'Workbooks', v:c.workbooks, ic:ICON.gauge},
-    {k:'Hunting queries', v:c.hunting, ic:ICON.crosshair},
-    {k:'Watchlists', v:c.watchlists, ic:ICON.box},
-    {k:'Automation rules', v:c.automationRules, ic:ICON.bolt},
-    {k:'Data collection rules', v:c.dcrs, ic:ICON.database},
-    {k:'Tables with data', v:c.tables, ic:ICON.database},
-    {k:'Role assignments', v:c.rbac, ic:ICON.shieldCheck}
+    {k:'Connectors', v:c.connectors, ic:ICON.ingest, sec:secAt(10)},
+    {k:'Workbooks', v:c.workbooks, ic:ICON.gauge, sec:secAt(40)},
+    {k:'Hunting queries', v:c.hunting, ic:ICON.crosshair, sec:secAt(30)},
+    {k:'Watchlists', v:c.watchlists, ic:ICON.box, sec:secAt(50)},
+    {k:'Automation rules', v:c.automationRules, ic:ICON.bolt, sec:secAt(60)},
+    {k:'Data collection rules', v:c.dcrs, ic:ICON.database, sec:secAt(83)},
+    {k:'Tables with data', v:c.tables, ic:ICON.database, sec:secAt(81)},
+    {k:'Role assignments', v:c.rbac, ic:ICON.shieldCheck, sec:secAt(85)}
   ];
-  const invHtml = inv.map(i=>'<div class="invc"><span class="iic">'+i.ic+'</span>'+
+  const invHtml = inv.map(i=>'<div class="invc'+(i.sec!=null?' clickable" role="button" tabindex="0" data-jump="'+i.sec+'" title="Open in the Report tab':'')+'">'+
+    (i.sec!=null?goArrow:'')+'<span class="iic">'+i.ic+'</span>'+
     '<div class="iv">'+i.v+'</div><div class="ik">'+esc(i.k)+'</div></div>').join('');
   cards.push('<div class="ipanel full"><h3>Content inventory</h3>'+
     '<p class="note">What is deployed in the workspace, at a glance.</p>'+
@@ -2046,6 +2196,8 @@
   out.push(...restFull);
   board.innerHTML = out.join('');
   board.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
+  board.querySelectorAll('[data-jump][role="button"]').forEach(a=>a.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); jumpTo(+a.dataset.jump); } }));
+  wireAttackGrid();
 
   // ---- maturity board ----
   (function(){
@@ -2326,9 +2478,12 @@
         '<div class="docstat"><span class="si">'+ICONN.rows+'</span><div><div class="sv">'+c.v+'</div><div class="sk">'+esc(c.k)+'</div></div></div>').join('')+'</div>'; }
       const pageUrl=sitePageUrl(s.page);
       const openLink=pageUrl?'<a class="dpage" href="'+esc(pageUrl)+'" target="_top">Open as a page &rarr;</a>':'';
-      content.innerHTML='<div class="docpanel"><div class="dhead"><span class="dbadge">'+esc(s.family)+'</span>'+openLink+'</div>'+
+      // The MITRE page links to the ATT&CK grid on the Insights tab.
+      const akLink=(M.attack && /mitre/i.test(s.title||''))? '<a class="dpage" data-akopen>Open the ATT&amp;CK grid &rarr;</a>' : '';
+      content.innerHTML='<div class="docpanel"><div class="dhead"><span class="dbadge">'+esc(s.family)+'</span>'+akLink+openLink+'</div>'+
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
+      content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
       // wire per-table filters
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{
         inp.oninput=()=>{

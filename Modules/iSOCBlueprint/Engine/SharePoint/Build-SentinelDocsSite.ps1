@@ -92,7 +92,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.6.0
+    Version:      0.7.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -137,6 +137,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot '../Private/Get-AttackCoverage.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-FindingMaturityLink.ps1')
 # Only for snapshots rendered before the section model: their Markdown is
@@ -931,6 +932,45 @@ $alertLifecycle = [ordered]@{
     mttrMinutes    = $(if ($mttrRow -and $mttrRow.PSObject.Properties['MTTRMinutes'] -and "$($mttrRow.MTTRMinutes)" -ne '') { [math]::Round((ConvertTo-BuildNumber $mttrRow.MTTRMinutes), 1) } else { $null })
 }
 
+# The Insights tab's ATT&CK grid: every rule (enabled or not) with where it
+# lands in the matrix, from the same Get-AttackCoverage the MITRE page uses.
+# Tactics in kill-chain order; every base technique, so the grid can show
+# the gaps; names for the sub-techniques a rule maps; cells as rule indices.
+$attackModel = $null
+$attackCatalogue = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../Private/Resources/mitre-attack.json') -Raw | ConvertFrom-Json
+$attackRules = @($alertRaw | Where-Object { $_ })
+if ($attackCatalogue) {
+    $cov = Get-AttackCoverage -Rules $attackRules -Catalogue $attackCatalogue
+    $tacticById = @{}; foreach ($t in @($attackCatalogue.tactics)) { $tacticById[[string]$t.id] = $t }
+    $killChain = 'TA0043', 'TA0042', 'TA0001', 'TA0002', 'TA0003', 'TA0004', 'TA0005', 'TA0006', 'TA0007', 'TA0008', 'TA0009', 'TA0011', 'TA0010', 'TA0040'
+    $subName = @{}
+    foreach ($t in @($attackCatalogue.techniques)) { if ($t.PSObject.Properties.Name -contains 'parentId' -and $t.parentId) { $subName[[string]$t.id] = [string]$t.name } }
+    $usedSubs = [ordered]@{}
+    $cellList = foreach ($tac in ($cov.Cells.Keys | Sort-Object)) {
+        foreach ($tech in ($cov.Cells[$tac].Keys | Sort-Object)) {
+            $cell = $cov.Cells[$tac][$tech]
+            [ordered]@{
+                tactic    = [string]$tac
+                technique = [string]$tech
+                rules     = @($cell.Rules | Sort-Object)
+                subs      = @(foreach ($s in ($cell.Subs.Keys | Sort-Object)) {
+                        if (-not $usedSubs.Contains($s)) { $usedSubs[$s] = $(if ($subName.ContainsKey($s)) { $subName[$s] } else { $s }) }
+                        [ordered]@{ id = [string]$s; rules = @($cell.Subs[$s] | Sort-Object) }
+                    })
+            }
+        }
+    }
+    $attackModel = [ordered]@{
+        tactics    = @(foreach ($id in $killChain) { if ($tacticById.ContainsKey($id)) { [ordered]@{ id = $id; name = [string]$tacticById[$id].name; short = [string]$tacticById[$id].sentinelShortName } } })
+        techniques = @(foreach ($t in (@($attackCatalogue.techniques) | Where-Object { -not ($_.PSObject.Properties.Name -contains 'parentId' -and $_.parentId) } | Sort-Object id)) {
+                [ordered]@{ id = [string]$t.id; name = [string]$t.name; tactics = @($t.tacticsSentinel | Where-Object { $_ }); subTotal = [int]$cov.SubTotals[[string]$t.id] }
+            })
+        subNames   = $usedSubs
+        rules      = @(foreach ($r in $cov.Rules) { [ordered]@{ name = $r.Name; enabled = $r.Enabled; kind = $r.Kind; severity = $r.Severity } })
+        cells      = @($cellList)
+    }
+}
+
 $incidentsByClassification = @()
 if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ByClassification']) {
     $bag = Get-BuildBag $incSummaryRow.ByClassification
@@ -1133,6 +1173,7 @@ $model = [ordered]@{
     tiObjects    = $tiObjects
     incidentsByClassification = $incidentsByClassification
     alertLifecycle = $alertLifecycle
+    attack       = $attackModel
     familyOrder  = @(Get-SectionFamilyOrder)
     sections     = $sections
     dataLakeEnrolled = $lakeEnrolled

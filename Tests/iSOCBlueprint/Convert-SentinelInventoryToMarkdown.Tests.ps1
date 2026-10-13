@@ -31,7 +31,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -596,8 +596,14 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists every enabled rule once with its mapping, and no rule names in a technique table' {
-            $script:mitre | Should -Match '\| Failed logons across multiple accounts \| Credential Access \| T1110 \| T1110\.003 \|'
-            $script:mitre | Should -Match '\| Suspicious sign-in from rare country \| Initial Access, Credential Access \| T1078, T1110 \| T1078\.004 \|'
+            $script:mitre | Should -Match '\| Failed logons across multiple accounts \| Enabled \| Credential Access \| T1110 \| T1110\.003 \|'
+            $script:mitre | Should -Match '\| Suspicious sign-in from rare country \| Enabled \| Initial Access, Credential Access \| T1078, T1110 \| T1078\.004 \|'
+            # Disabled rules are listed too, after the enabled ones, and do
+            # not count towards the tactic and technique tables.
+            $script:mitre | Should -Match '(?s)\| Suspicious sign-in from rare country \| Enabled \|.*\| Lateral movement detected \| Disabled \| Lateral Movement \| T1021 \| T1021\.001 \|'
+            $script:mitre | Should -Not -Match '### TA0008'
+            $script:mitre | Should -Match '\*\*4\*\* of \*\*5\*\* rules are enabled'
+            $script:mitre | Should -Match 'Enabling the disabled rules would add \*\*1\*\* techniques'
             $script:mitre | Should -Not -Match 'RuleNames'
             $script:mitre | Should -Not -Match 'base only'
         }

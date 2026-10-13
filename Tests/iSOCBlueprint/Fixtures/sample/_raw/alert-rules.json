@@ -50,6 +50,12 @@
       "tactics": [
         "LateralMovement"
       ],
+      "techniques": [
+        "T1021"
+      ],
+      "subTechniques": [
+        "T1021.001"
+      ],
       "alertRuleTemplateName": null
     }
   },

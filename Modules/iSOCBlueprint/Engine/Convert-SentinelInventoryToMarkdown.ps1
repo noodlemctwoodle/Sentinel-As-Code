@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.0
+    Version:        0.6.0
     Last Updated:   2026-10-13
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -147,6 +147,7 @@ if (-not (Test-Path $OutputRoot)) {
 # Dot-source private helpers.
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-AttackCoverage.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-ConnectorCatalogue.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-FindingMaturityLink.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableTierProfile.ps1')
@@ -1490,79 +1491,51 @@ $mitreRows = foreach ($t in $tactics) {
     }
 }
 
-# Build the hierarchy: tactic -> technique -> sub-technique -> rules.
-# A rule lists its tactics (PascalCase, the catalogue's sentinelShortName)
-# and its techniques (T####). Its sub-techniques (T####.###) come in their
-# own subTechniques array, which only the preview alertRules API returns (the
-# collector reads that one); older snapshots and some rules list them in
-# techniques instead, so both are read, and a sub-technique implies its
-# parent. Each technique goes under the rule's tactics that ATT&CK lists for
-# it; when the rule names none of those, under the technique's own ATT&CK
-# tactics; when the catalogue does not know the technique, under the rule's
-# tactics. A rule tagged Initial Access and Credential Access that maps
-# T1110 Brute Force therefore puts it under Credential Access only.
-$techTacticsById = @{}
-$subTotalByParent = @{}
-foreach ($t in $mitreTechniques) {
-    if (-not $t.id) { continue }
-    $techTacticsById[[string]$t.id] = @($t.tacticsSentinel | Where-Object { $_ })
-    if ($t.PSObject.Properties.Name -contains 'parentId' -and $t.parentId) {
-        $subTotalByParent[[string]$t.parentId] = 1 + [int]$subTotalByParent[[string]$t.parentId]
-    }
-}
+# Build the hierarchy: tactic -> technique -> sub-technique -> rules, from
+# Get-AttackCoverage (Private/Get-AttackCoverage.ps1), which the dashboard's
+# ATT&CK grid reads too, so the two agree. It maps every rule, enabled or
+# not; the tactic and technique tables count enabled rules only, and the
+# rule table at the end lists every rule with its status.
+$attackCoverage = Get-AttackCoverage -Rules @($rules) -Catalogue $(if (Test-Path $mitreFile) { $mitreCatalogue } else { $null })
+$subTotalByParent = $attackCoverage.SubTotals
 $tacticNameByShort = @{}
 foreach ($t in $tactics) { $tacticNameByShort[[string]$t.sentinelShortName] = [string]$t.name }
-
-function Get-RuleAttackId {
-    # A rule's ATT&CK ids: parent techniques and sub-techniques, upper-case,
-    # de-duplicated, with every sub-technique's parent added.
-    param($Rule)
-    $p = $Rule.properties
-    $raw = @()
-    foreach ($name in 'techniques', 'subTechniques') {
-        if ($p -and $p.PSObject.Properties.Name -contains $name) { $raw += @($p.$name) }
-    }
-    $ids = @($raw | Where-Object { $_ } | ForEach-Object { ([string]$_).Trim().ToUpperInvariant() } | Where-Object { $_ -match '^T\d{4}(\.\d{3})?$' })
-    $subs = @($ids | Where-Object { $_ -match '\.' } | Sort-Object -Unique)
-    $bases = @(@($ids | Where-Object { $_ -notmatch '\.' }) + @($subs | ForEach-Object { ($_ -split '\.')[0] }) | Sort-Object -Unique)
-    [pscustomobject]@{ Techniques = $bases; SubTechniques = $subs }
-}
-
+$enabledIdx = [System.Collections.Generic.HashSet[int]]::new()
+foreach ($row in $attackCoverage.Rules) { if ($row.Enabled) { [void]$enabledIdx.Add($row.Index) } }
 $mitreHierarchy = @{}
-$ruleAttackRows = [System.Collections.Generic.List[object]]::new()
-foreach ($r in $enabledRules) {
-    # Some rule kinds (Fusion, MicrosoftSecurityIncidentCreation) carry no
-    # tactics or techniques at all; they arrive as $null and are skipped.
-    $rTactics = @($r.properties.tactics | Where-Object { $_ } | ForEach-Object { [string]$_ })
-    $ids      = Get-RuleAttackId $r
-    $ruleName = [string]$r.properties.displayName
-    foreach ($base in $ids.Techniques) {
-        $attackTactics = @($techTacticsById[$base] | Where-Object { $_ })
-        $placed = if ($attackTactics.Count) { @($rTactics | Where-Object { $attackTactics -contains $_ }) } else { @($rTactics) }
-        if (-not $placed.Count) { $placed = $attackTactics }
-        $subsHere = @($ids.SubTechniques | Where-Object { $_ -like "$base.*" })
-        foreach ($tac in $placed) {
-            if (-not $mitreHierarchy.ContainsKey($tac)) { $mitreHierarchy[$tac] = @{} }
-            if (-not $mitreHierarchy[$tac].ContainsKey($base)) {
-                $mitreHierarchy[$tac][$base] = @{ Rules = [System.Collections.Generic.SortedSet[string]]::new(); Subs = @{} }
-            }
-            [void]$mitreHierarchy[$tac][$base].Rules.Add($ruleName)
-            foreach ($sub in $subsHere) {
-                if (-not $mitreHierarchy[$tac][$base].Subs.ContainsKey($sub)) { $mitreHierarchy[$tac][$base].Subs[$sub] = [System.Collections.Generic.SortedSet[string]]::new() }
-                [void]$mitreHierarchy[$tac][$base].Subs[$sub].Add($ruleName)
-            }
+$anyTechniques = [System.Collections.Generic.HashSet[string]]::new()
+foreach ($tac in $attackCoverage.Cells.Keys) {
+    foreach ($tech in $attackCoverage.Cells[$tac].Keys) {
+        [void]$anyTechniques.Add($tech)
+        $cell = $attackCoverage.Cells[$tac][$tech]
+        $on = [System.Collections.Generic.List[int]]::new()
+        foreach ($i in $cell.Rules) { if ($enabledIdx.Contains($i)) { $on.Add($i) } }
+        if (-not $on.Count) { continue }
+        if (-not $mitreHierarchy.ContainsKey($tac)) { $mitreHierarchy[$tac] = @{} }
+        $subs = @{}
+        foreach ($sub in $cell.Subs.Keys) {
+            $subOn = [System.Collections.Generic.List[int]]::new()
+            foreach ($i in $cell.Subs[$sub]) { if ($enabledIdx.Contains($i)) { $subOn.Add($i) } }
+            if ($subOn.Count) { $subs[$sub] = $subOn }
         }
+        $mitreHierarchy[$tac][$tech] = @{ Rules = $on; Subs = $subs }
     }
-    $ruleAttackRows.Add([pscustomobject]@{
-            'Rule'           = $ruleName
-            'Tactics'        = $(if ($rTactics.Count) { ($rTactics | ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { $_ } }) -join ', ' } else { 'None' })
-            'Techniques'     = $(if ($ids.Techniques.Count) { $ids.Techniques -join ', ' } else { 'None' })
-            'Sub-techniques' = $(if ($ids.SubTechniques.Count) { $ids.SubTechniques -join ', ' } else { 'None' })
-        })
 }
-$ruleAttackRows = @($ruleAttackRows | Sort-Object Rule)
-$rulesWithoutTechnique = @($ruleAttackRows | Where-Object { $_.Techniques -eq 'None' }).Count
-$rulesWithSub = @($ruleAttackRows | Where-Object { $_.'Sub-techniques' -ne 'None' }).Count
+$ruleAttackRows = @($attackCoverage.Rules | Sort-Object @{ Expression = { -not $_.Enabled } }, Name | ForEach-Object {
+        [pscustomobject]@{
+            'Rule'           = $_.Name
+            'Status'         = $(if ($_.Enabled) { 'Enabled' } else { 'Disabled' })
+            'Tactics'        = $(if ($_.Tactics.Count) { ($_.Tactics | ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { $_ -creplace '([a-z])([A-Z])', '$1 $2' } }) -join ', ' } else { 'None' })
+            'Techniques'     = $(if ($_.Techniques.Count) { $_.Techniques -join ', ' } else { 'None' })
+            'Sub-techniques' = $(if ($_.SubTechniques.Count) { $_.SubTechniques -join ', ' } else { 'None' })
+        }
+    })
+$rulesEnabledCount = $enabledIdx.Count
+$rulesWithoutTechnique = @($attackCoverage.Rules | Where-Object { $_.Enabled -and -not $_.Techniques.Count }).Count
+$rulesWithSub = @($attackCoverage.Rules | Where-Object { $_.Enabled -and $_.SubTechniques.Count }).Count
+$enabledTechniques = [System.Collections.Generic.HashSet[string]]::new()
+foreach ($tac in $mitreHierarchy.Keys) { foreach ($tech in $mitreHierarchy[$tac].Keys) { [void]$enabledTechniques.Add($tech) } }
+$disabledOnlyTechniques = @($anyTechniques | Where-Object { -not $enabledTechniques.Contains($_) }).Count
 
 # Build the headline tactic matrix from the same data.
 $mitreRowsRich = foreach ($t in $tactics) {
@@ -1676,15 +1649,15 @@ $(Format-Table -Items $mitreRowsRich -Columns 'ID','Tactic','EnabledRules','Tech
 
 ## Technique and sub-technique breakdown
 
-One table per tactic: each technique an enabled rule maps, then the sub-techniques mapped under it, with the number of enabled rules on each. **Sub-techniques covered** compares the sub-techniques mapped with the number ATT&CK defines for the technique (n/a when it defines none). To see which rules cover a technique, filter the rule table at the end of this page by its ID.
+One table per tactic: each technique an enabled rule maps, then the sub-techniques mapped under it, with the number of enabled rules on each. **Sub-techniques covered** compares the sub-techniques mapped with the number ATT&CK defines for the technique (n/a when it defines none). To see which rules cover a technique, filter the rule table at the end of this page by its ID; the dashboard's ATT&CK grid shows the same coverage as a matrix.
 
 $uncoveredLine
 $($detailSections.ToString())
 ## Rules and their ATT&CK mapping
 
-Every enabled rule with the tactics, techniques and sub-techniques it maps. $rulesWithoutTechnique of $(@($ruleAttackRows).Count) map no technique, so they count in the rules-per-tactic chart but not in the technique tables; $rulesWithSub map at least one sub-technique.$(if (@($ruleAttackRows).Count -and -not $rulesWithSub) { ' No enabled rule maps a sub-technique in this snapshot. Collections before release 26.10 did not read sub-techniques (every GA version of the rules API leaves them out); a new collection picks them up.' })
+Every analytics rule, enabled first and then disabled, with the tactics, techniques and sub-techniques it maps, so a rule can be found by name or by an ATT&CK ID. The tables above count enabled rules only: **$rulesEnabledCount** of **$(@($ruleAttackRows).Count)** rules are enabled. $rulesWithoutTechnique enabled rules map no technique, so they count in the rules-per-tactic chart but not in the technique tables; $rulesWithSub map at least one sub-technique.$(if ($disabledOnlyTechniques) { " Enabling the disabled rules would add **$disabledOnlyTechniques** techniques that no enabled rule covers." })$(if ($rulesEnabledCount -and -not $rulesWithSub) { ' No enabled rule maps a sub-technique in this snapshot. Collections before release 26.10 did not read sub-techniques (every GA version of the rules API leaves them out); a new collection picks them up.' })
 
-$(Format-Table -Items $ruleAttackRows -Columns 'Rule', 'Tactics', 'Techniques', 'Sub-techniques' -EmptyMessage '_No enabled rules._')
+$(Format-Table -Items $ruleAttackRows -Columns 'Rule', 'Status', 'Tactics', 'Techniques', 'Sub-techniques' -EmptyMessage '_No analytics rules._')
 
 [MITRE coverage in Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/mitre-coverage) · [ATT&CK Enterprise (mitre.org)](https://attack.mitre.org/matrices/enterprise/)
 "@
