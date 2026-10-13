@@ -560,7 +560,7 @@ function Format-EstateFamilyTable {
             FirstPartyAlerts = $(if ($alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] -join '; ' } else { '' })
         }
     })
-    foreach ($fam in @($alertsByFamily.Keys)) {
+    foreach ($fam in @($alertsByFamily.Keys | Sort-Object)) {
         if (-not @($rows | Where-Object { $_.Family -eq $fam }).Count) {
             $rows += [pscustomobject]@{ Family = $fam; Tables = 0; Gb30d = 0; TablesRead = 0; GbRead = 0; FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ') }
         }
@@ -1048,7 +1048,7 @@ foreach ($c in $connectors) {
     if (-not $kindCounts.ContainsKey($k)) { $kindCounts[$k] = 0 }
     $kindCounts[$k]++
 }
-$kindPieRows = $kindCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+$kindPieRows = $kindCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
@@ -1574,7 +1574,7 @@ foreach ($h in $hunting) {
         }
     }
 }
-$huntPieRows = $huntByTactic.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
+$huntPieRows = $huntByTactic.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 8 | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $huntChartBlock = if ($hunting.Count -gt 0 -and $huntPieRows.Count -gt 0) {
@@ -1656,7 +1656,7 @@ foreach ($p in $parserRows) {
     if (-not $parserByCat.ContainsKey($c)) { $parserByCat[$c] = 0 }
     $parserByCat[$c]++
 }
-$parserPieRows = $parserByCat.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
+$parserPieRows = $parserByCat.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 8 | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $parserChartBlock = if ($parserRows.Count -gt 0 -and $parserPieRows.Count -gt 0) {
@@ -1772,7 +1772,7 @@ foreach ($w in $wlRows) {
     if (-not $wlByProvider.ContainsKey($p)) { $wlByProvider[$p] = 0 }
     $wlByProvider[$p]++
 }
-$wlPieRows = $wlByProvider.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+$wlPieRows = $wlByProvider.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
@@ -2037,7 +2037,7 @@ foreach ($p in $cpRows) {
     if (-not $sourceCounts.ContainsKey($s)) { $sourceCounts[$s] = 0 }
     $sourceCounts[$s]++
 }
-$sourcePieRows = $sourceCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+$sourcePieRows = $sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 
@@ -2621,7 +2621,7 @@ foreach ($e in $effective) {
 # Order: highest item-count first, with the "Other sources" catch-all
 # always last regardless of count.
 $sortedBuckets = $sourceBuckets.GetEnumerator() |
-    Sort-Object @{ Expression = { if ($_.Key -eq 'Other sources') { 1 } else { 0 } } }, @{ Expression = { -$_.Value } } |
+    Sort-Object @{ Expression = { if ($_.Key -eq 'Other sources') { 1 } else { 0 } } }, @{ Expression = { -$_.Value } }, Key |
     ForEach-Object { @{ Name = $_.Key; Count = $_.Value } }
 $displayBuckets = @($sortedBuckets | Select-Object -First 15)
 $overflowBuckets = @($sortedBuckets | Select-Object -Skip 15)
@@ -2905,11 +2905,12 @@ foreach ($r in $flowFiltered) {
 }
 
 $flowRowsList = New-Object System.Collections.Generic.List[string]
-foreach ($k in $bySourceTable.Keys) {
+# Largest flows first, then by name: hashtable order changes between runs.
+foreach ($k in @($bySourceTable.Keys | Sort-Object @{ Expression = { $bySourceTable[$_] }; Descending = $true }, @{ Expression = { $_ } })) {
     $parts = $k -split '\|\|'
     $flowRowsList.Add("$($parts[0]),$($parts[1]),$([math]::Round($bySourceTable[$k], 3))")
 }
-foreach ($k in $byTableTier.Keys) {
+foreach ($k in @($byTableTier.Keys | Sort-Object @{ Expression = { $byTableTier[$_] }; Descending = $true }, @{ Expression = { $_ } })) {
     $parts = $k -split '\|\|'
     $flowRowsList.Add("$($parts[0]),$($parts[1]),$([math]::Round($byTableTier[$k], 3))")
 }
@@ -3218,7 +3219,7 @@ foreach ($r in $rpRows) {
     if (-not $rpStateCounts.ContainsKey($s)) { $rpStateCounts[$s] = 0 }
     $rpStateCounts[$s]++
 }
-$rpPieRows = $rpStateCounts.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+$rpPieRows = $rpStateCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $rpChartBlock = if ($rpRows.Count -gt 0) {
@@ -3331,7 +3332,7 @@ function _FormatGapLearnLink {
 # by Warning-then-Info count desc so the worst buckets land on the left.
 $catOrder = $gapByCategory.Keys | Sort-Object {
     -(1000 * ($gapByCategory[$_].Critical) + 10 * ($gapByCategory[$_].Warning) + ($gapByCategory[$_].Info))
-}
+}, { $_ }
 $catAxis = ($catOrder | ForEach-Object { "`"$_`"" }) -join ', '
 $catWarn = ($catOrder | ForEach-Object { $gapByCategory[$_].Warning }) -join ', '
 $catInfo = ($catOrder | ForEach-Object { $gapByCategory[$_].Info }) -join ', '
@@ -3643,7 +3644,7 @@ foreach ($r in $healthSummary) {
     if (-not $healthByStatus.ContainsKey($s)) { $healthByStatus[$s] = 0 }
     $healthByStatus[$s] += [long]$r.LogCount
 }
-$healthPieRows = $healthByStatus.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+$healthPieRows = $healthByStatus.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $healthChartBlock = if ($healthSummary.Count -gt 0) {
@@ -3789,7 +3790,7 @@ foreach ($r in $cefDevices) {
     if (-not $cefByVendor.ContainsKey($v)) { $cefByVendor[$v] = 0 }
     $cefByVendor[$v] += [long]$r.LogCount
 }
-$cefPieRows = $cefByVendor.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 6 | ForEach-Object {
+$cefPieRows = $cefByVendor.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 6 | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $cefChartBlock = if ($cefDevices.Count -gt 0) {
@@ -4037,7 +4038,7 @@ $incClassBag = if ($incSummary -and $incSummary.PSObject.Properties['ByClassific
 $incClassTotal = 0
 foreach ($v in $incClassBag.Values) { $incClassTotal += [long]$v }
 $incOutcomeBlock = if ($incClassTotal -gt 0) {
-    $classRows = ($incClassBag.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }) -join [Environment]::NewLine
+    $classRows = ($incClassBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }) -join [Environment]::NewLine
 @"
 
 ## Incident outcomes (closed, last 30d)
@@ -4243,7 +4244,7 @@ foreach ($r in $msRules) {
     if (-not $msSevCounts.ContainsKey($sev)) { $msSevCounts[$sev] = 0 }
     $msSevCounts[$sev]++
 }
-$msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | Sort-Object Value -Descending | ForEach-Object {
+$msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
     "    `"$($_.Key)`" : $($_.Value)"
 }
 $msChartBlock = if ($msRules.Count -gt 0) {
@@ -4351,7 +4352,7 @@ foreach ($r in $bySolution) {
     if (-not $solCounts.ContainsKey($s)) { $solCounts[$s] = 0 }
     $solCounts[$s]++
 }
-$topSols = $solCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8
+$topSols = $solCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | Select-Object -First 8
 $otherSolCount = 0
 $counted = 0
 foreach ($e in $solCounts.GetEnumerator()) { $counted += $e.Value }

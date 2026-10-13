@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **SharePoint pages are republished only when they change** - a section
+  page's content hash differed on every build, so every publish rebuilt
+  every page. Two causes, both from .NET randomising string hashing per
+  process: the page builder kept each page segment in a list that turned
+  it back into an unordered hashtable, so its JSON key order (and the
+  hash over it) changed run to run; and the renderer broke ties in eleven
+  count-ordered charts and tables, the cost Sankey's flows and two
+  category orders by hashtable order, so equal-valued rows swapped
+  between runs. Segments now keep their order and every such sort has the
+  name as a second key. A test rebuilds the fixture in a fresh process and
+  requires every page hash to match.
 - **A SharePoint-only Blueprint run renders no Markdown** - on ADO, the
   renderer writes only the section model when neither **Export: Markdown**
   nor **Export: Word report** is ticked (the new compile-time

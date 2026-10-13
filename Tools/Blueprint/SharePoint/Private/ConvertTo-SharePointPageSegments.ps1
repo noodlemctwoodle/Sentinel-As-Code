@@ -292,11 +292,13 @@ function ConvertTo-SharePointPageSegments {
     $id = [string]$Section.id
     $title = Get-SacSectionTitle -Title ([string]$Section.title)
 
-    $segments = [System.Collections.Generic.List[hashtable]]::new()
+    # object, not hashtable: a List[hashtable] would turn each ordered segment
+    # back into an unordered one, and the page hash would change run to run.
+    $segments = [System.Collections.Generic.List[object]]::new()
     $buffer = [System.Text.StringBuilder]::new()
     $flush = {
         $text = $buffer.ToString().Trim()
-        if ($text) { $segments.Add(@{ type = 'html'; html = $text }) }
+        if ($text) { $segments.Add([ordered]@{ type = 'html'; html = $text }) }
         [void]$buffer.Clear()
     }
 
@@ -306,7 +308,7 @@ function ConvertTo-SharePointPageSegments {
             & $flush
             $chart = [ordered]@{ kind = [string]$b.kind; title = $b.title; data = (ConvertTo-SacChartData -Chart $b -FindingsListUrl $FindingsListUrl) }
             if ($chart.kind -eq 'other') { $chart.source = [string]$b.source }
-            $segments.Add(@{ type = 'chart'; chart = $chart })
+            $segments.Add([ordered]@{ type = 'chart'; chart = $chart })
             continue
         }
         if ([string]$b.type -eq 'heading' -and [int]$b.level -le 2) { & $flush }

@@ -966,6 +966,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         foreach ($f in 'index.html', 'model.json', 'site.json', 'findings.json') { Join-Path $bundle $f | Should -Exist }
     }
 
+    It 'gives every page the same hash when built again in a fresh process' {
+        # .NET randomises string hashing per process, so anything that leans
+        # on hashtable order (a tie in a sort, an unordered dictionary in a
+        # page) changes a page's hash between runs and republishes it.
+        $again = Join-Path $outDir 'again/law-sentinel-test'
+        New-Item -ItemType Directory -Path $again -Force | Out-Null
+        Copy-Item -Path (Join-Path $ws '_raw') -Destination $again -Recurse
+        $render = Join-Path $repoRoot 'Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1'
+        $build = Join-Path $repoRoot 'Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1'
+        $resources = Join-Path $repoRoot 'Tools/Blueprint/Private/Resources'
+        $command = "& '$render' -WorkspaceName 'law-sentinel-test' -InputRoot '$again' -OutputRoot '$again' -ResourcesRoot '$resources' *> `$null; " +
+            "& '$build' -Source '$again' -SkipWhatsNew *> `$null"
+        & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -Command $command
+        $other = Get-Content (Join-Path $again 'sharepoint/site.json') -Raw | ConvertFrom-Json
+        @($other.sections).Count | Should -Be @($site.sections).Count
+        foreach ($s in $site.sections) {
+            ($other.sections | Where-Object page -eq $s.page).hash | Should -Be $s.hash -Because $s.page
+        }
+    }
+
     It 'writes one page per section file' {
         $site.sections.Count | Should -Be $mdFiles.Count
         foreach ($s in $site.sections) { Join-Path $bundle "pages/$($s.page).json" | Should -Exist }
