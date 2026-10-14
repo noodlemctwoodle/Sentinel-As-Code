@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.2
+    Version:        0.7.3
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -3315,6 +3315,23 @@ _Cost estimate not available. Confirm Export-SentinelInventory.ps1 ran with reta
 $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
     [pscustomobject]@{ Plan = $_.Name; Gb30d = [math]::Round($_.Value.Gb30d, 2); MonthlyCost = $_.Value.MonthlyCost }
 }
+# How the workspace is priced, its commitment tier, and the data grants
+# that may cover part of it; an estimate from before these were reported
+# has none of them.
+$costField = { param([string]$Name) if ($cost.PSObject.Properties.Name -contains $Name) { $cost.$Name } else { $null } }
+$costTier = & $costField 'CommitmentTier'
+$costPricing = [string](& $costField 'PricingModel')
+$costTierText = if ($costTier) {
+    $ic = [System.Globalization.CultureInfo]::InvariantCulture
+    "The workspace is on the **$(([double]$costTier.Level).ToString('N0', $ic)) GB a day commitment tier**: $(([double]$costTier.DailyPrice).ToString('N2', $ic)) $($cost.Currency) a day, an effective $(([double]$costTier.EffectivePerGb).ToString('N4', $ic)) $($cost.Currency) per GB. Analytics ingest averaged $(([double]$costTier.DailyAverageGb).ToString('N1', $ic)) GB a day, $($costTier.Utilisation)% of the tier: the tier is paid in full below it, and use above it is billed at its effective rate."
+} elseif ($costPricing -eq 'Simplified') {
+    'The workspace is on pay-as-you-go, priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion as well.'
+} elseif ($costPricing -eq 'Classic') {
+    'The price list had no simplified Microsoft Sentinel rate, so Analytics data is priced at the classic pair: Log Analytics ingestion plus Sentinel analysis.'
+} else { '' }
+$grantRows = @(@(& $costField 'BenefitEligible') | Where-Object { $_ } | ForEach-Object {
+    [pscustomobject]@{ Grant = [string]$_.Benefit; Allowance = [string]$_.Allowance; Gb30d = $_.Gb30d; MonthlyCost = $_.MonthlyCost; Tables = [string]$_.Tables }
+})
 
 # ---------------------------------------------------------------------
 # Sankey prep — computed outside the heredoc so $sankeyFlowText and
@@ -3355,7 +3372,8 @@ $flowFiltered = New-Object System.Collections.Generic.List[object]
 foreach ($t in $allTables) {
     $gb = [double]$t.Gb30d
     if ($gb -lt 0.01) { continue }
-    $tier = if ($t.Plan -eq 'Analytics') { 'Sentinel-rate billing' } else { 'LA-rate billing' }
+    # The rate each table bills at is its plan's.
+    $tier = switch ([string]$t.Plan) { 'Basic' { 'Basic rate' } 'Auxiliary' { 'Auxiliary rate' } 'DataLake' { 'Data lake rate' } default { 'Analytics rate' } }
     $flowFiltered.Add([pscustomobject]@{
         Table  = $t.Table
         Gb     = $gb
@@ -3458,7 +3476,7 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
         [ordered]@{
             name   = [string]$_.Name
             gb     = [math]::Round([double](($_.Group | Measure-Object -Property Gb -Sum).Sum), 2)
-            tables = @($_.Group | Sort-Object -Property Gb -Descending | ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = $(if ($_.Tier -like 'Sentinel*') { 'Sentinel rate' } else { 'Log Analytics rate' }) } })
+            tables = @($_.Group | Sort-Object -Property Gb -Descending | ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = [string]$_.Tier } })
         }
     } | Sort-Object { -$_.gb })
 })
@@ -3467,7 +3485,7 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
 $(Format-Banner -Title "Estimated Monthly Cost")
 
 > **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
-
+$(if ($costTierText) { "`n$costTierText`n" })
 <!-- bp:tone warning -->
 
 > **Public list prices only.** The estimate uses Azure's public retail prices. It does not include any discount or agreement your organisation may have that is not public, such as Enterprise Agreement or Microsoft Customer Agreement rates, a Microsoft Azure Consumption Commitment (MACC), negotiated pricing or credits, so what you are billed can differ.
@@ -3498,7 +3516,7 @@ $(Format-XyFullLabels @($cost.Top10TablesByCost | ForEach-Object { $_.Table }))
 
 Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables; the table below lists every table with its full name.
 
-$(Format-Table -Items $allTables -Columns 'Table','Plan','Gb30d','MonthlyCost')
+$(Format-Table -Items @($allTables | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = $_.MonthlyCost; Grant = $(if ($_.PSObject.Properties.Name -contains 'Benefit') { [string]$_.Benefit } else { '' }) } }) -Columns 'Table','Plan','Gb30d','MonthlyCost','Grant')
 
 ## Cost by source and plan
 
@@ -3520,22 +3538,31 @@ $costVisualLine
 $sankeyFlowText
 ``````
 
-Where the billable data comes from, by source family and table, and the rate each table bills at: the Sentinel rate for tables on the Analytics plan, the Log Analytics rate for Basic and Auxiliary. Findings [SAC-LOG-15], [SAC-LOG-16] and [SAC-LOG-18] flag tables that could move from the Sentinel rate to the Log Analytics rate through DCR-based splits.
+Where the billable data comes from, by source family and table, and the rate each table bills at, which is its plan's: Analytics, Basic, Auxiliary or the data lake. Findings [SAC-LOG-15], [SAC-LOG-16] and [SAC-LOG-18] flag tables that could move to a cheaper plan through DCR-based splits.
 
 ## Commitment-tier what-if
 
 $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
     Format-Table -Items $cost.CommitmentTierWhatIf -Columns 'Rung','ProjectedMonthlyCost','DeltaVsCurrent'
-} else { '_Workspace not on PerGB2018, or daily ingest below the lowest commitment rung, so no projection was produced._' })
+} else { '_No commitment tier would cost less than the current pricing for this ingest, so no change is suggested._' })
+$(if ($grantRows.Count -gt 0) { @"
+
+## Data grants that may reduce this
+
+Microsoft covers the ingestion of these tables free up to an allowance that depends on licences and servers the Blueprint does not read, so the estimate above prices them at list. Each figure is the most that grant could save over the month: the Microsoft 365 E5 grant covers up to 5 MB per licensed user a day, the Defender for Servers Plan 2 allowance 500 MB per server a day, and only data collected the way each grant requires.
+
+$(Format-Table -Items $grantRows -Columns 'Grant','Allowance','Gb30d','MonthlyCost','Tables')
+"@ })
 
 ## Methodology (v$($cost.MethodologyVersion))
 
 1. Source of truth for ingestion: `Usage` table over the last {lookback}, `IsBillable` honoured, projected to 30 days for the monthly figures.
 2. Plan attribution: each table's current `plan` decides which meter applies (Analytics / Basic / Auxiliary / DataLake).
-3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time.
-4. Sentinel free benefit: tables in `Private/Resources/sentinel-benefit-tables.json` have their ingestion price reduced/zeroed when the benefit applies.
-5. Commitment-tier projection: illustrative, as actual discounts depend on published rates.
-6. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
+3. Unit price: the public prices from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time. Analytics-plan tables are priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion (an older price list falls back to the classic Log Analytics and Sentinel pair); Basic tables at the Basic logs rate; tables on the data lake tier only at data lake ingestion plus data processing, and Auxiliary tables the same once the workspace is onboarded to the data lake.
+4. Commitment tier: a workspace on a tier pays its price a day for its GB, and the Analytics GB above it at the tier's effective rate (the price over the GB), as Microsoft bills it; the cost is shared over the Analytics tables by their GB.
+5. Data grants: the tables in `Private/Resources/sentinel-benefit-tables.json` are priced at list and reported under Data grants, not deducted, since their allowances depend on licence and server counts.
+6. Commitment-tier what-if: every published tier priced against the window's Analytics ingest; the cheapest is shown when it beats the current cost.
+7. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
 
 ## Caveats: explicitly NOT priced
 

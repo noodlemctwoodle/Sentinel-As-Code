@@ -22,8 +22,12 @@
     Folder where retail-prices.json should be written. Typically the workspace _raw root.
 
 .PARAMETER ServiceNames
-    Service names to filter on. Defaults to the two Sentinel-relevant services. Override
-    if you want to extend the cost calculator (e.g. include 'Storage' for archive).
+    Service names to filter on. Defaults to the two Sentinel-relevant services:
+    'Sentinel' (the simplified analysis, Basic, Auxiliary and data lake meters
+    and every commitment tier's daily price) and 'Log Analytics' (the classic
+    ingestion meters). The Retail Prices API names the service 'Sentinel';
+    'Microsoft Sentinel' matches nothing. Override to extend the cost
+    calculator (e.g. include 'Storage' for archive).
 
 .OUTPUTS
     [pscustomobject] with FetchedAtUtc, Region, Services, and a Prices array
@@ -35,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     Endpoint:
@@ -56,7 +60,7 @@ function Get-AzureRetailPrice {
         [string]$OutputRoot,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$ServiceNames = @('Microsoft Sentinel', 'Log Analytics')
+        [string[]]$ServiceNames = @('Sentinel', 'Log Analytics')
     )
 
     Set-StrictMode -Version Latest

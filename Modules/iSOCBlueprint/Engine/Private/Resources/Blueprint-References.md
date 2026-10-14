@@ -307,11 +307,30 @@ and otherwise from every table its solution's content uses. Refresh the copy
 with `Update-iSOCBlueprintConnectorCatalogue` (it reads the Toolkit's file on
 GitHub by default, or a local path with `-Source`).
 
-## Sentinel free benefit
+## Sentinel data grants and pricing
 
-Confirms which tables are eligible for the Sentinel ingestion benefit. List maintained
-in `Private/Resources/sentinel-benefit-tables.json` and reviewed against
-<https://learn.microsoft.com/azure/sentinel/billing-reduce-costs> on every release.
+The cost estimate prices with the public Azure Retail Prices API for the
+workspace's region, reading two services: `Sentinel` (the simplified
+pay-as-you-go, Basic, Auxiliary and data lake meters, and every commitment
+tier's price a day as `<n> GB Commitment Tier Capacity Reservation`) and
+`Log Analytics` (the classic ingestion meters, the fallback for an older
+capture). The meter names it reads are in
+`Private/Resources/cost-meters.json`.
+
+Two data grants cover named tables up to an allowance: the Microsoft 365 E5,
+A5, F5 and G5 grant (up to 5 MB per licensed user a day, Entra ID sign-in
+and audit logs and the Defender XDR advanced hunting tables) and the
+Defender for Servers Plan 2 allowance (500 MB per server a day, SecurityEvent
+and the other security tables collected through Defender for Cloud). The
+Blueprint cannot read licence or server counts, so it prices those tables at
+list and reports the eligible volume beside the total as the most each grant
+could save. The lists are in `Private/Resources/sentinel-benefit-tables.json`,
+reviewed against
+<https://azure.microsoft.com/offers/sentinel-microsoft-365-offer/> and
+<https://learn.microsoft.com/azure/defender-for-cloud/data-ingestion-benefit>
+on every release. The always-free sources (Azure Activity, Office 365 audit
+logs, alerts, SecurityIncident, SentinelHealth) are not billable in `Usage`
+and need no entry.
 
 ## References
 

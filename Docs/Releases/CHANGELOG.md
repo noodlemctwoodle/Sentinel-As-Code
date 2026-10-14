@@ -6,6 +6,20 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Cost estimates priced as Microsoft bills them** - the price fetch now
+  reads the Retail Prices API's `Sentinel` service (it asked for
+  "Microsoft Sentinel", which matches nothing, so the Sentinel prices never
+  arrived). Analytics data is priced at the simplified Microsoft Sentinel
+  rate, which covers Log Analytics ingestion, with the classic pair as the
+  fallback; Basic at the Basic logs rate; data-lake-only tables at lake
+  ingestion plus processing. A workspace on a commitment tier pays the
+  tier's price a day and the GB above it at the tier's effective rate, and
+  the what-if prices every published tier and suggests the cheapest. Data
+  grants are no longer priced at zero: the Microsoft 365 E5 and Defender
+  for Servers Plan 2 lists now match Microsoft's (CommonSecurityLog,
+  Syslog and others were wrongly on them), the tables they cover are priced
+  at list, and the report lists what each grant could save. Estimates
+  change from the next collection.
 - **A demo workspace for the Blueprint** - `Tools/New-BlueprintDemoWorkspace.ps1`
   writes a complete synthetic inventory for a fictitious 2 TB a day
   workspace on a 2,000 GB a day commitment tier, built from this

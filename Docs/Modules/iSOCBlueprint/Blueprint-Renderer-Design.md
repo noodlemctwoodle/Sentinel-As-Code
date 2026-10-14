@@ -266,7 +266,7 @@ rest). The panels and the Markdown that carries them:
 | Detection opportunities | 28 (every uncovered table, every ready template) |
 | Playbook health | 60 `## Playbook runs (last 7d)` |
 | Operational health event mix | 11 `## Operations summary` |
-| Daily ingestion, ingestion by plan, Defender free benefit, top tables | 80 `### Daily ingestion`, 81 `## Summary by plan`, 84 |
+| Daily ingestion, ingestion by plan, data grant eligible, top tables | 80 `### Daily ingestion`, 81 `## Summary by plan`, 84 |
 | Sentinel data lake | 88 |
 | Hunts, bookmarks | 30 `## Hunts`, `## Bookmarks` (the count alone when the list was too large to capture) |
 | Maturity areas, roadmap, quick wins, criteria, CSF rollup | 91 (the whole roadmap, not the first twenty) |
@@ -493,7 +493,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | Tables eligible for the Sentinel free-ingest benefit |
+| [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | The Microsoft 365 E5 and Defender for Servers Plan 2 data grants, their allowances and the tables each covers |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
 | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~250 tests) |
 | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |

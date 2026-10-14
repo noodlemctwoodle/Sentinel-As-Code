@@ -1,14 +1,36 @@
 {
-  "version": "1.0.0",
-  "lastUpdated": "2026-05-14",
-  "description": "Maps Azure Retail Prices meter names to Sentinel/Log Analytics cost categories. Microsoft has renamed several meters over time; both the legacy and current names are listed so a workspace on either pricing surface receives a non-zero unit price. When the API returns more than one row for the same meter name (e.g. a 0-priced commitment-tier 'included' row alongside a non-zero PAYG row), the cost calculator takes the MAX unit price across the rows, which yields the PAYG rate, which is the right baseline for a non-committed workspace.",
+  "version": "1.1.0",
+  "lastUpdated": "2026-10-14",
+  "description": "Maps Azure Retail Prices meter names to Sentinel/Log Analytics cost categories. The simplified Microsoft Sentinel meters (service 'Sentinel') price analysis and Log Analytics ingestion together and are used when the price list has them; the classic Log Analytics and Sentinel meters are the fallback for an older capture. Commitment tiers are read separately from the '<n> GB Commitment Tier Capacity Reservation' meters (a price a day). When the API returns more than one row for the same meter (a 0-priced 'included' row alongside a non-zero row), the cost calculator takes the MAX unit price across the rows.",
   "skipMeters": [
     "Free Data Analyzed"
   ],
   "categories": [
     {
+      "id": "SentinelAnalytics",
+      "description": "Simplified Microsoft Sentinel pay-as-you-go price per GB for the Analytics tier, covering Sentinel analysis and Log Analytics ingestion together.",
+      "meterNames": [
+        "Pay-as-you-go Analysis"
+      ]
+    },
+    {
+      "id": "SentinelBasic",
+      "description": "Simplified Microsoft Sentinel price per GB for Basic logs.",
+      "meterNames": [
+        "Basic Logs Analysis"
+      ]
+    },
+    {
+      "id": "SentinelAuxiliary",
+      "description": "Microsoft Sentinel price per GB for Auxiliary logs on a workspace not onboarded to the data lake.",
+      "meterNames": [
+        "Auxiliary Logs Analysis",
+        "Classic Auxiliary Logs Analysis"
+      ]
+    },
+    {
       "id": "AnalyticsLaIngestion",
-      "description": "Log Analytics per-GB ingestion. For a Sentinel-enabled workspace this is paid in addition to SentinelPremium.",
+      "description": "Classic Log Analytics per-GB ingestion, added to SentinelPremium when the price list has no simplified Sentinel meter.",
       "meterNames": [
         "Analytics Logs Data Ingestion",
         "Pay-As-You-Go Data Ingestion"
@@ -16,7 +38,7 @@
     },
     {
       "id": "SentinelPremium",
-      "description": "Microsoft Sentinel per-GB premium charge layered on top of LA ingestion.",
+      "description": "Classic Microsoft Sentinel per-GB analysis charge, layered on Log Analytics ingestion when the price list has no simplified Sentinel meter.",
       "meterNames": [
         "Standard Data Analyzed",
         "Analytics Logs Data Analyzed"
@@ -38,10 +60,17 @@
     },
     {
       "id": "DataLakeIngestion",
-      "description": "Sentinel Data Lake per-GB ingestion.",
+      "description": "Sentinel data lake ingestion per GB, for tables on the data lake tier only (and Auxiliary tables once onboarded to the lake).",
       "meterContains": [
         "Data Lake",
         "Ingestion"
+      ]
+    },
+    {
+      "id": "DataLakeProcessing",
+      "description": "Sentinel data lake processing per GB, charged with data lake ingestion for tables on the data lake tier only.",
+      "meterNames": [
+        "Data processing Data Processed"
       ]
     },
     {

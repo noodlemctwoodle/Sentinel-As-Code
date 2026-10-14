@@ -23,7 +23,9 @@
     with weekday and weekend patterns, gentle growth and a runaway source
     for the trend to show. At that volume the workspace sits on the
     commitment tier nearest its Analytics-plan ingest (2,000 GB a day by
-    default), and the price list carries that tier's effective rate per GB. Alerts, incidents, verdicts, health events,
+    default), and the price list holds the public UK South prices, every
+    commitment tier's included, so the estimate prices it as Microsoft
+    bills it. Alerts, incidents, verdicts, health events,
     playbook runs and the daily series behind the dashboard's window slider
     are simulated from the rules and products, so they agree with each
     other and with the content.
@@ -99,8 +101,8 @@
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
     Offline: reads the repository and writes files, and calls no Azure
-    API. Prices are illustrative list prices for UK South in GBP, not a
-    quote.
+    API. Prices are the public UK South list prices in GBP as published on
+    2026-10-14, not a quote.
 #>
 [CmdletBinding()]
 param(
@@ -1127,17 +1129,22 @@ Save-DemoJson 'available-service-tiers.json' @(
     [ordered]@{ serviceTier = 'CapacityReservation'; capacityReservationLevel = $(if ($commitmentGb) { $commitmentGb } else { 100 }); enabled = [bool]$commitmentGb }
     [ordered]@{ serviceTier = 'Free'; enabled = $false }
 )
-# Illustrative UK South list prices in GBP. On a commitment tier the
-# Analytics-plan meters carry the tier's effective rate per GB (the estimate
-# prices by the GB and does not model a tier's daily minimum).
-$tierDiscount = @{ 0 = 0.0; 100 = 0.15; 200 = 0.2; 300 = 0.22; 400 = 0.24; 500 = 0.27; 1000 = 0.32; 2000 = 0.38; 5000 = 0.44; 10000 = 0.48; 25000 = 0.5; 50000 = 0.52 }
-$discount = if ($tierDiscount.ContainsKey($commitmentGb)) { $tierDiscount[$commitmentGb] } else { 0.38 }
-$laMeter = if ($commitmentGb) { 'Analytics Logs Data Ingestion' } else { 'Pay-As-You-Go Data Ingestion' }
-$sentinelMeter = if ($commitmentGb) { 'Analytics Logs Data Analyzed' } else { 'Standard Data Analyzed' }
-Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Services = @('Microsoft Sentinel', 'Log Analytics')
-        Prices = @(foreach ($p in @(@($laMeter, 'Log Analytics', [math]::Round(2.42 * (1 - $discount), 3)), @($sentinelMeter, 'Sentinel', [math]::Round(2.05 * (1 - $discount), 3)), @('Basic Logs Data Ingestion', 'Log Analytics', 0.5), @('Auxiliary Logs Data Ingestion', 'Log Analytics', 0.12), @('Data Lake Ingestion', 'Sentinel', 0.05), @('Data Retention', 'Log Analytics', 0.1), @('Long Term Retention', 'Log Analytics', 0.02))) {
-                [ordered]@{ currencyCode = 'GBP'; tierMinimumUnits = 0.0; retailPrice = $p[2]; unitPrice = $p[2]; armRegionName = $region; location = 'UK South'; meterName = $p[0]; productName = $p[1]; serviceName = $p[1]; unitOfMeasure = '1 GB'; type = 'Consumption' }
-            }) })
+# UK South public list prices in GBP, as the Retail Prices API published
+# them on 2026-10-14: the simplified Microsoft Sentinel meters (service
+# 'Sentinel'), every commitment tier's price a day, and the classic Log
+# Analytics meters.
+$listPrices = @(
+    @('Sentinel', 'Pay-as-you-go Analysis', '1 GB', 4.0605), @('Sentinel', 'Basic Logs Analysis', '1 GB', 0.8529)
+    @('Sentinel', 'Classic Auxiliary Logs Analysis', '1 GB', 0.0472), @('Sentinel', 'Data lake ingestion Data Processed', '1 GB', 0.0472)
+    @('Sentinel', 'Data processing Data Processed', '1 GB', 0.0943), @('Sentinel', 'Data lake storage Data Stored', '1 GB/Month', 0.0181)
+    ,@('Sentinel', 'Data lake query Data Analyzed', '1 GB', 0.0047)
+    @('Log Analytics', 'Analytics Logs Data Ingestion', '1 GB', 2.1737), @('Log Analytics', 'Analytics Logs Data Analyzed', '1 GB', 1.7359)
+    ,@('Log Analytics', 'Analytics Logs Data Retention', '1 GB/Month', 0.0981)
+)
+$tierList = [ordered]@{ 50 = 152.1284; 100 = 279.2558; 200 = 517.0006; 300 = 754.7455; 400 = 978.6483; 500 = 1193.4413; 1000 = 2339.7109; 2000 = 4528.4728; 5000 = 10896.6376; 10000 = 20981.9238; 25000 = 50426.4312; 50000 = 96796.1055 }
+$priceRow = { param($Service, $Meter, $Unit, $Price) [ordered]@{ currencyCode = 'GBP'; tierMinimumUnits = 0.0; retailPrice = $Price; unitPrice = $Price; armRegionName = $region; location = 'UK South'; meterName = $Meter; productName = $Service; serviceName = $Service; unitOfMeasure = $Unit; type = 'Consumption' } }
+Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Services = @('Sentinel', 'Log Analytics')
+        Prices = @(@(foreach ($p in $listPrices) { & $priceRow $p[0] $p[1] $p[2] $p[3] }) + @(foreach ($kv in $tierList.GetEnumerator()) { & $priceRow 'Sentinel' "$($kv.Key) GB Commitment Tier Capacity Reservation" '1/Day' $kv.Value })) })
 
 # The rest from the fixture, under the demo's names.
 $rename = [ordered]@{ 'law-sentinel-test' = $WorkspaceName; 'rg-sentinel-test' = $resourceGroup; '/resourceGroups/rg-test/' = "/resourceGroups/$resourceGroup/"; '00000000-0000-0000-0000-000000000001' = $subscriptionId; '00000000-0000-0000-0000-000000000000' = $subscriptionId; 'example.test' = 'contoso.com'; 'Sentinel Test' = 'Contoso Security Production' }

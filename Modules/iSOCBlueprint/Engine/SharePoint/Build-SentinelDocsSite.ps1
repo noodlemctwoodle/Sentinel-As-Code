@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.15.1
+    Version:      0.16.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -670,6 +670,13 @@ function Get-FlowPlanLabel {
 }
 
 # ---- Ingest / billing flow (grounded in cost-estimate) ----
+# A table's GB is billed in full unless a data grant may cover it. An
+# estimate from before the grants were reported marks them by a zero cost.
+function Get-FlowBilledGb {
+    param($Row, [double]$Gb)
+    if ($Row.PSObject.Properties['Benefit']) { return $(if ([string]$Row.Benefit) { 0.0 } else { $Gb }) }
+    return $(if ([double]$Row.MonthlyCost -gt 0) { $Gb } else { 0.0 })
+}
 $flowNodes = @()
 $flowLinks = @()
 if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
@@ -684,7 +691,7 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
     $tableRows = @()
     foreach ($t in $top) {
         $gb = [math]::Round([double]$t.Gb30d, 3)
-        $billedGb = if ([double]$t.MonthlyCost -gt 0) { $gb } else { 0.0 }
+        $billedGb = Get-FlowBilledGb $t $gb
         $tableRows += [ordered]@{ table = $t.Table; family = (Get-TableFamily $t.Table); gb = $gb; parts = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb }) }
     }
     if ($rest.Count -gt 0) {
@@ -693,7 +700,7 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
             $label = Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)
             if (-not $restParts.Contains($label)) { $restParts[$label] = [ordered]@{ plan = $label; gb = 0.0; billedGb = 0.0 } }
             $restParts[$label].gb += [double]$t.Gb30d
-            if ([double]$t.MonthlyCost -gt 0) { $restParts[$label].billedGb += [double]$t.Gb30d }
+            $restParts[$label].billedGb += Get-FlowBilledGb $t ([double]$t.Gb30d)
         }
         $restGb = 0.0; foreach ($pt in $restParts.Values) { $pt.gb = [math]::Round($pt.gb, 3); $pt.billedGb = [math]::Round($pt.billedGb, 3); $restGb += $pt.gb }
         $tableRows += [ordered]@{ table = "Other (+$($rest.Count))"; family = 'Other'; gb = [math]::Round($restGb, 3); parts = @($restParts.Values) }
@@ -702,14 +709,14 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
     # Nodes: families (col0), tables (col1), plans and lake tiers (col2), billed buckets (col3)
     $famAgg = @{}; foreach ($row in $tableRows) { if (-not $famAgg.ContainsKey($row.family)) { $famAgg[$row.family] = 0.0 }; $famAgg[$row.family] += $row.gb }
     $planAgg = @{}; $planBucket = @{}
-    $bucketAgg = @{ 'Billed' = 0.0; 'Free benefit' = 0.0 }
+    $bucketAgg = @{ 'Billed' = 0.0; 'Grant eligible' = 0.0 }
     foreach ($row in $tableRows) {
         foreach ($pt in $row.parts) {
             if (-not $planAgg.ContainsKey($pt.plan)) { $planAgg[$pt.plan] = 0.0 }
             $planAgg[$pt.plan] += $pt.gb
             $freeGb = [math]::Round($pt.gb - $pt.billedGb, 3)
-            $bucketAgg['Billed'] += $pt.billedGb; $bucketAgg['Free benefit'] += $freeGb
-            foreach ($pair in @(@('Billed', $pt.billedGb), @('Free benefit', $freeGb))) {
+            $bucketAgg['Billed'] += $pt.billedGb; $bucketAgg['Grant eligible'] += $freeGb
+            foreach ($pair in @(@('Billed', $pt.billedGb), @('Grant eligible', $freeGb))) {
                 if ($pair[1] -le 0) { continue }
                 $key = "$($pt.plan)|$($pair[0])"
                 if (-not $planBucket.ContainsKey($key)) { $planBucket[$key] = 0.0 }
@@ -727,7 +734,7 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
     foreach ($pl in ($planAgg.Keys | Sort-Object { $planAgg[$_] } -Descending)) {
         $flowNodes += [ordered]@{ id = "p:$pl"; col = 2; label = $pl; value = [math]::Round($planAgg[$pl], 3); lake = ($pl -like '*Lake*') }
     }
-    foreach ($bk in 'Billed', 'Free benefit') {
+    foreach ($bk in 'Billed', 'Grant eligible') {
         if ($bucketAgg[$bk] -gt 0) { $flowNodes += [ordered]@{ id = "b:$bk"; col = 3; label = $bk; value = [math]::Round($bucketAgg[$bk], 3) } }
     }
 
@@ -756,7 +763,7 @@ if ($cost -and $cost.PSObject.Properties['AllTablesByCost']) {
             family   = (Get-TableFamily $t.Table)
             plan     = (Get-FlowPlanLabel -Table ([string]$t.Table) -Plan ([string]$t.Plan))
             gb       = $gb
-            billedGb = $(if ([double]$t.MonthlyCost -gt 0) { $gb } else { 0.0 })
+            billedGb = (Get-FlowBilledGb $t $gb)
         }
     }
 }
@@ -1202,12 +1209,13 @@ if ($dailyDays -gt 0 -and (Test-Path -LiteralPath (Join-Path $script:RawRoot 'da
     # estimate without every table's row (an older collector's) cannot be
     # re-priced, so costed says whether the dashboard may rebuild cost and
     # the billing flow or must keep the collected ones.
-    $unitByTable = @{}; $planByTable = @{}
+    $unitByTable = @{}; $planByTable = @{}; $grantByTable = @{}
     $costed = [bool]($cost -and $cost.PSObject.Properties['AllTablesByCost'])
     if ($costed) {
         foreach ($t in @($cost.AllTablesByCost | Where-Object { $_ })) {
             $gbW = [double]$t.Gb30d
             $planByTable[[string]$t.Table] = [string]$t.Plan
+            if ((Get-FlowBilledGb $t 1.0) -eq 0) { $grantByTable[[string]$t.Table] = $true }
             if ($gbW -gt 0) { $unitByTable[[string]$t.Table] = [double]$t.MonthlyCost / ($gbW * 30.0 / $lookbackDays) }
         }
     }
@@ -1232,6 +1240,7 @@ if ($dailyDays -gt 0 -and (Test-Path -LiteralPath (Join-Path $script:RawRoot 'da
             r = $(if ($rulesPerTableBuild.ContainsKey($n)) { $rulesPerTableBuild[$n] } else { 0 })
             cd = $(if ($customDetPerTable.ContainsKey($n)) { $customDetPerTable[$n] } else { 0 })
             cov = $referencedTables.ContainsKey($n)
+            b = $grantByTable.ContainsKey($n)
             d = @(& $sparse $byTable[$n])
         })
     }

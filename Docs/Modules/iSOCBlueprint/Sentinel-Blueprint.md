@@ -659,28 +659,42 @@ It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 
 In short:
-1. Per-table 30-day billable GB comes from the workspace `Usage` table (cheap KQL).
+1. Per-table billable GB over the lookback comes from the workspace `Usage` table
+   (cheap KQL), projected to 30 days.
 2. Plan attribution (`Analytics` / `Basic` / `Auxiliary` / `DataLake`) decides which
-   ingestion meter applies.
+   meter applies.
 3. Unit prices are fetched from the public
    [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
-   for the workspace's region (anonymous, no auth).
-4. Sentinel free-benefit-eligible tables (in
+   for the workspace's region (anonymous, no auth), from the `Sentinel` and `Log
+   Analytics` services. Analytics-plan tables are priced at the simplified
+   Microsoft Sentinel pay-as-you-go rate, which covers Log Analytics ingestion (an
+   older price list falls back to the classic Log Analytics plus Sentinel pair);
+   Basic at the Basic logs rate; data-lake-only tables at data lake ingestion plus
+   data processing, and Auxiliary tables the same once onboarded to the lake.
+4. A workspace on a commitment tier pays the tier's price a day for its GB and the
+   Analytics GB above it at the tier's effective rate (the price over the GB), as
+   Microsoft bills it, shared over the Analytics tables by their GB.
+5. Data grants (Microsoft 365 E5 and Defender for Servers Plan 2, listed in
    [`Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
-   have their unit price set to zero **on the assumption the benefit is active** -
-   the estimator does not itself check whether the workspace actually qualifies.
-   Detecting a Defender plan that would activate the benefit is deferred to gap rule
-   SAC-LOG-13, not applied to the price here.
-5. A commitment-tier "what-if" projects the monthly delta if the workspace moved up
-   one CR rung (only meaningful for `PerGB2018` workspaces).
-6. The dedicated-cluster candidate flag is set purely on volume, when the 30-day
-   average daily ingest exceeds 500 GB/day. It is a `($totalGb30d / 30) > 500` test;
-   it does **not** check whether a dedicated cluster is already linked.
+   are **not deducted**: their allowances depend on licence and server counts the
+   Blueprint does not read. The eligible tables are priced at list and reported
+   beside the total as the most each grant could save. Gap rule SAC-LOG-13 flags
+   billable ingest into them.
+6. The commitment-tier "what-if" prices every published tier against the window's
+   Analytics ingest and reports the cheapest when it beats the current cost.
+7. The dedicated-cluster candidate flag is set purely on volume, when the average
+   daily ingest exceeds 500 GB/day; it does **not** check whether a dedicated
+   cluster is already linked.
+
+The figures are public list prices: they do not include any discount or
+agreement that is not public (Enterprise Agreement or Microsoft Customer
+Agreement rates, a MACC, negotiated pricing or credits), and the page says so.
 
 ### Caveats: explicitly NOT priced
 
 - Query-time billing for Basic / Auxiliary plans.
 - Search-job and restored-log storage.
+- Retention beyond the free 90 days and data lake storage.
 - Data-export egress and cross-region transfer.
 - Defender XDR-side meters.
 

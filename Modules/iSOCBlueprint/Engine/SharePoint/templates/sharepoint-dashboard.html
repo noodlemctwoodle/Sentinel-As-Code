@@ -1113,7 +1113,7 @@
     <div class="panel">
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
-          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs free benefit, from the cost estimate over the last <span data-win="w">30 days</span>. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
+          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed in full or eligible for a data grant, from the cost estimate over the last <span data-win="w">30 days</span>. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
         <div class="zoom"><button type="button" class="sbtn icon" id="zoomOut" aria-label="Zoom out">&minus;</button><span id="zoomPct">100%</span><button type="button" class="sbtn icon" id="zoomIn" aria-label="Zoom in">+</button><button type="button" class="sbtn" id="zoomFit">Fit</button></div>
       </div>
       <div class="flowfilter" id="flowFilter"></div>
@@ -1240,39 +1240,39 @@
       C.monthlyTotal=r2(C.allTables.reduce((a,r)=>a+r.cost,0));
       // The billing flow: the nine largest tables and the rest as one node
       // with a part per plan label; families, tables, plans and lake tiers,
-      // then billed or free benefit. A table priced at nothing is benefit.
+      // then billed in full or eligible for a data grant (b).
       // GB to two places first, as the estimate rounds each table.
-      const rows=T.slice(0,9).map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, gb, parts:[{plan:x.t.pl, gb, billedGb:(+x.t.u>0? gb : 0)}]}; });
+      const rows=T.slice(0,9).map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, gb, parts:[{plan:x.t.pl, gb, billedGb:(+x.t.u>0 && !x.t.b? gb : 0)}]}; });
       const rest=T.slice(9);
       if(rest.length){
         const parts={};
-        rest.forEach(x=>{ const gb=r2(x.gb), p=parts[x.t.pl]||(parts[x.t.pl]={plan:x.t.pl, gb:0, billedGb:0}); p.gb+=gb; if(+x.t.u>0) p.billedGb+=gb; });
+        rest.forEach(x=>{ const gb=r2(x.gb), p=parts[x.t.pl]||(parts[x.t.pl]={plan:x.t.pl, gb:0, billedGb:0}); p.gb+=gb; if(+x.t.u>0 && !x.t.b) p.billedGb+=gb; });
         let restGb=0; const list=Object.values(parts);
         list.forEach(p=>{ p.gb=r3(p.gb); p.billedGb=r3(p.billedGb); restGb+=p.gb; });
         rows.push({table:'Other (+'+rest.length+')', family:'Other', gb:r3(restGb), parts:list});
       }
-      const fam={}, plan={}, pb={}, bucket={'Billed':0, 'Free benefit':0};
+      const fam={}, plan={}, pb={}, bucket={'Billed':0, 'Grant eligible':0};
       rows.forEach(row=>{
         fam[row.family]=(fam[row.family]||0)+row.gb;
         row.parts.forEach(p=>{
           plan[p.plan]=(plan[p.plan]||0)+p.gb;
           const free=r3(p.gb-p.billedGb);
-          bucket['Billed']+=p.billedGb; bucket['Free benefit']+=free;
-          [['Billed',p.billedGb],['Free benefit',free]].forEach(([b,v])=>{ if(v>0){ const k=p.plan+'|'+b; pb[k]=(pb[k]||0)+v; } });
+          bucket['Billed']+=p.billedGb; bucket['Grant eligible']+=free;
+          [['Billed',p.billedGb],['Grant eligible',free]].forEach(([b,v])=>{ if(v>0){ const k=p.plan+'|'+b; pb[k]=(pb[k]||0)+v; } });
         });
       });
       const nodes=[], links=[];
       Object.keys(fam).sort((a,b)=>fam[b]-fam[a]).forEach(f=>nodes.push({id:'f:'+f, col:0, label:f, value:r3(fam[f])}));
       rows.forEach(row=>nodes.push({id:'t:'+row.table, col:1, label:row.table, value:row.gb}));
       Object.keys(plan).sort((a,b)=>plan[b]-plan[a]).forEach(p=>nodes.push({id:'p:'+p, col:2, label:p, value:r3(plan[p]), lake:/lake/i.test(p)}));
-      ['Billed','Free benefit'].forEach(b=>{ if(bucket[b]>0) nodes.push({id:'b:'+b, col:3, label:b, value:r3(bucket[b])}); });
+      ['Billed','Grant eligible'].forEach(b=>{ if(bucket[b]>0) nodes.push({id:'b:'+b, col:3, label:b, value:r3(bucket[b])}); });
       rows.forEach(row=>{
         links.push({source:'f:'+row.family, target:'t:'+row.table, value:row.gb});
         row.parts.forEach(p=>links.push({source:'t:'+row.table, target:'p:'+p.plan, value:p.gb}));
       });
       Object.keys(pb).forEach(k=>{ const i=k.indexOf('|'); links.push({source:'p:'+k.slice(0,i), target:'b:'+k.slice(i+1), value:r3(pb[k])}); });
       M.flow={nodes, links};
-      M.flowTables=T.map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, plan:x.t.pl, gb, billedGb:(+x.t.u>0? gb : 0)}; });
+      M.flowTables=T.map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, plan:x.t.pl, gb, billedGb:(+x.t.u>0 && !x.t.b? gb : 0)}; });
       if(M.dataLake && M.dataLake.cost){
         const row=p=>C.byPlan.find(x=>x.plan===p)||{gb30d:0, cost:0};
         Object.assign(M.dataLake.cost, {analyticsGb:row('Analytics').gb30d, analyticsCost:row('Analytics').cost, lakeGb:row('DataLake').gb30d, lakeCost:row('DataLake').cost});
@@ -2284,20 +2284,20 @@
       Object.values(parts).forEach(p=>{ p.gb=r3(p.gb); p.billedGb=r3(p.billedGb); });
       tableRows.push({table:'Other (+'+rest.length+')',family:'Other',gb:r3(gb),parts:Object.values(parts),other:true});
     }
-    const fam={}, plan={}, pb={}, bucket={'Billed':0,'Free benefit':0};
+    const fam={}, plan={}, pb={}, bucket={'Billed':0,'Grant eligible':0};
     tableRows.forEach(row=>{
       fam[row.family]=(fam[row.family]||0)+row.gb;
       row.parts.forEach(pt=>{
         plan[pt.plan]=(plan[pt.plan]||0)+pt.gb;
-        const free=r3(pt.gb-pt.billedGb); bucket['Billed']+=pt.billedGb; bucket['Free benefit']+=free;
-        [['Billed',pt.billedGb],['Free benefit',free]].forEach(([k,v])=>{ if(v<=0) return; const key=pt.plan+'|'+k; pb[key]=(pb[key]||0)+v; });
+        const free=r3(pt.gb-pt.billedGb); bucket['Billed']+=pt.billedGb; bucket['Grant eligible']+=free;
+        [['Billed',pt.billedGb],['Grant eligible',free]].forEach(([k,v])=>{ if(v<=0) return; const key=pt.plan+'|'+k; pb[key]=(pb[key]||0)+v; });
       });
     });
     const nodes=[], links=[];
     Object.keys(fam).sort((a,b)=>fam[b]-fam[a]).forEach(f=>nodes.push({id:'f:'+f,col:0,label:f,value:r3(fam[f]),clickable:true}));
     tableRows.forEach(row=>nodes.push({id:'t:'+row.table,col:1,label:row.table,value:row.gb,other:!!row.other,clickable:!!row.other}));
     Object.keys(plan).sort((a,b)=>plan[b]-plan[a]).forEach(p=>nodes.push({id:'p:'+p,col:2,label:p,value:r3(plan[p]),lake:/Lake/.test(p)}));
-    ['Billed','Free benefit'].forEach(b=>{ if(bucket[b]>0) nodes.push({id:'b:'+b,col:3,label:b,value:r3(bucket[b])}); });
+    ['Billed','Grant eligible'].forEach(b=>{ if(bucket[b]>0) nodes.push({id:'b:'+b,col:3,label:b,value:r3(bucket[b])}); });
     tableRows.forEach(row=>{
       links.push({source:'f:'+row.family,target:'t:'+row.table,value:row.gb});
       row.parts.forEach(pt=>links.push({source:'t:'+row.table,target:'p:'+pt.plan,value:pt.gb}));
@@ -2408,7 +2408,7 @@
       mk('text',{x:px,y:n._y+R+18,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},fmtN(n.value)+' GB',g);
       tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+', '+pct+'% of the GB shown.');
     });
-    // Outcomes: billed and free benefit, with their totals.
+    // Outcomes: billed in full and eligible for a data grant, with their totals.
     const outGb=cols[3].reduce((a,n)=>a+(+n.value||0),0)||1;
     cols[3].forEach(n=>{
       const col=nodeFill(n), pct=Math.round((+n.value||0)/outGb*100), g=mk('g',{});
@@ -2437,7 +2437,7 @@
     svgEl._reveal=requestAnimationFrame(step);
   }
   const legendHtml = Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
-     '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Free benefit</span>';
+     '<span><i style="background:'+lakeColor+'"></i>Data lake tier</span><span><i style="background:#c2912b"></i>Billed</span><span><i style="background:#2e8b64"></i>Grant eligible</span>';
   document.getElementById('legendBig').innerHTML=legendHtml;
   let zoom=1; const big=document.getElementById('sankeyBig');
   let dim=null;
@@ -2953,18 +2953,20 @@
     }
   }
 
-  // 6. Billed vs Defender free benefit (split)
+  // 6. Billed in full vs eligible for a data grant (split). A grant
+  // (Microsoft 365 E5, Defender for Servers Plan 2) covers its tables up to
+  // an allowance the Blueprint cannot see, so this is the most it covers.
   const billed = (M.flow.nodes.find(n=>n.col===3 && n.label==='Billed')||{}).value || 0;
-  const free   = (M.flow.nodes.find(n=>n.col===3 && n.label==='Free benefit')||{}).value || 0;
-  if(billed+free>0){
+  const free   = (M.flow.nodes.find(n=>n.col===3 && n.label==='Grant eligible')||{}).value || 0;
+  if(billed+free>0 && free>0){
     const bp = Math.round(billed/(billed+free)*100), fp = 100-bp;
-    cards.push('<div class="ipanel"><h3>Billed vs Defender free benefit</h3>'+
-      '<p class="note">Of ingested security data, the share billed vs covered by the Defender benefit.</p>'+
+    cards.push('<div class="ipanel"><h3>Billed vs data grant eligible</h3>'+
+      '<p class="note">Of ingested data, the share billed in full and the share a Microsoft 365 E5 or Defender for Servers Plan 2 data grant may cover, up to its allowance (5 MB per licensed user, or 500 MB per server, a day).</p>'+
       '<div class="split"><div class="seg" style="width:'+bp+'%;background:var(--amber)">'+fmt(billed)+' GB</div>'+
       '<div class="seg" style="width:'+fp+'%;background:var(--green)">'+fmt(free)+' GB</div></div>'+
       '<div class="dlegend" style="flex-direction:row;gap:18px;margin-top:12px">'+
       '<div class="di"><i style="background:var(--amber)"></i>Billed ('+bp+'%)</div>'+
-      '<div class="di"><i style="background:var(--green)"></i>Free benefit ('+fp+'%)</div></div></div>');
+      '<div class="di"><i style="background:var(--green)"></i>Grant eligible ('+fp+'%)</div></div></div>');
   }
 
   // 7. Content inventory (full)
@@ -3096,7 +3098,7 @@
   // with a short donut. Full-width panels separate the bands. A card whose
   // title is not listed lands in a trailing band rather than disappearing.
   const BANDS=[
-    {titles:['Analytics rules enabled','Findings by severity','Findings by category','Incident outcomes','Billed vs Defender free benefit','Ingestion by billing plan','Alert volume by severity','Threat intelligence by source']},
+    {titles:['Analytics rules enabled','Findings by severity','Findings by category','Incident outcomes','Billed vs data grant eligible','Ingestion by billing plan','Alert volume by severity','Threat intelligence by source']},
     {full:'Content inventory'},
     {titles:['Top tables by volume','Alerts by detection source','Operational health event mix','Playbook health','Daily ingestion']},
     {full:'Detection coverage by MITRE'},

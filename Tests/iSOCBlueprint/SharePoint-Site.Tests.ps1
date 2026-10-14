@@ -2232,7 +2232,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $tableGb = (@($model.flow.nodes | Where-Object col -eq 1) | Measure-Object -Property value -Sum).Sum
         ($plans | Measure-Object -Property value -Sum).Sum | Should -Be $tableGb
         $outcomes = @($model.flow.nodes | Where-Object col -eq 3)
-        ($outcomes | Where-Object label -eq 'Free benefit').value | Should -Be 500
+        ($outcomes | Where-Object label -eq 'Grant eligible').value | Should -Be 500
         ($outcomes | Where-Object label -eq 'Billed').value | Should -Be 2400
         @($model.flow.links | Where-Object { $_.source -eq 't:ColdStore_CL' -and $_.target -eq 'p:Data lake only' }).Count | Should -Be 1
         # Every ingesting table travels with the model so the dashboard can

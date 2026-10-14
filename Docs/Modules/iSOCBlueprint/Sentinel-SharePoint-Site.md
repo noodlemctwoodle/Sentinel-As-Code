@@ -176,8 +176,9 @@ The ingest and billing flow under it is drawn the same way: source families
 as glowing dots on the left, every table as a pill tinted in its family's
 colour with its GB inside (a long name is shortened, with the full name in
 its tooltip), each billing plan and lake tier as a ring showing its share of
-the GB shown with the GB under it, and the billed and free-benefit outcomes
-as glowing nodes with their totals and shares. Strands carry GB (width on a
+the GB shown with the GB under it, and the billed and grant-eligible outcomes
+(the GB a Microsoft 365 E5 or Defender for Servers data grant may cover, up
+to its allowance) as glowing nodes with their totals and shares. Strands carry GB (width on a
 square-root scale) with beads, and sweep in from the left when the tab opens
 and after each filter change (the sweep starts from a fully drawn chart, so
 it never leaves the strands hidden). Hovering a family spotlights its
