@@ -155,6 +155,7 @@ SecurityDocs/
     ├── 00-overview.md                 headline counts, top findings, cost summary
     ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
     ├── 02-deprecated-legacy-features.md  retirement deadlines, legacy features still in use
+    ├── 03-whats-new.md                what Microsoft released, previewed and is retiring in Sentinel and Defender XDR (12 months), each item tied to this report's pages and maturity criteria
     ├── 10-data-connectors.md          classic + CCF + synthesised effective view with the connector behind each table, connected connectors against the connector catalogue, Defender XDR unification
     ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
     ├── 12-soc-optimization.md         SOC Optimization recommendations
@@ -242,6 +243,18 @@ Beyond those headline pages the report groups into families:
   retention and Data Lake surface.
 - **Retirements**: `02-deprecated-legacy-features.md` sets the platform
   deadlines against the legacy features this workspace still uses.
+- **What's new**: `03-whats-new.md` lists what Microsoft released,
+  previewed and announced for retirement in Microsoft Sentinel and
+  Microsoft Defender XDR over the last 12 months, retirements and calls to
+  action first. The collector reads the two What's new pages on Microsoft
+  Learn as Markdown (`Engine/Private/Get-WhatsNew.ps1`, saved as
+  `_raw/whats-new.json`; the one capture that reads a public page rather
+  than the tenant). The module's `Get-iSOCBlueprintWhatsNew` runs the same
+  function on its own and, with `-Path`, refreshes an inventory's copy.
+  The renderer ties each item to the report pages and
+  maturity criteria it touches, with this workspace's status for each,
+  through `Private/Resources/whats-new-topics.json`. When the pages cannot
+  be reached the page says so.
 - **Assessment**: `90-gap-analysis.md` (the findings) and
   `91-maturity-assessment.md` are one assessment. Each finding says which
   maturity criterion it decides and what closing it lifts the overall score

@@ -69,9 +69,11 @@ with the dashboard template and the web part source:
 | `pages/<page>.json` | Per section: title and ordered segments, `html` for a text web part or `chart` (kind, title, data) for the chart web part |
 | `findings.json` | Findings plus per-check outcomes |
 
-Nothing in the build contacts SharePoint or Azure, so you can inspect a
-bundle before anything is published. The one network call is the optional
-"What's new" feed for the dashboard; `-SkipWhatsNew` turns it off.
+Nothing in the build contacts SharePoint, Azure or anything else on the
+network, so you can inspect a bundle before anything is published. What's
+new in Sentinel and Defender is a report page (03), read by the collector;
+`-SkipWhatsNew`, `-WhatsNewFeedUrl` and `-WhatsNewCount` are still accepted
+so existing scripts run, and do nothing.
 
 ### Dashboard panels
 
@@ -193,7 +195,7 @@ links.
 The Insights tab lays its cards out in bands of similar height (donut and
 pie cards, bar-list cards, table cards), with the full-width panels
 (content inventory, the ATT&CK grid directly above detection
-opportunities, what's new) between them, so a long table never shares a
+opportunities) between them, so a long table never shares a
 row with a short donut. The
 **ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
 kill-chain order with the techniques covered out of the total (every

@@ -67,7 +67,13 @@ Describe 'iSOCBlueprint outside the repository' {
 
     It 'runs without the web part source beside it' {
         Test-Path -LiteralPath (Join-Path $script:copy 'WebParts') | Should -BeFalse
-        @((Get-Module iSOCBlueprint).ExportedFunctions.Keys).Count | Should -Be 12
+        @((Get-Module iSOCBlueprint).ExportedFunctions.Keys).Count | Should -Be 13
+    }
+
+    It 'carries What''s new inside the module: its command, engine file and topic map' {
+        (Get-Module iSOCBlueprint).ExportedFunctions.Keys | Should -Contain 'Get-iSOCBlueprintWhatsNew'
+        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Get-WhatsNew.ps1') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/whats-new-topics.json') | Should -BeTrue
     }
 
     It 'renders the Markdown report and the section model from the default folder' {

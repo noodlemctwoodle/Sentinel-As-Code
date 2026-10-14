@@ -21,6 +21,7 @@
         'Initialize-iSOCBlueprintSite'
         'Get-iSOCBlueprintFinding'
         'Get-iSOCBlueprintMaturity'
+        'Get-iSOCBlueprintWhatsNew'
         'Test-iSOCBlueprintPrerequisite'
         'Update-iSOCBlueprintConnectorCatalogue'
     )

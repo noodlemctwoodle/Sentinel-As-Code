@@ -26,11 +26,10 @@
       findings.json       gap-analysis findings plus per-check outcomes,
                           for the findings list
 
-    Nothing here talks to SharePoint or Azure, so the bundle can be built
-    from a downloaded pipeline artefact and inspected before publishing.
-    The one network call is the optional "What's new" feed (Microsoft's
-    Azure release-communications RSS), fetched at build time and baked into
-    the dashboard. Pass -SkipWhatsNew to build fully offline.
+    Nothing here talks to SharePoint, Azure or anything else on the
+    network, so the bundle can be built from a downloaded pipeline artefact
+    and inspected before publishing. What's new in Sentinel and Defender is
+    a report page (03-whats-new.md), read by the collector.
 
     Charts come from the section model as data. The dashboard draws its own,
     and each section page places the chart web part, which draws the chart
@@ -57,13 +56,15 @@
     _raw/run-context.json, else the leaf name of -Source.
 
 .PARAMETER WhatsNewFeedUrl
-    RSS feed for the dashboard's "What's new" panel.
+    No longer used: What's new is a report page the collector reads. Kept
+    so existing scripts still run.
 
 .PARAMETER WhatsNewCount
-    Number of feed items to keep. Defaults to 8.
+    No longer used; see WhatsNewFeedUrl.
 
 .PARAMETER SkipWhatsNew
-    Do not fetch the feed. The panel is left out.
+    No longer used: the build makes no network call. Kept so existing
+    scripts still run.
 
 .PARAMETER MaxTableRows
     Maximum body rows per table on a native page. Defaults to 500. Longer
@@ -1185,34 +1186,6 @@ if ($sections.Count -eq 0) {
     $buildWarnings.Add("No sections under $Source. Run Convert-SentinelInventoryToMarkdown.ps1 first; the site will have a dashboard and findings but no section pages.")
 }
 
-# ---- What's new (Microsoft release-communications RSS, security-filtered) ----
-$whatsNew = @()
-if (-not $SkipWhatsNew) {
-    try {
-        Write-Log "  Fetching What's new feed..." Info
-        $feed = Invoke-RestMethod -Uri $WhatsNewFeedUrl -TimeoutSec 20 -ErrorAction Stop
-        $rx = 'Sentinel|Defender|SIEM|SOC\b|Security Copilot|Microsoft Security|Log Analytics|Azure Monitor|Microsoft Purview|threat intel'
-        $items = @($feed | Where-Object { $_.title -match $rx })
-        if ($items.Count -lt $WhatsNewCount) { $items = @($feed) }   # fall back to general Azure news
-        foreach ($it in ($items | Select-Object -First $WhatsNewCount)) {
-            $tag = 'Update'
-            if ($it.title -match '^\s*\[?(Launched|Generally Available|GA)\]?' -or $it.title -match 'Generally Available') { $tag = 'GA' }
-            elseif ($it.title -match 'Public Preview|In preview|\[Preview\]') { $tag = 'Preview' }
-            elseif ($it.title -match 'Retirement|Deprecat|End of support|Retiring') { $tag = 'Retirement' }
-            $cleanTitle = ($it.title -replace '^\s*\[[^\]]+\]\s*', '').Trim()
-            $pd = $null
-            try { $pd = ([datetime]$it.pubDate).ToString('yyyy-MM-dd') } catch { $pd = ([string]$it.pubDate) }
-            $desc = ''
-            if ($it.description) { $desc = (($it.description -replace '<[^>]+>', ' ') -replace '\s+', ' ').Trim() }
-            if ($desc.Length -gt 220) { $desc = $desc.Substring(0, 219) + [char]0x2026 }
-            $whatsNew += [ordered]@{ title = $cleanTitle; tag = $tag; date = $pd; link = [string]$it.link; desc = $desc }
-        }
-        Write-Log "  What's new: $($whatsNew.Count) item(s)" Success
-    }
-    catch {
-        Write-Log "  What's new feed unavailable: $($_.Exception.Message)" Warning
-    }
-}
 
 $generatedBuildUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC'
 
@@ -1246,7 +1219,6 @@ $model = [ordered]@{
     sections     = $sections
     dataLakeEnrolled = $lakeEnrolled
     dataLake     = $dataLakeModel
-    whatsNew     = $whatsNew
     generatedBlueprintUtc = $generatedBuildUtc
 }
 

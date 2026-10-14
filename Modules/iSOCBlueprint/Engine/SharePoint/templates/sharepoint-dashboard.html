@@ -425,7 +425,7 @@
   .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
   .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
-  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)} .st.Warn{background:var(--amber)}
+  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)} .st.Warn{background:var(--amber)} .st.Info{background:var(--brand)}
   .trend{width:100%;height:auto;display:block}
   .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap)}
   .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
@@ -588,21 +588,6 @@
   .docchart .legend{margin-top:10px}
   .docchart .piewrap{margin-top:12px}
 
-  /* What's new */
-  .wn{display:flex;flex-direction:column;gap:2px}
-  .wnitem{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:13px;padding:13px 2px;
-    border-bottom:1px solid var(--line-2)}
-  .wnitem:last-child{border-bottom:0}
-  .wntag{display:inline-flex;align-items:center;justify-content:center;width:84px;box-sizing:border-box;
-    font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:5px 0;border-radius:7px;white-space:nowrap;margin-top:1px}
-  .wntag.GA{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green)}
-  .wntag.Preview{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand-ink)}
-  .wntag.Retirement{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
-  .wntag.Update{background:var(--chip);color:var(--muted)}
-  .wntitle{font-size:13.5px;font-weight:650;color:var(--ink);line-height:1.4}
-  .wntitle a{color:var(--ink)} .wntitle a:hover{color:var(--brand-ink)}
-  .wndesc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
-  .wndate{font-size:11.5px;color:var(--faint);font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums;margin-top:1px}
 
   /* ---------- flow ---------- */
   .flowbox{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--canvas);
@@ -2504,18 +2489,6 @@
       (ext.length?'<p class="note" style="margin:14px 0 8px">Top tables by lake-only retention</p>'+barsHtml(ext,{theme:'violet',fill:{sec:lakeNum,label:'tables',keep:true}}):'')+'</div>');
   }
 
-  // 8. What's new (Microsoft release communications, security-filtered)
-  if(M.whatsNew && M.whatsNew.length){
-    const wn=M.whatsNew.map(w=>
-      '<div class="wnitem"><span class="wntag '+esc(w.tag||'Update')+'">'+esc(w.tag||'Update')+'</span>'+
-      '<div><div class="wntitle">'+(w.link?'<a href="'+esc(w.link)+'" target="_blank" rel="noopener">'+esc(w.title)+'</a>':esc(w.title))+'</div>'+
-      (w.desc?'<div class="wndesc">'+esc(w.desc)+'</div>':'')+'</div>'+
-      '<span class="wndate">'+esc(w.date||'')+'</span></div>').join('');
-    cards.push('<div class="ipanel full"><h3>What&rsquo;s new in Microsoft security</h3>'+
-      '<p class="note">Latest Microsoft release communications relevant to Sentinel &amp; Defender, captured when this Blueprint was generated.</p>'+
-      '<div class="wn">'+wn+'</div></div>');
-  }
-
   // Bands group cards of similar height so a long table never shares a row
   // with a short donut. Full-width panels separate the bands. A card whose
   // title is not listed lands in a trailing band rather than disappearing.
@@ -2884,16 +2857,19 @@
     const CELL_CHIPS=3;
     function listCell(c){
       const items=String(c).split(/(?<!&[a-z0-9#]{1,8});\s+/i).map(x=>x.trim()).filter(Boolean);
-      if(items.length<4) return '';
+      // Two or three short items are chips too; a sentence with a
+      // semicolon in it (longer parts) stays text.
+      if(items.length<2 || (items.length<4 && items.some(x=>x.replace(/<[^>]+>/g,'').length>60))) return '';
       // A lead-in before the list ("146 rule(s) disabled: ...") stays text.
       let lead='';
       const m=/^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
       return lead+'<div class="morewrap cellchips">'+items.map((x,i)=>'<span class="tagpill'+(/,\s*installed\)$/.test(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+
-        sbtn('Show all '+items.length,'data-more data-all="Show all '+items.length+'" data-less="Show fewer"',{cls:'morepill'})+'</div>';
+        (items.length>CELL_CHIPS? sbtn('Show all '+items.length,'data-more data-all="Show all '+items.length+'" data-less="Show fewer"',{cls:'morepill'}) : '')+'</div>';
     }
     // Status words in a table cell read as pills: green for fine, amber to
     // act on, red for something that no longer works or is risky.
-    const STATUS_PILL={'Up to date':'Met','Current':'Met','Update available':'Warn','Stale':'Warn','Deprecated':'Gap','Not in catalogue':'Gap','Stale, used by rules':'Gap'};
+    const STATUS_PILL={'Up to date':'Met','Current':'Met','Update available':'Warn','Stale':'Warn','Deprecated':'Gap','Not in catalogue':'Gap','Stale, used by rules':'Gap',
+      'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'};
     function formatCell(c){
       const stc=STATUS_PILL[String(c==null?'':c).trim()]; if(stc) return '<span class="st '+stc+'">'+String(c).trim()+'</span>';
       const chips=c? listCell(c) : ''; if(chips) return chips;

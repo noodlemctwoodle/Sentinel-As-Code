@@ -283,9 +283,10 @@ function Write-Section([string]$FileName, [string]$Body) {
         })
         # Pass 2: bare IDs not preceded by `[`, `(`, `#`, `-` or a word
         # character and not followed by `]`, `)`, `-` or a word character.
-        # On the maturity page the same ids name criteria, so only ids whose
-        # finding fired in this run (and so has an anchor on 90) are linked.
-        $linkable = if ($FileName -eq '91-maturity-assessment.md') { $script:FiredFindingIds } else { $script:FindingIds }
+        # On the maturity page and the What's new page the same ids name
+        # criteria, so only ids whose finding fired in this run (and so has an
+        # anchor on 90) are linked.
+        $linkable = if ($FileName -in '91-maturity-assessment.md', '03-whats-new.md') { $script:FiredFindingIds } else { $script:FindingIds }
         $line = [regex]::Replace($line, '(?<![\[\(#\-\w])(SAC-[A-Z]{2,4}-\d{2})(?![\]\)\-\w])', {
             param($m)
             $id = $m.Groups[1].Value
@@ -3930,6 +3931,7 @@ $(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $(
 | Concern | See |
 |---|---|
 | Retirements and legacy features | [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
+| What's new and retiring in Sentinel and Defender | [03-whats-new.md](03-whats-new.md) |
 | Connectors and ingestion | [10-data-connectors.md](10-data-connectors.md), [83-data-collection.md](83-data-collection.md) |
 | Detection coverage | [20-analytics-rules.md](20-analytics-rules.md), [21-rule-performance.md](21-rule-performance.md), [22-rule-health-quality.md](22-rule-health-quality.md), [25-mitre-coverage.md](25-mitre-coverage.md), [28-detection-opportunities.md](28-detection-opportunities.md) |
 | Workspace, tables, retention | [80-workspace.md](80-workspace.md), [81-table-plans-retention.md](81-table-plans-retention.md), [89-retention.md](89-retention.md) |
@@ -3993,6 +3995,138 @@ $(Format-Table -Items $legacyRows -Columns 'Feature','Status','Evidence','Where'
 [What's new and deprecated in Microsoft Sentinel (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/whats-new)
 "@
 Write-Section '02-deprecated-legacy-features.md' $legacyBody
+
+# Section 03: what Microsoft has released, previewed and announced for
+# retirement in Sentinel and Defender XDR, from their What's new pages on
+# Microsoft Learn (the collector's whats-new.json), each item linked to the
+# report pages and maturity criteria it touches with this workspace's status.
+$whatsNew = Read-Raw 'whats-new.json'
+$wnItems = @(if ($whatsNew -and $whatsNew.PSObject.Properties['Items']) { @($whatsNew.Items | Where-Object { $_ }) })
+$wnTopicsPath = Join-Path $ResourcesRoot 'whats-new-topics.json'
+$wnTopics = @(if (Test-Path -LiteralPath $wnTopicsPath) { @((Get-Content -LiteralPath $wnTopicsPath -Raw | ConvertFrom-Json).topics) })
+$wnCriterion = @{}
+if ($maturityOk) { foreach ($a in @($maturity.areas)) { foreach ($c in @($a.criteria)) { if ($c -and $c.id) { $wnCriterion[[string]$c.id] = $c } } } }
+# What an item touches here: each matching topic's page, then each of its
+# criteria with this workspace's status; a criterion whose finding fired
+# links to the finding. Semicolon-separated, so the site shows them as chips.
+function Get-WhatsNewRelations {
+    param($Item)
+    $text = "$($Item.Title) $($Item.Summary)"
+    $parts = [System.Collections.Generic.List[string]]::new()
+    $seen = @{}
+    foreach ($t in $wnTopics) {
+        if ($text -notmatch "(?i)$($t.match)") { continue }
+        $link = "[$($t.label)]($($t.section).md)"
+        if (-not $seen.ContainsKey($link)) { $seen[$link] = $true; $parts.Add($link) }
+        foreach ($id in @($t.criteria)) {
+            if ($seen.ContainsKey($id)) { continue }
+            $seen[$id] = $true
+            $c = $wnCriterion[[string]$id]
+            $state = if ($c) { ([string]$c.status).ToLowerInvariant() } else { 'not assessed' }
+            $ref = if ($script:FiredFindingIds.ContainsKey($id)) { "[$id]" } else { $id }
+            $parts.Add("$ref $state")
+        }
+    }
+    return ($parts -join '; ')
+}
+# An item's first sentence: the table stays readable, and the item links to
+# its full entry on Learn.
+$wnFirstSentence = { param([string]$T)
+    $m = [regex]::Match($T, '^(.{40,}?[.!?])(\s|$)')
+    $s = if ($m.Success) { $m.Groups[1].Value } else { $T }
+    if ($s.Length -gt 240) { $cut = $s.LastIndexOf(' ', 240); $s = $s.Substring(0, $(if ($cut -gt 0) { $cut } else { 240 })) + [char]0x2026 }
+    $s
+}
+# A deadline that has gone by says so.
+$wnToday = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+$wnDeadline = { param([string]$D) if (-not $D) { '' } elseif ([string]::CompareOrdinal($D, $wnToday.Substring(0, $D.Length)) -lt 0) { "$D (passed)" } else { $D } }
+$wnMonth = { param([string]$M) try { ([datetime]::ParseExact($M, 'yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)).ToString('MMM yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } catch { $M } }
+$wnRows = @($wnItems | ForEach-Object {
+    $rel = Get-WhatsNewRelations -Item $_
+    [pscustomobject]@{
+        Product   = [string]$_.Product
+        Month     = (& $wnMonth ([string]$_.Month))
+        Status    = [string]$_.Status
+        Item      = "[$(([string]$_.Title) -replace '\|', '/')]($([string]$_.Link))"
+        Summary   = ((& $wnFirstSentence ([string]$_.Summary)) -replace '\|', '/')
+        Deadline  = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { & $wnDeadline ([string]$_.Deadline) } else { '' })
+        'Relates to here' = $rel
+        Gap       = [bool]($rel -match '\b(gap|unknown)\b')
+    }
+})
+$wnStatusOrder = 'Action needed', 'Retiring', 'Generally available', 'Preview', 'Update'
+$wnCount = { param([string]$S, [string]$P) @($wnRows | Where-Object { $_.Status -eq $S -and (-not $P -or $_.Product -eq $P) }).Count }
+$wnActionRows = @($wnRows | Where-Object { $_.Status -in 'Action needed', 'Retiring' } | Sort-Object @{ Expression = { if ($_.Deadline) { $_.Deadline } else { '9999' } } })
+$wnGapCount = @($wnRows | Where-Object Gap).Count
+$wnTone = @{ 'Action needed' = 'warn'; 'Retiring' = 'bad'; 'Generally available' = 'ok'; 'Preview' = 'info'; 'Update' = 'neutral' }
+$wnVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{
+    meters = @(foreach ($p in 'Microsoft Sentinel', 'Microsoft Defender XDR') {
+        [ordered]@{ title = $p; caption = "Items in the last $(if ($whatsNew) { $whatsNew.Months } else { 12 }) months"; total = @($wnRows | Where-Object Product -EQ $p).Count; parts = @(foreach ($s in $wnStatusOrder) { [ordered]@{ label = $s; value = (& $wnCount $s $p); tone = $wnTone[$s] } }) }
+    })
+    figures = @(
+        [ordered]@{ label = 'Retiring or needing action'; value = $wnActionRows.Count; caption = 'Listed first below, soonest deadline first' }
+        [ordered]@{ label = 'Touching a criterion not met here'; value = $wnGapCount; caption = 'A linked maturity criterion is a gap or unknown on this workspace' }
+    )
+})
+$wnSources = @(if ($whatsNew -and $whatsNew.PSObject.Properties['Sources']) { @($whatsNew.Sources) })
+$wnFetched = if ($whatsNew -and $whatsNew.PSObject.Properties['FetchedUtc']) { Format-DateUtc $whatsNew.FetchedUtc } else { '' }
+$wnPages = if ($wnSources.Count) { $wnSources } else {
+    @([pscustomobject]@{ Product = 'Microsoft Sentinel'; Url = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new' }
+      [pscustomobject]@{ Product = 'Microsoft Defender XDR'; Url = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new' })
+}
+$wnSourceLines = (@($wnPages | ForEach-Object {
+    "- [What's new in $($_.Product) (Microsoft Learn)]($($_.Url))$(if ($_.PSObject.Properties['Ok'] -and -not $_.Ok) { ', which could not be read in this run' })"
+}) -join [Environment]::NewLine)
+$wnBody = if (-not $wnItems.Count) {
+@"
+$(Format-Banner -Title "What's New in Sentinel and Defender")
+
+What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR, read from their What's new pages on Microsoft Learn and linked to this report's pages and maturity criteria.
+
+_Not captured in this snapshot: the collector reads the two What's new pages when it runs, and this inventory has no copy of them (the pages could not be reached, or an older collector took the inventory)._
+
+$wnSourceLines
+"@
+} else {
+@"
+$(Format-Banner -Title "What's New in Sentinel and Defender")
+
+What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR over the last $($whatsNew.Months) months, read from their What's new pages on Microsoft Learn on $wnFetched. Each item links to its entry on Learn and to the pages of this report and the maturity criteria it touches, with this workspace's status for each criterion; a criterion whose finding fired links to the finding.
+
+## At a glance
+
+``````mermaid
+pie showData title What's new by status (last $($whatsNew.Months) months)
+$wnVisualLine
+$(($wnStatusOrder | ForEach-Object { $n = (& $wnCount $_ ''); if ($n -gt 0) { "    `"$_`" : $n" } }) -join [Environment]::NewLine)
+``````
+
+<!-- bp:shown-in-graphic -->
+
+**$($wnRows.Count)** items  ·  **$(& $wnCount 'Generally available' '')** generally available  ·  **$(& $wnCount 'Preview' '')** in preview  ·  **$($wnActionRows.Count)** retiring or needing action  ·  **$wnGapCount** touching a criterion not met here
+
+## Retiring and action needed
+
+Retirements, deprecations and calls to action, the soonest deadline first. Check each against the pages it links to before the date it names.
+
+$(Format-Table -Items $wnActionRows -Columns 'Deadline','Product','Status','Item','Summary','Relates to here' -EmptyMessage '_Nothing retiring or needing action in this window._')
+
+## Microsoft Sentinel
+
+$(Format-Table -Items @($wnRows | Where-Object Product -EQ 'Microsoft Sentinel') -Columns 'Month','Status','Item','Summary','Relates to here' -EmptyMessage '_No items in this window._')
+
+## Microsoft Defender XDR
+
+$(Format-Table -Items @($wnRows | Where-Object Product -EQ 'Microsoft Defender XDR') -Columns 'Month','Status','Item','Summary','Relates to here' -EmptyMessage '_No items in this window._')
+
+## Sources
+
+$wnSourceLines
+
+The status comes from each entry's own wording: a call to action is Action needed; retired, retiring, deprecated or transitioning is Retiring; then Generally available or Preview as Microsoft marks it; anything else is Update. The links to this report come from Private/Resources/whats-new-topics.json.
+"@
+}
+Write-Section '03-whats-new.md' $wnBody
 
 # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
 # Private/Get-SentinelMaturity.ps1; methodology and criteria:

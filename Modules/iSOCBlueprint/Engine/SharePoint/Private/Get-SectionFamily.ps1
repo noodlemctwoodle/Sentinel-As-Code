@@ -24,8 +24,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.0
-    Last Updated: 2026-10-09
+    Version:      0.2.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -51,6 +51,7 @@ $script:SacSectionFamilyMap = @{
     0  = 'Overview'                # 00-overview
     1  = 'Overview'                # 01-live-snapshot
     2  = 'Overview'                # 02-deprecated-legacy-features
+    3  = 'Overview'                # 03-whats-new
     10 = 'Data sources'            # 10-data-connectors
     11 = 'Operational health'      # 11-sentinel-health
     12 = 'Operational health'      # 12-soc-optimization

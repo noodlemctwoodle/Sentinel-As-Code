@@ -469,6 +469,23 @@ Describe 'Renderer section model output' {
         (Get-Content (Join-Path $dirs.Both '83-data-collection.md') -Raw) | Should -Match '(?m)^flowchart LR\r?\n    %% visual topology \{'
     }
 
+    It 'writes the What''s new page from the capture, retirements first, each item tied to this report' {
+        $md = Get-Content (Join-Path $dirs.Both '03-whats-new.md') -Raw
+        $md | Should -Match '## Retiring and action needed'
+        # The soonest deadline first.
+        $md.IndexOf('2026-06-30') | Should -BeLessThan $md.IndexOf('| 2027-03')
+        # An item links to the pages and criteria it touches, with this workspace's status.
+        $md | Should -Match '\[UEBA\]\(26-ueba\.md\); \[?SAC-COV-05'
+        $md | Should -Match '\[Data lake\]\(88-sentinel-data-lake\.md\)'
+        $md | Should -Match '\[Call to action: move playbooks to the new trigger before June 30, 2026\]\(https://learn\.microsoft\.com/'
+        $section = Get-Content (Join-Path $dirs.Both 'sections/03-whats-new.json') -Raw | ConvertFrom-Json
+        $c = @($section.blocks | Where-Object { $_.type -eq 'chart' })[0]
+        $c.kind | Should -Be 'meters'
+        @($c.data.meters.title) | Should -Be @('Microsoft Sentinel', 'Microsoft Defender XDR')
+        # The figures line the graphic shows is left to the exports.
+        @($section.blocks | Where-Object { $_.type -eq 'paragraph' -and $_.inGraphic }).Count | Should -Be 1
+    }
+
     It 'carries every Mermaid chart as a chart block' {
         $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid').Count } | Measure-Object -Sum).Sum
         $charts = 0

@@ -1609,6 +1609,20 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($data.nodes).href | Should -Be @('/#sac-section-90', '/#sac-finding-SAC-GOV-05', 'https://learn.microsoft.com/x', $null)
     }
 
+    It 'shows What''s new as a report page and makes no network call in the build' {
+        $html | Should -Not -Match 'M\.whatsNew'
+        $html | Should -Not -Match 'class="wnitem"'
+        $html.Contains("'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'") | Should -BeTrue
+        $build = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build | Should -Not -Match 'Invoke-RestMethod|Invoke-WebRequest'
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $wn = @($model.sections | Where-Object { $_.num -eq 3 })
+        $wn.Count | Should -Be 1
+        $wn[0].family | Should -Be 'Overview'
+        # Two or three short items in a cell are chips too; the button only past three.
+        $html | Should -Match 'items\.length<4 && items\.some\(x=>x\.replace\(/<\[\^>\]\+>/g,''''\)\.length>60\)'
+    }
+
     It 'gives the chart web part the site''s button and its Show all toggle' {
         $wp = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/IsocBlueprintChartWebPart.ts') -Raw
         $wp | Should -Match "'<style>' \+ chartStyles\(SCOPE, theme\) \+ '</style>'"

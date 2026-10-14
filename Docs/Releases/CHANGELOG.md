@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **What's new in Sentinel and Defender, in the report** - a new page
+  (03) lists what Microsoft released, previewed and announced for
+  retirement in Microsoft Sentinel and Microsoft Defender XDR over the
+  last 12 months, read from their What's new pages on Microsoft Learn when
+  the collector runs. Retirements and calls to action come first, soonest
+  deadline first, a passed deadline marked. Each item links to its entry
+  on Learn and to the report pages and maturity criteria it touches, with
+  this workspace's status for each, and to the finding when one fired.
+  It replaces the dashboard's What's new panel, which showed general
+  Azure news from an RSS feed fetched by the site build; the site build
+  now makes no network call. Table cells with two or three short items
+  show as chips too.
 - **Show all is the site's button, and no repeated figure tiles** - a long
   list in the new graphics (source families, roles) shows its first rows
   and the rest behind the site's Show all button, which sits under the

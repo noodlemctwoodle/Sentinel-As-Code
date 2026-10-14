@@ -6,8 +6,7 @@
     section model.
 
 .DESCRIPTION
-    Offline apart from the optional "What's new" feed. Runs
-    Engine/SharePoint/Build-SentinelDocsSite.ps1.
+    Fully offline. Runs Engine/SharePoint/Build-SentinelDocsSite.ps1.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1
@@ -15,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -39,8 +38,8 @@ function New-iSOCBlueprintSite {
         the site descriptor and the findings. Nothing here talks to
         SharePoint or Azure, so the bundle can be built and inspected
         before publishing; open index.html in a browser to preview the
-        dashboard. The one network call is the dashboard's "What's new"
-        feed, which -SkipWhatsNew leaves out.
+        dashboard. What's new in Sentinel and Defender is a report page
+        (03-whats-new.md), read by the collector.
 
         Render with ConvertTo-iSOCBlueprint -Format Json first. A workspace
         rendered before the section model existed (Markdown only) is
@@ -65,15 +64,15 @@ function New-iSOCBlueprintSite {
         else the folder name.
 
     .PARAMETER WhatsNewFeedUrl
-        RSS feed for the dashboard's "What's new" panel. Defaults to
-        Microsoft's Azure release-communications feed.
+        No longer used: What's new is a report page the collector reads.
+        Kept so existing scripts still run.
 
     .PARAMETER WhatsNewCount
-        Feed items to keep. Defaults to 8.
+        No longer used; see WhatsNewFeedUrl.
 
     .PARAMETER SkipWhatsNew
-        Do not fetch the feed; the panel is left out and the build is fully
-        offline.
+        No longer used: the build makes no network call. Kept so existing
+        scripts still run.
 
     .PARAMETER MaxTableRows
         Most rows per table on a SharePoint page. Defaults to 500; longer

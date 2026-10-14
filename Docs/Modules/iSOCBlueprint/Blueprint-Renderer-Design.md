@@ -98,6 +98,7 @@ table only.
 |---|---|---|---|
 | `00-overview.md` | pie | `$gapBySeverity` | none (always renders) |
 | `00-overview.md` | sankey-beta, with a `%% visual estate` line (every family's GB and the part a detection reads; the four stages as in use of a whole); the stage table after it is marked `bp:shown-in-graphic` | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
+| `03-whats-new.md` | pie, with a `%% visual meters` line (each product's items by status, retiring and gap figures) | `_raw/whats-new.json` by status | items `-gt 0` (else a sentence) |
 | `02-deprecated-legacy-features.md` | gantt, with a `%% visual runway` line (each deadline and whether this workspace still uses what it retires) | static deadlines + `_DaysUntilFromToday` + the legacy-feature captures | none |
 | `10-data-connectors.md` | pie | `$connectors` grouped by `kind` | none |
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
@@ -270,9 +271,11 @@ rest). The panels and the Markdown that carries them:
 | Maturity areas, roadmap, quick wins, criteria, CSF rollup | 91 (the whole roadmap, not the first twenty) |
 | Findings by severity and category, finding cards | 90 |
 
-The one dashboard panel without a Markdown twin is "What's new in Microsoft
-security": it is an external news feed fetched at site-build time, not
-workspace state, and would date a Word report the day it was printed.
+What's new in Sentinel and Defender is a report page (03), not a dashboard
+panel: the collector reads Microsoft's What's new pages with the rest of
+the snapshot, so the page, the Word report and the dashboard's Report tab
+all show the same items, dated by the run, and each item can be tied to
+this workspace's findings and maturity criteria.
 
 Both the renderer and the site build map tables and first-party alert
 products to source families through `Private/Get-TableFamily.ps1`

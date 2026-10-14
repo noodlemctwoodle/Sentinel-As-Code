@@ -73,8 +73,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.5.2
-    Last Updated:   2026-10-13
+    Version:        0.6.0
+    Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -199,7 +199,8 @@ function Save-Json {
     $target = Join-Path $rawOut $FileName
     $singleObjectFiles = @(
         'workspace.json','run-context.json','settings.json','cost-estimate.json',
-        'subscription.json','dedicated-cluster.json','maturity.json','bookmarks-count.json'
+        'subscription.json','dedicated-cluster.json','maturity.json','bookmarks-count.json',
+        'whats-new.json'
     )
     if ($null -eq $Data) {
         if ($singleObjectFiles -contains $FileName) {
@@ -1786,6 +1787,16 @@ Try-Capture 'defender-custom-detections' {
     $detections = @(Get-DefenderCustomDetections)
     Save-Json -FileName 'defender-custom-detections.json' -Data $detections
     Save-Json -FileName 'custom-detection-table-references.json' -Data @(Get-CustomDetectionTableReferences -Detections $detections)
+}
+
+# ---------------------------------------------------------------------------
+# What's new: the Microsoft Sentinel and Defender XDR What's new pages on
+# Microsoft Learn, read as Markdown. A public page, not the tenant; when it
+# cannot be reached the capture fails here and the report says so.
+# ---------------------------------------------------------------------------
+Try-Capture 'whats-new' {
+    . (Join-Path $PSScriptRoot 'Private/Get-WhatsNew.ps1')
+    Save-Json -FileName 'whats-new.json' -Data (Get-WhatsNew -Months 12)
 }
 
 # ---------------------------------------------------------------------------
