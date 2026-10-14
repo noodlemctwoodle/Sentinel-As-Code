@@ -123,9 +123,6 @@ roles:
 | Reader | Subscription | Clusters, policy assignments, locks and resource provider registration |
 | `CustomDetection.Read.All` (Microsoft Graph application permission) | Tenant | Defender custom detections, optional |
 
-See [Roles and permissions in Microsoft Sentinel](https://learn.microsoft.com/azure/sentinel/roles)
-and [Connect from Azure with OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect).
-
 ## REST-only gaps
 
 Nearly everything is read over REST by convention. These are the surfaces where REST is the
@@ -278,3 +275,9 @@ GitHub by default, or a local path with `-Source`).
 Confirms which tables are eligible for the Sentinel ingestion benefit. List maintained
 in `Private/Resources/sentinel-benefit-tables.json` and reviewed against
 <https://learn.microsoft.com/azure/sentinel/billing-reduce-costs> on every release.
+
+## References
+
+- [Roles and permissions in Microsoft Sentinel](https://learn.microsoft.com/azure/sentinel/roles)
+- [Connect from Azure with OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
+- [Azure Retail Prices REST API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)

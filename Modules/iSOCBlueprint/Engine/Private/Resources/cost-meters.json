@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "lastUpdated": "2026-05-14",
-  "description": "Maps Azure Retail Prices meter names to Sentinel/Log Analytics cost categories. Microsoft has renamed several meters over time; both the legacy and current names are listed so a workspace on either pricing surface receives a non-zero unit price. When the API returns more than one row for the same meter name (e.g. a 0-priced commitment-tier 'included' row alongside a non-zero PAYG row), the cost calculator takes the MAX unit price across the rows — that yields the PAYG rate, which is the right baseline for a non-committed workspace.",
+  "description": "Maps Azure Retail Prices meter names to Sentinel/Log Analytics cost categories. Microsoft has renamed several meters over time; both the legacy and current names are listed so a workspace on either pricing surface receives a non-zero unit price. When the API returns more than one row for the same meter name (e.g. a 0-priced commitment-tier 'included' row alongside a non-zero PAYG row), the cost calculator takes the MAX unit price across the rows, which yields the PAYG rate, which is the right baseline for a non-committed workspace.",
   "skipMeters": [
     "Free Data Analyzed"
   ],

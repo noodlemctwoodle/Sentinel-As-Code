@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **References at the foot of every page, readable headers, no em-dashes** -
+  the renderer gathers every page's reference links (the Microsoft Learn
+  pointers, a finding's Reference, "See A and B.") into one References
+  list at its end, a finding's reference naming the finding, and the
+  dashboard shows it as a link card under the tabs. Table headers read as
+  words (GB (30d), Monthly cost, Last ingested) instead of property
+  names. Em-dashes are gone from the report's headings, prose, chart
+  titles and finding titles. Selecting a rule in the detection matrix
+  opens Rule Performance filtered to it, and Rule effectiveness names a
+  Sentinel rule by its rule id rather than its alert name. A report page
+  always opens on its first tab. The navigation's Workspace & data
+  heading is Workspace, and the Retention page is Data Retention.
 - **Link cards, whole chart labels and a new response chain** - on the
   SharePoint site, the Microsoft Learn links that close a report page
   (and a finding's Reference, and "See A and B.") are a card of link

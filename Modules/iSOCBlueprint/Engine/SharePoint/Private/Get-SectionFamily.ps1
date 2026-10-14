@@ -24,7 +24,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -41,7 +41,7 @@ $script:SacSectionFamilyOrder = @(
     'Detection'
     'Hunting & content'
     'Automation'
-    'Workspace & data'
+    'Workspace'
     'Cost & access'
     'Assessment'
     'References'
@@ -68,23 +68,23 @@ $script:SacSectionFamilyMap = @{
     28 = 'Detection'               # 28-detection-opportunities
     30 = 'Hunting & content'       # 30-hunting-queries
     35 = 'Hunting & content'       # 35-parsers-functions
-    36 = 'Workspace & data'        # 36-data-export
-    37 = 'Workspace & data'        # 37-search-restore
+    36 = 'Workspace'        # 36-data-export
+    37 = 'Workspace'        # 37-search-restore
     38 = 'Hunting & content'       # 38-summary-rules
     40 = 'Hunting & content'       # 40-workbooks
     50 = 'Hunting & content'       # 50-watchlists
     60 = 'Automation'              # 60-automation-rules-playbooks
     70 = 'Hunting & content'       # 70-content-hub
-    80 = 'Workspace & data'        # 80-workspace
-    81 = 'Workspace & data'        # 81-table-plans-retention
-    82 = 'Workspace & data'        # 82-dedicated-cluster
-    83 = 'Workspace & data'        # 83-data-collection
+    80 = 'Workspace'        # 80-workspace
+    81 = 'Workspace'        # 81-table-plans-retention
+    82 = 'Workspace'        # 82-dedicated-cluster
+    83 = 'Workspace'        # 83-data-collection
     84 = 'Cost & access'           # 84-cost-estimate
     85 = 'Cost & access'           # 85-rbac
-    86 = 'Workspace & data'        # 86-subscription-context
-    87 = 'Workspace & data'        # 87-azure-monitor-agents
-    88 = 'Workspace & data'        # 88-sentinel-data-lake
-    89 = 'Workspace & data'        # 89-retention
+    86 = 'Workspace'        # 86-subscription-context
+    87 = 'Workspace'        # 87-azure-monitor-agents
+    88 = 'Workspace'        # 88-sentinel-data-lake
+    89 = 'Workspace'        # 89-retention
     90 = 'Assessment'              # 90-gap-analysis (the findings)
     91 = 'Assessment'              # 91-maturity-assessment
     96 = 'References'              # 96-references-microsoft
@@ -121,7 +121,7 @@ function Get-SectionFamily {
         5 { return 'Hunting & content' }
         6 { return 'Automation' }
         7 { return 'Hunting & content' }
-        8 { return 'Workspace & data' }
+        8 { return 'Workspace' }
         9 { return $(if ($Number -ge 96) { 'References' } else { 'Assessment' }) }
         default { return 'Other' }
     }

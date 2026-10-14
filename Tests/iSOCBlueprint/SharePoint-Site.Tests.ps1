@@ -86,7 +86,7 @@ Describe 'Get-SectionFamily' {
         Get-SectionFamily -Number 30 | Should -Be 'Hunting & content'
         Get-SectionFamily -Number 25 | Should -Be 'Detection'
         Get-SectionFamily -Number 84 | Should -Be 'Cost & access'
-        Get-SectionFamily -Number 36 | Should -Be 'Workspace & data'
+        Get-SectionFamily -Number 36 | Should -Be 'Workspace'
     }
 
     It 'places detection opportunities under Detection, and the findings and maturity together under Assessment, before the references' {
@@ -1868,14 +1868,37 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'shows a paragraph or list of links only as a card of link tiles' {
-        $html.Contains('function refLinks(html){') | Should -BeTrue
+        $html.Contains('function refLinks(html, heading){') | Should -BeTrue
         $html.Contains("if(b.t==='p') return kvTiles(b.html) || refLinks(b.html) || '<p>'+b.html+'</p>';") | Should -BeTrue
         $html.Contains("if(b.t==='ul') return refLinks((b.items||[]).join(' · ')) ||") | Should -BeTrue
         # A lead-in (See, Reference:) and the separators between links are all a links-only paragraph may hold.
         $html.Contains(".replace(/^(see also|see|references?|docs|further reading|read more)\s*:?/i,'').replace(/\band\b|&middot;|[·,;.:\s]/gi,'');") | Should -BeTrue
-        $html.Contains("const head=items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading';") | Should -BeTrue
+        $html.Contains("const head=heading || (items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading');") | Should -BeTrue
         $html | Should -Match '\.refl\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(300px,1fr\)\);gap:8px\}'
         $html | Should -Not -Match '\.refa\{[^}]*border-left'
+    }
+
+    It 'opens a matrix rule in Rule Performance, filtered to it' {
+        # The rule name is a button, and the row passes its alert and incident counts.
+        $html.Contains('<button type="button" class="dm-open" data-rule="''+esc(r.name)+''" data-alerts="''+n0(r.alerts)+''" data-incidents="''+inc+''"') | Should -BeTrue
+        $html.Contains("window.openRuleReport(b.dataset.rule, {alerts:+b.dataset.alerts||0, incidents:+b.dataset.incidents||0})") | Should -BeTrue
+        $html.Contains('window.openRuleReport = function(name, counts){') | Should -BeTrue
+        $html.Contains("const sec=secs.find(x=>/^rule performance$/i.test(cleanTitle(x.title||'')));") | Should -BeTrue
+        # Each table is filtered to the rule; the incidents table wins when it lists it.
+        $html.Contains("if(inp){ inp.value='`"'+want+'`"'; docFilter(t.id); }") | Should -BeTrue
+        $html.Contains('if(hit && (!best || (inc && !best.inc))) best={t, tr:hit, inc};') | Should -BeTrue
+        $html.Contains("note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');") | Should -BeTrue
+        $html | Should -Match 'Select a rule to open it in Rule Performance\.'
+    }
+
+    It 'pins a page''s References under its tabs and opens a page on its first tab' {
+        $html.Contains("const refIx=groups.findIndex(g=>/^references$/i.test(label(g))") | Should -BeTrue
+        $html.Contains("(refsCard? '<div class=`"docrefs`">'+refsCard+'</div>' : '');") | Should -BeTrue
+        @([regex]::Matches($html, [regex]::Escape("const refs=body.querySelector(':scope > .docrefs'); if(refs) body.appendChild(refs);"))).Count | Should -Be 2
+        $html.Contains('if(s.num!==curDocNum) delete lastDocTab[s.num];') | Should -BeTrue
+        # Readable headers still mark their columns to wrap.
+        $html.Contains('data ?types') | Should -BeTrue
+        $html.Contains('applies ?to') | Should -BeTrue
     }
 
     It 'keeps numeric report columns to their content and chart labels whole' {

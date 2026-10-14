@@ -539,6 +539,10 @@
   table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
   table.doct tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
   table.doct td.num,table.doct th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.doct tbody tr.rowpick td{background:color-mix(in srgb,var(--brand) 16%,transparent);transition:background .6s}
+  .docrefs{margin-top:24px}
+  .docnote.rulepin{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .docrefs .refs{margin:0}
   table.doct th.num{width:1%}
   /* Sortable column titles: the title is a button; a small arrow shows the
      order, faint until the column is sorted. */
@@ -703,6 +707,10 @@
   .dm-src{flex:none;width:32px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:9.5px;font-weight:800;letter-spacing:.04em}
   .dm-src.S{background:color-mix(in srgb,#4f5bd5 18%,transparent);color:#4f5bd5} .dm-src.X{background:color-mix(in srgb,#2b8c9e 20%,transparent);color:#1f7a8a}
   html[data-theme="dark"] .dm-src.S{color:#a5b4fc} html[data-theme="dark"] .dm-src.X{color:#67e8f9}
+  .dm tbody tr{cursor:pointer}
+  .dm .dm-open{all:unset;display:block;cursor:pointer;border-radius:4px}
+  .dm .dm-open:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .dm tbody tr:hover .dm-open b{text-decoration:underline;text-underline-offset:2px}
   .dm-rtxt{min-width:0} .dm-rtxt b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.35;color:var(--ink)}
   .dm-rtxt small{display:block;color:var(--faint);font-size:10.5px;margin-top:1px}
   .dm td{border-top:1px solid var(--line-2);vertical-align:middle}
@@ -1066,7 +1074,7 @@
     <div class="panel" id="detMatrixPanel">
       <div class="phead"><div>
         <h2>Detection matrix</h2>
-        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) and its incidents in 30 days by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them.</p>
+        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) and its incidents in 30 days by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them. Select a rule to open it in Rule Performance.</p>
       </div></div>
       <div class="dm-summary" id="dmSummary"></div>
       <div class="dm-tools"><input type="search" id="dmQ" placeholder="Find a rule, detection or table…" aria-label="Find a rule, detection or table"><div class="dm-grp" id="dmSrc" role="group" aria-label="Source"></div><div class="dm-grp" id="dmHealth" role="group" aria-label="Health"></div><div class="dm-grp" id="dmMode" role="group" aria-label="Columns"></div></div>
@@ -2211,7 +2219,7 @@
       rows.forEach((r,ri)=>{
         const isX=r.source==='Defender XDR', inc=n0(r.incidents), closed=Math.max(0,inc-n0(r.open)), tbls=r.tables||[];
         h+='<tr'+(ri>=FIRST? ' data-mr hidden':'')+'><td class="dm-rn"><div class="dm-name"><span class="dm-src '+(isX?'X':'S')+'" title="'+(isX?'Defender XDR custom detection':'Sentinel analytics rule')+'">'+(isX?'XDR':'SEN')+'</span>'+
-          '<div class="dm-rtxt"><b title="'+esc(r.name)+'">'+esc(r.name)+'</b><small>'+esc(r.kind||r.source)+' · '+tbls.length+' table'+(tbls.length===1?'':'s')+(n0(r.failures)? ' · '+n0(r.failures)+' run failure'+(n0(r.failures)===1?'':'s'):'')+'</small></div></div></td>';
+          '<div class="dm-rtxt"><button type="button" class="dm-open" data-rule="'+esc(r.name)+'" data-alerts="'+n0(r.alerts)+'" data-incidents="'+inc+'" title="Open '+esc(r.name)+' in Rule Performance"><b>'+esc(r.name)+'</b></button><small>'+esc(r.kind||r.source)+' · '+tbls.length+' table'+(tbls.length===1?'':'s')+(n0(r.failures)? ' · '+n0(r.failures)+' run failure'+(n0(r.failures)===1?'':'s'):'')+'</small></div></div></td>';
         cols.forEach((c,i)=>{ const hit=tbls.filter(t=>c.tables.includes(t)), col=famColor[c.fam]||'#64748b';
           h+='<td class="dm-c" data-c="'+i+'"'+(hit.length? ' title="'+esc(hit.join(', '))+'"':'')+'>'+(hit.length? (hit.length>1? '<i style="background:'+col+';--g:'+col+';color:'+inkOn(col)+'">'+hit.length+'</i>' : '<i class="one" style="background:'+col+';--g:'+col+'"></i>') : '')+'</td>'; });
         h+=spacer;
@@ -2239,6 +2247,8 @@
     document.getElementById('dmQ').addEventListener('input',e=>{ st.q=e.target.value; render(); });
     table.addEventListener('mouseover',e=>{ const c=e.target.closest('[data-c]'); table.querySelectorAll('.dm-hot').forEach(x=>x.classList.remove('dm-hot')); if(c) table.querySelectorAll('td[data-c="'+c.dataset.c+'"]').forEach(x=>x.classList.add('dm-hot')); });
     table.addEventListener('mouseleave',()=>table.querySelectorAll('.dm-hot').forEach(x=>x.classList.remove('dm-hot')));
+    // A rule's row (or its name, from the keyboard) opens it in Rule Performance.
+    table.addEventListener('click',e=>{ const tr=e.target.closest('tbody tr'), b=tr&&tr.querySelector('.dm-open'); if(b && typeof window.openRuleReport==='function') window.openRuleReport(b.dataset.rule, {alerts:+b.dataset.alerts||0, incidents:+b.dataset.incidents||0}); });
     render();
   })();
 
@@ -3117,7 +3127,7 @@
     }
     function tableHtml(b, idx){
       const many = b.rows.length>12;
-      const wrapCols = b.headers.map(h=>/name|title|datatypes|role|remediation|evidence|finding|description|principal|resource|query|source|identifier|statuses|surface|appliesto|capability|meter|tags/i.test(h));
+      const wrapCols = b.headers.map(h=>/name|title|data ?types|role|remediation|evidence|finding|description|principal|resource|query|source|identifier|statuses|surface|applies ?to|capability|meter|tags/i.test(h));
       // A column is numeric when every non-empty cell is a number; its header
       // and cells then right-align together so the figures sit under the title.
       const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
@@ -3265,6 +3275,7 @@
       body.classList.remove('tabbed');
       [...body.querySelectorAll(':scope > .docpane')].forEach(p=>{ [...p.children].forEach(c=>{ c.classList.remove('lead'); body.appendChild(c); }); p.remove(); });
       const strip=body.querySelector(':scope > .doctabs'); if(strip) strip.remove();
+      const refs=body.querySelector(':scope > .docrefs'); if(refs) body.appendChild(refs);
     }
     function showTab(body, i, focus){
       const tabs=[...body.querySelectorAll(':scope > .doctabs .doctab')], panes=[...body.querySelectorAll(':scope > .docpane')];
@@ -3325,6 +3336,7 @@
         strip.appendChild(b);
       });
       body.appendChild(strip); panes.forEach(p=>body.appendChild(p));
+      const refs=body.querySelector(':scope > .docrefs'); if(refs) body.appendChild(refs);
       body.classList.add('tabbed');
       showTab(body, lastDocTab[curDocNum]||0, false);
       done();
@@ -3375,7 +3387,7 @@
     const REF_BOOK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>';
     const REF_LINK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
     const REF_GO='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
-    function refLinks(html){
+    function refLinks(html, heading){
       const A=/<a\b[^>]*>[\s\S]*?<\/a>/g, src=String(html||''), links=src.match(A);
       if(!links) return '';
       const rest=src.replace(A,' ').replace(/<[^>]+>/g,' ').trim()
@@ -3390,7 +3402,7 @@
         items.push({href, title:title||esc(href), area:refArea(href), learn:/(^|\.)learn\.microsoft\.com$/i.test((()=>{ try{ return new URL(href).hostname; }catch(e){ return ''; } })())});
       }
       if(!items.length) return '';
-      const head=items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading';
+      const head=heading || (items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading');
       return '<div class="refs"><div class="refs-h">'+REF_BOOK+head+'</div><div class="refl">'+
         items.map(x=>'<a class="refa" href="'+esc(x.href)+'" target="_blank" rel="noopener"><span class="refi">'+(x.learn?REF_BOOK:REF_LINK)+'</span>'+
           '<span class="reft"><span class="refn">'+x.title+'</span>'+(x.area?'<span class="refsub">'+esc(x.area)+'</span>':'')+'</span><span class="refgo">'+REF_GO+'</span></a>').join('')+
@@ -3400,6 +3412,8 @@
     window.addEventListener('resize',()=>{ clearTimeout(layoutDocTimer); layoutDocTimer=setTimeout(layoutDoc,150); });
     function render(num){
       const s=secs.find(x=>x.num===num)||secs[0];
+      // A page opens on its first tab; the tab it is on is kept only while it stays open (a resize).
+      if(s.num!==curDocNum) delete lastDocTab[s.num];
       curDocNum=s.num;
       wpCharts.length=0;
       let ti=0;
@@ -3427,13 +3441,19 @@
         else (groups.length? groups[groups.length-1].blocks : intro).push(b);
       });
       const label=g=>g.head.html.replace(/<[^>]+>/g,'').trim();
+      // The page's References (every reference link it gives, gathered at
+      // its foot by the renderer) is a link card under the tabs, on every tab.
+      const refIx=groups.findIndex(g=>/^references$/i.test(label(g)) && g.blocks.length && g.blocks.every(b=>(b.t==='ul'||b.t==='p') && refLinks(b.t==='ul'? (b.items||[]).join(' · ') : b.html)));
+      const refsCard=refIx<0? '' : refLinks(groups[refIx].blocks.map(b=>b.t==='ul'? (b.items||[]).join(' · ') : b.html).join(' · '), 'References').replace(/<!--\/refs-->$/,'');
+      if(refIx>=0) groups.splice(refIx,1);
       const rowsIn=g=>g.blocks.filter(b=>b.t==='table').reduce((a,b)=>a+(b.rows||[]).length,0);
       // The page's description, its opening paragraph, always sits under the
       // title, above any tabs.
       let desc='';
       if(intro.length && intro[0].t==='p' && !kvTiles(intro[0].html) && !refLinks(intro[0].html)){ desc='<p class="docdesc">'+intro[0].html+'</p>'; intro.shift(); }
       const body=desc+(intro.length? '<div class="docintro">'+blocksHtml(intro)+'</div>' : '')+
-        groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+blocksHtml(g.blocks)+'</section>').join('');
+        groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+blocksHtml(g.blocks)+'</section>').join('')+
+        (refsCard? '<div class="docrefs">'+refsCard+'</div>' : '');
       // summary stat chips
       const stats=statsForSection(s);
       let chips='';
@@ -3594,6 +3614,42 @@
       render(num);
       const el = nav.querySelector('.docitem[data-num="'+num+'"]');
       if(el) el.scrollIntoView({block:'nearest'});
+    };
+    // A rule picked in the detection matrix opens Rule Performance with its
+    // tables filtered to that rule, on the tab where it shows: its incidents
+    // by verdict when it has any, else its alert volume. A table too short to
+    // have a filter keeps its rows and marks the rule's.
+    window.openRuleReport = function(name, counts){
+      const sec=secs.find(x=>/^rule performance$/i.test(cleanTitle(x.title||'')));
+      if(!sec) return false;
+      if(activateTab) activateTab('sectionsdoc');
+      gotoDocSection(sec.num);
+      const want=String(name||'').replace(/"/g,'').trim(), low=want.toLowerCase();
+      let best=null;
+      content.querySelectorAll('table.doct').forEach(t=>{
+        const inp=content.querySelector('.doctable-tools input[data-for="'+t.id+'"]');
+        if(inp){ inp.value='"'+want+'"'; docFilter(t.id); }
+        const hit=[...t.querySelectorAll('tbody tr')].find(tr=>tr.style.display!=='none' && tr.textContent.toLowerCase().includes(low));
+        const inc=headsOf(t).includes('incidents');
+        if(hit && (!best || (inc && !best.inc))) best={t, tr:hit, inc};
+      });
+      // A note above the tabs says which rule the tables show, and clears it.
+      const c=counts||{}, nA=+c.alerts||0, nI=+c.incidents||0, body=content.querySelector('.docbody');
+      const why=best? '' : (nA||nI)
+        ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in 30 days carry the alert names it gives them, in the alert volume table.'
+        : ' It raised no alerts or incidents in the last 30 days, so no table here lists it.';
+      if(body){
+        const note=document.createElement('div'); note.className='docnote rulepin';
+        note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');
+        const desc=body.querySelector(':scope > .docdesc'); body.insertBefore(note, desc? desc.nextSibling : body.firstChild);
+        note.querySelector('[data-unpin-rule]').onclick=()=>{ content.querySelectorAll('.doctable-tools input[data-for]').forEach(i=>{ i.value=''; docFilter(i.dataset.for); }); note.remove(); };
+      }
+      if(!best){ bringTop(content); return true; }
+      const pane=best.t.closest('.docpane');
+      if(pane && pane.hidden){ const tab=document.getElementById(pane.getAttribute('aria-labelledby')); if(tab) tab.click(); }
+      best.tr.classList.add('rowpick'); setTimeout(()=>best.tr.classList.remove('rowpick'),2600);
+      bringTop(best.t.closest('.doctable-wrap')||best.t);
+      return true;
     };
   })();
 

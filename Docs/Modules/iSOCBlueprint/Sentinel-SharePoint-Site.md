@@ -18,7 +18,7 @@ One communication site per workspace, containing:
 | --- | --- | --- |
 | **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection matrix, then the ingest and billing flow), insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
-| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
+| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
 | **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, and a copy of the dashboard per day for its date picker (`dashboard/history/`). | `BlueprintAssets` library |
 
@@ -152,7 +152,13 @@ finds a rule, detection or table. The header and rule names stay in place
 as the matrix scrolls, hovering a column highlights it, and the footer
 counts the rules reading each column. Custom detections show when the
 collector captured them (it needs a Graph sign-in); their health has no
-run-failure data, so they are Working or Silent.
+run-failure data, so they are Working or Silent. Selecting a rule (its row,
+or its name from the keyboard) opens Report > Rule Performance with each
+table there filtered to that rule, on the Rule effectiveness tab when it has
+incidents (else its alert volume), with its row highlighted. A note above
+the tabs names the rule and has a Show every rule button; when no table
+lists the rule it says why (no alerts or incidents in 30 days, or alerts
+filed under the alert names the rule gives them).
 
 The ingest and billing flow under it is drawn the same way: source families
 as glowing dots on the left, every table as a pill tinted in its family's
@@ -318,7 +324,11 @@ sitting above the strip). A tab or page still too tall shrinks its
 tallest tables first, to 200px, and as a last resort scrolls inside the
 panel. A tab is labelled with its heading (a bracketed qualifier moves
 to the tooltip and the top of the tab) and the rows it holds; the arrow
-keys move between tabs, and returning to a page reopens its last tab.
+keys move between tabs. A page always opens on its first tab; the tab
+it is on holds while it stays open (on a resize, say). Every page's
+reference links sit at its foot: the renderer gathers them into one
+References list, and the page shows it as a card of link tiles under the
+tabs, the same on every tab.
 The layout is worked out when a page or tab opens, on resize and when
 the contents search changes the list; on a narrow screen, where the list
 sits above the page, the page reads top to bottom. Every page opens with

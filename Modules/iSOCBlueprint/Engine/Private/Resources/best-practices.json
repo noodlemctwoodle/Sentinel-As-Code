@@ -77,7 +77,7 @@
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-RulesDisabledOrFailing",
-      "remediation": "A disabled or failing rule produces no alerts. Investigate why each rule is off — missing data source, broken parser, or deliberate suppression — and either remediate or remove.",
+      "remediation": "A disabled or failing rule produces no alerts. Investigate why each rule is off (a missing data source, a broken parser or deliberate suppression) and either remediate or remove.",
       "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-built-in"
     },
     {
@@ -150,7 +150,7 @@
       "id": "SAC-PLT-11",
       "legacyId": "SENT-014",
       "area": "PLT",
-      "title": "Sentinel still on Azure portal — Defender XDR migration deadline 2027-03-31",
+      "title": "Sentinel still on the Azure portal: Defender XDR migration deadline 2027-03-31",
       "category": "Strategic",
       "severity": "Info",
       "check": "Test-OnboardedToDefender",
@@ -209,7 +209,7 @@
       "category": "Cost",
       "severity": "Warning",
       "check": "Test-SentinelBenefitApplied",
-      "remediation": "Defender for Servers P2, Defender for Cloud and M365 E5 grant a free Sentinel ingestion allowance. If billable security-table ingest is non-zero on a workspace with these plans, the benefit may not be applied — open a support case.",
+      "remediation": "Defender for Servers P2, Defender for Cloud and M365 E5 grant a free Sentinel ingestion allowance. If billable security-table ingest is non-zero on a workspace with these plans, the benefit may not be applied, so open a support case.",
       "learn": "https://learn.microsoft.com/azure/sentinel/billing-reduce-costs"
     },
     {
@@ -282,7 +282,7 @@
       "id": "SAC-INV-01",
       "legacyId": "SENT-026",
       "area": "INV",
-      "title": "Silent table — had ingestion historically but nothing in the last 7 days",
+      "title": "Silent table: had ingestion historically but nothing in the last 7 days",
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-SilentTables",
@@ -293,7 +293,7 @@
       "id": "SAC-INV-04",
       "legacyId": "SENT-027",
       "area": "INV",
-      "title": "Orphan table — schema deployed but no data in the last 90 days",
+      "title": "Orphan table: schema deployed but no data in the last 90 days",
       "category": "Hygiene",
       "severity": "Info",
       "check": "Test-OrphanTables",
@@ -363,14 +363,14 @@
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-DominantNoisyRule",
-      "remediation": "A rule producing > 30 % of total alerts is usually a tuning candidate — too-broad threshold, missing exclusion, or wrong table. Investigate before it inflates MTTA for every other incident sharing the queue.",
+      "remediation": "A rule producing > 30 % of total alerts is usually a tuning candidate: a too-broad threshold, a missing exclusion or the wrong table. Investigate before it inflates MTTA for every other incident sharing the queue.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-optimize-analytics-rule-execution"
     },
     {
       "id": "SAC-AUT-01",
       "legacyId": "SENT-034",
       "area": "AUT",
-      "title": "No automation rules defined — every incident hits analysts manually",
+      "title": "No automation rules defined: every incident reaches analysts by hand",
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-AutomationRulesPresent",
@@ -385,7 +385,7 @@
       "category": "Operational",
       "severity": "Info",
       "check": "Test-DeadAnalyticsRule",
-      "remediation": "A rule with zero alerts in 90 days is either operating against a silent data source, has a broken query, or is genuinely covering a rare event. Confirm intent — if the underlying log table has data, the rule logic likely needs review.",
+      "remediation": "A rule with zero alerts in 90 days is either operating against a silent data source, has a broken query, or is genuinely covering a rare event. Confirm intent: if the underlying log table has data, the rule logic likely needs review.",
       "learn": "https://learn.microsoft.com/azure/sentinel/troubleshoot-analytics-rules"
     },
     {
@@ -429,7 +429,7 @@
       "category": "Identity",
       "severity": "Warning",
       "check": "Test-ServicePrincipalOverPrivileged",
-      "remediation": "A service principal with Owner or Contributor at workspace scope is a programmatic blast-radius risk — credential leakage gives an attacker full Sentinel modification rights. Replace with Microsoft Sentinel Contributor, Responder, or Reader as appropriate to the workload.",
+      "remediation": "A service principal with Owner or Contributor at workspace scope is a programmatic blast-radius risk: credential leakage gives an attacker full Sentinel modification rights. Replace with Microsoft Sentinel Contributor, Responder, or Reader as appropriate to the workload.",
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
     },
     {
@@ -440,7 +440,7 @@
       "category": "Identity",
       "severity": "Warning",
       "check": "Test-ResponderRoleAssigned",
-      "remediation": "Without anyone holding the Responder role, your SOC cannot acknowledge, comment on, or close incidents through least-privilege access — analysts end up using Contributor or Owner. Assign Microsoft Sentinel Responder to your tier-1 / tier-2 analyst groups.",
+      "remediation": "Without anyone holding the Responder role, your SOC cannot acknowledge, comment on, or close incidents through least-privilege access, so analysts end up using Contributor or Owner. Assign Microsoft Sentinel Responder to your tier-1 / tier-2 analyst groups.",
       "learn": "https://learn.microsoft.com/azure/sentinel/roles"
     },
     {
@@ -502,7 +502,7 @@
       "id": "SAC-LOG-18",
       "legacyId": "SENT-046",
       "area": "LOG",
-      "title": "AzureDiagnostics carrying multiple resource providers — switch to resource-specific tables",
+      "title": "AzureDiagnostics carrying multiple resource providers: switch to resource-specific tables",
       "category": "Cost",
       "severity": "Info",
       "check": "Test-AzureDiagnosticsResourceSpecific",
@@ -513,7 +513,7 @@
       "id": "SAC-PLT-02",
       "legacyId": "SENT-047",
       "area": "PLT",
-      "title": "Custom log table still using the HTTP Data Collector API (CLv1) — retirement 2026-09-14",
+      "title": "Custom log table still using the HTTP Data Collector API (CLv1): retirement 2026-09-14",
       "category": "Foundation",
       "severity": "Critical",
       "check": "Test-CustomLogsV1Migration",
@@ -524,7 +524,7 @@
       "id": "SAC-PLT-03",
       "legacyId": "SENT-048",
       "area": "PLT",
-      "title": "Legacy Log Analytics agent (MMA / OMS) still heartbeating — retired 2024-08-31",
+      "title": "Legacy Log Analytics agent (MMA / OMS) still heartbeating: retired 2024-08-31",
       "category": "Foundation",
       "severity": "Critical",
       "check": "Test-MmaAgentStillHeartbeating",
@@ -535,7 +535,7 @@
       "id": "SAC-TI-01",
       "legacyId": "SENT-049",
       "area": "TI",
-      "title": "Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table — stopped 2025-07-31",
+      "title": "Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table: stopped 2025-07-31",
       "category": "Foundation",
       "severity": "Critical",
       "check": "Test-LegacyThreatIntelligenceTable",

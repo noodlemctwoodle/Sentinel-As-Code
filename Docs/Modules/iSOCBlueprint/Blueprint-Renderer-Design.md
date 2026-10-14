@@ -389,6 +389,31 @@ each finding's H3 heading (`### SAC-LOG-03` followed by its title). HTML anchors
 on every Markdown host but provide stable link targets that don't shift
 when titles change.
 
+## Reference links at the foot of a page
+
+After the auto-link passes, `Write-Section` runs `Move-ReferenceLinks`
+over every page but the contents. A paragraph or list that holds only
+external links (the Microsoft Learn pointers under a section, a finding's
+`**Reference:**` line, "See A and B.") moves out of the page into one
+`## References` list at its end, each link once, in the order the page
+first gives it. A reference moved from under a finding's heading names
+the finding in its link text (`SAC-GOV-05: Roles ...`); several findings
+sharing a page share one line. It runs after the auto-linker so those ids
+stay text inside the link. Links inside a sentence, a table or a code
+fence stay where they are. The Conventions page (99) is copied from
+`Private/Resources/Blueprint-References.md`, which ends with its own
+References list.
+
+## Table headers
+
+`Format-Table` takes property names as columns and writes each header
+through `Format-ColumnLabel`: the names in `$script:ColumnLabels` as
+written (`Gb30d` reads GB (30d), `FPRate` FP rate, `LastFailureUtc` Last
+failure (UTC)), any other CamelCase name split into words (`MonthlyCost`
+reads Monthly cost), and a name with a space, or in one word, as it is.
+Cells still come from the named properties. Prose that names a column
+uses its header text.
+
 ## Mermaid PNG pre-render (ADO only)
 
 The renderer always ships raw ` ```mermaid ` fences. GitHub renders those

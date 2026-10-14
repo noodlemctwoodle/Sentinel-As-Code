@@ -228,7 +228,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'uses the Covered / Thin / None headline shape' {
-            $script:liveSnap | Should -Match 'MITRE tactics .*Covered / Thin / None'
+            $script:liveSnap | Should -Match 'MITRE tactics: Covered / Thin / None'
         }
 
         It 'does not use the old "with coverage" headline shape' {
@@ -327,7 +327,7 @@ Describe 'iSOC Blueprint renderer' {
             ([array]::IndexOf($heads, 'Microsoft-managed rules')) | Should -BeLessThan ([array]::IndexOf($heads, 'Recent modifications'))
             ([array]::IndexOf($heads, 'Recent modifications')) | Should -BeLessThan ([array]::IndexOf($heads, 'By Content Hub solution'))
             $perfHeads = [regex]::Matches($script:perfMd, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }
-            $perfHeads | Should -Be @('By alert volume (last 30d)', 'Rule effectiveness (last 30d)', 'Noisy rules (closed mostly as false positive)')
+            $perfHeads | Should -Be @('By alert volume (last 30d)', 'Rule effectiveness (last 30d)', 'Noisy rules (closed mostly as false positive)', 'References')
         }
 
         It 'keeps the charts and tables, each on its page' {
@@ -579,11 +579,11 @@ Describe 'iSOC Blueprint renderer' {
         It 'resolves T1078 to its catalogue name (Valid Accounts)' {
             # The fixture's first scheduled rule references T1078; the renderer
             # should look up the human-readable name from mitre-attack.json.
-            $script:mitre | Should -Match 'T1078 — Valid Accounts'
+            $script:mitre | Should -Match 'T1078: Valid Accounts'
         }
 
         It 'resolves T1078.004 sub-technique to its catalogue name (Cloud Accounts)' {
-            $script:mitre | Should -Match 'T1078\.004 — Cloud Accounts'
+            $script:mitre | Should -Match 'T1078\.004: Cloud Accounts'
         }
 
         It 'still links each cell back to attack.mitre.org' {
@@ -593,7 +593,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'reads sub-techniques from the subTechniques array as well as from techniques' {
             # The second fixture rule carries T1110.003 only in subTechniques,
             # the shape the preview alertRules API returns.
-            $script:mitre | Should -Match 'T1110\.003 — Password Spraying'
+            $script:mitre | Should -Match 'T1110\.003: Password Spraying'
         }
 
         It 'places a technique under the tactics ATT&CK gives it, not every tactic on the rule' {
@@ -602,15 +602,15 @@ Describe 'iSOC Blueprint renderer' {
             # Access only).
             $initial = [regex]::Match($script:mitre, '(?s)### TA0001 · Initial Access(.*?)(?=\n### |\n## )').Groups[1].Value
             $credential = [regex]::Match($script:mitre, '(?s)### TA0006 · Credential Access(.*?)(?=\n### |\n## )').Groups[1].Value
-            $initial | Should -Match 'T1078 — Valid Accounts'
+            $initial | Should -Match 'T1078: Valid Accounts'
             $initial | Should -Not -Match 'T1110'
-            $credential | Should -Match 'T1110 — Brute Force'
-            $credential | Should -Not -Match 'T1078 — Valid Accounts'
+            $credential | Should -Match 'T1110: Brute Force'
+            $credential | Should -Not -Match 'T1078: Valid Accounts'
         }
 
         It 'gives each sub-technique its own row with the parent''s coverage of sub-techniques' {
-            $script:mitre | Should -Match '\| \[T1078 — Valid Accounts\]\([^)]+\) \|  \| 1 \| 1 of 4 \|'
-            $script:mitre | Should -Match '\|  \| \[T1078\.004 — Cloud Accounts\]\([^)]+\) \| 1 \|  \|'
+            $script:mitre | Should -Match '\| \[T1078: Valid Accounts\]\([^)]+\) \|  \| 1 \| 1 of 4 \|'
+            $script:mitre | Should -Match '\|  \| \[T1078\.004: Cloud Accounts\]\([^)]+\) \| 1 \|  \|'
         }
 
         It 'lists every enabled rule once with its mapping, and no rule names in a technique table' {
@@ -668,6 +668,50 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'carries the full table names for the cost chart' {
             $script:costMd | Should -Match '(?m)^    %% x-labels \["[^"]+"'
+        }
+    }
+
+    Context 'reference links, column names and wording across the pages' {
+        It 'gathers every page''s reference links into one References list at its foot' {
+            foreach ($f in Get-ChildItem $script:tempWsRoot -Filter '*.md' | Where-Object Name -NE 'index.md') {
+                $parts = (Get-Content $f.FullName -Raw) -split '(?m)^## References\s*$'
+                # A line of external links only, outside the References list, is one the move missed.
+                $parts[0] | Should -Not -Match '(?m)^(\*\*Reference:\*\* )?\[[^\]]+\]\(https?://[^)]+\)(\s*\u00B7\s*\[[^\]]+\]\(https?://[^)]+\))*\s*$' -Because $f.Name
+                if ($parts.Count -gt 1) {
+                    $parts.Count | Should -Be 2 -Because $f.Name
+                    $parts[1] | Should -Not -Match '(?m)^#{1,3} ' -Because "$($f.Name) ends with its References"
+                    $parts[1] | Should -Match '(?m)^- \[[^\]]+\]\(https?://' -Because $f.Name
+                }
+            }
+        }
+
+        It 'names the finding a moved reference belongs to' {
+            $gap = Get-Content (Join-Path $script:tempWsRoot '90-gap-analysis.md') -Raw
+            $gap | Should -Match '(?m)^- \[SAC-[A-Z]{2,4}-\d{2}(, SAC-[A-Z]{2,4}-\d{2})*: [^\]]+\]\(https://learn\.microsoft\.com/'
+            $gap | Should -Not -Match '\*\*Reference:\*\* \['
+        }
+
+        It 'reads raw property names as words in table headers' {
+            $cost = Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw
+            $cost | Should -Match '\| Table \| Plan \| GB \(30d\) \| Monthly cost \|'
+            $cost | Should -Not -Match '\| Gb30d \|'
+        }
+
+        It 'writes no em-dash into a page' {
+            foreach ($f in Get-ChildItem $script:tempWsRoot -Filter '*.md') {
+                (Get-Content $f.FullName -Raw) | Should -Not -Match '\u2014' -Because $f.Name
+            }
+        }
+
+        It 'names a Sentinel rule in Rule effectiveness by its rule id, not its alert name' {
+            $src = Get-Content (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+            $src.Contains('if ($rid -and $rdn) { $ruleNameById[$rid] = $rdn }') | Should -BeTrue
+            $src.Contains('Rule         = $(if ($rk -and $ruleNameById.ContainsKey($rk)) { $ruleNameById[$rk] } else { $_.RuleName })') | Should -BeTrue
+            $script:perfMd | Should -Match '\| Failed logons across multiple accounts \| Analytics rule \|'
+        }
+
+        It 'titles the retention page Data Retention' {
+            (Get-Content (Join-Path $script:tempWsRoot '89-retention.md') -Raw) | Should -Match '(?m)^# Data Retention'
         }
     }
 
@@ -858,7 +902,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'renders the connector health table with last-ingested timestamps' {
             $script:dcMd | Should -Match '## Connector health \(24h activity\)'
-            $script:dcMd | Should -Match 'BillableLast24hGB'
+            $script:dcMd | Should -Match 'Billable GB \(24h\)'
         }
 
         It 'joins Office365 data types to OfficeActivity table with 24h volume' {
@@ -878,7 +922,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'surfaces an Effective connectors synthesised view section' {
             $script:dcMd | Should -Match '## Effective connectors \(synthesised view\)'
-            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| CatalogueConnector \| Last24hGB \| LastIngested \|'
+            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| Catalogue connector \| GB \(24h\) \| Last ingested \|'
         }
 
         It 'attributes Office365 sharePoint to a Classic source in the synthesis' {
@@ -1124,7 +1168,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'reports the Producing data row with the active count' {
             # 1247 + 318 + 0 = 1565
-            $script:uebaMd | Should -Match 'Producing data \| Yes — 1565 rows'
+            $script:uebaMd | Should -Match 'Producing data \| Yes, 1565 rows'
         }
 
         It 'mentions the number of producing tables (BehaviorAnalytics + IdentityInfo = 2)' {
