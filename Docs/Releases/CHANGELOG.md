@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **One lookback for every query, settable in the pipeline** - the
+  collector's KQL captures each had their own window (7, 8, 12, 14, 30 or 90
+  days). They now all read one lookback: `-LookbackDays` on
+  `New-iSOCBlueprint` and `Export-iSOCBlueprintInventory` (1 to 730, default
+  30), the `lookbackDays` parameter on Azure DevOps and the `lookback-days`
+  input (or the `BLUEPRINT_LOOKBACK_DAYS` repository variable on a
+  schedule) on GitHub. Each query declares `lookback` and `recent` (the
+  shorter of 7 days and the lookback) ahead of its text, and the window is
+  recorded in `run-context.json`. Every page heading, table header, chart
+  title, dashboard card and tooltip, finding, maturity criterion and the
+  cost estimate name that window; per-30-day thresholds compare a 30-day
+  rate, and the monthly cost is projected from the window. With the default
+  of 30, the captures that read 7 days (health, agents, raw-table hygiene,
+  playbook runs) now read 30, and those that read 90 (table presence) read
+  30; set 90 to keep the longer view.
 - **References at the foot of every page, readable headers, no em-dashes** -
   the renderer gathers every page's reference links (the Microsoft Learn
   pointers, a finding's Reference, "See A and B.") into one References

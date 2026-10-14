@@ -20,7 +20,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.1
+    Version:        0.7.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
@@ -119,6 +119,30 @@ function Test-DailyCapConfigured {
 }
 
 # ------------------------------------------------------------
+# The window the KQL captures read
+# ------------------------------------------------------------
+# Every capture reads the run's lookback (run-context.json, carried on the
+# inventory as Window.Days), and the latest days within it the recent
+# window (Window.RecentDays). A run collected before the setting existed
+# read 30 days and 7. A finding names the window it judged; a threshold set
+# per 30 days compares a 30-day-equivalent rate, so it holds whatever the
+# lookback. The "30d", "90d" and "7d" property names in tables-with-data
+# and the other captures are their historical names for the lookback and
+# recent figures.
+function _Window {
+    param($Inventory)
+    $w = if ($null -ne $Inventory) { Get-PropOrDefault $Inventory 'Window' $null } else { $null }
+    $days = if ($w) { [int](Get-PropOrDefault $w 'Days' 30) } else { 30 }
+    if ($days -lt 1) { $days = 30 }
+    $recent = if ($w) { [int](Get-PropOrDefault $w 'RecentDays' ([math]::Min(7, $days))) } else { [math]::Min(7, $days) }
+    [pscustomobject]@{ Days = $days; RecentDays = $recent }
+}
+# "1 day" or "N days".
+function _Days([int]$Days) { if ($Days -eq 1) { '1 day' } else { "$Days days" } }
+# A total over the lookback as a 30-day figure.
+function _Per30([double]$Value, $Inventory) { $Value * 30.0 / (_Window $Inventory).Days }
+
+# ------------------------------------------------------------
 # SAC-LOG-07, Workspace default retention < 90d
 # ------------------------------------------------------------
 function Test-WorkspaceRetentionMeetsSentinelBenefit {
@@ -138,7 +162,7 @@ function Test-NoisyTableHasTransform {
     if (-not $Inventory.TablesWithData) { return $null }
     $threshold = 50.0
     $candidates = @($Inventory.TablesWithData | Where-Object {
-        ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) -ge $threshold
+        (_Per30 ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -ge $threshold
     })
     if (-not $candidates) { return $null }
 
@@ -213,11 +237,11 @@ function Test-UebaEnabled {
     if ($producingCount -gt 0) { return $null }
 
     if ($null -eq $ueba) {
-        return New-Finding -Evidence 'No Ueba setting resource found on the workspace and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last 12 days.'
+        return New-Finding -Evidence "No Ueba setting resource found on the workspace and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(_Days (_Window $Inventory).Days)."
     }
     $enabled = Get-PropOrDefault $ueba 'properties.dataSources'
     if (-not $enabled -or $enabled.Count -eq 0) {
-        return New-Finding -Evidence 'UEBA is configured but no data sources are enabled, and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last 12 days.' -Detail $ueba
+        return New-Finding -Evidence "UEBA is configured but no data sources are enabled, and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(_Days (_Window $Inventory).Days)." -Detail $ueba
     }
     return $null
 }
@@ -281,7 +305,7 @@ function Test-RulesDisabledOrFailing {
         $bulkDay = $null; $bulkCount = 0
         foreach ($k in $byDay.Keys) { if ($byDay[$k] -gt $bulkCount) { $bulkCount = $byDay[$k]; $bulkDay = $k } }
         $bulk = ($bulkCount -ge 10 -and $bulkCount -ge [math]::Ceiling($bad.Count / 3.0))
-        # A disabled rule that still produced alerts in the last 30 days was
+        # A disabled rule that still produced alerts in the lookback was
         # switched off recently; those are the ones to ask about first.
         $firedById = @{}
         foreach ($f in @($Inventory.RulesFired)) {
@@ -299,8 +323,9 @@ function Test-RulesDisabledOrFailing {
         $extra = ''
         if ($bulk) { $extra += " $bulkCount of them were last modified on $bulkDay, which looks like a bulk change rather than rule-by-rule tuning." }
         if ($firedThenDisabled.Count -gt 0) {
-            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in 30d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
-            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last 30 days and were disabled since: $sample."
+            $win = (_Window $Inventory).Days
+            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in $($win)d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
+            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last $(_Days $win) and were disabled since: $sample."
         }
         return New-Finding -Evidence "$($bad.Count) rule(s) disabled: $names.$extra" -Detail @{
             Count             = $bad.Count
@@ -441,13 +466,13 @@ function Test-CommitmentTierOpportunity {
         $totalGb30d += [double](Get-PropOrDefault $t 'BillableLast30d' 0)
     }
     if ($totalGb30d -le 0) { return $null }
-    $dailyAvg = $totalGb30d / 30.0
+    $dailyAvg = $totalGb30d / (_Window $Inventory).Days
 
     if (-not $Inventory.CommitmentTiers) { return $null }
     $rungs = @($Inventory.CommitmentTiers.rungsGbPerDay)
     $next = $rungs | Where-Object { $_ -le $dailyAvg } | Select-Object -Last 1
     if ($next) {
-        return New-Finding -Evidence "30-day average ingest is ~$([math]::Round($dailyAvg,1)) GB/day on PerGB2018; $next GB/day commitment tier is a candidate." -Detail @{ DailyAvgGb = $dailyAvg; NextRung = $next }
+        return New-Finding -Evidence "$((_Window $Inventory).Days)-day average ingest is ~$([math]::Round($dailyAvg,1)) GB/day on PerGB2018; $next GB/day commitment tier is a candidate." -Detail @{ DailyAvgGb = $dailyAvg; NextRung = $next }
     }
     return $null
 }
@@ -464,12 +489,12 @@ function Test-HighVolumeTablePlanCandidate {
         if ($name -and $plan -eq 'Analytics') { $analytics[$name] = $true }
     }
     $candidates = @($Inventory.TablesWithData | Where-Object {
-        ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) -gt 50.0 -and
+        (_Per30 ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -gt 50.0 -and
         $analytics.ContainsKey((Get-PropOrDefault $_ 'DataType' ''))
     })
     if ($candidates.Count -gt 0) {
         $names = ($candidates | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Analytics-plan tables > 50 GB/30d that are Basic/Auxiliary candidates: $names." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "Analytics-plan tables above 50 GB per 30 days that are Basic/Auxiliary candidates: $names." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -499,7 +524,7 @@ function Test-DedicatedClusterCandidate {
     foreach ($t in @($Inventory.TablesWithData)) {
         $totalGb30d += [double](Get-PropOrDefault $t 'BillableLast30d' 0)
     }
-    $dailyAvg = $totalGb30d / 30.0
+    $dailyAvg = $totalGb30d / (_Window $Inventory).Days
     if ($dailyAvg -gt 500.0) {
         return New-Finding -Evidence "Average ingest ~$([math]::Round($dailyAvg,1)) GB/day with no dedicated cluster, cluster offers cluster-level CR pricing, CMK, and AZ." -Detail @{ DailyAvgGb = $dailyAvg }
     }
@@ -519,7 +544,7 @@ function Test-SentinelBenefitApplied {
     })
     if ($billableSecurity.Count -gt 0) {
         $names = ($billableSecurity | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Eligible security tables with non-zero billable ingest in 30d: $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "Eligible security tables with non-zero billable ingest in the last $(_Days (_Window $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -609,7 +634,7 @@ function Test-AccessModeConsistent {
 }
 
 # ------------------------------------------------------------
-# SAC-INV-01, Silent tables (had data, none last 7d)
+# SAC-INV-01, Silent tables (data in the lookback, none in the recent window)
 # ------------------------------------------------------------
 function Test-SilentTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -621,13 +646,14 @@ function Test-SilentTables {
     })
     if ($silent.Count -gt 0) {
         $names = ($silent | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Silent table(s) (data in 90d but none in 7d): $names." -Detail @{ Tables = $names }
+        $w = _Window $Inventory
+        return New-Finding -Evidence "Silent table(s) (data in the last $(_Days $w.Days) but none in the last $(_Days $w.RecentDays)): $names." -Detail @{ Tables = $names }
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# SAC-INV-04, Orphan tables (schema, no data 90d)
+# SAC-INV-04, Orphan tables (schema, no data in the lookback)
 # ------------------------------------------------------------
 function Test-OrphanTables {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
@@ -643,19 +669,19 @@ function Test-OrphanTables {
         # are part of every workspace's catalogue (~750 of them on a typical
         # Sentinel workspace) and aren't orphans, they're 'sources we
         # haven't onboarded'. Custom tables, on the other hand, were
-        # explicitly created to receive data; if none has arrived in 90d,
+        # explicitly created to receive data; if none has arrived in the lookback,
         # the source is broken or the table should be deleted.
         $type -eq 'CustomLog' -and -not $populated.ContainsKey($name)
     })
     if ($orphans.Count -gt 0) {
-        return New-Finding -Evidence "$($orphans.Count) table(s) have a schema but no data in 90d." -Detail @{ Count = $orphans.Count }
+        return New-Finding -Evidence "$($orphans.Count) table(s) have a schema but no data in the last $(_Days (_Window $Inventory).Days)." -Detail @{ Count = $orphans.Count }
     }
     return $null
 }
 
 # ------------------------------------------------------------
-# Helper, does a TablesWithData record claim non-zero billable ingest in
-# the last 30 days? Returns the GB value as a [double], or 0 when missing.
+# Helper, the billable GB a TablesWithData record carries for the lookback
+# (its BillableLast30d). Returns a [double], or 0 when missing.
 # ------------------------------------------------------------
 function _GetBillable30d {
     param([object]$Row)
@@ -672,7 +698,7 @@ function _GetBillable30d {
 function Test-ConnectorTableMismatch {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (-not $Inventory.DataConnectors -or -not $Inventory.TablesWithData) { return $null }
-    # Volume per table over 7 days, free tables (OfficeActivity,
+    # Volume per table over the recent window, free tables (OfficeActivity,
     # SecurityAlert) included: billable volume alone made them look silent.
     $activity = Get-TableActivity -TablesWithData @($Inventory.TablesWithData)
     $hasData = { param($t) $activity.ContainsKey($t) -and $activity[$t] -gt 0 }
@@ -707,7 +733,7 @@ function Test-ConnectorTableMismatch {
     }
     if ($bad.Count -eq 0 -and $silent.Count -eq 0) { return $null }
     $parts = @()
-    if ($bad.Count) { $parts += "core table(s) with no data in 7 days: $($bad -join '; ')" }
+    if ($bad.Count) { $parts += "core table(s) with no data in the last $(_Days (_Window $Inventory).RecentDays): $($bad -join '; ')" }
     if ($silent.Count) { $parts += "connector(s) with no data in any table they write: " + (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ') }
     return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{ Mismatches = @($bad); SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } }) }
 }
@@ -726,7 +752,7 @@ function Test-IncidentMttrThreshold {
     if (-not [double]::TryParse([string]$mttrRaw, [ref]$mttr)) { return $null }
     if ($mttr -le 1440.0) { return $null }
     $hours = [math]::Round($mttr / 60.0, 1)
-    return New-Finding -Evidence "MTTR over the last 30 days is $hours hours across $closed closed incident(s); SOC target is <= 24h." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
+    return New-Finding -Evidence "MTTR over the last $(_Days (_Window $Inventory).Days) is $hours hours across $closed closed incident(s); SOC target is <= 24h." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
 }
 
 # ------------------------------------------------------------
@@ -820,7 +846,7 @@ function Test-DominantNoisyRule {
     $ratio = $topAlerts / [double]$totalAlerts
     if ($ratio -le 0.30) { return $null }
     $name = Get-EvidenceName $top 'AlertName' 'Unnamed alert'
-    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in 30d ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
+    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in the last $(_Days (_Window $Inventory).Days) ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
 }
 
 # ------------------------------------------------------------
@@ -834,12 +860,12 @@ function Test-AutomationRulesPresent {
 }
 
 # ------------------------------------------------------------
-# SAC-DET-12, Enabled rule with zero alerts in 90d
+# SAC-DET-12, Enabled rule with zero alerts in the lookback
 # ------------------------------------------------------------
 function Test-DeadAnalyticsRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (-not $Inventory.AlertRules -or -not $Inventory.AnalyticsRuleVolumes) { return $null }
-    # Volumes capture is over 30d. Project the noisy-rule set into a name lookup
+    # Volumes capture is over the lookback. Project the noisy-rule set into a name lookup
     # then surface enabled Scheduled/NRT rules whose displayName is absent
     # from it, they produced no alerts in the window.
     $noisy = @{}
@@ -856,7 +882,7 @@ function Test-DeadAnalyticsRule {
     })
     if ($dead.Count -eq 0) { return $null }
     $sample = ($dead | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
-    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in 30 days: $sample." -Detail @{ Count = $dead.Count }
+    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{ Count = $dead.Count }
 }
 
 # ------------------------------------------------------------
@@ -912,7 +938,7 @@ function Test-WorkspaceLockPresent {
 # ------------------------------------------------------------
 # All four data-routing rules use the same pattern: "is table X carrying
 # enough volume to make the engineering effort to split worth it?". Five GB
-# over the 30-day window (~150 GB/30d) is the conservative default, below
+# a day (150 GB per 30 days, compared as a 30-day-equivalent rate) is the conservative default, below
 # that, the per-month saving from splitting probably can't pay for the DCR
 # authoring time.
 $script:DataRoutingSplitThresholdGb30d = 150.0
@@ -927,8 +953,8 @@ function Test-CefSplitOpportunity {
     } | Select-Object -First 1)
     if ($cef.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $cef[0]
-    if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last 30 days at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
+    if ((_Per30 $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days) at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -941,8 +967,8 @@ function Test-SyslogSplitOpportunity {
     } | Select-Object -First 1)
     if ($sys.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $sys[0]
-    if ($gb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last 30 days, narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
+    if ((_Per30 $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days), narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -961,8 +987,8 @@ function Test-WindowsEventXPathFilterOpportunity {
             $totalGb30 += _GetBillable30d $t
         }
     }
-    if ($totalGb30 -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last 30 days, typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
+    if ((_Per30 $totalGb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last $(_Days (_Window $Inventory).Days), typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
 }
 
 # ------------------------------------------------------------
@@ -975,13 +1001,13 @@ function Test-AzureDiagnosticsResourceSpecific {
     } | Select-Object -First 1)
     if ($ad.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $ad[0]
-    if ($gb30 -lt 10.0) { return $null }    # smaller threshold, even 10 GB across many RPs is messy
+    if ((_Per30 $gb30 $Inventory) -lt 10.0) { return $null }    # smaller threshold, even 10 GB per 30 days across many RPs is messy
     # We don't know per-RP breakdown from tables-with-data alone (the
     # AzureDiagnostics rendering is summarised in 14-coverage-breakdowns.md
     # but isn't a separate _raw capture). Flag based on volume alone, the
     # remediation is still correct: switch any RP that has a dedicated
     # resource-specific table.
-    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last 30 days. Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days). Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -1005,7 +1031,7 @@ function Test-CustomLogsV1Migration {
         }
     }
 
-    # Project _CL tables that have data in the last 90 days.
+    # Project _CL tables that have data in the lookback.
     $active = @{}
     foreach ($t in $Inventory.TablesWithData) {
         $name = Get-PropOrDefault $t 'DataType' ''
@@ -1067,7 +1093,7 @@ function Test-LegacyThreatIntelligenceTable {
     } else {
         'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables, TI ingestion may be broken since the 2025-07-31 cutoff.'
     }
-    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last 30 days. $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
+    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last $(_Days (_Window $Inventory).Days). $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
 }
 
 # ============================================================
@@ -1140,7 +1166,7 @@ function _GetRuleLabel {
     return Get-EvidenceName $Rule 'properties.displayName', 'name' 'Unnamed rule'
 }
 
-# GB ingested in the last 7 days, billable or not. IngestedLast7d was added
+# GB ingested in the recent window, billable or not. IngestedLast7d was added
 # to tables-with-data in the same change as these rules; older captures
 # fall back to the billable figure.
 function _GetIngested7d {
@@ -1180,7 +1206,7 @@ function Test-NoisyFalsePositiveRule {
     $sample = ($noisy | ForEach-Object {
         "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
     }) -join '; '
-    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last 30 days: $sample." -Detail @{
+    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count = $noisy.Count
         Rules = @($noisy | ForEach-Object {
             [pscustomobject]@{
@@ -1295,7 +1321,7 @@ function Test-HighVolumeTableWithoutDetection {
     $operational = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncovered = @($Inventory.TablesWithData | Where-Object {
         $t = [string](Get-PropOrDefault $_ 'DataType' '')
-        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and ((_GetBillable30d $_) -ge $threshold)
+        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and ((_Per30 (_GetBillable30d $_) $Inventory) -ge $threshold)
     } | Sort-Object { -(_GetBillable30d $_) })
     if ($uncovered.Count -eq 0) { return $null }
 
@@ -1327,7 +1353,7 @@ function Test-HighVolumeTableWithoutDetection {
         $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
         "$($_.Table) $($_.Gb30d) GB$hint"
     }) -join '; '
-    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in 30 days with no enabled Sentinel rule or Defender custom detection reading them: $sample." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
+    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in the last $(_Days (_Window $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading them: $sample." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
 }
 
 # ------------------------------------------------------------
@@ -1368,7 +1394,7 @@ function Test-SilentTableWithDependentRules {
     $sample = ($silent | ForEach-Object {
         "$_ ($($rulesByTable[$_].Count) rule(s): $(@($rulesByTable[$_]) -join ', '))"
     }) -join '; '
-    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in 7 days: $sample. Those rules cannot fire." -Detail @{
+    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in the last $(_Days (_Window $Inventory).RecentDays): $sample. Those rules cannot fire." -Detail @{
         Count  = $silent.Count
         Tables = @($silent | ForEach-Object { [pscustomobject]@{ Table = $_; Rules = @($rulesByTable[$_]) } })
     }
@@ -1389,7 +1415,7 @@ function Test-PlaybookRunFailures {
         $when = if ($last) { ", last $last" } else { '' }
         "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last 7 days: $sample." -Detail @{
+    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count     = $failing.Count
         Playbooks = @($failing | ForEach-Object {
             [pscustomobject]@{
@@ -1453,7 +1479,7 @@ function Test-ThreatIntelSingleFeed {
     }
     if ($feeds.Count -gt 1) { return $null }
     $evidence = if ($feeds.Count -eq 0) {
-        'No threat intelligence feed is connected and no indicators were seen in 30 days.'
+        "No threat intelligence feed is connected and no indicators were seen in the last $(_Days (_Window $Inventory).Days)."
     } else {
         "Threat intelligence comes from a single feed ($(@($feeds) -join ''))."
     }
@@ -1478,7 +1504,7 @@ function Test-AzureFirewallDuplicateLogging {
     $categories = @($legacy | ForEach-Object { [string](Get-PropOrDefault $_ 'Category' '') } | Sort-Object -Unique)
     $tables = @($structured | ForEach-Object { [string](Get-PropOrDefault $_ 'DataType' '') } | Sort-Object -Unique)
     $structuredGb = [math]::Round((($structured | ForEach-Object { _GetBillable30d $_ }) | Measure-Object -Sum).Sum, 1)
-    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $($legacyRows.ToString('N0')) rows in 7 days) and the resource-specific tables ($($tables -join ', '); $structuredGb GB in 30 days). The same events are ingested and billed twice." -Detail @{ LegacyCategories = $categories; LegacyRows7d = $legacyRows; StructuredTables = $tables; StructuredGb30d = $structuredGb }
+    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $($legacyRows.ToString('N0')) rows in the last $(_Days (_Window $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $structuredGb GB in the same window). The same events are ingested and billed twice." -Detail @{ LegacyCategories = $categories; LegacyRows7d = $legacyRows; StructuredTables = $tables; StructuredGb30d = $structuredGb }
 }
 
 # ------------------------------------------------------------
@@ -1535,7 +1561,7 @@ function Test-AnalyticsRuleRunFailures {
         $why = if ($reason) { ": $reason" } else { '' }
         "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last 7 days: $sample." -Detail @{
+    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count = $failing.Count
         Rules = @($failing | ForEach-Object {
             [pscustomobject]@{
@@ -1587,10 +1613,10 @@ function Test-SummaryRulesInUse {
     if (@($Inventory.SummaryRules | Where-Object { $null -ne $_ }).Count -gt 0) { return $null }
     $threshold = 50.0
     $volumes = _GetTableVolumes30d $Inventory
-    $big = @($volumes.GetEnumerator() | Where-Object { $_.Value -ge $threshold } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key)
+    $big = @($volumes.GetEnumerator() | Where-Object { (_Per30 $_.Value $Inventory) -ge $threshold } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key)
     if ($big.Count -eq 0) { return $null }
     $names = @($big | ForEach-Object { "$($_.Key) ($([math]::Round($_.Value, 1)) GB)" })
-    return New-Finding -Evidence "No summary rules are configured, while $($big.Count) table(s) ingest $threshold GB or more in 30 days: $($names -join ', ')." -Detail @{ Tables = @($big | ForEach-Object { [pscustomobject]@{ Table = $_.Key; Gb30d = [math]::Round($_.Value, 2) } }) }
+    return New-Finding -Evidence "No summary rules are configured, while $($big.Count) table(s) ingest $threshold GB or more per 30 days: $($names -join ', ')." -Detail @{ Tables = @($big | ForEach-Object { [pscustomobject]@{ Table = $_.Key; Gb30d = [math]::Round($_.Value, 2) } }) }
 }
 
 # ------------------------------------------------------------
@@ -1681,7 +1707,7 @@ function Test-CefInSyslog {
         [pscustomobject]@{ Computer = $_.Name; Records = (@($_.Group | ForEach-Object { _ToInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum }
     } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
     $names = @($byHost | ForEach-Object { "$($_.Computer) ($($_.Records) records)" })
-    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last 7 days, from $($byHost.Count) forwarder(s): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
+    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(_Days (_Window $Inventory).Days), from $($byHost.Count) forwarder(s): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
 }
 
 # ------------------------------------------------------------
@@ -1693,5 +1719,5 @@ function Test-QueryAuditing {
     $row = @($Inventory.LaQueryLogs | Where-Object { $null -ne $_ }) | Select-Object -First 1
     $count = if ($row) { _ToInt (Get-PropOrDefault $row 'QueryCount' 0) } else { 0 }
     if ($count -gt 0) { return $null }
-    return New-Finding -Evidence 'LAQueryLogs recorded no queries in the last 7 days: query auditing is not enabled on the workspace, so nobody can see who searched which data.' -Detail @{ QueryCount7d = $count }
+    return New-Finding -Evidence "LAQueryLogs recorded no queries in the last $(_Days (_Window $Inventory).Days): query auditing is not enabled on the workspace, so nobody can see who searched which data." -Detail @{ QueryCount7d = $count }
 }

@@ -404,6 +404,21 @@ fence stay where they are. The Conventions page (99) is copied from
 `Private/Resources/Blueprint-References.md`, which ends with its own
 References list.
 
+## The window a page names
+
+Every KQL capture reads the run's lookback (`-LookbackDays`, recorded in
+`run-context.json` as `LookbackDays` and `RecentDays`; 30 and 7 for a run
+collected before the setting existed). A page never writes a number of days
+for a window: it writes `{lookback}` ("30 days"), `{lookback-d}` ("30d"),
+`{recent}` or `{recent-d}`, and `Write-Section` fills them through
+`Resolve-BpWindowText` before anything else, so a heading, a label, a table
+header, a chart title and the section model all follow the run. Window
+arithmetic reads `Get-BpWindow`: the estate's active tables are those with
+data in the recent window (of those with data in the lookback), and the
+Lake candidates' 0.5 GB threshold is per 30 days. Retention policy figures
+(the free 90 days), the last 24 hours and the one-hour duplicate sample are
+not windows and stay as written.
+
 ## Table headers
 
 `Format-Table` takes property names as columns and writes each header

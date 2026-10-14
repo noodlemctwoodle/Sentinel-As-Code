@@ -56,6 +56,14 @@
     assessment. Sets the gap and the roadmap in _raw/maturity.json.
     Defaults to 3 (Established).
 
+.PARAMETER LookbackDays
+    Days of activity every KQL capture reads, 1 to 730 (default 30). The
+    figures for the latest days within it cover the shorter of 7 days and
+    this. Recorded in run-context.json as LookbackDays and RecentDays; the
+    pages, the dashboard's cards and the findings name their window from
+    there. A window longer than a table's interactive retention returns only
+    what the table still holds.
+
 .EXAMPLE
     ./Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1 `
         -ResourceGroup 'rg-sentinel-prod' `
@@ -79,7 +87,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.1
+    Version:        0.8.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -136,12 +144,36 @@ param(
     # roadmap in the maturity assessment; 3 (Established) is the default.
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 5)]
-    [int]$TargetMaturityLevel = 3
+    [int]$TargetMaturityLevel = 3,
+
+    # Days of activity every KQL capture reads (1 to 730): incidents, alerts,
+    # usage and cost, health, agents, table activity and the rest. The
+    # figures for the latest days within it (the "recent" window) cover the
+    # shorter of 7 days and this. Recorded in run-context.json, which every
+    # page, card and finding reads its window from.
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 730)]
+    [int]$LookbackDays = 30
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
+
+# ---------------------------------------------------------------------------
+# The window every KQL capture reads
+# ---------------------------------------------------------------------------
+# One lookback for every query. A query names it as `lookback` (its main
+# window) and `recent` (the latest days within it, the shorter of 7 days and
+# the lookback); Add-BpWindow declares both ahead of the query text, so no
+# query carries a number of days of its own. Two sub-windows stay fixed
+# because they are not lookbacks: a table's last 24 hours of ingestion and
+# the one-hour sample the duplicate-event check reads.
+$script:LookbackDays = $LookbackDays
+$script:RecentDays   = [math]::Min(7, $LookbackDays)
+function Add-BpWindow([string]$Kql) {
+    "let lookback = $($script:LookbackDays)d;`nlet recent = $($script:RecentDays)d;`n$Kql"
+}
 
 # ---------------------------------------------------------------------------
 # Module bootstrap
@@ -297,6 +329,8 @@ $runContext = [pscustomobject]@{
     BlueprintVersion = $blueprintVersion
     AzPSVersion       = (Get-Module -ListAvailable Az.Accounts | Sort-Object Version -Descending | Select-Object -First 1).Version.ToString()
     IncludePreview    = [bool]$IncludePreview
+    LookbackDays      = $script:LookbackDays
+    RecentDays        = $script:RecentDays
     ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -as [string] } else { $null })
 }
 Save-Json -FileName 'run-context.json' -Data $runContext
@@ -562,13 +596,13 @@ Try-Capture 'ueba-data-presence' {
     # KQL skips the missing arm rather than throwing.
     $kql = @'
 union isfuzzy=true
-    (BehaviorAnalytics  | where TimeGenerated > ago(14d) | extend TableName = "BehaviorAnalytics"),
-    (IdentityInfo       | where TimeGenerated > ago(14d) | extend TableName = "IdentityInfo"),
-    (UserPeerAnalytics  | where TimeGenerated > ago(14d) | extend TableName = "UserPeerAnalytics")
-| summarize Count = countif(TimeGenerated > ago(12d)), Count7d = countif(TimeGenerated > ago(7d)), Count14d = count() by TableName
+    (BehaviorAnalytics  | where TimeGenerated > ago(lookback) | extend TableName = "BehaviorAnalytics"),
+    (IdentityInfo       | where TimeGenerated > ago(lookback) | extend TableName = "IdentityInfo"),
+    (UserPeerAnalytics  | where TimeGenerated > ago(lookback) | extend TableName = "UserPeerAnalytics")
+| summarize Count = countif(TimeGenerated > ago(lookback)), Count7d = countif(TimeGenerated > ago(recent)), Count14d = count() by TableName
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ueba-data-presence.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'ueba-data-presence.json' -Data @() }
 }
@@ -686,10 +720,10 @@ Try-Capture 'playbooks' {
 }
 
 Try-Capture 'playbook-runs' {
-    # Run health per playbook over the last 7 days, one bounded call per
+    # Run health per playbook over the lookback, one bounded call per
     # enabled workflow. Disabled workflows get a zero row without a call. A
     # failure on one workflow is logged and the others are still recorded.
-    $since = (Get-Date).ToUniversalTime().AddDays(-7).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $since = (Get-Date).ToUniversalTime().AddDays(-$script:LookbackDays).ToString('yyyy-MM-ddTHH:mm:ssZ')
     $runRows = @()
     foreach ($wf in $script:Workflows) {
         if ($null -eq $wf) { continue }
@@ -888,34 +922,34 @@ Try-Capture 'rbac-resourcegroup' {
 Try-Capture 'tables-with-data' {
     $kql = @'
 Usage
-| where TimeGenerated > ago(90d)
+| where TimeGenerated > ago(lookback)
 | summarize
     BillableLast90d = sumif(Quantity, IsBillable == true) / 1024.0,
     IngestedLast90d = sum(Quantity) / 1024.0,
-    BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(30d)) / 1024.0,
-    BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(7d))  / 1024.0,
-    IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(7d)) / 1024.0,
+    BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(lookback)) / 1024.0,
+    BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(recent))  / 1024.0,
+    IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(recent)) / 1024.0,
     BillableLast24h = sumif(Quantity, IsBillable == true and TimeGenerated > ago(1d))  / 1024.0,
     FirstSeen       = min(TimeGenerated),
     LastIngested    = max(TimeGenerated),
     DayCount        = dcount(bin(TimeGenerated, 1d))
     by DataType, Solution
 '@
-    $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+    $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
     Save-Json -FileName 'tables-with-data.json' -Data ($result.Results)
 }
 
 Try-Capture 'ingestion-latency' {
     $kql = @'
 Operation
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | where OperationCategory in ("Ingestion", "Schema")
 | summarize Failures = countif(OperationStatus != "Succeeded"), Last = max(TimeGenerated)
     by OperationKey = tostring(Detail), Resource = tostring(OperationCategory)
 | where Failures > 0
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ingestion-latency.json' -Data ($result.Results)
     } catch {
         # Operation table may be empty/absent on quiet workspaces.
@@ -938,7 +972,7 @@ Try-Capture 'sentinel-health' {
     # are not yet enabled.
     $kql = @'
 SentinelHealth
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize
     Events      = count(),
     LastEvent   = max(TimeGenerated),
@@ -948,7 +982,7 @@ SentinelHealth
     by SentinelResourceName, SentinelResourceKind, SentinelResourceType
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'sentinel-health.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'sentinel-health.json' -Data @()
@@ -979,7 +1013,7 @@ Try-Capture 'incidents-summary' {
     # category leaves the workspace, never the name.
     $kql = @'
 let inc = SecurityIncident
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber;
 let byStatus = inc | summarize N = count() by Status   | summarize B = make_bag(bag_pack(Status, N), 100);
 let bySev    = inc | summarize N = count() by Severity | summarize B = make_bag(bag_pack(Severity, N), 100);
@@ -994,7 +1028,7 @@ let byProvider = inc
 | summarize B = make_bag(bag_pack(P, N), 100);
 let openBySev = inc | where Status != "Closed" | summarize N = count() by Severity | summarize B = make_bag(bag_pack(Severity, N), 100);
 let closing = SecurityIncident
-| where TimeGenerated > ago(30d) and Status == "Closed"
+| where TimeGenerated > ago(lookback) and Status == "Closed"
 | summarize arg_min(TimeGenerated, ModifiedBy) by IncidentNumber;
 let closedBy = inc
 | where Status == "Closed"
@@ -1008,7 +1042,7 @@ let closedBy = inc
 | summarize B = make_bag(bag_pack(By, N), 100);
 let isUnified = (p: string, a: string) { p in ("Microsoft 365 Defender", "Microsoft XDR") or a has_any ("Microsoft 365 Defender", "Microsoft XDR") };
 inc
-| extend Recent = TimeGenerated > ago(7d), IsUnified = isUnified(ProviderName, tostring(AdditionalData))
+| extend Recent = TimeGenerated > ago(recent), IsUnified = isUnified(ProviderName, tostring(AdditionalData))
 | summarize Count = count(), Closed = countif(Status == "Closed"),
     Unified = countif(IsUnified),
     Count7d = countif(Recent), Closed7d = countif(Recent and Status == "Closed"),
@@ -1019,7 +1053,7 @@ inc
     OpenBySeverity = toscalar(openBySev), ClosedBy = toscalar(closedBy)
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-summary.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'incidents-summary.json' -Data @()
@@ -1034,7 +1068,7 @@ Try-Capture 'incidents-mttr' {
     # acknowledged subset count separately so the omission is visible.
     $kql = @'
 SecurityIncident
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
 | where Status == "Closed"
 | extend AckMins  = iff(isnotnull(FirstModifiedTime), datetime_diff('minute', FirstModifiedTime, CreatedTime), int(null))
@@ -1044,12 +1078,12 @@ SecurityIncident
     AcknowledgedCount = countif(isnotnull(AckMins)),
     MTTAMinutes       = avgif(AckMins, isnotnull(AckMins)),
     MTTRMinutes       = avgif(RsvMins, isnotnull(RsvMins)),
-    ClosedCount7d     = countif(TimeGenerated > ago(7d)),
-    MTTAMinutes7d     = avgif(AckMins, isnotnull(AckMins) and TimeGenerated > ago(7d)),
-    MTTRMinutes7d     = avgif(RsvMins, isnotnull(RsvMins) and TimeGenerated > ago(7d))
+    ClosedCount7d     = countif(TimeGenerated > ago(recent)),
+    MTTAMinutes7d     = avgif(AckMins, isnotnull(AckMins) and TimeGenerated > ago(recent)),
+    MTTRMinutes7d     = avgif(RsvMins, isnotnull(RsvMins) and TimeGenerated > ago(recent))
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-mttr.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'incidents-mttr.json' -Data @()
@@ -1059,12 +1093,12 @@ SecurityIncident
 Try-Capture 'sentinel-health-summary' {
     $kql = @'
 SentinelHealth
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count() by OperationName, Status
 | order by LogCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'sentinel-health-summary.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'sentinel-health-summary.json' -Data @() }
 }
@@ -1072,11 +1106,11 @@ SentinelHealth
 Try-Capture 'la-query-logs' {
     $kql = @'
 LAQueryLogs
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize QueryCount = count()
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'la-query-logs.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'la-query-logs.json' -Data @() }
 }
@@ -1097,11 +1131,11 @@ Try-Capture 'workspace-usage' {
     # billable 30d, plus 14d peak / billable-peak / billable-average. Returned
     # as a single object so the renderer doesnt need five sequential reads.
     $kql = @'
-let Total30d        = Usage | where TimeGenerated > ago(30d) | summarize TotalGB = round(sum(Quantity)/1024, 3);
-let Billable30d     = Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize BillableTotalGB = round(sum(Quantity)/1024, 3);
-let Peak14d         = Usage | where TimeGenerated > ago(14d) | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize PeakDailyGB = max(DailyGB);
-let BillablePeak14d = Usage | where TimeGenerated > ago(14d) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillablePeakDailyGB = max(DailyGB);
-let BillableAvg14d  = Usage | where TimeGenerated > ago(14d) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillableAvgDailyGB = round(avg(DailyGB), 3);
+let Total30d        = Usage | where TimeGenerated > ago(lookback) | summarize TotalGB = round(sum(Quantity)/1024, 3);
+let Billable30d     = Usage | where TimeGenerated > ago(lookback) | where IsBillable == true | summarize BillableTotalGB = round(sum(Quantity)/1024, 3);
+let Peak14d         = Usage | where TimeGenerated > ago(lookback) | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize PeakDailyGB = max(DailyGB);
+let BillablePeak14d = Usage | where TimeGenerated > ago(lookback) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillablePeakDailyGB = max(DailyGB);
+let BillableAvg14d  = Usage | where TimeGenerated > ago(lookback) | where IsBillable == true | summarize DailyGB = round(sum(Quantity)/1024, 3) by bin(TimeGenerated, 1d) | summarize BillableAvgDailyGB = round(avg(DailyGB), 3);
 Total30d
 | extend BillableTotalGB     = toscalar(Billable30d)
 | extend PeakDailyGB         = toscalar(Peak14d)
@@ -1109,7 +1143,7 @@ Total30d
 | extend BillableAvgDailyGB  = toscalar(BillableAvg14d)
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'workspace-usage.json' -Data ($r.Results)
     } catch {
         Save-Json -FileName 'workspace-usage.json' -Data @()
@@ -1122,21 +1156,21 @@ Try-Capture 'incidents-detail-by-provider' {
     # counts only, no incident bodies or alert payloads.
     $kql = @'
 SecurityIncident
-| where TimeGenerated > ago(8d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
 | extend FirstRule = tostring(RelatedAnalyticRuleIds[0])
 | mv-expand AID = AlertIds
 | extend Alert = tostring(AID)
 | join kind=inner (
     SecurityAlert
-    | where TimeGenerated > ago(8d)
+    | where TimeGenerated > ago(lookback)
     | project SystemAlertId, ProviderName, ProductName
 ) on $left.Alert == $right.SystemAlertId
 | summarize AlertCount = count() by ProviderName, ProductName, FirstRule
 | order by AlertCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-detail-by-provider.json' -Data ($r.Results)
     } catch {
         Save-Json -FileName 'incidents-detail-by-provider.json' -Data @()
@@ -1148,15 +1182,15 @@ Try-Capture 'incidents-daily-metrics' {
     # the MTTA/MTTR aggregate above.
     $kql = @'
 SecurityIncident
-| where TimeGenerated > ago(8d)
-| where CreatedTime between(ago(8d) .. ago(1d))
+| where TimeGenerated > ago(lookback + 1d)
+| where CreatedTime between(ago(lookback + 1d) .. ago(1d))
 | summarize DailyUnique = dcount(IncidentNumber), DailyCount = count() by bin(CreatedTime, 1d)
 | summarize
     AvgDailyUniqueIncidents = round(avg(DailyUnique), 1),
     PeakDailyNewIncidents   = max(DailyCount)
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-daily-metrics.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'incidents-daily-metrics.json' -Data @()
@@ -1166,14 +1200,14 @@ SecurityIncident
 Try-Capture 'incidents-by-rule' {
     $kql = @'
 SecurityIncident
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
 | mv-expand AlertIds
 | summarize Incidents = dcount(IncidentNumber) by Title
 | order by Incidents desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-by-rule.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'incidents-by-rule.json' -Data @()
@@ -1184,7 +1218,7 @@ Try-Capture 'ama-agents' {
     # Heartbeat is the canonical signal for Azure Monitor Agent presence.
     $kql = @'
 Heartbeat
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize
     LastHeartbeat = max(TimeGenerated),
     OS            = any(OSType),
@@ -1195,7 +1229,7 @@ Heartbeat
     by SourceComputerId
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ama-agents.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'ama-agents.json' -Data @()
@@ -1210,7 +1244,7 @@ Heartbeat
 Try-Capture 'ama-mma-migration' {
     $kql = @'
 Heartbeat
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by Category, Computer
 | extend MachineType = case(
     ComputerEnvironment == "Non-Azure" and isempty(_ResourceId), "Hybrid without Arc",
@@ -1230,7 +1264,7 @@ Heartbeat
     "Not Started")
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ama-mma-migration.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'ama-mma-migration.json' -Data @()
@@ -1242,13 +1276,13 @@ Heartbeat
 Try-Capture 'agent-heartbeat-mix' {
     $kql = @'
 Heartbeat
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | extend OSVersion = strcat(OSName, " ", OSMajorVersion, ".", OSMinorVersion)
 | summarize Computers = dcount(Computer), LastSeen = max(TimeGenerated) by OSType, Category, Version, OSVersion
 | order by Computers desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'agent-heartbeat-mix.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'agent-heartbeat-mix.json' -Data @()
@@ -1264,13 +1298,13 @@ Try-Capture 'threat-intel-counts' {
     # KQL on the indicator tables, counts only, never indicator detail.
     $kql = @'
 union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | extend IndicatorKey = coalesce(tostring(column_ifexists("Id", "")), tostring(column_ifexists("IndicatorId", "")))
 | summarize Count = count(), Indicators = dcount(IndicatorKey), Last = max(TimeGenerated) by SourceSystem = coalesce(SourceSystem, Source)
 | order by Count desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-counts.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'threat-intel-counts.json' -Data @()
@@ -1293,13 +1327,13 @@ Try-Capture 'threat-intel-metrics' {
 Try-Capture 'threat-intel-tables' {
     $kql = @'
 union isfuzzy=true
-    (ThreatIntelIndicators       | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelIndicators"),
-    (ThreatIntelObjects          | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelObjects"),
-    (ThreatIntelligenceIndicator | where TimeGenerated > ago(30d) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(7d)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelligenceIndicator")
+    (ThreatIntelIndicators       | where TimeGenerated > ago(lookback) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(recent)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelIndicators"),
+    (ThreatIntelObjects          | where TimeGenerated > ago(lookback) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(recent)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelObjects"),
+    (ThreatIntelligenceIndicator | where TimeGenerated > ago(lookback) | summarize Records30d = count(), Records7d = countif(TimeGenerated > ago(recent)), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) | extend Table = "ThreatIntelligenceIndicator")
 | project Table, Records30d, Records7d, FirstSeen, LastSeen
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-tables.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'threat-intel-tables.json' -Data @()
@@ -1311,7 +1345,7 @@ union isfuzzy=true
 Try-Capture 'threat-intel-health' {
     $kql = @'
 ThreatIntelIndicators
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by Id
 | summarize Total = count(),
     Active = countif(IsActive == true and IsDeleted == false),
@@ -1320,7 +1354,7 @@ ThreatIntelIndicators
     StillValid = countif(isnull(ValidUntil) or ValidUntil > now())
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-health.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'threat-intel-health.json' -Data @()
@@ -1347,12 +1381,12 @@ Try-Capture 'taxii-clients' {
 Try-Capture 'cef-devices' {
     $kql = @'
 CommonSecurityLog
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count() by DeviceVendor, DeviceProduct
 | order by LogCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'cef-devices.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'cef-devices.json' -Data @() }
 }
@@ -1363,7 +1397,7 @@ Try-Capture 'cef-in-syslog' {
     # CommonSecurityLog stream.
     $kql = @'
 Syslog
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | where SyslogMessage startswith "0|" or SyslogMessage startswith "CEF:"
 | extend Parts = split(SyslogMessage, "|")
 | extend ProductVendor = strcat(tostring(Parts[1]), "-", tostring(Parts[2]))
@@ -1371,7 +1405,7 @@ Syslog
 | order by LogCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'cef-in-syslog.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'cef-in-syslog.json' -Data @() }
 }
@@ -1395,7 +1429,7 @@ DuplicateEvents
 | project Computer, DuplicateRecords, LogCount, DuplicateEventIds
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'security-event-duplicates.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'security-event-duplicates.json' -Data @() }
 }
@@ -1405,12 +1439,12 @@ Try-Capture 'azure-activity-coverage' {
     # shipping Activity Logs to this workspace.
     $kql = @'
 AzureActivity
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count() by SubscriptionId
 | order by LogCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-activity-coverage.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'azure-activity-coverage.json' -Data @() }
 }
@@ -1418,12 +1452,12 @@ AzureActivity
 Try-Capture 'azure-diagnostics-providers' {
     $kql = @'
 AzureDiagnostics
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count() by ResourceProvider
 | order by LogCount desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-diagnostics-providers.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'azure-diagnostics-providers.json' -Data @() }
 }
@@ -1440,13 +1474,13 @@ let tablesOfInterest = dynamic([
     "EmailUrlInfo","UrlClickEvents","IdentityLogonEvents","IdentityQueryEvents","IdentityDirectoryEvents"
 ]);
 union withsource = tt *
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize RecordCount = count() by Type
 | where Type in (tablesOfInterest)
 | order by Type asc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'xdr-table-presence.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'xdr-table-presence.json' -Data @() }
 }
@@ -1455,7 +1489,7 @@ Try-Capture 'top-event-ids' {
     # Top 10 Windows event IDs by billable size, drives table-noise tuning.
     $kql = @'
 find withsource = TableName1 in (Event, SecurityEvent)
-    where TimeGenerated > ago(7d) project _BilledSize, _IsBillable, Computer, _ResourceId, EventID, Activity, RenderedDescription
+    where TimeGenerated > ago(lookback) project _BilledSize, _IsBillable, Computer, _ResourceId, EventID, Activity, RenderedDescription
 | where _IsBillable == true
 | summarize ["BilledSizeGB"] = round(sum(_BilledSize)/1000/1000/1000, 3), LogCount = count() by TableName = TableName1, EventID, Activity, RenderedDescription
 | extend EventDescription = iif(isempty(Activity), RenderedDescription, Activity)
@@ -1464,7 +1498,7 @@ find withsource = TableName1 in (Event, SecurityEvent)
 | order by BilledSizeGB desc
 '@
     try {
-        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'top-event-ids.json' -Data ($r.Results)
     } catch { Save-Json -FileName 'top-event-ids.json' -Data @() }
 }
@@ -1480,14 +1514,14 @@ Try-Capture 'analytics-rule-volumes' {
     # returning an empty array and leaving section 21 unpopulated.
     $kql = @'
 SecurityAlert
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_min(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName) by SystemAlertId
-| summarize Alerts = count(), Alerts7d = countif(TimeGenerated > ago(7d)), ProviderName = take_any(ProviderName)
+| summarize Alerts = count(), Alerts7d = countif(TimeGenerated > ago(recent)), ProviderName = take_any(ProviderName)
     by AlertName, ProductName, AlertSeverity
 | order by Alerts desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'analytics-rule-volumes.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'analytics-rule-volumes.json' -Data @()
@@ -1504,7 +1538,7 @@ Try-Capture 'rule-effectiveness' {
     # with Source set to the product, so a page can tell the two apart.
     # Sentinel rules sort first so the row cap never drops them.
     $kql = @'
-let w = 30d;
+let w = lookback;
 let alerts = SecurityAlert
 | where TimeGenerated > ago(w)
 | extend ep = parse_json(ExtendedProperties)
@@ -1533,7 +1567,7 @@ SecurityIncident
 | project-away RuleKey, IsRule
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rule-effectiveness.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'rule-effectiveness.json' -Data @()
@@ -1545,7 +1579,7 @@ Try-Capture 'rules-fired' {
     # keyed on rule id so renamed or dynamically named alerts still match.
     $kql = @'
 SecurityAlert
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | where ProviderName in ("ASI Scheduled Alerts", "ASI NRT Alerts")
 | extend ep = parse_json(ExtendedProperties)
 | extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
@@ -1556,7 +1590,7 @@ SecurityAlert
 | order by Alerts desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rules-fired.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'rules-fired.json' -Data @()
@@ -1566,14 +1600,14 @@ SecurityAlert
 Try-Capture 'workspace-usage-daily' {
     $kql = @'
 Usage
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize BillableGB = round(sumif(Quantity, IsBillable == true) / 1024.0, 3),
             FreeGB     = round(sumif(Quantity, IsBillable == false) / 1024.0, 3)
     by Day = bin(TimeGenerated, 1d)
 | order by Day asc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'workspace-usage-daily.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'workspace-usage-daily.json' -Data @()
@@ -1585,12 +1619,12 @@ Try-Capture 'azure-diagnostics-categories' {
     # through both the legacy categories and resource-specific tables.
     $kql = @'
 AzureDiagnostics
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count() by ResourceProvider, Category
 | order by LogCount desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-diagnostics-categories.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'azure-diagnostics-categories.json' -Data @()
@@ -1603,7 +1637,7 @@ AzureDiagnostics
 Try-Capture 'azure-firewall-categories' {
     $kql = @'
 AzureDiagnostics
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | where Category in ("AzureFirewallApplicationRule", "AzureFirewallNetworkRule", "AzureFirewallDnsProxy",
                      "AZFWApplicationRule", "AZFWNetworkRule", "AZFWDnsQuery", "AZFWNatRule",
                      "AZFWThreatIntel", "AZFWIdpsSignature")
@@ -1611,7 +1645,7 @@ AzureDiagnostics
 | order by Category asc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-firewall-categories.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'azure-firewall-categories.json' -Data @()
@@ -1621,12 +1655,12 @@ AzureDiagnostics
 Try-Capture 'threat-intel-objects' {
     $kql = @'
 ThreatIntelObjects
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize Count = count() by StixType
 | order by Count desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-objects.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'threat-intel-objects.json' -Data @()
@@ -1638,13 +1672,13 @@ ThreatIntelObjects
 Try-Capture 'rule-health' {
     $kql = @'
 SentinelHealth
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | where SentinelResourceType == "Analytics Rule" and Status != "Success"
 | summarize Failures = count(), LastFailure = max(TimeGenerated), Reason = any(Description) by RuleName = SentinelResourceName, Status
 | order by Failures desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rule-health.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'rule-health.json' -Data @()
@@ -1657,7 +1691,7 @@ SentinelHealth
 Try-Capture 'incident-title-stats' {
     $kql = @'
 SecurityIncident
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | summarize arg_max(TimeGenerated, *) by IncidentNumber
 | extend MinsToClose = iff(Status == "Closed", datetime_diff("minute", ClosedTime, CreatedTime), int(null))
 | summarize Total = count(), Closed = countif(Status == "Closed"), Severity = any(Severity),
@@ -1668,7 +1702,7 @@ SecurityIncident
 | order by Total desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incident-title-stats.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'incident-title-stats.json' -Data @()
@@ -1681,7 +1715,7 @@ SecurityIncident
 Try-Capture 'threat-intel-by-type' {
     $kqlModern = @'
 ThreatIntelIndicators
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | extend ObservableType = tostring(split(tostring(ObservableKey), ':')[0])
 | extend Type = case(
     ObservableType startswith "ipv4" or ObservableType startswith "ipv6", "IP",
@@ -1696,7 +1730,7 @@ ThreatIntelIndicators
 '@
     $kqlLegacy = @'
 ThreatIntelligenceIndicator
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | extend Type = case(
     isnotempty(NetworkIP) or isnotempty(NetworkSourceIP) or isnotempty(NetworkDestinationIP), "IP",
     isnotempty(DomainName), "Domain",
@@ -1708,11 +1742,11 @@ ThreatIntelligenceIndicator
 | order by Count desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kqlModern -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlModern) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
     } catch {
         try {
-            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kqlLegacy -ErrorAction Stop
+            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlLegacy) -ErrorAction Stop
             Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
         } catch {
             Save-Json -FileName 'threat-intel-by-type.json' -Data @()
@@ -1725,12 +1759,12 @@ ThreatIntelligenceIndicator
 Try-Capture 'syslog-contributors' {
     $kql = @'
 Syslog
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer, Facility
 | order by LogCount desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'syslog-contributors.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'syslog-contributors.json' -Data @()
@@ -1740,12 +1774,12 @@ Syslog
 Try-Capture 'securityevent-top-hosts' {
     $kql = @'
 SecurityEvent
-| where TimeGenerated > ago(7d)
+| where TimeGenerated > ago(lookback)
 | summarize LogCount = count(), SizeMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 1) by Computer
 | order by LogCount desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'securityevent-top-hosts.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'securityevent-top-hosts.json' -Data @()
@@ -1779,7 +1813,7 @@ Try-Capture 'table-query-usage' {
         $list = ($batch | ForEach-Object { '"' + $_ + '"' }) -join ','
         $kql = @"
 LAQueryLogs
-| where TimeGenerated > ago(30d)
+| where TimeGenerated > ago(lookback)
 | extend Q = tolower(tostring(QueryText))
 | mv-apply T = dynamic([$list]) to typeof(string) on (
     where Q contains tolower(T)
@@ -1787,7 +1821,7 @@ LAQueryLogs
 )
 | summarize Queries = count(), Users = dcount(AADEmail), LastQuery = max(TimeGenerated) by Table = T
 "@
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query $kql -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         foreach ($row in @($result.Results)) { if ($row) { $usage.Add($row) } }
     }
     Save-Json -FileName 'table-query-usage.json' -Data @($usage | Sort-Object @{ Expression = { [long]$_.Queries }; Descending = $true }, Table)

@@ -373,7 +373,7 @@ Describe 'iSOC Blueprint renderer' {
     Context '60-automation-rules-playbooks.md surfaces playbook run health' {
         It 'warns about the failing playbook and tables the runs' {
             $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
-            $md | Should -Match '\*\*1 playbook\(s\) had failed runs in the last 7 days\.\*\*'
+            $md | Should -Match '\*\*1 playbook\(s\) had failed runs in the last 30 days\.\*\*'
             $md | Should -Match '"Succeeded" : 49'
             $md | Should -Match '\| IncidentEnrich-IP \| 42 \| 5 \| Failed \| 2026-05-05 22:15 \|'
         }
@@ -408,7 +408,7 @@ Describe 'iSOC Blueprint renderer' {
     Context '11-sentinel-health.md tables ingestion and schema failures' {
         It 'lists the failed DCR transform from the fixture' {
             $md = Get-Content (Join-Path $script:tempWsRoot '11-sentinel-health.md') -Raw
-            $md | Should -Match '## Ingestion and schema failures \(last 7d\)[\s\S]*Custom-FirewallLogs_CL \| Ingestion \| 14 \| 2026-05-06 07:12 \|'
+            $md | Should -Match '## Ingestion and schema failures \(last 30d\)[\s\S]*Custom-FirewallLogs_CL \| Ingestion \| 14 \| 2026-05-06 07:12 \|'
         }
     }
 
@@ -512,8 +512,8 @@ Describe 'iSOC Blueprint renderer' {
     Context '13-data-source-hygiene.md lists log contributors' {
         It 'shows Syslog contributors by facility and the SecurityEvent hosts' {
             $md = Get-Content (Join-Path $script:tempWsRoot '13-data-source-hygiene.md') -Raw
-            $md | Should -Match '## Syslog contributors \(last 7d\)[\s\S]*\| fw-edge-01 \| local4 \| 182000 \| 540.2 \|'
-            $md | Should -Match '## SecurityEvent hosts \(last 7d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
+            $md | Should -Match '## Syslog contributors \(last 30d\)[\s\S]*\| fw-edge-01 \| local4 \| 182000 \| 540.2 \|'
+            $md | Should -Match '## SecurityEvent hosts \(last 30d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
         }
     }
 
@@ -529,7 +529,7 @@ Describe 'iSOC Blueprint renderer' {
     Context '22-rule-health-quality.md reports rule run failures' {
         It 'lists the failing rule with its reason' {
             $md = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
-            $md | Should -Match '## Rule run failures \(last 7d\)'
+            $md | Should -Match '## Rule run failures \(last 30d\)'
             $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 2026-05-06 06:15 \| Query execution exceeded the 2 minute timeout. \|'
         }
     }
@@ -1176,11 +1176,11 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the per-table breakdown subsection' {
-            $script:uebaMd | Should -Match '## Data-presence inference \(last 12 days\)'
+            $script:uebaMd | Should -Match '## Data-presence inference \(last 30 days\)'
         }
 
         It 'lists BehaviorAnalytics with its row count' {
-            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 790 \| 1247 \| 1402 \|'
+            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 790 \| 1247 \|'
         }
     }
 
@@ -1462,7 +1462,7 @@ Describe 'iSOC Blueprint renderer — empty-state safety' {
         }
 
         It 'shows no run-health chart or warning when playbook-runs.json is absent' {
-            $script:playbookMd | Should -Match '## Playbook runs \(last 7d\)[\s\S]*?_None\._'
+            $script:playbookMd | Should -Match '## Playbook runs \(last 30d\)[\s\S]*?_None\._'
             $script:playbookMd | Should -Not -Match 'had failed runs'
             $script:playbookMd | Should -Not -Match 'Playbook runs by outcome'
         }
@@ -1667,12 +1667,12 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'lists connectors that reported health failures, with the failure count' {
-        $hc['11-sentinel-health'] | Should -Match '## Connector and DCR health issues \(last 7d\)[\s\S]*\| Office 365 \| Office365 \| 6 \| 2026-05-05 22:00 \|'
+        $hc['11-sentinel-health'] | Should -Match '## Connector and DCR health issues \(last 30d\)[\s\S]*\| Office 365 \| Office365 \| 6 \| 2026-05-05 22:00 \|'
     }
 
     It 'adds AzureDiagnostics by category and both forms of Azure Firewall logging' {
-        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 7d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9000 \|'
-        $hc['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 7d\)\s+\*\*Collected twice\.\*\*'
+        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 30d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9000 \|'
+        $hc['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 30d\)\s+\*\*Collected twice\.\*\*'
         $hc['14-coverage-breakdowns'] | Should -Match '\| AZFWNetworkRule \|'
     }
 
@@ -1683,7 +1683,7 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'reports entity analytics beside UEBA' {
-        $hc['26-ueba'] | Should -Match '## Entity analytics[\s\S]*\| IdentityInfo rows \(14d\) \| 360 \|[\s\S]*\| Entity analytics \| Enabled \|'
+        $hc['26-ueba'] | Should -Match '## Entity analytics[\s\S]*\| IdentityInfo rows \(30d\) \| 360 \|[\s\S]*\| Entity analytics \| Enabled \|'
     }
 
     It 'explains the maturity scale and lists every open gap with its impact' {
@@ -1705,7 +1705,7 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
         $hcOld['27-threat-intelligence'] | Should -Match '## Table migration status\s+_Not captured in this snapshot\._'
         $hcOld['27-threat-intelligence'] | Should -Match '### TAXII clients[\s\S]*?_Not captured in this snapshot\._'
         $hcOld['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*?_Not captured in this snapshot\._'
-        $hcOld['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 7d\)\s+_Not captured in this snapshot\._'
+        $hcOld['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 30d\)\s+_Not captured in this snapshot\._'
     }
 
     It 'lists every table whose retention rolls into the lake and checks each is still fed' {

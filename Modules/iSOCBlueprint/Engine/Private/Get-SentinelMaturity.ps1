@@ -53,7 +53,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.2.2
+    Version:      0.3.0
     Last Updated: 2026-10-13
     Requires:     PowerShell 7.2+
 
@@ -521,6 +521,22 @@ function Format-MaturityEvidence {
     return $Template.Replace('{metric}', $text)
 }
 
+function Format-MaturityWindow {
+    <#
+    .SYNOPSIS
+        Name the run's window in a criterion's text: {lookback} as the days
+        the KQL captures read, {recent} as the latest days within it.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)] [AllowNull()] [AllowEmptyString()] [string] $Text,
+        [Parameter(Mandatory = $true)] $Window
+    )
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $days = { param([int]$n) if ($n -eq 1) { '1 day' } else { "$n days" } }
+    return $Text.Replace('{lookback}', (& $days $Window.Days)).Replace('{recent}', (& $days $Window.RecentDays))
+}
+
 function Get-SentinelMaturity {
     <#
     .SYNOPSIS
@@ -564,6 +580,15 @@ function Get-SentinelMaturity {
 
     $doc = Get-Content $CriteriaPath -Raw | ConvertFrom-Json -Depth 16
     $metrics = New-MaturityMetrics -InputRoot $InputRoot -ResourcesRoot $ResourcesRoot
+    # The window the KQL captures read (run-context.json); a run collected
+    # before the setting existed read 30 days, its recent figures 7.
+    $window = [pscustomobject]@{ Days = 30; RecentDays = 7 }
+    $runContextPath = Join-Path $InputRoot 'run-context.json'
+    if (Test-Path $runContextPath) {
+        $rc = Get-Content $runContextPath -Raw | ConvertFrom-Json
+        if ($rc -and $rc.PSObject.Properties['LookbackDays'] -and [int]$rc.LookbackDays -ge 1) { $window.Days = [int]$rc.LookbackDays; $window.RecentDays = [math]::Min(7, $window.Days) }
+        if ($rc -and $rc.PSObject.Properties['RecentDays'] -and [int]$rc.RecentDays -ge 1) { $window.RecentDays = [int]$rc.RecentDays }
+    }
     Test-MaturityCriteriaDocument -Document $doc -MetricNames @($metrics.Keys)
 
     # Rule outcomes: the collector passes them in; a standalone run reads the
@@ -611,7 +636,7 @@ function Get-SentinelMaturity {
                 'Gap' { Get-MaturityPropertyValue $c 'evidence.gap' $null }
                 default { $null }
             }
-            $evidence = Format-MaturityEvidence -Template $template -Metric $r.Metric
+            $evidence = Format-MaturityWindow -Text (Format-MaturityEvidence -Template $template -Metric $r.Metric) -Window $window
             if (-not $evidence) { $evidence = $r.Evidence }
             if (-not $evidence) {
                 $evidence = switch ($r.Status) {
@@ -628,7 +653,7 @@ function Get-SentinelMaturity {
                 evidence = $evidence
                 weight   = [double]$c.weight
                 effort   = [string]$c.effort
-                impact   = [string]$c.impact
+                impact   = Format-MaturityWindow -Text ([string]$c.impact) -Window $window
                 guidance = [string]$c.guidance
                 csf      = @($c.csf | ForEach-Object { [string]$_ })
                 source   = $c.source
@@ -687,7 +712,7 @@ function Get-SentinelMaturity {
                 name        = $c.name
                 kind        = $c.kind
                 evidence    = $c.evidence
-                impact      = $c.impact
+                impact      = Format-MaturityWindow -Text ([string]$c.impact) -Window $window
                 guidance    = $c.guidance
                 effort      = $c.effort
                 csf         = $c.csf
@@ -746,9 +771,10 @@ function Get-SentinelMaturity {
             name            = [string]$doc.methodology.name
             version         = [string]$doc.methodology.version
             criteriaVersion = [string]$doc.version
-            scaleNote       = [string](Get-MaturityPropertyValue $doc 'methodology.scaleNote' '')
+            scaleNote       = Format-MaturityWindow -Text ([string](Get-MaturityPropertyValue $doc 'methodology.scaleNote' '')) -Window $window
             basis           = [string](Get-MaturityPropertyValue $doc 'methodology.basis' '')
-            scope           = [string](Get-MaturityPropertyValue $doc 'methodology.scope' '')
+            scope           = Format-MaturityWindow -Text ([string](Get-MaturityPropertyValue $doc 'methodology.scope' '')) -Window $window
+            lookbackDays    = $window.Days
         }
         generatedAtUtc   = (Get-Date).ToUniversalTime().ToString('o')
         targetLevel      = $TargetLevel

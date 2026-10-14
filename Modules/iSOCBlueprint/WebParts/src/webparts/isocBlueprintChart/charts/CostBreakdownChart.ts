@@ -1,5 +1,5 @@
 import { type ICostBreakdownData, type ICostPlan, type ICostSource, type ICostTable } from './ChartTypes';
-import { type IChartTheme, SERIES, esc, fmt, isNil, list, num, str, tint } from './ChartKit';
+import { type IChartTheme, SERIES, esc, fmt, isNil, list, num, str, tint, windowText } from './ChartKit';
 import { INFO, type IPart, card, chip, eyebrow, figure, meter, pct, share, sub } from './Visual';
 
 // Where the monthly estimate comes from: the total, then the billable GB by
@@ -19,13 +19,13 @@ export function renderCostBreakdown(data: ICostBreakdownData, theme: IChartTheme
   const money: (v: unknown) => string = (v: unknown): string => isNil(v) || str(v) === '' ? '' : (currency ? currency + ' ' : '') + fmt(num(v));
   const head: string = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">' +
     card(eyebrow('Estimated monthly cost', theme) + figure(money(data.monthlyTotal) || 'n/a', theme, 28) +
-      sub('From the last 30 days of billable data: ' + gb(totalGb) + '.', theme), theme, INFO) +
-    plansCard(plans, money, theme) + '</div>';
+      sub('Projected from the last ' + windowText(data.windowDays) + ' of billable data: ' + gb(totalGb) + '.', theme), theme, INFO) +
+    plansCard(plans, money, theme, windowText(data.windowDays)) + '</div>';
   return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + esc(theme.text) + '">' + head +
     (sources.length ? sourcesCard(sources, totalGb, theme) : '') + '</div>';
 }
 
-function plansCard(plans: ICostPlan[], money: (v: unknown) => string, theme: IChartTheme): string {
+function plansCard(plans: ICostPlan[], money: (v: unknown) => string, theme: IChartTheme, win: string): string {
   const parts: IPart[] = plans.map((p: ICostPlan, i: number): IPart => ({ label: PLAN_NAME[str(p.name)] || str(p.name), value: num(p.gb), colour: PLAN[str(p.name)] || SERIES[i % SERIES.length] }));
   const total: number = parts.reduce((a: number, p: IPart): number => a + p.value, 0);
   const rows: string = parts.map((p: IPart, i: number): string =>
@@ -34,7 +34,7 @@ function plansCard(plans: ICostPlan[], money: (v: unknown) => string, theme: ICh
     '<span>' + esc(p.label) + ' <span style="color:' + esc(theme.muted) + '">' + pct(p.value, total) + '</span></span>' +
     '<span style="font-variant-numeric:tabular-nums;color:' + esc(theme.muted) + '">' + gb(p.value) + '</span>' +
     '<span style="font-weight:750;font-variant-numeric:tabular-nums;text-align:right;min-width:84px">' + esc(money(plans[i].cost)) + '</span></div>').join('');
-  return card(eyebrow('By plan', theme) + sub('Billable GB in 30 days, and each plan\'s monthly cost', theme) +
+  return card(eyebrow('By plan', theme) + sub('Billable GB in ' + win + ', and each plan\'s monthly cost', theme) +
     '<div style="margin:10px 0 9px">' + meter(parts, theme, 12) + '</div>' + rows, theme);
 }
 

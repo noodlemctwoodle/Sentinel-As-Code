@@ -1,5 +1,5 @@
 import { type IEstateData, type IEstateSource, type IEstateStage } from './ChartTypes';
-import { type IChartTheme, esc, list, num, str } from './ChartKit';
+import { type IChartTheme, esc, list, num, str, windowText } from './ChartKit';
 import { BAD, NEUTRAL, OK, WARN, type IPart, arrow, card, count, eyebrow, figure, meter, pct, pill, share, showAll, sub } from './Visual';
 
 // The estate in the last 30 days: every source family's billable GB split
@@ -59,7 +59,7 @@ function families(sources: IEstateSource[], data: IEstateData, theme: IChartThem
     '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + READ + '"></span>Read by an enabled detection</span>' +
     '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + NEUTRAL + '"></span>Not monitored (ingested and billed, read by no detection)</span></div>';
   return card('<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
-    '<div>' + eyebrow('Source families', theme) + sub(gbText(total) + ' billable in 30 days, ' + pct(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
+    '<div>' + eyebrow('Source families', theme) + sub(gbText(total) + ' billable in ' + windowText(data.windowDays) + ', ' + pct(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
     key + '<div style="margin-top:8px">' + showAll(rows, 8, 'families') + '</div>', theme);
 }
 

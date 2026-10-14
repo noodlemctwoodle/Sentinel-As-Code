@@ -326,7 +326,10 @@ sitting above the strip). A tab or page still too tall shrinks its
 tallest tables first, to 200px, and as a last resort scrolls inside the
 panel. A tab is labelled with its heading (a bracketed qualifier moves
 to the tooltip and the top of the tab) and the rows it holds; the arrow
-keys move between tabs. A page always opens on its first tab; the tab
+keys move between tabs. Every card, label and tooltip names the window the
+collector read (`window` in the model, from `run-context.json`: "last 30
+days", "(30d)"), and the cost graphic says its month is projected from it.
+A page always opens on its first tab; the tab
 it is on holds while it stays open (on a resize, say). Every page's
 reference links sit at its foot: the renderer gathers them into one
 References list, and the page shows it as a card of link tiles under the

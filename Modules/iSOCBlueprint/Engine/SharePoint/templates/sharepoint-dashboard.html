@@ -1087,7 +1087,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
-        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Detection counts the tables an enabled Sentinel rule or Defender XDR custom detection reads. Alerts split in two: Defender XDR's, raised by its products (which read no workspace table), and Sentinel's, from the scheduled and NRT rules that fired; both feed the incidents. Strand width is GB; dashed strands are billed but read by no detection. Select a family for its tables and its product alerts.</p>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last <span data-win="w">30 days</span>. Detection counts the tables an enabled Sentinel rule or Defender XDR custom detection reads. Alerts split in two: Defender XDR's, raised by its products (which read no workspace table), and Sentinel's, from the scheduled and NRT rules that fired; both feed the incidents. Strand width is GB; dashed strands are billed but read by no detection. Select a family for its tables and its product alerts.</p>
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
@@ -1098,7 +1098,7 @@
     <div class="panel" id="detMatrixPanel">
       <div class="phead"><div>
         <h2>Detection matrix</h2>
-        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) and its incidents in 30 days by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them. Select a rule to open it in Rule Performance.</p>
+        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in <span data-win="w">30 days</span>; Silent: raised none; Failing: had run failures in <span data-win="w">30 days</span>) and its incidents in <span data-win="w">30 days</span> by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them. Select a rule to open it in Rule Performance.</p>
       </div></div>
       <div class="dm-summary" id="dmSummary"></div>
       <div class="dm-tools"><input type="search" id="dmQ" placeholder="Find a rule, detection or table…" aria-label="Find a rule, detection or table"><div class="dm-grp" id="dmSrc" role="group" aria-label="Source"></div><div class="dm-grp" id="dmHealth" role="group" aria-label="Health"></div><div class="dm-grp" id="dmMode" role="group" aria-label="Columns"></div></div>
@@ -1109,7 +1109,7 @@
     <div class="panel">
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
-          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs free benefit, from the cost estimate over the last 30 days. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
+          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed vs free benefit, from the cost estimate over the last <span data-win="w">30 days</span>. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
         <div class="zoom"><button type="button" class="sbtn icon" id="zoomOut" aria-label="Zoom out">&minus;</button><span id="zoomPct">100%</span><button type="button" class="sbtn icon" id="zoomIn" aria-label="Zoom in">+</button><button type="button" class="sbtn" id="zoomFit">Fit</button></div>
       </div>
       <div class="flowfilter" id="flowFilter"></div>
@@ -1118,7 +1118,7 @@
     </div>
     <div class="flowgrid">
       <div class="panel"><div class="phead"><div><h2>Top tables by volume</h2></div></div><div id="topTables"></div></div>
-      <div class="panel"><div class="phead"><div><h2>Top alerting rules (30d)</h2></div></div><div id="topRules"></div></div>
+      <div class="panel"><div class="phead"><div><h2>Top alerting rules (<span data-win="d">30d</span>)</h2></div></div><div id="topRules"></div></div>
     </div>
   </section>
 
@@ -1177,6 +1177,22 @@
 (function(){
   "use strict";
   const M = JSON.parse(document.getElementById('sac-model').textContent);
+  // The window the cards cover: the days of activity the collector read
+  // (M.window, from run-context.json), 30 for a model from before the
+  // setting, and the recent window within it. collected is fixed: what was
+  // judged when the data was collected (the maturity score, the findings)
+  // keeps it. d() reads "30d", w() "30 days"; rd() and rw() the recent ones.
+  const WIN=(function(){
+    const days=(M.window&&+M.window.days>0)? +M.window.days : 30;
+    const recent=(M.window&&+M.window.recentDays>0)? +M.window.recentDays : Math.min(7,days);
+    const words=n=>n===1? '1 day' : n+' days';
+    const o={days, recent, collected:days};
+    o.d=()=>o.days+'d'; o.w=()=>words(o.days); o.rd=()=>o.recent+'d'; o.rw=()=>words(o.recent); o.cw=()=>words(o.collected);
+    return o;
+  })();
+  // Fixed text in the page names the window through data-win spans.
+  const paintWindow=()=>document.querySelectorAll('[data-win]').forEach(e=>{ const k=e.dataset.win; e.textContent= k==='d'? WIN.d() : k==='rd'? WIN.rd() : k==='rw'? WIN.rw() : WIN.w(); });
+  paintWindow();
   // Where the dashboard's files are. On SharePoint the web part says
   // (window.sacSnapshot: the folder, a reader and a loader), since the frame's
   // own address is about:srcdoc; served as files, the page's folder (the
@@ -1435,7 +1451,7 @@
       badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
     {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
       sec:((M.sections||[]).some(s=>s.num===91)?91:secOverview)},
-    {k:'Alerts (30d)', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/^analytics rules/i, secOverview)},
+    {k:'Alerts ('+WIN.d()+')', v:(M.estate? (M.estate.alerts||0).toLocaleString():'n/a'), ic:ICON.bolt, sec:findSecNum(/^analytics rules/i, secOverview)},
     {k:'Data lake', v:(M.dataLake? (M.dataLake.enrolled?'Enrolled':'Not enrolled'):'n/a'), ic:ICON.database, sec:findSecNum(/data lake/i, secOverview)}
   ];
   const goArrow = '<svg class="pgo" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
@@ -1460,7 +1476,7 @@
       big:M.mitreCovered+' / '+mitreTotal, unit:'MITRE ATT&CK tactics',
       s:c.rulesEnabled+' of '+c.rulesTotal+' analytics rules enabled', ring:covPct},
     {grad:'linear-gradient(135deg,#0d9488,#16a34a)', ic:ICON.pulse, h:'Operational health',
-      big:M.health.pct+'%', unit:'7-day success rate',
+      big:M.health.pct+'%', unit:WIN.days+'-day success rate',
       s:M.health.totalEvents.toLocaleString()+' health events processed', ring:Math.round(M.health.pct)},
     {grad:'linear-gradient(135deg,#7c3aed,#9333ea)', ic:ICON.scale, h:'Cost &amp; governance',
       big:cost? (cost.currency+' '+cost.monthlyTotal):'n/a', unit:cost?'per month':'',
@@ -1485,14 +1501,14 @@
     if(!E || !E.rings){ el.innerHTML='<p class="note">Estate pipeline not available in this snapshot.</p>'; return; }
     const R=E.rings;
     const defs=[
-      {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables seen in 90 days', sec:findSecNum(/table plans/i,null)},
+      {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables with data in the last '+WIN.w(), sec:findSecNum(/table plans/i,null)},
       {k:'detection', h:'Detection', unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection', sec:findSecNum(/detection opportunities/i,null)},
-      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired (30d)', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in 30 days', sec:findSecNum(/^analytics rules/i,null)},
+      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired ('+WIN.d()+')', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in 30 days', sec:findSecNum(/^analytics rules/i,null)},
       // Defender XDR's alerts, as the flow splits them: their share of every
       // alert, in the Defender XDR colour (a share, not a score).
-      ...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert (30d)', s:'raised by Defender XDR and the Microsoft products feeding it', sec:findSecNum(/^alerts/i,null),
+      ...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert ('+WIN.d()+')', s:'raised by Defender XDR and the Microsoft products feeding it', sec:findSecNum(/^alerts/i,null),
         ring:{value:+E.alertsXdr, max:+E.alerts||+E.alertsXdr, pct:Math.round(100*(+E.alertsXdr)/Math.max(+E.alerts||+E.alertsXdr,1))}, tone:famColor['Defender XDR']}] : []),
-      {k:'incidents', h:'Incidents', unit:'closed of created (30d)', s:(E.incidentsOpen||0).toLocaleString()+' still open', sec:findSecNum(/^incidents/i,null)}
+      {k:'incidents', h:'Incidents', unit:'closed of created ('+WIN.d()+')', s:(E.incidentsOpen||0).toLocaleString()+' still open', sec:findSecNum(/^incidents/i,null)}
     ];
     el.innerHTML=defs.map(d=>{
       const r=d.ring||R[d.k]||{value:0,max:0,pct:null};
@@ -1533,7 +1549,7 @@
     const mkLines=(x,y,lines,attrs,lh)=>{ const t=mk('text',Object.assign({x:x,y:y},attrs)); lines.forEach((ln,i)=>{ const ts=document.createElementNS(ns,'tspan'); ts.setAttribute('x',x); ts.setAttribute('dy',i?String(lh||12):'0'); ts.textContent=ln; t.appendChild(ts); }); return t; };
     const sources=(E&&E.sources?E.sources:[]);
     if(!E || !sources.length || !(E.totalGb>0)){
-      mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in the last 30 days, so there is no flow to draw.');
+      mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in the last '+WIN.w()+', so there is no flow to draw.');
       return;
     }
     const maxGb=Math.max(...sources.map(s=>s.gb),0.01);
@@ -1571,7 +1587,7 @@
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
       const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
       const fp=(E.productAlerts||[]).filter(p=>p.family===s.category); const fpAlerts=fp.reduce((a,p)=>a+(+p.alerts||0),0);
-      const tipText=s.category+': '+fmtN(s.gb)+' GB in 30 days, '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
+      const tipText=s.category+': '+fmtN(s.gb)+' GB in '+WIN.w()+', '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
       // Covered strands are solid in the family colour; unmonitored strands
       // keep the family colour but run dashed into the pool.
       if(cov>0){
@@ -1615,7 +1631,7 @@
       const det=rings[1], al=rings[2], inc=rings[3], xx=al.x, xy=cy-splitY, xcol=famColor['Defender XDR']||'#0d9488';
       const share=allAlerts>0? Math.min(1,xdr/allAlerts) : 1, pctX=Math.round(share*100);
       const xw=Math.max(3,Math.min(24,bandW*Math.sqrt(xdr/Math.max(+E.ruleAlerts||+E.alertsSentinel||1,1))));
-      const xTip='Defender XDR alerts: '+xdr.toLocaleString()+' raised in Defender XDR and the Microsoft security products feeding it in the last 30 days, '+pctX+'% of the '+allAlerts.toLocaleString()+' alerts. They read no workspace table, so the rings to the left do not count them; the incidents do. Click to open the alerts page.';
+      const xTip='Defender XDR alerts: '+xdr.toLocaleString()+' raised in Defender XDR and the Microsoft security products feeding it in the last '+WIN.w()+', '+pctX+'% of the '+allAlerts.toLocaleString()+' alerts. They read no workspace table, so the rings to the left do not count them; the incidents do. Click to open the alerts page.';
       [curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)].forEach(d=>{
         tip(mk('path',{'data-xdr':'1',d:d,fill:'none',stroke:xcol,'stroke-opacity':'.42','stroke-width':xw.toFixed(1),'stroke-linecap':'butt'}),xTip);
         beads('path',{d:d},xcol,xw,Math.min(1,xw/24));
@@ -1649,7 +1665,7 @@
       const share=(+E.incidents||0)>0? b.v/(+E.incidents): .5;
       mk('path',{d:curve(last.x+r,cy,1092,b.y),fill:'none',stroke:b.col,'stroke-opacity':'.35','stroke-width':Math.max(3,bandW*share).toFixed(1)});
       beads('path',{d:curve(last.x+r,cy,1092,b.y)},b.col,Math.max(3,bandW*share),share);
-      const incTip=b.l+' incidents in the last 30 days. Click to open the incidents page.';
+      const incTip=b.l+' incidents in the last '+WIN.w()+'. Click to open the incidents page.';
       tip(mk('rect',{'data-inc':b.l,x:1088,y:b.y-18,width:104,height:40,rx:8,fill:'transparent'}),incTip);
       tip(mk('circle',{'data-inc':b.l,cx:1098,cy:b.y,r:6.5,fill:b.col,filter:'url(#esGlow)'}),incTip);
       tip(mk('text',{'data-inc':b.l,x:1114,y:b.y+6,'font-size':'19','font-weight':'800',style:'fill:var(--ink)'},String(b.v)),incTip);
@@ -1681,19 +1697,19 @@
     const rows=sel.family? all.filter(t=>t.family===sel.family) : all.filter(t=>!t.covered);
     const gb=rows.reduce((a,t)=>a+(+t.gb||0),0), covered=rows.filter(t=>t.covered).length;
     const title=sel.family? sel.family : 'No detection rule';
-    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in 30 days, '+covered+' read by an enabled Sentinel rule or custom detection')
-                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in 30 days that no enabled Sentinel rule or custom detection reads');
+    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in '+WIN.w()+', '+covered+' read by an enabled Sentinel rule or custom detection')
+                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in '+WIN.w()+' that no enabled Sentinel rule or custom detection reads');
     const cd=E.customDetections||{};
     const cdLine=cd.captured? '<p class="note" style="margin:0 0 6px">Defender XDR custom detections: '+(cd.enabled||0)+' enabled of '+(cd.total||0)+' defined; an enabled one counts as coverage for the tables it queries.</p>'
                             : '<p class="note" style="margin:0 0 6px">Defender XDR custom detections were not captured in this run (the identity needs CustomDetection.Read.All), so coverage here counts Sentinel rules only.</p>';
     const fp=(E.productAlerts||[]).filter(p=>sel.family? p.family===sel.family : true);
-    const fpLine=fp.length? '<p class="note" style="margin:0 0 10px">First-party detections on '+(sel.family?'this family':'these families')+' in 30 days: '+fp.map(p=>esc(p.product)+' '+(+p.alerts||0).toLocaleString()+' alert'+(p.alerts==1?'':'s')+' from '+p.detections+' detection'+(p.detections==1?'':'s')).join('; ')+'. These run inside the product and do not read workspace tables, so they are not counted as Sentinel coverage.</p>'
-                         : '<p class="note" style="margin:0 0 10px">No first-party product alerts on '+(sel.family?'this family':'these families')+' in the last 30 days either.</p>';
+    const fpLine=fp.length? '<p class="note" style="margin:0 0 10px">First-party detections on '+(sel.family?'this family':'these families')+' in '+WIN.w()+': '+fp.map(p=>esc(p.product)+' '+(+p.alerts||0).toLocaleString()+' alert'+(p.alerts==1?'':'s')+' from '+p.detections+' detection'+(p.detections==1?'':'s')).join('; ')+'. These run inside the product and do not read workspace tables, so they are not counted as Sentinel coverage.</p>'
+                         : '<p class="note" style="margin:0 0 10px">No first-party product alerts on '+(sel.family?'this family':'these families')+' in the last '+WIN.w()+' either.</p>';
     const opNum=findSecNum(/detection opportunities/i,null);
     const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
       ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
     el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?sbtn('Detection opportunities','data-jump="'+opNum+'"',{go:true}):'')+sbtn('Close','data-esd-close')+'</div>'+cdLine+fpLine+
-      (rows.length? moreTable('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
+      (rows.length? moreTable('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / '+WIN.d()+'</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
     el.classList.remove('hidden');
     el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
     el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
@@ -1730,7 +1746,7 @@
     const n0=v=>Number(v)||0;
     // Exact counts, never abbreviated.
     const num=v=>n0(v).toLocaleString('en-GB');
-    const days=/^(\d+)d$/.exec(String(E.window||'30d')); const win=days? 'last '+days[1]+' days' : String(E.window);
+    const win='last '+WIN.w();
     const sources=(E.sources||[]).filter(s=>s&&n0(s.gb)>0).sort((a,b)=>n0(b.gb)-n0(a.gb));
     const alerts=n0(E.alerts), incidents=n0(E.incidents), closed=n0(E.incidentsClosed), open=n0(E.incidentsOpen);
     // Two alert nodes when the model splits them and Defender XDR raised any;
@@ -1964,7 +1980,7 @@
     if(MAT && MAT.overall && MAT.overall.score!=null){
       const sc=+MAT.overall.score, lv=MAT.overall.level, tg=MAT.targetLevel;
       const below=(MAT.areasBelowTarget||[]).length, total=(MAT.areas||[]).length;
-      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">'+esc(MAT.methodology.name)+' v'+esc(MAT.methodology.version)+(MAT.methodology.basis?', based on SOC-CMM':'')+' &middot; scored from the Sentinel workspace only (configuration and 30 days of activity); people and processes were not assessed.</p></div></div>'+
+      card.innerHTML='<div class="phead"><div><h2>Maturity</h2><p class="note">'+esc(MAT.methodology.name)+' v'+esc(MAT.methodology.version)+(MAT.methodology.basis?', based on SOC-CMM':'')+' &middot; scored from the Sentinel workspace only (configuration and '+WIN.cw()+' of activity); people and processes were not assessed.</p></div></div>'+
         '<div class="matbig">'+sc.toFixed(2)+'<small>/ 5 &middot; '+esc(MAT.overall.levelName)+'</small></div>'+
         '<div class="mat-band">'+lvlNames.map((n,i)=>'<div class="lvl'+(i===lv?' on':'')+(i===tg?' target':'')+'"><b>'+i+'</b>'+esc(n)+'</div>').join('')+'</div>'+
         '<div class="meter"><div class="mf" style="--w:'+(sc/5*100).toFixed(1)+'%"></div><div class="mt" style="--t:'+(tg/5*100)+'%"></div></div>'+
@@ -2119,7 +2135,7 @@
       mk('circle',{cx:fx,cy:n._y,r:4.5,fill:nodeFill(n),filter:'url(#ibGlow)'},null,g);
       mk('text',{x:fx-14,y:n._y-1,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},n.label,g);
       mk('text',{x:fx-14,y:n._y+13,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(n.value)+' GB',g);
-      click(g,n,n.label+': '+fmtN(n.value)+' GB in 30 days.'+(n.clickable&&opts.onNode? ' Select to show every table in it.' : ''));
+      click(g,n,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+'.'+(n.clickable&&opts.onNode? ' Select to show every table in it.' : ''));
       g.addEventListener('mouseenter',()=>spot(n.label)); g.addEventListener('mouseleave',()=>spot(null));
     });
     // Tables: a pill each, the name truncated to fit with the full name in the tooltip.
@@ -2132,7 +2148,7 @@
       if(estText(txt)>avail){ while(txt.length>1 && estText(txt+'…')>avail) txt=txt.slice(0,-1); txt+='…'; }
       mk('text',{x:tx+12,y:n._y+4,'font-size':'11.5','font-weight':'600',style:'fill:var(--ink)'},txt,g);
       mk('text',{x:tx+tw-12,y:n._y+4,'text-anchor':'end','font-size':'10',style:'fill:var(--muted)'},val,g);
-      click(g,n,n.label+': '+val+' in 30 days'+(fam? ' ('+fam+')' : '')+'.'+(n.other&&opts.onNode? ' Select to show every table.' : ''));
+      click(g,n,n.label+': '+val+' in '+WIN.w()+(fam? ' ('+fam+')' : '')+'.'+(n.other&&opts.onNode? ' Select to show every table.' : ''));
     });
     // Plans and tiers: a ring each, its share of the GB shown.
     const C=2*Math.PI*R, planGb=cols[2].reduce((a,n)=>a+(+n.value||0),0)||1;
@@ -2143,7 +2159,7 @@
       mk('text',{x:px,y:n._y+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},pct+'%',g);
       mk('text',{x:px,y:n._y-R-12,'text-anchor':'middle','font-size':'9.5','font-weight':'800',style:'fill:var(--faint);'+LBL+HALO},String(n.label).toUpperCase(),g);
       mk('text',{x:px,y:n._y+R+18,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},fmtN(n.value)+' GB',g);
-      tip(g,n.label+': '+fmtN(n.value)+' GB in 30 days, '+pct+'% of the GB shown.');
+      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+', '+pct+'% of the GB shown.');
     });
     // Outcomes: billed and free benefit, with their totals.
     const outGb=cols[3].reduce((a,n)=>a+(+n.value||0),0)||1;
@@ -2153,7 +2169,7 @@
       mk('text',{x:ox+18,y:n._y+7,'font-size':'22','font-weight':'800',style:'fill:var(--ink)'},fmtN(n.value)+' GB',g);
       mk('text',{x:ox+18,y:n._y+22,'font-size':'9.5','font-weight':'700',style:'fill:var(--muted);'+LBL},String(n.label).toUpperCase(),g);
       mk('text',{x:ox+18,y:n._y+36,'font-size':'10',style:'fill:var(--muted)'},pct+'% of the GB shown',g);
-      tip(g,n.label+': '+fmtN(n.value)+' GB in 30 days, '+pct+'% of the GB shown.');
+      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+', '+pct+'% of the GB shown.');
     });
     revealSankey(svgEl);
     return {W,H};
@@ -2239,7 +2255,7 @@
       document.getElementById('dmSummary').innerHTML=
         '<div class="dm-sm"><div class="k">Rules and detections</div><div class="v">'+base.length.toLocaleString()+'</div><div class="s">'+base.filter(r=>r.source!=='Defender XDR').length+' analytics rules, '+base.filter(r=>r.source==='Defender XDR').length+' custom detections</div></div>'+
         HEALTH.map(([h,c])=>'<div class="dm-sm"><div class="k" style="color:'+c+'">'+h+'</div><div class="v">'+cnt(h).toLocaleString()+'</div><div class="s">'+Math.round(100*cnt(h)/Math.max(1,base.length))+'% of rules</div></div>').join('')+
-        '<div class="dm-sm"><div class="k">Incidents in 30 days by verdict</div><div class="dm-vbar">'+(allInc? OUT.map(([k,l,c])=>tot[k]? '<i style="width:'+(100*tot[k]/allInc)+'%;background:'+c+'" title="'+l+': '+tot[k].toLocaleString()+'"></i>':'').join('') : '')+'</div>'+
+        '<div class="dm-sm"><div class="k">Incidents in '+WIN.w()+' by verdict</div><div class="dm-vbar">'+(allInc? OUT.map(([k,l,c])=>tot[k]? '<i style="width:'+(100*tot[k]/allInc)+'%;background:'+c+'" title="'+l+': '+tot[k].toLocaleString()+'"></i>':'').join('') : '')+'</div>'+
         '<div class="dm-vleg">'+OUT.map(([k,l,c])=>'<span><i style="background:'+c+'"></i>'+l+' '+tot[k].toLocaleString()+'</span>').join('')+'</div></div>';
       // Chips.
       const srcBase=all.filter(match);
@@ -2257,7 +2273,7 @@
       let h='<thead><tr><th class="dm-rn">Rule or detection</th>'+(st.mode==='family'
           ? cols.map((c,i)=>'<th class="dm-fcol" data-c="'+i+'" title="'+esc(c.label+': '+c.tables.join(', '))+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i><span class="dm-fn">'+esc(c.label)+'</span><small>'+c.tables.length+' table'+(c.tables.length===1?'':'s')+'</small></th>').join('')
           : '<th class="dm-tl" colspan="'+(cols.length+(over?1:0))+'"><div class="dm-tlab" style="width:'+(cols.length*40+over)+'px;height:'+labH+'px">'+cols.map((c,i)=>'<span style="left:'+(i*40+20)+'px" data-c="'+i+'" title="'+esc(c.label+' ('+c.fam+')')+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i>'+esc(c.label)+'</span>').join('')+'</div></th>')+
-        '<th class="dm-h">Health</th><th class="dm-h">Incidents by verdict</th><th class="dm-n">30 days'+(rows.length>FIRST? moreChev(rows.length,'rules') : '')+'</th></tr></thead><tbody>';
+        '<th class="dm-h">Health</th><th class="dm-h">Incidents by verdict</th><th class="dm-n">'+WIN.w()+(rows.length>FIRST? moreChev(rows.length,'rules') : '')+'</th></tr></thead><tbody>';
       rows.forEach((r,ri)=>{
         const isX=r.source==='Defender XDR', inc=n0(r.incidents), closed=Math.max(0,inc-n0(r.open)), tbls=r.tables||[];
         h+='<tr'+(ri>=FIRST? ' data-mr hidden':'')+'><td class="dm-rn"><div class="dm-name"><span class="dm-src '+(isX?'X':'S')+'" title="'+(isX?'Defender XDR custom detection':'Sentinel analytics rule')+'">'+(isX?'XDR':'SEN')+'</span>'+
@@ -2296,7 +2312,7 @@
 
   // ---- top tables / rules ----
   if(cost&&cost.topTables.length){
-    document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th>GB/30d</th><th>'+esc(cost.currency)+'/mo</th></tr></thead><tbody>'+
+    document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th>GB/'+WIN.d()+'</th><th>'+esc(cost.currency)+'/mo</th></tr></thead><tbody>'+
       cost.topTables.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.plan)+'</td><td>'+t.gb30d+'</td><td>'+t.cost+'</td></tr>').join('')+'</tbody></table>';
   }
   // The eight busiest rules here; Rule Performance lists every one.
@@ -2622,7 +2638,7 @@
     const ttSrc = (cost.allTables&&cost.allTables.length)? cost.allTables : cost.topTables;
     const tt = ttSrc.map(t=>({label:t.table,value:t.gb30d,display:fmt(t.gb30d)+' GB'}));
     cards.push('<div class="ipanel"><h3>Top tables by volume</h3>'+
-      '<p class="note">Ingested GB over the last 30 days (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',fill:{sec:secCostPage,label:'tables'}})+'</div>');
+      '<p class="note">Ingested GB over the last '+WIN.w()+' (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',fill:{sec:secCostPage,label:'tables'}})+'</div>');
   }
 
   // 4b. Ingestion by billing plan — only when there are 2+ active plans (a single
@@ -2644,7 +2660,7 @@
     const lakeLine = lakeOn? '<p class="note" style="margin:12px 0 0">Data lake enrolled: '+(mirrored? mirrored.toLocaleString()+' Analytics-plan table'+(mirrored===1?' is':'s are') : 'Analytics-plan tables are')+
       ' mirrored to it at no extra ingestion charge'+(extended? ', and '+extended.toLocaleString()+' keep data there beyond analytics retention' : '')+'.</p>' : '';
     cards.push('<div class="ipanel"><h3>Ingestion by billing plan</h3>'+
-      '<p class="note">GB over 30 days split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
+      '<p class="note">GB over '+WIN.w()+' split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
   } else if(M.topRules && M.topRules.length){
     const sevCol={High:'#ff4d1f',Medium:'#ffaa00',Low:'#fff100',Informational:'#8a8886',Other:'#94a3b8'};
     const sa={}; M.topRules.forEach(r=>{ const s=r.severity||'Other'; sa[s]=(sa[s]||0)+(r.alerts||0); });
@@ -2652,7 +2668,7 @@
     const si=Object.keys(sa).map(s=>({label:s,value:sa[s],display:sa[s].toLocaleString(),color:sevCol[s]||sevCol.Other}))
       .sort((a,b)=>order.indexOf(a.label)-order.indexOf(b.label));
     const siTotal=si.reduce((a,i)=>a+i.value,0);
-    cards.push('<div class="ipanel"><h3>Alert volume by severity (30d)</h3>'+
+    cards.push('<div class="ipanel"><h3>Alert volume by severity ('+WIN.d()+')</h3>'+
       '<p class="note">Total alerts from the busiest rules, grouped by severity.</p>'+
       donutMultiHtml(si, siTotal.toLocaleString(), 'alerts')+'</div>');
   }
@@ -2660,8 +2676,8 @@
   // 5. Top alerting rules
   if(M.topRules && M.topRules.length){
     const tr = M.topRules.map(r=>({label:r.name,value:r.alerts,display:r.alerts.toLocaleString()}));
-    cards.push('<div class="ipanel"><h3>Top alerting rules (30d)</h3>'+
-      '<p class="note">Rules producing the most alerts in the last 30 days.</p>'+barsHtml(tr,{theme:'indigo',fill:{sec:secRulePerf,label:'rules'}})+'</div>');
+    cards.push('<div class="ipanel"><h3>Top alerting rules ('+WIN.d()+')</h3>'+
+      '<p class="note">Rules producing the most alerts in the last '+WIN.w()+'.</p>'+barsHtml(tr,{theme:'indigo',fill:{sec:secRulePerf,label:'rules'}})+'</div>');
   }
 
   // 5a. Alerts by detection source — which security product generates the alert volume
@@ -2675,7 +2691,7 @@
     const ps={}; M.topRules.forEach(r=>{ const k=prodName(r.product); ps[k]=(ps[k]||0)+(r.alerts||0); });
     const pi=Object.keys(ps).map(k=>({label:k,value:ps[k],display:ps[k].toLocaleString()})).sort((a,b)=>b.value-a.value);
     if(pi.length){
-      cards.push('<div class="ipanel"><h3>Alerts by detection source (30d)</h3>'+
+      cards.push('<div class="ipanel"><h3>Alerts by detection source ('+WIN.d()+')</h3>'+
         '<p class="note">Share of alert volume by the security product that raised it.</p>'+barsHtml(pi,{theme:'rose',fill:{sec:secAlerts,label:'sources'}})+'</div>');
     }
   }
@@ -2685,8 +2701,8 @@
     const agg={}; M.health.rows.forEach(r=>{ const k=(r.OperationName||'Other')+' · '+(r.Status||''); agg[k]=(agg[k]||0)+(parseInt(r.LogCount,10)||0); });
     const hi=Object.keys(agg).map(k=>({label:k,value:agg[k],display:agg[k].toLocaleString()})).sort((a,b)=>b.value-a.value);
     if(hi.length){
-      cards.push('<div class="ipanel"><h3>Operational health event mix (7d)</h3>'+
-        '<p class="note">Sentinel health events by operation and status over the last 7 days.</p>'+barsHtml(hi,{theme:'cyan',fill:{sec:secHealth,label:'operations'}})+'</div>');
+      cards.push('<div class="ipanel"><h3>Operational health event mix ('+WIN.d()+')</h3>'+
+        '<p class="note">Sentinel health events by operation and status over the last '+WIN.w()+'.</p>'+barsHtml(hi,{theme:'cyan',fill:{sec:secHealth,label:'operations'}})+'</div>');
     }
   }
 
@@ -2729,7 +2745,7 @@
     const cc={TruePositive:'#dc2626',FalsePositive:'#d97706',BenignPositive:'#0d9488',Undetermined:'#64748b',Unclassified:'#94a3b8'};
     const items=M.incidentsByClassification.map(i=>({label:i.label,value:+i.value||0,display:(+i.value||0).toLocaleString(),color:cc[i.label]||'#94a3b8'}));
     const tot=items.reduce((a,i)=>a+i.value,0);
-    cards.push('<div class="ipanel"><h3>Incident outcomes (30d)</h3>'+
+    cards.push('<div class="ipanel"><h3>Incident outcomes ('+WIN.d()+')</h3>'+
       '<p class="note">How closed incidents were classified. Undetermined and unclassified closures give rule tuning nothing to work from.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'closed')+'</div>');
   }
@@ -2738,7 +2754,7 @@
   if(M.effectiveness && M.effectiveness.length){
     const rows=M.effectiveness.map(e=>'<tr><td>'+esc(e.rule)+(e.source&&e.source!=='Analytics rule'?'<div class="note" style="margin:2px 0 0">'+esc(e.source)+'</div>':'')+'</td><td class="num">'+e.incidents+'</td><td class="num">'+e.closed+'</td>'+
       '<td class="num">'+e.tp+'</td><td class="num">'+e.fp+'</td><td class="num">'+e.fpRate+'%</td></tr>');
-    cards.push('<div class="ipanel"><h3>Rule effectiveness (30d)</h3>'+
+    cards.push('<div class="ipanel"><h3>Rule effectiveness ('+WIN.d()+')</h3>'+
       '<p class="note">Incidents per detection with their closure verdicts: Sentinel analytics rules first, then other products\' alerts (product shown under the name). FP rate is false positives over closed incidents.</p>'+
       (secRulePerf!=null
         ? '<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody data-fill-list data-fill-total="'+rows.length+'">'+rows.slice(0,FILL_CAP).join('')+'</tbody></table>'+fillFoot(rows.length,secRulePerf,'detections')
@@ -2781,9 +2797,9 @@
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.</p>'+
       // The first twelve here; every table on the report page.
       (opNum
-        ? '<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows.slice(0,12).join('')+'</tbody></table>'+
+        ? '<table class="tbl"><thead><tr><th>Table</th><th>GB / '+WIN.d()+'</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows.slice(0,12).join('')+'</tbody></table>'+
           (rows.length>12? fillFoot(rows.length,opNum,'tables',false,true) : '')
-        : moreTable('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
+        : moreTable('<table class="tbl"><thead><tr><th>Table</th><th>GB / '+WIN.d()+'</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
   }
 
   // 7e. Playbook health (7d)
@@ -2791,7 +2807,7 @@
     const ph=M.playbookHealth; const ok=ph.runs7d-ph.failed7d;
     const items=[{label:'Succeeded',value:ok,display:ok.toLocaleString()},{label:'Failed',value:ph.failed7d,display:ph.failed7d.toLocaleString(),cls:'sev-Critical'}];
     const fl=(ph.failing||[]).map(f=>({label:f.playbook,value:f.failed,display:f.failed+' of '+f.runs,cls:'sev-Critical'}));
-    cards.push('<div class="ipanel"><h3>Playbook health (7d)</h3>'+
+    cards.push('<div class="ipanel"><h3>Playbook health ('+WIN.d()+')</h3>'+
       '<p class="note">'+ph.runs7d.toLocaleString()+' runs across '+ph.playbooks+' playbook'+(ph.playbooks===1?'':'s')+'; '+(ph.failing||[]).length+' with failures'+(ph.unavailable?'; run history unavailable for '+ph.unavailable:'')+'.</p>'+
       barsHtml(items,{theme:'teal'})+(fl.length?'<p class="note" style="margin:14px 0 8px">Failing playbooks</p>'+barsHtml(fl,{theme:'rose',fill:{sec:secAutomation,label:'failing playbooks'}}):'')+'</div>');
   }
@@ -2801,7 +2817,7 @@
     const pal=['#7a5a9e','#3b6fb0','#0d9488','#d97706','#64748b','#94a3b8'];
     const items=M.tiBySource.map((t,i)=>({label:t.source,value:+t.count||0,display:(+t.count||0).toLocaleString(),color:pal[i%pal.length]}));
     const tot=items.reduce((a,i)=>a+i.value,0);
-    cards.push('<div class="ipanel"><h3>Threat intelligence by source (30d)</h3>'+
+    cards.push('<div class="ipanel"><h3>Threat intelligence by source ('+WIN.d()+')</h3>'+
       '<p class="note">Indicators observed per feed. One feed is a single point of failure for every TI detection.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
   }
@@ -2820,7 +2836,7 @@
     const status=DL.enrolled
       ? 'Enrolled'+(DL.region?' ('+esc(DL.region)+')':'')+': every Analytics-plan table is mirrored to the lake; '+(DL.extendedCount||0)+' table'+(DL.extendedCount===1?'':'s')+' keep data beyond analytics retention and '+((DL.signals&&DL.signals.lakeOnlyTables)||0)+' route to the lake only.'
       : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
-    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB / 30d ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
+    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB in '+WIN.d()+' ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
       // The button under the table list opens the data lake page; without a
       // list, the link sits in the description instead.
@@ -3732,8 +3748,8 @@
       // A note above the tabs says which rule the tables show, and clears it.
       const c=counts||{}, nA=+c.alerts||0, nI=+c.incidents||0, body=content.querySelector('.docbody');
       const why=best? '' : (nA||nI)
-        ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in 30 days carry the alert names it gives them, in the alert volume table.'
-        : ' It raised no alerts or incidents in the last 30 days, so no table here lists it.';
+        ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in '+WIN.w()+' carry the alert names it gives them, in the alert volume table.'
+        : ' It raised no alerts or incidents in the last '+WIN.w()+', so no table here lists it.';
       if(body){
         const note=document.createElement('div'); note.className='docnote rulepin';
         note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');

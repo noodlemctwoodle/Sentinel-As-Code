@@ -62,6 +62,12 @@ export function fmt(value: number): string {
 }
 
 // A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
+// "1 day" or "N days" for a window in days, 30 when it is missing.
+export function windowText(days: unknown): string {
+  const n: number = num(days) > 0 ? Math.round(num(days)) : 30;
+  return n === 1 ? '1 day' : n + ' days';
+}
+
 export function compact(value: number): string {
   const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
   for (const [size, unit] of units) {

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Compute an estimated monthly cost for the workspace from the captured 30-day Usage,
+    Compute an estimated monthly cost for the workspace from the captured Usage over the run's lookback,
     table-plan attribution, and the Azure Retail Prices snapshot.
 
 .DESCRIPTION
@@ -10,7 +10,7 @@
     no Azure dependency.
 
     Inputs (all written by Export-SentinelInventory.ps1):
-      - tables-with-data.json    per-table 30-day BillableGB / IngestedGB
+      - tables-with-data.json    per-table BillableGB / IngestedGB over the lookback (BillableLast30d)
       - workspace-tables.json    per-table plan + retention
       - workspace.json           workspace SKU + commitment level
       - retail-prices.json       Sentinel + Log Analytics retail meters for the region
@@ -22,11 +22,14 @@
       Region                       workspace region
       AsOfUtc                      timestamp the prices were fetched
       ByPlan                       hashtable: plan name -> @{ Gb30d; MonthlyCost }
+                                   (Gb30d is the GB in the window, MonthlyCost
+                                   that projected to 30 days)
       Top10TablesByCost            array of @{ Table; Plan; Gb30d; MonthlyCost }
       CommitmentTierWhatIf         array of @{ Rung; ProjectedMonthlyCost; DeltaVsCurrent }
       DedicatedClusterCandidate    bool
       Caveats                      array of strings, items NOT priced
-      MethodologyVersion           '1.0.0'
+      WindowDays                   days of Usage the estimate is projected from
+      MethodologyVersion           '1.1.0'
 
     Methodology notes
     -----------------
@@ -53,7 +56,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-09-01
     Requires:     PowerShell 7.2+
 
@@ -86,6 +89,13 @@ function Get-SentinelCostEstimate {
     $workspace    = Read-Json (Join-Path $InputRoot 'workspace.json')
     $pricesBlob   = Read-Json (Join-Path $InputRoot 'retail-prices.json')
     $benefitJson  = Read-Json (Join-Path $ResourcesRoot 'sentinel-benefit-tables.json')
+    # The days of Usage the tables carry: the run's lookback (run-context.json),
+    # 30 for a run collected before the setting existed. A month is projected
+    # from it as 30 days at the window's rate.
+    $runContext   = Read-Json (Join-Path $InputRoot 'run-context.json')
+    $windowDays   = 30
+    if ($runContext -and $runContext.PSObject.Properties['LookbackDays'] -and [int]$runContext.LookbackDays -ge 1) { $windowDays = [int]$runContext.LookbackDays }
+    $toMonth      = 30.0 / $windowDays
 
     $caveats = @(
         'Query-time billing for Basic/Auxiliary plans not included.',
@@ -197,7 +207,7 @@ function Get-SentinelCostEstimate {
     $unitPrices.AuxiliaryIngestionPerGb = $unitPrices.AuxiliaryIngestion
     $unitPrices.DataLakeIngestionPerGb  = $unitPrices.DataLakeIngestion
 
-    # Per-table cost (30d billable -> monthly = *30/30, i.e. unchanged)
+    # Per-table cost: billable GB in the window, priced, projected to 30 days
     $perTable = @()
     foreach ($t in $tables) {
         $name = $t.DataType
@@ -213,7 +223,7 @@ function Get-SentinelCostEstimate {
         }
         if ($benefitSet.ContainsKey($name)) { $unit = 0.0 }
 
-        $cost = [math]::Round($billable30d * $unit, 2)
+        $cost = [math]::Round($billable30d * $unit * $toMonth, 2)
         $perTable += [pscustomobject]@{
             Table       = $name
             Plan        = $plan
@@ -247,7 +257,7 @@ function Get-SentinelCostEstimate {
         $commitmentTiers = Read-Json (Join-Path $ResourcesRoot 'commitment-tiers.json')
         if ($commitmentTiers) {
             $totalGb30d = ($byPlan.Values | Measure-Object -Property Gb30d -Sum).Sum
-            $dailyAvg = $totalGb30d / 30.0
+            $dailyAvg = $totalGb30d / $windowDays
             # Recommend a single rung, not one row per rung: the highest rung the
             # workspace already qualifies for, or the smallest rung when ingest is
             # just below it (within 80%), since that is the one decision worth
@@ -277,7 +287,7 @@ function Get-SentinelCostEstimate {
     }
 
     $totalGb30d = ($byPlan.Values | Measure-Object -Property Gb30d -Sum).Sum
-    $clusterCandidate = ($totalGb30d / 30.0) -gt 500.0
+    $clusterCandidate = ($totalGb30d / $windowDays) -gt 500.0
 
     [pscustomobject]@{
         MonthlyTotal              = [math]::Round($monthlyTotal, 2)
@@ -290,6 +300,7 @@ function Get-SentinelCostEstimate {
         CommitmentTierWhatIf      = @($commitmentWhatIf)
         DedicatedClusterCandidate = $clusterCandidate
         Caveats                   = $caveats
-        MethodologyVersion        = '1.0.0'
+        WindowDays                = $windowDays
+        MethodologyVersion        = '1.1.0'
     }
 }

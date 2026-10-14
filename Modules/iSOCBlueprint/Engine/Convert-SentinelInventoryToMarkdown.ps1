@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.13
+    Version:        0.7.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -233,24 +233,49 @@ $script:SectionDescriptions = @{
     '00-overview.md'                   = 'The whole assessment on one page: findings by severity, the headline counts, the estate flow, the maturity score, the estimated monthly cost and the most severe findings, each linking to the page that covers it in full.'
     '01-live-snapshot.md'              = 'A summary of the workspace as collected in this run: findings by severity, the workspace at a glance, the estate flow and the top recommendations, with pointers to the pages that go deeper.'
     '10-data-connectors.md'            = 'Which data sources feed the workspace: the classic and Codeless Connector Framework connectors, an effective view that combines them, how the connected ones compare with the Content Hub catalogue, their recent activity and the Defender XDR unification state.'
-    '15-incidents.md'                  = 'How incidents move from creation to closure over the last 30 days: response times, the incident lifecycle and analyst journey, the rules and providers that raise incidents, and how they are closed.'
-    '16-alerts.md'                     = 'Alert volume over the last 30 days by severity, by the product that raised it and by provider, showing where the alert load comes from.'
+    '15-incidents.md'                  = 'How incidents move from creation to closure over the last {lookback}: response times, the incident lifecycle and analyst journey, the rules and providers that raise incidents, and how they are closed.'
+    '16-alerts.md'                     = 'Alert volume over the last {lookback} by severity, by the product that raised it and by provider, showing where the alert load comes from.'
     '20-analytics-rules.md'            = 'Every analytics rule in the workspace: the mix of rule kinds and states, the full rule list, Microsoft incident-creation and Microsoft-managed rules, recent changes, the Content Hub solutions the rules came from, and Defender XDR custom detections.'
     '30-hunting-queries.md'            = 'The saved hunting queries by ATT&CK tactic, the hunts run in the workspace and the bookmarks analysts have kept.'
     '35-parsers-functions.md'          = 'The KQL parsers and functions saved in the workspace, by category, and its other saved searches.'
     '36-data-export.md'                = 'Where workspace data leaves or is linked: continuous data export rules, linked storage accounts, Azure Data Explorer clusters and other linked services.'
     '40-workbooks.md'                  = 'The workbooks saved in the workspace, how widely they are adopted, and the workbook templates the Content Hub offers.'
     '50-watchlists.md'                 = 'The watchlists in the workspace, which analytics rules use them, and any rule that refers to a watchlist that does not exist.'
-    '60-automation-rules-playbooks.md' = 'How incidents are handled automatically: the automation rules, the Logic Apps playbooks they run, how those runs went in the last 7 days, and recurring incident titles automation could take on.'
+    '60-automation-rules-playbooks.md' = 'How incidents are handled automatically: the automation rules, the Logic Apps playbooks they run, how those runs went in the last {lookback}, and recurring incident titles automation could take on.'
     '70-content-hub.md'                = 'Where the workspace content comes from: the Content Hub solutions installed, any that are deprecated or unlisted, connected repositories and legacy management solutions.'
     '80-workspace.md'                  = 'The Log Analytics workspace itself: its history and provenance, pricing tier, usage, networking and replication, resilience, feature flags, Sentinel onboarding and resource locks.'
     '81-table-plans-retention.md'      = 'Every table in the workspace by plan, retention and recent activity: which tables receive data, which have gone silent, orphan and legacy custom tables, and how well each is covered by detections.'
     '82-dedicated-cluster.md'          = 'Whether the workspace is linked to a Log Analytics dedicated cluster, and that cluster''s capacity reservation, billing and encryption settings.'
     '83-data-collection.md'            = 'How data reaches the workspace through Azure Monitor: the data collection rules and endpoints that target it, and other rules in the subscription that send elsewhere.'
-    '84-cost-estimate.md'              = 'An estimate of the monthly cost from 30 days of billable ingestion: cost by plan and by table, where it concentrates, how it flows to the billing tiers, what a commitment tier would save, and how the estimate is worked out.'
+    '84-cost-estimate.md'              = 'An estimate of the monthly cost from {lookback} of billable ingestion: cost by plan and by table, where it concentrates, how it flows to the billing tiers, what a commitment tier would save, and how the estimate is worked out.'
     '85-rbac.md'                       = 'Who can do what in the workspace: role assignments by role, the Microsoft Sentinel and Log Analytics roles, high-privilege assignments, and assignments at workspace and resource-group scope.'
     '91-maturity-assessment.md'        = 'How mature the workspace is, scored 0 to 5 across eleven capability areas from the gap findings and the captured configuration, with the roadmap of criteria to close to reach the target level.'
     '86-subscription-context.md'       = 'The Azure subscription and tenant around the workspace: the subscription, the identity that ran the collection, resource-provider registration, locks and the policy assignments that affect Sentinel.'
+}
+
+# The window the collector's KQL captures read (run-context.json): every
+# capture's lookback, and the recent window (the shorter of 7 days and the
+# lookback) its latest-days figures cover. A snapshot collected before the
+# setting existed read 30 days and 7. Pages name the window through tokens,
+# {lookback}, {lookback-d}, {recent} and {recent-d}, which Write-Section
+# fills, so a label, a heading or a chart title follows whatever the run
+# read. The "30d", "90d" and "7d" property names in the captures are their
+# historical names for the lookback and recent figures.
+function Get-BpWindow {
+    if ($script:BpWindow) { return $script:BpWindow }
+    $rc = Read-Raw 'run-context.json'
+    $days = 30
+    if ($rc -and $rc.PSObject.Properties['LookbackDays'] -and [int]$rc.LookbackDays -ge 1) { $days = [int]$rc.LookbackDays }
+    $recent = [math]::Min(7, $days)
+    if ($rc -and $rc.PSObject.Properties['RecentDays'] -and [int]$rc.RecentDays -ge 1) { $recent = [int]$rc.RecentDays }
+    $script:BpWindow = [pscustomobject]@{ Days = $days; RecentDays = $recent }
+    return $script:BpWindow
+}
+function Resolve-BpWindowText([string]$Text) {
+    if (-not $Text -or $Text.IndexOf('{') -lt 0) { return $Text }
+    $w = Get-BpWindow
+    $words = { param([int]$n) if ($n -eq 1) { '1 day' } else { "$n days" } }
+    return $Text.Replace('{lookback-d}', "$($w.Days)d").Replace('{recent-d}', "$($w.RecentDays)d").Replace('{lookback}', (& $words $w.Days)).Replace('{recent}', (& $words $w.RecentDays))
 }
 
 # A page's reference links all sit at its foot, so a reader knows where to
@@ -320,9 +345,12 @@ function Move-ReferenceLinks([string]$Markdown) {
 function Write-Section([string]$FileName, [string]$Body) {
     $target = Join-Path $OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
+    # The window the KQL captures read, named where a page says {lookback}
+    # ("30 days"), {lookback-d} ("30d"), {recent} or {recent-d}.
+    $body = Resolve-BpWindowText $body
     # The page's description goes under the title and its workspace line.
     if ($script:SectionDescriptions.ContainsKey($FileName)) {
-        $desc = $script:SectionDescriptions[$FileName]
+        $desc = Resolve-BpWindowText $script:SectionDescriptions[$FileName]
         $nl = [Environment]::NewLine
         $banner = [regex]::Match($body, '(?m)^> \*\*Workspace\*\*.*$')
         $title = [regex]::Match($body, '(?m)^# .*$')
@@ -452,10 +480,10 @@ function Format-Banner {
 # CamelCase name split into words. A name with a space or in one word keeps
 # its text.
 $script:ColumnLabels = @{
-    Gb30d = 'GB (30d)'; Gb7d = 'GB (7d)'; Gb90d = 'GB (90d)'; GbRead = 'GB read'; Last24hGB = 'GB (24h)'
+    Gb30d = 'GB ({lookback-d})'; Gb7d = 'GB ({recent-d})'; Gb90d = 'GB ({lookback-d})'; GbRead = 'GB read'; Last24hGB = 'GB (24h)'
     BillableLast24hGB = 'Billable GB (24h)'; BilledSizeGB = 'Billed GB'; SizeMB = 'Size (MB)'
-    Data7d = 'Data (7d)'; Failed7d = 'Failed (7d)'; Records30d = 'Records (30d)'; Records7d = 'Records (7d)'
-    Rows7d = 'Rows (7d)'; Rows12d = 'Rows (12d)'; Rows14d = 'Rows (14d)'; Runs7d = 'Runs (7d)'; Last24h = 'Last 24h'
+    Data7d = 'Data ({recent-d})'; Failed7d = 'Failed ({lookback-d})'; Records30d = 'Records ({lookback-d})'; Records7d = 'Records ({recent-d})'
+    Rows7d = 'Rows ({recent-d})'; Rows12d = 'Rows ({lookback-d})'; Rows14d = 'Rows ({lookback-d})'; Runs7d = 'Runs ({lookback-d})'; Last24h = 'Last 24h'
     FPRate = 'FP rate'; LastFailureUtc = 'Last failure (UTC)'; EventID = 'Event ID'; OSType = 'OS type'; OSVersion = 'OS version'
     AMACount = 'AMA machines'; MMACount = 'MMA machines'; ResourceId = 'Resource ID'; SubscriptionId = 'Subscription ID'
     WriteAccessResourceId = 'Write access resource ID'; TargetsWs = 'Targets workspace'; SkuName = 'SKU'
@@ -698,12 +726,15 @@ function New-EstateModel {
         if (-not $name) { continue }
         $gb = _RendererNumber $t.BillableLast30d
         if ($gb -le 0) { continue }
-        $tablesActive++
+        # Seen: data in the lookback. Active (still receiving data): some
+        # in the recent window; coverage is counted among the active ones.
+        $isActive = (_RendererNumber $t.BillableLast7d) -gt 0
+        if ($isActive) { $tablesActive++ }
         $fam = Get-TableFamily -Table $name
         if (-not $byFamily.Contains($fam)) { $byFamily[$fam] = [pscustomobject]@{ Category = $fam; Tables = 0; Gb = 0.0; CoveredGb = 0.0; Covered = 0 } }
         $byFamily[$fam].Tables++
         $byFamily[$fam].Gb += $gb
-        if ($referenced.ContainsKey($name)) { $tablesCovered++; $byFamily[$fam].Covered++; $byFamily[$fam].CoveredGb += $gb }
+        if ($referenced.ContainsKey($name)) { if ($isActive) { $tablesCovered++ }; $byFamily[$fam].Covered++; $byFamily[$fam].CoveredGb += $gb }
     }
     $sources = @($byFamily.Values | Sort-Object -Property Gb -Descending)
     $totalGb = 0.0; $coveredGb = 0.0
@@ -738,7 +769,7 @@ function New-EstateModel {
         CustomDetectionsCaptured = $customDetectionsCaptured
         CustomDetectionsTotal    = @($customDetectionsRaw | Where-Object { $_ }).Count
         CustomDetectionsEnabled  = @($customDetectionRefs | Where-Object { $_ -and (_RProp $_ 'Enabled' $false) -eq $true }).Count
-        TablesSeen          = $tablesWithData.Count
+        TablesSeen          = @($tablesWithData | Where-Object { $_ -and (_RendererNumber $_.BillableLast30d) -gt 0 }).Count
         TablesActive        = $tablesActive
         TablesCovered       = $tablesCovered
         TotalGb             = [math]::Round($totalGb, 2)
@@ -792,7 +823,7 @@ function Format-EstateFamilyTable {
 @"
 ### Source families
 
-Each family's share of the last 30 days of billable data, how many of its tables an enabled Sentinel rule or Defender custom detection reads, and the first-party alerts (Defender XDR, Entra ID Protection, Defender for Identity, Defender for Cloud) raised beside it in the same window. First-party detections run inside their product and read no workspace table, so they never move a table into the covered column.
+Each family's share of the last {lookback} of billable data, how many of its tables an enabled Sentinel rule or Defender custom detection reads, and the first-party alerts (Defender XDR, Entra ID Protection, Defender for Identity, Defender for Cloud) raised beside it in the same window. First-party detections run inside their product and read no workspace table, so they never move a table into the covered column.
 
 $(Format-Table -Items $rows -Columns 'Family','Tables','Gb30d','TablesRead','GbRead','FirstPartyAlerts')
 
@@ -818,8 +849,8 @@ function Format-EstateSankey {
     $covered = _Gb $Estate.CoveredGb
     if ($covered) {
         $det = "Detection ($($Estate.RulesEnabled) enabled rules)"
-        $al  = "Alerts ($($Estate.Alerts) in 30d)"
-        $inc = "Incidents ($($Estate.Incidents) in 30d)"
+        $al  = "Alerts ($($Estate.Alerts) in {lookback-d})"
+        $inc = "Incidents ($($Estate.Incidents) in {lookback-d})"
         $rows.Add("`"Ingestion`",`"$det`",$covered")
         $rows.Add("`"$det`",`"$al`",$covered")
         $rows.Add("`"$al`",`"$inc`",$covered")
@@ -838,13 +869,14 @@ function Format-EstateSankey {
     # Counts with thousands separators, whatever the machine's culture.
     $n0 = { param($v) ([long]$v).ToString('N0', [System.Globalization.CultureInfo]::InvariantCulture) }
     $visual = Format-VisualLine -Kind 'estate' -Data ([ordered]@{
+        windowDays = (Get-BpWindow).Days
         totalGb   = [math]::Round([double]$Estate.TotalGb, 2)
         coveredGb = [math]::Round([double]$Estate.CoveredGb, 2)
         sources   = @($Estate.Sources | Sort-Object { -[double]$_.Gb } | ForEach-Object { [ordered]@{ name = [string]$_.Category; gb = [math]::Round([double]$_.Gb, 2); coveredGb = [math]::Round([double]$_.CoveredGb, 2); tables = [int]$_.Tables; covered = [int]$_.Covered } })
         stages    = @(
-            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables seen in 90 days still receiving data'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in 30 days" }
+            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables with data in {lookback} still receiving data in the last {recent}'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in {lookback}" }
             [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$(& $n0 $Estate.RulesEnabled) enabled rules" }
-            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in 30 days" }
+            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in {lookback}" }
             [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$(& $n0 $Estate.IncidentsOpen) still open" }
         )
     })
@@ -878,10 +910,10 @@ function Format-EstateRingsTable {
     @"
 | Stage | In use | Of | Share | Rating |
 |---|---:|---:|---:|---|
-$(_Row 'Ingestion: tables still receiving data (30d, of those seen in 90d)' $Estate.TablesActive $Estate.TablesSeen)
+$(_Row 'Ingestion: tables still receiving data ({recent-d}, of those with data in {lookback-d})' $Estate.TablesActive $Estate.TablesSeen)
 $(_Row 'Detection: active tables read by at least one enabled rule' $Estate.TablesCovered $Estate.TablesActive)
-$(_Row 'Alerts: enabled Scheduled/NRT rules that fired in 30d' $Estate.RulesFired $Estate.RulesQueryEnabled)
-$(_Row 'Incidents: closed, of those created in 30d' $Estate.IncidentsClosed $Estate.Incidents)
+$(_Row 'Alerts: enabled Scheduled/NRT rules that fired in {lookback-d}' $Estate.RulesFired $Estate.RulesQueryEnabled)
+$(_Row 'Incidents: closed, of those created in {lookback-d}' $Estate.IncidentsClosed $Estate.Incidents)
 "@
 }
 
@@ -890,7 +922,7 @@ $estateBlock = if ($estate.Sources.Count -gt 0 -and $estate.TotalGb -gt 0) {
 
 ## Estate flow
 
-Where the last 30 days of billable data came from, how much of it an enabled analytics rule reads, and what the detections produced.
+Where the last {lookback} of billable data came from, how much of it an enabled analytics rule reads, and what the detections produced.
 
 $(Format-EstateSankey -Estate $estate)
 
@@ -910,7 +942,7 @@ GB that reaches **Not monitored** is ingested and billed but read by no enabled 
 
 ## Estate flow
 
-_No billable ingestion in the last 30 days, so there is no flow to draw._$familyTail
+_No billable ingestion in the last {lookback}, so there is no flow to draw._$familyTail
 "@
 }
 
@@ -933,7 +965,7 @@ $usageTrendBlock = if ($usageDaily.Count -ge 2) {
     foreach ($pt in $pts) { $v = (_RendererNumber $pt.BillableGB) + (_RendererNumber $pt.FreeGB); if ($v -gt $max) { $max = $v } }
 @"
 
-### Daily ingestion (last 30 days)
+### Daily ingestion (last {lookback})
 
 ``````mermaid
 ---
@@ -1031,7 +1063,7 @@ $($gapFindings.Count) open findings against the best-practice catalogue. Drill i
 | Workbooks | $($workbooksSaved.Count) |
 | Data Collection Rules | $($dcrs.Count) |
 | Tables operational (populated + custom logs) | $($operationalTables.Count) |
-| Tables receiving data (90d) | $($populatedTables.Count) |
+| Tables receiving data ({lookback-d}) | $($populatedTables.Count) |
 | Catalogue-only Microsoft schemas (never ingested) | $catalogueOnlyCount |
 $estateBlock
 
@@ -1042,7 +1074,7 @@ $maturityHeadline
 ## Estimated monthly cost
 
 $(if ($cost) {
-"**$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, computed from the last 30 days of `Usage` against the Azure Retail Prices API on $(Format-DateUtc $cost.AsOfUtc). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
+"**$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, computed from the last {lookback} of `Usage` against the Azure Retail Prices API on $(Format-DateUtc $cost.AsOfUtc). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
 } else { '_Cost estimate not available._' })
 
 ## Top findings
@@ -1347,10 +1379,10 @@ $unificationRows = @(
     [pscustomobject]@{ Check = 'Defender XDR connector (MicrosoftThreatProtection)'; Value = $(if ($mtpConnector) { 'Present' } else { 'Not configured' }); Meaning = 'Brings XDR incidents and alerts into the workspace; without it Sentinel and Defender run separate queues' }
     [pscustomobject]@{ Check = 'XDR incidents data type'; Value = (& $mtpState 'incidents'); Meaning = 'Enabled means Defender incidents (and their alerts) are synchronised, the unified-queue path' }
     [pscustomobject]@{ Check = 'XDR alerts data type'; Value = (& $mtpState 'alerts'); Meaning = 'Enabled means raw XDR alerts also land in SecurityAlert' }
-    [pscustomobject]@{ Check = 'XDR advanced-hunting tables with data (7d)'; Value = "$xdrActive of $($xdrPresenceRows.Count) checked"; Meaning = 'Device, Email, Identity and CloudApp tables streaming into the workspace; see 14-coverage-breakdowns.md' }
-    [pscustomobject]@{ Check = 'Incidents raised through Defender XDR (7d)'; Value = $unifiedIncidents; Meaning = 'Incidents whose provider is Microsoft XDR (or Microsoft 365 Defender), against all incidents updated in the window; see 15-incidents.md' }
-    [pscustomobject]@{ Check = 'Defender XDR alerts in SecurityAlert (30d)'; Value = $xdrAlerts30d; Meaning = 'Alerts whose product is Microsoft 365 Defender or Microsoft Defender XDR; zero with the connector present means the alerts data type is off' }
-    [pscustomobject]@{ Check = 'Alerts under the retired Azure Security Center name (30d)'; Value = $ascAlerts30d; Meaning = 'Non-zero means the legacy Azure Security Center connector path is still feeding alerts; Defender for Cloud replaces it' }
+    [pscustomobject]@{ Check = 'XDR advanced-hunting tables with data ({lookback-d})'; Value = "$xdrActive of $($xdrPresenceRows.Count) checked"; Meaning = 'Device, Email, Identity and CloudApp tables streaming into the workspace; see 14-coverage-breakdowns.md' }
+    [pscustomobject]@{ Check = 'Incidents raised through Defender XDR ({recent-d})'; Value = $unifiedIncidents; Meaning = 'Incidents whose provider is Microsoft XDR (or Microsoft 365 Defender), against all incidents updated in the window; see 15-incidents.md' }
+    [pscustomobject]@{ Check = 'Defender XDR alerts in SecurityAlert ({lookback-d})'; Value = $xdrAlerts30d; Meaning = 'Alerts whose product is Microsoft 365 Defender or Microsoft Defender XDR; zero with the connector present means the alerts data type is off' }
+    [pscustomobject]@{ Check = 'Alerts under the retired Azure Security Center name ({lookback-d})'; Value = $ascAlerts30d; Meaning = 'Non-zero means the legacy Azure Security Center connector path is still feeding alerts; Defender for Cloud replaces it' }
     [pscustomobject]@{ Check = 'Legacy Microsoft incident-creation rules enabled'; Value = $legacyIncidentRulesEnabled; Meaning = 'The pre-unification way of promoting Defender alerts; with the incidents data type enabled they duplicate work ([SAC-DET-08])' }
     [pscustomobject]@{ Check = 'Unified Sentinel and Defender billing'; Value = $(if ($unifiedBillingFlag) { 'true' } else { 'false / absent' }); Meaning = 'features.unifiedSentinelBillingOnly on the workspace, set once the workspace is on the unified billing model' }
     [pscustomobject]@{ Check = 'Sentinel onboarding state resource'; Value = $(if ($onboardingRow) { 'Present' } else { 'Not captured' }); Meaning = 'Microsoft.SecurityInsights/onboardingStates/default exists on every Sentinel-enabled workspace; it does not prove Defender-portal onboarding' }
@@ -1396,7 +1428,7 @@ $(Format-Table -Items $effectiveRows -Columns 'Source','Identifier','Table','Cat
 
 ## Connected connectors against the catalogue
 
-Each data connector in the workspace matched to the connector catalogue: the Content Hub data connectors and the tables each one writes, taken from the Azure-Sentinel repository (catalogue of $(if ($connectorCatalogue) { $connectorCatalogue.Version } else { 'n/a' })). **Silent** means none of the tables the catalogue lists for the connector received data in the last 7 days, free tables included ([SAC-PLT-10]). The catalogue takes a connector's tables from the connector's own mapping where Microsoft publishes one, otherwise from every table its solution's content reads, so a quiet table in the list is not always one the connector writes; a connector with data in any of its tables counts as receiving data.
+Each data connector in the workspace matched to the connector catalogue: the Content Hub data connectors and the tables each one writes, taken from the Azure-Sentinel repository (catalogue of $(if ($connectorCatalogue) { $connectorCatalogue.Version } else { 'n/a' })). **Silent** means none of the tables the catalogue lists for the connector received data in the last {recent}, free tables included ([SAC-PLT-10]). The catalogue takes a connector's tables from the connector's own mapping where Microsoft publishes one, otherwise from every table its solution's content reads, so a quiet table in the list is not always one the connector writes; a connector with data in any of its tables counts as receiving data.
 
 $catalogueBlock
 
@@ -2262,12 +2294,12 @@ $pbRunsTotal = 0; $pbFailedTotal = 0
 foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
 $pbFailingCount = @($pbRunRows | Where-Object { $_.Failed7d -gt 0 }).Count
 $pbRunsWarning = if ($pbFailingCount -gt 0) {
-    "> **$pbFailingCount playbook(s) had failed runs in the last 7 days.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
+    "> **$pbFailingCount playbook(s) had failed runs in the last {lookback}.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
 } else { '' }
 $pbRunsPie = if ($pbRunsTotal -gt 0) {
 @"
 ``````mermaid
-pie showData title Playbook runs by outcome (7d)
+pie showData title Playbook runs by outcome ({lookback-d})
     "Succeeded" : $($pbRunsTotal - $pbFailedTotal)
     "Failed" : $pbFailedTotal
 ``````
@@ -2379,7 +2411,7 @@ $(Format-Table -Items $arRows -Columns 'Name','Order','Enabled')
 
 $(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
 
-## Playbook runs (last 7d)
+## Playbook runs (last {lookback-d})
 
 $pbRunsWarning
 $pbRunsPie
@@ -2387,11 +2419,11 @@ $pbRunsPie
 $(if ($pbUnavailable -gt 0) { "_Run history could not be read for $pbUnavailable playbook(s) (LastRunStatus 'Unavailable'); their counts are not zero, they are unknown._`n" })
 $(Format-Table -Items $pbRunRows -Columns 'Playbook','Runs7d','Failed7d','LastRunStatus','LastFailureUtc','Note')
 
-## Automation opportunities (incident titles, last 30d)
+## Automation opportunities (incident titles, last {lookback-d})
 
-Incident titles seen five or more times in 30 days, with how they close. "Fast-closing" (half or more closed within an hour) and "Mostly false positive" titles are the ones an automation rule or playbook can take off the analysts: enrich, classify and close the benign pattern, or respond automatically where the title maps to a known response. The suggested automation is a starting point per title family, not a prescription.
+Incident titles seen five or more times in {lookback}, with how they close. "Fast-closing" (half or more closed within an hour) and "Mostly false positive" titles are the ones an automation rule or playbook can take off the analysts: enrich, classify and close the benign pattern, or respond automatically where the title maps to a known response. The suggested automation is a starting point per title family, not a prescription.
 
-$(if (-not $autoOppCaptured) { '_Not captured in this run (``incident-title-stats.json`` is absent); re-run the collector to populate it._' } elseif ($autoOppRows.Count -eq 0) { '_No incident title reached five incidents in the last 30 days._' } else { Format-Table -Items $autoOppRows -Columns 'Title','Severity','Total','Closed','AvgMinsToClose','ClosedWithinHour','FP','TP','Signal','SuggestedAutomation','Playbook' })
+$(if (-not $autoOppCaptured) { '_Not captured in this run (``incident-title-stats.json`` is absent); re-run the collector to populate it._' } elseif ($autoOppRows.Count -eq 0) { '_No incident title reached five incidents in the last {lookback}._' } else { Format-Table -Items $autoOppRows -Columns 'Title','Severity','Total','Closed','AvgMinsToClose','ClosedWithinHour','FP','TP','Signal','SuggestedAutomation','Playbook' })
 
 [Sentinel automation (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks) · [Monitor automation health](https://learn.microsoft.com/azure/sentinel/monitor-automation-health)
 "@)
@@ -2525,8 +2557,8 @@ $wsCreated = $workspace.properties.createdDate
 $wsAgeDays = if ($wsCreated) {
     [int]([math]::Floor(((Get-Date).ToUniversalTime() - [datetime]$wsCreated).TotalDays))
 } else { $null }
-$wsAgeWarning = if ($null -ne $wsAgeDays -and $wsAgeDays -lt 28) {
-    " _(The workspace is less than 28 days old, so some metrics derived from 7-day and 30-day KQL windows may be incomplete.)_"
+$wsAgeWarning = if ($null -ne $wsAgeDays -and $wsAgeDays -lt (Get-BpWindow).Days) {
+    " _(The workspace is younger than the {lookback} the captures read, so figures over that window cover only its life so far.)_"
 } else { '' }
 $wsDefaultDcr = $null
 if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollectionRuleResourceId') {
@@ -2647,9 +2679,9 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 @"
 | Window | Total GB | Billable GB |
 |---|---:|---:|
-| Last 30 days (sum) | $($usage.TotalGB) | $($usage.BillableTotalGB) |
-| Last 14 days (peak day) | $($usage.PeakDailyGB) | $($usage.BillablePeakDailyGB) |
-| Last 14 days (avg/day) | _(n/a)_ | $($usage.BillableAvgDailyGB) |
+| Last {lookback} (sum) | $($usage.TotalGB) | $($usage.BillableTotalGB) |
+| Last {lookback} (peak day) | $($usage.PeakDailyGB) | $($usage.BillablePeakDailyGB) |
+| Last {lookback} (avg/day) | _(n/a)_ | $($usage.BillableAvgDailyGB) |
 "@
    } else { '_No usage telemetry captured._' } )
 $usageTrendBlock
@@ -2845,13 +2877,13 @@ $classicRows = @($classicTables | ForEach-Object {
     $props = _RProp $_ 'properties'
     $use = @($tablesWithData | Where-Object { $_ -and (_RProp $_ 'DataType') -eq $name }) | Select-Object -First 1
     $gb24 = _RendererNumber (_RProp $use 'BillableLast24h' 0); $gb7 = _RendererNumber (_RProp $use 'BillableLast7d' 0); $gb30 = _RendererNumber (_RProp $use 'BillableLast30d' 0); $gb90 = _RendererNumber (_RProp $use 'BillableLast90d' 0)
-    $status = if ($gb24 -gt 0) { 'Active (last 24h)' } elseif ($gb7 -gt 0) { 'Active (last 7d)' } elseif ($gb30 -gt 0) { 'Intermittent' } elseif ($gb90 -gt 0) { 'Stale' } else { 'No data in 90d' }
+    $status = if ($gb24 -gt 0) { 'Active (last 24h)' } elseif ($gb7 -gt 0) { 'Active (last {recent-d})' } elseif ($gb30 -gt 0) { 'Intermittent' } elseif ($gb90 -gt 0) { 'Stale' } else { 'No data in {lookback-d}' }
     $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
     $action = if ($gb90 -le 0) { 'Confirm the source is retired, then delete the table' } elseif ($n -eq 0) { 'Still ingesting with no rule reading it: migrate to a DCR-based table or stop the collection' } else { 'Rules depend on it: migrate to the Logs Ingestion API and a DCR before the retirement date' }
     [pscustomobject]@{ Name = $name; Plan = [string](_RProp $props 'plan' ''); Interactive = _RProp $props 'retentionInDays' ''; Total = _RProp $props 'totalRetentionInDays' ''; Gb90d = [math]::Round($gb90, 2); LastIngested = $(if ($use) { Format-DateUtc (_RProp $use 'LastIngested') } else { '' }); Status = $status; Rules = $n; Action = $action }
-} | Sort-Object -Property @{ Expression = { $_.Status -eq 'No data in 90d' } }, @{ Expression = 'Gb90d'; Descending = $true })
+} | Sort-Object -Property @{ Expression = { $_.Status -eq 'No data in {lookback-d}' } }, @{ Expression = 'Gb90d'; Descending = $true })
 $classicActiveCount = @($classicRows | Where-Object { $_.Status -like 'Active*' }).Count
-$classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 'No data in 90d') }).Count
+$classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 'No data in {lookback-d}') }).Count
 $classicBlock = if ($classicRows.Count -eq 0) {
     "_No classic custom tables: every custom table in this workspace is DCR-based ($dcrBasedCustom table(s)), so nothing is exposed to the Data Collector API retirement._"
 } else { @"
@@ -2882,7 +2914,7 @@ pie showData title Operational tables by plan
 
 [SAC-LOG-02] flags high-volume Analytics tables that could move to Basic / Auxiliary for cost savings; this chart shows the current tier distribution at a glance.
 
-The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it, typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last 90 days plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
+The workspace catalogue carries every Microsoft-defined table schema regardless of whether your tenant has onboarded a source for it, typically several hundred. This section focuses on the **operational** subset: tables that have actually received data in the last {lookback} plus all custom (``CustomLog``) tables. The full catalogue counts are at the bottom.
 
 | | |
 |---|---:|
@@ -2902,18 +2934,18 @@ $(Format-Table -Items ($tableRows | Sort-Object -Property Gb90d -Descending) -Co
 
 Total: **$($active.Count)** table(s).
 
-## Silent (had data in 90d, nothing in last 24h)
+## Silent (had data in {lookback-d}, nothing in last 24h)
 
 Total: **$($silent.Count)** table(s), likely connector breakage.
 $silentDetail
 
-## Orphan custom tables (no data in 90d)
+## Orphan custom tables (no data in {lookback-d})
 
 Total: **$($orphans.Count)** custom ``_CL`` table(s): delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
 
 ## Catalogue-only Microsoft schemas
 
-$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last 90 days. These are part of every workspace's table catalogue and don't represent a deployment problem. ``Connector`` is the data connector that would fill the table, from the connector catalogue (see [10-data-connectors.md](10-data-connectors.md)): the connectors that list it when there are at most three, otherwise how many share it; blank for a table no Content Hub connector writes.
+$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last {lookback}. These are part of every workspace's table catalogue and don't represent a deployment problem. ``Connector`` is the data connector that would fill the table, from the connector catalogue (see [10-data-connectors.md](10-data-connectors.md)): the connectors that list it when there are at most three, otherwise how many share it; blank for a table no Content Hub connector writes.
 
 $(Format-Table -Items $catalogueOnlyRows -Columns 'Table','Connector')
 
@@ -2925,7 +2957,7 @@ $classicBlock
 
 ## Tables by detection coverage
 
-Operational tables with data in the last 90 days, the number of enabled Sentinel analytics rules that read each one and the number of enabled Defender XDR custom detections that query it (from the Graph detection-rules capture; blank when that capture did not run). A high-volume table with no rules is cost without coverage; [28-detection-opportunities.md](28-detection-opportunities.md) lists the templates that would cover it.
+Operational tables with data in the last {lookback}, the number of enabled Sentinel analytics rules that read each one and the number of enabled Defender XDR custom detections that query it (from the Graph detection-rules capture; blank when that capture did not run). A high-volume table with no rules is cost without coverage; [28-detection-opportunities.md](28-detection-opportunities.md) lists the templates that would cover it.
 
 $coverageBlock
 
@@ -3403,6 +3435,7 @@ $sankeyHeight    = [Math]::Max(720, 24 * $tallestColumn + 200)
 # plan, and every source family with every one of its tables (no tail
 # buckets: the graphic lists them all behind each family).
 $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
+    windowDays   = (Get-BpWindow).Days
     currency     = [string]$cost.Currency
     monthlyTotal = $cost.MonthlyTotal
     totalGb      = [math]::Round([double]$totalGb, 2)
@@ -3419,7 +3452,7 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
 @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
-> **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, based on the last 30 days of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
+> **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
 
 ## By plan
 
@@ -3435,7 +3468,7 @@ config:
     height: 480
 ---
 xychart-beta
-    title "Top tables by 30d billable GB"
+    title "Top tables by billable GB ({lookback-d})"
     x-axis [$(($cost.Top10TablesByCost | ForEach-Object {
         $t = if ($_.Table.Length -gt 14) { $_.Table.Substring(0,14) } else { $_.Table }
         "`"$t`""
@@ -3479,7 +3512,7 @@ $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
 
 ## Methodology (v$($cost.MethodologyVersion))
 
-1. Source of truth for ingestion: `Usage` table over the last 30 days, `IsBillable` honoured.
+1. Source of truth for ingestion: `Usage` table over the last {lookback}, `IsBillable` honoured, projected to 30 days for the monthly figures.
 2. Plan attribution: each table's current `plan` decides which meter applies (Analytics / Basic / Auxiliary / DataLake).
 3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time.
 4. Sentinel free benefit: tables in `Private/Resources/sentinel-benefit-tables.json` have their ingestion price reduced/zeroed when the benefit applies.
@@ -4025,13 +4058,13 @@ $has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
 $deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object Connector | Sort-Object -Unique)
 $legacyRows = @(
     _LegacyRow 'Deprecated data connectors still connected' $deprecatedConnectors01.Count ([bool]$connectorCatalogue -and (& $has01 'data-connectors-classic.json')) "$($deprecatedConnectors01.Count) connector(s)$(if ($deprecatedConnectors01.Count) { ': ' + ($deprecatedConnectors01 -join '; ') })" '[10-data-connectors.md](10-data-connectors.md)'
-    _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 August 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$mmaMachines01 machine(s) still heartbeating through it in 7 days" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
+    _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 August 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$mmaMachines01 machine(s) still heartbeating through it in {lookback}" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
     _LegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 September 2026' $classicTables01.Count (& $has01 'workspace-tables.json') "$($classicTables01.Count) table(s) with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
-    _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$tiLegacyRows01 record(s) in 30 days" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
+    _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$tiLegacyRows01 record(s) in {lookback}" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
     _LegacyRow 'Retired ThreatIntelligenceIndicator table (rules reading it)' $tiLegacyRules01 (& $has01 'alert-rules.json') "$tiLegacyRules01 enabled rule(s) query it" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-TI-02]'
     _LegacyRow 'Microsoft incident-creation rules (pre-unification)' $msIncidentRules01 (& $has01 'alert-rules.json') "$msIncidentRules01 enabled rule(s)" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
-    _LegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') "$ascAlerts01 alert(s) in 30 days" '[10-data-connectors.md](10-data-connectors.md)'
-    _LegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') "$fwLegacy01 row(s) in 7 days" '[14-coverage-breakdowns.md](14-coverage-breakdowns.md), [SAC-LOG-06]'
+    _LegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') "$ascAlerts01 alert(s) in {lookback}" '[10-data-connectors.md](10-data-connectors.md)'
+    _LegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') "$fwLegacy01 row(s) in {lookback}" '[14-coverage-breakdowns.md](14-coverage-breakdowns.md), [SAC-LOG-06]'
 )
 
 $execBody = @"
@@ -4050,7 +4083,7 @@ $(Format-Banner -Title "Live snapshot")
 | Data connectors | $($connectors.Count) |
 | Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
 | MITRE tactics: Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
-| Tables receiving data (90d) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
+| Tables receiving data ({lookback-d}) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 | Maturity (overall / target) | $maturityCell |
 | Legacy features still in use | $(@($legacyRows | Where-Object Status -eq 'In use').Count) of $(@($legacyRows | Where-Object Status -ne 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
@@ -4434,9 +4467,9 @@ $ingestionFailureRows = @(Read-RawArray 'ingestion-latency.json' | Where-Object 
     [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; Last = Format-DateUtc $_.Last }
 } | Sort-Object { _RendererNumber $_.Failures } -Descending)
 $laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
-    "**LAQueryLogs activity (7d):** $($laQueryLogs.QueryCount) query records (query logging is active)."
+    "**LAQueryLogs activity ({lookback-d}):** $($laQueryLogs.QueryCount) query records (query logging is active)."
 } elseif ($laQueryLogs) {
-    '_LAQueryLogs table is present but empty for the last 7 days; query logging may be off._'
+    '_LAQueryLogs table is present but empty for the last {lookback}; query logging may be off._'
 } else {
     '_LAQueryLogs table is not populated; query logging diagnostics are not configured._'
 }
@@ -4456,7 +4489,7 @@ $healthChartBlock = if ($healthSummary.Count -gt 0) {
 ## Health-event status mix
 
 ``````mermaid
-pie showData title SentinelHealth events by status (last 7d)
+pie showData title SentinelHealth events by status (last {lookback-d})
 $($healthPieRows -join [Environment]::NewLine)
 ``````
 
@@ -4467,24 +4500,24 @@ Mostly-Success workspaces are operating cleanly. A non-trivial Failure / Partial
 Write-Section '11-sentinel-health.md' (@"
 $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 
-Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled: [turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
+Health events are pulled from the workspace's ``SentinelHealth`` table for the last {lookback}, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled: [turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock
 
 $(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','Last event')
 
-## Connector and DCR health issues (last 7d)
+## Connector and DCR health issues (last {lookback-d})
 
-Data connectors whose health events reported a failure in the last 7 days, most failures first. A failing connector silently stops feeding the tables its rules read; [83-data-collection.md](83-data-collection.md) lists the DCRs behind it.
+Data connectors whose health events reported a failure in the last {lookback}, most failures first. A failing connector silently stops feeding the tables its rules read; [83-data-collection.md](83-data-collection.md) lists the DCRs behind it.
 
-$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','Last failure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last 7 days (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last 7 days._' }))
+$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','Last failure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last {lookback} (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last {lookback}._' }))
 
 ## Operations summary (per OperationName + Status)
 
 $(Format-Table -Items $healthSummaryRows -Columns 'OperationName','Status','LogCount')
 
-## Ingestion and schema failures (last 7d)
+## Ingestion and schema failures (last {lookback-d})
 
-Failed ingestion and schema operations from the ``Operation`` table, grouped by operation detail and category. A row here is a broken pipeline: a DCR transform that rejects records, a custom table whose schema no longer matches what is sent, or a connector writing to a table that cannot accept it. Empty means every ingestion and schema operation in the last 7 days succeeded.
+Failed ingestion and schema operations from the ``Operation`` table, grouped by operation detail and category. A row here is a broken pipeline: a DCR transform that rejects records, a custom table whose schema no longer matches what is sent, or a connector writing to a table that cannot accept it. Empty means every ingestion and schema operation in the last {lookback} succeeded.
 
 $(Format-Table -Items $ingestionFailureRows -Columns 'OperationKey','Resource','Failures','Last')
 
@@ -4606,7 +4639,7 @@ $cefChartBlock = if ($cefDevices.Count -gt 0) {
 ## CEF vendor mix
 
 ``````mermaid
-pie showData title CommonSecurityLog by DeviceVendor (last 7d)
+pie showData title CommonSecurityLog by DeviceVendor (last {lookback-d})
 $($cefPieRows -join [Environment]::NewLine)
 ``````
 
@@ -4627,13 +4660,13 @@ $(Format-Banner -Title "Data Source Hygiene")
 Operational data-quality findings that drive ingestion-tuning actions: misrouted records, agent dual-collection, and noisy event types. Each table is independent and may show ``_None._`` when the workspace has nothing to report against that check.
 $cefChartBlock
 
-## CEF devices (last 7d)
+## CEF devices (last {lookback-d})
 
 Per-vendor / per-product CEF record counts. A vendor + product combination with very low counts is usually either a misconfigured collector or a forwarder that needs filtering at source.
 
 $(Format-Table -Items $cefDevRows -Columns 'DeviceVendor','DeviceProduct','LogCount')
 
-## CEF records misrouted into Syslog (last 7d)
+## CEF records misrouted into Syslog (last {lookback-d})
 
 A non-empty table here means a Linux syslog forwarder is shipping CEF-formatted records (a message starting ``CEF:`` or ``0|``) to the wrong workspace table, by forwarder and the vendor and product in the CEF header. Point a CEF data collection rule at the forwarder so the records land parsed in CommonSecurityLog ([SAC-LOG-23]).
 
@@ -4645,19 +4678,19 @@ Computers reporting duplicate SecurityEvent records within a one-hour window: **
 
 $(Format-Table -Items $secEvtDupeRows -Columns 'Computer','DuplicateRecords','Copies','DuplicateEventIds')
 
-## Event IDs by billed size (last 7d)
+## Event IDs by billed size (last {lookback-d})
 
 Every Windows event ID in the Event and SecurityEvent tables, largest billed size first, with the record count. Each row is a candidate for filtering at the DCR transform stage.
 
 $(Format-Table -Items $topEventIdRows -Columns 'TableName','EventID','EventDescription','LogCount','BilledSizeGB')
 
-## Syslog contributors (last 7d)
+## Syslog contributors (last {lookback-d})
 
 Hosts and facilities writing to ``Syslog``, by record count and billed size. One host or facility out of proportion with the rest is the usual sign of a debug level left on or a forwarder relaying a whole network; both are DCR filter candidates.
 
 $(Format-Table -Items $syslogContribRows -Columns 'Computer','Facility','LogCount','SizeMB')
 
-## SecurityEvent hosts (last 7d)
+## SecurityEvent hosts (last {lookback-d})
 
 Every host writing ``SecurityEvent`` records, most records first. Domain controllers lead on every estate; a member server near the top usually means an audit policy or an event-ID set that is wider than the detections need.
 
@@ -4709,7 +4742,7 @@ $xdrChartBlock = if ($xdrPres.Count -gt 0) {
     foreach ($r in $xdrRows) { if ([long]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [long]$r.RecordCount } }
     @"
 
-## XDR table activity (last 7d)
+## XDR table activity (last {lookback-d})
 
 ``````mermaid
 ---
@@ -4719,7 +4752,7 @@ config:
     height: 480
 ---
 xychart-beta
-    title "Defender XDR tables: records ingested in the last 7d"
+    title "Defender XDR tables: records ingested in the last {lookback-d}"
     x-axis [$xdrAxis]
 $(Format-XyFullLabels @($xdrRows | ForEach-Object { $_.Table }))
     y-axis "Records" 0 --> $($xdrYmax + ([math]::Ceiling($xdrYmax * 0.1)))
@@ -4750,7 +4783,7 @@ $fwVerdict = if (-not (Test-Path (Join-Path $rawRoot 'azure-firewall-categories.
     elseif ($fwLegacyRows.Count -gt 0 -and ($fwTableRows.Count -gt 0 -or @($fwCategoryRows | Where-Object { $_.Form -ne 'Legacy category' }).Count -gt 0)) {
         '**Collected twice.** Azure Firewall writes legacy categories into AzureDiagnostics and the resource-specific form as well; remove the legacy diagnostic setting to stop paying for the same events twice ([SAC-LOG-06]).'
     }
-    elseif ($fwCategoryRows.Count -eq 0 -and $fwTableRows.Count -eq 0) { '_No Azure Firewall logs in the last 7 days._' }
+    elseif ($fwCategoryRows.Count -eq 0 -and $fwTableRows.Count -eq 0) { '_No Azure Firewall logs in the last {lookback}._' }
     else { 'Azure Firewall logs arrive in one form only.' }
 
 Write-Section '14-coverage-breakdowns.md' (@"
@@ -4759,25 +4792,25 @@ $(Format-Banner -Title "Coverage Breakdowns")
 Per-source coverage gaps revealed by direct table queries. A subscription, resource provider, or XDR table missing from these tables is a coverage gap to triage.
 $xdrChartBlock
 
-## AzureActivity per subscription (last 7d)
+## AzureActivity per subscription (last {lookback-d})
 
 Each row is a subscription shipping Activity Logs into the workspace. Subscriptions absent from this table are either not connected or have no activity in the period.
 
 $(Format-Table -Items $azActRows -Columns 'SubscriptionId','LogCount')
 
-## AzureDiagnostics per resource provider (last 7d)
+## AzureDiagnostics per resource provider (last {lookback-d})
 
 Resource providers emitting diagnostic settings into the workspace. Maps directly to which Azure services have diagnostic settings wired up to this workspace.
 
 $(Format-Table -Items $azDiagRows -Columns 'ResourceProvider','LogCount')
 
-## AzureDiagnostics per category (last 7d)
+## AzureDiagnostics per category (last {lookback-d})
 
 Every diagnostic category writing into AzureDiagnostics, by resource provider, busiest first. A service with a resource-specific table available (Azure Firewall, Key Vault, Application Gateway and others) is cheaper and easier to query in that form ([SAC-LOG-18]).
 
 $(Format-Table -Items $azDiagCategoryRows -Columns 'ResourceProvider','Category','LogCount')
 
-## Azure Firewall categories (last 7d)
+## Azure Firewall categories (last {lookback-d})
 
 $fwVerdict
 
@@ -4787,15 +4820,15 @@ Resource-specific Azure Firewall tables with data:
 
 $(Format-Table -Items $fwTableRows -Columns 'Table','Gb7d','LastIngested')
 
-## XDR table presence (last 7d)
+## XDR table presence (last {lookback-d})
 
-Subset of well-known Defender XDR tables that have received data in the last 7 days. Empty rows would suggest XDR is connected but a particular surface (email, identity, device) is not producing data.
+Subset of well-known Defender XDR tables that have received data in the last {lookback}. Empty rows would suggest XDR is connected but a particular surface (email, identity, device) is not producing data.
 
 $(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
 
-## Entra ID table presence (last 7d)
+## Entra ID table presence (last {recent-d})
 
-The well-known Microsoft Entra ID tables, with their plan and retention and whether they received billable data in the last 7 days. "Catalogue only" means the schema exists but nothing is writing to it, usually a connector data type that was never enabled.
+The well-known Microsoft Entra ID tables, with their plan and retention and whether they received billable data in the last {recent}. "Catalogue only" means the schema exists but nothing is writing to it, usually a connector data type that was never enabled.
 
 $(Format-Table -Items $entraRows -Columns 'Table','Plan','Retention','Gb7d','Status')
 
@@ -4860,11 +4893,11 @@ $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
     $ackSuffix = if ($null -ne $ackCount) {
         "  ·  **Acknowledged:** $ackCount of $($incMttr.ClosedCount)"
     } else { '' }
-    "**MTTA:** $mttaStr  ·  **MTTR:** $mttrStr  ·  **Closed:** $($incMttr.ClosedCount) (last 30d)$ackSuffix"
-} else { '_No closed incidents in the last 30 days; MTTA/MTTR not available._' }
+    "**MTTA:** $mttaStr  ·  **MTTR:** $mttrStr  ·  **Closed:** $($incMttr.ClosedCount) (last {lookback-d})$ackSuffix"
+} else { '_No closed incidents in the last {lookback}; MTTA/MTTR not available._' }
 
 $dailyLine = if ($incDaily -and $null -ne $incDaily.AvgDailyUniqueIncidents) {
-    "**Avg daily unique incidents:** $($incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $($incDaily.PeakDailyNewIncidents) (last 7d)"
+    "**Avg daily unique incidents:** $($incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $($incDaily.PeakDailyNewIncidents) (last {lookback-d})"
 } else { '_No incident-flow metrics available._' }
 
 # Closed-without-ack count for the state diagram note. The fixture's
@@ -4888,10 +4921,10 @@ $incOutcomeBlock = if ($incClassTotal -gt 0) {
     $classRows = ($incClassBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }) -join [Environment]::NewLine
 @"
 
-## Incident outcomes (closed, last 30d)
+## Incident outcomes (closed, last {lookback-d})
 
 ``````mermaid
-pie showData title Closed incidents by classification (30d)
+pie showData title Closed incidents by classification ({lookback-d})
 $classRows
 ``````
 
@@ -5026,7 +5059,7 @@ $lifecycleVisualLine
     }
 
     note right of New
-        $totalIncidents incidents in 30d
+        $totalIncidents incidents in {lookback-d}
         $closedCount reached Closed
         $unackCount closed without acknowledgement
     end note
@@ -5066,27 +5099,27 @@ journey
 
 Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Workspaces firing [SAC-AUT-01] (no automation) see steeper dips because every step is manual.
 
-## Incidents by rule (last 30d)
+## Incidents by rule (last {lookback-d})
 
-Every rule title that produced an incident in the last 30 days, busiest first. Alert volume per rule is in [21-rule-performance.md](21-rule-performance.md#by-alert-volume-last-30d).
+Every rule title that produced an incident in the last {lookback}, busiest first. Alert volume per rule is in [21-rule-performance.md](21-rule-performance.md#by-alert-volume-last-{lookback-d}).
 
 $(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
 
 $incOutcomeBlock
 
-## Incident detail by provider / product / first rule (last 7d)
+## Incident detail by provider / product / first rule (last {lookback-d})
 
 Per-provider, per-product, per-first-rule alert counts joined to the incidents they belong to. The FirstRule ID resolves to its full name via the [20-analytics-rules.md](20-analytics-rules.md) table.
 
 $(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | Where-Object { $_ } | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = $_.AlertCount } }) -Columns 'Provider','Product','FirstRule','AlertCount')
 
-## Incident metrics (last 7d)
+## Incident metrics (last {recent-d})
 
-Incidents updated in the last 7 days, each at its latest state. The 30-day view is at the top of the page.
+Incidents updated in the last {recent}, each at its latest state. The {lookback} view is at the top of the page.
 
 $incident7dBlock
 
-## Incidents by provider (last 30d)
+## Incidents by provider (last {lookback-d})
 
 Which service created the incident. ``Microsoft XDR`` (or ``Microsoft 365 Defender``) means the incident came through the unified Defender XDR queue rather than from a Sentinel rule.
 
@@ -5102,23 +5135,23 @@ $(Format-Banner -Title "Alerts")
 
 > Aggregate-only, like the incidents page: alert names, products and counts from ``SecurityAlert``, never alert payloads or entities. Incidents are in [15-incidents.md](15-incidents.md); alert volume per rule with its closure verdicts is in [21-rule-performance.md](21-rule-performance.md).
 
-## Alert volume by severity (last 30d)
+## Alert volume by severity (last {lookback-d})
 
-Alerts raised in the last 30 days grouped by severity, from ``SecurityAlert`` across every product, not only Sentinel rules.
+Alerts raised in the last {lookback} grouped by severity, from ``SecurityAlert`` across every product, not only Sentinel rules.
 
 $(Format-Table -Items $alertSeverityRows -Columns 'Severity','Alerts','Share')
 
-## Alerts by detection source (last 30d)
+## Alerts by detection source (last {lookback-d})
 
 Which security product raised the alert volume. Sentinel analytics rules appear as Microsoft Sentinel; the rest are first-party detections that run inside their product. ``Rules`` is the number of distinct detections per product.
 
 $(Format-Table -Items $alertSourceRows -Columns 'Source','Alerts','Rules','Share')
 
-## Alert volumes by provider (last 7d)
+## Alert volumes by provider (last {recent-d})
 
-Every alert name that fired in the last 7 days, with the provider and product that raised it, busiest first.
+Every alert name that fired in the last {recent}, with the provider and product that raised it, busiest first.
 
-$(Format-Table -Items $alertProvider7dRows -Columns 'Provider','Product','Alert','Severity','Alerts' -EmptyMessage $(if ($alert7dCaptured -or $alertVolumes.Count -eq 0) { '_No alerts in the last 7 days._' } else { '_Not captured in this snapshot._' }))
+$(Format-Table -Items $alertProvider7dRows -Columns 'Provider','Product','Alert','Severity','Alerts' -EmptyMessage $(if ($alert7dCaptured -or $alertVolumes.Count -eq 0) { '_No alerts in the last {recent}._' } else { '_Not captured in this snapshot._' }))
 
 [Sentinel alerts and incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
 "@
@@ -5152,7 +5185,7 @@ config:
     height: 480
 ---
 xychart-beta
-    title "Top 10 alerting rules: alert count (last 30d)"
+    title "Top 10 alerting rules: alert count (last {lookback-d})"
     x-axis [$volAxis]
 $(Format-XyFullLabels @($top10 | ForEach-Object { $_.AlertName }))
     y-axis "Alerts" 0 --> $($volMax + ([math]::Ceiling($volMax * 0.1) + 1))
@@ -5165,14 +5198,14 @@ The chart's axis uses short labels, and the table below has the full rule names.
 
 $volumeSection = @"
 
-## By alert volume (last 30d)
+## By alert volume (last {lookback-d})
 
-Every alert name raised in the last 30 days, most alerts first, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal; review and tune.
+Every alert name raised in the last {lookback}, most alerts first, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal; review and tune.
 $volChartBlock
 
 $(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
 
-## Rule effectiveness (last 30d)
+## Rule effectiveness (last {lookback-d})
 
 Incidents per detection with their closure verdicts: Sentinel analytics rules first, then alerts from other products keyed by alert name with the product as **Source**. **FP rate** is false positives over closed incidents, in percent. A high volume with a high false-positive rate is the first tuning candidate; a high volume closed mostly as true positive is a rule earning its keep.
 
@@ -5180,7 +5213,7 @@ $(Format-Table -Items $effectivenessRows -Columns 'Rule','Source','Incidents','C
 
 ## Noisy rules (closed mostly as false positive)
 
-Sentinel analytics rules with 20 or more incidents closed in the last 30 days and more than 70% of them closed as false positive: the rules to tune first ([SAC-DET-06]). Alerts from other products are tuned in their own portal, so they are not listed.
+Sentinel analytics rules with 20 or more incidents closed in the last {lookback} and more than 70% of them closed as false positive: the rules to tune first ([SAC-DET-06]). Alerts from other products are tuned in their own portal, so they are not listed.
 
 $(Format-Table -Items @($effectivenessRows | Where-Object { $_.Source -eq 'Analytics rule' -and $_.Closed -ge 20 -and [double]$_.FPRate -gt 70 } | Sort-Object @{ Expression = { [double]$_.FPRate }; Descending = $true }, Rule) -Columns 'Rule','Incidents','Closed','FP','FPRate' -EmptyMessage $(if ($ruleEffectiveness.Count) { '_No analytics rule closed mostly as false positive._' } else { '_Not captured in this snapshot._' }))
 "@
@@ -5397,11 +5430,11 @@ $ruleHealthRows = @(Read-RawArray 'rule-health.json' | Where-Object { $_ } | For
 } | Sort-Object { _RendererNumber $_.Failures } -Descending)
 $ruleHealthSection = @"
 
-## Rule run failures (last 7d)
+## Rule run failures (last {lookback-d})
 
 Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the failure count, the last failure and the reason Sentinel recorded. A failing rule is a detection that stopped without an alert; the usual causes are a query past the timeout, a table or column that no longer exists, or a KQL function the rule depends on that was removed. [SAC-DET-14] fires while any rule is failing.
 
-$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last 7 days._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','Last failure','Reason' })
+$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last {lookback}._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','Last failure','Reason' })
 "@
 
 # Defender XDR custom detections from the Graph capture: the other detection
@@ -5508,16 +5541,16 @@ $entityBlock = @"
 | | |
 |---|---|
 | Entity providers (configured) | $(if ($entityProviders.Count -gt 0) { $entityProviders -join ', ' } else { '_(none configured via the settings resource)_' }) |
-| IdentityInfo rows (14d) | $identityRows14 |
+| IdentityInfo rows ({lookback-d}) | $identityRows14 |
 | Entity analytics | $(if ($entityEnabled) { 'Enabled' } elseif ($uebaPresence.Count -eq 0) { 'Unknown (data-presence capture not available)' } else { 'Not enabled ([SAC-COV-08])' }) |
 "@
 $uebaTotalRows = ($uebaPresenceRows | Measure-Object -Property Rows12d -Sum).Sum
 $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
-    "Yes, $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last 12 days"
+    "Yes, $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last {lookback}"
 } elseif ($uebaPresence.Count -eq 0) {
     '_(data-presence capture not available, re-run the exporter to refresh)_'
 } else {
-    'No, none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last 12 days'
+    'No, none of BehaviorAnalytics, IdentityInfo, UserPeerAnalytics received rows in the last {lookback}'
 }
 # Pie of rows per UEBA table when there's something to chart.
 $uebaPiePresenceBlock = if ($uebaPresenceRows.Count -gt 0 -and $uebaTotalRows -gt 0) {
@@ -5526,10 +5559,10 @@ $uebaPiePresenceBlock = if ($uebaPresenceRows.Count -gt 0 -and $uebaTotalRows -g
     }
     @"
 
-## UEBA table activity (last 12d)
+## UEBA table activity (last {lookback-d})
 
 ``````mermaid
-pie showData title UEBA rows by table (last 12 days)
+pie showData title UEBA rows by table (last {lookback})
 $($uebaPieRows -join [Environment]::NewLine)
 ``````
 
@@ -5540,11 +5573,11 @@ A workspace producing data in BehaviorAnalytics + IdentityInfo + UserPeerAnalyti
 $uebaPresenceBlock = if ($uebaPresenceRows.Count -gt 0) {
     @"
 
-## Data-presence inference (last 12 days)
+## Data-presence inference (last {lookback})
 
-Rows per UEBA table over 7, 12 and 14 days. The 7- and 14-day columns are blank in snapshots taken before they were added.
+Rows per UEBA table over the last {recent} and the last {lookback}. The {recent-d} column is blank in snapshots taken before it was added.
 
-$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows7d','Rows12d','Rows14d')
+$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows7d','Rows12d')
 "@
 } else { '' }
 Write-Section '26-ueba.md' (@"
@@ -5575,7 +5608,7 @@ $tiByTypeRows = @(Read-RawArray 'threat-intel-by-type.json' | Where-Object { $_ 
 } | Sort-Object { _RendererNumber $_.Count } -Descending)
 $tiByTypePie = if ($tiByTypeRows.Count -ge 2) { @"
 ``````mermaid
-pie showData title Indicators by type (last 30d)
+pie showData title Indicators by type (last {lookback-d})
 $(($tiByTypeRows | ForEach-Object { "    `"$($_.Type)`" : $(_RendererNumber $_.Count)" }) -join [Environment]::NewLine)
 ``````
 "@ } else { '' }
@@ -5668,15 +5701,15 @@ $tiObjects = Read-RawArray 'threat-intel-objects.json'
 $tiObjectsBlock = if ($tiObjects.Count -gt 0) {
 @"
 
-## Indicators by type (last 30d)
+## Indicators by type (last {lookback-d})
 
-Observable types across the indicators ingested in the last 30 days, from the current ``ThreatIntelIndicators`` schema (``ObservableKey``) or, where only the retired table has data, ``ThreatIntelligenceIndicator``. A feed that is all IP addresses covers network detections and nothing else; URL, domain and file-hash coverage is what email and endpoint detections match on.
+Observable types across the indicators ingested in the last {lookback}, from the current ``ThreatIntelIndicators`` schema (``ObservableKey``) or, where only the retired table has data, ``ThreatIntelligenceIndicator``. A feed that is all IP addresses covers network detections and nothing else; URL, domain and file-hash coverage is what email and endpoint detections match on.
 
 $tiByTypePie
 
 $(Format-Table -Items $tiByTypeRows -Columns 'Type','Count','Indicators')
 
-## STIX objects (last 30d)
+## STIX objects (last {lookback-d})
 
 Objects in ``ThreatIntelObjects`` by STIX type. Indicators alone give matches; threat actors, attack patterns and relationships give those matches their context.
 
@@ -5699,7 +5732,7 @@ $tiTableRows = @(foreach ($name in 'ThreatIntelIndicators', 'ThreatIntelObjects'
         Records7d  = $(if ($row) { [long](_RProp $row 'Records7d' 0) } else { '' })
         FirstSeen  = $(if ($row) { Format-DateUtc (_RProp $row 'FirstSeen') } else { '' })
         LastSeen   = $(if ($row) { Format-DateUtc (_RProp $row 'LastSeen') } else { '' })
-        Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in 30 days' })
+        Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in {lookback}' })
     }
 })
 $tiCurrent = [long](@($tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { _RProp $_ 'Records30d' 0 }) | Measure-Object -Sum).Sum
@@ -5708,7 +5741,7 @@ $tiMigration = if (-not (Test-Path (Join-Path $rawRoot 'threat-intel-tables.json
     elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) { '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).' }
     elseif ($tiCurrent -gt 0) { '**Current.** Threat intelligence is flowing into `ThreatIntelIndicators`.' }
     elseif ($tiLegacy -gt 0) { '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).' }
-    else { '**No threat intelligence** in either table over the last 30 days.' }
+    else { '**No threat intelligence** in either table over the last {lookback}.' }
 
 $tiHealth = Read-RawArray 'threat-intel-health.json' | Select-Object -First 1
 $tiHealthBlock = if ($tiHealth) {
@@ -5721,7 +5754,7 @@ $tiHealthBlock = if ($tiHealth) {
 | Revoked | $([long](_RProp $tiHealth 'Revoked' 0)) |
 | Still within their validity | $([long](_RProp $tiHealth 'StillValid' 0)) |
 "@
-} else { Get-EmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last 30 days._' }
+} else { Get-EmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last {lookback}._' }
 
 $tiKqlSourceRows = @($tiCounts | Where-Object { $_ } | ForEach-Object {
     [pscustomobject]@{ SourceSystem = $_.SourceSystem; Records = $_.Count; Indicators = _RProp $_ 'Indicators' ''; LastSeen = Format-DateUtc $_.Last }
@@ -5741,7 +5774,7 @@ $taxiiRows = @(Read-RawArray 'taxii-clients.json' | Where-Object { $_ } | ForEac
 Write-Section '27-threat-intelligence.md' (@"
 $(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
 
-Indicator counts and most-recent ingestion timestamp by source, last 30 days. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
+Indicator counts and most-recent ingestion timestamp by source, last {lookback}. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
 
 $tiHeadline
 $tiPieBlock
@@ -5754,13 +5787,13 @@ $tiMigration
 
 $(Format-Table -Items $tiTableRows -Columns 'Table','Records30d','Records7d','FirstSeen','LastSeen','Status')
 
-## Indicator health (last 30d)
+## Indicator health (last {lookback-d})
 
 Each indicator in ``ThreatIntelIndicators`` at its latest state. Deleted and revoked indicators no longer match; an indicator past its ``ValidUntil`` date is kept for history but should not drive new alerts.
 
 $tiHealthBlock
 
-## Indicators by source (last 30d)
+## Indicators by source (last {lookback-d})
 
 Records and distinct indicators per source system, from the indicator tables themselves (current and retired).
 
@@ -5839,7 +5872,7 @@ $opportunityRows = @($uncoveredTables | ForEach-Object {
     $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
     [pscustomobject]@{
         Table                       = $name
-        'GB (30d)'                  = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
+        'GB ({lookback-d})'                  = [math]::Round((_RendererNumber $_.BillableLast30d), 2)
         Templates                   = $cands.Count
         'From solutions'            = (Format-TemplateSolutionSummary -Templates $cands -Map $templateSolutionMap)
         TemplateCount               = $cands.Count
@@ -5850,7 +5883,7 @@ $installedSolutionNames = @(Read-RawArray 'content-packages.json' | Where-Object
 $noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object {
     [pscustomobject]@{
         Table      = $_.Table
-        'GB (30d)' = $_.Gb30d
+        'GB ({lookback-d})' = $_.Gb30d
         Solutions  = $(if ($connectorCatalogue) { Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames } else { '' })
     }
 })
@@ -5887,7 +5920,7 @@ $headroomVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters
     ) }
 ); figures = @(
     [ordered]@{ label = 'Enabled analytics rules'; value = $enabledRules.Count; caption = 'Of every kind, on this workspace' }
-    [ordered]@{ label = 'Tables with data and no detection'; value = $opportunityRows.Count; caption = 'Read by no enabled rule or custom detection, last 30 days' }
+    [ordered]@{ label = 'Tables with data and no detection'; value = $opportunityRows.Count; caption = 'Read by no enabled rule or custom detection, last {lookback}' }
 ) })
 $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
 @"
@@ -5925,21 +5958,21 @@ $headroomChart
 
 **$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection
 
-## Tables with data but no detection (last 30d)
+## Tables with data but no detection (last {lookback-d})
 
 "Detection" here means an enabled Sentinel analytics rule, or an enabled Defender XDR custom detection, whose query reads the table. Alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud do not read workspace tables, so a table can be covered by a first-party product and still appear below; see the alerts by detection source in [16-alerts.md](16-alerts.md) before treating a row as unprotected.
 
 ``Templates`` counts the undeployed templates that read the table, and ``From solutions`` the Content Hub solutions they come from, marking those installed; Built-in templates ship with Sentinel rather than in a solution. Every template is listed, with its solution, under **Undeployed templates ready to enable** below: filter that list by a table's name to see its templates.
 
-$(Format-Table -Items $opportunityRows -Columns 'Table','GB (30d)','Templates','From solutions')
+$(Format-Table -Items $opportunityRows -Columns 'Table','GB ({lookback-d})','Templates','From solutions')
 
 ## Tables with no template available
 
 Tables above with no undeployed, non-deprecated template that reads them. Covering one of these means writing a custom rule, or a Defender XDR custom detection, rather than enabling a template. ``Solutions`` names the Content Hub solutions that ship the table, from the connector catalogue, marking the ones installed: installing one usually brings rule templates for it. A blank means no Content Hub solution ships the table, as for most custom tables.
 
-$(Format-Table -Items $noTemplateRows -Columns 'Table','GB (30d)','Solutions' -EmptyMessage '_Every table above has at least one template available._')
+$(Format-Table -Items $noTemplateRows -Columns 'Table','GB ({lookback-d})','Solutions' -EmptyMessage '_Every table above has at least one template available._')
 
-[SAC-MON-05] lists the same tables above 5 GB in 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
+[SAC-MON-05] lists the same tables above 5 GB per 30 days. A table kept for investigation only belongs on a cheaper tier; see [81-table-plans-retention.md](81-table-plans-retention.md).
 
 ## Undeployed templates ready to enable
 
@@ -6200,7 +6233,7 @@ $heartbeatMixRows = @(Read-RawArray 'agent-heartbeat-mix.json' | Where-Object { 
 Write-Section '87-azure-monitor-agents.md' (@"
 $(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
 
-Agents heartbeating into the workspace over the last 7 days, derived from the ``Heartbeat`` table. Each row is a distinct ``SourceComputerId``.
+Agents heartbeating into the workspace over the last {lookback}, derived from the ``Heartbeat`` table. Each row is a distinct ``SourceComputerId``.
 $agentChartBlock
 
 $(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','LastSeen')
@@ -6213,9 +6246,9 @@ $(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMAC
 
 ## Agent heartbeat mix
 
-Machines by operating system, agent and agent version over the last 7 days. A ``Direct Agent`` or ``SCOM Agent`` row is the legacy Log Analytics agent, retired on 31 August 2024 ([SAC-PLT-03]); the version column shows how far behind each fleet is.
+Machines by operating system, agent and agent version over the last {lookback}. A ``Direct Agent`` or ``SCOM Agent`` row is the legacy Log Analytics agent, retired on 31 August 2024 ([SAC-PLT-03]); the version column shows how far behind each fleet is.
 
-$(Format-Table -Items $heartbeatMixRows -Columns 'OSType','Agent','Version','OSVersion','Computers','LastSeen' -EmptyMessage (Get-EmptyMessage 'agent-heartbeat-mix.json' '_No heartbeats in the last 7 days._'))
+$(Format-Table -Items $heartbeatMixRows -Columns 'OSType','Agent','Version','OSVersion','Computers','LastSeen' -EmptyMessage (Get-EmptyMessage 'agent-heartbeat-mix.json' '_No heartbeats in the last {lookback}._'))
 
 [Migrate from Log Analytics agent to Azure Monitor agent (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-migration)
 [Azure Monitor Agent overview (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/agents/agents-overview)
@@ -6346,7 +6379,7 @@ if ($cost -and $cost.ByPlan) {
 $dlCandidateRows = @()
 if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
     $dlCandidateRows = @($cost.AllTablesByCost |
-        Where-Object { $_.Plan -eq 'Analytics' -and [double]$_.Gb30d -ge 0.5 } |
+        Where-Object { $_.Plan -eq 'Analytics' -and ([double]$_.Gb30d * 30.0 / (Get-BpWindow).Days) -ge 0.5 } |
         ForEach-Object {
             [pscustomobject]@{
                 Table         = $_.Table
@@ -6359,11 +6392,11 @@ if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $
 
 # Headline narrative — one of four states based on the captured signals.
 $lakeHeadline = if ($hasDataLake -and $dlTables.Count -gt 0) {
-    "**Sentinel Data Lake is enrolled and active.** $($dlTables.Count) table(s) route to the Lake at the DataLake-rate ingestion meter (~$([math]::Round($lakeGb, 2)) GB / 30d, est. `$$([math]::Round($lakeCost, 2)) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
+    "**Sentinel Data Lake is enrolled and active.** $($dlTables.Count) table(s) route to the Lake at the DataLake-rate ingestion meter (~$([math]::Round($lakeGb, 2)) GB in {lookback-d}, est. `$$([math]::Round($lakeCost, 2)) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
 } elseif ($hasDataLake -and $dlTables.Count -eq 0) {
     "**Sentinel Data Lake is enrolled on this workspace** (``features.unifiedSentinelBillingOnly = true``), but no tables currently route to the Lake. All ingest is on the Analytics plan billed at the full Sentinel-rate meter. See *Migration candidates* below for verbose tables that could move to the Lake to reduce monthly cost, since the Lake-rate per-GB ingestion meter is typically a fraction of the Sentinel-rate."
 } elseif (-not $hasDataLake -and $analyticsGb -gt 30) {
-    "**Sentinel Data Lake is not enrolled.** This workspace ingests $([math]::Round($analyticsGb, 1)) GB / 30d on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
+    "**Sentinel Data Lake is not enrolled.** This workspace ingests $([math]::Round($analyticsGb, 1)) GB in {lookback-d} on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
 } else {
     "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB/month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
 }
@@ -6428,7 +6461,7 @@ $tierChartBlock = if ($tierPieRows.Count -ge 2) { @"
 
 ## Tier distribution
 
-Pie of every operational table (a table that has received data in the last 90 days, plus all CustomLog tables) by tier configuration. *Analytics + Lake mirror* is the default state on a Lake-enrolled tenant: every Analytics-plan table is auto-mirrored to the Lake at the same retention at no extra cost. *Analytics + Lake extended* means the table also stores beyond the Analytics retention in the Lake (Lake-storage meter applies). *Lake only* means the table bypasses the Analytics tier entirely (Lake-ingestion meter applies; no real-time analytics or detection rules).
+Pie of every operational table (a table that has received data in the last {lookback}, plus all CustomLog tables) by tier configuration. *Analytics + Lake mirror* is the default state on a Lake-enrolled tenant: every Analytics-plan table is auto-mirrored to the Lake at the same retention at no extra cost. *Analytics + Lake extended* means the table also stores beyond the Analytics retention in the Lake (Lake-storage meter applies). *Lake only* means the table bypasses the Analytics tier entirely (Lake-ingestion meter applies; no real-time analytics or detection rules).
 
 ``````mermaid
 pie showData title Operational tables by tier configuration
@@ -6462,7 +6495,7 @@ $lakeValidationRows = @($retentionRows | ForEach-Object {
         Gb90d = $(if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 })
         LastIngested = Format-DateUtc $last
         DaysSince = $(if ($null -ne $days) { $days } else { 'n/a' })
-        Validation = $(if ($null -eq $days) { 'Check: no data in 90 days' } elseif ($days -gt 7) { "Check: last record $days days ago" } else { 'OK: ingesting' })
+        Validation = $(if ($null -eq $days) { 'Check: no data in {lookback}' } elseif ($days -gt 7) { "Check: last record $days days ago" } else { 'OK: ingesting' })
     }
 } | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
 
@@ -6491,7 +6524,7 @@ $(Format-Table -Items $retentionAllRows -Columns 'Table','Plan','AnalyticsDays',
 
 ## Ingestion validation
 
-Is each table with long-term retention still being fed? Last ingestion comes from the ``Usage`` table over 90 days. A table kept for years that stopped receiving data is paying to retain history nobody is adding to, and its detections have gone quiet.
+Is each table with long-term retention still being fed? Last ingestion comes from the ``Usage`` table over {lookback}. A table kept for years that stopped receiving data is paying to retain history nobody is adding to, and its detections have gone quiet.
 
 $(Format-Table -Items $lakeValidationRows -Columns 'Table','Plan','LakeOnlyDays','Gb90d','LastIngested','DaysSince','Validation')
 "@ } else { '' }
@@ -6603,7 +6636,7 @@ $lakeUsageBlock = if (-not $hasDataLake) { '' } else { @"
 
 ## Lake usage evidence
 
-For every table that keeps data in the lake beyond its analytics retention (or routes to the lake only): is anything reading it? The signals are enabled analytics rules that reference the table, summary rules whose query names it, search or restore output tables derived from it, and audited queries from ``LAQueryLogs`` over the last 30 days where the collector captured them. A table with no evidence is not wrong, but its extended retention is a cost nobody has justified yet.
+For every table that keeps data in the lake beyond its analytics retention (or routes to the lake only): is anything reading it? The signals are enabled analytics rules that reference the table, summary rules whose query names it, search or restore output tables derived from it, and audited queries from ``LAQueryLogs`` over the last {lookback} where the collector captured them. A table with no evidence is not wrong, but its extended retention is a cost nobody has justified yet.
 
 $(if ($lakeUsageRows.Count -gt 0) { Format-Table -Items $lakeUsageRows -Columns 'Table','Tier','LakeOnlyDays','Gb90d','Rules','SummaryRule','SearchRestore','AuditedQueries','Verdict' } else { '_No table keeps data in the lake beyond its analytics retention, so there is nothing to assess._' })
 
@@ -6645,7 +6678,7 @@ $lakeTablesBlock
 $lakeUsageBlock
 $assetDataBlock
 
-## Cost split: Analytics vs Lake (last 30d)
+## Cost split: Analytics vs Lake (last {lookback-d})
 
 | Plan | Ingest (GB) | Estimated monthly cost |
 |---|---:|---:|
@@ -6672,9 +6705,9 @@ $(Format-Table -Items $lakeCapabilities -Columns 'Capability','Surface','Billing
 
 ## Migration candidates
 
-Top Analytics-plan tables (≥0.5 GB/30d) that are typical Lake-tier candidates: high ingest volume, low real-time-query frequency. Defender XDR advanced hunting surfaces (Device*, Email*, Url*) and raw EDR/firewall telemetry are the usual wins. Confirm a table's analytics-rule references first before migrating: a rule whose query joins against the candidate table will start failing if the table is moved without re-pointing the query.
+Top Analytics-plan tables (0.5 GB or more per 30 days) that are typical Lake-tier candidates: high ingest volume, low real-time-query frequency. Defender XDR advanced hunting surfaces (Device*, Email*, Url*) and raw EDR/firewall telemetry are the usual wins. Confirm a table's analytics-rule references first before migrating: a rule whose query joins against the candidate table will start failing if the table is moved without re-pointing the query.
 
-$(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Columns 'Table','Gb30d','MonthlyCost','Recommendation' } else { '_No Analytics-plan tables above the 0.5 GB / 30d threshold, so Lake migration is not currently cost-justified on this workspace._' })
+$(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Columns 'Table','Gb30d','MonthlyCost','Recommendation' } else { '_No Analytics-plan tables above the 0.5 GB per 30 days threshold, so Lake migration is not currently cost-justified on this workspace._' })
 
 ## When to enroll
 
@@ -6746,7 +6779,7 @@ $( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
 
 ## Tables with non-default retention
 
-Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last 90 days. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
+Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last {lookback}. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
 
 $( $nonDefaultRows = @($tableRows | Where-Object {
         ($_.Interactive -ne $workspace.properties.retentionInDays -or $_.Total -ne $workspace.properties.retentionInDays) -and ($_.Gb90d -gt 0)
@@ -6877,7 +6910,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [01-live-snapshot.md](01-live-snapshot.md) | 1 | Workspace at a glance, regenerated every pipeline run |
 | [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) | - | Retirement deadlines and the legacy features still in use |
 | [10-data-connectors.md](10-data-connectors.md) | 4.7 | Classic + CCF connectors |
-| [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events last 7 days |
+| [11-sentinel-health.md](11-sentinel-health.md) | 4.8 | SentinelHealth events, last {lookback} |
 | [12-soc-optimization.md](12-soc-optimization.md) | 4.9 | SOC Optimization recommendations |
 | [13-data-source-hygiene.md](13-data-source-hygiene.md) | - | CEF/Syslog hygiene, agent dual-collection, top noisy events |
 | [14-coverage-breakdowns.md](14-coverage-breakdowns.md) | - | AzureActivity / AzureDiagnostics / XDR coverage by source |

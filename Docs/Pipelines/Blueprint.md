@@ -78,6 +78,7 @@ with `workflow_dispatch` for on-demand runs.
 | `include-preview` | boolean | `false` | Passes `-IncludePreview` to the collector (Content Hub product packages, summary rules, pricings, data lake feature flag). |
 | `open-pull-request` | boolean | `true` | Whether to open / refresh the rolling docs PR after the artefact is uploaded. On a scheduled run the PR always opens (subject to the private-repo guard). |
 | `target-maturity-level` | choice (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against (see [Sentinel-Maturity-Model.md](../Modules/iSOCBlueprint/Sentinel-Maturity-Model.md)). Scheduled runs use the default. |
+| `lookback-days` | number (`1` to `730`) | `30` | Passed to the collector as `-LookbackDays`: the days of activity every KQL capture reads. Scheduled runs read the `BLUEPRINT_LOOKBACK_DAYS` repository variable, else 30. The report's pages, the dashboard's cards and the findings name this window. |
 
 ### Job `document`
 
@@ -116,7 +117,9 @@ Steps, in order:
    `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
    `-SubscriptionId`, `-ResourceGroup`, `-WorkspaceName`,
    `-IncludePreview:$includePreview`, `-TargetMaturityLevel` (from
-   `target-maturity-level`, default 3), `-NoDateFolder` (the run writes
+   `target-maturity-level`, default 3), `-LookbackDays` (from
+   `lookback-days`, else the `BLUEPRINT_LOOKBACK_DAYS` repository variable,
+   else 30), `-NoDateFolder` (the run writes
    `SecurityDocs/<workspace>/` itself rather than a day folder under it, so
    the pull request diffs one folder) and `-OutputPath` set to
    `SecurityDocs/` in the checkout.
@@ -199,6 +202,7 @@ A SharePoint-only run renders no Markdown and no PNGs.
 | `includePreview` | boolean | `true` | Compiled to the `flagIncludePreview` variable (`-IncludePreview` or empty), passed to the collector. On by default on ADO; the GitHub `include-preview` input stays off by default. |
 | `playbookResourceGroup` | string | `" "` (a single space) | Where the collector enumerates playbooks, passed as `-PlaybookResourceGroup`. Left blank, the collector step uses `sentinelResourceGroup` from the variable group, and the run log's `Playbook RG` line shows which one it used. The default is a space because the run panel treats an empty default as no default, marks the field Required and disables Next; the collector step trims it. |
 | `targetMaturityLevel` | number (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against. |
+| `lookbackDays` | number (`1` to `730`) | `30` | Passed to the collector as `-LookbackDays`: the days of activity every KQL capture reads (incidents, alerts, usage and cost, health, agents, table activity). The report's pages, the dashboard's cards and the findings name this window. |
 
 ### Variables
 
@@ -240,7 +244,7 @@ A SharePoint-only run renders no Markdown and no PNGs.
    `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
    `SubscriptionId`, `ResourceGroup`, `WorkspaceName`, optionally
    `IncludePreview` (when `flagIncludePreview` is set),
-   `PlaybookResourceGroup`, `TargetMaturityLevel`, `NoDateFolder` (the run
+   `PlaybookResourceGroup`, `TargetMaturityLevel`, `LookbackDays`, `NoDateFolder` (the run
    writes `SecurityDocs/<workspace>/` itself rather than a day folder under
    it) and `OutputPath` (`$(Build.SourcesDirectory)/SecurityDocs`).
 4. **Run renderer** (`PowerShell@2`, inline). Runs
@@ -343,6 +347,7 @@ role; the Word report stage signs in nowhere.
 | Mermaid handling | Rendered natively; no pre-render | `prerenderChartsToPng` (default on) converts fences to PNG when the run writes Markdown |
 | Playbook RG override | Not exposed | `playbookResourceGroup` parameter |
 | Target maturity level | `target-maturity-level` input (choice, default 3) | `targetMaturityLevel` parameter (number, default 3) |
+| Lookback | `lookback-days` input, or the `BLUEPRINT_LOOKBACK_DAYS` variable on a schedule (default 30) | `lookbackDays` parameter (number, default 30) |
 | Collector task | `azure/powershell@v3` | `AzurePowerShell@5` |
 | Module install | `setup-pwsh-modules` composite action | Inline `PowerShell@2` step |
 | Extra git guard | "Confirm `SecurityDocs/` is not git-tracked" step | None (origin is the private ADO repo) |

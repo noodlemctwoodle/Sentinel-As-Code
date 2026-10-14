@@ -149,28 +149,42 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 The collector runs **38 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
 its own `Try-Capture` block that writes one `_raw/<name>.json`. About half read raw
 operational and security tables, not only billing metadata, so they cost query time on a
-busy workspace. To list them, grep the collector for `Try-Capture` blocks that set `$kql`.
+busy workspace, and more the longer the lookback. To list them, grep the collector for
+`Try-Capture` blocks that set `$kql`.
+
+Every query reads **one lookback**: `-LookbackDays` (1 to 730, default 30, the
+`lookbackDays` pipeline parameter). `Add-BpWindow` declares `let lookback = <n>d;` and
+`let recent = <n>d;` ahead of each query, so no query carries a number of days of its own.
+The **recent window** is the shorter of 7 days and the lookback; it carries the figures for
+the latest days (the `...7d` columns). Two sub-windows stay fixed because they are not
+lookbacks: a table's last 24 hours of ingestion and the one-hour sample the duplicate-event
+check reads. The window is written to `run-context.json` (`LookbackDays`, `RecentDays`),
+and the pages, the dashboard's cards, the findings, the maturity criteria and the cost
+estimate (a month projected from the window's rate) name it from there. The `30d`, `90d`
+and `7d` property names in the captures are their historical names for the lookback and
+recent figures. A lookback longer than a table's interactive retention returns only what
+the table still holds.
 
 ### Usage, cost and ingestion health
 
 | Capture | Reads | Window | What it gives |
 |---|---|---|---|
-| `tables-with-data` | `Usage` | 90 days | Which tables receive data, with billable GB over 90, 30 and 7 days and 24 hours, and the 7-day ingested total |
-| `ingestion-latency` | `Operation` | 7 days | Ingestion and schema operations that failed, the broken-pipeline signal |
-| `workspace-usage` | `Usage` | 30 days | Total and billable GB, and the peak day over 14 days |
-| `workspace-usage-daily` | `Usage` | 30 days | Billable and free GB per day, the dashboard's ingestion trend |
-| `azure-diagnostics-categories` | `AzureDiagnostics` | 7 days | Rows by resource provider and category, the input to the duplicate firewall logging rule |
-| `la-query-logs` | `LAQueryLogs` | 7 days | Query audit activity, where no records means auditing is off (SAC-PLT-12) |
-| `table-query-usage` | `LAQueryLogs` | 30 days | Audited queries, distinct users and the last query per lake-retained table, the data lake page's usage evidence |
+| `tables-with-data` | `Usage` | Lookback | Which tables receive data, with billable GB over the lookback, the recent window and the last 24 hours, and the recent window's ingested total |
+| `ingestion-latency` | `Operation` | Lookback | Ingestion and schema operations that failed, the broken-pipeline signal |
+| `workspace-usage` | `Usage` | Lookback | Total and billable GB, the peak day and the daily average |
+| `workspace-usage-daily` | `Usage` | Lookback | Billable and free GB per day, the dashboard's ingestion trend |
+| `azure-diagnostics-categories` | `AzureDiagnostics` | Lookback | Rows by resource provider and category, the input to the duplicate firewall logging rule |
+| `la-query-logs` | `LAQueryLogs` | Lookback | Query audit activity, where no records means auditing is off (SAC-PLT-12) |
+| `table-query-usage` | `LAQueryLogs` | Lookback | Audited queries, distinct users and the last query per lake-retained table, the data lake page's usage evidence |
 
 ### Sentinel health and posture
 
 | Capture | Reads | Window | What it gives |
 |---|---|---|---|
-| `sentinel-health` | `SentinelHealth` | 7 days | Events, failures and the last failure per connector, rule and automation resource |
-| `sentinel-health-summary` | `SentinelHealth` | 7 days | Events by operation and status, the operations summary on page 11 |
-| `rule-health` | `SentinelHealth` | 7 days | Analytics rules whose runs failed, with the count, last failure and reason (SAC-DET-14) |
-| `ueba-data-presence` | `BehaviorAnalytics`, `IdentityInfo`, `UserPeerAnalytics` | 14 days | Whether UEBA produces data, with 7- and 14-day counts, the IdentityInfo evidence for entity analytics (SAC-COV-08) |
+| `sentinel-health` | `SentinelHealth` | Lookback | Events, failures and the last failure per connector, rule and automation resource |
+| `sentinel-health-summary` | `SentinelHealth` | Lookback | Events by operation and status, the operations summary on page 11 |
+| `rule-health` | `SentinelHealth` | Lookback | Analytics rules whose runs failed, with the count, last failure and reason (SAC-DET-14) |
+| `ueba-data-presence` | `BehaviorAnalytics`, `IdentityInfo`, `UserPeerAnalytics` | Lookback | Whether UEBA produces data, with counts for the lookback and the recent window, the IdentityInfo evidence for entity analytics (SAC-COV-08) |
 
 SOC optimisation recommendations (`soc-optimization`) are read over REST from
 `.../recommendations`, not through KQL.
@@ -179,59 +193,60 @@ SOC optimisation recommendations (`soc-optimization`) are read over REST from
 
 | Capture | Reads | Window | What it gives |
 |---|---|---|---|
-| `incidents-summary` | `SecurityIncident` | 30 days | One row of counts: by status, severity, classification and provider, open by severity, and who closed each (automation rule, analyst, Defender XDR or other, the category only), with the last 7 days and the Defender XDR share beside them |
-| `incidents-mttr` | `SecurityIncident` | 30 days | Mean time to acknowledge and to resolve, with the 7-day figures |
-| `incidents-daily-metrics` | `SecurityIncident` | 7 days | Incidents created per day |
-| `incidents-detail-by-provider` | `SecurityIncident`, `SecurityAlert` | 7 days | Incidents by provider, product and rule, aggregates only |
-| `incidents-by-rule` | `SecurityIncident` | 30 days | Incidents per rule title, every title |
-| `rule-effectiveness` | `SecurityIncident`, `SecurityAlert` | 30 days | Per detection: incidents, closures, the true, false and benign positive split and the false-positive rate. Sentinel rules are keyed on their rule id, other products' alerts on their name |
-| `incident-title-stats` | `SecurityIncident` | 30 days | Titles seen five or more times, with closures, time to close and verdicts, the input to the automation opportunities |
+| `incidents-summary` | `SecurityIncident` | Lookback | One row of counts: by status, severity, classification and provider, open by severity, and who closed each (automation rule, analyst, Defender XDR or other, the category only), with the recent window and the Defender XDR share beside them |
+| `incidents-mttr` | `SecurityIncident` | Lookback | Mean time to acknowledge and to resolve, with the recent window's figures |
+| `incidents-daily-metrics` | `SecurityIncident` | Lookback | Incidents created per day |
+| `incidents-detail-by-provider` | `SecurityIncident`, `SecurityAlert` | Lookback | Incidents by provider, product and rule, aggregates only |
+| `incidents-by-rule` | `SecurityIncident` | Lookback | Incidents per rule title, every title |
+| `rule-effectiveness` | `SecurityIncident`, `SecurityAlert` | Lookback | Per detection: incidents, closures, the true, false and benign positive split and the false-positive rate. Sentinel rules are keyed on their rule id, other products' alerts on their name |
+| `incident-title-stats` | `SecurityIncident` | Lookback | Titles seen five or more times, with closures, time to close and verdicts, the input to the automation opportunities |
 
 ### Analytics and threat intelligence
 
 | Capture | Reads | Window | What it gives |
 |---|---|---|---|
-| `analytics-rule-volumes` | `SecurityAlert` | 30 days | Alerts per rule, product and severity, each alert counted once (by `SystemAlertId`), with the 7-day count. Summed, the dashboard's Sentinel and Defender XDR alert totals |
-| `rules-fired` | `SecurityAlert` | 30 days | Alerts per scheduled or NRT rule, keyed on the rule id so renamed rules stay apart |
-| `threat-intel-counts` | `ThreatIntelIndicators`, `ThreatIntelligenceIndicator` | 30 days | Records and distinct indicators per source system |
-| `threat-intel-tables` | `ThreatIntelIndicators`, `ThreatIntelObjects`, `ThreatIntelligenceIndicator` | 30 days | Records, first and last record in each, the table migration status on page 27 |
-| `threat-intel-health` | `ThreatIntelIndicators` | 30 days | Indicators at their latest state: active, deleted, revoked or expired |
-| `threat-intel-objects` | `ThreatIntelObjects` | 30 days | Rows by STIX type |
-| `threat-intel-by-type` | `ThreatIntelIndicators` (the retired table when it is absent) | 30 days | Indicators by observable type: IP, domain, URL, file hash, email |
+| `analytics-rule-volumes` | `SecurityAlert` | Lookback | Alerts per rule, product and severity, each alert counted once (by `SystemAlertId`), with the recent window's count. Summed, the dashboard's Sentinel and Defender XDR alert totals |
+| `rules-fired` | `SecurityAlert` | Lookback | Alerts per scheduled or NRT rule, keyed on the rule id so renamed rules stay apart |
+| `threat-intel-counts` | `ThreatIntelIndicators`, `ThreatIntelligenceIndicator` | Lookback | Records and distinct indicators per source system |
+| `threat-intel-tables` | `ThreatIntelIndicators`, `ThreatIntelObjects`, `ThreatIntelligenceIndicator` | Lookback | Records, first and last record in each, the table migration status on page 27 |
+| `threat-intel-health` | `ThreatIntelIndicators` | Lookback | Indicators at their latest state: active, deleted, revoked or expired |
+| `threat-intel-objects` | `ThreatIntelObjects` | Lookback | Rows by STIX type |
+| `threat-intel-by-type` | `ThreatIntelIndicators` (the retired table when it is absent) | Lookback | Indicators by observable type: IP, domain, URL, file hash, email |
 
 ### Table hygiene, agents and connector routing
 
 | Capture | Reads | Window | What it gives |
 |---|---|---|---|
-| `cef-devices` | `CommonSecurityLog` | 7 days | The top CEF device vendor and product pairs |
-| `cef-in-syslog` | `Syslog` | 7 days | CEF records that landed in Syslog, by forwarder, vendor and product (SAC-LOG-23) |
-| `security-event-duplicates` | `SecurityEvent` | 1 hour | Duplicate records per host, typically MMA and AMA both collecting (SAC-LOG-22) |
-| `agent-heartbeat-mix` | `Heartbeat` | 7 days | Machines by OS, agent type (AMA, the legacy MMA, SCOM) and version |
-| `ama-agents` | `Heartbeat` | 7 days | Azure Monitor Agent machines with their last heartbeat, OS and version |
-| `ama-mma-migration` | `Heartbeat` | 7 days | Machines still reporting through the legacy agent, the MMA to AMA migration status |
-| `syslog-contributors` | `Syslog` | 7 days | Records and billed size by host and facility |
-| `securityevent-top-hosts` | `SecurityEvent` | 7 days | Records and billed size by host |
-| `top-event-ids` | `Event`, `SecurityEvent` (through `find`) | 7 days | Every billable Windows event ID, largest first, for noise tuning |
-| `azure-activity-coverage` | `AzureActivity` | 7 days | Volume per subscription, showing subscriptions that send no activity log |
-| `azure-diagnostics-providers` | `AzureDiagnostics` | 7 days | Volume by resource provider |
-| `azure-firewall-categories` | `AzureDiagnostics` | 7 days | Azure Firewall rows by category, legacy `AzureFirewall*` and resource-specific `AZFW*` side by side |
-| `xdr-table-presence` | The Defender XDR tables (`Device*`, `Email*`, `Identity*` and others) | 7 days | Records per table, whether Defender XDR is connected and producing data |
+| `cef-devices` | `CommonSecurityLog` | Lookback | The top CEF device vendor and product pairs |
+| `cef-in-syslog` | `Syslog` | Lookback | CEF records that landed in Syslog, by forwarder, vendor and product (SAC-LOG-23) |
+| `security-event-duplicates` | `SecurityEvent` | 1 hour (a sample) | Duplicate records per host, typically MMA and AMA both collecting (SAC-LOG-22) |
+| `agent-heartbeat-mix` | `Heartbeat` | Lookback | Machines by OS, agent type (AMA, the legacy MMA, SCOM) and version |
+| `ama-agents` | `Heartbeat` | Lookback | Azure Monitor Agent machines with their last heartbeat, OS and version |
+| `ama-mma-migration` | `Heartbeat` | Lookback | Machines still reporting through the legacy agent, the MMA to AMA migration status |
+| `syslog-contributors` | `Syslog` | Lookback | Records and billed size by host and facility |
+| `securityevent-top-hosts` | `SecurityEvent` | Lookback | Records and billed size by host |
+| `top-event-ids` | `Event`, `SecurityEvent` (through `find`) | Lookback | Every billable Windows event ID, largest first, for noise tuning |
+| `azure-activity-coverage` | `AzureActivity` | Lookback | Volume per subscription, showing subscriptions that send no activity log |
+| `azure-diagnostics-providers` | `AzureDiagnostics` | Lookback | Volume by resource provider |
+| `azure-firewall-categories` | `AzureDiagnostics` | Lookback | Azure Firewall rows by category, legacy `AzureFirewall*` and resource-specific `AZFW*` side by side |
+| `xdr-table-presence` | The Defender XDR tables (`Device*`, `Email*`, `Identity*` and others) | Lookback | Records per table, whether Defender XDR is connected and producing data |
 
 ### Two examples
 
-The cheap `Usage` and `Operation` pair that most of the cost section is built on:
+The cheap `Usage` and `Operation` pair that most of the cost section is built on, as they
+run (with `lookback` and `recent` declared ahead of them):
 
 1. **`tables-with-data.json`**: which tables receive data
 
    ```kql
    Usage
-   | where TimeGenerated > ago(90d)
+   | where TimeGenerated > ago(lookback)
    | summarize
        BillableLast90d = sumif(Quantity, IsBillable == true) / 1024.0,
        IngestedLast90d = sum(Quantity) / 1024.0,
-       BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(30d)) / 1024.0,
-       BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(7d))  / 1024.0,
-       IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(7d)) / 1024.0,
+       BillableLast30d = sumif(Quantity, IsBillable == true and TimeGenerated > ago(lookback)) / 1024.0,
+       BillableLast7d  = sumif(Quantity, IsBillable == true and TimeGenerated > ago(recent))  / 1024.0,
+       IngestedLast7d  = sumif(Quantity, TimeGenerated > ago(recent)) / 1024.0,
        BillableLast24h = sumif(Quantity, IsBillable == true and TimeGenerated > ago(1d))  / 1024.0,
        FirstSeen       = min(TimeGenerated),
        LastIngested    = max(TimeGenerated),
@@ -243,7 +258,7 @@ The cheap `Usage` and `Operation` pair that most of the cost section is built on
 
    ```kql
    Operation
-   | where TimeGenerated > ago(7d)
+   | where TimeGenerated > ago(lookback)
    | where OperationCategory in ("Ingestion", "Schema")
    | summarize Failures = countif(OperationStatus != "Succeeded"), Last = max(TimeGenerated)
        by OperationKey = tostring(Detail), Resource = tostring(OperationCategory)

@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.13.1
+    Version:      0.14.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -491,6 +491,13 @@ if (-not (Test-Path -LiteralPath $script:RawRoot)) {
 }
 
 $runCtx = Read-Raw 'run-context.json'
+# The window the KQL captures read: the lookback and the recent window
+# within it (run-context.json); a run collected before the setting existed
+# read 30 days and 7. The dashboard names every card's window from it.
+$lookbackDays = 30
+if ($runCtx -and $runCtx.PSObject.Properties['LookbackDays'] -and [int]$runCtx.LookbackDays -ge 1) { $lookbackDays = [int]$runCtx.LookbackDays }
+$recentDays = [math]::Min(7, $lookbackDays)
+if ($runCtx -and $runCtx.PSObject.Properties['RecentDays'] -and [int]$runCtx.RecentDays -ge 1) { $recentDays = [int]$runCtx.RecentDays }
 if (-not $WorkspaceName) {
     $WorkspaceName = if ($runCtx -and $runCtx.WorkspaceName) { $runCtx.WorkspaceName } else { Split-Path $Source -Leaf }
 }
@@ -537,6 +544,7 @@ $workspace = [ordered]@{
     generatedUtc    = $generatedUtc
     blueprintVer   = if ($runCtx) { $runCtx.BlueprintVersion } else { '' }
 }
+$window = [ordered]@{ days = $lookbackDays; recentDays = $recentDays }
 
 # ---- Counts ----
 $rulesEnabled = @($alertRaw | Where-Object { $_.properties -and $_.properties.enabled }).Count
@@ -826,7 +834,7 @@ foreach ($r in $customDetRefs) {
     foreach ($t in @($r.Tables)) { if ($t) { $k = [string]$t; $referencedTables[$k] = $true; if (-not $customDetPerTable.ContainsKey($k)) { $customDetPerTable[$k] = 0 }; $customDetPerTable[$k]++ } }
 }
 $famAgg2 = [ordered]@{}
-$tablesActive = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
+$tablesActive = 0; $tablesSeen = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
 # Enabled rules per table, so the estate flow can list what reads each one.
 $rulesPerTableBuild = @{}
 foreach ($r in $ruleRefs) {
@@ -838,12 +846,17 @@ foreach ($t in $tablesData) {
     if (-not $t -or -not $t.DataType) { continue }
     $gb = ConvertTo-BuildNumber $t.BillableLast30d
     if ($gb -le 0) { continue }
-    $tablesActive++; $estateTotalGb += $gb
+    # Seen: data in the lookback. Active: some in the recent window, and
+    # coverage is counted among the active tables.
+    $isActive = (ConvertTo-BuildNumber $t.BillableLast7d) -gt 0
+    $tablesSeen++
+    if ($isActive) { $tablesActive++ }
+    $estateTotalGb += $gb
     $fam = Get-TableFamily $t.DataType
     if (-not $famAgg2.Contains($fam)) { $famAgg2[$fam] = [ordered]@{ category = $fam; tables = 0; gb = 0.0; coveredGb = 0.0; covered = 0 } }
     $famAgg2[$fam].tables++; $famAgg2[$fam].gb += $gb
     $isCovered = $referencedTables.ContainsKey([string]$t.DataType)
-    if ($isCovered) { $tablesCovered++; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
+    if ($isCovered) { if ($isActive) { $tablesCovered++ }; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
     $estateTableRows += [ordered]@{
         table   = [string]$t.DataType
         family  = $fam
@@ -894,7 +907,7 @@ $closed30d    = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Clos
 $rulesQueryEnabled = @($alertRaw | Where-Object { $_.properties -and $_.properties.enabled -and $_.kind -in @('Scheduled', 'NRT') }).Count
 $rulesFiredCount = @($firedRows | Where-Object { $_ }).Count
 $estate = [ordered]@{
-    window          = '30d'
+    window          = "$($lookbackDays)d"
     sources         = $estateSources
     tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
     productAlerts   = $productAlerts
@@ -903,7 +916,7 @@ $estate = [ordered]@{
     coveredGb       = [math]::Round($estateCoveredGb, 2)
     uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
     rings           = [ordered]@{
-        ingestion = New-EstateRing 'Tables still receiving data (30d of 90d)' $tablesActive (@($tablesData | Where-Object { $_ }).Count)
+        ingestion = New-EstateRing "Tables still receiving data ($($recentDays)d, of those with data in $($lookbackDays)d)" $tablesActive $tablesSeen
         detection = New-EstateRing 'Active tables read by an enabled Sentinel rule or custom detection' $tablesCovered $tablesActive
         alerts    = New-EstateRing 'Enabled Scheduled/NRT Sentinel rules that fired' $rulesFiredCount $rulesQueryEnabled
         incidents = New-EstateRing 'Incidents closed, of those created' $closed30d $incidents30d
@@ -1324,6 +1337,7 @@ $model = [ordered]@{
     detectionOpportunities = $detectionOpportunities
     detectionOutcomes = $detectionOutcomes
     detectionTableFamily = $detectionTableFamily
+    window       = $window
     huntsSummary = $huntsSummary
     playbookHealth = $playbookHealth
     tiBySource   = $tiBySource

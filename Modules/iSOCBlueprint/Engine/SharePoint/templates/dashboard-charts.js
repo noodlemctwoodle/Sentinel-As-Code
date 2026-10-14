@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: edb10d4d3c525465f12c934f92ec458db9ae14d7c24d5896aaf24da3b9cfe886 */
+   sources-sha256: ca949dc175d4b65e34f293213bb9ad9d8a349ee1f685c082efe910115c480247 */
 (function(){
 'use strict';
  var defs={};
@@ -67,7 +67,7 @@ function band(b, max, theme) {
 // chart builds a string of markup; anything taken from the chart data goes
 // through esc() first.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.setSiteUrl = exports.compact = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
+exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.setSiteUrl = exports.compact = exports.windowText = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
 exports.FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 // The dashboard's series colours, so a chart reads the same on both.
 exports.SERIES = [
@@ -114,6 +114,12 @@ function fmt(value) {
 }
 exports.fmt = fmt;
 // A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
+// "1 day" or "N days" for a window in days, 30 when it is missing.
+function windowText(days) {
+    const n = num(days) > 0 ? Math.round(num(days)) : 30;
+    return n === 1 ? '1 day' : n + ' days';
+}
+exports.windowText = windowText;
 function compact(value) {
     const units = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
     for (const [size, unit] of units) {
@@ -439,13 +445,13 @@ function renderCostBreakdown(data, theme) {
     const money = (v) => (0, ChartKit_1.isNil)(v) || (0, ChartKit_1.str)(v) === '' ? '' : (currency ? currency + ' ' : '') + (0, ChartKit_1.fmt)((0, ChartKit_1.num)(v));
     const head = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">' +
         (0, Visual_1.card)((0, Visual_1.eyebrow)('Estimated monthly cost', theme) + (0, Visual_1.figure)(money(data.monthlyTotal) || 'n/a', theme, 28) +
-            (0, Visual_1.sub)('From the last 30 days of billable data: ' + gb(totalGb) + '.', theme), theme, Visual_1.INFO) +
-        plansCard(plans, money, theme) + '</div>';
+            (0, Visual_1.sub)('Projected from the last ' + (0, ChartKit_1.windowText)(data.windowDays) + ' of billable data: ' + gb(totalGb) + '.', theme), theme, Visual_1.INFO) +
+        plansCard(plans, money, theme, (0, ChartKit_1.windowText)(data.windowDays)) + '</div>';
     return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' + head +
         (sources.length ? sourcesCard(sources, totalGb, theme) : '') + '</div>';
 }
 exports.renderCostBreakdown = renderCostBreakdown;
-function plansCard(plans, money, theme) {
+function plansCard(plans, money, theme, win) {
     const parts = plans.map((p, i) => ({ label: PLAN_NAME[(0, ChartKit_1.str)(p.name)] || (0, ChartKit_1.str)(p.name), value: (0, ChartKit_1.num)(p.gb), colour: PLAN[(0, ChartKit_1.str)(p.name)] || ChartKit_1.SERIES[i % ChartKit_1.SERIES.length] }));
     const total = parts.reduce((a, p) => a + p.value, 0);
     const rows = parts.map((p, i) => '<div style="display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:10px;align-items:center;font-size:12px;padding:2px 0">' +
@@ -453,7 +459,7 @@ function plansCard(plans, money, theme) {
         '<span>' + (0, ChartKit_1.esc)(p.label) + ' <span style="color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + (0, Visual_1.pct)(p.value, total) + '</span></span>' +
         '<span style="font-variant-numeric:tabular-nums;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' + gb(p.value) + '</span>' +
         '<span style="font-weight:750;font-variant-numeric:tabular-nums;text-align:right;min-width:84px">' + (0, ChartKit_1.esc)(money(plans[i].cost)) + '</span></div>').join('');
-    return (0, Visual_1.card)((0, Visual_1.eyebrow)('By plan', theme) + (0, Visual_1.sub)('Billable GB in 30 days, and each plan\'s monthly cost', theme) +
+    return (0, Visual_1.card)((0, Visual_1.eyebrow)('By plan', theme) + (0, Visual_1.sub)('Billable GB in ' + win + ', and each plan\'s monthly cost', theme) +
         '<div style="margin:10px 0 9px">' + (0, Visual_1.meter)(parts, theme, 12) + '</div>' + rows, theme);
 }
 function sourcesCard(sources, totalGb, theme) {
@@ -548,7 +554,7 @@ function families(sources, data, theme) {
         '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + READ + '"></span>Read by an enabled detection</span>' +
         '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:' + Visual_1.NEUTRAL + '"></span>Not monitored (ingested and billed, read by no detection)</span></div>';
     return (0, Visual_1.card)('<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">' +
-        '<div>' + (0, Visual_1.eyebrow)('Source families', theme) + (0, Visual_1.sub)(gbText(total) + ' billable in 30 days, ' + (0, Visual_1.pct)(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
+        '<div>' + (0, Visual_1.eyebrow)('Source families', theme) + (0, Visual_1.sub)(gbText(total) + ' billable in ' + (0, ChartKit_1.windowText)(data.windowDays) + ', ' + (0, Visual_1.pct)(covered, total) + ' of it read by a detection', theme) + '</div></div>' +
         key + '<div style="margin-top:8px">' + (0, Visual_1.showAll)(rows, 8, 'families') + '</div>', theme);
 }
 function gbText(v) {

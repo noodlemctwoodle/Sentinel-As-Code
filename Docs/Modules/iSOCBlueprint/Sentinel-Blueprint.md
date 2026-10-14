@@ -318,6 +318,14 @@ The run-pipeline panel exposes three further parameters:
   maturity assessment measures the workspace against. Maps to the collector's
   `-TargetMaturityLevel`; see
   [Sentinel-Maturity-Model.md](Sentinel-Maturity-Model.md).
+- *Lookback* (`lookbackDays`, default `30`): the days of activity every KQL
+  capture reads, 1 to 730. Maps to the collector's `-LookbackDays`. The
+  latest-days figures cover the shorter of 7 days and it; the report's pages,
+  the dashboard's cards, the findings and the maturity criteria name the
+  window, and the cost estimate projects a month from it. A window longer
+  than a table's interactive retention returns only what the table holds,
+  and a long window costs more query time on the raw tables. See
+  [Blueprint-References.md](Blueprint-References.md#recurring-kql-queries).
 
 #### GitHub Actions: `.github/workflows/sentinel-blueprint.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only
@@ -489,7 +497,8 @@ listed below.
 ### Ids before the SAC scheme
 
 Every rule that had a `SENT-NNN` id, with the id it carries now
-(59 rules).
+(59 rules). A title's `{lookback}` and `{recent}` read as the run's window
+(30 days and 7 by default) in the report.
 
 | Old id | Id | Rule |
 | --- | --- | --- |
@@ -506,7 +515,7 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-011 | SAC-AUT-05 | Playbook managed identity lacks the Microsoft Sentinel Responder role |
 | SENT-012 | SAC-LOG-09 | DCR transform missing on noisy custom tables |
 | SENT-013 | SAC-DET-07 | Content Hub solution updates available |
-| SENT-014 | SAC-PLT-11 | Sentinel still on Azure portal: Defender XDR migration deadline 2027-03-31 |
+| SENT-014 | SAC-PLT-11 | Sentinel still on the Azure portal: Defender XDR migration deadline 2027-03-31 |
 | SENT-015 | SAC-LOG-10 | Workspace on PerGB2018 while sustained ingest exceeds the next commitment-tier break-even |
 | SENT-016 | SAC-LOG-02 | High-volume Analytics-plan table is a Basic/Auxiliary candidate |
 | SENT-017 | SAC-LOG-11 | Long-term data on Analytics interactive retention rather than archive |
@@ -518,8 +527,8 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-023 | SAC-LOG-14 | Eligible tables not yet evaluated for Sentinel Data Lake mirroring |
 | SENT-024 | SAC-GOV-07 | disableLocalAuth is false on the workspace (shared-key ingestion permitted) |
 | SENT-025 | SAC-GOV-08 | enableLogAccessUsingOnlyResourcePermissions misconfigured for the chosen access model |
-| SENT-026 | SAC-INV-01 | Silent table: had ingestion historically but nothing in the last 7 days |
-| SENT-027 | SAC-INV-04 | Orphan table: schema deployed but no data in the last 90 days |
+| SENT-026 | SAC-INV-01 | Silent table: data in the last {lookback} but nothing in the last {recent} |
+| SENT-027 | SAC-INV-04 | Orphan table: schema deployed but no data in the last {lookback} |
 | SENT-028 | SAC-PLT-10 | Connected data connector is not delivering data |
 | SENT-029 | SAC-INC-06 | Incident MTTR above the 24-hour SOC efficiency threshold |
 | SENT-030 | SAC-INC-05 | Majority of incidents closed without ever being acknowledged |
@@ -527,7 +536,7 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-032 | SAC-DET-10 | Deployed analytics rule lags behind the latest template version |
 | SENT-033 | SAC-DET-11 | Single analytics rule accounts for over 30 % of total alert volume |
 | SENT-034 | SAC-AUT-01 | No automation rules defined: every incident hits analysts manually |
-| SENT-035 | SAC-DET-12 | Enabled rule has produced zero alerts in the last 90 days |
+| SENT-035 | SAC-DET-12 | Enabled rule has produced zero alerts in the last {lookback} |
 | SENT-036 | SAC-DET-06 | Analytics rule closes mostly as false positive |
 | SENT-037 | SAC-DET-03 | Enabled analytics rule has no entity mappings |
 | SENT-038 | SAC-MON-01 | Enabled analytics rule does not create incidents |
@@ -545,7 +554,7 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-050 | SAC-TI-02 | Enabled analytics rule queries the retired ThreatIntelligenceIndicator table |
 | SENT-051 | SAC-MON-05 | High-volume table with no enabled analytics rule reading it |
 | SENT-052 | SAC-MON-06 | Table that enabled analytics rules depend on has gone silent |
-| SENT-053 | SAC-AUT-02 | Playbook runs failed in the last 7 days |
+| SENT-053 | SAC-AUT-02 | Playbook runs failed in the last {lookback} |
 | SENT-054 | SAC-DET-13 | Installed Content Hub solution is deprecated or no longer in the catalogue |
 | SENT-055 | SAC-TI-05 | Threat intelligence relies on a single feed |
 | SENT-056 | SAC-LOG-06 | Azure Firewall logs collected twice (AzureDiagnostics and resource-specific tables) |

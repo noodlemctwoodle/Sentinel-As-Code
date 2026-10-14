@@ -1143,7 +1143,7 @@ Describe 'Detection outcomes and template solutions in the site build' {
         # Rows run Failing, Working, Silent; the first 25 show and the header's chevron shows the rest.
         $script:doHtml.Contains("const FIRST=25, HEALTH=[['Failing','var(--red)'],['Working','var(--green)'],['Silent','var(--slate)']];") | Should -BeTrue
         $script:doHtml.Contains("h+='<tr'+(ri>=FIRST? ' data-mr hidden':'')+'>") | Should -BeTrue
-        $script:doHtml.Contains("<th class=""dm-n"">30 days'+(rows.length>FIRST? moreChev(rows.length,'rules') : '')") | Should -BeTrue
+        $script:doHtml.Contains("<th class=""dm-n"">'+WIN.w()+(rows.length>FIRST? moreChev(rows.length,'rules') : '')") | Should -BeTrue
         $script:doHtml | Should -Match '<div class="dm-scroll morewrap" id="dmBox">'
         # Filters: source, health with All, and family or table columns; a search box.
         $script:doHtml.Contains("chip('health','all','All',base.length,!st.health)") | Should -BeTrue
@@ -1533,7 +1533,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match '(?s)<section data-view="overview">.*?<h2>Estate flow</h2>.*?</section>\s*<!-- DATA FLOW -->'
         $html | Should -Not -Match 'id="gapBtn"'
         # The estate strip gives Defender XDR's alerts a tile of their own.
-        $html.Contains("...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert (30d)',") | Should -BeTrue
+        $html.Contains("...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert ('+WIN.d()+')',") | Should -BeTrue
     }
 
     It 'ends with a privacy notice that names the run date and never mentions _raw' {

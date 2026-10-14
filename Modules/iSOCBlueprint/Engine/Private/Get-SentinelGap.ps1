@@ -52,7 +52,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.6.3
+    Version:      0.7.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -128,16 +128,23 @@ function Get-SentinelGap {
         & $recordOutcome $rule.id $checkName $(if ($null -ne $result) { 'Fired' } else { 'Passed' }) $null
 
         if ($null -ne $result) {
+            # A rule's title and remediation name the window as {lookback}
+            # and {recent}; they read as the run's window here.
+            $window = $inventory.Window
+            $inWindow = { param($Text) if ($null -eq $Text) { return $Text }
+                $t = [string]$Text
+                $t = $t.Replace('{lookback}', $(if ($window.Days -eq 1) { '1 day' } else { "$($window.Days) days" }))
+                $t.Replace('{recent}', $(if ($window.RecentDays -eq 1) { '1 day' } else { "$($window.RecentDays) days" })) }
             $findings += [pscustomobject]@{
                 Id          = $rule.id
                 LegacyId    = $(if ($rule.PSObject.Properties['legacyId']) { [string]$rule.legacyId } else { $null })
                 Area        = $(if ($rule.PSObject.Properties['area']) { [string]$rule.area } else { $null })
-                Title       = $rule.title
+                Title       = & $inWindow $rule.title
                 Category    = $rule.category
                 Severity    = $rule.severity
                 Evidence    = $result.Evidence
                 Detail      = $result.Detail
-                Remediation = $rule.remediation
+                Remediation = & $inWindow $rule.remediation
                 Learn       = $rule.learn
                 CheckName   = $checkName
                 PassedAt    = (Get-Date).ToUniversalTime().ToString('o')
@@ -184,9 +191,17 @@ function New-InventoryFromRaw {
     }
 
     $rawFiles = @(Get-ChildItem -Path $InputRoot -Filter '*.json' -File | ForEach-Object Name)
+    # The window the KQL captures read (run-context.json). A run collected
+    # before the setting existed read 30 days, its recent figures 7.
+    $runContext = Read-Json 'run-context.json'
+    $lookback = 30
+    if ($runContext -and $runContext.PSObject.Properties['LookbackDays'] -and [int]$runContext.LookbackDays -ge 1) { $lookback = [int]$runContext.LookbackDays }
+    $recent = [math]::Min(7, $lookback)
+    if ($runContext -and $runContext.PSObject.Properties['RecentDays'] -and [int]$runContext.RecentDays -ge 1) { $recent = [int]$runContext.RecentDays }
 
     [pscustomobject]@{
         RawFiles               = $rawFiles
+        Window                 = [pscustomobject]@{ Days = $lookback; RecentDays = $recent }
         Workspace              = Read-Json 'workspace.json'
         WorkspaceTables        = @(Read-Json 'workspace-tables.json')
         TablesWithData         = @(Read-Json 'tables-with-data.json')

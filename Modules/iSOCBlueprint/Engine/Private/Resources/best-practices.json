@@ -33,7 +33,7 @@
       "category": "Cost",
       "severity": "Warning",
       "check": "Test-NoisyTableHasTransform",
-      "remediation": "Tables ingesting > 50 GB/30d on the Analytics plan with no transformKql in their DCR are candidates for either a DCR transform that drops noise, the Basic plan, or the Auxiliary plan.",
+      "remediation": "Tables ingesting over 50 GB per 30 days on the Analytics plan with no transformKql in their DCR are candidates for either a DCR transform that drops noise, the Basic plan, or the Auxiliary plan.",
       "learn": "https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention"
     },
     {
@@ -176,7 +176,7 @@
       "category": "Cost",
       "severity": "Info",
       "check": "Test-HighVolumeTablePlanCandidate",
-      "remediation": "Tables > 50 GB/30d on Analytics that are queried infrequently (no detection rules, no recent ad-hoc queries) are good candidates for the Basic or Auxiliary plan.",
+      "remediation": "Tables over 50 GB per 30 days on Analytics that are queried infrequently (no detection rules, no recent ad-hoc queries) are good candidates for the Basic or Auxiliary plan.",
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure"
     },
     {
@@ -282,22 +282,22 @@
       "id": "SAC-INV-01",
       "legacyId": "SENT-026",
       "area": "INV",
-      "title": "Silent table: had ingestion historically but nothing in the last 7 days",
+      "title": "Silent table: data in the last {lookback} but nothing in the last {recent}",
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-SilentTables",
-      "remediation": "A table with last-ingestion older than 7 days but younger than 90 days usually means a connector has broken. Check connector state, agent health and DCR associations.",
+      "remediation": "A table whose last ingestion is older than {recent} but within {lookback} usually means a connector has broken. Check connector state, agent health and DCR associations.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
       "id": "SAC-INV-04",
       "legacyId": "SENT-027",
       "area": "INV",
-      "title": "Orphan table: schema deployed but no data in the last 90 days",
+      "title": "Orphan table: schema deployed but no data in the last {lookback}",
       "category": "Hygiene",
       "severity": "Info",
       "check": "Test-OrphanTables",
-      "remediation": "A table with a schema but no ingestion in 90 days is either a delete candidate or a never-onboarded source. Confirm the source intent before removal.",
+      "remediation": "A table with a schema but no ingestion in {lookback} is either a delete candidate or a never-onboarded source. Confirm the source intent before removal.",
       "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table"
     },
     {
@@ -308,7 +308,7 @@
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-ConnectorTableMismatch",
-      "remediation": "A connector that is connected but delivered nothing in 7 days, to a core table it must fill or to any table the connector catalogue says it writes, is almost always broken: an expired secret, a revoked consent, a stopped agent or a removed DCR association. Check the connector page and SentinelHealth, then the DCR and the source.",
+      "remediation": "A connector that is connected but delivered nothing in {recent}, to a core table it must fill or to any table the connector catalogue says it writes, is almost always broken: an expired secret, a revoked consent, a stopped agent or a removed DCR association. Check the connector page and SentinelHealth, then the DCR and the source.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
@@ -381,11 +381,11 @@
       "id": "SAC-DET-12",
       "legacyId": "SENT-035",
       "area": "DET",
-      "title": "Enabled rule has produced zero alerts in the last 90 days",
+      "title": "Enabled rule has produced zero alerts in the last {lookback}",
       "category": "Operational",
       "severity": "Info",
       "check": "Test-DeadAnalyticsRule",
-      "remediation": "A rule with zero alerts in 90 days is either operating against a silent data source, has a broken query, or is genuinely covering a rare event. Confirm intent: if the underlying log table has data, the rule logic likely needs review.",
+      "remediation": "A rule with zero alerts in {lookback} is either operating against a silent data source, has a broken query, or is genuinely covering a rare event. Confirm intent: if the underlying log table has data, the rule logic likely needs review.",
       "learn": "https://learn.microsoft.com/azure/sentinel/troubleshoot-analytics-rules"
     },
     {
@@ -396,7 +396,7 @@
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-NoisyFalsePositiveRule",
-      "remediation": "A rule whose closed incidents are mostly false positives is consuming analyst time without finding anything. Review the query logic and thresholds, add exclusions for known-benign sources, raise the threshold or lower the severity, or convert it to a hunting query if it is better suited to exploration. Re-check the rate after tuning; the figure covers the last 30 days and needs at least 20 closed incidents before a rule is flagged.",
+      "remediation": "A rule whose closed incidents are mostly false positives is consuming analyst time without finding anything. Review the query logic and thresholds, add exclusions for known-benign sources, raise the threshold or lower the severity, or convert it to a hunting query if it is better suited to exploration. Re-check the rate after tuning; the figure covers the last {lookback} and needs at least 20 closed incidents before a rule is flagged.",
       "learn": "https://learn.microsoft.com/azure/sentinel/false-positives"
     },
     {
@@ -572,14 +572,14 @@
       "category": "Operational",
       "severity": "Critical",
       "check": "Test-SilentTableWithDependentRules",
-      "remediation": "An enabled rule that reads a table with no data in 7 days cannot fire, so the coverage it represents is gone and nothing says so. Check connector and agent health for each table, the DCR associations and any ingestion-time transform, and confirm the source system is still sending. Add a SentinelHealth or ingestion-based alert so the next outage is noticed in hours rather than at the next review.",
+      "remediation": "An enabled rule that reads a table with no data in {recent} cannot fire, so the coverage it represents is gone and nothing says so. Check connector and agent health for each table, the DCR associations and any ingestion-time transform, and confirm the source system is still sending. Add a SentinelHealth or ingestion-based alert so the next outage is noticed in hours rather than at the next review.",
       "learn": "https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health"
     },
     {
       "id": "SAC-AUT-02",
       "legacyId": "SENT-053",
       "area": "AUT",
-      "title": "Playbook runs failed in the last 7 days",
+      "title": "Playbook runs failed in the last {lookback}",
       "category": "Operational",
       "severity": "Warning",
       "check": "Test-PlaybookRunFailures",
@@ -699,7 +699,7 @@
       "category": "Cost",
       "severity": "Info",
       "check": "Test-LongRetentionUsage",
-      "remediation": "Confirm why each table is kept beyond its analytics retention: a regulatory or evidence-retention requirement justifies it, otherwise shorten the total retention. Nothing read it in the last 30 days: no enabled analytics rule, summary rule, search or restore job, or audited query.",
+      "remediation": "Confirm why each table is kept beyond its analytics retention: a regulatory or evidence-retention requirement justifies it, otherwise shorten the total retention. Nothing read it in the last {lookback}: no enabled analytics rule, summary rule, search or restore job, or audited query.",
       "learn": "https://learn.microsoft.com/azure/sentinel/manage-data-overview"
     },
     {

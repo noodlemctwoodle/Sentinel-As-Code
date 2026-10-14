@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -77,6 +77,14 @@ function New-iSOCBlueprint {
 
     .PARAMETER TargetMaturityLevel
         Maturity level, 1 to 5, the workspace is aiming for. Defaults to 3.
+
+    .PARAMETER LookbackDays
+        Days of activity every KQL capture reads, 1 to 730. Defaults to 30.
+        Incidents, alerts, usage and cost, health, agents and table activity
+        all cover this window, and the figures for the latest days within it
+        the shorter of 7 days and this. The pages, the dashboard's cards and
+        the findings name the window; the cost estimate projects a month
+        from it.
 
     .PARAMETER SkipCollection
         Do not collect: render from the newest day's inventory under
@@ -178,6 +186,10 @@ function New-iSOCBlueprint {
         [ValidateRange(1, 5)]
         [int] $TargetMaturityLevel = 3,
 
+        [Parameter(ParameterSetName = 'Collect')]
+        [ValidateRange(1, 730)]
+        [int] $LookbackDays = 30,
+
         [Parameter(Mandatory, ParameterSetName = 'Existing')]
         [switch] $SkipCollection,
 
@@ -243,7 +255,7 @@ function New-iSOCBlueprint {
     if (-not $PSCmdlet.ShouldProcess($workspace, "Create a Blueprint ($($Format -join ', '))")) { return }
 
     if (-not $SkipCollection) {
-        $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel }
+        $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays }
         Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $collect -Name 'SubscriptionId', 'PlaybookResourceGroup'
         if ($IncludePreview) { $collect.IncludePreview = $true }
         if ($NoDateFolder) { $collect.NoDateFolder = $true }

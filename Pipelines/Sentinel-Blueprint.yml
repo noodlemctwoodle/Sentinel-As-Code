@@ -173,6 +173,15 @@ parameters:
     default: 3
     values: [1, 2, 3, 4, 5]
 
+  # Days of activity every KQL capture reads (1 to 730): incidents, alerts,
+  # usage and cost, health, agents and table activity. The report's pages,
+  # the dashboard's cards and the findings name this window; the latest-days
+  # figures within it cover the shorter of 7 days and it.
+  - name: lookbackDays
+    displayName: "Lookback: days of activity to read (1 to 730)"
+    type: number
+    default: 30
+
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion, sharePointSiteUrl
   - name: serviceConnection
@@ -306,6 +315,7 @@ stages:
                 if (-not $playbookRg) { $playbookRg = "$(sentinelResourceGroup)" }
                 $params['PlaybookResourceGroup'] = $playbookRg
                 $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
+                $params['LookbackDays'] = [int]"${{ parameters.lookbackDays }}"
 
                 Write-Host "##[section]iSOC Blueprint - Collector"
                 Write-Host "============================================================"
@@ -315,6 +325,7 @@ stages:
                 Write-Host "  Playbook RG  : $playbookRg"
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "  Target level : $($params['TargetMaturityLevel'])"
+                Write-Host "  Lookback     : $($params['LookbackDays']) day(s)"
                 Write-Host "============================================================"
 
                 Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force

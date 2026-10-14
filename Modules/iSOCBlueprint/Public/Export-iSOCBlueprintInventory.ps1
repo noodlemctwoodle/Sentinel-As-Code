@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -78,6 +78,14 @@ function Export-iSOCBlueprintInventory {
         and the roadmap in the maturity assessment. Defaults to 3
         (Established).
 
+    .PARAMETER LookbackDays
+        Days of activity every KQL capture reads, 1 to 730. Defaults to 30.
+        Incidents, alerts, usage and cost, health, agents and table activity
+        all cover this window, and the figures for the latest days within it
+        the shorter of 7 days and this. The pages, the dashboard's cards and
+        the findings name the window; the cost estimate projects a month
+        from it.
+
     .PARAMETER OutputPath
         Folder that holds one folder per workspace. Defaults to
         ./SecurityDocs under the current directory.
@@ -127,6 +135,9 @@ function Export-iSOCBlueprintInventory {
         [ValidateRange(1, 5)]
         [int] $TargetMaturityLevel = 3,
 
+        [ValidateRange(1, 730)]
+        [int] $LookbackDays = 30,
+
         [string] $OutputPath,
 
         [switch] $NoDateFolder
@@ -139,6 +150,7 @@ function Export-iSOCBlueprintInventory {
         WorkspaceName       = $WorkspaceName
         OutputRoot          = $root
         TargetMaturityLevel = $TargetMaturityLevel
+        LookbackDays        = $LookbackDays
     }
     if ($runFolder) { $params.RunFolder = $runFolder }
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'SubscriptionId', 'PlaybookResourceGroup'

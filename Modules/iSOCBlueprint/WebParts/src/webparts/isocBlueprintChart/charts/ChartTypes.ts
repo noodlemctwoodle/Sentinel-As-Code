@@ -236,6 +236,8 @@ export interface ITopologyItem {
 // The monthly cost: the total, billable GB and cost by plan, and every
 // source family's GB with every one of its tables.
 export interface ICostBreakdownData {
+  /** Days of billable data the figures cover (the collector's lookback); 30 when absent. */
+  windowDays?: number;
   currency?: string;
   monthlyTotal?: number;
   totalGb?: number;
@@ -299,6 +301,8 @@ export interface ILakeUse {
 // The estate: source families with the GB a detection reads, and the four
 // pipeline stages as in use of a whole.
 export interface IEstateData {
+  /** Days of activity the figures cover (the collector's lookback); 30 when absent. */
+  windowDays?: number;
   totalGb?: number;
   coveredGb?: number;
   sources?: IEstateSource[];

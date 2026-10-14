@@ -72,6 +72,10 @@ on:
         type: choice
         options: ["1", "2", "3", "4", "5"]
         default: "3"
+      lookback-days:
+        description: "Days of activity every KQL capture reads (1 to 730). Scheduled runs use the BLUEPRINT_LOOKBACK_DAYS repository variable, else 30."
+        type: number
+        default: 30
 
 concurrency:
   group: sentinel-blueprint
@@ -154,6 +158,8 @@ jobs:
             $env:SENTINEL_WORKSPACE   = '${{ vars.SENTINEL_WORKSPACE }}'
             $includePreview = [bool]::Parse('${{ inputs.include-preview || 'false' }}')
             $targetLevel    = [int]'${{ inputs.target-maturity-level || '3' }}'
+            $lookbackDays   = [int]'${{ inputs.lookback-days || vars.BLUEPRINT_LOOKBACK_DAYS || '30' }}'
+            Write-Host "Lookback: $lookbackDays day(s)"
 
             Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
             Export-iSOCBlueprintInventory `
@@ -162,6 +168,7 @@ jobs:
               -WorkspaceName       $env:SENTINEL_WORKSPACE `
               -IncludePreview:$includePreview `
               -TargetMaturityLevel $targetLevel `
+              -LookbackDays        $lookbackDays `
               -NoDateFolder `
               -OutputPath          (Join-Path $env:GITHUB_WORKSPACE 'SecurityDocs') | Out-Null
 
