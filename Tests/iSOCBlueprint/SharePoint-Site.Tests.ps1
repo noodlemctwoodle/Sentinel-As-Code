@@ -1464,6 +1464,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # The clip starts full width, so a reveal that never runs hides nothing.
         $html.Contains("mk('rect',{x:0,y:0,width:W,height:H},null,clip);") | Should -BeTrue
         $html | Should -Match 'function revealSankey\(svgEl\)'
+        # A frame stamped just before the start never yields a negative width.
+        $html.Contains("const step=now=>{ const k=Math.max(0,Math.min(1,(now-t0)/dur)), e=1-Math.pow(1-k,3);") | Should -BeTrue
         $html | Should -Match "prefers-reduced-motion: reduce\)'\)\.matches\) \|\| !svgEl\.getBoundingClientRect\(\)\.width\) return;"
         $html | Should -Match "if\(name==='flow' && big\) revealSankey\(big\);"
     }

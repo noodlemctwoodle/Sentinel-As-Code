@@ -2038,7 +2038,8 @@
     rect.setAttribute('width',full);
     if((window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !svgEl.getBoundingClientRect().width) return;
     const t0=performance.now(), dur=900;
-    const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); rect.setAttribute('width',(full*e).toFixed(1)); if(k<1) svgEl._reveal=requestAnimationFrame(step); else svgEl._reveal=null; };
+    // A frame's timestamp can fall just before t0, so k starts at 0, never below.
+    const step=now=>{ const k=Math.max(0,Math.min(1,(now-t0)/dur)), e=1-Math.pow(1-k,3); rect.setAttribute('width',(full*e).toFixed(1)); if(k<1) svgEl._reveal=requestAnimationFrame(step); else svgEl._reveal=null; };
     rect.setAttribute('width','0');
     svgEl._reveal=requestAnimationFrame(step);
   }
