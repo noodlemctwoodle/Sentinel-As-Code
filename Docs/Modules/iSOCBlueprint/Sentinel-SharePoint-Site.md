@@ -624,6 +624,10 @@ the Markdown.
 - The publisher's identity can reach this one site and nothing else in the
   tenant, and has no Azure access.
 
+The dashboard ends with the same reminder: a Confidential notice with the
+date of the run, saying what the page holds and to share it only as the
+workspace itself.
+
 ## What this is not
 
 - **Not live.** The site shows the last published snapshot, normally the

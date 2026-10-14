@@ -6,6 +6,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A clear privacy notice at the foot of the dashboard** - the faint line
+  "Generated from the iSOC Blueprint _raw snapshot" is now an amber-tinted
+  Confidential notice with a lock, the date of the run, what the page holds
+  and how to share it.
 - **Data flow tab leads with the estate flow; the ingest and billing flow
   redrawn** - the estate flow moves from the Overview to the top of the
   Data flow tab, above the ingest and billing flow, which is redrawn in the

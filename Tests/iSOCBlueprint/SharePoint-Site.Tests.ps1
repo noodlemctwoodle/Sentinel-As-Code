@@ -1428,6 +1428,14 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert (30d)',") | Should -BeTrue
     }
 
+    It 'ends with a privacy notice that names the run date and never mentions _raw' {
+        $html | Should -Match '\.privnote\{display:flex;'
+        $html | Should -Not -Match 'privnote\{[^}]*border-left'
+        $html.Contains("'<div><div class=""privt"">Confidential: tenant configuration</div>'") | Should -BeTrue
+        $html.Contains("const genAt=String((M.workspace&&M.workspace.generatedUtc)||'').trim();") | Should -BeTrue
+        $html | Should -Not -Match '_raw snapshot'
+    }
+
     It 'gives every card the dark screen in dark mode, below hover and accent rules' {
         $html | Should -Match 'html\[data-theme="dark"\] :where\(\.hero,\.panel,\.pill,\.ipanel,\.docnav,\.docpanel,\.card,\.fcard\)'
     }
