@@ -1066,6 +1066,67 @@ Describe 'Site navigation' {
     }
 }
 
+Describe 'Detection outcomes and template solutions in the site build' {
+    BeforeAll {
+        $fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+        $script:doDir = Join-Path ([System.IO.Path]::GetTempPath()) "sharepoint-do-$(New-Guid)"
+        $wsd = Join-Path $script:doDir 'law-do'
+        New-Item -ItemType Directory -Path (Join-Path $wsd '_raw') -Force | Out-Null
+        Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $wsd '_raw')
+        # Two run-failure rows: with more than one, the list must still be read row by row.
+        @(
+            @{ RuleName = 'Suspicious sign-in from rare country'; Status = 'Failure'; Failures = 3; LastFailure = '2026-05-06T06:15:00Z'; Reason = 'timeout' }
+            @{ RuleName = 'Lateral movement detected'; Status = 'Failure'; Failures = 2; LastFailure = '2026-05-05T06:15:00Z'; Reason = 'timeout' }
+        ) | ConvertTo-Json -AsArray | Set-Content (Join-Path $wsd '_raw/rule-health.json')
+        # A live solution and a deprecated one, as the catalogue lists them.
+        $dep = { param($id) @{ criteria = @(@{ contentId = $id; kind = 'AnalyticsRule' }) } }
+        @(
+            @{ properties = @{ contentId = 'm365'; displayName = 'Microsoft 365'; isDeprecated = 'false'; dependencies = (& $dep 'tmpl-data-exfiltration') } }
+            @{ properties = @{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $dep 'tmpl-low-noise') } }
+            @{ properties = @{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = 'false' } }
+        ) | ConvertTo-Json -Depth 10 -AsArray | Set-Content (Join-Path $wsd '_raw/content-product-packages.json')
+        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName 'law-do' -InputRoot $wsd -OutputRoot $wsd `
+            -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -OutputFormat Json -InformationAction SilentlyContinue *> $null
+        $b = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $wsd -SkipWhatsNew 6> $null
+        $script:doModel = Get-Content (Join-Path $b 'model.json') -Raw | ConvertFrom-Json
+        $script:doHtml = Get-Content (Join-Path $b 'index.html') -Raw
+    }
+    AfterAll { if ($script:doDir -and (Test-Path $script:doDir)) { Remove-Item $script:doDir -Recurse -Force } }
+
+    It 'carries every enabled rule and custom detection that reads a table, with its health and classified incidents' {
+        $o = @($script:doModel.detectionOutcomes)
+        # Fusion and the incident-creation rule read no table; the disabled rule and detection are left out.
+        @($o.name) | Should -Be @('Suspicious sign-in from rare country', 'Failed logons across multiple accounts', 'Suspicious LSASS access')
+        $s = $o[0]
+        $s.health | Should -Be 'Failing'
+        $s.failures | Should -Be 3
+        $s.alerts | Should -Be 412
+        @($s.tables) | Should -Be @('AuditLogs', 'SigninLogs')
+        $s.incidents, $s.tp, $s.fp, $s.bp, $s.undetermined, $s.unclassified, $s.open | Should -Be @(30, 3, 19, 1, 1, 0, 6)
+        $o[1].health | Should -Be 'Working'
+        $o[1].open | Should -Be 2
+        $o[2].kind | Should -Be 'Custom detection'
+        $o[2].source | Should -Be 'Defender XDR'
+        $o[2].health | Should -Be 'Silent'
+    }
+
+    It 'names each template''s solution and leaves out one only a deprecated solution ships' {
+        $office = $script:doModel.detectionOpportunities | Where-Object table -eq 'OfficeActivity'
+        $office.templates[0].solution | Should -Be 'Microsoft 365'
+        $sec = $script:doModel.detectionOpportunities | Where-Object table -eq 'SecurityEvent'
+        @($sec.templates.name) | Should -Not -Contain 'Low-severity noise'
+    }
+
+    It 'draws detection outcomes on the Data flow tab, between the estate flow and the ingest and billing flow' {
+        $script:doHtml | Should -Match '(?s)<h2>Estate flow</h2>.*?<h2>Detection outcomes</h2>.*?<h2>Ingest &amp; billing flow</h2>'
+        $script:doHtml.Contains("const TOP=25, HEALTH=[['Working','#16a34a'],['Silent','#94a3b8'],['Failing','#dc2626']];") | Should -BeTrue
+        $script:doHtml.Contains("['tp','True positive','#16a34a'],['fp','False positive','#dc2626']") | Should -BeTrue
+        # A rule that raised nothing runs dashed into its health ring.
+        $script:doHtml.Contains("const inc=n0(r.incidents), none=inc===0 && n0(r.alerts)===0;") | Should -BeTrue
+        $script:doHtml | Should -Match "if\(name==='flow'\)\{ const df=document\.getElementById\('detFlow'\)"
+    }
+}
+
 Describe 'Build-SentinelDocsSite against the fixture' {
 
     BeforeAll {

@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Detection outcomes on the Data flow tab** - a new flow follows each
+  detection from data to verdict: the tables an enabled analytics rule or
+  Defender XDR custom detection reads, the rules and detections, their
+  health (Working, Silent, Failing), and the incidents they raised in 30
+  days by classification (true positive, false positive, benign positive,
+  undetermined, unclassified, still open). Chips filter by health; hovering
+  follows a table or rule through the flow.
+- **Dashboard template solutions fixed** - the site build passed the
+  Content Hub package lists as a single item, so the dashboard's detection
+  opportunities showed every template as Built-in and the deprecated-solution
+  filter did not apply there; both now match the report page.
 - **Health statuses read as words** - the Sentinel health tables showed a
   resource's statuses as JSON (`["Success","Failure"]`) because Log
   Analytics returns a set as JSON text; they now read "Success, Failure".

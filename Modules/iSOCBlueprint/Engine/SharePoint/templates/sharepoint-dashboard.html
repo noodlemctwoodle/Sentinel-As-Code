@@ -985,6 +985,15 @@
       <div id="estateDetail" class="hidden"></div>
     </div>
 
+    <div class="panel" id="detOutcomesPanel">
+      <div class="phead"><div>
+        <h2>Detection outcomes</h2>
+        <p class="note">Each table an enabled analytics rule or Defender XDR custom detection reads &rarr; the rules and detections that read it &rarr; their health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) &rarr; the incidents they raised in 30 days, by how they were classified. Strand width is incidents; a dashed strand is a rule that raised none. Hover a table or a rule to follow it.</p>
+      </div></div>
+      <div class="flowfilter" id="detFilter"></div>
+      <div class="flowbox estatebox"><svg class="sankey" id="detFlow" role="img" aria-label="Detection outcomes"></svg></div>
+    </div>
+
     <div class="panel">
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
@@ -1984,7 +1993,8 @@
       g.addEventListener('mouseenter',()=>spot(n.label)); g.addEventListener('mouseleave',()=>spot(null));
     });
     // Tables: a pill each, the name truncated to fit with the full name in the tooltip.
-    const estText=t=>[...String(t)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?7.9:/[ijl.,'| ]/.test(ch)?3.6:6.3),0);
+    // Estimated width, with 8% to spare: the browser's text runs up to 6% wider.
+    const estText=t=>1.08*[...String(t)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?7.9:/[ijl.,'| ]/.test(ch)?3.6:6.3),0);
     cols[1].forEach(n=>{
       const col=colOf(n), fam=famOf[n.id]||'', g=mk('g',{class:'ib-tbl','data-fam':fam}), val=fmtN(n.value)+' GB';
       mk('rect',{x:tx,y:n._y-12,width:tw,height:24,rx:12,fill:col,'fill-opacity':'.16',stroke:col,'stroke-opacity':'.55'},null,g);
@@ -2055,6 +2065,138 @@
   document.getElementById('zoomIn').onclick=()=>{zoom=Math.min(2,zoom+.1);applyZoom();};
   document.getElementById('zoomOut').onclick=()=>{zoom=Math.max(.5,zoom-.1);applyZoom();};
   document.getElementById('zoomFit').onclick=()=>{zoom=1;applyZoom();};
+
+  // ---- detection outcomes ----
+  // Tables -> the enabled rules and custom detections that read them ->
+  // their health (Working, Silent, Failing) -> the incidents they raised by
+  // classification, in the ingest and billing flow's style. Rules are the
+  // model's detectionOutcomes, every one; with more than 25 the default view
+  // keeps every failing rule and the 25 with the most incidents, and the
+  // chips show every rule or one health state.
+  (function(){
+    const svgEl=document.getElementById('detFlow'), filterEl=document.getElementById('detFilter');
+    if(!svgEl) return;
+    const all=(M.detectionOutcomes||[]);
+    if(!all.length){ svgEl.parentNode.innerHTML='<p class="note" style="padding:16px">No enabled analytics rule or custom detection reads a workspace table in this snapshot.</p>'; if(filterEl) filterEl.innerHTML=''; return; }
+    const TOP=25, HEALTH=[['Working','#16a34a'],['Silent','#94a3b8'],['Failing','#dc2626']];
+    const OUT=[['tp','True positive','#16a34a'],['fp','False positive','#dc2626'],['bp','Benign positive','#3b82f6'],['undetermined','Undetermined','#a78bfa'],['unclassified','Closed, unclassified','#64748b'],['open','Still open','#d97706']];
+    const tblFam={}; ((E&&E.tables)||[]).forEach(t=>{ tblFam[t.table]=t; });
+    const n0=v=>Number(v)||0;
+    let st={health:null, all:false};
+    const pickRules=()=>{
+      let rows=st.health? all.filter(r=>r.health===st.health) : all;
+      if(!st.health && !st.all && rows.length>TOP){
+        const others=rows.filter(r=>r.health!=='Failing').sort((a,b)=>n0(b.incidents)-n0(a.incidents)).slice(0,TOP);
+        const keep=new Set(rows.filter(r=>r.health==='Failing').concat(others));
+        rows=rows.filter(r=>keep.has(r));
+      }
+      return rows;
+    };
+    function renderFilter(){
+      if(!filterEl) return;
+      const chip=(label,active,attrs,sub)=>'<button type="button" class="fchip'+(active?' active':'')+'" '+attrs+'>'+esc(label)+(sub?'<span>'+esc(sub)+'</span>':'')+'</button>';
+      let h='';
+      if(all.length>TOP) h+=chip('Most active',!st.health&&!st.all,'data-det="top"','every failing rule and the '+TOP+' others with most incidents');
+      h+=chip('Every rule',(!st.health&&st.all)||(!st.health&&all.length<=TOP),'data-det="all"',all.length+' rule'+(all.length===1?'':'s'));
+      HEALTH.forEach(([hn])=>{ const c=all.filter(r=>r.health===hn).length; if(c) h+=chip(hn,st.health===hn,'data-det="h" data-h="'+hn+'"',String(c)); });
+      filterEl.innerHTML=h;
+      filterEl.querySelectorAll('[data-det]').forEach(b=>b.addEventListener('click',()=>{
+        const k=b.dataset.det; st = k==='top'? {health:null,all:false} : k==='all'? {health:null,all:true} : (st.health===b.dataset.h? {health:null,all:false} : {health:b.dataset.h,all:false});
+        draw();
+      }));
+    }
+    function draw(){
+      const rules=pickRules();
+      const ns='http://www.w3.org/2000/svg';
+      while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+      svgEl.classList.remove('ib-dim');
+      const mk=(tag,attrs,text,parent)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; (parent||svgEl).appendChild(el); return el; };
+      const tip=(el,text)=>{ mk('title',{},text,el); return el; };
+      const LBL='letter-spacing:.14em;', HALO='paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;';
+      // Tables, most rules first.
+      const tCount={}; rules.forEach(r=>(r.tables||[]).forEach(t=>{ tCount[t]=(tCount[t]||0)+1; }));
+      const tables=Object.keys(tCount).sort((a,b)=>tCount[b]-tCount[a]||a.localeCompare(b));
+      const healthN=HEALTH.map(([hn,col])=>({name:hn,col,rules:rules.filter(r=>r.health===hn)}));
+      const outs=OUT.map(([k,label,col])=>({k,label,col,v:rules.reduce((a,r)=>a+n0(r[k]),0)})).filter(o=>o.v>0);
+      const rowH=34, top=58, R=28, W=1200;
+      const bodyH=Math.max(300, tables.length*rowH, rules.length*rowH, 3*120, outs.length*78);
+      const H=top+bodyH+20;
+      svgEl.setAttribute('viewBox','0 0 '+W+' '+H); svgEl.setAttribute('width',W); svgEl.setAttribute('height',H);
+      const tx=40, tw=232, rx=392, rw=300, hx=842, ox=1010;
+      const place=(arr,gap)=>{ const g=arr.length>1? Math.min(gap,(bodyH-24)/(arr.length-1)) : 0, y0=top+bodyH/2-g*(arr.length-1)/2; return arr.map((_,i)=>Math.round(y0+i*g)); };
+      const tY=place(tables,rowH), rY=place(rules,rowH), hY=place(healthN,124), oY=place(outs,84);
+      const tYOf={}; tables.forEach((t,i)=>tYOf[t]=tY[i]);
+      const defs=mk('defs',{});
+      const glow=mk('filter',{id:'dfGlow',x:'-50%',y:'-50%',width:'200%',height:'200%'},null,defs);
+      glow.innerHTML='<feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>';
+      const clipId='skClip'+svgEl.id, clip=mk('clipPath',{id:clipId},null,defs);
+      mk('rect',{x:0,y:0,width:W,height:H},null,clip);
+      [['TABLE',tx,'start'],['RULE OR DETECTION',rx,'start'],['HEALTH',hx,'middle'],['INCIDENTS (30D)',ox,'start']].forEach(([t,x,a])=>mk('text',{x:x,y:26,'text-anchor':a,'font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},t));
+      const strands=mk('g',{'clip-path':'url(#'+clipId+')'});
+      const maxInc=Math.max(1,...rules.map(r=>n0(r.incidents)));
+      const sw=v=>Math.max(2,20*Math.sqrt(n0(v)/maxInc));
+      const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
+      const famCol=t=>famColor[(tblFam[t]||{}).family]||'#64748b';
+      const ruleCol=r=>r.source==='Defender XDR'? (famColor['Defender XDR']||'#2b8c9e') : '#4f5bd5';
+      const hCol={}; HEALTH.forEach(([hn,col])=>hCol[hn]=col);
+      const hYOf={}; healthN.forEach((h,i)=>hYOf[h.name]=hY[i]);
+      const line=(d,col,w,attrs,text,dashed,beadK)=>{
+        const p=mk('path',Object.assign({d:d,fill:'none',stroke:col,'stroke-opacity':'.45','stroke-width':w.toFixed(1),class:'ib-strand'},attrs,dashed?{'stroke-dasharray':'6 6'}:{}),null,strands); tip(p,text);
+        if(!dashed && w>=2.5 && beadK!=null){ const b=mk('path',Object.assign({d:d,class:'sk-beads',stroke:col,'stroke-width':Math.max(1,w*0.3).toFixed(1),'stroke-dasharray':'3 21'},attrs),null,strands); b.style.animationDuration=(3.4-1.8*Math.sqrt(Math.min(1,beadK))).toFixed(1)+'s'; }
+      };
+      // Table -> rule: one thin strand per table a rule reads.
+      rules.forEach((r,i)=>(r.tables||[]).forEach(t=>{ if(tYOf[t]==null) return;
+        line(curve(tx+tw,tYOf[t],rx,rY[i]),famCol(t),2,{'data-r':i,'data-t':t},t+' is read by '+r.name,false,null); }));
+      // Rule -> health: width by the rule's incidents; dashed when it raised none.
+      rules.forEach((r,i)=>{ const inc=n0(r.incidents), none=inc===0 && n0(r.alerts)===0;
+        line(curve(rx+rw,rY[i],hx-R-5,hYOf[r.health]),ruleCol(r),sw(inc),{'data-r':i},r.name+': '+r.health+(n0(r.failures)? ', '+n0(r.failures)+' run failure(s) in 7 days':'')+', '+inc.toLocaleString()+' incident(s), '+n0(r.alerts).toLocaleString()+' alert(s) in 30 days',none,inc/maxInc); });
+      // Health -> outcome: the incidents of that state's rules, by classification.
+      healthN.forEach(h=>outs.forEach((o,oi)=>{ const v=h.rules.reduce((a,r)=>a+n0(r[o.k]),0); if(!v) return;
+        line(curve(hx+R+5,hYOf[h.name],ox-10,oY[oi]),h.col,sw(v),{'data-h':h.name},h.name+' rules: '+v.toLocaleString()+' '+o.label.toLowerCase()+' incident(s)',false,v/maxInc); }));
+      const spot=(sel)=>{ svgEl.classList.toggle('ib-dim',!!sel); svgEl.querySelectorAll('.ib-hot').forEach(el=>el.classList.remove('ib-hot')); if(sel) svgEl.querySelectorAll(sel).forEach(el=>el.classList.add('ib-hot')); };
+      // Estimated width, with 8% to spare: the browser's text runs up to 6% wider.
+      const estText=t=>1.08*[...String(t)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?7.9:/[ijl.,'| ]/.test(ch)?3.6:6.3),0);
+      const fit=(t,avail)=>{ if(estText(t)<=avail) return t; let x=t; while(x.length>1 && estText(x+'…')>avail) x=x.slice(0,-1); return x+'…'; };
+      const pill=(x,y,w,col,label,val,attrs,text)=>{ const g=mk('g',Object.assign({class:'ib-tbl'},attrs));
+        mk('rect',{x:x,y:y-12,width:w,height:24,rx:12,fill:col,'fill-opacity':'.16',stroke:col,'stroke-opacity':'.55'},null,g);
+        mk('text',{x:x+12,y:y+4,'font-size':'11.5','font-weight':'600',style:'fill:var(--ink)'},fit(label,w-24-String(val).length*5.9-10),g);
+        if(val) mk('text',{x:x+w-12,y:y+4,'text-anchor':'end','font-size':'10',style:'fill:var(--muted)'},val,g);
+        tip(g,text); return g; };
+      // Tables.
+      tables.forEach((t,i)=>{ const meta=tblFam[t], g=pill(tx,tY[i],tw,famCol(t),t,tCount[t]+' rule'+(tCount[t]===1?'':'s'),{'data-t':t},t+(meta? ' ('+meta.family+', '+fmtN(meta.gb)+' GB in 30 days)':'')+': read by '+tCount[t]+' enabled rule(s) or detection(s) shown');
+        g.addEventListener('mouseenter',()=>spot('[data-t="'+CSS.escape(t)+'"],'+rules.map((r,ri)=>(r.tables||[]).includes(t)? '[data-r="'+ri+'"]' : null).filter(Boolean).join(','))); g.addEventListener('mouseleave',()=>spot(null)); });
+      // Rules and detections.
+      const perfSec=findSecNum(/^rule performance/i,null);
+      rules.forEach((r,i)=>{ const inc=n0(r.incidents), val=inc? inc.toLocaleString()+' inc.' : (n0(r.alerts)? n0(r.alerts).toLocaleString()+' alerts' : 'none');
+        const g=pill(rx,rY[i],rw,ruleCol(r),r.name,val,{'data-r':i},r.name+' ('+(r.kind||r.source)+', '+r.source+'): '+r.health+'. Reads '+(r.tables||[]).join(', ')+'. '+inc.toLocaleString()+' incident(s) and '+n0(r.alerts).toLocaleString()+' alert(s) in 30 days.'+(perfSec!=null? ' Select to open Rule Performance.':''));
+        g.addEventListener('mouseenter',()=>spot('[data-r="'+i+'"]')); g.addEventListener('mouseleave',()=>spot(null));
+        if(perfSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(perfSec)); } });
+      // Health: a ring each, its share of the rules shown, the count inside.
+      const C=2*Math.PI*R, healthSec=findSecNum(/rule health/i,null);
+      healthN.forEach((h,i)=>{ const share=rules.length? h.rules.length/rules.length : 0, g=mk('g',{'data-h':h.name}), y=hY[i];
+        mk('circle',{cx:hx,cy:y,r:R,'stroke-width':'6',style:'fill:var(--panel);stroke:var(--ring-track)'},null,g);
+        if(share>0) mk('circle',{cx:hx,cy:y,r:R,fill:'none','stroke-width':'6','stroke-linecap':'round','stroke-dasharray':(C*share).toFixed(1)+' '+C.toFixed(1),transform:'rotate(-90 '+hx+' '+y+')',filter:'url(#dfGlow)',style:'stroke:'+h.col},null,g);
+        mk('text',{x:hx,y:y+5,'text-anchor':'middle','font-size':'15','font-weight':'800',style:'fill:var(--ink)'},String(h.rules.length),g);
+        mk('text',{x:hx,y:y-R-12,'text-anchor':'middle','font-size':'9.5','font-weight':'800',style:'fill:var(--faint);'+LBL+HALO},h.name.toUpperCase(),g);
+        mk('text',{x:hx,y:y+R+18,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},Math.round(share*100)+'% of rules',g);
+        tip(g,h.name+': '+h.rules.length+' of the '+rules.length+' rules shown.'+(h.name==='Failing'&&healthSec!=null? ' Select to open Rule Health and Quality.':''));
+        g.addEventListener('mouseenter',()=>spot('[data-h="'+h.name+'"],'+rules.map((r,ri)=>r.health===h.name? '[data-r="'+ri+'"]' : null).filter(Boolean).join(','))); g.addEventListener('mouseleave',()=>spot(null));
+        if(h.name==='Failing' && healthSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(healthSec)); } });
+      // Outcomes: incidents by classification, with their totals.
+      const incTotal=outs.reduce((a,o)=>a+o.v,0)||1, incSec=findSecNum(/^incidents/i,null);
+      if(!outs.length) mk('text',{x:ox,y:top+bodyH/2,'font-size':'12',style:'fill:var(--muted)'},'No incidents from these rules in 30 days');
+      outs.forEach((o,i)=>{ const y=oY[i], g=mk('g',{});
+        mk('circle',{cx:ox,cy:y,r:7,fill:o.col,filter:'url(#dfGlow)'},null,g);
+        mk('text',{x:ox+18,y:y+7,'font-size':'22','font-weight':'800',style:'fill:var(--ink)'},o.v.toLocaleString(),g);
+        mk('text',{x:ox+18,y:y+22,'font-size':'9.5','font-weight':'700',style:'fill:var(--muted);'+LBL},o.label.toUpperCase(),g);
+        mk('text',{x:ox+18,y:y+36,'font-size':'10',style:'fill:var(--muted)'},Math.round(o.v/incTotal*100)+'% of these incidents',g);
+        tip(g,o.label+': '+o.v.toLocaleString()+' incident(s) from the rules shown, 30 days.'+(incSec!=null? ' Select to open the incidents page.':''));
+        if(incSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(incSec)); } });
+      revealSankey(svgEl);
+      renderFilter();
+    }
+    draw();
+  })();
 
   // ---- top tables / rules ----
   if(cost&&cost.topTables.length){
@@ -3537,6 +3679,7 @@
     if(name==='sectionsdoc' && window.layoutDoc) window.layoutDoc();
     // The Sankey was drawn while its tab was hidden: reveal it now.
     if(name==='flow' && big) revealSankey(big);
+    if(name==='flow'){ const df=document.getElementById('detFlow'); if(df && df.querySelector('clipPath')) revealSankey(df); }
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{

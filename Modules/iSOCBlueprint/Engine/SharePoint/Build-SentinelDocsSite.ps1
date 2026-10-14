@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.12.2
+    Version:      0.13.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -944,7 +944,12 @@ $uncoveredTotal = 0
 if ($ruleRefs.Count -gt 0) {
     # A template only a deprecated Content Hub solution ships is not one to
     # enable, as on the report page.
-    $tplSolutions = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
+    # Read-RawArray emits each array as one object, so hold them first: passed
+    # straight in, each list arrived as a single item and every template read
+    # as Built-in.
+    $pkgInstalled = Read-RawArray 'content-packages.json'
+    $pkgCatalogue = Read-RawArray 'content-product-packages.json'
+    $tplSolutions = Get-TemplateSolutionMap -Installed $pkgInstalled -Catalogue $pkgCatalogue
     $undeployed = @($templateRefs | Where-Object { $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId)) })
     $sevRank2 = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
     $operationalOnly = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
@@ -964,6 +969,68 @@ if ($ruleRefs.Count -gt 0) {
         }
     }
 }
+
+# The Data flow tab's detection outcomes: every enabled analytics rule and
+# Defender XDR custom detection that reads a workspace table, the tables it
+# reads, its health and the incidents it raised by classification (30 days).
+# Health: Failing when the rule had run failures (SentinelHealth, 7 days),
+# Working when it raised alerts or incidents, Silent otherwise. Rules join
+# the alert and incident captures by rule id, then by name; custom
+# detections, which carry no rule id there, by name.
+$ruleIdKey = { param($id) $k = ([string]$id).ToLowerInvariant(); if ($k -match '/') { ($k -split '/')[-1] } else { $k } }
+$effById = @{}; $effByName = @{}
+foreach ($e in @($effectRows | Where-Object { $_ })) {
+    $k = & $ruleIdKey $(if ($e.PSObject.Properties['AlertRuleId']) { $e.AlertRuleId } else { '' })
+    if ($k) { $effById[$k] = $e }
+    $n = [string]$(if ($e.PSObject.Properties['RuleName']) { $e.RuleName } else { '' })
+    if ($n -and -not $effByName.ContainsKey($n)) { $effByName[$n] = $e }
+}
+$firedById = @{}; $firedByName = @{}
+foreach ($f in @($firedRows | Where-Object { $_ })) {
+    $k = & $ruleIdKey $(if ($f.PSObject.Properties['AlertRuleId']) { $f.AlertRuleId } else { '' })
+    if ($k) { $firedById[$k] = $f }
+    $n = [string]$(if ($f.PSObject.Properties['AlertName']) { $f.AlertName } else { '' })
+    if ($n -and -not $firedByName.ContainsKey($n)) { $firedByName[$n] = $f }
+}
+# Read-RawArray emits the array as one object, so hold it before iterating.
+$ruleHealthRaw = Read-RawArray 'rule-health.json'
+$ruleFailures = @{}
+foreach ($h in @($ruleHealthRaw | Where-Object { $_ })) {
+    $fails = [long](ConvertTo-BuildNumber $(if ($h.PSObject.Properties['Failures']) { $h.Failures } else { 0 }))
+    if ($fails -gt 0 -or [string]$(if ($h.PSObject.Properties['Status']) { $h.Status } else { '' }) -eq 'Failure') { $ruleFailures[[string]$h.RuleName] = [math]::Max($fails, 1) }
+}
+$outcomeOf = {
+    param($e)
+    $num = { param($o, $n) if ($o -and $o.PSObject.Properties[$n]) { [long](ConvertTo-BuildNumber $o.$n) } else { [long]0 } }
+    $inc = & $num $e 'Incidents'; $closed = & $num $e 'Closed'
+    $tp = & $num $e 'TruePositive'; $fp = & $num $e 'FalsePositive'; $bp = & $num $e 'BenignPositive'; $und = & $num $e 'Undetermined'
+    [ordered]@{ incidents = $inc; closed = $closed; tp = $tp; fp = $fp; bp = $bp; undetermined = $und
+        unclassified = [math]::Max(0, $closed - $tp - $fp - $bp - $und); open = [math]::Max(0, $inc - $closed) }
+}
+$detectionOutcomes = @()
+foreach ($r in @($ruleRefs | Where-Object { $_ -and $_.Enabled -eq $true -and @($_.Tables | Where-Object { $_ }).Count -gt 0 })) {
+    $k = & $ruleIdKey $r.RuleId; $n = [string]$r.RuleName
+    $e = if ($k -and $effById.ContainsKey($k)) { $effById[$k] } elseif ($effByName.ContainsKey($n)) { $effByName[$n] } else { $null }
+    $f = if ($k -and $firedById.ContainsKey($k)) { $firedById[$k] } elseif ($firedByName.ContainsKey($n)) { $firedByName[$n] } else { $null }
+    $o = & $outcomeOf $e
+    $alerts = if ($f) { [long](ConvertTo-BuildNumber $f.Alerts) } else { [long]0 }
+    $fails = if ($ruleFailures.ContainsKey($n)) { $ruleFailures[$n] } else { [long]0 }
+    $detectionOutcomes += [ordered]@{
+        name = $n; kind = [string]$r.Kind; source = 'Sentinel'; tables = @($r.Tables | Where-Object { $_ } | ForEach-Object { [string]$_ })
+        health = $(if ($fails -gt 0) { 'Failing' } elseif ($alerts -gt 0 -or $o.incidents -gt 0) { 'Working' } else { 'Silent' })
+        failures = $fails; alerts = $alerts
+    } + $o
+}
+foreach ($r in @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true -and @($_.Tables | Where-Object { $_ }).Count -gt 0 })) {
+    $n = [string]$r.RuleName
+    $o = & $outcomeOf $(if ($effByName.ContainsKey($n)) { $effByName[$n] } else { $null })
+    $detectionOutcomes += [ordered]@{
+        name = $n; kind = 'Custom detection'; source = 'Defender XDR'; tables = @($r.Tables | Where-Object { $_ } | ForEach-Object { [string]$_ })
+        health = $(if ($o.incidents -gt 0) { 'Working' } else { 'Silent' }); failures = [long]0; alerts = [long]0
+    } + $o
+}
+$healthRank = @{ Failing = 0; Working = 1; Silent = 2 }
+$detectionOutcomes = @($detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { -[long]$_.incidents } }, @{ Expression = { $_.name } })
 
 # When the bookmarks list was too large to fetch, the collector keeps the
 # count the service reported.
@@ -1248,6 +1315,7 @@ $model = [ordered]@{
     usageDaily   = $usageDaily
     maturity     = $maturityModel
     detectionOpportunities = $detectionOpportunities
+    detectionOutcomes = $detectionOutcomes
     huntsSummary = $huntsSummary
     playbookHealth = $playbookHealth
     tiBySource   = $tiBySource
