@@ -2178,9 +2178,13 @@
       const cols=columns(rows), maxInc=Math.max(1,...rows.map(r=>n0(r.incidents)));
       // Angled table names need room for the longest: about 6.9px a character, at 64 degrees.
       const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;
+      // The last names lean past the last column; a spacer column of that width
+      // keeps them clear of the Health heading.
+      const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;
+      const spacer=over? '<td class="dm-sp" style="width:'+over+'px;min-width:'+over+'px"></td>' : '';
       let h='<thead><tr><th class="dm-rn">Rule or detection</th>'+(st.mode==='family'
           ? cols.map((c,i)=>'<th class="dm-fcol" data-c="'+i+'" title="'+esc(c.label+': '+c.tables.join(', '))+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i><span class="dm-fn">'+esc(c.label)+'</span><small>'+c.tables.length+' table'+(c.tables.length===1?'':'s')+'</small></th>').join('')
-          : '<th class="dm-tl" colspan="'+cols.length+'"><div class="dm-tlab" style="width:'+(cols.length*40)+'px;height:'+labH+'px">'+cols.map((c,i)=>'<span style="left:'+(i*40+20)+'px" data-c="'+i+'" title="'+esc(c.label+' ('+c.fam+')')+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i>'+esc(c.label)+'</span>').join('')+'</div></th>')+
+          : '<th class="dm-tl" colspan="'+(cols.length+(over?1:0))+'"><div class="dm-tlab" style="width:'+(cols.length*40+over)+'px;height:'+labH+'px">'+cols.map((c,i)=>'<span style="left:'+(i*40+20)+'px" data-c="'+i+'" title="'+esc(c.label+' ('+c.fam+')')+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i>'+esc(c.label)+'</span>').join('')+'</div></th>')+
         '<th class="dm-h">Health</th><th class="dm-h">Incidents by verdict</th><th class="dm-n">30 days'+(rows.length>FIRST? moreChev(rows.length,'rules') : '')+'</th></tr></thead><tbody>';
       rows.forEach((r,ri)=>{
         const isX=r.source==='Defender XDR', inc=n0(r.incidents), closed=Math.max(0,inc-n0(r.open)), tbls=r.tables||[];
@@ -2188,13 +2192,14 @@
           '<div class="dm-rtxt"><b title="'+esc(r.name)+'">'+esc(r.name)+'</b><small>'+esc(r.kind||r.source)+' · '+tbls.length+' table'+(tbls.length===1?'':'s')+(n0(r.failures)? ' · '+n0(r.failures)+' run failure'+(n0(r.failures)===1?'':'s'):'')+'</small></div></div></td>';
         cols.forEach((c,i)=>{ const hit=tbls.filter(t=>c.tables.includes(t)), col=famColor[c.fam]||'#64748b';
           h+='<td class="dm-c" data-c="'+i+'"'+(hit.length? ' title="'+esc(hit.join(', '))+'"':'')+'>'+(hit.length? (hit.length>1? '<i style="background:'+col+';--g:'+col+';color:'+inkOn(col)+'">'+hit.length+'</i>' : '<i class="one" style="background:'+col+';--g:'+col+'"></i>') : '')+'</td>'; });
+        h+=spacer;
         h+='<td class="dm-h"><span class="dm-pill '+esc(r.health)+'">'+esc(r.health)+'</span></td><td class="dm-v">'+(inc
             ? '<div class="dm-bar" style="width:'+Math.max(30,Math.round(168*Math.sqrt(inc/maxInc)))+'px">'+OUT.map(([k,l,c])=>n0(r[k])? '<i style="width:'+(100*n0(r[k])/inc)+'%;background:'+c+'" title="'+l+': '+n0(r[k])+'"></i>':'').join('')+'</div>'
             : '<span class="note" style="font-size:11.5px">'+(n0(r.alerts)? n0(r.alerts).toLocaleString()+' alerts, no incidents' : 'no incidents')+'</span>')+'</td>'+
           '<td class="dm-n"'+(inc? ' title="'+(closed? Math.round(100*n0(r.tp)/closed)+'% of its '+closed+' closed incidents were true positives; ' : 'No incident closed yet; ')+n0(r.open)+' still open"' : '')+'>'+
             (inc? inc.toLocaleString()+' incident'+(inc===1?'':'s')+' · '+(closed? Math.round(100*n0(r.tp)/closed)+'% TP' : 'none closed') : '')+'</td></tr>';
       });
-      h+='</tbody><tfoot><tr><td class="dm-rn">Rules reading it</td>'+cols.map((c,i)=>'<td data-c="'+i+'">'+rows.filter(r=>(r.tables||[]).some(t=>c.tables.includes(t))).length+'</td>').join('')+'<td colspan="3"></td></tr></tfoot>';
+      h+='</tbody><tfoot><tr><td class="dm-rn">Rules reading it</td>'+cols.map((c,i)=>'<td data-c="'+i+'">'+rows.filter(r=>(r.tables||[]).some(t=>c.tables.includes(t))).length+'</td>').join('')+(over? '<td></td>' : '')+'<td colspan="3"></td></tr></tfoot>';
       box.classList.remove('open');
       table.className='dm'+(st.mode==='family'? ' dm-fam':'');
       table.innerHTML=h;
