@@ -6,6 +6,8 @@ the first thing to update; the change then ripples through `Blueprint.psd1`, the
 api-version table in `Export-SentinelInventory.ps1`, `Private/Invoke-SentinelRest.ps1`,
 and the gap-rule resources.
 
+<!-- bp:tone warning -->
+
 > **Where the api-versions actually live** The `ApiVersions` block in `Blueprint.psd1`
 > is a reference copy only, it is **not** read at runtime. `Export-SentinelInventory.ps1`
 > hardcodes its own copy of the same five versions in the `$apiVersions` hashtable near
@@ -15,7 +17,9 @@ and the gap-rule resources.
 > The two copies must be kept in sync by hand; updating only `Blueprint.psd1` has no effect
 > on a run.
 
-> **Banner** Microsoft Sentinel in the Azure portal **retires 2027-03-31** in favour of
+<!-- bp:tone warning -->
+
+> **Azure portal retirement** Microsoft Sentinel in the Azure portal **retires 2027-03-31** in favour of
 > the unified Defender XDR experience. Track the migration timeline at
 > <https://learn.microsoft.com/azure/sentinel/move-to-defender>.
 
@@ -28,13 +32,13 @@ These five are the `$apiVersions` hashtable keys (`Sentinel`, `SentinelPreview`,
 `Blueprint.psd1`. Most `Invoke-SentinelRest` calls reference them by key rather than a
 literal string.
 
-| Surface | Version | `$apiVersions` key | Why |
+| Surface | Version | Key | Why |
 |---|---|---|---|
 | `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers onboarding state, data connectors and connector definitions, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, workbook content templates, settings and threat-intelligence metrics, and is the first version tried for `pricings`, `sourceControls` and `taxiiClients`. |
 | `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations, `hunts`, and the `pricings` resource when the GA version refuses it. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
 | `Microsoft.OperationalInsights/workspaces/tables` | `2025-02-01` (falls back to `2023-09-01`) | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`, and on the newer version `schema.tableSubType` (Classic or DCR-based), `lastPlanModifiedDate` and the `*AsDefault` retention flags. A region that does not serve the newer version gets the older one, with a warning in the run log. |
-| `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms; REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
+| `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms, where REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
 
 ### Ad-hoc one-off versions
 
@@ -43,10 +47,10 @@ inline where a resource provider is published on its own cadence. These are **no
 `$apiVersions` table, so grep `Export-SentinelInventory.ps1` for the literal string when one
 needs bumping.
 
-| Surface | Version | Capture (`Try-Capture` label) |
+| Surface | Version | Capture |
 |---|---|---|
 | `.../workspaces/<ws>/summaryLogs` (summary rules) | `2023-01-01-preview` | `summary-rules` |
-| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging; the collector then keeps the item count the error reports in `bookmarks-count.json` |
+| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging, and the collector then keeps the item count the error reports in `bookmarks-count.json` |
 | `Microsoft.Insights/workbooks?category=sentinel` | `2023-06-01` | `workbooks-saved` |
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
 | `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |
@@ -67,12 +71,12 @@ api-version from the tables above.
 
 | Service | Endpoint | Used by | Notes |
 |---|---|---|---|
-| Log Analytics query API | `Invoke-AzOperationalInsightsQuery` (`api.loganalytics.io/v1`) | The 38 KQL captures below | Workspace-scoped and read-only; needs Log Analytics Reader. |
-| Microsoft Graph (beta) | `https://graph.microsoft.com/beta/security/rules/detectionRules`, paged on `@odata.nextLink` | `defender-custom-detections` | Needs `CustomDetection.Read.All`. A Graph PowerShell SDK session is used when one exists, otherwise the Azure PowerShell context; a 401 or 403 is a failed capture, not an empty list. |
+| Log Analytics query API | `Invoke-AzOperationalInsightsQuery` (`api.loganalytics.io/v1`) | The 38 KQL captures below | Workspace-scoped and read-only, with Log Analytics Reader. |
+| Microsoft Graph (beta) | `https://graph.microsoft.com/beta/security/rules/detectionRules`, paged on `@odata.nextLink` | `defender-custom-detections` | Needs `CustomDetection.Read.All`. A Graph PowerShell SDK session is used when one exists, otherwise the Azure PowerShell context. A 401 or 403 is a failed capture, not an empty list. |
 | Azure Retail Prices API | `https://prices.azure.com/api/retail/prices` with an OData `$filter` | `retail-prices` (the cost estimate) | Anonymous, no authentication header. |
 | Microsoft Learn | The Microsoft Sentinel and Defender XDR What's new pages, read as Markdown (`Accept: text/markdown`) | `whats-new`, `Get-iSOCBlueprintWhatsNew` | Public pages. A page that cannot be read is recorded and the other is still read. |
-| Sentinel-As-Code Toolkit (GitHub) | `https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json` | `Update-iSOCBlueprintConnectorCatalogue` (maintainers) | Refreshes the bundled connector catalogue; never called during a run. |
-| SharePoint Online | PnP.PowerShell 3.4.1 cmdlets (sites, lists, files, pages and web parts, navigation, the site collection app catalogue, Entra app site permissions), plus `/_api/web/sitecollectionappcatalog/AvailableApps` through `Invoke-PnPSPRestMethod` | `Publish-iSOCBlueprintSite`, `Initialize-iSOCBlueprintSite` | Publishing signs in interactively or with a SharePoint access token (audience `https://<tenant>.sharepoint.com`); initialising also needs the tenant admin site. |
+| Sentinel-As-Code Toolkit (GitHub) | `https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json` | `Update-iSOCBlueprintConnectorCatalogue` (maintainers) | Refreshes the bundled connector catalogue, never called during a run. |
+| SharePoint Online | PnP.PowerShell 3.4.1 cmdlets (sites, lists, files, pages and web parts, navigation, the site collection app catalogue, Entra app site permissions), plus `/_api/web/sitecollectionappcatalog/AvailableApps` through `Invoke-PnPSPRestMethod` | `Publish-iSOCBlueprintSite`, `Initialize-iSOCBlueprintSite` | Publishing signs in interactively or with a SharePoint access token (audience `https://<tenant>.sharepoint.com`), and initialising also needs the tenant admin site. |
 
 ## Modules
 

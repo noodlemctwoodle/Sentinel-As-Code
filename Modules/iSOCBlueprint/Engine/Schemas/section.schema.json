@@ -89,7 +89,7 @@
             }
           } },
         { "if": { "properties": { "type": { "const": "note" } } },
-          "then": { "required": ["blocks"], "properties": { "blocks": { "$ref": "#/$defs/blocks" } } } },
+          "then": { "required": ["blocks"], "properties": { "blocks": { "$ref": "#/$defs/blocks" }, "tone": { "enum": ["info", "success", "warning", "critical"], "description": "How serious what the callout says is, from a bp:tone comment before it; the site colours the callout by it. Absent means info." } } } },
         { "if": { "properties": { "type": { "const": "chart" } } },
           "then": {
             "required": ["kind", "source"],

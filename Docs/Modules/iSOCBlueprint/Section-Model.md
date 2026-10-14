@@ -44,7 +44,7 @@ section file stands on its own.
 | `paragraph` | `text` (runs) | |
 | `list` | `ordered`, `start` (ordered lists that do not start at 1), `items` | Each item has `text` (runs) and `blocks` (anything nested under it, such as a sub-list). |
 | `table` | `columns`, `rows` | Each column has `text` (runs) and `align` (`left`, `center`, `right` or null). `rows` is an array of rows; a row is an array of cells; a cell is an array of runs. |
-| `note` | `blocks` | A callout. The metadata banner under the title is not one: its facts are in `meta`. |
+| `note` | `blocks`, `tone` | A callout. The metadata banner under the title is not one: its facts are in `meta`. `tone` (info, success, warning or critical) comes from a `bp:tone` comment before it; absent means info. |
 | `chart` | `kind`, `title`, `data`, `source` | See [Charts](#charts). |
 | `code` | `language`, `text` | |
 | `rule` | | A horizontal rule. |
@@ -105,6 +105,12 @@ follows a `<!-- bp:shown-in-graphic -->` comment. The block then
 carries `inGraphic: true`: the Markdown and Word exports keep it, and the
 SharePoint pages and the dashboard leave it out rather than show the same
 figures twice.
+
+A callout (a `>` quote) may follow a `<!-- bp:tone <tone> -->` comment,
+where the tone is info, success, warning or critical: how serious what it
+says is. The note block carries it as `tone`, and the dashboard colours the
+callout by it (blue, green, amber, red, each with its own icon). Markdown
+and Word show the callout as before.
 
 | `kind` | `data` |
 | --- | --- |

@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.12
+    Version:        0.6.13
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -6103,7 +6103,7 @@ $summaryRows = $summaryRules | ForEach-Object {
 }
 $brokenSummary = @($summaryRows | Where-Object { $_.Active -eq 'No' -or $_.Status -ne 'Ok' })
 $summaryWarning = if ($brokenSummary.Count -gt 0) {
-    "`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column: `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
+    "`n<!-- bp:tone critical -->`n`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column: `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
 } else { '' }
 # Active vs Errored pie (only when there's something to chart).
 $summaryActiveCount = @($summaryRows | Where-Object { $_.Active -eq 'Yes' -and $_.Status -eq 'Ok' }).Count

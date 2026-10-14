@@ -24,8 +24,8 @@ export const SERIES: string[] = [
 // Labels that carry a meaning get the colour that meaning has elsewhere in
 // the Blueprint; everything else takes the next series colour.
 const NAMED: { [label: string]: string } = {
-  critical: '#991b1b', high: '#dc2626', medium: '#ea580c', warning: '#d97706',
-  low: '#ca8a04', info: '#2563eb', informational: '#2563eb',
+  critical: '#991b1b', high: '#ff4d1f', medium: '#ffaa00', warning: '#d97706',
+  low: '#fff100', info: '#2563eb', informational: '#8a8886',
   success: '#16a34a', succeeded: '#16a34a', failure: '#dc2626', failed: '#dc2626',
   truepositive: '#dc2626', falsepositive: '#16a34a', benignpositive: '#d97706',
   undetermined: '#64748b', unclassified: '#94a3b8', unknown: '#94a3b8',

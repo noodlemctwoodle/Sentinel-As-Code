@@ -225,8 +225,10 @@ turns into a long scroll; a card whose report page is missing from the
 run keeps a Show all control instead. Elsewhere (the Overview's quick
 wins, ten roadmap gaps, a table's templates) Show all reveals the rest. In
 a table it is a chevron rather than a labelled button, held at the top
-right so it does not move as the list opens: in the table's header row when
-it opens further rows, or beside the first chips in a cell. It turns over
+right so it does not move as the list opens: in the top-right corner of the
+card (its header when it has one) when the card holds one such table, in the
+table's header row when a card holds two, or beside the first chips in a
+cell. It turns over
 when open, and "Show all N" or "Show fewer" is its tooltip and what a
 screen reader announces. The Overview's top findings are the critical ones only,
 with a button to the findings view, which lists every finding. With the
@@ -336,7 +338,15 @@ a sentence or two saying what it covers, which stays under the title
 above any tabs; the renderer writes it for the pages whose opening did
 not already say. The tabs are
 underlined page tabs on a hairline rule, the selected one in full ink with
-the button gradient beneath it. A line of figures in a page ("MTTA: ... ·
+the button gradient beneath it. A callout is coloured by how serious what it
+says is, from the renderer's `bp:tone` comment: blue to note, green for good
+news, amber to act on (a deadline, a hand-kept setting) and red for
+something broken (summary rules in error), each with its own icon and the
+tone read out to a screen reader; the SharePoint pages show it as a plain
+quote, as their text web parts drop colour. Severity everywhere (the open
+incidents' H, M, L and I chips, severity pills, charts) is in the Defender
+XDR colours: High orange-red, Medium amber, Low yellow, Informational grey.
+The confidentiality footer is red. A line of figures in a page ("MTTA: ... ·
 MTTR: ... · Closed: ...") shows as a row of tiles, label above figure,
 lined up across the row however the labels wrap; a duration in minutes
 reads in days and hours with the exact minutes in its tooltip, and a
@@ -358,7 +368,12 @@ chips: the first three, then a Show all chevron for the rest, with a lead-in suc
 "146 rule(s) disabled:" kept as text above them. A template source that is
 ready to enable, a solution marked installed or Built-in (templates that
 ship with Sentinel), is tinted green; one whose solution is not installed
-stays grey. The table's tool bar carries a key to the two in the
+stays grey. A maturity criterion named with its state on this workspace
+(What's New's Relates to here column: "SAC-DET-07 gap") is a chip in the
+state's colour, as on the maturity view: green met, red gap, slate
+unknown, grey not assessed, with the state in its tooltip and read out to
+a screen reader; a cell holding one is chips even for a single item. The
+table's tool bar carries a key to the two in the
 dashboard's filter chips, each with the legend's swatch and how many rows
 hold that kind; selecting one shows only those rows, and in each row only
 those chips, every one of them (so Not installed shows exactly what is not

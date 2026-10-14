@@ -33,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.0
+    Version:      0.5.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+, ConvertFrom-BlueprintMermaid.ps1
 
@@ -56,6 +56,10 @@ $script:BpShownInGraphic = '<!-- bp:shown-in-graphic -->'
 # cards): "<!-- bp:visual <kind> {json} -->", which Markdown does not show.
 # It becomes a chart block of that kind with the JSON as its data.
 $script:BpVisualComment = '^<!--\s*bp:visual\s+(?<kind>[a-z][a-z0-9-]*)\s+(?<json>\{.*\})\s*-->$'
+# Before a callout, how serious what it says is: "<!-- bp:tone warning -->"
+# (info, success, warning or critical). The site colours the callout by it;
+# a callout without one is info.
+$script:BpToneComment = '^<!--\s*bp:tone\s+(?<tone>info|success|warning|critical)\s*-->$'
 
 function ConvertTo-BlueprintSection {
     <#
@@ -217,7 +221,9 @@ function ConvertTo-BpBlockList {
                 # passes the same facts as -Meta.
                 if (-not $Context.content -and $plain -match '^\s*Workspace\b') { break }
                 $Context.content = $true
-                [ordered]@{ type = 'note'; blocks = $inner }
+                $note = [ordered]@{ type = 'note'; blocks = $inner }
+                if ($Context.tone) { $note.tone = $Context.tone; $Context.tone = $null }
+                $note
             }
             'ListBlock' {
                 $items = foreach ($item in $b) {
@@ -268,6 +274,8 @@ function ConvertTo-BpBlockList {
                 # Split-BpLongTable's seam; Join-BpTableChunk removes it.
                 if ($html -eq $script:BpTableContinues) { [ordered]@{ type = 'tableContinues' }; break }
                 if ($html -eq $script:BpShownInGraphic) { $Context.inGraphic = $true; break }
+                $tone = [regex]::Match($html, $script:BpToneComment)
+                if ($tone.Success) { $Context.tone = $tone.Groups['tone'].Value; break }
                 $visual = [regex]::Match($html, $script:BpVisualComment)
                 if ($visual.Success) {
                     $data = $null

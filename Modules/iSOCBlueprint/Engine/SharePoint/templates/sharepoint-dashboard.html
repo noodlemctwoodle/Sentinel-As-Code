@@ -449,6 +449,9 @@
   .morechev[aria-expanded="true"] svg{transform:rotate(180deg)}
   table.tbl thead th .morechev{float:right;margin:-8px 0 -8px 10px}
   .morechev.tfoot{display:flex;margin:10px auto 0}
+  .phead > .cardchev{flex:none;margin-left:auto}
+  .cardchev.abs{position:absolute;top:14px;right:14px;z-index:2}
+  .has-cardchev{position:relative} .has-cardchev > h3{padding-right:44px}
   .flowfilter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
   .fchip{font:inherit;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
     background:var(--chip);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
@@ -503,7 +506,17 @@
     background:color-mix(in srgb,var(--brand) 6%,transparent);border:1px solid color-mix(in srgb,var(--brand) 16%,var(--line));
     color:var(--ink-2);font-size:13px;line-height:1.6}
   .docnote .nt{display:flex;align-items:center;gap:7px;font-weight:750;color:var(--ink);font-size:13px;margin-bottom:5px}
-  .docnote .nt svg{width:15px;height:15px;color:var(--brand)}
+  .docnote.dn{display:flex;gap:10px;align-items:flex-start}
+  .docnote .dni{flex:none;display:grid;place-items:center;width:18px;height:18px;margin-top:3px;color:var(--brand)}
+  .docnote .dni svg{width:17px;height:17px}
+  .docnote .dnb{flex:1;min-width:0}
+  .docnote .dnb > :first-child{margin-top:0} .docnote .dnb > :last-child{margin-bottom:0}
+  .docnote.t-success{background:color-mix(in srgb,var(--green) 8%,transparent);border-color:color-mix(in srgb,var(--green) 28%,var(--line))}
+  .docnote.t-success .dni{color:var(--green)}
+  .docnote.t-warning{background:color-mix(in srgb,var(--amber) 9%,transparent);border-color:color-mix(in srgb,var(--amber) 32%,var(--line))}
+  .docnote.t-warning .dni{color:var(--amber)}
+  .docnote.t-critical{background:color-mix(in srgb,var(--red) 8%,transparent);border-color:color-mix(in srgb,var(--red) 32%,var(--line))}
+  .docnote.t-critical .dni{color:var(--red)}
   .docnote p{margin:5px 0}
   .docnote ul{margin:5px 0;padding-left:18px}
   .docnote li{margin:5px 0}
@@ -533,7 +546,9 @@
   .doctscroll{overflow:auto;max-height:620px}
   table.doct{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
   table.doct th,table.doct td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
-  table.doct td.wrap,table.doct th.wrap{white-space:normal;min-width:220px}
+  table.doct td.wrap,table.doct th.wrap{white-space:normal;min-width:180px}
+  table.doct th code{background:none;border:0;padding:0;font:inherit;color:inherit}
+  table.doct td.flexw,table.doct th.flexw{white-space:normal}
   table.doct thead th{position:sticky;top:0;background:var(--panel);color:var(--faint);font-weight:750;font-size:10.5px;
     text-transform:uppercase;letter-spacing:.04em;z-index:1;box-shadow:0 1px 0 var(--line)}
   table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
@@ -567,6 +582,13 @@
   .tagpill.chiplink{cursor:pointer}
   .tagpill.chiplink:hover,.tagpill.chiplink:focus-visible{border-color:var(--brand);color:var(--ink);outline:none}
   .cellchips .tagpill{white-space:normal}
+  /* A maturity criterion with its state on this workspace ("SAC-DET-07 gap")
+     is a chip in the state's colour, as on the maturity view. */
+  .tagpill.crit{color:#fff;border-color:transparent;font-weight:750}
+  .tagpill.crit a{color:inherit;text-decoration:none} .tagpill.crit a:hover{text-decoration:underline}
+  .tagpill.crit.c-met{background:var(--green)} .tagpill.crit.c-gap{background:var(--red)} .tagpill.crit.c-unknown{background:var(--slate)}
+  .tagpill.crit.c-na{background:var(--chip);border-color:var(--line-2);color:var(--muted);font-weight:650}
+  .vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .cellchips .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
   .cellk{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px}
   .tagpill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;
@@ -825,15 +847,17 @@
   .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
   .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
   .sev.Info,.sev.Informational{background:var(--slate)}
+  /* Alert and incident severity in the Defender XDR colours. */
+  .sev.High{background:#ff4d1f;color:#0b1220} .sev.Medium{background:#ffaa00;color:#0b1220} .sev.Low{background:#fff100;color:#0b1220}
   .note{color:var(--muted);font-size:12.5px}
 
   .foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line)}
   /* The footer's privacy notice: full width so its line does not wrap, an
      amber tint, a lock in an icon chip, a bold title; no edge bar. */
   .privnote{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:14px;
-    background:color-mix(in srgb,var(--amber) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--amber) 35%,var(--line))}
-  .privicon{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--amber);
-    background:color-mix(in srgb,var(--amber) 18%,transparent)}
+    background:color-mix(in srgb,var(--red) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--red) 38%,var(--line))}
+  .privicon{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--red);
+    background:color-mix(in srgb,var(--red) 18%,transparent)}
   .privicon svg{width:19px;height:19px}
   .privt{font-weight:750;font-size:13.5px;color:var(--ink)}
   .privs{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:2px}
@@ -1231,6 +1255,23 @@
     return '<div class="morewrap">'+(inHead!==inner ? inHead : inner+moreChev(total,label,'tfoot'))+'</div>';
   }
   const trRows=(rows,show)=>rows.map((r,i)=> i<show ? r : r.replace(/^<tr\b/,'<tr data-mr hidden')).join('');
+  // A card holding one table that opens further rows carries that table's
+  // chevron in its own top-right corner (in its header when it has one),
+  // where it reads as the card's. A card with two such tables keeps each in
+  // its table. Kept up as cards redraw (the matrix on a filter, say).
+  let chevSeq=0, liftQueued=false;
+  function liftChevrons(){
+    document.querySelectorAll('.cardchev').forEach(c=>{ const w=document.getElementById(c.dataset.wrap); if(!w || !w.isConnected || !w.querySelector('[data-mr]')) c.remove(); });
+    document.querySelectorAll('.morewrap table thead .morechev').forEach(ch=>{
+      const card=ch.closest('.ipanel, .panel'); if(!card || card.querySelectorAll('table thead .morechev').length!==1) return;
+      const wrap=ch.closest('.morewrap'); if(!wrap.id) wrap.id='mw'+(++chevSeq);
+      card.querySelectorAll('.cardchev').forEach(c=>c.remove());
+      ch.dataset.wrap=wrap.id; ch.classList.add('cardchev');
+      const head=card.querySelector(':scope > .phead');
+      if(head) head.appendChild(ch); else { ch.classList.add('abs'); card.classList.add('has-cardchev'); card.appendChild(ch); }
+    });
+  }
+  new MutationObserver(()=>{ if(liftQueued) return; liftQueued=true; requestAnimationFrame(()=>{ liftQueued=false; liftChevrons(); }); }).observe(document.body,{childList:true,subtree:true});
   // longText(text): three visible lines and an Expand control when there is
   // more; semicolon-separated lists expand as a bulleted list.
   function longText(t){
@@ -1293,7 +1334,7 @@
   window.addEventListener('resize',()=>markClamped());
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-more]'); if(!b) return;
-    const wrap=b.closest('.morewrap'); if(!wrap) return;
+    const wrap=b.dataset.wrap? document.getElementById(b.dataset.wrap) : b.closest('.morewrap'); if(!wrap) return;
     const open=wrap.classList.toggle('open');
     wrap.querySelectorAll('[data-mr]').forEach(el=>{ if(el.closest('.morewrap')===wrap) el.hidden=!open; });
     const label=open ? (b.dataset.less||'Show fewer') : b.dataset.all;
@@ -1703,7 +1744,8 @@
     const ax=split? 424 : 436, jx=Math.round(ax-half(split? Math.max(aSen,aXdr) : alerts)-22);
     const xdrByFam={}; (E.productAlerts||[]).forEach(p=>{ xdrByFam[p.family]=(xdrByFam[p.family]||0)+n0(p.alerts); });
     const hasSec=n=>(M.sections||[]).some(s=>s.num===n)? n : null;
-    const SEV=[['High','H','#f87171'],['Medium','M','#fbbf24'],['Low','L','#60a5fa'],['Informational','I','#94a3b8']];
+    // Severity in the Defender XDR colours: High orange-red, Medium amber, Low yellow, Informational grey.
+    const SEV=[['High','H','#ff4d1f'],['Medium','M','#ffaa00'],['Low','L','#fff100'],['Informational','I','#8a8886']];
     const cb=C.closedBy;
     const branches=(cb? [
         {label:'Closed by automation', v:n0(cb.AutomationRule), col:'#2dd4bf', go:hasSec(60)},
@@ -2604,7 +2646,7 @@
     cards.push('<div class="ipanel"><h3>Ingestion by billing plan</h3>'+
       '<p class="note">GB over 30 days split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
   } else if(M.topRules && M.topRules.length){
-    const sevCol={High:'#dc2626',Medium:'#d97706',Low:'#eab308',Informational:'#64748b',Other:'#94a3b8'};
+    const sevCol={High:'#ff4d1f',Medium:'#ffaa00',Low:'#fff100',Informational:'#8a8886',Other:'#94a3b8'};
     const sa={}; M.topRules.forEach(r=>{ const s=r.severity||'Other'; sa[s]=(sa[s]||0)+(r.alerts||0); });
     const order=['High','Medium','Low','Informational','Other'];
     const si=Object.keys(sa).map(s=>({label:s,value:sa[s],display:sa[s].toLocaleString(),color:sevCol[s]||sevCol.Other}))
@@ -3017,7 +3059,7 @@
     // The section model's own charts (pie and xy; the other kinds are drawn
     // by the chart web part on the section's SharePoint page).
     const PAL=['#2563eb','#6d5efc','#0d9488','#d97706','#db2777','#16a34a','#0891b2','#a16207','#64748b','#dc2626'];
-    const SEVC={High:'#dc2626',Medium:'#d97706',Low:'#eab308',Informational:'#64748b',Info:'#64748b',Warning:'#d97706',Critical:'#991b1b'};
+    const SEVC={High:'#ff4d1f',Medium:'#ffaa00',Low:'#fff100',Informational:'#8a8886',Info:'#64748b',Warning:'#d97706',Critical:'#991b1b'};
     const fmtNum=v=>{ const n=+v; if(!isFinite(n)) return String(v==null?'':v); return Number.isInteger(n)? n.toLocaleString('en-GB') : n.toLocaleString('en-GB',{maximumFractionDigits:2}); };
     const oneLine=s=>String(s==null?'':s).replace(/\s*\n\s*/g,' ');
     function pieChartHtml(b){
@@ -3133,10 +3175,13 @@
       const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
       const numCols = b.headers.map((h,ci)=> !wrapCols[ci] && b.rows.some(r=>plain(r[ci])!=='') && b.rows.every(r=>plain(r[ci])===''||isNum(plain(r[ci]))));
       const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'" aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'+h+'<span class="sorti" aria-hidden="true"></span></button></th>').join('')+'</tr></thead>';
-      const cellsHtml=b.rows.map(r=>r.map((c,ci)=>{
+      // A column with a long cell wraps, every cell of it, so a short cell
+      // on one line does not hold the column wider than the long ones need.
+      const formatted=b.rows.map(r=>r.map((c,ci)=>formatCell(c, b.headers[ci])));
+      const longCols=b.headers.map((h,ci)=> !numCols[ci] && formatted.some(r=>String(r[ci]==null?'':r[ci]).replace(/<[^>]+>/g,'').length>28));
+      const cellsHtml=formatted.map(r=>r.map((cell,ci)=>{
           const num = numCols[ci];
-          const cell = formatCell(c, b.headers[ci]);
-          const wrap = wrapCols[ci] || (!num && cell.replace(/<[^>]+>/g,'').length>40);   // long cells wrap rather than overflow
+          const wrap = wrapCols[ci] || longCols[ci];
           return '<td class="'+(wrap?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
         }).join(''));
       // Which chip kinds a row holds, for the key's filter.
@@ -3167,19 +3212,31 @@
         k('ready','Installed or built in',nReady,'Show the rows with templates ready to enable: their solution is installed, or they ship with Sentinel')+
         k('notinst','Not installed',nNot,'Show the rows with templates whose Content Hub solution is not installed')+'</span>';
     }
+    const CRIT_STATE=/^(SAC-[A-Z]{2,4}-\d{2})\s+(met|gap|unknown|not assessed)$/i;
+    const CRIT_CLS={met:'c-met', gap:'c-gap', unknown:'c-unknown', 'not assessed':'c-na'};
+    const CRIT_TIP={met:'Met on this workspace', gap:'A gap on this workspace', unknown:'Could not be evaluated on this workspace', 'not assessed':'Not assessed in this run'};
+    // A criterion and its state shows as the criterion in the state's colour,
+    // the state in its tooltip and for a screen reader.
+    function critChip(x, hidden){
+      const m=CRIT_STATE.exec(x.replace(/<[^>]+>/g,'').trim()); if(!m) return '';
+      const st=m[2].toLowerCase(), id=x.replace(/\s+(met|gap|unknown|not assessed)\s*$/i,'');
+      return '<span class="tagpill crit '+CRIT_CLS[st]+'" title="'+esc(m[1]+': '+CRIT_TIP[st])+'"'+(hidden?' data-mr hidden':'')+'>'+id+'<span class="vh">, '+esc(st)+'</span></span>';
+    }
     function listCell(c, head){
       const items=String(c).split(/(?<!&[a-z0-9#]{1,8});\s+/i).map(x=>x.trim()).filter(Boolean);
+      // A cell naming criteria and their states is chips even for one.
+      const critCol=items.some(x=>CRIT_STATE.test(x.replace(/<[^>]+>/g,'').trim()));
       // A From solutions column ("Name (N, installed)") is chips even for one
       // solution, so every row shows its colour.
       const solCol=/^from solutions?$/i.test(String(head||'').replace(/<[^>]+>/g,'').trim()) && items.length>0 &&
         items.every(x=>/\(\d+(,\s*installed)?\)$/.test(x.replace(/<[^>]+>/g,'').trim()));
       // Two or three short items are chips too; a sentence with a
       // semicolon in it (longer parts) stays text.
-      if(!solCol && (items.length<2 || (items.length<4 && items.some(x=>x.replace(/<[^>]+>/g,'').length>60)))) return '';
+      if(!solCol && !critCol && (items.length<2 || (items.length<4 && items.some(x=>x.replace(/<[^>]+>/g,'').length>60)))) return '';
       // A lead-in before the list ("146 rule(s) disabled: ...") stays text.
       let lead='';
-      const m=solCol? null : /^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
-      return lead+'<div class="morewrap cellchips"><div class="chipl">'+items.map((x,i)=>'<span class="tagpill'+(readyChip(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+'</div>'+
+      const m=(solCol||critCol)? null : /^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
+      return lead+'<div class="morewrap cellchips"><div class="chipl">'+items.map((x,i)=>critChip(x, i>=CELL_CHIPS) || '<span class="tagpill'+(readyChip(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+'</div>'+
         (items.length>CELL_CHIPS? moreChev(items.length) : '')+'</div>';
     }
     // Status words in a table cell read as pills: green for fine, amber to
@@ -3207,15 +3264,24 @@
       return out||c;
     }
 
+    // A callout in the colour of how serious it is (the renderer's tone):
+    // blue to note, green for good news, amber to act on, red for something
+    // broken or at risk. The icon and a screen-reader word carry it too.
+    const NOTE_TONE={info:'', success:'Good news', warning:'Warning', critical:'Critical'};
     function noteHtml(b){
+      const tone=NOTE_TONE.hasOwnProperty(b.tone)? b.tone : 'info';
       let inner='';
-      if(b.title){ inner+='<div class="nt">'+ICONN2.info+esc(b.title.replace(/<[^>]+>/g,''))+'</div>'; }
+      if(b.title){ inner+='<div class="nt">'+esc(b.title.replace(/<[^>]+>/g,''))+'</div>'; }
       if(b.paras && b.paras.length){ inner+=b.paras.map(p=>'<p>'+p+'</p>').join(''); }
       if(b.items && b.items.length){ inner+='<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>'; }
       if(!inner && b.html){ inner='<p>'+b.html+'</p>'; }
-      return '<div class="docnote">'+inner+'</div>';
+      return '<div class="docnote dn t-'+tone+'"><span class="dni" aria-hidden="true">'+ICONN2[tone]+'</span><div class="dnb">'+
+        (NOTE_TONE[tone]? '<span class="vh">'+NOTE_TONE[tone]+': </span>' : '')+inner+'</div></div>';
     }
-    const ICONN2={ info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6"/>') };
+    const ICONN2={ info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6"/>'),
+      success: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/>'),
+      warning: svg('<path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>'),
+      critical: svg('<path d="M8.6 2.5h6.8l4.9 4.9v6.8l-4.9 4.9H8.6l-4.9-4.9V7.4z"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".6"/>') };
 
     // Page layout (layoutDoc): no Report page runs past the bottom of the
     // contents list beside it.
@@ -3277,6 +3343,50 @@
       const strip=body.querySelector(':scope > .doctabs'); if(strip) strip.remove();
       const refs=body.querySelector(':scope > .docrefs'); if(refs) body.appendChild(refs);
     }
+    // Tables on screen together with the same columns (Microsoft References'
+    // topic tables, the Conventions KQL tables) share their column widths so
+    // they line up. Each column takes the most it needs in any of them, as
+    // the browser lays it out on its own: a column that keeps to one line
+    // holds that width, and the columns that wrap share what is left. A table
+    // on its own, or in another tab, keeps the browser's layout. Run when a
+    // page or tab is laid out, so it follows a resize.
+    function alignTables(scope){
+      const groups={};
+      scope.querySelectorAll('table.doct').forEach(t=>{
+        const cg=t.querySelector(':scope > colgroup.samecols'); if(cg) cg.remove();
+        t.style.tableLayout=''; t.style.width='';
+        t.querySelectorAll('.flexw').forEach(c=>c.classList.remove('flexw'));
+        if(!t.offsetParent || !t.tHead) return;
+        const sig=[...t.tHead.rows[0].cells].map(th=>th.textContent.trim()).join('|');
+        (groups[sig]=groups[sig]||[]).push(t);
+      });
+      Object.values(groups).forEach(ts=>{
+        if(ts.length<2) return;
+        const n=ts[0].tHead.rows[0].cells.length, need=new Array(n).fill(0), flex=new Array(n).fill(false);
+        ts.forEach(t=>{
+          t.style.width='auto';
+          [...t.tHead.rows[0].cells].forEach((th,i)=>{ if(i<n){ need[i]=Math.max(need[i], Math.ceil(th.getBoundingClientRect().width)); if(th.classList.contains('wrap')) flex[i]=true; } });
+          t.querySelectorAll('tbody td.wrap').forEach(td=>{ if(td.cellIndex<n) flex[td.cellIndex]=true; });
+          t.style.width='';
+        });
+        const room=Math.min(...ts.map(t=>t.parentElement.clientWidth));
+        const fixed=need.reduce((a,x,i)=>a+(flex[i]?0:x),0), flexNeed=need.reduce((a,x,i)=>a+(flex[i]?x:0),0);
+        const left=Math.max(flex.filter(Boolean).length*180, room-fixed);
+        const px=need.map((x,i)=>flex[i]? Math.max(180, Math.floor(flexNeed? left*x/flexNeed : 0)) : x);
+        ts.forEach(t=>{
+          const cg=document.createElement('colgroup'); cg.className='samecols';
+          px.forEach(w=>{ const c=document.createElement('col'); c.style.width=w+'px'; cg.appendChild(c); });
+          t.insertBefore(cg, t.firstChild); t.style.tableLayout='fixed';
+          // Every cell of a column that wraps may wrap, short ones included.
+          t.querySelectorAll('tr').forEach(tr=>[...tr.cells].forEach(c=>{ if(c.cellIndex<n && flex[c.cellIndex]) c.classList.add('flexw'); }));
+        });
+      });
+    }
+    // A pane that gains a scrollbar once it is fitted narrows its tables; the
+    // shared widths are worked out again for the room that is left.
+    function realign(scope){
+      if([...scope.querySelectorAll('table.doct')].some(t=>t.style.tableLayout==='fixed' && t.offsetParent && t.offsetWidth>t.parentElement.clientWidth+1)) alignTables(scope);
+    }
     function showTab(body, i, focus){
       const tabs=[...body.querySelectorAll(':scope > .doctabs .doctab')], panes=[...body.querySelectorAll(':scope > .docpane')];
       if(!tabs.length) return;
@@ -3284,8 +3394,10 @@
       tabs.forEach((b,j)=>{ const on=j===i; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; panes[j].hidden=!on; panes[j].style.maxHeight=''; panes[j].style.overflow=''; });
       lastDocTab[curDocNum]=i;
       const panel=body.closest('.docpanel'), limit=docLimit(panel), end=()=>contentEnd(body);
+      alignTables(panes[i]);
       fitTables(panes[i], limit, end);
       contain(panes[i], limit, end);
+      realign(panes[i]);
       if(focus) tabs[i].focus();
     }
     function layoutDoc(){
@@ -3298,10 +3410,10 @@
       [body, ...parts].forEach(x=>{ x.style.maxHeight=''; x.style.overflow=''; });
       body.querySelectorAll('.doctscroll').forEach(x=>{ x.style.maxHeight=''; });
       // One column: the page reads top to bottom.
-      if(navBox.getBoundingClientRect().right > content.getBoundingClientRect().left+1) return done();
+      if(navBox.getBoundingClientRect().right > content.getBoundingClientRect().left+1){ alignTables(body); return done(); }
       const limit=docLimit(panel), end=()=>contentEnd(body);
       const secEls=parts.filter(x=>x.classList.contains('docsec')), introEl=parts.find(x=>x.classList.contains('docintro'));
-      if(end()<=limit+1 || secEls.length<2){ fitTables(body, limit, end); contain(body, limit, end); return done(); }
+      if(end()<=limit+1 || secEls.length<2){ alignTables(body); fitTables(body, limit, end); contain(body, limit, end); realign(body); return done(); }
       // Pack the sections into tabs no taller than the space under the strip.
       const firstTop=(introEl||secEls[0]).getBoundingClientRect().top;
       const introAbove=!!introEl && outerH(introEl) <= (limit-firstTop)*0.3;
@@ -3313,7 +3425,7 @@
         if(!cur || (it.big && cur.items.length) || cur.h+it.h>cap){ cur={items:[], h:0}; tabsDef.push(cur); }
         cur.items.push(it); cur.h+=it.h;
       });
-      if(tabsDef.length<2){ fitTables(body, limit, end); contain(body, limit, end); return done(); }
+      if(tabsDef.length<2){ alignTables(body); fitTables(body, limit, end); contain(body, limit, end); realign(body); return done(); }
       tabsDef.forEach((t,i)=>{ t.full=t.items[0].big? t.items[0].label : (i===0? 'Overview' : t.items[0].label); t.rows=t.items.reduce((a,x)=>a+x.rows,0); });
       // Build the strip and the panes; a tab's own section heading is its
       // label, so that heading hides inside the tab.
@@ -3467,27 +3579,11 @@
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
       content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
-      // Tables on one page with the same columns (Microsoft References' topic
-      // tables, say) share column widths, so their columns line up. A column's
-      // width comes from its longest and its average text across the tables,
-      // never narrower than its longest single word (a capture name, say), and
-      // a short column (a window, a version) stays on one line. Other tables
-      // keep their own layout.
-      const sameCols={};
-      content.querySelectorAll('table.doct').forEach(t=>{ const sig=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim()).join('|'); (sameCols[sig]=sameCols[sig]||[]).push(t); });
-      Object.values(sameCols).forEach(ts=>{
-        if(ts.length<2) return;
-        const n=ts[0].querySelectorAll('thead th').length, mx=new Array(n).fill(0), sum=new Array(n).fill(0), word=new Array(n).fill(0); let rows=0;
-        ts.forEach(t=>t.querySelectorAll('tr').forEach(tr=>{ rows++; [...tr.children].forEach((c,i)=>{ if(i>=n) return; const tx=c.textContent.trim(); mx[i]=Math.max(mx[i],tx.length); sum[i]+=tx.length; word[i]=Math.max(word[i],...tx.split(/\s+/).map(w=>w.length)); }); }));
-        const len=mx.map((m,i)=>m<=14 ? m+2 : Math.max(10,word[i]+4,Math.min(90,(m+sum[i]/rows)/2)));
-        const tot=len.reduce((a,b)=>a+b,0);
-        ts.forEach(t=>{
-          t.style.tableLayout='fixed';
-          const cg=document.createElement('colgroup');
-          len.forEach(l=>{ const col=document.createElement('col'); col.style.width=(100*l/tot).toFixed(2)+'%'; cg.appendChild(col); });
-          t.insertBefore(cg,t.firstChild);
-          t.querySelectorAll('tr').forEach(tr=>[...tr.children].forEach((c,i)=>{ c.style.whiteSpace=(i<n&&mx[i]<=14)?'nowrap':'normal'; }));
-        });
+      // A long code token in a table (a resource path, a URL) may break after
+      // a slash or a dot, so its column wraps there rather than mid-word.
+      content.querySelectorAll('table.doct td code').forEach(c=>{
+        if(c.children.length || c.textContent.length<=24) return;
+        c.innerHTML=c.textContent.split(/(?<=[\/.?=&])/).map(esc).join('<wbr>');
       });
       // wire per-table sorting and filters
       content.querySelectorAll('table.doct thead th').forEach(th=>{ const b=th.querySelector('.thsort'); if(b) b.onclick=()=>sortTable(th.closest('table'), th); });

@@ -56,6 +56,14 @@ Describe 'ConvertTo-BlueprintSection' {
         It 'gives the heading after an anchor line that anchor' { $m.blocks[0].anchor | Should -Be 'sac-det-01' }
         It 'slugs other headings the way GitHub does' { $m.blocks[1].anchor | Should -Be 'plain-heading' }
         It 'validates against the schema' { Test-Json -Json ($m | ConvertTo-Json -Depth 64) -SchemaFile $sectionSchema | Should -BeTrue }
+        It 'gives a callout the tone of a bp:tone comment before it, and only that callout' {
+            $t = ConvertTo-Model "# T`n`n<!-- bp:tone critical -->`n`n> **Broken.** Two rules fail.`n`n> Plain note.`n"
+            $notes = @($t.blocks | Where-Object { $_.type -eq 'note' })
+            $notes.Count | Should -Be 2
+            $notes[0].tone | Should -Be 'critical'
+            $notes[1].Contains('tone') | Should -BeFalse
+            Test-Json -Json ($t | ConvertTo-Json -Depth 64) -SchemaFile $sectionSchema | Should -BeTrue
+        }
     }
 
     Context 'text runs' {

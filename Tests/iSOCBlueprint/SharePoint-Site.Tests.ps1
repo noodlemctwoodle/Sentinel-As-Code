@@ -1160,12 +1160,12 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $script:doHtml.Contains("const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;") | Should -BeTrue
         $script:doHtml.Contains('colspan="''+(cols.length+(over?1:0))+''"') | Should -BeTrue
         $script:doHtml.Contains('h+=spacer;') | Should -BeTrue
-        # Tables on one page with the same columns share column widths, so they line up.
-        $script:doHtml.Contains("len.forEach(l=>{ const col=document.createElement('col'); col.style.width=(100*l/tot).toFixed(2)+'%'; cg.appendChild(col); });") | Should -BeTrue
-        $script:doHtml.Contains("if(ts.length<2) return;") | Should -BeTrue
-        # A short column (a window, a version) keeps to one line, and no column is narrower than its longest word.
-        $script:doHtml.Contains("const len=mx.map((m,i)=>m<=14 ? m+2 : Math.max(10,word[i]+4,Math.min(90,(m+sum[i]/rows)/2)));") | Should -BeTrue
-        $script:doHtml.Contains("c.style.whiteSpace=(i<n&&mx[i]<=14)?'nowrap':'normal';") | Should -BeTrue
+        # Tables on screen together with the same columns share measured widths, so they line up.
+        $script:doHtml.Contains('function alignTables(scope){') | Should -BeTrue
+        $script:doHtml.Contains("if(!t.offsetParent || !t.tHead) return;") | Should -BeTrue
+        $script:doHtml.Contains("const px=need.map((x,i)=>flex[i]? Math.max(180, Math.floor(flexNeed? left*x/flexNeed : 0)) : x);") | Should -BeTrue
+        $script:doHtml.Contains('alignTables(panes[i]);') | Should -BeTrue
+        $script:doHtml.Contains('realign(panes[i]);') | Should -BeTrue
         # The verdict cell reads incidents and the true-positive share of the closed ones.
         $script:doHtml.Contains("Math.round(100*n0(r.tp)/closed)+'% TP'") | Should -BeTrue
         $script:doHtml | Should -Match '\.dm-scroll::-webkit-scrollbar\{width:8px;height:8px\}|\.dm-scroll::-webkit-scrollbar\{'
@@ -1712,7 +1712,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=76, lastDocTab=\{\};'
         $html | Should -Match 'function layoutDoc\(\)\{'
         # Fits: one page, tables grow into the space. Taller: tabs.
-        $html | Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ fitTables\(body, limit, end\); contain\(body, limit, end\); return done\(\); \}'
+        $html | Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ alignTables\(body\); fitTables\(body, limit, end\); contain\(body, limit, end\); realign\(body\); return done\(\); \}'
         # A big section starts a tab; a small one joins while it fits.
         $html | Should -Match 'if\(!cur \|\| \(it\.big && cur\.items\.length\) \|\| cur\.h\+it\.h>cap\)\{'
         $html | Should -Match "t\.full=t\.items\[0\]\.big\? t\.items\[0\]\.label : \(i===0\? 'Overview' : t\.items\[0\]\.label\);"
@@ -1889,6 +1889,44 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains('if(hit && (!best || (inc && !best.inc))) best={t, tr:hit, inc};') | Should -BeTrue
         $html.Contains("note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');") | Should -BeTrue
         $html | Should -Match 'Select a rule to open it in Rule Performance\.'
+    }
+
+    It 'colours callouts by tone and severity in the Defender XDR colours' {
+        $html.Contains("const NOTE_TONE={info:'', success:'Good news', warning:'Warning', critical:'Critical'};") | Should -BeTrue
+        $html.Contains("return '<div class=`"docnote dn t-'+tone+'`">") | Should -BeTrue
+        $html | Should -Match '\.docnote\.t-warning\{background:color-mix\(in srgb,var\(--amber\)'
+        $html | Should -Match '\.docnote\.t-critical\{background:color-mix\(in srgb,var\(--red\)'
+        $html | Should -Not -Match '\.docnote[^{]*\{[^}]*border-left'
+        # Severity: High orange-red, Medium amber, Low yellow, Informational grey.
+        $html.Contains("const SEV=[['High','H','#ff4d1f'],['Medium','M','#ffaa00'],['Low','L','#fff100'],['Informational','I','#8a8886']];") | Should -BeTrue
+        $html.Contains("const SEVC={High:'#ff4d1f',Medium:'#ffaa00',Low:'#fff100',Informational:'#8a8886'") | Should -BeTrue
+        $html | Should -Match '\.sev\.High\{background:#ff4d1f;color:#0b1220\}'
+        # The confidentiality footer is red.
+        $html | Should -Match '\.privnote\{[^}]*color-mix\(in srgb,var\(--red\) 10%'
+    }
+
+    It 'puts a card''s single table chevron in the card''s top-right corner' {
+        $html.Contains("const card=ch.closest('.ipanel, .panel'); if(!card || card.querySelectorAll('table thead .morechev').length!==1) return;") | Should -BeTrue
+        $html.Contains("if(head) head.appendChild(ch); else { ch.classList.add('abs'); card.classList.add('has-cardchev'); card.appendChild(ch); }") | Should -BeTrue
+        $html.Contains("const wrap=b.dataset.wrap? document.getElementById(b.dataset.wrap) : b.closest('.morewrap');") | Should -BeTrue
+        $html.Contains('new MutationObserver(()=>{ if(liftQueued) return;') | Should -BeTrue
+    }
+
+    It 'wraps a long table column as a whole and code at its slashes' {
+        $html.Contains("formatted.some(r=>String(r[ci]==null?'':r[ci]).replace(/<[^>]+>/g,'').length>28)") | Should -BeTrue
+        $html.Contains("c.innerHTML=c.textContent.split(/(?<=[\/.?=&])/).map(esc).join('<wbr>');") | Should -BeTrue
+        $html | Should -Match 'table\.doct th code\{background:none;border:0;padding:0;font:inherit;color:inherit\}'
+        $html | Should -Not -Match 'table\.doct td\.wrap[^{]*\{[^}]*overflow-wrap:anywhere'
+    }
+
+    It 'colours a criterion chip by its state, as the maturity view does' {
+        $html.Contains('const CRIT_STATE=/^(SAC-[A-Z]{2,4}-\d{2})\s+(met|gap|unknown|not assessed)$/i;') | Should -BeTrue
+        $html.Contains("const CRIT_CLS={met:'c-met', gap:'c-gap', unknown:'c-unknown', 'not assessed':'c-na'};") | Should -BeTrue
+        $html | Should -Match '\.tagpill\.crit\.c-met\{background:var\(--green\)\} \.tagpill\.crit\.c-gap\{background:var\(--red\)\}'
+        # The state stays in the tooltip and for a screen reader; one criterion is still a chip.
+        $html.Contains('<span class="vh">, ''+esc(st)+''</span></span>') | Should -BeTrue
+        $html.Contains("if(!solCol && !critCol && (items.length<2") | Should -BeTrue
+        $html.Contains('items.map((x,i)=>critChip(x, i>=CELL_CHIPS) ||') | Should -BeTrue
     }
 
     It 'pins a page''s References under its tabs and opens a page on its first tab' {

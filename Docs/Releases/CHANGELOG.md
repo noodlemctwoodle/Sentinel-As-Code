@@ -17,7 +17,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   opens Rule Performance filtered to it, and Rule effectiveness names a
   Sentinel rule by its rule id rather than its alert name. A report page
   always opens on its first tab. The navigation's Workspace & data
-  heading is Workspace, and the Retention page is Data Retention.
+  heading is Workspace, and the Retention page is Data Retention. On What's
+  New, a related maturity criterion is a green chip when met and a red one
+  when it is a gap, as on the maturity view, in place of the trailing word.
+- **Coloured callouts, Defender severity colours, tables that fit** - a
+  callout is coloured by how serious it is (blue, green, amber, red, each
+  with an icon), set by a `bp:tone` comment the renderer writes before it;
+  the summary-rules failure is red and the Conventions callouts amber (the
+  one labelled Banner is now Azure portal retirement). Severity is in the
+  Defender XDR colours everywhere: High orange-red, Medium amber, Low
+  yellow, Informational grey (web part 1.13.0). The confidentiality footer
+  is red. Report tables keep the browser's layout unless tables with the
+  same columns are on screen together, which then share measured widths; a
+  column with a long cell wraps as a whole, long code breaks at its slashes
+  and dots, and code in a header reads as plain text. A card with one
+  expandable table carries its chevron in the card's top-right corner.
 - **Link cards, whole chart labels and a new response chain** - on the
   SharePoint site, the Microsoft Learn links that close a report page
   (and a finding's Reference, and "See A and B.") are a card of link

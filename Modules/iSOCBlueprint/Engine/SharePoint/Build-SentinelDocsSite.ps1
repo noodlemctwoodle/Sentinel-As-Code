@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.13.0
+    Version:      0.13.1
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -420,8 +420,10 @@ function ConvertTo-SectionBlocks {
                     $lead = ((@($first.text) | ForEach-Object { if ($_.text) { $_.text } }) -join '').Trim()
                     if ($lead -match '^[A-Za-z][\w &/-]{1,24}$') { $title = ConvertTo-SectionRunsHtml @($first.text); $inner = @($inner | Select-Object -Skip 1) }
                 }
+                $tone = if ($b -is [System.Collections.IDictionary]) { [string]$b['tone'] } elseif ($b.PSObject.Properties['tone']) { [string]$b.tone } else { '' }
                 $blocks.Add([ordered]@{
                         t     = 'note'
+                        tone  = $(if ($tone) { $tone } else { 'info' })
                         title = $title
                         items = @($inner | Where-Object { [string]$_.type -eq 'list' } | ForEach-Object { Get-SectionListItems $_ })
                         paras = @($inner | Where-Object { [string]$_.type -eq 'paragraph' } | ForEach-Object { ConvertTo-SectionRunsHtml @($_.text) })
