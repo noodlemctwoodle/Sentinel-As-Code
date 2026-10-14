@@ -142,21 +142,19 @@
   table.tbl tr.frow:hover td{background:var(--chip)}
   html[data-theme="dark"] .tab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
   .spacer{flex:1 1 0;min-width:0}
-  /* The snapshot date picker, beside the theme toggle, and the banner shown
-     while an earlier day is open. */
-  .snapwrap{flex:none;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 4px 0 11px;border-radius:10px;
+  /* The window slider, beside the theme toggle: the last N days of the
+     collected activity, with the dates they cover. */
+  .winwrap{flex:none;display:inline-flex;align-items:center;gap:10px;height:38px;padding:0 12px 0 11px;border-radius:10px;
     border:1px solid var(--line);background:var(--panel);color:var(--ink-2);box-shadow:var(--shadow-sm)}
-  .snapwrap svg{width:16px;height:16px;flex:none}
-  .snapwrap select{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:650;
-    padding:0 22px 0 0;height:36px;cursor:pointer;outline:none;max-width:240px;
-    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
-    background-position:calc(100% - 11px) 16px,calc(100% - 6px) 16px;background-size:5px 5px;background-repeat:no-repeat}
-  .snapwrap select option{color:#0f1222}
-  .snapwrap:focus-within{outline:2px solid var(--brand);outline-offset:2px}
-  .snapbanner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 0;padding:11px 14px;border-radius:12px;
-    background:color-mix(in srgb,var(--brand) 9%,transparent);border:1px solid color-mix(in srgb,var(--brand) 26%,var(--line));color:var(--ink-2);font-size:13px}
-  .snapbanner b{color:var(--ink)}
-  .snapbanner .sbtn{margin-left:auto}
+  .winwrap svg{width:16px;height:16px;flex:none}
+  .winwrap input[type=range]{width:130px;margin:0;accent-color:var(--brand);cursor:pointer}
+  .winwrap input[type=range]:focus{outline:none}
+  .winlab{display:flex;flex-direction:column;justify-content:center;line-height:1.2;min-width:132px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .winlab b{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .winlab small{font-size:11px;font-weight:600;color:var(--muted)}
+  .winwrap:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+  .winwrap.busy{opacity:.55;pointer-events:none}
+  @media(max-width:560px){.winwrap input[type=range]{width:96px}.winlab{min-width:0}}
   .iconbtn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
     color:var(--ink-2);display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow-sm);
     transition:transform .08s,box-shadow .15s,border-color .15s}
@@ -1024,9 +1022,10 @@
       <div class="tab" data-tab="maturity" data-tabs="maturity findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Assessment</div>
     </nav>
     <div class="spacer"></div>
-    <label class="snapwrap" id="snapWrap" hidden title="Open the dashboard as it was on an earlier day">
+    <label class="winwrap" id="winWrap" hidden title="Show the dashboard for the last N days of the collected activity">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-      <select id="snapPick" aria-label="Snapshot date"></select>
+      <input type="range" id="winRange" min="1" max="30" step="1" value="30" aria-label="Days of activity shown" aria-describedby="winLab">
+      <span class="winlab" id="winLab" aria-live="polite"><b id="winDays"></b><small id="winDates"></small></span>
     </label>
     <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
@@ -1036,7 +1035,6 @@
 </div>
 
 <div class="shell">
-  <div class="snapbanner" id="snapBanner" hidden role="status"></div>
   <header class="hero">
     <div class="hero-main">
       <h1 id="title">iSOC Blueprint</h1>
@@ -1187,9 +1185,206 @@
     const recent=(M.window&&+M.window.recentDays>0)? +M.window.recentDays : Math.min(7,days);
     const words=n=>n===1? '1 day' : n+' days';
     const o={days, recent, collected:days};
-    o.d=()=>o.days+'d'; o.w=()=>words(o.days); o.rd=()=>o.recent+'d'; o.rw=()=>words(o.recent); o.cw=()=>words(o.collected);
+    o.d=()=>o.days+'d'; o.w=()=>words(o.days); o.rd=()=>o.recent+'d'; o.rw=()=>words(o.recent); o.cd=()=>o.collected+'d'; o.cw=()=>words(o.collected);
+    o.words=words;
     return o;
   })();
+  // The window slider. The build's daily series (M.daily) count per day ago
+  // over the daily span (the lookback, at most 90), so the last N days of
+  // them are the rolling N-day window. The slider's N, and after a change
+  // the open view and report page, live in window.name across the reload a
+  // change makes (on SharePoint the web part runs the script again on each
+  // load of its frame, which keeps its height meanwhile, so the page stays
+  // where it was; served as files, the browser keeps the scroll position). window.name can be set by any page this tab
+  // visited, so each value is checked before use and never written out as
+  // markup. A model without daily series keeps its collected window.
+  const DAILY=(M.daily&&+M.daily.span>0)? M.daily : null;
+  const SAVED=(function(){
+    try{ const m=/^sacDash:(.*)$/.exec(window.name||''); const o=m? JSON.parse(m[1]) : null; return (o&&typeof o==='object')? o : {}; }
+    catch(e){ return {}; }
+  })();
+  if(DAILY){
+    const want=Math.round(+SAVED.days||0), n=Math.min(Math.max(want,1), +DAILY.span);
+    if(want>=1 && n!==WIN.collected){ WIN.days=n; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent); }
+  }
+  // Rebuild every windowed part of the model for the last N days (R of them
+  // recent) from the daily series, the way the build makes it from the
+  // collected captures: cost and its projection to a month, the billing
+  // flow, the estate and its rings, the top alerting rules, operational
+  // health, rule effectiveness, detection outcomes and opportunities,
+  // playbook runs, incident outcomes and the alert lifecycle. Cost and the
+  // flow are re-priced only when the estimate priced every table (costed).
+  // What does not count activity (configuration, threat intelligence,
+  // findings, maturity, the Report tab's pages) keeps the collected window.
+  function applyWindow(M, D, N, R){
+    const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ if(+e[0]<n) s+=(+e[i]||0); }); return s; };
+    const r1=v=>Math.round(v*10)/10, r2=v=>Math.round(v*100)/100, r3=v=>Math.round(v*1000)/1000;
+    const asi=pv=>/^ASI (Scheduled|NRT) Alerts$/.test(pv||'');
+    // Tables: GB over N days and over the recent days, priced per GB and
+    // projected to a month as the cost estimate does.
+    const T=(D.tables||[]).map(t=>{ const gb=sum(t.d,1,N); return {t, gb, recent:sum(t.d,1,R), cost:r2(gb*(+t.u||0)*30/N)}; })
+      .filter(x=>x.gb>0).sort((a,b)=>b.gb-a.gb);
+    if(M.cost && D.costed){
+      const C=M.cost, plans=(C.byPlan||[]).map(p=>p.plan), agg={};
+      plans.forEach(p=>{ agg[p]={gb:0,cost:0}; });
+      T.forEach(x=>{ const b=plans.includes(x.t.plan)? x.t.plan : 'Analytics'; const a=agg[b]||(agg[b]={gb:0,cost:0}); a.gb+=x.gb; a.cost+=x.cost; });
+      C.byPlan=Object.keys(agg).map(p=>({plan:p, gb30d:r2(agg[p].gb), cost:r2(agg[p].cost)}));
+      C.allTables=T.map(x=>({table:x.t.t, plan:x.t.plan, gb30d:r2(x.gb), cost:x.cost}));
+      C.topTables=C.allTables.slice().sort((a,b)=>b.cost-a.cost).slice(0,10);
+      C.monthlyTotal=r2(C.allTables.reduce((a,r)=>a+r.cost,0));
+      // The billing flow: the nine largest tables and the rest as one node
+      // with a part per plan label; families, tables, plans and lake tiers,
+      // then billed or free benefit. A table priced at nothing is benefit.
+      // GB to two places first, as the estimate rounds each table.
+      const rows=T.slice(0,9).map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, gb, parts:[{plan:x.t.pl, gb, billedGb:(+x.t.u>0? gb : 0)}]}; });
+      const rest=T.slice(9);
+      if(rest.length){
+        const parts={};
+        rest.forEach(x=>{ const gb=r2(x.gb), p=parts[x.t.pl]||(parts[x.t.pl]={plan:x.t.pl, gb:0, billedGb:0}); p.gb+=gb; if(+x.t.u>0) p.billedGb+=gb; });
+        let restGb=0; const list=Object.values(parts);
+        list.forEach(p=>{ p.gb=r3(p.gb); p.billedGb=r3(p.billedGb); restGb+=p.gb; });
+        rows.push({table:'Other (+'+rest.length+')', family:'Other', gb:r3(restGb), parts:list});
+      }
+      const fam={}, plan={}, pb={}, bucket={'Billed':0, 'Free benefit':0};
+      rows.forEach(row=>{
+        fam[row.family]=(fam[row.family]||0)+row.gb;
+        row.parts.forEach(p=>{
+          plan[p.plan]=(plan[p.plan]||0)+p.gb;
+          const free=r3(p.gb-p.billedGb);
+          bucket['Billed']+=p.billedGb; bucket['Free benefit']+=free;
+          [['Billed',p.billedGb],['Free benefit',free]].forEach(([b,v])=>{ if(v>0){ const k=p.plan+'|'+b; pb[k]=(pb[k]||0)+v; } });
+        });
+      });
+      const nodes=[], links=[];
+      Object.keys(fam).sort((a,b)=>fam[b]-fam[a]).forEach(f=>nodes.push({id:'f:'+f, col:0, label:f, value:r3(fam[f])}));
+      rows.forEach(row=>nodes.push({id:'t:'+row.table, col:1, label:row.table, value:row.gb}));
+      Object.keys(plan).sort((a,b)=>plan[b]-plan[a]).forEach(p=>nodes.push({id:'p:'+p, col:2, label:p, value:r3(plan[p]), lake:/lake/i.test(p)}));
+      ['Billed','Free benefit'].forEach(b=>{ if(bucket[b]>0) nodes.push({id:'b:'+b, col:3, label:b, value:r3(bucket[b])}); });
+      rows.forEach(row=>{
+        links.push({source:'f:'+row.family, target:'t:'+row.table, value:row.gb});
+        row.parts.forEach(p=>links.push({source:'t:'+row.table, target:'p:'+p.plan, value:p.gb}));
+      });
+      Object.keys(pb).forEach(k=>{ const i=k.indexOf('|'); links.push({source:'p:'+k.slice(0,i), target:'b:'+k.slice(i+1), value:r3(pb[k])}); });
+      M.flow={nodes, links};
+      M.flowTables=T.map(x=>{ const gb=r3(r2(x.gb)); return {table:x.t.t, family:x.t.f, plan:x.t.pl, gb, billedGb:(+x.t.u>0? gb : 0)}; });
+      if(M.dataLake && M.dataLake.cost){
+        const row=p=>C.byPlan.find(x=>x.plan===p)||{gb30d:0, cost:0};
+        Object.assign(M.dataLake.cost, {analyticsGb:row('Analytics').gb30d, analyticsCost:row('Analytics').cost, lakeGb:row('DataLake').gb30d, lakeCost:row('DataLake').cost});
+      }
+    }
+    // Alerts, once each on the day first seen, grouped as the volumes
+    // capture groups them (name, product, severity).
+    const A=(D.alerts||[]).map(a=>({a, n:sum(a.d,1,N)})).filter(x=>x.n>0);
+    const vol={}, pfOf={};
+    let all=0, sen=0, xdr=0;
+    A.forEach(({a,n})=>{
+      all+=n; if(/sentinel/i.test(a.p||'')) sen+=n; else xdr+=n;
+      if(a.p) pfOf[a.p]=a.pf||'';
+      const k=[a.n,a.p,a.s].join('\u001f'); const v=vol[k]||(vol[k]={name:a.n, product:a.p, severity:a.s, alerts:0}); v.alerts+=n;
+    });
+    M.topRules=Object.values(vol).sort((a,b)=>b.alerts-a.alerts);
+    // Sentinel's scheduled and NRT rules that fired, keyed on rule id (or
+    // alert name without one), as rules-fired keys them.
+    const fired={}, firedById={}, firedByName={};
+    A.forEach(({a,n})=>{
+      if(!asi(a.pv)) return;
+      const k=a.r||a.n; fired[k]=(fired[k]||0)+n;
+      if(a.r) firedById[a.r]=(firedById[a.r]||0)+n;
+      if(a.n) firedByName[a.n]=(firedByName[a.n]||0)+n;
+    });
+    // The ring counts those that are enabled now, as the build does.
+    const QK=Array.isArray(D.queryRules)? new Set(D.queryRules) : null;
+    const ruleAlerts=Object.values(fired).reduce((s,v)=>s+v,0);
+    const firedCount=QK? A.filter(({a})=>asi(a.pv) && (a.r? QK.has(a.r) : QK.has('name:'+a.n))).map(({a})=>a.r||a.n).filter((k,i,l)=>l.indexOf(k)===i).length
+                       : Object.keys(fired).length;
+    if(all<=0){ all=ruleAlerts; sen=ruleAlerts; }
+    // Incidents at their latest state: [incidents, acknowledged, ack minutes, resolved, resolve minutes].
+    const I=(D.incidents||[]).map(i=>({i, v:[1,2,3,4,5].map(k=>sum(i.d,k,N))})).filter(x=>x.v[0]>0);
+    const incidents=I.reduce((s,x)=>s+x.v[0],0), closed=I.filter(x=>x.i.st==='Closed').reduce((s,x)=>s+x.v[0],0);
+    if(M.estate){
+      const E=M.estate, fams={};
+      let seen=0, active=0, covered=0, total=0, covGb=0;
+      E.tables=T.map(x=>{
+        const t=x.t, act=x.recent>0;
+        seen++; if(act) active++; total+=x.gb;
+        const f=fams[t.f]||(fams[t.f]={category:t.f, tables:0, gb:0, coveredGb:0, covered:0});
+        f.tables++; f.gb+=x.gb;
+        if(t.cov){ if(act) covered++; covGb+=x.gb; f.covered++; f.coveredGb+=x.gb; }
+        return {table:t.t, family:t.f, gb:r2(x.gb), rules:+t.r||0, customDetections:+t.cd||0, covered:!!t.cov};
+      });
+      E.sources=Object.values(fams).sort((a,b)=>b.gb-a.gb).map(f=>({category:f.category, tables:f.tables, gb:r2(f.gb), coveredGb:r2(f.coveredGb), covered:f.covered}));
+      const prod={};
+      Object.values(vol).forEach(v=>{
+        if(!v.product || /sentinel/i.test(v.product)) return;
+        const fm=pfOf[v.product]||'', k=fm+'|'+v.product;
+        const p=prod[k]||(prod[k]={family:fm, product:v.product, alerts:0, detections:0}); p.alerts+=v.alerts; p.detections++;
+      });
+      E.productAlerts=Object.values(prod).sort((a,b)=>b.alerts-a.alerts);
+      E.totalGb=r2(total); E.coveredGb=r2(covGb); E.uncoveredGb=r2(total-covGb);
+      const ring=(k,label,value,max)=>{ const r=(E.rings||(E.rings={}))[k]||(E.rings[k]={label}); if(label) r.label=label; r.value=value; r.max=max; r.pct=max>0? Math.round(100*value/max) : null; };
+      ring('ingestion','Tables still receiving data ('+R+'d, of those with data in '+N+'d)',active,seen);
+      ring('detection','',covered,active);
+      ring('alerts','',firedCount,+D.rulesQueryEnabled||0);
+      ring('incidents','',closed,incidents);
+      Object.assign(E, {window:N+'d', rulesFired:firedCount, alerts:all, alertsSentinel:sen, alertsXdr:Math.max(0,all-sen), ruleAlerts,
+        incidents, incidentsClosed:closed, incidentsOpen:Math.max(0,incidents-closed)});
+    }
+    if(M.health){
+      const rows=(D.health||[]).map(h=>({OperationName:h.o, Status:h.st, LogCount:sum(h.d,1,N)})).filter(r=>r.LogCount>0).sort((a,b)=>b.LogCount-a.LogCount);
+      const tot=rows.reduce((s,r)=>s+r.LogCount,0), ok=rows.filter(r=>r.Status==='Success').reduce((s,r)=>s+r.LogCount,0);
+      M.health={pct:tot>0? r1(100*ok/tot) : 0, totalEvents:tot, rows};
+    }
+    // Incidents per detection with their verdicts: Sentinel rules (by rule
+    // id) first, then other products' alerts by name.
+    const RU=(D.rules||[]).map(r=>{ const v=[1,2,3,4,5,6].map(k=>sum(r.d,k,N)); return {r, inc:v[0], closed:v[1], tp:v[2], fp:v[3], bp:v[4], und:v[5]}; }).filter(x=>x.inc>0);
+    M.effectiveness=RU.slice().sort((a,b)=>((a.r.id?0:1)-(b.r.id?0:1))||(b.inc-a.inc)).map(x=>({rule:x.r.an, source:x.r.src, incidents:x.inc, closed:x.closed,
+      tp:x.tp, fp:x.fp, bp:x.bp, undetermined:x.und, fpRate:r1(100*x.fp/(x.closed||1))}));
+    if(M.detectionOutcomes){
+      const effById={}, effByName={};
+      RU.forEach(x=>{ if(x.r.id) effById[x.r.id]=x; if(x.r.an && !effByName[x.r.an]) effByName[x.r.an]=x; });
+      const rank={Failing:0, Working:1, Silent:2};
+      M.detectionOutcomes=M.detectionOutcomes.map(o=>{
+        const sentinel=o.source==='Sentinel';
+        const e=(sentinel && o.key && effById[o.key]) || effByName[o.name] || null;
+        const alerts=sentinel? ((o.key && firedById[o.key]) || firedByName[o.name] || 0) : 0;
+        const inc=e? e.inc : 0, cl=e? e.closed : 0, tp=e? e.tp : 0, fp=e? e.fp : 0, bp=e? e.bp : 0, und=e? e.und : 0;
+        const health=(+o.failures||0)>0? 'Failing' : ((alerts>0||inc>0)? 'Working' : 'Silent');
+        return Object.assign({}, o, {health, alerts, incidents:inc, closed:cl, tp, fp, bp, undetermined:und,
+          unclassified:Math.max(0,cl-tp-fp-bp-und), open:Math.max(0,inc-cl)});
+      }).sort((a,b)=>(rank[a.health]-rank[b.health])||(b.incidents-a.incidents)||String(a.name).localeCompare(String(b.name)));
+    }
+    if(M.detectionOpportunities){
+      const gbOf={}; T.forEach(x=>{ gbOf[x.t.t]=x.gb; });
+      M.detectionOpportunities=M.detectionOpportunities.filter(o=>(gbOf[o.table]||0)>0)
+        .map(o=>Object.assign({}, o, {gb30d:r2(gbOf[o.table])})).sort((a,b)=>b.gb30d-a.gb30d);
+    }
+    if(M.playbookHealth && D.playbooks){
+      let runs=0, failed=0, unavailable=0; const failing=[];
+      D.playbooks.forEach(p=>{
+        if(p.unavailable){ unavailable++; return; }
+        const r=sum(p.d,1,N), f=sum(p.d,2,N); runs+=r; failed+=f;
+        if(f>0) failing.push({playbook:p.n, runs:r, failed:f, lastFailure:p.last||''});
+      });
+      M.playbookHealth={runs7d:runs, failed7d:failed, playbooks:D.playbooks.length, unavailable, failing:failing.sort((a,b)=>b.failed-a.failed)};
+    }
+    if(M.incidentsByClassification){
+      const cls={};
+      I.forEach(x=>{ if(x.i.st==='Closed'){ const c=x.i.c||'Unclassified'; cls[c]=(cls[c]||0)+x.v[0]; } });
+      M.incidentsByClassification=Object.keys(cls).sort((a,b)=>cls[b]-cls[a]).map(k=>({label:k, value:cls[k]}));
+    }
+    if(M.alertLifecycle){
+      const L=M.alertLifecycle;
+      if(L.closedBy){ const by={AutomationRule:0, Analyst:0, DefenderXdr:0, Other:0}; I.forEach(x=>{ if(x.i.st==='Closed' && x.i.by in by) by[x.i.by]+=x.v[0]; }); L.closedBy=by; }
+      if(L.openBySeverity){ const sv={High:0, Medium:0, Low:0, Informational:0}; I.forEach(x=>{ if(x.i.st!=='Closed' && x.i.sev in sv) sv[x.i.sev]+=x.v[0]; }); L.openBySeverity=sv; }
+      const rc=I.reduce((s,x)=>s+x.v[3],0), rs=I.reduce((s,x)=>s+x.v[4],0);
+      L.mttrMinutes=rc>0? r1(rs/rc) : null;
+    }
+    // The daily ingestion trend: the calendar days the window touches.
+    if(M.usageDaily){
+      const t=Date.parse(D.asOf||'');
+      if(!isNaN(t)){ const cut=new Date(t-N*864e5).toISOString().slice(0,10); M.usageDaily=M.usageDaily.filter(u=>String(u.day)>=cut); }
+    }
+  }
   // Fixed text in the page names the window through data-win spans.
   const paintWindow=()=>document.querySelectorAll('[data-win]').forEach(e=>{ const k=e.dataset.win; e.textContent= k==='d'? WIN.d() : k==='rd'? WIN.rd() : k==='rw'? WIN.rw() : WIN.w(); });
   paintWindow();
@@ -1211,6 +1406,8 @@
   // cross-tab navigation hooks (assigned later, used by the gap-analysis buttons)
   let gotoDocSection = null;   // (num) => void  — open a section in the Sections tab
   let activateTab = null;      // (name) => void — switch the top-level tab
+  let curView = 'overview';    // the view showing, and the report page open (for the slider's reload)
+  let curDoc = () => null;
   // Bring an element's top into view, so a link opens at the top of what it
   // shows rather than at the old scroll position. On SharePoint the web part
   // grows its iframe to the dashboard's full height and the SharePoint page
@@ -1479,7 +1676,7 @@
       big:M.health.pct+'%', unit:WIN.days+'-day success rate',
       s:M.health.totalEvents.toLocaleString()+' health events processed', ring:Math.round(M.health.pct)},
     {grad:'linear-gradient(135deg,#7c3aed,#9333ea)', ic:ICON.scale, h:'Cost &amp; governance',
-      big:cost? (cost.currency+' '+cost.monthlyTotal):'n/a', unit:cost?'per month':'',
+      big:cost? (cost.currency+' '+cost.monthlyTotal):'n/a', unit:cost?'per month, projected from '+WIN.w():'',
       s:M.findings.total+' open findings &middot; '+c.rbac+' role assignments', ring:null}
   ];
   document.getElementById('outcomes').innerHTML = outcomes.map(o=>
@@ -1503,7 +1700,7 @@
     const defs=[
       {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables with data in the last '+WIN.w(), sec:findSecNum(/table plans/i,null)},
       {k:'detection', h:'Detection', unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection', sec:findSecNum(/detection opportunities/i,null)},
-      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired ('+WIN.d()+')', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in 30 days', sec:findSecNum(/^analytics rules/i,null)},
+      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired ('+WIN.d()+')', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in '+WIN.w(), sec:findSecNum(/^analytics rules/i,null)},
       // Defender XDR's alerts, as the flow splits them: their share of every
       // alert, in the Defender XDR colour (a share, not a score).
       ...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert ('+WIN.d()+')', s:'raised by Defender XDR and the Microsoft products feeding it', sec:findSecNum(/^alerts/i,null),
@@ -2817,7 +3014,7 @@
     const pal=['#7a5a9e','#3b6fb0','#0d9488','#d97706','#64748b','#94a3b8'];
     const items=M.tiBySource.map((t,i)=>({label:t.source,value:+t.count||0,display:(+t.count||0).toLocaleString(),color:pal[i%pal.length]}));
     const tot=items.reduce((a,i)=>a+i.value,0);
-    cards.push('<div class="ipanel"><h3>Threat intelligence by source ('+WIN.d()+')</h3>'+
+    cards.push('<div class="ipanel"><h3>Threat intelligence by source ('+WIN.cd()+')</h3>'+
       '<p class="note">Indicators observed per feed. One feed is a single point of failure for every TI detection.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
   }
@@ -3543,6 +3740,7 @@
       // A page opens on its first tab; the tab it is on is kept only while it stays open (a resize).
       if(s.num!==curDocNum) delete lastDocTab[s.num];
       curDocNum=s.num;
+      curDoc=()=>curDocNum;
       wpCharts.length=0;
       let ti=0;
       const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
@@ -3749,7 +3947,7 @@
       const c=counts||{}, nA=+c.alerts||0, nI=+c.incidents||0, body=content.querySelector('.docbody');
       const why=best? '' : (nA||nI)
         ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in '+WIN.w()+' carry the alert names it gives them, in the alert volume table.'
-        : ' It raised no alerts or incidents in the last '+WIN.w()+', so no table here lists it.';
+        : ' It raised no alerts or incidents in the last '+WIN.cw()+', so no table here lists it.';
       if(body){
         const note=document.createElement('div'); note.className='docnote rulepin';
         note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');
@@ -3906,40 +4104,41 @@
     BALANCED.forEach(([sel])=>document.querySelectorAll(sel).forEach(el=>ro.observe(el)));
   }
 
-  // ---- snapshots: the dashboard as it was on an earlier day ----
-  // The publisher keeps one copy of the dashboard a day under history/ beside
-  // the live one, listed newest first in history/index.json. The picker
-  // beside the theme toggle opens one: on SharePoint the web part loads it
-  // in place; served as files, the page goes to it. A past day says so in a
-  // banner with the way back. From disk, or before the first publish with
-  // snapshots, the picker stays hidden.
+  // ---- the window slider ----
+  // 1 to the daily span. The label follows the thumb with the dates the
+  // window covers (from the collection time back N days); letting go, or a
+  // pause after arrow keys, reloads the dashboard for that window and
+  // reopens the view that was showing.
+  const asOfT=Date.parse((DAILY&&DAILY.asOf)||'');
+  const fmtDay=(t,y)=>new Date(t).toLocaleDateString('en-GB',y? {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'} : {day:'numeric',month:'short',timeZone:'UTC'});
+  const winDates=n=>{
+    if(isNaN(asOfT)) return '';
+    const a=asOfT-n*864e5;
+    return fmtDay(a, new Date(a).getUTCFullYear()!==new Date(asOfT).getUTCFullYear())+' to '+fmtDay(asOfT, true);
+  };
+  const saveWindow=o=>{ try{ window.name='sacDash:'+JSON.stringify(o); }catch(e){} };
   (function(){
-    if(!SNAP.read) return;
-    const day=d=>{ const t=Date.parse(String(d).slice(0,10)+'T00:00:00Z'); return isNaN(t)? String(d) : new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}); };
-    const go=file=>{
-      if(SNAP.host && SNAP.host.load) SNAP.host.load(file? 'history/'+file : null);
-      else window.location.href=new URL(file? 'history/'+file : 'index.html', SNAP.root).href;
+    const wrap=document.getElementById('winWrap');
+    if(!DAILY || !wrap) return;
+    const rng=document.getElementById('winRange'), days=document.getElementById('winDays'), dates=document.getElementById('winDates');
+    const span=+DAILY.span;
+    rng.max=String(span); rng.value=String(Math.min(WIN.days, span));
+    const show=n=>{
+      days.textContent='Last '+WIN.words(n); dates.textContent=winDates(n);
+      rng.setAttribute('aria-valuetext', days.textContent+(dates.textContent? ', '+dates.textContent : ''));
     };
-    SNAP.read('history/index.json').then(ix=>{
-      const entries=((ix&&ix.entries)||[]).filter(e=>e&&e.date&&e.file).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
-      if(!entries.length) return;
-      const own=String((M.workspace&&M.workspace.generatedUtc)||'').slice(0,10);
-      const latest=entries[0].date, viewing=(own && own<latest)? own : '';
-      const label=e=>day(e.date)+(e.score!=null&&e.score!==''?' \u00b7 '+(+e.score).toFixed(2)+' / 5':'')+(e.findings!=null?' \u00b7 '+e.findings+' findings':'');
-      const sel=document.getElementById('snapPick');
-      sel.innerHTML='<option value="">Latest \u00b7 '+esc(day(latest))+'</option>'+entries.slice(1).map(e=>'<option value="'+esc(e.file)+'">'+esc(label(e))+'</option>').join('');
-      const mine=viewing? entries.find(e=>e.date===viewing) : null;
-      sel.value=mine? mine.file : '';
-      document.getElementById('snapWrap').hidden=false;
-      sel.addEventListener('change',()=>go(sel.value));
-      if(viewing){
-        const b=document.getElementById('snapBanner');
-        b.innerHTML='<span>You are viewing the dashboard as it was on <b>'+esc(day(viewing))+'</b>, '+entries.length+' day'+(entries.length===1?'':'s')+' of snapshots kept.</span>'+sbtn('Back to latest','data-snap-latest',{go:true});
-        b.hidden=false;
-        b.querySelector('[data-snap-latest]').addEventListener('click',()=>go(''));
-      }
-      if(typeof window.fitIframe==='function') window.fitIframe();
-    }).catch(()=>{});
+    show(WIN.days);
+    wrap.hidden=false;
+    let timer=null;
+    const commit=()=>{
+      const n=+rng.value;
+      if(n===WIN.days) return;
+      saveWindow({days:n, back:1, view:curView, doc:curDoc()});
+      wrap.classList.add('busy');
+      location.reload();
+    };
+    rng.addEventListener('input',()=>{ show(+rng.value); clearTimeout(timer); });
+    rng.addEventListener('change',()=>{ clearTimeout(timer); timer=setTimeout(commit, 350); });
   })();
 
   // ---- tabs ----
@@ -3948,6 +4147,7 @@
   const lastOf={};
   const viewsOf=t=>(t.dataset.tabs||t.dataset.tab).split(' ');
   activateTab = function(name){
+    curView=name;
     document.querySelectorAll('.tab').forEach(x=>{ const on=viewsOf(x).includes(name); x.classList.toggle('active', on); if(on) lastOf[x.dataset.tab]=name; });
     document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==name));
     document.querySelectorAll('[data-views]').forEach(el=>el.classList.toggle('hidden',!el.dataset.views.split(' ').includes(name)));
@@ -3973,6 +4173,15 @@
     if(M.findings) setCount('findings', String(M.findings.items.length));
     if(M.maturity && M.maturity.overall && M.maturity.overall.score!=null) setCount('maturity', (+M.maturity.overall.score).toFixed(2)+' / 5');
   })();
+  // After the slider's reload, reopen what was showing; the chosen window
+  // stays for the next load.
+  if(SAVED.back){
+    saveWindow({days:WIN.days});
+    const view=String(SAVED.view||'');
+    if([...document.querySelectorAll('[data-view]')].some(el=>el.dataset.view===view)) activateTab(view);
+    const doc=+SAVED.doc;
+    if(view==='sectionsdoc' && gotoDocSection && (M.sections||[]).some(x=>x.num===doc)) gotoDocSection(doc);
+  }
 })();
 </script>
 </body>

@@ -20,7 +20,7 @@ One communication site per workspace, containing:
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, and a copy of the dashboard per day for its date picker (`dashboard/history/`). | `BlueprintAssets` library |
+| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, and a copy of the dashboard per day (`dashboard/history/`). | `BlueprintAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -157,8 +157,8 @@ or its name from the keyboard) opens Report > Rule Performance with each
 table there filtered to that rule, on the Rule effectiveness tab when it has
 incidents (else its alert volume), with its row highlighted. A note above
 the tabs names the rule and has a Show every rule button; when no table
-lists the rule it says why (no alerts or incidents in 30 days, or alerts
-filed under the alert names the rule gives them).
+lists the rule it says why (no alerts or incidents in the collected window,
+or alerts filed under the alert names the rule gives them).
 
 The ingest and billing flow under it is drawn the same way: source families
 as glowing dots on the left, every table as a pill tinted in its family's
@@ -556,6 +556,45 @@ nothing to read and the trend panel stays hidden. Both files are readable by
 anyone who can read the dashboard, which is the same audience. `-WhatIf`
 reports what it would append and writes nothing.
 
+### The window slider
+
+A slider in the top bar, beside the light and dark toggle, sets how many
+days of activity the dashboard shows: from 1 to the days the collector
+counted per day (the lookback, at most 90). Beside it are the window and
+the dates it covers, counted back from when the data was collected
+("Last 14 days", "30 Sep to 14 Oct 2026"). The label follows the thumb;
+letting go (or a pause after the arrow keys) redraws the dashboard for
+that window and reopens the tab, and the report page, that was showing.
+The choice stays for the next load in the same tab (it is kept in the
+frame's `window.name`, which the dashboard checks before use and never
+writes out as markup).
+
+The collector counts five series per day ago (0 is the last 24 hours) for
+this: billable GB per table, alerts (once each, on the day first seen, with
+their product, severity, provider and rule), incidents at their latest state
+(by severity, open or closed, classification and who closed them, with
+acknowledge and resolve times), incidents per detection with their verdicts,
+and Sentinel health events; playbook runs are counted per day too. The
+build carries them in the model as `daily`. Summing the last N days gives
+exactly the rolling N-day window the other captures read, so the dashboard
+rebuilds from them, before anything is drawn, every card that counts
+activity: the glance tiles, the alert lifecycle and its figures, the estate
+pipeline and its four measures, the ingest and billing flow, the detection
+matrix and its outcomes, the top tables and top alerting rules, alerts by
+source and severity, operational health, incident outcomes, rule
+effectiveness, detection opportunities, playbook health, daily ingestion,
+and the cost, projected to a month from the window. Cost and the flow are
+re-priced only when the cost estimate priced every table (it does from
+the collector that writes the series); otherwise they keep the collected
+window. Every label names the window shown.
+
+What does not count activity keeps the window that was collected, and says
+so: configuration and inventory, threat intelligence, the findings, the
+maturity score, and the Report tab's pages, which are the rendered report.
+A run collected before the daily series has no slider and shows its
+collected window. With the window at the collected number of days the
+dashboard shows the collected figures unchanged.
+
 ### Dashboard snapshots
 
 Every publish also keeps the day's dashboard as
@@ -568,15 +607,12 @@ from the newest, so with the daily pipeline it grows a day at a time until
 it holds 90 days; older days go to the recycle bin. `-HistoryDays 0` keeps
 none. A copy is about the size of the dashboard (around 3 MB).
 
-The dashboard reads the list and shows a date picker beside the light and
-dark toggle: Latest, then every kept day with its maturity score and
-findings. Choosing a day opens the dashboard as it was that day, with a
-banner saying so and a Back to latest button. On SharePoint the dashboard
-web part loads the day into its frame; served as files, the page goes to
-it. Each copy runs the dashboard code of its own day, so it always matches
-its data; a later design change does not reach older copies. Only the
-dashboard has a history: the section pages and the findings list show the
-latest run.
+The window slider took the place of the dashboard's date picker, so the
+dashboard no longer links to these copies; they stay in the library, each
+a complete dashboard of its day that opens on its own. Each copy runs the
+dashboard code of its own day, so it always matches its data; a later
+design change does not reach older copies. Only the dashboard has a
+history: the section pages and the findings list show the latest run.
 
 Runs from the module land in a folder per day
 (`SecurityDocs/<workspace>/<yyyy-MM-dd>/`), so a machine that runs the
@@ -584,8 +620,7 @@ Blueprint daily holds its own history. When `New-iSOCBlueprintSite` builds a
 bundle for a day folder, it copies the dashboards of the earlier days in the
 same window from the sibling day folders into the bundle's `history/`, with
 an `index.json` in the same shape as the site's (each day's figures come from
-its `site.json`). That makes the date picker work when the bundle is opened
-from disk, and the publisher uploads any of those days the site does not
+its `site.json`), and the publisher uploads any of those days the site does not
 have yet, so a site first published from a machine with a month of runs
 starts with that month. A day the site already holds is left as it is. A
 bundle built from a flat folder (the pipelines, `-NoDateFolder`) has no

@@ -1,0 +1,410 @@
+[
+  {
+    "DaysAgo": 0,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 1,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 2,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 3,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 4,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 5,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 6,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 7,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 8,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 9,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 10,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 18
+  },
+  {
+    "DaysAgo": 11,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 12,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 13,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 14,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 15,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 16,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 17,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 18,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 19,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 20,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 21,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 22,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 23,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 24,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 25,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 26,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 27,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 28,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 29,
+    "OperationName": "Data fetcher run",
+    "Status": "Success",
+    "LogCount": 17
+  },
+  {
+    "DaysAgo": 0,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 1,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 2,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 3,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 4,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 5,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 6,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 7,
+    "OperationName": "Data fetcher run",
+    "Status": "Failure",
+    "LogCount": 1
+  },
+  {
+    "DaysAgo": 0,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 1,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 2,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 3,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 4,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 5,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 6,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 7,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 8,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 9,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 10,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 11,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 12,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 13,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 14,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 15,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 16,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 17,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 18,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 19,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 20,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 21,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 48
+  },
+  {
+    "DaysAgo": 22,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 23,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 24,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 25,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 26,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 27,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 28,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  },
+  {
+    "DaysAgo": 29,
+    "OperationName": "Scheduled analytics",
+    "Status": "Success",
+    "LogCount": 47
+  }
+]

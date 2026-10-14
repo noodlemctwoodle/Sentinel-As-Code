@@ -7,8 +7,8 @@
 
 .DESCRIPTION
     -LookbackDays sets the days of activity the collector reads: every
-    query declares `lookback` and `recent` ahead of its text and takes no
-    number of days of its own. The window rides in run-context.json; the
+    query declares `lookback`, `recent` and `daily` ahead of its text and
+    takes no number of days of its own. The window rides in run-context.json; the
     gap engine, the maturity assessment, the cost estimate, the renderer,
     the site build and both pipelines read it from there or pass it on.
     These tests hold each of those to it.
@@ -68,10 +68,10 @@ Describe 'The collector reads one lookback' {
         ([regex]::Matches($script:collector, '-Query \(Add-BpWindow \$kql\w*\)')).Count | Should -Be ([regex]::Matches($script:collector, 'Invoke-AzOperationalInsightsQuery -WorkspaceId')).Count
     }
 
-    It 'declares lookback and recent ahead of the query text' {
+    It 'declares lookback, recent and daily ahead of the query text' {
         . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Export-SentinelInventory.ps1') 'Add-BpWindow')))
-        $script:LookbackDays = 14; $script:RecentDays = 7
-        Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 14d;`nlet recent = 7d;`nUsage | take 1"
+        $script:LookbackDays = 14; $script:RecentDays = 7; $script:DailyDays = 14
+        Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 14d;`nlet recent = 7d;`nlet daily = 14d;`nUsage | take 1"
     }
 
     It 'reads playbook runs over the lookback and records the window in run-context.json' {

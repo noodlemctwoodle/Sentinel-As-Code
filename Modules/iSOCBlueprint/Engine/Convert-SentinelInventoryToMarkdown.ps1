@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.0
+    Version:        0.7.1
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -741,6 +741,20 @@ function New-EstateModel {
     foreach ($src in $sources) { $totalGb += $src.Gb; $coveredGb += $src.CoveredGb }
     $ruleAlerts = [long]0
     foreach ($f in $rulesFired) { $ruleAlerts += [long](_RendererNumber $f.Alerts) }
+    # Fired, of the enabled Scheduled and NRT rules (by rule id, or by name
+    # for an alert without one), as the ring says: a rule disabled or deleted
+    # since it fired is not one of them.
+    $queryRuleKeys = @{}
+    foreach ($r in @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') })) {
+        $queryRuleKeys[([string](_RProp $r 'name' '')).ToLowerInvariant()] = $true
+        $dn = [string](_RProp $r.properties 'displayName' '')
+        if ($dn) { $queryRuleKeys["name:$dn"] = $true }
+    }
+    $firedEnabled = @($rulesFired | Where-Object {
+        if (-not $_) { return $false }
+        $k = ([string](_RProp $_ 'AlertRuleId' '')).ToLowerInvariant(); if ($k -match '/') { $k = ($k -split '/')[-1] }
+        if ($k) { $queryRuleKeys.ContainsKey($k) } else { $queryRuleKeys.ContainsKey("name:$([string](_RProp $_ 'AlertName' ''))") }
+    }).Count
     # Every alert from every product, so alerts and incidents count the same
     # things (in a workspace joined to the Defender portal every incident is
     # a Defender XDR one, whichever product raised its alerts); the rules'
@@ -778,7 +792,7 @@ function New-EstateModel {
         TemplatesApplicable = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }).Count
         RulesEnabled        = $enabledRules.Count
         RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
-        RulesFired          = $rulesFired.Count
+        RulesFired          = $firedEnabled
         Alerts              = $alerts
         RuleAlerts          = $ruleAlerts
         XdrAlerts           = [long](($productAgg.Values | Measure-Object -Property Alerts -Sum).Sum)

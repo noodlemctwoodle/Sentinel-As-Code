@@ -322,7 +322,12 @@ The run-pipeline panel exposes three further parameters:
   capture reads, 1 to 730. Maps to the collector's `-LookbackDays`. The
   latest-days figures cover the shorter of 7 days and it; the report's pages,
   the dashboard's cards, the findings and the maturity criteria name the
-  window, and the cost estimate projects a month from it. A window longer
+  window, and the cost estimate projects a month from it. The collector also
+  counts activity per day over the lookback (at most 90 days), which the
+  dashboard's window slider re-scopes its cards with, from 1 day to that
+  span; see
+  [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md#the-window-slider).
+  A window longer
   than a table's interactive retention returns only what the table holds,
   and a long window costs more query time on the raw tables. See
   [Blueprint-References.md](Blueprint-References.md#recurring-kql-queries).
@@ -387,9 +392,8 @@ Open `SecurityDocs/<workspace>/<yyyy-MM-dd>/index.md` in your editor. To check
 what the machine can produce first, run `Test-iSOCBlueprintPrerequisite`.
 
 The SharePoint bundle built for a day (`<yyyy-MM-dd>/sharepoint/`) also carries
-the earlier days of the last 90 under `history/`, so the dashboard's date
-picker works when you open it locally, and publishing it seeds those days onto
-a site that has not seen them. `-HistoryDays` on `New-iSOCBlueprint` and
+the earlier days' dashboards of the last 90 under `history/`, and publishing
+it seeds those days onto a site that has not seen them. `-HistoryDays` on `New-iSOCBlueprint` and
 `New-iSOCBlueprintSite` sets the window; `0` leaves the history out.
 
 At the end of a collection the collector prints a **Capture summary** table: it

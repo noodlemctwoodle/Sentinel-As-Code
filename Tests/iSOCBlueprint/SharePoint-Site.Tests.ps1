@@ -2017,12 +2017,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         Test-Path (Join-Path $bundle 'history') | Should -BeFalse
     }
 
-    It 'lets the dashboard open an earlier day, and reads files beside it the way SharePoint allows' {
-        $html | Should -Match '<label class="snapwrap" id="snapWrap" hidden'
-        $html | Should -Match '<select id="snapPick" aria-label="Snapshot date"></select>'
-        $html | Should -Match '<div class="snapbanner" id="snapBanner" hidden role="status"></div>'
-        $html | Should -Match "SNAP\.read\('history/index\.json'\)"
-        $html | Should -Match "SNAP\.host\.load\(file\? 'history/'\+file : null\)"
+    It 'reads files beside the dashboard the way SharePoint allows' {
+        # The window slider took the snapshot picker's place in the top bar.
+        $html | Should -Not -Match 'snapPick|snapBanner'
+        $html | Should -Match '<label class="winwrap" id="winWrap" hidden'
         # A snapshot served as a file finds the live folder one level up.
         $html | Should -Match 'root=/\\/history\\/\$/\.test\(here\.pathname\)\? new URL\(''\.\.'',here\) : here;'
         # The maturity trend reads through the same path; about:srcdoc has no folder.

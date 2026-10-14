@@ -71,7 +71,7 @@ api-version from the tables above.
 
 | Service | Endpoint | Used by | Notes |
 |---|---|---|---|
-| Log Analytics query API | `Invoke-AzOperationalInsightsQuery` (`api.loganalytics.io/v1`) | The 38 KQL captures below | Workspace-scoped and read-only, with Log Analytics Reader. |
+| Log Analytics query API | `Invoke-AzOperationalInsightsQuery` (`api.loganalytics.io/v1`) | The 43 KQL captures below | Workspace-scoped and read-only, with Log Analytics Reader. |
 | Microsoft Graph (beta) | `https://graph.microsoft.com/beta/security/rules/detectionRules`, paged on `@odata.nextLink` | `defender-custom-detections` | Needs `CustomDetection.Read.All`. A Graph PowerShell SDK session is used when one exists, otherwise the Azure PowerShell context. A 401 or 403 is a failed capture, not an empty list. |
 | Azure Retail Prices API | `https://prices.azure.com/api/retail/prices` with an OData `$filter` | `retail-prices` (the cost estimate) | Anonymous, no authentication header. |
 | Microsoft Learn | The Microsoft Sentinel and Defender XDR What's new pages, read as Markdown (`Accept: text/markdown`) | `whats-new`, `Get-iSOCBlueprintWhatsNew` | Public pages. A page that cannot be read is recorded and the other is still read. |
@@ -108,7 +108,7 @@ read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wr
 | `Get-AzResourceLock` | `Az.Resources` | Locks on the subscription, resource group and workspace |
 | `Get-AzPolicyAssignment` | `Az.Resources` | Policy assignments on the subscription |
 | `Get-AzRoleAssignment` | `Az.Resources` | Role assignments on the workspace and resource group, and for playbook identities |
-| `Invoke-AzOperationalInsightsQuery` | `Az.OperationalInsights` | The 38 KQL captures, never inventory |
+| `Invoke-AzOperationalInsightsQuery` | `Az.OperationalInsights` | The 43 KQL captures, never inventory |
 | `Invoke-MgGraphRequest` | `Microsoft.Graph.Authentication` | Defender custom detections, when a Graph session is open |
 | `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Get-AzureRetailPrice.ps1`) |
 
@@ -146,19 +146,21 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 
 ## Recurring KQL queries
 
-The collector runs **38 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
+The collector runs **43 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
 its own `Try-Capture` block that writes one `_raw/<name>.json`. About half read raw
 operational and security tables, not only billing metadata, so they cost query time on a
 busy workspace, and more the longer the lookback. To list them, grep the collector for
 `Try-Capture` blocks that set `$kql`.
 
 Every query reads **one lookback**: `-LookbackDays` (1 to 730, default 30, the
-`lookbackDays` pipeline parameter). `Add-BpWindow` declares `let lookback = <n>d;` and
-`let recent = <n>d;` ahead of each query, so no query carries a number of days of its own.
+`lookbackDays` pipeline parameter). `Add-BpWindow` declares `let lookback = <n>d;`,
+`let recent = <n>d;` and `let daily = <n>d;` ahead of each query, so no query carries a
+number of days of its own.
 The **recent window** is the shorter of 7 days and the lookback; it carries the figures for
 the latest days (the `...7d` columns). Two sub-windows stay fixed because they are not
 lookbacks: a table's last 24 hours of ingestion and the one-hour sample the duplicate-event
-check reads. The window is written to `run-context.json` (`LookbackDays`, `RecentDays`),
+check reads. The window is written to `run-context.json` (`LookbackDays`, `RecentDays`,
+`DailyDays`),
 and the pages, the dashboard's cards, the findings, the maturity criteria and the cost
 estimate (a month projected from the window's rate) name it from there. The `30d`, `90d`
 and `7d` property names in the captures are their historical names for the lookback and
@@ -230,6 +232,22 @@ SOC optimisation recommendations (`soc-optimization`) are read over REST from
 | `azure-diagnostics-providers` | `AzureDiagnostics` | Lookback | Volume by resource provider |
 | `azure-firewall-categories` | `AzureDiagnostics` | Lookback | Azure Firewall rows by category, legacy `AzureFirewall*` and resource-specific `AZFW*` side by side |
 | `xdr-table-presence` | The Defender XDR tables (`Device*`, `Email*`, `Identity*` and others) | Lookback | Records per table, whether Defender XDR is connected and producing data |
+
+### Daily series for the dashboard's slider
+
+The **daily span** is the lookback, at most 90 days (`daily`). These five count per day
+ago (`DaysAgo`, 0 for the last 24 hours, from when the query runs), so the last N days of
+them sum to exactly the rolling N-day window the captures above read. The site build
+carries them in the dashboard model, whose window slider re-scopes its cards to any number
+of days up to the span. Playbook runs are counted per day too, inside `playbook-runs`.
+
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `daily-table-usage` | `Usage` | Daily | Billable GB per table per day |
+| `daily-alerts` | `SecurityAlert` | Daily | Alerts per day by name, product, severity, provider and rule id, each alert once, on the day it was first seen |
+| `daily-incidents` | `SecurityIncident` | Daily | Incidents per day at their latest state, by severity, open or closed, classification and who closed them, with acknowledge and resolve counts and minutes |
+| `daily-rule-incidents` | `SecurityIncident`, `SecurityAlert` | Daily | Incidents per detection per day with their verdicts, keyed as `rule-effectiveness` keys them |
+| `daily-health` | `SentinelHealth` | Daily | Health events per day by operation and status |
 
 ### Two examples
 

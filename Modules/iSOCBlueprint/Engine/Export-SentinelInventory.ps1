@@ -87,7 +87,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.8.0
+    Version:        0.9.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -165,14 +165,19 @@ $InformationPreference = 'Continue'
 # ---------------------------------------------------------------------------
 # One lookback for every query. A query names it as `lookback` (its main
 # window) and `recent` (the latest days within it, the shorter of 7 days and
-# the lookback); Add-BpWindow declares both ahead of the query text, so no
-# query carries a number of days of its own. Two sub-windows stay fixed
-# because they are not lookbacks: a table's last 24 hours of ingestion and
-# the one-hour sample the duplicate-event check reads.
+# the lookback); the daily series name `daily` (below). Add-BpWindow declares
+# all three ahead of the query text, so no query carries a number of days of
+# its own. Two sub-windows stay fixed because they are not lookbacks: a
+# table's last 24 hours of ingestion and the one-hour sample the
+# duplicate-event check reads.
 $script:LookbackDays = $LookbackDays
 $script:RecentDays   = [math]::Min(7, $LookbackDays)
+# The days the daily series cover: the lookback, at most 90. The dashboard's
+# slider re-scopes its cards to any number of days up to this.
+$script:DailyDays    = [math]::Min(90, $LookbackDays)
 function Add-BpWindow([string]$Kql) {
-    "let lookback = $($script:LookbackDays)d;`nlet recent = $($script:RecentDays)d;`n$Kql"
+    $daily = if ($script:DailyDays -ge 1) { $script:DailyDays } else { [math]::Min(90, $script:LookbackDays) }
+    "let lookback = $($script:LookbackDays)d;`nlet recent = $($script:RecentDays)d;`nlet daily = $($daily)d;`n$Kql"
 }
 
 # ---------------------------------------------------------------------------
@@ -331,6 +336,7 @@ $runContext = [pscustomobject]@{
     IncludePreview    = [bool]$IncludePreview
     LookbackDays      = $script:LookbackDays
     RecentDays        = $script:RecentDays
+    DailyDays         = $script:DailyDays
     ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -as [string] } else { $null })
 }
 Save-Json -FileName 'run-context.json' -Data $runContext
@@ -731,7 +737,7 @@ Try-Capture 'playbook-runs' {
         $state = ''
         if ($wf.PSObject.Properties.Name -contains 'properties' -and $null -ne $wf.properties -and
             $wf.properties.PSObject.Properties.Name -contains 'state') { $state = [string]$wf.properties.state }
-        $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null; Note = $null }
+        $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null; Note = $null; Daily = @() }
         if ($state -eq 'Enabled') {
             try {
                 $runs = @(Invoke-SentinelRest -Path "$($wf.id)/runs?`$top=250&`$filter=startTime ge $since" -ApiVersion '2016-06-01')
@@ -739,6 +745,18 @@ Try-Capture 'playbook-runs' {
                 $failed = @($runs | Where-Object { [string]$_.properties.status -in @('Failed', 'TimedOut', 'Aborted') })
                 $row.Runs7d = $runs.Count
                 $row.Failed7d = $failed.Count
+                # Runs and failures per day for the dashboard's slider, as
+                # days ago (0 = the last 24 hours), within the daily span.
+                $nowUtc = (Get-Date).ToUniversalTime()
+                $byDay = @{}
+                foreach ($run in $runs) {
+                    $ago = [int][math]::Floor(($nowUtc - ([datetime]$run.properties.startTime).ToUniversalTime()).TotalDays)
+                    if ($ago -lt 0 -or $ago -ge $script:DailyDays) { continue }
+                    if (-not $byDay.ContainsKey($ago)) { $byDay[$ago] = [ordered]@{ DaysAgo = $ago; Runs = 0; Failed = 0 } }
+                    $byDay[$ago].Runs++
+                    if ([string]$run.properties.status -in @('Failed', 'TimedOut', 'Aborted')) { $byDay[$ago].Failed++ }
+                }
+                $row.Daily = @($byDay.Keys | Sort-Object | ForEach-Object { [pscustomobject]$byDay[$_] })
                 if ($runs.Count -gt 0) {
                     $latest = $runs | Sort-Object { [datetime]$_.properties.startTime } -Descending | Select-Object -First 1
                     $row.LastRunStatus = [string]$latest.properties.status
@@ -1575,7 +1593,7 @@ SecurityIncident
 }
 
 Try-Capture 'rules-fired' {
-    # Which Sentinel scheduled and NRT rules produced alerts in 30 days,
+    # Which Sentinel scheduled and NRT rules produced alerts in the lookback,
     # keyed on rule id so renamed or dynamically named alerts still match.
     $kql = @'
 SecurityAlert
@@ -1611,6 +1629,124 @@ Usage
         Save-Json -FileName 'workspace-usage-daily.json' -Data ($result.Results)
     } catch {
         Save-Json -FileName 'workspace-usage-daily.json' -Data @()
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Daily series for the dashboard's slider
+# ---------------------------------------------------------------------------
+# The dashboard re-scopes its cards to any number of days up to the daily
+# span (the lookback, at most 90). Each series counts per day ago (0 = the
+# last 24 hours, 1 = the 24 before, and so on, from when the query runs),
+# so summing days 0 to N-1 gives exactly the rolling N-day window the other
+# captures read with ago(). Incidents count on the day of their latest
+# update, at their latest state, as the incident captures do; alerts on the
+# day they were first seen, once each.
+
+Try-Capture 'daily-table-usage' {
+    $kql = @'
+Usage
+| where TimeGenerated > ago(daily) and IsBillable == true
+| summarize GB = round(sum(Quantity) / 1024.0, 4) by DataType, DaysAgo = toint((now() - TimeGenerated) / 1d)
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+        Save-Json -FileName 'daily-table-usage.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'daily-table-usage.json' -Data @()
+    }
+}
+
+Try-Capture 'daily-alerts' {
+    $kql = @'
+SecurityAlert
+| where TimeGenerated > ago(daily)
+| extend ep = parse_json(ExtendedProperties)
+| extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
+| summarize arg_min(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId) by SystemAlertId
+| summarize Alerts = count() by DaysAgo = toint((now() - TimeGenerated) / 1d), AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+        Save-Json -FileName 'daily-alerts.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'daily-alerts.json' -Data @()
+    }
+}
+
+Try-Capture 'daily-incidents' {
+    $kql = @'
+let inc = SecurityIncident
+| where TimeGenerated > ago(daily)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber;
+let closing = SecurityIncident
+| where TimeGenerated > ago(daily) and Status == "Closed"
+| summarize arg_min(TimeGenerated, ModifiedBy) by IncidentNumber
+| project IncidentNumber, ClosingBy = ModifiedBy;
+inc
+| join kind=leftouter closing on IncidentNumber
+| extend IsClosed = Status == "Closed"
+| extend ClosedBy = iff(not(IsClosed), "", case(ClosingBy contains "Automation", "AutomationRule",
+                   ClosingBy has_any ("Microsoft 365 Defender", "Microsoft Defender XDR", "Microsoft XDR"), "DefenderXdr",
+                   ClosingBy contains "@", "Analyst",
+                   "Other")),
+    Class = iff(IsClosed, iff(isempty(Classification), "Unclassified", Classification), ""),
+    AckMins = iff(IsClosed and isnotnull(FirstModifiedTime), datetime_diff('minute', FirstModifiedTime, CreatedTime), long(null)),
+    RsvMins = iff(IsClosed and isnotnull(ClosedTime), datetime_diff('minute', ClosedTime, CreatedTime), long(null))
+| summarize Incidents = count(), AckCount = countif(isnotnull(AckMins)), AckSum = sum(AckMins), RsvCount = countif(isnotnull(RsvMins)), RsvSum = sum(RsvMins)
+    by DaysAgo = toint((now() - TimeGenerated) / 1d), Severity, Status = iff(IsClosed, "Closed", "Open"), Class, ClosedBy
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+        Save-Json -FileName 'daily-incidents.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'daily-incidents.json' -Data @()
+    }
+}
+
+Try-Capture 'daily-rule-incidents' {
+    $kql = @'
+let alerts = SecurityAlert
+| where TimeGenerated > ago(daily)
+| extend ep = parse_json(ExtendedProperties)
+| extend AlertRuleId = tolower(coalesce(tostring(parse_json(tostring(ep["Analytic Rule Ids"]))[0]), tostring(ep["Analytic Rule Id"])))
+| summarize arg_max(TimeGenerated, AlertName, AlertRuleId, ProductName, ProviderName) by SystemAlertId
+| project SystemAlertId, AlertName, AlertRuleId, ProductName, ProviderName;
+SecurityIncident
+| where TimeGenerated > ago(daily)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| project IncidentNumber, DaysAgo = toint((now() - TimeGenerated) / 1d), Status, Classification, AlertIds
+| mv-expand AlertId = AlertIds to typeof(string)
+| join kind=inner alerts on $left.AlertId == $right.SystemAlertId
+| extend RuleKey = iff(isempty(AlertRuleId), AlertName, AlertRuleId)
+| summarize AlertRuleId = any(AlertRuleId), RuleName = any(AlertName), Product = any(ProductName), Provider = any(ProviderName),
+    Incidents = dcount(IncidentNumber),
+    Closed = dcountif(IncidentNumber, Status == "Closed"),
+    TruePositive = dcountif(IncidentNumber, Classification == "TruePositive"),
+    FalsePositive = dcountif(IncidentNumber, Classification == "FalsePositive"),
+    BenignPositive = dcountif(IncidentNumber, Classification == "BenignPositive"),
+    Undetermined = dcountif(IncidentNumber, Status == "Closed" and (Classification == "Undetermined" or isempty(Classification)))
+    by RuleKey, DaysAgo
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+        Save-Json -FileName 'daily-rule-incidents.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'daily-rule-incidents.json' -Data @()
+    }
+}
+
+Try-Capture 'daily-health' {
+    $kql = @'
+SentinelHealth
+| where TimeGenerated > ago(daily)
+| summarize LogCount = count() by DaysAgo = toint((now() - TimeGenerated) / 1d), OperationName, Status
+'@
+    try {
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+        Save-Json -FileName 'daily-health.json' -Data ($result.Results)
+    } catch {
+        Save-Json -FileName 'daily-health.json' -Data @()
     }
 }
 

@@ -6,6 +6,25 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A window slider on the dashboard** - the dashboard's top bar has a
+  slider in place of the snapshot date picker: from 1 day to the days
+  collected (at most 90), with the dates the window covers beside it
+  ("Last 14 days, 30 Sep to 14 Oct 2026"). Letting go redraws every card
+  that counts activity for that window (the glance tiles, the alert
+  lifecycle, the estate pipeline, the billing flow and cost, the detection
+  matrix, top tables and rules, health, incident outcomes, rule
+  effectiveness, detection opportunities, playbook health and daily
+  ingestion) and reopens the tab that was showing. Configuration, threat
+  intelligence, the findings, the maturity score and the Report tab keep
+  the collected window and say so. The collector adds five daily captures
+  (table GB, alerts, incidents, incidents per detection, health events)
+  and per-day playbook runs over the lookback, at most 90 days, which the
+  site build carries into the dashboard; a run collected before them shows
+  no slider. The daily dashboard copies are still kept in the assets
+  library, but the dashboard no longer links to them. The estate's "rules
+  that fired" now counts only rules that are still enabled Scheduled or
+  NRT rules, so a rule disabled or deleted after it fired no longer takes
+  it past 100%.
 - **One lookback for every query, settable in the pipeline** - the
   collector's KQL captures each had their own window (7, 8, 12, 14, 30 or 90
   days). They now all read one lookback: `-LookbackDays` on

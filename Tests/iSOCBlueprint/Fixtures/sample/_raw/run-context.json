@@ -10,5 +10,8 @@
   "CompletedAtUtc": "2026-05-06T08:02:30.0000000Z",
   "BlueprintVersion": "0.1.0",
   "AzPSVersion": "3.0.4",
-  "IncludePreview": false
+  "IncludePreview": false,
+  "LookbackDays": 30,
+  "RecentDays": 7,
+  "DailyDays": 30
 }
