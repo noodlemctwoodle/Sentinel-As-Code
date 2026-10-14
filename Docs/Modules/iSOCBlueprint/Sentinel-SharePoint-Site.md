@@ -163,9 +163,13 @@ eight busiest, then "All N rules in the report". Detection opportunities
 shows twelve tables, then the same kind of
 button. Nothing expands in place there, so a list of thousands never
 turns into a long scroll; a card whose report page is missing from the
-run keeps a "Show all N" control instead. Elsewhere (the
-Overview's quick wins, ten roadmap gaps, a table's templates) "Show all N"
-reveals the rest. The Overview's top findings are the critical ones only,
+run keeps a Show all control instead. Elsewhere (the Overview's quick
+wins, ten roadmap gaps, a table's templates) Show all reveals the rest. In
+a table it is a chevron rather than a labelled button, held at the top
+right so it does not move as the list opens: in the table's header row when
+it opens further rows, or beside the first chips in a cell. It turns over
+when open, and "Show all N" or "Show fewer" is its tooltip and what a
+screen reader announces. The Overview's top findings are the critical ones only,
 with a button to the findings view, which lists every finding. With the
 data lake enrolled, the Insights tab's ingestion by billing plan card
 shows a Data lake plan row (0 GB when no table is lake-only) and a line
@@ -180,7 +184,8 @@ template's `sbtn(label, attrs, opts)` writes a `.sbtn` button (or a link,
 for "Open as a page"): white on the brand gradient a selected tab or
 switch takes, one size (12.5px, 7px by 14px padding), one shape (10px
 corners), with an arrow when it opens something. `.sbtn.icon` is the
-square form for a symbol (zoom, a card's expand chevron). That covers
+square form for a symbol (zoom, a card's expand chevron, a table's Show
+all chevron). That covers
 "Show all" and "Show fewer", "Expand", "Clear filters", Close, the
 report buttons ("All 2,780 rules in the report"), the finding links on a
 criterion, and "Open the assessment", "Open the MITRE page", "Open the
@@ -278,9 +283,11 @@ bracketed qualifier ("last 30d") becomes a caption. A line that is mostly
 text, such as a finding's severity and category, stays as text. A table
 cell holding a list of four or more items separated by semicolons (the
 solutions behind a table's templates, a finding's evidence list) shows as
-chips: the first three, then Show all for the rest, with a lead-in such as
-"146 rule(s) disabled:" kept as text above them; a solution marked
-installed is tinted green. Status words in a table cell show as pills:
+chips: the first three, then a Show all chevron for the rest, with a lead-in such as
+"146 rule(s) disabled:" kept as text above them. A template source that is
+ready to enable, a solution marked installed or Built-in (templates that
+ship with Sentinel), is tinted green; one whose solution is not installed
+stays grey, and the table's tool bar carries a key to the two. Status words in a table cell show as pills:
 green for Up to date and Current, amber for Update available and Stale,
 red for Deprecated, Not in catalogue and Stale, used by rules. A chart
 with more than one series shows its key above the bars. The Markdown pages refer to one another by

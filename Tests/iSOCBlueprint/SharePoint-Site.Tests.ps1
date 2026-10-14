@@ -1585,10 +1585,36 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'const CELL_CHIPS=3;'
         $html | Should -Match 'function listCell\(c\)\{'
         $html | Should -Match "const chips=c\? listCell\(c\) : ''; if\(chips\) return chips;"
-        $html | Should -Match '\.cellchips \.tagpill\.inst\{'
+        $html | Should -Match '\.cellchips \.tagpill\.inst,'
         $html | Should -Match "t\.installed===true\?' \(installed\)'"
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) | ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
+    }
+
+    It 'opens the rest of a table, or of a cell''s chips, with a chevron held at the top right' {
+        $html | Should -Match 'function moreChev\(total,label,cls\)\{'
+        $html | Should -Match '\.morechev\[aria-expanded="true"\] svg\{transform:rotate\(180deg\)\}'
+        # In a table's header row; under the table only when it has no header.
+        $html | Should -Match 'table\.tbl thead th \.morechev\{float:right;'
+        $html.Contains("inner.replace(/<\/th>(\s*)<\/tr>(\s*)<\/thead>/, ()=>moreChev(total,label)+'</th></tr></thead>')") | Should -BeTrue
+        # Chips wrap on the left; the chevron sits beside them, not after them.
+        $html | Should -Match '\.oppl>\.morechev,\.cellchips>\.morechev\{flex:none\}'
+        $html.Contains("'<div class=""morewrap cellchips""><div class=""chipl"">'") | Should -BeTrue
+        $html.Contains("(items.length>CELL_CHIPS? moreChev(items.length) : '')") | Should -BeTrue
+        $html.Contains("(o.templates.length>PILLS?moreChev(o.templates.length,'templates'):'')") | Should -BeTrue
+        # Every table that hides rows uses moreTable; moreWrap is left for lists.
+        $html | Should -Not -Match 'moreWrap\((''<table|head\+trRows)'
+        ([regex]::Matches($html, 'moreTable\(')).Count | Should -BeGreaterThan 6
+        $html | Should -Not -Match 'morepill'
+        # The chevron keeps its label as tooltip and accessible name.
+        $html.Contains("if(b.classList.contains('morechev')){ b.setAttribute('aria-label',label); b.title=label;") | Should -BeTrue
+    }
+
+    It 'tints a chip whose templates are ready to enable, Built-in included, and keys the colours' {
+        $html.Contains("const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(") | Should -BeTrue
+        $html | Should -Match '<span class="tagpill inst">Installed or built in</span><span class="tagpill">Not installed</span>'
+        $html.Contains("const key=body.indexOf('tagpill inst')>=0 ? CHIP_KEY : '';") | Should -BeTrue
+        $html | Should -Match '\.chipkey \.tagpill\.inst\{'
     }
 
     It 'shows status words in report cells as pills and puts a chart''s key above its bars' {

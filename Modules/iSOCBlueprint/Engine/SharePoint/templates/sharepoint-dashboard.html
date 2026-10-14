@@ -438,11 +438,23 @@
   .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
   .csfc h4{margin:0 0 8px;font-size:12.5px;font-weight:750}
   .csfc .dms{width:110px;height:110px} .csfc .dms .dmshole{width:68px;height:68px} .csfc .dms .dmsv{font-size:16px}
-  .oppl{display:flex;flex-wrap:wrap;gap:5px}
+  /* A chip list that can open: the chips wrap on the left, the chevron
+     holds the top right and does not move when the list opens. */
+  .oppl,.cellchips{display:flex;align-items:flex-start;gap:8px}
+  .chipl{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .oppl>.morechev,.cellchips>.morechev{flex:none}
   /* Lists show their first few entries; "Show all" reveals the rest. Nothing
      is dropped from the model, so the dashboard reports everything. */
   [hidden]{display:none !important}
   .morebtn{margin-top:10px}
+  /* In a table, Show all is a chevron (.morechev) at the top right: of a
+     cell's chips, or in the table's header row when it opens further rows,
+     so it stays put as the list opens. It turns over when open; Show all N
+     and Show fewer are its tooltip and accessible name. */
+  .morechev svg{transition:transform .2s}
+  .morechev[aria-expanded="true"] svg{transform:rotate(180deg)}
+  table.tbl thead th .morechev{float:right;margin:-8px 0 -8px 10px}
+  .morechev.tfoot{display:flex;margin:10px auto 0}
   .flowfilter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
   .fchip{font:inherit;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
     background:var(--chip);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
@@ -545,9 +557,9 @@
   table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
   .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
   .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
-  .cellchips{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .chipkey{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px}
   .cellchips .tagpill{white-space:normal}
-  .cellchips .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
+  .cellchips .tagpill.inst,.chipkey .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
   .cellk{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px}
   .tagpill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;
     background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2)}
@@ -1093,6 +1105,20 @@
     const btn = total>shown ? sbtn('Show all '+total+' '+label, 'data-more data-all="Show all '+total+' '+label+'" data-less="Show fewer"', {cls:'morebtn'}) : '';
     return '<div class="morewrap">'+inner+btn+'</div>';
   }
+  // moreChev(total,label,cls): Show all as a chevron, for tables and the
+  // chip lists in their cells (see .morechev); moreTable is moreWrap for a
+  // table, with the chevron in its header row (under the table only if it
+  // has no header).
+  const SBTN_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function moreChev(total,label,cls){
+    const all='Show all '+total+(label?' '+label:'');
+    return sbtn(SBTN_CHEV,'data-more data-all="'+esc(all)+'" data-less="Show fewer" aria-label="'+esc(all)+'" title="'+esc(all)+'" aria-expanded="false"',{icon:true,cls:'morechev'+(cls?' '+cls:'')});
+  }
+  function moreTable(inner,total,shown,label){
+    if(total<=shown) return '<div class="morewrap">'+inner+'</div>';
+    const inHead=inner.replace(/<\/th>(\s*)<\/tr>(\s*)<\/thead>/, ()=>moreChev(total,label)+'</th></tr></thead>');
+    return '<div class="morewrap">'+(inHead!==inner ? inHead : inner+moreChev(total,label,'tfoot'))+'</div>';
+  }
   const trRows=(rows,show)=>rows.map((r,i)=> i<show ? r : r.replace(/^<tr\b/,'<tr data-mr hidden')).join('');
   // longText(text): three visible lines and an Expand control when there is
   // more; semicolon-separated lists expand as a bulleted list.
@@ -1120,7 +1146,7 @@
   function findingCard(f){
     return '<div class="fcard e-'+esc(f.severity)+'" data-fid="'+esc(f.id)+'">'+
       '<div class="fc-head"><span class="sev '+esc(f.severity)+'">'+esc(f.severity)+'</span><b class="fc-id">'+esc(f.id)+'</b><span class="fc-title">'+esc(f.title)+'</span>'+
-      '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+      '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text">'+SBTN_CHEV+'</button></span></div>'+
       '<div class="fc-meta">'+(f.category?'<span class="fchip">'+esc(f.category)+'</span>':'')+(f.area?'<span class="fchip">Area '+esc(f.area)+'</span>':'')+maturityChip(f)+'</div>'+
       '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(f.evidence||'')+'<div class="fc-link"></div></div>'+
       '<div class="fc-block"><div class="flabel">Remediation</div>'+longText(f.remediation||'')+'<div class="fc-link">'+(f.learn?'<a href="'+esc(f.learn)+'" target="_blank" rel="noopener">Microsoft Learn &rarr;</a>':'')+'</div></div></div></div>';
@@ -1159,7 +1185,9 @@
     const wrap=b.closest('.morewrap'); if(!wrap) return;
     const open=wrap.classList.toggle('open');
     wrap.querySelectorAll('[data-mr]').forEach(el=>{ if(el.closest('.morewrap')===wrap) el.hidden=!open; });
-    b.textContent=open ? (b.dataset.less||'Show fewer') : b.dataset.all;
+    const label=open ? (b.dataset.less||'Show fewer') : b.dataset.all;
+    if(b.classList.contains('morechev')){ b.setAttribute('aria-label',label); b.title=label; b.setAttribute('aria-expanded',String(open)); }
+    else b.textContent=label;
     markClamped(wrap);
     if(typeof window.fitIframe==='function') window.fitIframe();
   });
@@ -1474,7 +1502,7 @@
     const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
       ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
     el.innerHTML='<div class="esdetail"><div class="esd-head"><h3>'+esc(title)+'</h3><p class="note">'+esc(sub)+'</p>'+(opNum!=null&&!sel.family?sbtn('Detection opportunities','data-jump="'+opNum+'"',{go:true}):'')+sbtn('Close','data-esd-close')+'</div>'+cdLine+fpLine+
-      (rows.length? moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
+      (rows.length? moreTable('<table class="tbl"><thead><tr><th>Table</th><th>Family</th><th class="num">GB / 30d</th><th class="num">Sentinel rules</th><th class="num">Custom detections</th><th>Coverage</th></tr></thead><tbody>'+trRows(trs,10)+'</tbody></table>',rows.length,10,'tables') : '<p class="note">No tables.</p>')+'</div>';
     el.classList.remove('hidden');
     el.querySelector('[data-esd-close]').addEventListener('click',()=>{ el.classList.add('hidden'); el.innerHTML=''; if(typeof window.fitIframe==='function') window.fitIframe(); });
     el.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',()=>jumpTo(+a.dataset.jump)));
@@ -1973,7 +2001,7 @@
     const head='<table class="tbl"><thead><tr><th>Rule</th><th>Product</th><th>Sev</th><th>Alerts</th></tr></thead><tbody>';
     el.innerHTML = sec!=null
       ? head+rows.slice(0,8).join('')+'</tbody></table>'+(rows.length>8? sbtn('All '+rows.length.toLocaleString()+' rules in the report','data-jump="'+sec+'"',{go:true,cls:'morebtn'}) : '')
-      : moreWrap(head+trRows(rows,8)+'</tbody></table>', rows.length, 8, 'rules');
+      : moreTable(head+trRows(rows,8)+'</tbody></table>', rows.length, 8, 'rules');
     el.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>jumpTo(+b.dataset.jump)));
   })();
 
@@ -2409,7 +2437,7 @@
       '<p class="note">Incidents per detection with their closure verdicts: Sentinel analytics rules first, then other products\' alerts (product shown under the name). FP rate is false positives over closed incidents.</p>'+
       (secRulePerf!=null
         ? '<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody data-fill-list data-fill-total="'+rows.length+'">'+rows.slice(0,FILL_CAP).join('')+'</tbody></table>'+fillFoot(rows.length,secRulePerf,'detections')
-        : moreWrap('<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+trRows(rows,8)+'</tbody></table>',rows.length,8,'detections'))+'</div>');
+        : moreTable('<table class="tbl"><thead><tr><th>Detection</th><th>Inc.</th><th>Closed</th><th>TP</th><th>FP</th><th>FP rate</th></tr></thead><tbody>'+trRows(rows,8)+'</tbody></table>',rows.length,8,'detections'))+'</div>');
   }
 
   // 7c. Daily ingestion trend (string-built SVG: area, line, average, three x labels)
@@ -2442,15 +2470,15 @@
   if(M.detectionOpportunities && M.detectionOpportunities.length){
     const PILLS=3;
     const rows=M.detectionOpportunities.map(o=>'<tr><td>'+esc(o.table)+'<div class="note" style="margin:2px 0 0">'+esc(o.family)+'</div></td><td class="num">'+fmtN(o.gb30d)+' GB</td><td>'+
-      (o.templates&&o.templates.length? '<div class="oppl morewrap">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+(t.solution?' title="'+esc(t.solution+(t.installed===true?' (installed)':t.installed===false?' (solution not installed)':''))+'"':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+
-        (o.templates.length>PILLS?sbtn('Show all '+o.templates.length,'data-more data-all="Show all '+o.templates.length+'" data-less="Show fewer"',{cls:'morepill'}):'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
+      (o.templates&&o.templates.length? '<div class="oppl morewrap"><div class="chipl">'+o.templates.map((t,i)=>'<span class="tagpill"'+(i>=PILLS?' data-mr hidden':'')+(t.solution?' title="'+esc(t.solution+(t.installed===true?' (installed)':t.installed===false?' (solution not installed)':''))+'"':'')+'>'+esc(t.name)+(t.severity?' · '+esc(t.severity):'')+'</span>').join('')+'</div>'+
+        (o.templates.length>PILLS?moreChev(o.templates.length,'templates'):'')+'</div>':'<span class="note">no template reads this table</span>')+'</td></tr>');
     cards.push('<div class="ipanel full"><h3>Detection opportunities</h3>'+
       '<p class="note">Tables with data that no enabled rule reads, with the undeployed, non-deprecated templates that would cover them.</p>'+
       // The first twelve here; every table on the report page.
       (opNum
         ? '<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+rows.slice(0,12).join('')+'</tbody></table>'+
           (rows.length>12? fillFoot(rows.length,opNum,'tables',false,true) : '')
-        : moreWrap('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
+        : moreTable('<table class="tbl"><thead><tr><th>Table</th><th>GB / 30d</th><th>Templates ready to enable</th></tr></thead><tbody>'+trRows(rows,12)+'</tbody></table>',rows.length,12,'tables'))+'</div>');
   }
 
   // 7e. Playbook health (7d)
@@ -2571,7 +2599,7 @@
     }
     if(MAT.roadmap&&MAT.roadmap.length){
       html+='<div class="panel" id="matRoadmap"><div class="phead"><div><h2>Roadmap</h2><p class="note">Every gap ordered by how much closing it lifts the overall score, then by effort. Projected = the overall score after this and every entry above it.</p></div></div>'+
-        moreWrap('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
+        moreTable('<table class="tbl"><thead><tr><th>#</th><th>Criterion</th><th>Area</th><th>Effort</th><th>Lift</th><th>Projected</th></tr></thead><tbody>'+
         trRows(MAT.roadmap.map(r=>'<tr class="frow" role="button" tabindex="0" data-crit="'+esc(r.criterionId)+'" title="Show this criterion and the findings behind it"><td>'+r.priority+'</td><td><b class="cid">'+esc(r.criterionId)+'</b> '+esc(r.name)+'<div class="note" style="margin:3px 0 0">'+longText(r.guidance||'')+'</div></td>'+
           '<td>'+esc(areaName[r.area]||r.area)+'</td><td>'+esc(r.effort)+'</td><td class="num">'+fmtLift(r.overallLift)+'</td><td class="num">'+(+r.projectedScore||0).toFixed(2)+'</td></tr>'),10)+
         '</tbody></table>',MAT.roadmap.length,10,'gaps')+'</div>';
@@ -2604,7 +2632,7 @@
       if(clr) clr.hidden=!(st||av||s);
       tb.innerHTML=rows.map(c=>'<div class="fcard e-'+esc(c.status)+'" data-cid="'+esc(c.id)+'">'+
         '<div class="fc-head"><span class="st '+esc(c.status)+'">'+esc(c.status)+'</span><b class="fc-id">'+esc(c.id)+'</b><span class="fc-title">'+esc(c.name)+'</span>'+
-        '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></span></div>'+
+        '<span class="fc-actions"><button type="button" class="sbtn icon fc-expand" data-fcx aria-label="Show the full text" title="Show the full text">'+SBTN_CHEV+'</button></span></div>'+
         '<div class="fc-meta"><span class="fchip">'+esc(areaName[c.area]||c.area)+'</span>'+(c.kind?'<span class="fchip">'+esc(c.kind)+'</span>':'')+(c.effort?'<span class="fchip">'+esc(c.effort)+' effort</span>':'')+'</div>'+
         '<p class="fc-impact">'+esc(c.impact||'')+'</p>'+
         '<div class="fc-body"><div class="fc-block"><div class="flabel">Evidence</div>'+longText(c.evidence||'')+'<div class="fc-link">'+critFindingLinks(c)+'</div></div>'+
@@ -2849,8 +2877,10 @@
           return '<td class="'+(wrap?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
         }).join('')+'</tr>').join('');
       const tid='dt'+idx;
+      const key=body.indexOf('tagpill inst')>=0 ? CHIP_KEY : '';
       return '<div class="doctable-wrap">'+
-        (many?'<div class="doctable-tools"><input type="search" data-for="'+tid+'" placeholder="Filter '+b.rows.length+' rows…"><span class="dtc" id="'+tid+'c">'+b.rows.length+' rows</span></div>':'')+
+        (many?'<div class="doctable-tools"><input type="search" data-for="'+tid+'" placeholder="Filter '+b.rows.length+' rows…">'+key+'<span class="dtc" id="'+tid+'c">'+b.rows.length+' rows</span></div>'
+          : key?'<div class="doctable-tools">'+key+'</div>':'')+
         '<div class="doctscroll"><table class="doct" id="'+tid+'">'+thead+'<tbody>'+body+'</tbody></table></div></div>';
     }
 
@@ -2859,8 +2889,12 @@
     // A list of four or more items in a cell, separated by "; " (template
     // names, the solutions they come from), reads as chips: the first
     // CELL_CHIPS, then Show all for the rest, so nothing is hidden and the
-    // row stays short. A solution marked "installed" is tinted.
+    // row stays short. A template source that is ready to enable (a solution
+    // marked "installed", or Built-in) is tinted green; one whose solution
+    // is not installed stays grey. Tables with tinted chips carry a key.
     const CELL_CHIPS=3;
+    const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(x.replace(/<[^>]+>/g,'').trim());
+    const CHIP_KEY='<span class="chipkey" title="Where the templates come from: green is ready to enable (its solution is installed, or it ships with Sentinel); grey needs its Content Hub solution installed first"><span class="tagpill inst">Installed or built in</span><span class="tagpill">Not installed</span></span>';
     function listCell(c){
       const items=String(c).split(/(?<!&[a-z0-9#]{1,8});\s+/i).map(x=>x.trim()).filter(Boolean);
       // Two or three short items are chips too; a sentence with a
@@ -2869,8 +2903,8 @@
       // A lead-in before the list ("146 rule(s) disabled: ...") stays text.
       let lead='';
       const m=/^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
-      return lead+'<div class="morewrap cellchips">'+items.map((x,i)=>'<span class="tagpill'+(/,\s*installed\)$/.test(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+
-        (items.length>CELL_CHIPS? sbtn('Show all '+items.length,'data-more data-all="Show all '+items.length+'" data-less="Show fewer"',{cls:'morepill'}) : '')+'</div>';
+      return lead+'<div class="morewrap cellchips"><div class="chipl">'+items.map((x,i)=>'<span class="tagpill'+(readyChip(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+'</div>'+
+        (items.length>CELL_CHIPS? moreChev(items.length) : '')+'</div>';
     }
     // Status words in a table cell read as pills: green for fine, amber to
     // act on, red for something that no longer works or is risky.
@@ -3230,7 +3264,7 @@
     if(impact.length){
       html+='<div class="panel"><div class="phead"><div><h2>Score impact</h2><p class="note">Every finding that decides a maturity criterion, ordered by how much closing it lifts the overall score. Shared: the criterion also needs other findings closed. '+
         (items.length-nScored===1?'1 further finding is a hygiene or cost check':(items.length-nScored)+' further findings are hygiene or cost checks')+' the score does not count.</p></div></div>'+
-        moreWrap('<table class="tbl"><thead><tr><th>Finding</th><th>Severity</th><th>Criterion</th><th>Area</th><th class="num">Lift</th></tr></thead><tbody>'+
+        moreTable('<table class="tbl"><thead><tr><th>Finding</th><th>Severity</th><th>Criterion</th><th>Area</th><th class="num">Lift</th></tr></thead><tbody>'+
           trRows(impact.map(x=>'<tr class="frow" '+pick('id',x.f.id)+' title="Show this finding"><td><b class="cid">'+esc(x.f.id)+'</b> '+esc(x.f.title)+'</td>'+
             '<td><span class="sev '+esc(x.f.severity)+'">'+esc(x.f.severity)+'</span></td>'+
             '<td><b class="cid">'+esc(x.m.criterionId)+'</b> '+esc(x.m.name)+(x.m.shared?' <span class="note">(shared)</span>':'')+'</td>'+

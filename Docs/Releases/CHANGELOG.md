@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Tables open with a chevron, and chip colours have a key** - in the
+  dashboard, a table whose further rows are hidden, and a table cell whose
+  chips are cut at three, now open with the square chevron button the
+  finding cards use rather than a "Show all N" button. It holds the top
+  right (the table's header row, or beside the cell's first chips), so it
+  does not move as the list opens, and turns over when open; "Show all N"
+  and "Show fewer" are its tooltip and what a screen reader announces.
+  Lists outside tables keep their labelled Show all button. In the solution
+  chips behind a table's templates, Built-in now takes the same green as an
+  installed solution (both are ready to enable), grey means the solution
+  is not installed, and the table's tool bar shows a key.
 - **A folder per day, so a run no longer overwrites the last** - the
   module now writes each run to `SecurityDocs/<workspace>/<yyyy-MM-dd>/`
   (UTC), so earlier runs stay where they are; a second run on the same day
