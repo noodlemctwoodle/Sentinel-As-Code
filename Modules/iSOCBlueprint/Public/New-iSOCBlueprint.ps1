@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -112,6 +112,10 @@ function New-iSOCBlueprint {
         Path to isoc-blueprint.sppkg, deployed to the site when its version
         differs from the one there.
 
+    .PARAMETER HistoryDays
+        Days of dashboard snapshots the site keeps for its date picker.
+        Defaults to 90; 0 keeps none.
+
     .OUTPUTS
         [pscustomobject] WorkspaceName, Path (the workspace folder), Format,
         and what was produced: SectionsPath, MarkdownPath, WordDocument,
@@ -183,7 +187,10 @@ function New-iSOCBlueprint {
 
         [string] $Tenant,
 
-        [string] $AppPackagePath
+        [string] $AppPackagePath,
+
+        [ValidateRange(0, 3650)]
+        [int] $HistoryDays = 90
     )
 
     $Format = @($Format | Select-Object -Unique)
@@ -254,6 +261,7 @@ function New-iSOCBlueprint {
                 $publish.Tenant = $Tenant
             }
             if ($AppPackagePath) { $publish.AppPackagePath = $AppPackagePath }
+            $publish.HistoryDays = $HistoryDays
             $published = Publish-iSOCBlueprintSite @publish
         }
     }

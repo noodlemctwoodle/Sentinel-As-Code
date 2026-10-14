@@ -20,7 +20,7 @@ One communication site per workspace, containing:
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the publisher's state file and the maturity score history. | `BlueprintAssets` library |
+| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, and a copy of the dashboard per day for its date picker (`dashboard/history/`). | `BlueprintAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -431,11 +431,37 @@ The entry is keyed on the bundle's build time, so publishing the same
 bundle twice does not add a point, and the file is capped at 180 entries
 (`Add-SacMaturityHistoryEntry -MaxEntries`). A copy is written next to the
 dashboard (`BlueprintAssets/dashboard/maturity-history.json`); the
-Assessment tab's maturity view fetches it from beside its own page and draws the overall
-score as a trend once two entries exist. Opened from disk, the fetch
-cannot run and the trend panel stays hidden. Both files are readable by
+Assessment tab's maturity view reads it from beside the live dashboard and
+draws the overall score as a trend once two entries exist. On SharePoint
+the dashboard runs in a frame whose address is `about:srcdoc`, so the
+dashboard web part tells it the folder and reads the file for it (through
+SharePoint's REST API, as it reads the dashboard itself); served as files,
+the dashboard reads it from beside its own page. Opened from disk there is
+nothing to read and the trend panel stays hidden. Both files are readable by
 anyone who can read the dashboard, which is the same audience. `-WhatIf`
 reports what it would append and writes nothing.
+
+### Dashboard snapshots
+
+Every publish also keeps the day's dashboard as
+`BlueprintAssets/dashboard/history/<yyyy-MM-dd>.html` and lists it in
+`dashboard/history/index.json` (date, file, generated time, findings,
+critical findings, maturity score), newest first. The day is the
+inventory's, so a second publish of the same run replaces that day's copy.
+The list keeps the last `-HistoryDays` days (90 by default), counting back
+from the newest, so with the daily pipeline it grows a day at a time until
+it holds 90 days; older days go to the recycle bin. `-HistoryDays 0` keeps
+none. A copy is about the size of the dashboard (around 3 MB).
+
+The dashboard reads the list and shows a date picker beside the light and
+dark toggle: Latest, then every kept day with its maturity score and
+findings. Choosing a day opens the dashboard as it was that day, with a
+banner saying so and a Back to latest button. On SharePoint the dashboard
+web part loads the day into its frame; served as files, the page goes to
+it. Each copy runs the dashboard code of its own day, so it always matches
+its data; a later design change does not reach older copies. Only the
+dashboard has a history: the section pages and the findings list show the
+latest run.
 
 ## Setting it up
 

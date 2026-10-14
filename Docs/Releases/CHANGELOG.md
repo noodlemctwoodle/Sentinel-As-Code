@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Look back up to 90 days** - every publish keeps the day's dashboard on
+  the site, and a date picker beside the light and dark toggle opens the
+  dashboard as it was on any kept day, with a banner and a way back to the
+  latest. The daily pipeline adds a day each run until 90 days are kept;
+  older days go to the recycle bin (`-HistoryDays` on the publish changes
+  the window, 0 turns it off). The maturity score trend now also shows on
+  SharePoint: it had read its file from the frame's own address, which on
+  SharePoint has no folder. Dashboard web part 1.11.0.
 - **SIEM Overview, finding cards and a shorter Overview tab** - the
   report's first page is now "SIEM Overview", and its top findings are
   cards on SharePoint and in the dashboard: severity, id and title, what

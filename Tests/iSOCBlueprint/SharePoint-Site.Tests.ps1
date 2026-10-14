@@ -583,6 +583,49 @@ Describe 'Add-SacMaturityHistoryEntry' {
     }
 }
 
+Describe 'Add-SacSnapshotEntry' {
+
+    BeforeAll {
+        function New-Snap([string]$Date, [int]$Findings = 3) { @{ date = $Date; file = "$Date.html"; findings = $Findings; score = 1.5 } }
+    }
+
+    It 'starts a list with the first day' {
+        $r = Add-SacSnapshotEntry -Index @{ entries = @() } -Entry (New-Snap '2026-10-01')
+        @($r.entries).Count | Should -Be 1
+        @($r.removed).Count | Should -Be 0
+    }
+
+    It 'keeps the newest day first, and the input unchanged' {
+        $ix = @{ entries = @((New-Snap '2026-10-02'), (New-Snap '2026-10-01')) }
+        $r = Add-SacSnapshotEntry -Index $ix -Entry (New-Snap '2026-10-03')
+        @($r.entries.date) | Should -Be @('2026-10-03', '2026-10-02', '2026-10-01')
+        @($ix.entries).Count | Should -Be 2
+    }
+
+    It 'replaces a day published again' {
+        $ix = @{ entries = @((New-Snap '2026-10-02' 3), (New-Snap '2026-10-01' 3)) }
+        $r = Add-SacSnapshotEntry -Index $ix -Entry (New-Snap '2026-10-02' 9)
+        @($r.entries).Count | Should -Be 2
+        $r.entries[0].findings | Should -Be 9
+    }
+
+    It 'grows with each day until the window is full, then drops the oldest days and names their files' {
+        $ix = @{ entries = @() }
+        foreach ($d in 1..5) { $ix = Add-SacSnapshotEntry -Index @{ entries = $ix.entries } -Entry (New-Snap ('2026-10-0' + $d)) -Days 3 }
+        @($ix.entries.date) | Should -Be @('2026-10-05', '2026-10-04', '2026-10-03')
+        $r = Add-SacSnapshotEntry -Index @{ entries = @((New-Snap '2026-10-02'), (New-Snap '2026-10-01')) } -Entry (New-Snap '2026-10-04') -Days 3
+        @($r.removed) | Should -Be @('2026-10-01.html')
+    }
+
+    It 'keeps 90 days by default, counting back from the newest' {
+        $ix = @{ entries = @(0..95 | ForEach-Object { New-Snap ((Get-Date '2026-10-01').AddDays(-$_).ToString('yyyy-MM-dd')) }) }
+        $r = Add-SacSnapshotEntry -Index $ix -Entry (New-Snap '2026-10-01')
+        @($r.entries).Count | Should -Be 90
+        $r.entries[-1].date | Should -Be '2026-07-04'
+        @($r.removed).Count | Should -Be 6
+    }
+}
+
 Describe 'Test-SacFullWidthProperty' {
     It 'is true only when isFullWidth is the boolean true' {
         Test-SacFullWidthProperty -PropertiesJson '{"fileRelativeUrl":"x","isFullWidth":true}' | Should -BeTrue
@@ -1638,6 +1681,29 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # The Overview no longer ends with a contents card per family.
         $html | Should -Not -Match 'id="contents"'
         $html | Should -Not -Match 'class="ctcard"'
+    }
+
+    It 'lets the dashboard open an earlier day, and reads files beside it the way SharePoint allows' {
+        $html | Should -Match '<label class="snapwrap" id="snapWrap" hidden'
+        $html | Should -Match '<select id="snapPick" aria-label="Snapshot date"></select>'
+        $html | Should -Match '<div class="snapbanner" id="snapBanner" hidden role="status"></div>'
+        $html | Should -Match "SNAP\.read\('history/index\.json'\)"
+        $html | Should -Match "SNAP\.host\.load\(file\? 'history/'\+file : null\)"
+        # A snapshot served as a file finds the live folder one level up.
+        $html | Should -Match 'root=/\\/history\\/\$/\.test\(here\.pathname\)\? new URL\(''\.\.'',here\) : here;'
+        # The maturity trend reads through the same path; about:srcdoc has no folder.
+        $html | Should -Match "SNAP\.read\('maturity-history\.json'\)"
+        $html | Should -Not -Match "new URL\('maturity-history\.json', window\.location\.href\)"
+        $wp = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprint/IsocBlueprintWebPart.ts') -Raw
+        $wp | Should -Match 'sacSnapshot\?: ISnapshotHost \}\)\.sacSnapshot = snapshot;'
+        $wp.IndexOf('.sacSnapshot = snapshot') | Should -BeLessThan $wp.IndexOf('.eval(extracted.script)')
+        $wp | Should -Match 'read: \(file: string\): Promise<string> => this\._fetchHtml\(folder \+'
+        # The publisher keeps the day's copy and prunes past -HistoryDays.
+        $pub = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw
+        $pub | Should -Match '\[int\]\$HistoryDays = 90'
+        $pub | Should -Match 'Send-SacSnapshot -Path \(Join-Path \$Bundle ''index\.html''\) -FileName \$snapFile'
+        $pub | Should -Match 'Add-SacSnapshotEntry -Index \(Read-SacSnapshotIndex\) -Entry \$snapEntry -Days \$HistoryDays'
+        $pub | Should -Match 'foreach \(\$old in @\(\$snapshots\.removed\)\) \{ Remove-SacSnapshot -FileName \$old \}'
     }
 
     It 'gives the chart web part the site''s button and its Show all toggle' {

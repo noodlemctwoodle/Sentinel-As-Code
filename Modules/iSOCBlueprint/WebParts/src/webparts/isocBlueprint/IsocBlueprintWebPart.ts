@@ -14,6 +14,17 @@ export interface IIsocBlueprintWebPartProps {
 
 const DEFAULT_FILE: string = 'BlueprintAssets/dashboard/index.html';
 
+// What the dashboard inside the frame can ask of this web part: the folder
+// its files sit in, a file read from beside it (the maturity history, the
+// snapshot list), and a day's snapshot loaded in its place (none for the
+// latest). The frame's own address is about:srcdoc, so it cannot work these
+// out itself.
+interface ISnapshotHost {
+  base: string;
+  read: (file: string) => Promise<string>;
+  load: (file?: string) => void;
+}
+
 export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlueprintWebPartProps> {
 
   private _onWindowResize: (() => void) | undefined;
@@ -28,14 +39,32 @@ export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlu
       '<div class="sdnHost" style="position:relative;width:100%"><div class="sdnMsg" style="font-family:Segoe UI,system-ui,sans-serif;color:#6b7280;padding:28px;text-align:center">Loading Sentinel dashboard&hellip;</div></div>';
     const host: HTMLElement = this.domElement.querySelector('.sdnHost') as HTMLElement;
 
+    this._load(host, rel, rel);
+  }
+
+  // Load one dashboard file into the frame. root is the live dashboard's
+  // file; its folder holds the snapshots under history/.
+  private _load(host: HTMLElement, root: string, rel: string): void {
     this._fetchHtml(rel)
       .then((html: string): void => {
         if (!html) { this._showError(host, rel, 'The dashboard file is empty.'); return; }
-        this._renderIframe(host, html);
+        this._renderIframe(host, html, this._snapshotHost(host, root));
       })
       .catch((err: Error): void => {
         this._showError(host, rel, err && err.message ? err.message : String(err));
       });
+  }
+
+  private _snapshotHost(host: HTMLElement, root: string): ISnapshotHost {
+    const folder: string = root.substring(0, root.lastIndexOf('/') + 1);
+    return {
+      base: this.context.pageContext.web.absoluteUrl.replace(/\/+$/, '') + '/' + folder,
+      read: (file: string): Promise<string> => this._fetchHtml(folder + file.replace(/^\/+/, '')),
+      load: (file?: string): void => {
+        this._detachListeners();
+        this._load(host, root, file ? folder + file.replace(/^\/+/, '') : root);
+      }
+    };
   }
 
   protected onDispose(): void {
@@ -68,7 +97,7 @@ export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlu
       });
   }
 
-  private _renderIframe(host: HTMLElement, html: string): void {
+  private _renderIframe(host: HTMLElement, html: string, snapshot: ISnapshotHost): void {
     host.innerHTML = '';
     const iframe: HTMLIFrameElement = document.createElement('iframe');
     iframe.setAttribute('title', 'Sentinel workspace dashboard');
@@ -108,6 +137,7 @@ export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlu
     iframe.addEventListener('load', (): void => {
       try {
         const win: Window | null = iframe.contentWindow;
+        if (win) { (win as unknown as { sacSnapshot?: ISnapshotHost }).sacSnapshot = snapshot; }
         if (win && extracted.script) {
           (win as unknown as { eval: (s: string) => void }).eval(extracted.script);
         }

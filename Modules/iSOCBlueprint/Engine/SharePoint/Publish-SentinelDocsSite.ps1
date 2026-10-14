@@ -22,7 +22,9 @@
                      from a bundle built before charts became data);
                      when the model carries a maturity assessment, one
                      entry is appended to the score history the dashboard
-                     draws as a trend
+                     draws as a trend; and a copy of the dashboard is kept
+                     as the day's snapshot (dashboard/history/<date>.html)
+                     for its date picker, the last -HistoryDays days
       4. Pages       section pages created or rebuilt, skipping any whose
                      content hash matches the last publish; each chart is
                      placed as the chart web part, or as a table while the
@@ -81,6 +83,13 @@
     How long an -AccessToken is trusted for before the run stops. Defaults
     to 50 (tokens last about 60 to 90 minutes).
 
+.PARAMETER HistoryDays
+    How many days of dashboard snapshots to keep for the dashboard's date
+    picker, counting back from the newest. Each publish keeps one per day
+    (a second publish that day replaces it), so the history grows with the
+    pipeline's daily runs up to this many days; older days go to the
+    recycle bin. Defaults to 90; 0 keeps none.
+
 .OUTPUTS
     [string] The site URL.
 
@@ -105,8 +114,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.4.2
-    Last Updated: 2026-10-13
+    Version:      0.5.0
+    Last Updated: 2026-10-14
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
 #>
@@ -135,7 +144,11 @@ param(
     [string]$AppPackagePath,
 
     [Parameter(Mandatory = $false)]
-    [int]$TokenLifetimeMinutes = 50
+    [int]$TokenLifetimeMinutes = 50,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(0, 3650)]
+    [int]$HistoryDays = 90
 )
 
 $ErrorActionPreference = 'Stop'
@@ -244,6 +257,32 @@ if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.matu
 }
 else {
     Write-Host '  Maturity history: no assessment in this bundle, nothing appended.'
+}
+
+# Dashboard snapshots: the day's dashboard kept beside the live one, listed
+# in history/index.json for the dashboard's date picker. The day is the
+# inventory's, so a re-publish of the same run replaces that day's copy.
+if ($HistoryDays -gt 0) {
+    $generated = [string]$site.generatedUtc
+    $snapDate = if ($generated -match '^\d{4}-\d{2}-\d{2}') { $Matches[0] } else { (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
+    $snapFile = "$snapDate.html"
+    $findingItems = @(if ($model.PSObject.Properties['findings'] -and $model.findings -and $model.findings.PSObject.Properties['items']) { @($model.findings.items) })
+    $snapEntry = @{
+        date      = $snapDate
+        file      = $snapFile
+        generated = $generated
+        findings  = $findingItems.Count
+        critical  = @($findingItems | Where-Object { $_ -and [string]$_.severity -eq 'Critical' }).Count
+        score     = $(if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.maturity.PSObject.Properties['overall']) { $model.maturity.overall.score } else { $null })
+    }
+    Send-SacSnapshot -Path (Join-Path $Bundle 'index.html') -FileName $snapFile
+    $snapshots = Add-SacSnapshotEntry -Index (Read-SacSnapshotIndex) -Entry $snapEntry -Days $HistoryDays
+    foreach ($old in @($snapshots.removed)) { Remove-SacSnapshot -FileName $old }
+    Save-SacSnapshotIndex -Index $snapshots
+    Write-Host "  Snapshots: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $snapFile; $(@($snapshots.entries).Count) day(s) in the last $HistoryDays, $(@($snapshots.removed).Count) dropped"
+}
+else {
+    Write-Host '  Snapshots: off (-HistoryDays 0).'
 }
 
 # 4. Pages -------------------------------------------------------------------

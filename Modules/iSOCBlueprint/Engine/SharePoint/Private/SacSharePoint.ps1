@@ -25,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.4.2
-    Last Updated: 2026-10-13
+    Version:      0.5.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file defines functions rather than running. Per-parameter detail
@@ -44,6 +44,9 @@ $script:SacFindingsListTitle  = 'Sentinel Findings'
 $script:SacFindingsListUrl    = 'Lists/SentinelFindings'
 $script:SacStateFile          = 'publish-state.json'
 $script:SacMaturityHistoryFile = 'maturity-history.json'
+# A copy of the dashboard per day, beside the live one, for its date picker.
+$script:SacSnapshotFolder     = 'dashboard/history'
+$script:SacSnapshotIndexFile  = 'index.json'
 $script:SacWebPartComponentId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'
 # The isoc-blueprint chart web part: draws one chart from the section model's
 # chart data, on the section pages.
@@ -524,6 +527,115 @@ function Save-SacMaturityHistory {
         if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/$folder/$script:SacMaturityHistoryFile", 'Save maturity history')) {
             Add-PnPFile -Folder "$script:SacAssetsLibraryUrl/$folder" -FileName $script:SacMaturityHistoryFile -Content $json | Out-Null
         }
+    }
+}
+
+function Read-SacSnapshotIndex {
+    <#
+    .SYNOPSIS
+        Read the list of dashboard snapshots the earlier publishes kept, or
+        an empty list.
+
+    .OUTPUTS
+        [hashtable] @{ entries = @(...) }, newest first.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+    $index = @{ entries = @() }
+    try {
+        $text = Get-PnPFile -Url "$script:SacAssetsLibraryUrl/$script:SacSnapshotFolder/$script:SacSnapshotIndexFile" -AsString -ErrorAction Stop
+        if ($text) {
+            $parsed = $text | ConvertFrom-Json -AsHashtable
+            if ($parsed.entries) { $index.entries = @($parsed.entries) }
+        }
+    }
+    catch {
+        Write-Verbose "No snapshot index yet: $($_.Exception.Message)"
+    }
+    return $index
+}
+
+function Add-SacSnapshotEntry {
+    <#
+    .SYNOPSIS
+        Return a new snapshot list with one day's entry added: a second
+        publish on the same day replaces that day's entry, and days older
+        than -Days before the newest drop out. Pure; the input is not
+        changed.
+
+    .PARAMETER Index
+        @{ entries = @(...) } as Read-SacSnapshotIndex returns it.
+
+    .PARAMETER Entry
+        A hashtable with at least date (yyyy-MM-dd) and file.
+
+    .PARAMETER Days
+        How many days to keep, counting back from the newest. Defaults to 90.
+
+    .OUTPUTS
+        [hashtable] @{ entries = @(...) newest first; removed = @(file names
+        of the days that dropped out) }.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)] [hashtable] $Index,
+        [Parameter(Mandatory)] [hashtable] $Entry,
+        [Parameter()] [ValidateRange(1, 3650)] [int] $Days = 90
+    )
+    $date = [string]$Entry.date
+    $all = @(@(@($Index.entries | Where-Object { $_ -and [string]$_.date -and [string]$_.date -ne $date }) + @($Entry)) |
+        Sort-Object @{ Expression = { [string]$_.date }; Descending = $true })
+    $newest = [datetime]::ParseExact([string]$all[0].date, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+    $cutoff = $newest.AddDays(1 - $Days).ToString('yyyy-MM-dd')
+    $kept = @($all | Where-Object { [string]::CompareOrdinal([string]$_.date, $cutoff) -ge 0 })
+    $removed = @($all | Where-Object { [string]::CompareOrdinal([string]$_.date, $cutoff) -lt 0 } | ForEach-Object { [string]$_.file } | Where-Object { $_ })
+    return @{ entries = $kept; removed = $removed }
+}
+
+function Send-SacSnapshot {
+    <#
+    .SYNOPSIS
+        Upload the dashboard as one day's snapshot, history/<date>.html.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $FileName
+    )
+    $target = "$script:SacAssetsLibraryUrl/$script:SacSnapshotFolder"
+    if ($PSCmdlet.ShouldProcess("$target/$FileName", 'Upload snapshot')) {
+        Add-PnPFile -Path $Path -Folder $target -NewFileName $FileName | Out-Null
+    }
+}
+
+function Remove-SacSnapshot {
+    <#
+    .SYNOPSIS
+        Move one day's snapshot that has dropped out of the window to the
+        site's recycle bin.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)] [string] $FileName)
+    $url = "$script:SacAssetsLibraryUrl/$script:SacSnapshotFolder/$FileName"
+    if ($PSCmdlet.ShouldProcess($url, 'Recycle snapshot')) {
+        Remove-PnPFile -SiteRelativeUrl $url -Recycle -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Save-SacSnapshotIndex {
+    <#
+    .SYNOPSIS
+        Write the snapshot list beside the snapshots, where the dashboard
+        reads it.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)] [hashtable] $Index)
+    $json = @{ entries = @($Index.entries) } | ConvertTo-Json -Depth 6
+    $folder = "$script:SacAssetsLibraryUrl/$script:SacSnapshotFolder"
+    if ($PSCmdlet.ShouldProcess("$folder/$script:SacSnapshotIndexFile", 'Save snapshot index')) {
+        Add-PnPFile -Folder $folder -FileName $script:SacSnapshotIndexFile -Content $json | Out-Null
     }
 }
 

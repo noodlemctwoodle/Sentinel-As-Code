@@ -59,6 +59,13 @@ errors, so run it before pushing a change to the TypeScript.
   and a `fitIframe` hook the dashboard calls after tab switches.
 - **Width.** The manifest declares `supportsFullBleed`, and the publisher
   puts the web part in a full-width section, so it fills the page.
+- **Files beside it, and earlier days.** The frame's address is
+  `about:srcdoc`, so before the script runs the web part gives it
+  `window.sacSnapshot`: the dashboard folder's address, `read(file)` for a
+  file beside the dashboard (the maturity history, the snapshot list in
+  `history/index.json`), read through SharePoint's REST API, and
+  `load(file)`, which loads a day's snapshot (`history/<date>.html`, or
+  the live dashboard for none) into the frame in place.
 
 ## How the charts render
 

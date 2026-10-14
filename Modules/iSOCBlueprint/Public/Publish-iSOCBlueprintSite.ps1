@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     The publisher itself requires PowerShell 7.4 and PnP.PowerShell 3.4.1;
@@ -78,6 +78,11 @@ function Publish-iSOCBlueprintSite {
         How long an -AccessToken is trusted before the run stops with a
         clear error, since it cannot be refreshed. Defaults to 50.
 
+    .PARAMETER HistoryDays
+        Days of dashboard snapshots to keep for the dashboard's date picker,
+        one per day, counting back from the newest. Defaults to 90; 0 keeps
+        none.
+
     .OUTPUTS
         [string] The site URL.
 
@@ -119,7 +124,10 @@ function Publish-iSOCBlueprintSite {
 
         [string] $AppPackagePath,
 
-        [int] $TokenLifetimeMinutes
+        [int] $TokenLifetimeMinutes,
+
+        [ValidateRange(0, 3650)]
+        [int] $HistoryDays
     )
 
     process {
@@ -131,7 +139,7 @@ function Publish-iSOCBlueprintSite {
             $params.Tenant = $Tenant
         }
         if ($AppPackagePath) { $params.AppPackagePath = Resolve-iSOCBlueprintPath -Path $AppPackagePath }
-        Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'TokenLifetimeMinutes'
+        Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'TokenLifetimeMinutes', 'HistoryDays'
 
         $result = @(Invoke-iSOCBlueprintEngine -Script 'SharePoint/Publish-SentinelDocsSite.ps1' -Parameters $params -BoundParameters $PSBoundParameters)
         if ($result.Count -gt 0) { [string]$result[-1] }
