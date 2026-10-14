@@ -905,6 +905,12 @@
   .lc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .lc-chip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:5px;color:#0b1220}
   .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
+  /* Open incidents by age: a column per band, its count above and band below. */
+  .lc-age{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;align-items:end;margin-top:6px;max-width:260px}
+  .lc-ab{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+  .lc-ab b{font-size:11.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .lc-ab i{display:block;width:100%;max-width:34px;border-radius:3px 3px 1px 1px}
+  .lc-ab span{font-size:10.5px;font-weight:650;color:var(--faint);white-space:nowrap;line-height:1}
   .lc-spark polyline{stroke:var(--lc-glow)}
   /* ---------- ATT&CK coverage grid (Insights) ---------- */
   .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
@@ -1689,7 +1695,7 @@
       big:M.health.pct+'%', unit:WIN.days+'-day success rate',
       s:M.health.totalEvents.toLocaleString()+' health events processed', ring:Math.round(M.health.pct)},
     {grad:'linear-gradient(135deg,#7c3aed,#9333ea)', ic:ICON.scale, h:'Cost &amp; governance',
-      big:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', unit:cost?'per month, projected from '+WIN.w():'',
+      big:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', unit:cost?'per month at public list prices, projected from '+WIN.w():'',
       s:M.findings.total+' open findings &middot; '+c.rbac+' role assignments', ring:null}
   ];
   document.getElementById('outcomes').innerHTML = outcomes.map(o=>
@@ -2132,11 +2138,37 @@
     const dur=m=>m==null? 'n/a' : m<60? Math.round(m)+'<small>min</small>' : m<1440? (m/60).toFixed(1)+'<small>hours</small>' : (m/1440).toFixed(1)+'<small>days</small>';
     const auto=cb? n0(cb.AutomationRule) : null;
     const chips=C.openBySeverity? '<div class="lc-chips">'+SEV.map(([key,letter,col])=>{ const v=n0(C.openBySeverity[key]); return v? '<span class="lc-chip" style="background:'+col+'" title="'+key+'">'+letter+' '+v+'</span>' : ''; }).join('')+'</div>' : '';
+    // The open incidents by age rather than by severity again (the open
+    // branch above carries that): how long since each was last updated, in
+    // four bands from under a day to over 30 days (the bands past the
+    // window drop out), coloured from cool to warm as they age, with the
+    // count on each and its severities in the tooltip. A model without the
+    // daily series keeps the chips.
+    const openTrend=(function(){
+      const D=M.daily; if(!D || !Array.isArray(D.incidents)) return '';
+      const n=WIN.days;
+      const BANDS=[['<1d','Under a day',0,0,'#60a5fa'],['1-7d','1 to 7 days',1,7,'#818cf8'],['8-30d','8 to 30 days',8,30,'#f59e0b'],['30d+','Over 30 days',31,Infinity,'#ef4444']]
+        .filter(b=>b[2]<n).map(b=>({lab:b[0], name:b[1], lo:b[2], hi:b[3], col:b[4], sev:{}, n:0}));
+      let oldest=-1;
+      D.incidents.forEach(i=>{ if(i.st==='Closed') return; (i.d||[]).forEach(e=>{
+        const k=+e[0], c=n0(e[1]); if(!(k>=0 && k<n) || c<=0) return;
+        const b=BANDS.find(x=>k>=x.lo && k<=x.hi); if(!b) return;
+        b.n+=c; b.sev[i.sev]=(b.sev[i.sev]||0)+c; if(k>oldest) oldest=k;
+      }); });
+      const mx=Math.max(...BANDS.map(b=>b.n),0);
+      if(mx<=0) return '';
+      const cols=BANDS.map(b=>{
+        const tip=b.name+': '+b.n.toLocaleString('en-GB')+' open'+(b.n? ' ('+SEV.filter(([key])=>b.sev[key]).map(([key,letter])=>letter+' '+b.sev[key]).join(', ')+')' : '');
+        return '<div class="lc-ab" title="'+esc(tip)+'"><b>'+b.n.toLocaleString('en-GB')+'</b><i style="height:'+(b.n? Math.max(3, Math.round(b.n/mx*30)) : 0)+'px;background:'+b.col+'"></i><span>'+esc(b.lab)+'</span></div>';
+      }).join('');
+      return '<div class="lc-age" role="img" aria-label="Open incidents by days since last updated: '+esc(BANDS.map(b=>b.name+' '+b.n).join(', '))+'">'+cols+'</div>'+
+        '<div class="s">'+(oldest<1? 'All updated in the last day' : 'Longest untouched: '+WIN.words(oldest))+'</div>';
+    })();
     document.getElementById('lcStrip').innerHTML=
       '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':(avg>=10?Math.round(avg).toLocaleString('en-GB'):avg.toFixed(1))+'<small>GB / day</small>')+'</div>'+spark(daily)+'</div>'+
       '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+
         (split? num(aSen)+' Sentinel, '+num(aXdr)+' XDR alerts' : num(alerts)+' alerts, '+num(incidents)+' incidents')+'</div></div>'+
-      '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+chips+'</div>'+
+      '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+(openTrend||chips)+'</div>'+
       '<div class="lc-kpi"><div class="k">Mean time to resolve</div><div class="v">'+dur(C.mttrMinutes)+'</div><div class="s">Closed incidents, '+win+'</div></div>'+
       '<div class="lc-kpi"><div class="k">Closed by automation</div><div class="v">'+(auto==null? 'n/a' : closed>0? Math.round(auto/closed*100)+'<small>%</small>' : '0<small>%</small>')+'</div><div class="s">'+
         (auto==null? 'Not captured in this snapshot' : num(auto)+' of '+num(closed)+' closed')+'</div></div>';

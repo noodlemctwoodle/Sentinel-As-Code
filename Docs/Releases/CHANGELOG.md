@@ -19,7 +19,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   and maturity assessment run over it, and `-Build` renders the report and
   the dashboard, so both can be developed and shown without a tenant. The
   dashboard's SKU tile now names the pricing tier in words with a
-  commitment tier's size under it, and its cost reads as currency.
+  commitment tier's size under it, and its cost reads as currency. The
+  Open incidents figure under the alert lifecycle shows them by age (under
+  a day, 1 to 7, 8 to 30 and over 30 days since last updated) in place of
+  the severity chips the open branch already shows. The
+  Estimated Monthly Cost page and the dashboard's cost card say the
+  estimate is at public list prices, without any discount or agreement
+  that is not public.
 - **A window slider on the dashboard** - the dashboard's top bar has a
   slider in place of the snapshot date picker: from 1 day to the days
   collected (at most 90), with the dates the window covers beside it

@@ -241,6 +241,17 @@ Describe 'The dashboard re-scopes its cards to the slider''s window' {
         $script:html | Should -Not -Match "querySelector\('\[data-view=""'\+SAVED"
     }
 
+    It 'shows the open incidents by age in the window, falling back to the severity chips' {
+        $script:html | Should -Match 'const openTrend=\(function\(\)\{'
+        $script:html | Should -Match "if\(i\.st==='Closed'\) return;"
+        # Four age bands; those past the window drop out.
+        $script:html | Should -Match "\['<1d','Under a day',0,0,"
+        $script:html | Should -Match "\['30d\+','Over 30 days',31,Infinity,"
+        $script:html | Should -Match '\.filter\(b=>b\[2\]<n\)'
+        $script:html | Should -Match "'Longest untouched: '\+WIN\.words\(oldest\)"
+        $script:html | Should -Match "\+\(openTrend\|\|chips\)\+"
+    }
+
     It 'labels what keeps the collected window' {
         $script:html | Should -Match "Threat intelligence by source \('\+WIN\.cd\(\)\+'\)"
         $script:html | Should -Match "configuration and '\+WIN\.cw\(\)\+' of activity"

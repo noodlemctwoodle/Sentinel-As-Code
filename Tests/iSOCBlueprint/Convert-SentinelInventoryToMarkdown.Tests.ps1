@@ -658,6 +658,11 @@ Describe 'iSOC Blueprint renderer' {
             $script:costMd | Should -Match 'GBP'
         }
 
+        It 'says the estimate is at public list prices, without private discounts or agreements' {
+            $script:costMd | Should -Match '<!-- bp:tone warning -->\s+> \*\*Public list prices only\.\*\*'
+            $script:costMd | Should -Match 'does not include any discount or agreement your organisation may have that is not public'
+        }
+
         It 'lists the methodology version' {
             $script:costMd | Should -Match 'v1\.0\.0'
         }

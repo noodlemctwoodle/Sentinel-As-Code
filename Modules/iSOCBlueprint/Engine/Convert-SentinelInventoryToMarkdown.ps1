@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.1
+    Version:        0.7.2
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -3467,6 +3467,10 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
 $(Format-Banner -Title "Estimated Monthly Cost")
 
 > **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
+
+<!-- bp:tone warning -->
+
+> **Public list prices only.** The estimate uses Azure's public retail prices. It does not include any discount or agreement your organisation may have that is not public, such as Enterprise Agreement or Microsoft Customer Agreement rates, a Microsoft Azure Consumption Commitment (MACC), negotiated pricing or credits, so what you are billed can differ.
 
 ## By plan
 

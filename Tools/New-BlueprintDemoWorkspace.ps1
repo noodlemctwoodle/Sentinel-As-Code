@@ -821,7 +821,7 @@ foreach ($s in $sources) {
         if ($n -lt 1 -and (Get-DemoRandom) -lt $s.Group * $a[$i]) { $n = 1 }
         for ($k = 0; $k -lt $n; $k++) {
             $incNumber++
-            $open = (Get-DemoRandom) -lt $(if ($i -lt $openShare.Count) { $openShare[$i] } else { 0.012 })
+            $open = (Get-DemoRandom) -lt $(if ($i -lt $openShare.Count) { $openShare[$i] } else { 0.004 })
             $sev = $s.Severity
             $inc = [pscustomobject]@{ Number = $incNumber; Day = $i; Severity = $sev; Status = 'Closed'; Class = ''; By = ''; Ack = $null; Rsv = $null; Source = $s }
             if ($open) {
