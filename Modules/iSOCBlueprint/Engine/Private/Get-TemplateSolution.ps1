@@ -16,6 +16,14 @@
     template neither lists is a built-in gallery template that no solution
     ships.
 
+    The catalogue flags a solution Microsoft has retired (isDeprecated), such
+    as Threat Intelligence, replaced by Threat Intelligence (NEW). A template
+    a live solution also ships is credited to the live one; a template only
+    deprecated solutions ship is marked Deprecated, with the replacement
+    solution when the catalogue names one, and the detection opportunities
+    (renderer, dashboard and the SAC-DET gap check) leave it out of what is
+    ready to enable.
+
     The renderer's detection opportunities page and the SharePoint
     dashboard read this, so the two agree.
 
@@ -25,8 +33,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.2.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -64,11 +72,39 @@ function Get-PackageAnalyticsRuleId {
     return $ids.ToArray()
 }
 
+function Test-PackageDeprecated {
+    <#
+    .SYNOPSIS
+        Whether a Content Hub package is deprecated (properties.isDeprecated,
+        a boolean or the string "true").
+
+    .PARAMETER Package
+        One package as contentPackages or contentProductPackages returns it.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([AllowNull()] $Package)
+
+    if (-not $Package -or -not $Package.properties -or $Package.properties.PSObject.Properties.Name -notcontains 'isDeprecated') { return $false }
+    return ([string]$Package.properties.isDeprecated -eq 'true')
+}
+
 function Get-TemplateSolutionMap {
     <#
     .SYNOPSIS
-        Template id to its solution: Solution (the package's display name)
-        and Installed (true when the package is installed in the workspace).
+        Template id to its solution: Solution (the package's display name),
+        Installed (true when the package is installed in the workspace),
+        Deprecated (true when only deprecated packages ship the template) and
+        ReplacedBy (the live package that replaces a deprecated one, or
+        $null).
+
+    .DESCRIPTION
+        Every package that ships a template is a candidate, chosen in this
+        order: installed and live, live in the catalogue, installed but
+        deprecated, deprecated in the catalogue; the first package wins a
+        tie. A deprecated package's replacement is the live catalogue
+        package named "<name> (NEW)", or its name without a Deprecated
+        marker.
 
     .PARAMETER Installed
         The installed packages (content-packages.json).
@@ -78,7 +114,7 @@ function Get-TemplateSolutionMap {
 
     .OUTPUTS
         [hashtable] Lower-case template id to [pscustomobject] Solution,
-        Installed. An installed package wins over the catalogue entry.
+        Installed, Deprecated, ReplacedBy.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -88,15 +124,41 @@ function Get-TemplateSolutionMap {
     )
 
     $map = @{}
+    $rank = @{}
     $name = { param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'displayName') { [string]$p.properties.displayName } else { '' } }
-    foreach ($p in @($Catalogue)) {
-        $n = & $name $p; if (-not $n) { continue }
-        foreach ($id in (Get-PackageAnalyticsRuleId -Package $p)) { if (-not $map.ContainsKey($id)) { $map[$id] = [pscustomobject]@{ Solution = $n; Installed = $false } } }
+    $cid = { param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'contentId') { ([string]$p.properties.contentId).ToLowerInvariant() } else { '' } }
+    $catalogueList = @($Catalogue | Where-Object { $null -ne $_ })
+    # An installed package may not carry the flag; its catalogue entry does.
+    $deprecatedId = @{}
+    $live = @{}
+    foreach ($p in $catalogueList) {
+        $id = & $cid $p; $dep = Test-PackageDeprecated -Package $p
+        if ($id) { $deprecatedId[$id] = $dep }
+        $n = & $name $p
+        if ($n -and -not $dep) { $live[$n.ToLowerInvariant()] = $n }
     }
-    foreach ($p in @($Installed)) {
-        $n = & $name $p; if (-not $n) { continue }
-        foreach ($id in (Get-PackageAnalyticsRuleId -Package $p)) { $map[$id] = [pscustomobject]@{ Solution = $n; Installed = $true } }
+    $replacement = {
+        param([string] $n)
+        $base = (($n -replace '(?i)[\[\(]\s*deprecated\s*[\]\)]', ' ') -replace '(?i)\bdeprecated\b', ' ' -replace '\s{2,}', ' ').Trim(' ', '-', ':')
+        foreach ($c in @("$base (NEW)", $base)) {
+            if ($c -and $c -ne $n -and $live.ContainsKey($c.ToLowerInvariant())) { return $live[$c.ToLowerInvariant()] }
+        }
+        return $null
     }
+    $consider = {
+        param($p, [bool] $inst)
+        $n = & $name $p; if (-not $n) { return }
+        $id = & $cid $p
+        $dep = (Test-PackageDeprecated -Package $p) -or ($id -and $deprecatedId.ContainsKey($id) -and $deprecatedId[$id])
+        $r = if (-not $dep) { if ($inst) { 0 } else { 1 } } else { if ($inst) { 2 } else { 3 } }
+        foreach ($tid in (Get-PackageAnalyticsRuleId -Package $p)) {
+            if ($rank.ContainsKey($tid) -and $rank[$tid] -le $r) { continue }
+            $rank[$tid] = $r
+            $map[$tid] = [pscustomobject]@{ Solution = $n; Installed = $inst; Deprecated = [bool]$dep; ReplacedBy = $(if ($dep) { & $replacement $n } else { $null }) }
+        }
+    }
+    foreach ($p in $catalogueList) { & $consider $p $false }
+    foreach ($p in @($Installed | Where-Object { $null -ne $_ })) { & $consider $p $true }
     return $map
 }
 
@@ -118,7 +180,27 @@ function Get-TemplateSolution {
 
     $key = ([string]$TemplateId).ToLowerInvariant()
     if ($Map -and $key -and $Map.ContainsKey($key)) { return $Map[$key] }
-    return [pscustomobject]@{ Solution = 'Built-in'; Installed = $null }
+    return [pscustomobject]@{ Solution = 'Built-in'; Installed = $null; Deprecated = $false; ReplacedBy = $null }
+}
+
+function Test-TemplateRetired {
+    <#
+    .SYNOPSIS
+        Whether only deprecated Content Hub solutions ship a template, so it
+        is not one to enable.
+
+    .PARAMETER Map
+        From Get-TemplateSolutionMap.
+
+    .PARAMETER TemplateId
+        The template's id (its name in alert-rule-templates.json).
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([AllowNull()] [hashtable] $Map, [AllowEmptyString()] [string] $TemplateId)
+
+    $s = Get-TemplateSolution -Map $Map -TemplateId $TemplateId
+    return [bool]($s.PSObject.Properties.Name -contains 'Deprecated' -and $s.Deprecated)
 }
 
 function Format-TemplateSolutionSummary {

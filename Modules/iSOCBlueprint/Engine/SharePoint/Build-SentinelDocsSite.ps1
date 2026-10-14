@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.12.1
+    Version:      0.12.2
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -942,7 +942,10 @@ foreach ($u in ($usageRows | Where-Object { $_ } | Sort-Object { [datetime]$_.Da
 $detectionOpportunities = @()
 $uncoveredTotal = 0
 if ($ruleRefs.Count -gt 0) {
-    $undeployed = @($templateRefs | Where-Object { $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true })
+    # A template only a deprecated Content Hub solution ships is not one to
+    # enable, as on the report page.
+    $tplSolutions = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
+    $undeployed = @($templateRefs | Where-Object { $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId)) })
     $sevRank2 = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
     $operationalOnly = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncovered = @($tablesData | Where-Object {
@@ -950,7 +953,6 @@ if ($ruleRefs.Count -gt 0) {
         -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
     } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
     $uncoveredTotal = $uncovered.Count
-    $tplSolutions = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
     foreach ($t in $uncovered) {
         $name = [string]$t.DataType
         $cands = @($undeployed | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName)

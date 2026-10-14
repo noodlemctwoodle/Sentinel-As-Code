@@ -533,6 +533,21 @@ Describe 'No-detection check counts Defender custom detections as coverage' {
         Test-HighVolumeTableWithoutDetection -Inventory $inv | Should -BeNullOrEmpty
     }
 
+    It 'never suggests a template only a deprecated Content Hub solution ships' {
+        $d = { param($ids) [pscustomobject]@{ criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule' } }) } }
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); CustomDetectionRefs = @()
+            TemplateTableReferences = @(
+                [pscustomobject]@{ TemplateId = 'old-1'; DisplayName = 'TI map old'; Deprecated = $false; AlreadyDeployed = $false; Tables = @('DeviceProcessEvents'); Severity = 'High' }
+                [pscustomobject]@{ TemplateId = 'new-1'; DisplayName = 'Process injection'; Deprecated = $false; AlreadyDeployed = $false; Tables = @('DeviceProcessEvents'); Severity = 'Medium' })
+            ContentPackages = @()
+            ContentProductPackages = @(
+                [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $d @('old-1')) } }
+                [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ep'; displayName = 'Endpoint'; isDeprecated = 'false'; dependencies = (& $d @('new-1')) } }) }
+        $f = Test-HighVolumeTableWithoutDetection -Inventory $inv
+        $f.Evidence | Should -Match 'Process injection'
+        $f.Evidence | Should -Not -Match 'TI map old'
+    }
+
     It 'ignores a disabled custom detection' {
         $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @();
             CustomDetectionRefs = @([pscustomobject]@{ RuleId = 'cd-1'; RuleName = 'LSASS'; Enabled = $false; Tables = @('DeviceProcessEvents') }) }

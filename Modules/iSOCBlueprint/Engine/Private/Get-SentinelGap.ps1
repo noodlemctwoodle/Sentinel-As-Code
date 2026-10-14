@@ -52,8 +52,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.6.2
-    Last Updated: 2026-10-13
+    Version:      0.6.3
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -62,6 +62,9 @@
 
 # The inventory loads the connector catalogue, whichever checks file runs.
 . (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
+# Template to Content Hub solution, so checks can leave out templates only a
+# deprecated solution ships.
+. (Join-Path $PSScriptRoot 'Get-TemplateSolution.ps1')
 
 function Get-SentinelGap {
     [CmdletBinding()]

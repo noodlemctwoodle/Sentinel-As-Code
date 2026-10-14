@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Templates from deprecated solutions are no longer offered** - the
+  detection opportunities listed templates as ready to enable even when the
+  only Content Hub solution shipping them is deprecated, such as the old
+  Threat Intelligence solution (replaced by Threat Intelligence (NEW)),
+  whose TI map templates read the retiring ThreatIntelligenceIndicator
+  table. The catalogue's deprecation flag now decides: a template a live
+  solution also ships is credited to the live one, and one only deprecated
+  solutions ship is left out of the ready list, the solution chips, the
+  counts and SAC-MON-05's suggestions. Page 28 lists those templates under
+  Templates from deprecated solutions, with the replacement solution where
+  the catalogue names one.
 - **Alerts from Sentinel and Defender XDR, into the same incidents** - the
   alert lifecycle counted only Sentinel's scheduled and NRT rule alerts
   against every incident, and in a workspace joined to the Defender portal

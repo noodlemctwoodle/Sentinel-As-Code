@@ -1908,6 +1908,57 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
         $script:map.ContainsKey('wb-1') | Should -BeFalse
     }
 
+    It 'credits a template to a live solution over a deprecated one, and marks one only deprecated solutions ship, naming the replacement' {
+        $d = { param($ids) [pscustomobject]@{ criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule' } }) } }
+        $cat = @(
+            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $d @('tttt-1', 'tttt-2')) } }
+            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = $false; dependencies = (& $d @('tttt-2')) } }
+            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'feed'; displayName = '[Deprecated] Legacy Feed'; isDeprecated = $true; dependencies = (& $d @('xxxx-1')) } }
+        )
+        # The installed copy carries no flag; its catalogue entry's flag applies.
+        $ins = @([pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'TI-OLD'; displayName = 'Threat Intelligence'; dependencies = (& $d @('tttt-1', 'tttt-2')) } })
+        $m = Get-TemplateSolutionMap -Installed $ins -Catalogue $cat
+        $t1 = Get-TemplateSolution -Map $m -TemplateId 'tttt-1'
+        $t1.Solution | Should -Be 'Threat Intelligence'
+        $t1.Deprecated | Should -BeTrue
+        $t1.ReplacedBy | Should -Be 'Threat Intelligence (NEW)'
+        Test-TemplateRetired -Map $m -TemplateId 'TTTT-1' | Should -BeTrue
+        # Shipped by both: the live solution takes it, though only the deprecated one is installed.
+        $t2 = Get-TemplateSolution -Map $m -TemplateId 'tttt-2'
+        $t2.Solution | Should -Be 'Threat Intelligence (NEW)'
+        $t2.Installed | Should -BeFalse
+        Test-TemplateRetired -Map $m -TemplateId 'tttt-2' | Should -BeFalse
+        # No live counterpart in the catalogue: deprecated, no replacement named.
+        (Get-TemplateSolution -Map $m -TemplateId 'xxxx-1').ReplacedBy | Should -BeNullOrEmpty
+        Test-TemplateRetired -Map $m -TemplateId 'xxxx-1' | Should -BeTrue
+        # A built-in template is never retired.
+        Test-TemplateRetired -Map $m -TemplateId 'cccc-9' | Should -BeFalse
+    }
+
+    It 'lists a template only a deprecated solution ships on its own, not as ready to enable' {
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-dep-$(New-Guid)"
+        try {
+            New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
+            Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw')
+            $d = @{ criteria = @(@{ contentId = 'tmpl-low-noise'; kind = 'AnalyticsRule' }) }
+            @(
+                @{ properties = @{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = $d } }
+                @{ properties = @{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = 'false' } }
+            ) | ConvertTo-Json -Depth 10 -AsArray | Set-Content (Join-Path $root '_raw/content-product-packages.json')
+            & $script:renderer -WorkspaceName 'law-dep' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            $md = Get-Content (Join-Path $root '28-detection-opportunities.md') -Raw
+            $ready = ($md -split '## Undeployed templates ready to enable')[1] -split '## Templates from deprecated solutions' | Select-Object -First 1
+            $ready | Should -Not -Match 'Low-severity noise'
+            $ready | Should -Match 'Data exfiltration'
+            $md | Should -Match '## Templates from deprecated solutions[\s\S]*\| Low-severity noise \| Threat Intelligence \| Threat Intelligence \(NEW\) \| SecurityEvent \|'
+            $md | Should -Match '\*\*1\*\* template\(s\) read a table with data but are left out'
+        } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
+    }
+
+    It 'adds no deprecated-solution section when no template comes only from one' {
+        (Get-Content (Join-Path $script:tempWsRoot '28-detection-opportunities.md') -Raw) | Should -Not -Match '## Templates from deprecated solutions'
+    }
+
     It 'summarises a table''s templates by solution, installed first then by count' {
         $t = @('aaaa-1', 'aaaa-2', 'bbbb-1', 'cccc-1') | ForEach-Object { [pscustomobject]@{ TemplateId = $_ } }
         Format-TemplateSolutionSummary -Templates $t -Map $script:map | Should -Be 'Microsoft Entra ID (2, installed); Azure Activity (1); Built-in (1)'

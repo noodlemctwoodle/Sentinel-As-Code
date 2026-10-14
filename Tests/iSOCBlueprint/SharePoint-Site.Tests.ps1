@@ -1260,6 +1260,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         @($model.maturity.criteria).Count | Should -Be 60
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
+        # A template only a deprecated Content Hub solution ships is left out, as on the report page.
+        $build = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build.Contains("-not (Test-TemplateRetired -Map `$tplSolutions -TemplateId ([string]`$_.TemplateId))") | Should -BeTrue
         @($model.effectiveness).Count | Should -Be 2
         # Lists are carried in full; the dashboard shows the first few with a
         # "Show all" control instead of dropping the rest.

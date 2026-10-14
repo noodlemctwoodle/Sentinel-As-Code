@@ -20,8 +20,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.0
-    Last Updated:   2026-10-13
+    Version:        0.6.1
+    Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
 
@@ -1300,10 +1300,15 @@ function Test-HighVolumeTableWithoutDetection {
     if ($uncovered.Count -eq 0) { return $null }
 
     # Suggest templates that read the table and are neither deployed already
-    # nor deprecated, highest severity first.
+    # nor deprecated, nor shipped only by a deprecated Content Hub solution,
+    # highest severity first.
     $severityRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
+    $solutionMap = if (Get-Command Get-TemplateSolutionMap -ErrorAction SilentlyContinue) {
+        Get-TemplateSolutionMap -Installed @(Get-PropOrDefault $Inventory 'ContentPackages' @() | Where-Object { $null -ne $_ }) -Catalogue @(Get-PropOrDefault $Inventory 'ContentProductPackages' @() | Where-Object { $null -ne $_ })
+    } else { $null }
     $templates = @($Inventory.TemplateTableReferences | Where-Object {
-        $null -ne $_ -and -not (_ToBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and -not (_ToBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false))
+        $null -ne $_ -and -not (_ToBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and -not (_ToBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false)) -and
+        -not ($solutionMap -and (Test-TemplateRetired -Map $solutionMap -TemplateId ([string](Get-PropOrDefault $_ 'TemplateId' ''))))
     })
     $rows = @(foreach ($table in $uncovered) {
         $name = [string](Get-PropOrDefault $table 'DataType' '')

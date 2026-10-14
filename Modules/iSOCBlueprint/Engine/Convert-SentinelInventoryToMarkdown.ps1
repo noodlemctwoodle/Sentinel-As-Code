@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.5
+    Version:        0.6.6
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -505,6 +505,10 @@ $topFindingsVisual = '<!-- bp:visual finding-cards ' + ([ordered]@{
 # ---------------------------------------------------------------------------
 $ruleTableRefs     = Read-RawArray 'rule-table-references.json'
 $templateTableRefs = Read-RawArray 'template-table-references.json'
+# Each template's Content Hub solution; a template only deprecated solutions
+# ship (Threat Intelligence, replaced by Threat Intelligence (NEW)) is not
+# one to enable, so it counts nowhere a template is offered.
+$templateSolutionMap = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
 $customDetectionRefs = Read-RawArray 'custom-detection-table-references.json'
 $customDetectionsCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'defender-custom-detections.json')
 $customDetectionTableSet = @{}
@@ -635,7 +639,7 @@ function New-EstateModel {
         TotalGb             = [math]::Round($totalGb, 2)
         CoveredGb           = [math]::Round($coveredGb, 2)
         UncoveredGb         = [math]::Round($totalGb - $coveredGb, 2)
-        TemplatesApplicable = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true }).Count
+        TemplatesApplicable = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }).Count
         RulesEnabled        = $enabledRules.Count
         RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
         RulesFired          = $rulesFired.Count
@@ -5663,7 +5667,7 @@ $(Format-Table -Items $taxiiRows -Columns 'Name','Collection','Polling','Server'
 # rule reads, and the undeployed templates that would cover them. The
 # detection-headroom view from the health-check script contributed to the
 # project, computed from the collector's table references.
-$applicableTemplates = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true })
+$applicableTemplates = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) })
 $undeployedTemplates = @($applicableTemplates | Where-Object { $_.AlreadyDeployed -ne $true })
 $enabledTableSet = @{}
 foreach ($ref in $ruleTableRefs) {
@@ -5683,7 +5687,31 @@ $uncoveredTables = @($tablesWithData | Where-Object {
 } | Sort-Object { _RendererNumber $_.BillableLast30d } -Descending)
 # The Content Hub solution each template comes from, and whether it is
 # installed, from the packages' own content lists (Get-TemplateSolution).
-$templateSolutionMap = Get-TemplateSolutionMap -Installed @(Read-RawArray 'content-packages.json') -Catalogue @(Read-RawArray 'content-product-packages.json')
+# Templates that read a table with data but only a deprecated solution ships:
+# left out above, listed on their own with the solution replacing it.
+$retiredReady = @($templateTableRefs | Where-Object {
+    $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and
+    (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) -and
+    @(@($_.Tables) | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
+} | Sort-Object DisplayName | ForEach-Object {
+    $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
+    [pscustomobject]@{
+        Template              = $_.DisplayName
+        'Deprecated solution' = $sol.Solution
+        'Replaced by'         = $(if ($sol.ReplacedBy) { $sol.ReplacedBy } else { '' })
+        Tables                = (@($_.Tables) -join ', ')
+    }
+})
+$retiredBlock = if ($retiredReady.Count -gt 0) {
+    $replaced = @($retiredReady | Where-Object { $_.'Replaced by' }).Count
+    @"
+## Templates from deprecated solutions
+
+**$($retiredReady.Count)** template(s) read a table with data but are left out of the lists above: the only Content Hub solution that ships them is deprecated, so Microsoft no longer maintains them$(if ($replaced) { ", and $replaced name the solution that replaces it: install that and enable its templates instead" }). An installed deprecated solution is flagged by [SAC-DET-13].
+
+$(Format-Table -Items $retiredReady -Columns 'Template','Deprecated solution','Replaced by','Tables')
+"@
+} else { '' }
 $opportunityRows = @($uncoveredTables | ForEach-Object {
     $name = [string]$_.DataType
     $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
@@ -5793,9 +5821,11 @@ $(Format-Table -Items $noTemplateRows -Columns 'Table','GB (30d)','Solutions' -E
 
 ## Undeployed templates ready to enable
 
-Templates that are not deployed, not deprecated, and read at least one table that has data, highest severity first, with the Content Hub solution each comes from. **$readyInstalled** come from solutions already installed and can be enabled as they are; **$readyNotInstalled** are in solutions not installed, which Sentinel still offers as gallery templates (installing the solution keeps them current); **$readyBuiltIn** are built-in templates no solution ships.
+Templates that are not deployed, not deprecated (nor shipped only by a deprecated solution), and read at least one table that has data, highest severity first, with the Content Hub solution each comes from. **$readyInstalled** come from solutions already installed and can be enabled as they are; **$readyNotInstalled** are in solutions not installed, which Sentinel still offers as gallery templates (installing the solution keeps them current); **$readyBuiltIn** are built-in templates no solution ships.
 
 $(Format-Table -Items $readyTemplates -Columns 'Template','Solution','Solution installed','Severity','Kind','Tactics','Tables')
+
+$retiredBlock
 
 [SOC optimization (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/soc-optimization/soc-optimization-access) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template)
 "@

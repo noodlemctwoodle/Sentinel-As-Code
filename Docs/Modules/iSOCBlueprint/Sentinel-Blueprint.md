@@ -181,7 +181,7 @@ SecurityDocs/
         ├── 25-mitre-coverage.md           ATT&CK tactics, techniques and sub-techniques covered, every rule's mapping
         ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
         ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
-        ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable
+        ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable, templates left out because only a deprecated Content Hub solution ships them (with the replacement solution)
         ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
         ├── 35-parsers-functions.md        parsers and functions, other saved searches
         ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
@@ -587,7 +587,7 @@ checks from the Sentinel health-check script contributed to the project:
 | SAC-MON-01 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
 | SAC-DET-08 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
 | SAC-TI-02 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
-| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests every undeployed, non-deprecated template per table |
+| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests every undeployed, non-deprecated template per table, leaving out a template only a deprecated Content Hub solution ships (the catalogue's `isDeprecated`; `content-packages.json`, `content-product-packages.json`) |
 | SAC-MON-06 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
 | SAC-DET-15 Stale watchlist read by rules | `watchlists.json`, `alert-rules.json` | a watchlist maintained in the workspace (not shipped by Content Hub) has not been updated in 90 days and an enabled analytics rule reads it |
 | SAC-AUT-02 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |

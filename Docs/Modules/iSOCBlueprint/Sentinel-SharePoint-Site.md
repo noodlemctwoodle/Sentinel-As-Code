@@ -316,7 +316,13 @@ templates behind it in its tooltip and, selected, opens the page's
 Undeployed templates ready to enable list showing exactly those templates
 (that solution, that table), with a chip in the list's tool bar to show
 every template again. A From solutions cell with one solution is a chip
-too, so every row shows its colour. Status words in a table cell show as pills:
+too, so every row shows its colour. A template only a deprecated Content
+Hub solution ships (the catalogue flags it, as with Threat Intelligence,
+replaced by Threat Intelligence (NEW)) is never offered: it is left out of
+the chips, the counts and the ready list, and the page lists it under
+Templates from deprecated solutions with the replacement solution where the
+catalogue names one. A template a live solution also ships is credited to
+the live one. Status words in a table cell show as pills:
 green for Up to date and Current, amber for Update available and Stale,
 red for Deprecated, Not in catalogue and Stale, used by rules. A chart
 with more than one series shows its key above the bars. The Markdown pages refer to one another by
