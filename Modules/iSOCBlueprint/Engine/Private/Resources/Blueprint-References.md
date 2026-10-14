@@ -315,7 +315,10 @@ pay-as-you-go, Basic, Auxiliary and data lake meters, and every commitment
 tier's price a day as `<n> GB Commitment Tier Capacity Reservation`) and
 `Log Analytics` (the classic ingestion meters, the fallback for an older
 capture). The meter names it reads are in
-`Private/Resources/cost-meters.json`.
+`Private/Resources/cost-meters.json`. Prices come in the currency the run
+asks for (`-Currency`); `Auto`, the default, takes it from the workspace's
+region (`Resolve-AzureRetailCurrency`), since the billing account that
+really sets it is not readable with the collector's permissions.
 
 Two data grants cover named tables up to an allowance: the Microsoft 365 E5,
 A5, F5 and G5 grant (up to 5 MB per licensed user a day, Entra ID sign-in

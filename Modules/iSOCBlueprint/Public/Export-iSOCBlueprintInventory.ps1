@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -86,6 +86,13 @@ function Export-iSOCBlueprintInventory {
         the findings name the window; the cost estimate projects a month
         from it.
 
+    .PARAMETER Currency
+        The currency the cost estimate prices in. Auto (the default) takes
+        it from the workspace's region (UK regions GBP, EU regions EUR, and
+        so on); or one of USD, AUD, BRL, CAD, CHF, CNY, DKK, EUR, GBP, INR,
+        JPY, KRW, NOK, NZD, RUB, SEK or TWD. Billing currency follows the
+        billing account, not the region, so set it when the guess is wrong.
+
     .PARAMETER OutputPath
         Folder that holds one folder per workspace. Defaults to
         ./SecurityDocs under the current directory.
@@ -138,6 +145,9 @@ function Export-iSOCBlueprintInventory {
         [ValidateRange(1, 730)]
         [int] $LookbackDays = 30,
 
+        [ValidateSet('Auto', 'USD', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'DKK', 'EUR', 'GBP', 'INR', 'JPY', 'KRW', 'NOK', 'NZD', 'RUB', 'SEK', 'TWD')]
+        [string] $Currency = 'Auto',
+
         [string] $OutputPath,
 
         [switch] $NoDateFolder
@@ -151,6 +161,7 @@ function Export-iSOCBlueprintInventory {
         OutputRoot          = $root
         TargetMaturityLevel = $TargetMaturityLevel
         LookbackDays        = $LookbackDays
+        Currency            = $Currency
     }
     if ($runFolder) { $params.RunFolder = $runFolder }
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'SubscriptionId', 'PlaybookResourceGroup'

@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Choose the cost estimate's currency** - `New-iSOCBlueprint` and
+  `Export-iSOCBlueprintInventory` take `-Currency`, the Azure DevOps
+  pipeline a `currency` parameter and the GitHub workflow a `currency` input
+  (or the `BLUEPRINT_CURRENCY` repository variable on a schedule). `Auto`,
+  the default, takes the currency from the workspace's region (UK regions
+  GBP, EU regions EUR, and so on); any currency the Azure Retail Prices API
+  supports can be named instead. Prices were previously always fetched in
+  US dollars. The cost page says which currency it used and why.
 - **Cost estimates priced as Microsoft bills them** - the price fetch now
   reads the Retail Prices API's `Sentinel` service (it asked for
   "Microsoft Sentinel", which matches nothing, so the Sentinel prices never

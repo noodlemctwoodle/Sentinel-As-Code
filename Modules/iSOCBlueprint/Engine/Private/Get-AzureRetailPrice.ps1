@@ -21,6 +21,15 @@
 .PARAMETER OutputRoot
     Folder where retail-prices.json should be written. Typically the workspace _raw root.
 
+.PARAMETER CurrencyCode
+    The currency to price in, one the Retail Prices API supports. Defaults
+    to USD, the API's own default. Resolve-AzureRetailCurrency picks one
+    from the region when the run asks for Auto.
+
+.PARAMETER CurrencySource
+    Where the currency came from ('Region' or 'Parameter'), recorded with
+    the prices so the report can say. Defaults to 'Parameter'.
+
 .PARAMETER ServiceNames
     Service names to filter on. Defaults to the two Sentinel-relevant services:
     'Sentinel' (the simplified analysis, Basic, Auxiliary and data lake meters
@@ -30,8 +39,9 @@
     calculator (e.g. include 'Storage' for archive).
 
 .OUTPUTS
-    [pscustomobject] with FetchedAtUtc, Region, Services, and a Prices array
-    holding the union of all returned price rows.
+    [pscustomobject] with FetchedAtUtc, Region, Currency, CurrencySource,
+    Services, and a Prices array holding the union of all returned price
+    rows.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/Get-AzureRetailPrice.ps1
@@ -39,7 +49,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -50,6 +60,52 @@
     https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
 #>
 
+# The currencies the Retail Prices API prices in.
+$script:RetailCurrencies = @('USD', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'DKK', 'EUR', 'GBP', 'INR', 'JPY', 'KRW', 'NOK', 'NZD', 'RUB', 'SEK', 'TWD')
+
+function Resolve-AzureRetailCurrency {
+    <#
+    .SYNOPSIS
+        The currency a workspace in this region is most likely billed in.
+
+    .DESCRIPTION
+        A best guess from the region's country for -Currency Auto: billing
+        currency follows the billing account's country, not the region, and
+        the collector cannot read the billing account. UK regions give GBP,
+        the euro-area and other EU regions EUR, Switzerland CHF, Norway NOK,
+        Denmark DKK, Canada CAD, Brazil BRL, Australia AUD, New Zealand NZD,
+        Japan JPY, Korea KRW, India INR, Taiwan TWD and China CNY; every other
+        region, and an unknown one, USD.
+
+    .PARAMETER Region
+        The Azure ARM region name (e.g. 'uksouth').
+
+    .OUTPUTS
+        [string] A currency code the Retail Prices API supports.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory = $false)] [AllowEmptyString()] [string]$Region)
+
+    switch -Regex (("$Region").ToLowerInvariant()) {
+        '^uk'                                                   { return 'GBP' }
+        '^switzerland'                                          { return 'CHF' }
+        '^norway'                                               { return 'NOK' }
+        '^denmark'                                              { return 'DKK' }
+        '^(westeurope|northeurope|france|germany|italy|spain|sweden|poland|austria|belgium|finland|greece)' { return 'EUR' }
+        '^canada'                                               { return 'CAD' }
+        '^brazil'                                               { return 'BRL' }
+        '^australia'                                            { return 'AUD' }
+        '^newzealand'                                           { return 'NZD' }
+        '^japan'                                                { return 'JPY' }
+        '^korea'                                                { return 'KRW' }
+        '^(centralindia|southindia|westindia|jioindia)'         { return 'INR' }
+        '^taiwan'                                               { return 'TWD' }
+        '^china'                                                { return 'CNY' }
+        default                                                 { return 'USD' }
+    }
+}
+
 function Get-AzureRetailPrice {
     [CmdletBinding()]
     param(
@@ -58,6 +114,14 @@ function Get-AzureRetailPrice {
 
         [Parameter(Mandatory = $true)]
         [string]$OutputRoot,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({ $_ -in $script:RetailCurrencies })]
+        [string]$CurrencyCode = 'USD',
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Region', 'Parameter')]
+        [string]$CurrencySource = 'Parameter',
 
         [Parameter(Mandatory = $false)]
         [string[]]$ServiceNames = @('Sentinel', 'Log Analytics')
@@ -71,7 +135,7 @@ function Get-AzureRetailPrice {
     }
 
     $today = (Get-Date).ToString('yyyy-MM-dd')
-    $cacheFile = Join-Path $OutputRoot "retail-prices-$Region-$today.json"
+    $cacheFile = Join-Path $OutputRoot "retail-prices-$Region-$CurrencyCode-$today.json"
 
     if (Test-Path $cacheFile) {
         Write-Verbose "Get-AzureRetailPrice: cache hit $cacheFile"
@@ -90,7 +154,7 @@ function Get-AzureRetailPrice {
         # the alphanumerics, single quotes, equals, and spaces that
         # appear in the OData $filter string.
         $encoded = [uri]::EscapeDataString($filter)
-        $url = "https://prices.azure.com/api/retail/prices?`$filter=$encoded"
+        $url = "https://prices.azure.com/api/retail/prices?currencyCode='$CurrencyCode'&`$filter=$encoded"
 
         Write-Verbose "Get-AzureRetailPrice: fetching $service in $Region"
         $page = 0
@@ -122,6 +186,8 @@ function Get-AzureRetailPrice {
     $result = [pscustomobject]@{
         FetchedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
         Region       = $Region
+        Currency     = $CurrencyCode
+        CurrencySource = $CurrencySource
         Services     = $ServiceNames
         Prices       = $allPrices.ToArray()
     }

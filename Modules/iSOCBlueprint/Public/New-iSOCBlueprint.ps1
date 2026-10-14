@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -85,6 +85,13 @@ function New-iSOCBlueprint {
         the shorter of 7 days and this. The pages, the dashboard's cards and
         the findings name the window; the cost estimate projects a month
         from it.
+
+    .PARAMETER Currency
+        The currency the cost estimate prices in. Auto (the default) takes
+        it from the workspace's region (UK regions GBP, EU regions EUR, and
+        so on); or one of USD, AUD, BRL, CAD, CHF, CNY, DKK, EUR, GBP, INR,
+        JPY, KRW, NOK, NZD, RUB, SEK or TWD. Billing currency follows the
+        billing account, not the region, so set it when the guess is wrong.
 
     .PARAMETER SkipCollection
         Do not collect: render from the newest day's inventory under
@@ -190,6 +197,10 @@ function New-iSOCBlueprint {
         [ValidateRange(1, 730)]
         [int] $LookbackDays = 30,
 
+        [Parameter(ParameterSetName = 'Collect')]
+        [ValidateSet('Auto', 'USD', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'DKK', 'EUR', 'GBP', 'INR', 'JPY', 'KRW', 'NOK', 'NZD', 'RUB', 'SEK', 'TWD')]
+        [string] $Currency = 'Auto',
+
         [Parameter(Mandatory, ParameterSetName = 'Existing')]
         [switch] $SkipCollection,
 
@@ -255,7 +266,7 @@ function New-iSOCBlueprint {
     if (-not $PSCmdlet.ShouldProcess($workspace, "Create a Blueprint ($($Format -join ', '))")) { return }
 
     if (-not $SkipCollection) {
-        $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays }
+        $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays; Currency = $Currency }
         Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $collect -Name 'SubscriptionId', 'PlaybookResourceGroup'
         if ($IncludePreview) { $collect.IncludePreview = $true }
         if ($NoDateFolder) { $collect.NoDateFolder = $true }

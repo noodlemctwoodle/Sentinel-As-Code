@@ -20,6 +20,7 @@
     Output (cost-estimate.json):
       MonthlyTotal                 number, in the API-reported currency
       Currency                     string (e.g. 'GBP')
+      CurrencySource               'Region' (from -Currency Auto), 'Parameter', or $null
       Region                       workspace region
       AsOfUtc                      timestamp the prices were fetched
       ByPlan                       hashtable: plan name -> @{ Gb30d; MonthlyCost }
@@ -208,10 +209,14 @@ function Get-SentinelCostEstimate {
     $currency = 'unknown'
     $asOfUtc  = $null
     $region   = $null
+    # Where the currency came from: the region (-Currency Auto) or the run's
+    # setting; an older price list does not say.
+    $currencySource = $null
 
     if ($pricesBlob) {
         $region  = $pricesBlob.Region
         $asOfUtc = $pricesBlob.FetchedAtUtc
+        if ($pricesBlob.PSObject.Properties.Name -contains 'CurrencySource') { $currencySource = [string]$pricesBlob.CurrencySource }
         foreach ($p in @($pricesBlob.Prices)) {
             $meter = ($p.meterName)    -as [string]
             $price = ($p.unitPrice)    -as [double]
@@ -405,6 +410,7 @@ function Get-SentinelCostEstimate {
     [pscustomobject]@{
         MonthlyTotal              = [math]::Round($monthlyTotal, 2)
         Currency                  = $currency
+        CurrencySource            = $currencySource
         Region                    = $region
         AsOfUtc                   = $asOfUtc
         ByPlan                    = $byPlan

@@ -172,6 +172,52 @@ Describe 'Data grants' {
     }
 }
 
+Describe 'The currency it prices in' {
+    BeforeAll {
+        . (Join-Path $script:engine 'Private/Get-AzureRetailPrice.ps1')
+        $script:repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    }
+
+    It 'guesses the currency from the region, USD where none fits' {
+        $cases = @{ uksouth = 'GBP'; ukwest = 'GBP'; westeurope = 'EUR'; northeurope = 'EUR'; swedencentral = 'EUR'; switzerlandnorth = 'CHF'; norwayeast = 'NOK'
+            eastus = 'USD'; southeastasia = 'USD'; canadacentral = 'CAD'; australiaeast = 'AUD'; japaneast = 'JPY'; centralindia = 'INR'; brazilsouth = 'BRL'; '' = 'USD' }
+        foreach ($r in $cases.Keys) { Resolve-AzureRetailCurrency -Region $r | Should -Be $cases[$r] -Because $r }
+    }
+
+    It 'asks the Retail Prices API for that currency and caches each currency apart' {
+        $src = Get-Content (Join-Path $script:engine 'Private/Get-AzureRetailPrice.ps1') -Raw
+        $src | Should -Match 'prices\?currencyCode=''\$CurrencyCode''&'
+        $src | Should -Match 'retail-prices-\$Region-\$CurrencyCode-\$today\.json'
+        $src | Should -Match 'CurrencySource = \$CurrencySource'
+    }
+
+    It 'takes -Currency Auto by default, everywhere it is set, and records it' {
+        $collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
+        $collector | Should -Match "\[ValidateSet\('Auto', 'USD'.*'TWD'\)\]\s+\[string\]\`$Currency = 'Auto'"
+        $collector | Should -Match 'Currency\s+= \$Currency'
+        $collector | Should -Match "\`$currencyCode = if \(\`$Currency -eq 'Auto'\) \{ Resolve-AzureRetailCurrency -Region \`$region \}"
+        foreach ($f in 'Public/New-iSOCBlueprint.ps1', 'Public/Export-iSOCBlueprintInventory.ps1') {
+            $src = Get-Content (Join-Path $script:repo "Modules/iSOCBlueprint/$f") -Raw
+            $src | Should -Match "\[string\] \`$Currency = 'Auto'" -Because $f
+            $src | Should -Match 'Currency\s+= \$Currency' -Because $f
+        }
+        $ado = Get-Content (Join-Path $script:repo 'Pipelines/Sentinel-Blueprint.yml') -Raw
+        $ado | Should -Match '- name: currency'
+        $ado | Should -Match "\`$params\['Currency'\] = `"\`$\{\{ parameters\.currency \}\}`""
+        $gh = Get-Content (Join-Path $script:repo '.github/workflows/sentinel-blueprint.yml') -Raw
+        $gh | Should -Match "inputs\.currency \|\| vars\.BLUEPRINT_CURRENCY \|\| 'Auto'"
+        $gh | Should -Match '-Currency\s+\$currency'
+    }
+
+    It 'says on the cost page which currency it used and why' {
+        $renderer = Get-Content (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $renderer | Should -Match "taken from the workspace's region"
+        $renderer | Should -Match 'as the run''s ``-Currency`` setting asked'
+        $est = Get-Content (Join-Path $script:engine 'Private/Get-SentinelCostEstimate.ps1') -Raw
+        $est | Should -Match 'CurrencySource\s+= \$currencySource'
+    }
+}
+
 Describe 'The dashboard''s billed split' {
     It 'splits billed in full from grant eligible, keyed on the grant' {
         $build = Get-Content (Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw

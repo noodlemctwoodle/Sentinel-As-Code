@@ -76,6 +76,11 @@ on:
         description: "Days of activity every KQL capture reads (1 to 730). Scheduled runs use the BLUEPRINT_LOOKBACK_DAYS repository variable, else 30."
         type: number
         default: 30
+      currency:
+        description: "Currency for the cost estimate. Auto takes it from the workspace region. Scheduled runs use the BLUEPRINT_CURRENCY repository variable, else Auto."
+        type: choice
+        options: ["Auto", "USD", "AUD", "BRL", "CAD", "CHF", "CNY", "DKK", "EUR", "GBP", "INR", "JPY", "KRW", "NOK", "NZD", "RUB", "SEK", "TWD"]
+        default: "Auto"
 
 concurrency:
   group: sentinel-blueprint
@@ -160,6 +165,8 @@ jobs:
             $targetLevel    = [int]'${{ inputs.target-maturity-level || '3' }}'
             $lookbackDays   = [int]'${{ inputs.lookback-days || vars.BLUEPRINT_LOOKBACK_DAYS || '30' }}'
             Write-Host "Lookback: $lookbackDays day(s)"
+            $currency       = '${{ inputs.currency || vars.BLUEPRINT_CURRENCY || 'Auto' }}'
+            Write-Host "Currency: $currency"
 
             Import-Module ./Modules/iSOCBlueprint/iSOCBlueprint.psd1 -Force
             Export-iSOCBlueprintInventory `
@@ -169,6 +176,7 @@ jobs:
               -IncludePreview:$includePreview `
               -TargetMaturityLevel $targetLevel `
               -LookbackDays        $lookbackDays `
+              -Currency            $currency `
               -NoDateFolder `
               -OutputPath          (Join-Path $env:GITHUB_WORKSPACE 'SecurityDocs') | Out-Null
 

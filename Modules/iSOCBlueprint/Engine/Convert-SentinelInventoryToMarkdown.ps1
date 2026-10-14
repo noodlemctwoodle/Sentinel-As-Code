@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.3
+    Version:        0.7.4
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -3332,6 +3332,12 @@ $costTierText = if ($costTier) {
 } elseif ($costPricing -eq 'Classic') {
     'The price list had no simplified Microsoft Sentinel rate, so Analytics data is priced at the classic pair: Log Analytics ingestion plus Sentinel analysis.'
 } else { '' }
+$costCurrencySource = [string](& $costField 'CurrencySource')
+$costCurrencyText = switch ($costCurrencySource) {
+    'Region'    { "Prices are in $($cost.Currency), taken from the workspace's region (``$($cost.Region)``); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong." }
+    'Parameter' { "Prices are in $($cost.Currency), as the run's ``-Currency`` setting asked." }
+    default     { '' }
+}
 $grantRows = @(@(& $costField 'BenefitEligible') | Where-Object { $_ } | ForEach-Object {
     [pscustomobject]@{ Grant = [string]$_.Benefit; Allowance = [string]$_.Allowance; Gb30d = $_.Gb30d; MonthlyCost = $_.MonthlyCost; Tables = [string]$_.Tables }
 })
@@ -3488,7 +3494,7 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
 $(Format-Banner -Title "Estimated Monthly Cost")
 
 > **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
-$(if ($costTierText) { "`n$costTierText`n" })
+$(if ($costTierText) { "`n$costTierText`n" })$(if ($costCurrencyText) { "`n$costCurrencyText`n" })
 <!-- bp:tone warning -->
 
 > **Public list prices only.** The estimate uses Azure's public retail prices. It does not include any discount or agreement your organisation may have that is not public, such as Enterprise Agreement or Microsoft Customer Agreement rates, a Microsoft Azure Consumption Commitment (MACC), negotiated pricing or credits, so what you are billed can differ.

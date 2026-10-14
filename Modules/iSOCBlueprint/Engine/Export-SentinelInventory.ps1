@@ -56,6 +56,14 @@
     assessment. Sets the gap and the roadmap in _raw/maturity.json.
     Defaults to 3 (Established).
 
+.PARAMETER Currency
+    The currency the cost estimate prices in: Auto (the default) takes it
+    from the workspace's region (Resolve-AzureRetailCurrency: UK regions
+    GBP, EU regions EUR, and so on), or one of the codes the Azure Retail
+    Prices API supports. Billing currency follows the billing account, not
+    the region, so set it when the guess is wrong. Recorded in
+    run-context.json and, with where it came from, in retail-prices.json.
+
 .PARAMETER LookbackDays
     Days of activity every KQL capture reads, 1 to 730 (default 30). The
     figures for the latest days within it cover the shorter of 7 days and
@@ -87,7 +95,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.9.0
+    Version:        0.10.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -153,7 +161,13 @@ param(
     # page, card and finding reads its window from.
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 730)]
-    [int]$LookbackDays = 30
+    [int]$LookbackDays = 30,
+
+    # The currency the cost estimate prices in; Auto takes it from the
+    # workspace's region.
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Auto', 'USD', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'DKK', 'EUR', 'GBP', 'INR', 'JPY', 'KRW', 'NOK', 'NZD', 'RUB', 'SEK', 'TWD')]
+    [string]$Currency = 'Auto'
 )
 
 Set-StrictMode -Version Latest
@@ -337,6 +351,7 @@ $runContext = [pscustomobject]@{
     LookbackDays      = $script:LookbackDays
     RecentDays        = $script:RecentDays
     DailyDays         = $script:DailyDays
+    Currency          = $Currency
     ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -as [string] } else { $null })
 }
 Save-Json -FileName 'run-context.json' -Data $runContext
@@ -977,7 +992,9 @@ Operation
 
 Try-Capture 'retail-prices' {
     $region = $script:WorkspaceObject.location
-    $prices = Get-AzureRetailPrice -Region $region -OutputRoot $rawOut
+    # Auto prices in the currency the region suggests; the report says so.
+    $currencyCode = if ($Currency -eq 'Auto') { Resolve-AzureRetailCurrency -Region $region } else { $Currency }
+    $prices = Get-AzureRetailPrice -Region $region -OutputRoot $rawOut -CurrencyCode $currencyCode -CurrencySource $(if ($Currency -eq 'Auto') { 'Region' } else { 'Parameter' })
     Save-Json -FileName 'retail-prices.json' -Data $prices
 }
 

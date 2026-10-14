@@ -82,6 +82,8 @@ Describe 'The demo workspace generator' {
         $page | Should -Match 'GB a day commitment tier\*\*'
         $page | Should -Match '## Data grants that may reduce this'
         $page | Should -Match '4\. Commitment tier: a workspace on a tier pays its price a day'
+        $page | Should -Match "Prices are in GBP, taken from the workspace's region"
+        $cost.CurrencySource | Should -Be 'Region'
     }
 
     It 'deploys the repository''s rules, and its Community rules as Content Hub templates' {

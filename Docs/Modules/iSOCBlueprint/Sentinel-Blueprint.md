@@ -331,6 +331,14 @@ The run-pipeline panel exposes three further parameters:
   than a table's interactive retention returns only what the table holds,
   and a long window costs more query time on the raw tables. See
   [Blueprint-References.md](Blueprint-References.md#recurring-kql-queries).
+- *Currency* (`currency`, default `Auto`): the currency the cost estimate
+  prices in. Maps to the collector's `-Currency`. `Auto` takes it from the
+  workspace's region (UK regions GBP, EU regions EUR, Switzerland CHF, and
+  so on, USD where no other fits); or name one of the codes the Azure Retail
+  Prices API supports (USD, AUD, BRL, CAD, CHF, CNY, DKK, EUR, GBP, INR, JPY,
+  KRW, NOK, NZD, RUB, SEK, TWD). Billing currency follows the billing
+  account's country, not the region, so set it when the guess is wrong; the
+  cost page says which currency it used and where it came from.
 
 #### GitHub Actions: `.github/workflows/sentinel-blueprint.yml`
 Daily at 06:00 UTC plus `workflow_dispatch`. Uses OIDC to a read-only

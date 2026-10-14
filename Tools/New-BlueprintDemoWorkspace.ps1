@@ -1143,7 +1143,7 @@ $listPrices = @(
 )
 $tierList = [ordered]@{ 50 = 152.1284; 100 = 279.2558; 200 = 517.0006; 300 = 754.7455; 400 = 978.6483; 500 = 1193.4413; 1000 = 2339.7109; 2000 = 4528.4728; 5000 = 10896.6376; 10000 = 20981.9238; 25000 = 50426.4312; 50000 = 96796.1055 }
 $priceRow = { param($Service, $Meter, $Unit, $Price) [ordered]@{ currencyCode = 'GBP'; tierMinimumUnits = 0.0; retailPrice = $Price; unitPrice = $Price; armRegionName = $region; location = 'UK South'; meterName = $Meter; productName = $Service; serviceName = $Service; unitOfMeasure = $Unit; type = 'Consumption' } }
-Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Services = @('Sentinel', 'Log Analytics')
+Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Currency = 'GBP'; CurrencySource = 'Region'; Services = @('Sentinel', 'Log Analytics')
         Prices = @(@(foreach ($p in $listPrices) { & $priceRow $p[0] $p[1] $p[2] $p[3] }) + @(foreach ($kv in $tierList.GetEnumerator()) { & $priceRow 'Sentinel' "$($kv.Key) GB Commitment Tier Capacity Reservation" '1/Day' $kv.Value })) })
 
 # The rest from the fixture, under the demo's names.

@@ -181,6 +181,14 @@ parameters:
     displayName: "Lookback: days of activity to read (1 to 730)"
     type: number
     default: 30
+  # The currency the cost estimate prices in. Auto takes it from the
+  # workspace's region (UK regions GBP, EU regions EUR); billing currency
+  # follows the billing account, so pick it when the guess is wrong.
+  - name: currency
+    displayName: "Currency for the cost estimate (Auto: from the region)"
+    type: string
+    default: Auto
+    values: [Auto, USD, AUD, BRL, CAD, CHF, CNY, DKK, EUR, GBP, INR, JPY, KRW, NOK, NZD, RUB, SEK, TWD]
 
 variables:
   - group: sentinel-deployment      # azureSubscriptionId, sentinelResourceGroup, sentinelWorkspaceName, sentinelRegion, sharePointSiteUrl
@@ -316,6 +324,7 @@ stages:
                 $params['PlaybookResourceGroup'] = $playbookRg
                 $params['TargetMaturityLevel'] = [int]"${{ parameters.targetMaturityLevel }}"
                 $params['LookbackDays'] = [int]"${{ parameters.lookbackDays }}"
+                $params['Currency'] = "${{ parameters.currency }}"
 
                 Write-Host "##[section]iSOC Blueprint - Collector"
                 Write-Host "============================================================"
@@ -326,6 +335,7 @@ stages:
                 Write-Host "  Preview API  : $(flagIncludePreview)"
                 Write-Host "  Target level : $($params['TargetMaturityLevel'])"
                 Write-Host "  Lookback     : $($params['LookbackDays']) day(s)"
+                Write-Host "  Currency     : $($params['Currency'])"
                 Write-Host "============================================================"
 
                 Import-Module "$(Build.SourcesDirectory)/Modules/iSOCBlueprint/iSOCBlueprint.psd1" -Force
