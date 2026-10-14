@@ -6,6 +6,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Health statuses read as words** - the Sentinel health tables showed a
+  resource's statuses as JSON (`["Success","Failure"]`) because Log
+  Analytics returns a set as JSON text; they now read "Success, Failure".
+  The date columns there and on the rule health table read "Last event"
+  and "Last failure".
 - **Shorter page titles** - the report's What's new page is titled
   "What's New" and the Blueprint's own references page "Conventions", in
   the report, its menu and the SharePoint site.

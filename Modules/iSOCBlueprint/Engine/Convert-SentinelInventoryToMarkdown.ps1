@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.7
+    Version:        0.6.8
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -178,6 +178,18 @@ function _RProp {
     $prop = $Object.PSObject.Properties[$Name]
     if ($prop -and $null -ne $prop.Value) { return $prop.Value }
     return $Default
+}
+function _RList {
+    # The items of a dynamic column (make_set, make_list): an array from a
+    # fixture, JSON text ('["Success","Failure"]') from Log Analytics.
+    param($Value)
+    if ($null -eq $Value) { return @() }
+    if ($Value -is [string]) {
+        $t = $Value.Trim()
+        if ($t.StartsWith('[')) { try { return @($t | ConvertFrom-Json -ErrorAction Stop | ForEach-Object { [string]$_ }) } catch { return @($t) } }
+        return $(if ($t) { @($t) } else { @() })
+    }
+    return @($Value | ForEach-Object { [string]$_ })
 }
 function Read-Raw([string]$Name) {
     $p = Join-Path $rawRoot $Name
@@ -4297,8 +4309,8 @@ $healthRows = $health | ForEach-Object {
         Type     = $_.SentinelResourceType
         Events   = $_.Events
         Failures = _RProp $_ 'Failures' ''
-        Statuses = ($_.Statuses -join ', ')
-        LastEvent= Format-DateUtc $_.LastEvent
+        Statuses = ((_RList (_RProp $_ 'Statuses')) -join ', ')
+        'Last event' = Format-DateUtc $_.LastEvent
     }
 }
 # Data connectors that reported a failure. Failures arrived after the first
@@ -4306,14 +4318,14 @@ $healthRows = $health | ForEach-Object {
 $healthFailuresCaptured = @($health | Where-Object { $_ -and $_.PSObject.Properties['Failures'] }).Count -gt 0
 $connectorHealthRows = @($health | Where-Object {
     $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
-    $(if ($_.PSObject.Properties['Failures']) { [long]$_.Failures -gt 0 } else { @($_.Statuses | Where-Object { $_ -ne 'Success' }).Count -gt 0 })
+    $(if ($_.PSObject.Properties['Failures']) { [long]$_.Failures -gt 0 } else { @(_RList (_RProp $_ 'Statuses') | Where-Object { $_ -ne 'Success' }).Count -gt 0 })
 } | ForEach-Object {
     [pscustomobject]@{
         Connector   = $_.SentinelResourceName
         Kind        = $_.SentinelResourceKind
         Failures    = _RProp $_ 'Failures' 'not captured'
-        LastFailure = Format-DateUtc (_RProp $_ 'LastFailure')
-        Statuses    = ($_.Statuses -join ', ')
+        'Last failure' = Format-DateUtc (_RProp $_ 'LastFailure')
+        Statuses    = ((_RList (_RProp $_ 'Statuses')) -join ', ')
     }
 } | Sort-Object @{ Expression = { _RendererNumber $_.Failures }; Descending = $true }, Connector)
 $healthSummary = Read-RawArray 'sentinel-health-summary.json'
@@ -4361,13 +4373,13 @@ $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last 7 days, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled — see [Microsoft Learn: turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock
 
-$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','LastEvent')
+$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','Last event')
 
 ## Connector and DCR health issues (last 7d)
 
 Data connectors whose health events reported a failure in the last 7 days, most failures first. A failing connector silently stops feeding the tables its rules read; [83-data-collection.md](83-data-collection.md) lists the DCRs behind it.
 
-$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','LastFailure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last 7 days (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last 7 days._' }))
+$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','Last failure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last 7 days (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last 7 days._' }))
 
 ## Operations summary (per OperationName + Status)
 
@@ -5273,7 +5285,7 @@ $(Format-Table -Items $complexityRows -Columns 'Rule','Kind','Complexity','Chars
 # the collector did not run this capture; empty file: no failures.
 $ruleHealthCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'rule-health.json')
 $ruleHealthRows = @(Read-RawArray 'rule-health.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ Rule = $_.RuleName; Status = $_.Status; Failures = $_.Failures; LastFailure = Format-DateUtc (_RProp $_ 'LastFailure'); Reason = [string](_RProp $_ 'Reason' '') }
+    [pscustomobject]@{ Rule = $_.RuleName; Status = $_.Status; Failures = $_.Failures; 'Last failure' = Format-DateUtc (_RProp $_ 'LastFailure'); Reason = [string](_RProp $_ 'Reason' '') }
 } | Sort-Object { _RendererNumber $_.Failures } -Descending)
 $ruleHealthSection = @"
 
@@ -5281,7 +5293,7 @@ $ruleHealthSection = @"
 
 Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the failure count, the last failure and the reason Sentinel recorded. A failing rule is a detection that stopped without an alert; the usual causes are a query past the timeout, a table or column that no longer exists, or a KQL function the rule depends on that was removed. [SAC-DET-14] fires while any rule is failing.
 
-$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last 7 days._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','LastFailure','Reason' })
+$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last 7 days._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','Last failure','Reason' })
 "@
 
 # Defender XDR custom detections from the Graph capture: the other detection
