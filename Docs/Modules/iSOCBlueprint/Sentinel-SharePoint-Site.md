@@ -81,6 +81,12 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Blueprint computes:
 
+The glance tiles name the pricing tier in words with the API's SKU under
+it (Pay-as-you-go over `PerGB2018`), or on a commitment tier or dedicated
+cluster its size ("Commitment tier", "2,000 GB a day", from the
+workspace's `sku.capacityReservationLevel`), and show money in its
+currency with thousands separators ("£70,575").
+
 Under the glance tiles, the **alert lifecycle** follows the light or dark theme
 (dark keeps a black "screen" behind the glow):
 source families on the left run into the alerts raised on them, split in two:

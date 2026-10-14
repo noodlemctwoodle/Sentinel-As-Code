@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.15.0
+    Version:      0.15.1
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -535,6 +535,8 @@ $workspace = [ordered]@{
     id              = if ($wsProps) { $wsProps.customerId } else { '' }
     region          = if ($wsRaw) { $wsRaw.location } else { '' }
     sku             = if ($wsProps -and $wsProps.sku) { $wsProps.sku.name } else { '' }
+    # The commitment tier's GB a day, on a CapacityReservation workspace.
+    skuCapacity     = if ($wsProps -and $wsProps.sku -and $wsProps.sku.PSObject.Properties['capacityReservationLevel'] -and $wsProps.sku.capacityReservationLevel) { [int]$wsProps.sku.capacityReservationLevel } else { 0 }
     retentionDays   = if ($wsProps) { [int]$wsProps.retentionInDays } else { 0 }
     dailyCap        = if ($wsProps -and $wsProps.workspaceCapping -and $wsProps.workspaceCapping.dailyQuotaGb -ge 0) { "$($wsProps.workspaceCapping.dailyQuotaGb) GB" } else { 'Unlimited' }
     pnaIngestion    = if ($wsProps) { $wsProps.publicNetworkAccessForIngestion } else { '' }

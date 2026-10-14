@@ -155,6 +155,12 @@ Describe 'The demo workspace generator' {
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json -Depth 64
         $model.daily.span | Should -Be $script:days
         $model.daily.costed | Should -BeTrue
+        # The tier's size reaches the dashboard, which names it in words.
+        $model.workspace.sku | Should -Be 'CapacityReservation'
+        $model.workspace.skuCapacity | Should -Be $script:result.Summary.CommitmentTierGb
+        $html = Get-Content (Join-Path $bundle 'index.html') -Raw
+        $html | Should -Match "CapacityReservation:'Commitment tier'"
+        $html | Should -Match "\{k:'Monthly cost', v:cost\? fmtMoney\(cost\.currency, cost\.monthlyTotal\)"
         $history = Get-Content (Join-Path $bundle 'maturity-history.json') -Raw | ConvertFrom-Json -Depth 16
         @($history.entries).Count | Should -Be 13
         @($history.entries)[-1].overall.score | Should -Be (Read-Demo 'maturity.json').overall.score

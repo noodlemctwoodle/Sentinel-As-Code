@@ -17,7 +17,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   daily series behind the window slider are simulated so they agree with
   each other. The engine's table references, cost estimate, gap analysis
   and maturity assessment run over it, and `-Build` renders the report and
-  the dashboard, so both can be developed and shown without a tenant.
+  the dashboard, so both can be developed and shown without a tenant. The
+  dashboard's SKU tile now names the pricing tier in words with a
+  commitment tier's size under it, and its cost reads as currency.
 - **A window slider on the dashboard** - the dashboard's top bar has a
   slider in place of the snapshot date picker: from 1 day to the days
   collected (at most 90), with the dates the window covers beside it
