@@ -103,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.12.0
+    Version:      0.12.1
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -857,6 +857,21 @@ foreach ($f in $sortedFams) {
 }
 $alerts30d = [long]0
 foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumber $f.Alerts) } }
+# Every alert in the window from every product, so the alert lifecycle's
+# alerts and incidents count the same things: in a workspace joined to the
+# Defender portal every incident is a Defender XDR one, whichever product
+# raised its alerts. They split into Sentinel's own (its analytics) and
+# the rest (Defender XDR and the Microsoft products feeding it), which the
+# lifecycle draws as two nodes. The scheduled and NRT rules' alerts stay as
+# ruleAlerts. A snapshot without the volumes falls back to the rules'
+# alerts, all counted as Sentinel's.
+$allAlerts30d = [long]0; $sentinelAlerts30d = [long]0; $xdrAlerts30d = [long]0
+foreach ($v in @($volumes | Where-Object { $_ })) {
+    $n = [long](ConvertTo-BuildNumber $v.Alerts)
+    $allAlerts30d += $n
+    if ([string]$(if ($v.PSObject.Properties['ProductName']) { $v.ProductName } else { '' }) -match 'Sentinel') { $sentinelAlerts30d += $n } else { $xdrAlerts30d += $n }
+}
+if ($allAlerts30d -le 0) { $allAlerts30d = $alerts30d; $sentinelAlerts30d = $alerts30d }
 # First-party detections by source family: alerts raised inside Defender XDR,
 # Entra ID Protection, Defender for Identity and Defender for Cloud do not
 # read workspace tables, so the rings cannot count them; the flow shows them
@@ -892,7 +907,10 @@ $estate = [ordered]@{
     }
     rulesEnabled    = $rulesEnabled
     rulesFired      = $rulesFiredCount
-    alerts          = $alerts30d
+    alerts          = $allAlerts30d
+    alertsSentinel  = $sentinelAlerts30d
+    alertsXdr       = $xdrAlerts30d
+    ruleAlerts      = $alerts30d
     incidents       = $incidents30d
     incidentsClosed = $closed30d
     incidentsOpen   = [math]::Max(0, $incidents30d - $closed30d)

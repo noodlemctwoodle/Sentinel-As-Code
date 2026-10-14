@@ -1243,6 +1243,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # first-party product alerts per family, Sentinel's own rules excluded
         ($model.estate.productAlerts | Where-Object family -eq 'Entra ID / Identity').alerts | Should -Be 40
         ($model.estate.productAlerts | Where-Object product -match 'Sentinel') | Should -BeNullOrEmpty
+        # Alerts from every product, as the incidents are; the rules' own beside them.
+        $model.estate.alerts | Should -Be 565
+        $model.estate.ruleAlerts | Should -Be 507
         $model.estate.rings.detection.label | Should -Match 'Sentinel rule or custom detection'
         # Defender XDR custom detections from the Graph capture
         $model.estate.customDetections.captured | Should -BeTrue
@@ -1341,6 +1344,34 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.alertLifecycle.openBySeverity.Informational | Should -Be 0
         ($model.alertLifecycle.openBySeverity.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be $model.estate.incidentsOpen
         $model.alertLifecycle.mttrMinutes | Should -Be 1620
+        # Sentinel's alerts and Defender XDR's, which together feed the incidents.
+        $model.estate.alertsSentinel | Should -Be 525
+        $model.estate.alertsXdr | Should -Be 40
+        ($model.estate.alertsSentinel + $model.estate.alertsXdr) | Should -Be $model.estate.alerts
+        $html.Contains("const aSen=E.alertsSentinel!=null? n0(E.alertsSentinel) : alerts, aXdr=n0(E.alertsXdr), split=aXdr>0;") | Should -BeTrue
+        $html.Contains("bigNode(ax,aSen,'SENTINEL ALERTS','Open the alerts page',") | Should -BeTrue
+        $html.Contains("bigNode(ax,aXdr,'DEFENDER XDR ALERTS','Open the alerts page',") | Should -BeTrue
+        # Split, the nodes sit further left so their figures clear the core's rings.
+        $html.Contains("const jx=split? 348 : 384, ax=split? 424 : 436;") | Should -BeTrue
+        # Exact counts, never abbreviated (14,226, not 14.2k).
+        $html.Contains("const num=v=>n0(v).toLocaleString('en-GB');") | Should -BeTrue
+        $html | Should -Not -Match "notation:'compact'"
+
+        # A strand per family into Defender XDR's alerts, from the products that raised them.
+        $html.Contains("const xa=split? n0(xdrByFam[s.category]) : 0;") | Should -BeTrue
+        # The estate flow splits after detection: Defender XDR's alerts above the
+        # line, Sentinel's below, merging into the incidents.
+        $html.Contains("const xdr=(E&&+E.alertsXdr)||0, splitY=xdr>0? 90 : 0, poolDrop=xdr>0? 26 : 0;") | Should -BeTrue
+        $html.Contains("{k:'alerts',x:770,y:cy+splitY,label:xdr>0? 'Sentinel alerts' : 'Alerts'}") | Should -BeTrue
+        $html.Contains("xx=al.x, xy=cy-splitY,") | Should -BeTrue
+        $html.Contains("[curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)]") | Should -BeTrue
+        $html.Contains("'DEFENDER XDR ALERTS');") | Should -BeTrue
+        # Its strands have square ends and are drawn before the stage rings, so they do not bleed over them.
+        $html.Contains("'stroke-width':xw.toFixed(1),'stroke-linecap':'butt'}),xTip);") | Should -BeTrue
+        $html | Should -Match "(?s)'DEFENDER XDR ALERTS'\);.*?rings\.forEach\(rg=>\{"
+        # The flow's description follows the split.
+        $html | Should -Match 'Alerts split in two: Defender XDR&#39;s|Alerts split in two: Defender XDR''s'
+        $html.Contains("onXdr:()=>{ const n=findSecNum(/^alerts/i,null); if(n!=null) jumpTo(n); }") | Should -BeTrue
         $html | Should -Match 'id="alertLifecycle"[\s\S]*id="lcStage"[\s\S]*id="lcStrip"'
         # Under Workspace at a glance, before the security posture cards.
         $html | Should -Match 'id="heroPills"[\s\S]*id="alertLifecycle"[\s\S]*Security posture'
@@ -1583,9 +1614,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'shows a long list in a Report table cell as chips with Show all, and template solutions on the card' {
         $html | Should -Match 'const CELL_CHIPS=3;'
-        $html | Should -Match 'function listCell\(c\)\{'
-        $html | Should -Match "const chips=c\? listCell\(c\) : ''; if\(chips\) return chips;"
-        $html | Should -Match '\.cellchips \.tagpill\.inst,'
+        $html | Should -Match 'function listCell\(c, head\)\{'
+        $html | Should -Match "const chips=c\? listCell\(c, head\) : ''; if\(chips\) return chips;"
+        $html | Should -Match '\.cellchips \.tagpill\.inst\{'
         $html | Should -Match "t\.installed===true\?' \(installed\)'"
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) | ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
@@ -1610,11 +1641,36 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("if(b.classList.contains('morechev')){ b.setAttribute('aria-label',label); b.title=label;") | Should -BeTrue
     }
 
-    It 'tints a chip whose templates are ready to enable, Built-in included, and keys the colours' {
+    It 'tints a chip whose templates are ready to enable, Built-in included, and keys the colours as filters' {
         $html.Contains("const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(") | Should -BeTrue
-        $html | Should -Match '<span class="tagpill inst">Installed or built in</span><span class="tagpill">Not installed</span>'
-        $html.Contains("const key=body.indexOf('tagpill inst')>=0 ? CHIP_KEY : '';") | Should -BeTrue
-        $html | Should -Match '\.chipkey \.tagpill\.inst\{'
+        # The key is the filter chips with the legend's swatches and a row count each.
+        $html | Should -Match 'function chipKey\(tid,nReady,nNot\)\{'
+        $html.Contains("k('ready','Installed or built in',nReady,") | Should -BeTrue
+        $html.Contains("k('notinst','Not installed',nNot,") | Should -BeTrue
+        $html | Should -Match '\.chipkey \.fchip i\{display:inline-block;width:11px;height:11px;border-radius:4px'
+        $html.Contains("const key=nReady ? chipKey(tid, nReady, kinds.filter(k=>k.notinst).length) : '';") | Should -BeTrue
+        # Rows carry their chip kinds; the search box and the key filter together.
+        $html.Contains("'<tr'+(kinds[ri].ready?' data-ready=""1""':'')+(kinds[ri].notinst?' data-notinst=""1""':'')") | Should -BeTrue
+        $html.Contains("const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr);") | Should -BeTrue
+        # With the key on, each row's chips narrow to that kind (all of them), and the chevron hides.
+        $html.Contains("ch.hidden=want? (want==='ready'? !ready : ready) : (ch.hasAttribute('data-mr') && !w.classList.contains('open'));") | Should -BeTrue
+        $html.Contains("if(chev) chev.hidden=!!want;") | Should -BeTrue
+        # A single solution in a From solutions cell is a chip too, so it shows its colour.
+        $html | Should -Match 'const solCol=/\^from solutions\?\$/i'
+    }
+
+    It 'lets a solution chip list its templates and open the template list filtered to them' {
+        $html | Should -Match 'function linkSolutionChips\(\)\{'
+        $html.Contains("return h.includes('template') && h.includes('solution') && h.includes('tables');") | Should -BeTrue
+        $html.Contains("const names=tpl.filter(x=>x.sol===m[1] && x.tables.includes(tbl.toLowerCase())).map(x=>x.name);") | Should -BeTrue
+        $html | Should -Match 'function openTemplates\(sol, tbl\)\{'
+        # Pinned to the solution and table exactly, not a text match, with a chip to clear it.
+        $html.Contains("list.dataset.pinSol=sol; list.dataset.pinTbl=tbl;") | Should -BeTrue
+        $html.Contains("tr.children[iS].textContent.trim()===pin.sol && tr.children[iTb].textContent.toLowerCase().split(',')") | Should -BeTrue
+        $html.Contains("chip.onclick=()=>{ delete list.dataset.pinSol; delete list.dataset.pinTbl; chip.remove(); docFilter(list.id); };") | Should -BeTrue
+        # The renderer's tables carry the columns this joins on.
+        $md = Get-Content (Join-Path $ws 'sections/28-detection-opportunities.json') -Raw
+        foreach ($col in 'Table', 'From solutions', 'Template', 'Solution', 'Tables') { $md | Should -Match ('"text": "' + $col + '"') -Because $col }
     }
 
     It 'shows status words in report cells as pills and puts a chart''s key above its bars' {

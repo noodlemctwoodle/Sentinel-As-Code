@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.0
+    Version:        0.7.1
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -1470,14 +1470,18 @@ find withsource = TableName1 in (Event, SecurityEvent)
 }
 
 Try-Capture 'analytics-rule-volumes' {
-    # Per-rule alert volume from SecurityAlert. Drives the 'top noisy rules'
-    # breakout (TOC 4.11.2). Note: SecurityAlert's severity column is named
-    # `AlertSeverity`, not `Severity`, an earlier version of this KQL used
-    # `Severity` which the workspace rejected with BadRequest, returning an
-    # empty array and leaving section 21 unpopulated.
+    # Per-rule alert volume from SecurityAlert, every product. Drives the
+    # 'top noisy rules' breakout (TOC 4.11.2) and, summed, the alerts in the
+    # alert lifecycle. One row per alert (its first record in the window):
+    # an alert whose status changes is written again, and counting records
+    # would count it once per change. Note: SecurityAlert's severity column
+    # is named `AlertSeverity`, not `Severity`, an earlier version of this
+    # KQL used `Severity` which the workspace rejected with BadRequest,
+    # returning an empty array and leaving section 21 unpopulated.
     $kql = @'
 SecurityAlert
 | where TimeGenerated > ago(30d)
+| summarize arg_min(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName) by SystemAlertId
 | summarize Alerts = count(), Alerts7d = countif(TimeGenerated > ago(7d)), ProviderName = take_any(ProviderName)
     by AlertName, ProductName, AlertSeverity
 | order by Alerts desc

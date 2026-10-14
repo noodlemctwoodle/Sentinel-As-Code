@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.4
+    Version:        0.6.5
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -599,8 +599,15 @@ function New-EstateModel {
     $sources = @($byFamily.Values | Sort-Object -Property Gb -Descending)
     $totalGb = 0.0; $coveredGb = 0.0
     foreach ($src in $sources) { $totalGb += $src.Gb; $coveredGb += $src.CoveredGb }
+    $ruleAlerts = [long]0
+    foreach ($f in $rulesFired) { $ruleAlerts += [long](_RendererNumber $f.Alerts) }
+    # Every alert from every product, so alerts and incidents count the same
+    # things (in a workspace joined to the Defender portal every incident is
+    # a Defender XDR one, whichever product raised its alerts); the rules'
+    # own alerts when the volumes were not captured.
     $alerts = [long]0
-    foreach ($f in $rulesFired) { $alerts += [long](_RendererNumber $f.Alerts) }
+    foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) { $alerts += [long](_RendererNumber (_RProp $v 'Alerts' 0)) }
+    if ($alerts -le 0) { $alerts = $ruleAlerts }
     $incidents = if ($incSummary -and $incSummary.PSObject.Properties['Count'])  { [int](_RendererNumber $incSummary.Count) }  else { 0 }
     $closed    = if ($incSummary -and $incSummary.PSObject.Properties['Closed']) { [int](_RendererNumber $incSummary.Closed) } else { 0 }
     # First-party alerts by family: raised inside Defender XDR, Entra ID
@@ -633,6 +640,8 @@ function New-EstateModel {
         RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
         RulesFired          = $rulesFired.Count
         Alerts              = $alerts
+        RuleAlerts          = $ruleAlerts
+        XdrAlerts           = [long](($productAgg.Values | Measure-Object -Property Alerts -Sum).Sum)
         Incidents           = $incidents
         IncidentsClosed     = $closed
         IncidentsOpen       = [math]::Max(0, $incidents - $closed)
@@ -724,7 +733,7 @@ function Format-EstateSankey {
         stages    = @(
             [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables seen in 90 days still receiving data'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in 30 days" }
             [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$($Estate.RulesEnabled) enabled rules" }
-            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$($Estate.Alerts) alerts in 30 days" }
+            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$($Estate.RuleAlerts) alerts from them$(if ([long]$Estate.XdrAlerts -gt 0) { " and $($Estate.XdrAlerts) from Defender XDR" }) in 30 days" }
             [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$($Estate.IncidentsOpen) still open" }
         )
     })

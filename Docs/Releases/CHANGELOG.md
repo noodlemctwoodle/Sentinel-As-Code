@@ -6,6 +6,27 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Alerts from Sentinel and Defender XDR, into the same incidents** - the
+  alert lifecycle counted only Sentinel's scheduled and NRT rule alerts
+  against every incident, and in a workspace joined to the Defender portal
+  every incident is a Defender XDR one, so it could show more incidents
+  than alerts. It now draws two alert nodes, Sentinel's (fed by the source
+  families, by GB) and Defender XDR's (a strand from each family whose
+  Microsoft products raised alerts, by alerts), both feeding the incidents,
+  with exact counts throughout, and alerts per incident uses them both. The
+  estate flow splits after Detection into a Defender XDR alerts ring and
+  the Sentinel alerts ring, which merge into Incidents; its strip and the
+  report's Alerts stage give both counts, the overview's
+  Alerts figure counts every product, and
+  the collector now counts each alert once rather than once per status
+  change.
+- **Chip key that filters, and solution chips that show their templates**
+  - the colour key on a table of solution chips is now the dashboard's
+  filter chips with a swatch and a row count, and selecting one filters the
+  table to those rows and each row to those chips, every one of them. A solution chip lists its templates in its tooltip and opens the
+  page's template list showing exactly those, with a chip to clear it; a
+  single solution is a chip too. The table search now matches every word
+  or quoted phrase.
 - **Tables open with a chevron, and chip colours have a key** - in the
   dashboard, a table whose further rows are hidden, and a table cell whose
   chips are cut at three, now open with the square chevron button the

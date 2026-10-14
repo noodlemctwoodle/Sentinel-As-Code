@@ -557,9 +557,18 @@
   table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
   .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
   .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
-  .chipkey{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px}
+  /* A chip key: the legend's swatches on the filter chips (.fchip), so the
+     key also filters its table, one kind at a time; select it again to
+     clear. */
+  .chipkey{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .chipkey .fchip i{display:inline-block;width:11px;height:11px;border-radius:4px;flex:none}
+  .chipkey i.ck-ready{background:color-mix(in srgb,var(--green) 30%,var(--panel));border:1px solid color-mix(in srgb,var(--green) 60%,var(--line))}
+  .chipkey i.ck-notinst{background:var(--chip);border:1px solid var(--line-2)}
+  /* A solution chip that lists its templates (tooltip) and opens them. */
+  .tagpill.chiplink{cursor:pointer}
+  .tagpill.chiplink:hover,.tagpill.chiplink:focus-visible{border-color:var(--brand);color:var(--ink);outline:none}
   .cellchips .tagpill{white-space:normal}
-  .cellchips .tagpill.inst,.chipkey .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
+  .cellchips .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
   .cellk{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px}
   .tagpill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;
     background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2)}
@@ -946,7 +955,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
-        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Rings count enabled Sentinel analytics rules and Defender XDR custom detections that read a table; product alerts raised inside Defender XDR, Entra ID Protection, Defender for Identity or Defender for Cloud are listed per family when you click one. Strand width = GB; dashed strands are ingested and billed but read by no enabled analytics rule.</p>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last 30 days. Detection counts the tables an enabled Sentinel rule or Defender XDR custom detection reads. Alerts split in two: Defender XDR's, raised by its products (which read no workspace table), and Sentinel's, from the scheduled and NRT rules that fired; both feed the incidents. Strand width is GB; dashed strands are billed but read by no detection. Select a family for its tables and its product alerts.</p>
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
@@ -1338,7 +1347,7 @@
     const defs=[
       {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables seen in 90 days', sec:findSecNum(/table plans/i,null)},
       {k:'detection', h:'Detection', unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection', sec:findSecNum(/detection opportunities/i,null)},
-      {k:'alerts', h:'Alerts', unit:'enabled rules that fired (30d)', s:(E.alerts||0).toLocaleString()+' alerts in 30 days', sec:findSecNum(/^analytics rules/i,null)},
+      {k:'alerts', h:'Alerts', unit:'enabled rules that fired (30d)', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' alerts from them'+((+E.alertsXdr||0)>0? ' and '+(+E.alertsXdr).toLocaleString()+' from Defender XDR' : '')+' in 30 days', sec:findSecNum(/^analytics rules/i,null)},
       {k:'incidents', h:'Incidents', unit:'closed of created (30d)', s:(E.incidentsOpen||0).toLocaleString()+' still open', sec:findSecNum(/^incidents/i,null)}
     ];
     el.innerHTML=defs.map(d=>{
@@ -1366,7 +1375,11 @@
     opts=opts||{};
     const ns='http://www.w3.org/2000/svg';
     while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-    const W=1200, H=440;
+    // With Defender XDR alerts, the band splits after detection: Defender
+    // XDR's alerts above the line, Sentinel's below, merging into incidents;
+    // the pool drops by poolDrop to clear the Sentinel ring's caption.
+    const xdr=(E&&+E.alertsXdr)||0, splitY=xdr>0? 90 : 0, poolDrop=xdr>0? 26 : 0;
+    const W=1200, H=440+poolDrop;
     svgEl.setAttribute('viewBox','0 0 '+W+' '+H);
     const mk=(tag,attrs,text)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; svgEl.appendChild(el); return el; };
     // Text drawn over strands gets a panel-coloured halo so it stays legible;
@@ -1397,13 +1410,13 @@
       b.style.animationDuration=(3.4-1.8*Math.max(0,Math.min(1,k))).toFixed(1)+'s';
       return b;
     };
-    const srcX=230, poolY=398, cy=200, r=36;
+    const srcX=230, poolY=398+poolDrop, cy=200, r=36;
     // The "Not monitored" pool sits low and right of the ingestion ring, sized
     // to its own text; unmonitored strands drop early and run in from the
     // left, below the rings and their captions, instead of crossing them.
     const poolTitle='No detection rule', poolText=fmtN(E.uncoveredGb||0)+' GB read by no Sentinel rule or custom detection';
     const poolW=Math.max(170, Math.round(Math.max(poolTitle.length*7, poolText.length*5.8)+28)), poolCx=620, poolLeft=poolCx-poolW/2;
-    const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,label:'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
+    const rings=[{k:'ingestion',x:410,label:'Ingestion'},{k:'detection',x:590,label:'Detection'},{k:'alerts',x:770,y:cy+splitY,label:xdr>0? 'Sentinel alerts' : 'Alerts'},{k:'incidents',x:950,label:'Incidents'}];
     const trunc=s=>String(s||'');
     const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
     const gap=Math.min(44,(H-90)/Math.max(sources.length,1));
@@ -1434,24 +1447,57 @@
       tip(mk('text',{class:'es-pool',x:poolCx,y:poolY+11,'text-anchor':'middle','font-size':'10',fill:'#dc2626'},poolText),poolTip);
     }
     const bandW=Math.max(3,strand(+E.coveredGb||0));
-    for(let i=0;i<rings.length-1;i++){
-      mk('line',{x1:rings[i].x+r,y1:cy,x2:rings[i+1].x-r,y2:cy,'stroke-opacity':'.35','stroke-width':bandW.toFixed(1),style:'stroke:var(--brand)'});
-      beads('line',{x1:rings[i].x+r,y1:cy,x2:rings[i+1].x-r,y2:cy},'#2563eb',bandW,Math.sqrt((+E.coveredGb||0)/maxGb));
-    }
+    const ry=rg=>rg.y==null? cy : rg.y;
     const C=2*Math.PI*r;
     const arcs=[];
+    for(let i=0;i<rings.length-1;i++){
+      const a=rings[i], b=rings[i+1], k=Math.sqrt((+E.coveredGb||0)/maxGb);
+      if(ry(a)===ry(b)){
+        mk('line',{x1:a.x+r,y1:ry(a),x2:b.x-r,y2:ry(b),'stroke-opacity':'.35','stroke-width':bandW.toFixed(1),style:'stroke:var(--brand)'});
+        beads('line',{x1:a.x+r,y1:ry(a),x2:b.x-r,y2:ry(b)},'#2563eb',bandW,k);
+      } else {
+        const d=curve(a.x+r,ry(a),b.x-r,ry(b));
+        mk('path',{d:d,fill:'none','stroke-opacity':'.35','stroke-width':bandW.toFixed(1),style:'stroke:var(--brand)'});
+        beads('path',{d:d},'#2563eb',bandW,k);
+      }
+    }
+    // Defender XDR's alerts (its products, which read no workspace table):
+    // the upper branch of the split, a ring mirroring Sentinel's below it
+    // (Defender XDR's share of every alert, in its colour: a share, not a
+    // score), merging into the incidents, which count both. Drawn before the
+    // stage rings, with square ends, so the rings sit over the strands.
+    const allAlerts=+E.alerts||0;
+    if(xdr>0){
+      const det=rings[1], al=rings[2], inc=rings[3], xx=al.x, xy=cy-splitY, xcol=famColor['Defender XDR']||'#0d9488';
+      const share=allAlerts>0? Math.min(1,xdr/allAlerts) : 1, pctX=Math.round(share*100);
+      const xw=Math.max(3,Math.min(24,bandW*Math.sqrt(xdr/Math.max(+E.ruleAlerts||+E.alertsSentinel||1,1))));
+      const xTip='Defender XDR alerts: '+xdr.toLocaleString()+' raised in Defender XDR and the Microsoft security products feeding it in the last 30 days, '+pctX+'% of the '+allAlerts.toLocaleString()+' alerts. They read no workspace table, so the rings to the left do not count them; the incidents do. Click to open the alerts page.';
+      [curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)].forEach(d=>{
+        tip(mk('path',{'data-xdr':'1',d:d,fill:'none',stroke:xcol,'stroke-opacity':'.42','stroke-width':xw.toFixed(1),'stroke-linecap':'butt'}),xTip);
+        beads('path',{d:d},xcol,xw,Math.min(1,xw/24));
+      });
+      tip(mk('circle',{'data-xdr':'1',cx:xx,cy:xy,r:r,'stroke-width':'7',style:'fill:var(--panel);stroke:var(--ring-track)'}),xTip);
+      const xarc=tip(mk('circle',{'data-xdr':'1',class:'es-arc',cx:xx,cy:xy,r:r,fill:'none','stroke-width':'7','stroke-linecap':'round','stroke-dasharray':(C*share).toFixed(1)+' '+C.toFixed(1),
+        transform:'rotate(-90 '+xx+' '+xy+')',filter:'url(#esGlow)',style:'stroke:'+xcol}),xTip);
+      arcs.push({el:xarc, to:(C*share).toFixed(1)+' '+C.toFixed(1), from:'0 '+C.toFixed(1)});
+      tip(mk('text',{'data-xdr':'1',x:xx,y:xy+6,'text-anchor':'middle','font-size':'17','font-weight':'800',style:'fill:var(--ink)'},pctX+'%'),xTip);
+      mk('text',{x:xx,y:xy-r-14,'text-anchor':'middle','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},'DEFENDER XDR ALERTS');
+      tip(mk('text',{'data-xdr':'1',x:xx,y:xy+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},xdr.toLocaleString()+' of '+allAlerts.toLocaleString()),xTip);
+      tip(mk('text',{'data-xdr':'1',x:xx,y:xy+r+35,'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},'alerts from Defender XDR'),xTip);
+    }
     rings.forEach(rg=>{
       const d=(E.rings&&E.rings[rg.k])||{value:0,max:0,pct:null};
       const frac=d.pct==null?0:Math.max(0,Math.min(1,d.pct/100));
       const ringTip=rg.label+': '+(d.pct==null?'not measured':d.pct+'%')+' ('+d.value+' of '+d.max+'). '+(d.label||'')+(opts.ringPage&&opts.ringPage(rg.k)!=null?' Click to open the page.':'');
-      tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:cy,r:r,'stroke-width':'7',style:'fill:var(--panel);stroke:var(--ring-track)'}),ringTip);
-      const arc=tip(mk('circle',{'data-ring':rg.k,class:'es-arc',cx:rg.x,cy:cy,r:r,fill:'none','stroke-width':'7','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
-        transform:'rotate(-90 '+rg.x+' '+cy+')',filter:'url(#esGlow)',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))}),ringTip);
+      const y=ry(rg);
+      tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:y,r:r,'stroke-width':'7',style:'fill:var(--panel);stroke:var(--ring-track)'}),ringTip);
+      const arc=tip(mk('circle',{'data-ring':rg.k,class:'es-arc',cx:rg.x,cy:y,r:r,fill:'none','stroke-width':'7','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
+        transform:'rotate(-90 '+rg.x+' '+y+')',filter:'url(#esGlow)',style:'stroke:'+(d.pct==null?'var(--slate)':ringTone(frac))}),ringTip);
       arcs.push({el:arc, to:(C*frac).toFixed(1)+' '+C.toFixed(1), from:'0 '+C.toFixed(1)});
-      tip(mk('text',{'data-ring':rg.k,x:rg.x,y:cy+6,'text-anchor':'middle','font-size':'17','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%'),ringTip);
-      mk('text',{x:rg.x,y:cy-r-14,'text-anchor':'middle','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},rg.label.toUpperCase());
-      mk('text',{x:rg.x,y:cy+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
-      mkLines(rg.x,cy+r+35,wrapLines(d.label||'',24),{'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},12);
+      tip(mk('text',{'data-ring':rg.k,x:rg.x,y:y+6,'text-anchor':'middle','font-size':'17','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%'),ringTip);
+      mk('text',{x:rg.x,y:y-r-14,'text-anchor':'middle','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},rg.label.toUpperCase());
+      mk('text',{x:rg.x,y:y+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
+      mkLines(rg.x,y+r+35,wrapLines(d.label||'',24),{'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},12);
     });
     const last=rings[rings.length-1];
     const boxes=[{l:'Closed',v:+E.incidentsClosed||0,col:'#16a34a',y:cy-40},{l:'Open',v:+E.incidentsOpen||0,col:'#d97706',y:cy+40}];
@@ -1482,6 +1528,7 @@
     svgEl.querySelectorAll('.es-pool').forEach(el=>el.addEventListener('click',()=>{ if(opts.onPool) opts.onPool(); }));
     svgEl.querySelectorAll('[data-ring]').forEach(el=>el.addEventListener('click',()=>{ if(opts.onRing) opts.onRing(el.getAttribute('data-ring')); }));
     svgEl.querySelectorAll('[data-inc]').forEach(el=>el.addEventListener('click',()=>{ if(opts.onIncidents) opts.onIncidents(el.getAttribute('data-inc')); }));
+    svgEl.querySelectorAll('[data-xdr]').forEach(el=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>{ if(opts.onXdr) opts.onXdr(); }); });
   }
   // Detail panel under the flow: the tables behind a family or the pool.
   function showEstateDetail(sel){
@@ -1514,15 +1561,18 @@
     onFamily:f=>showEstateDetail({family:f}),
     onPool:()=>showEstateDetail({uncovered:true}),
     onRing:k=>{ const n=ringPage(k); if(n!=null) jumpTo(n); },
-    onIncidents:()=>{ const n=findSecNum(/^incidents/i,null); if(n!=null) jumpTo(n); }
+    onIncidents:()=>{ const n=findSecNum(/^incidents/i,null); if(n!=null) jumpTo(n); },
+    onXdr:()=>{ const n=findSecNum(/^alerts/i,null); if(n!=null) jumpTo(n); }
   });
   document.getElementById('estateLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+'"></i>'+esc(f)+'</span>').join('')+
     '<span><i class="dash"></i>No detection rule (dashed, family colour)</span><span><i style="background:var(--green)"></i>Strong (80%+)</span>'+
     '<span><i style="background:var(--brand)"></i>Fair (65%+)</span><span><i style="background:var(--amber)"></i>Weak</span>';
 
   // ---- alert lifecycle ----
-  // The SOC at a glance, left to right: source families (strand width = GB),
-  // the alerts the rules and products raised, the incidents those became, and
+  // The SOC at a glance, left to right: source families, the alerts raised
+  // in Sentinel (its analytics reading those families, strand width = GB)
+  // and in Defender XDR (its products, a strand per family, width =
+  // alerts), the incidents those became, and
   // how the incidents ended (closed by an automation rule, by an analyst, in
   // Defender XDR, by another identity, or still open; strand width =
   // incidents). A snapshot from before the ClosedBy capture shows Closed as
@@ -1534,11 +1584,19 @@
     const ns='http://www.w3.org/2000/svg';
     const W=1200, H=420, cy=196, cx=600;
     const n0=v=>Number(v)||0;
-    const compact=new Intl.NumberFormat('en-GB',{notation:'compact',maximumFractionDigits:1});
-    const num=v=>n0(v)>=10000? compact.format(n0(v)) : n0(v).toLocaleString('en-GB');
+    // Exact counts, never abbreviated.
+    const num=v=>n0(v).toLocaleString('en-GB');
     const days=/^(\d+)d$/.exec(String(E.window||'30d')); const win=days? 'last '+days[1]+' days' : String(E.window);
     const sources=(E.sources||[]).filter(s=>s&&n0(s.gb)>0).sort((a,b)=>n0(b.gb)-n0(a.gb));
     const alerts=n0(E.alerts), incidents=n0(E.incidents), closed=n0(E.incidentsClosed), open=n0(E.incidentsOpen);
+    // Two alert nodes when the model splits them and Defender XDR raised any;
+    // one (as before) otherwise.
+    const aSen=E.alertsSentinel!=null? n0(E.alertsSentinel) : alerts, aXdr=n0(E.alertsXdr), split=aXdr>0;
+    const yS=split? cy-88 : cy, yX=cy+88;
+    // Split, the alert nodes sit further left (strands end at jx), so their
+    // figures stay clear of the core's rings.
+    const jx=split? 348 : 384, ax=split? 424 : 436;
+    const xdrByFam={}; (E.productAlerts||[]).forEach(p=>{ xdrByFam[p.family]=(xdrByFam[p.family]||0)+n0(p.alerts); });
     const hasSec=n=>(M.sections||[]).some(s=>s.num===n)? n : null;
     const SEV=[['High','H','#f87171'],['Medium','M','#fbbf24'],['Low','L','#60a5fa'],['Informational','I','#94a3b8']];
     const cb=C.closedBy;
@@ -1549,13 +1607,16 @@
         {label:'Closed by other identities', v:n0(cb.Other), col:'#94a3b8', go:hasSec(15)}
       ] : [{label:'Closed', v:closed, col:'#2dd4bf', go:hasSec(15)}]).concat([{label:'Open', v:open, col:'#f59e0b', go:hasSec(15), open:true}]);
 
-    document.getElementById('lcNote').textContent='Source families to the alerts they raised, the incidents those became and how the incidents were closed, over the '+win+
-      '. Strand width is GB on the left and incidents on the right. Select any part to open its page.';
+    document.getElementById('lcNote').textContent=split
+      ? 'Source families to the alerts raised on them in Sentinel and in Defender XDR, the incidents those became and how the incidents were closed, over the '+win+
+        '. Strand width is GB into Sentinel, alerts into Defender XDR and incidents on the right. Select any part to open its page.'
+      : 'Source families to the alerts they raised, the incidents those became and how the incidents were closed, over the '+win+
+        '. Strand width is GB on the left and incidents on the right. Select any part to open its page.';
 
     const svg=document.createElementNS(ns,'svg');
     svg.setAttribute('viewBox','0 0 '+W+' '+H);
     svg.setAttribute('role','img');
-    svg.setAttribute('aria-label', num(alerts)+' alerts and '+num(incidents)+' incidents over the '+win+': '+
+    svg.setAttribute('aria-label', (split? num(aSen)+' Sentinel alerts, '+num(aXdr)+' Defender XDR alerts' : num(alerts)+' alerts')+' and '+num(incidents)+' incidents over the '+win+': '+
       branches.map(b=>b.label.charAt(0).toLowerCase()+b.label.slice(1)+' '+num(b.v)).join(', ')+'.');
     stage.appendChild(svg);
     const mk=(tag,attrs,text,parent)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; (parent||svg).appendChild(el); return el; };
@@ -1581,11 +1642,15 @@
       f.style.animationDuration=speed.toFixed(1)+'s';
     };
     const maxGb=Math.max(1,...sources.map(s=>n0(s.gb)));
+    const maxXdr=Math.max(1,...sources.map(s=>n0(xdrByFam[s.category])));
     const top=sources.length>1? 48 : cy, gap=sources.length>1? (H-96-10)/(sources.length-1) : 0;
     const srcG=mk('g',{});
     sources.forEach((s,i)=>{
       const y=top+i*gap, k=Math.sqrt(n0(s.gb)/maxGb), w=3+20*k, col=famColor[s.category]||'#64748b';
-      strand('M214 '+y.toFixed(1)+' C 300 '+y.toFixed(1)+', 310 '+cy+', 384 '+cy, col, w, 3.2-1.8*k);
+      strand('M214 '+y.toFixed(1)+' C 300 '+y.toFixed(1)+', 310 '+yS+', '+jx+' '+yS, col, w, 3.2-1.8*k);
+      // The alerts Defender XDR's products raised on this family.
+      const xa=split? n0(xdrByFam[s.category]) : 0;
+      if(xa>0){ const kx=Math.sqrt(xa/maxXdr); strand('M214 '+y.toFixed(1)+' C 290 '+y.toFixed(1)+', 300 '+yX+', '+jx+' '+yX, col, 2+12*kx, 3.2-1.8*kx); }
       mk('circle',{cx:210,cy:y,r:3.5,fill:col,filter:'url(#lcGlow)'},null,srcG);
       mk('text',{x:198,y:y-2,'text-anchor':'end','font-size':'13',class:'lc-src'},s.category,srcG);
       mk('text',{x:198,y:y+13,'text-anchor':'end','font-size':'10.5',class:'lc-sub'},(n0(s.gb)>=10? Math.round(n0(s.gb)).toLocaleString('en-GB') : n0(s.gb).toLocaleString('en-GB',{maximumFractionDigits:1}))+' GB',srcG);
@@ -1593,19 +1658,25 @@
     if(sources.length){ go(srcG,()=>{ if(activateTab) activateTab('flow'); bringTop(); },'Open the data flow'); }
     else mk('text',{x:140,y:cy,'text-anchor':'middle','font-size':'12',class:'lc-sub'},'No billable ingestion');
     mk('text',{x:198,y:22,'text-anchor':'end','font-size':'10',class:'lc-lbl'},'DATA SOURCES');
-    mk('circle',{cx:388,cy:cy,r:4,class:'lc-junction',filter:'url(#lcGlow)'});
+    mk('circle',{cx:jx+4,cy:yS,r:4,class:'lc-junction',filter:'url(#lcGlow)'});
+    if(split) mk('circle',{cx:jx+4,cy:yX,r:4,class:'lc-junction',filter:'url(#lcGlow)'});
 
     // Alerts and incidents nodes either side of the core.
-    const bigNode=(x,value,label,title,fn,sub)=>{
+    const bigNode=(x,value,label,title,fn,sub,y)=>{
+      y=y==null? cy : y;
       const g=mk('g',{});
-      mk('rect',{x:x-62,y:cy-34,width:124,height:sub?74:62,rx:10,fill:'transparent',class:'lc-hit'},null,g);
-      mk('text',{x:x,y:cy+4,'text-anchor':'middle','font-size':'32',class:'lc-num'},num(value),g);
-      mk('text',{x:x,y:cy+24,'text-anchor':'middle','font-size':'10.5',class:'lc-lbl'},label,g);
-      if(sub) mk('text',{x:x,y:cy+40,'text-anchor':'middle','font-size':'10.5',class:'lc-sub'},sub,g);
+      mk('rect',{x:x-66,y:y-34,width:132,height:sub?74:62,rx:10,fill:'transparent',class:'lc-hit'},null,g);
+      mk('text',{x:x,y:y+4,'text-anchor':'middle','font-size':'32',class:'lc-num'},num(value),g);
+      mk('text',{x:x,y:y+24,'text-anchor':'middle','font-size':'10.5',class:'lc-lbl'},label,g);
+      if(sub) mk('text',{x:x,y:y+40,'text-anchor':'middle','font-size':'10.5',class:'lc-sub'},sub,g);
       if(fn) go(g,fn,title);
     };
     const alertsSec=hasSec(16), incSec=hasSec(15);
-    bigNode(436,alerts,'ALERTS','Open the alerts page',alertsSec!=null? ()=>jumpTo(alertsSec) : null);
+    if(split){
+      bigNode(ax,aSen,'SENTINEL ALERTS','Open the alerts page',alertsSec!=null? ()=>jumpTo(alertsSec) : null,null,yS);
+      bigNode(ax,aXdr,'DEFENDER XDR ALERTS','Open the alerts page',alertsSec!=null? ()=>jumpTo(alertsSec) : null,null,yX);
+    }
+    else bigNode(ax,alerts,'ALERTS','Open the alerts page',alertsSec!=null? ()=>jumpTo(alertsSec) : null);
     bigNode(764,incidents,'INCIDENTS','Open the incidents page',incSec!=null? ()=>jumpTo(incSec) : null,
       incidents>0? '1 per '+(alerts/incidents>=10? Math.round(alerts/incidents) : (alerts/incidents).toFixed(1))+' alerts' : null);
 
@@ -1638,7 +1709,10 @@
     const rnd=(a,b)=>a+Math.random()*(b-a);
     const ring=[]; for(let i=0;i<300;i++){ const r=rnd(12,88); ring.push({r:r, a:rnd(0,6.283), s:(r<50?1:-1)*rnd(0.002,0.007), z:rnd(0.9,2.1), g:Math.random()<0.25}); }
     const ratio=incidents>0? Math.min(1,Math.max(0.08,incidents/Math.max(alerts,1))) : 0.08;
-    const inflow=[]; for(let i=0;i<36;i++) inflow.push({t:Math.random(), y:rnd(-26,26), s:rnd(0.004,0.009)});
+    // Alerts drawn in from each alert node, in proportion to its alerts.
+    const shareX=split? Math.min(0.85,Math.max(0.15,aXdr/Math.max(alerts,1))) : 0;
+    const from=()=>Math.random()<shareX? yX : yS;
+    const inflow=[]; for(let i=0;i<36;i++) inflow.push({t:Math.random(), y:rnd(-26,26), y0:from(), s:rnd(0.004,0.009)});
     const outflow=[]; for(let i=0;i<Math.max(3,Math.round(36*ratio));i++) outflow.push({t:Math.random(), y:rnd(-10,10), s:rnd(0.003,0.006)});
     let scale=1;
     function size(){ const r=canvas.getBoundingClientRect(); if(!r.width) return; const dpr=window.devicePixelRatio||1;
@@ -1654,8 +1728,8 @@
       ring.forEach(p=>{ if(!still) p.a+=p.s; const x=cx+p.r*Math.cos(p.a), y=cy+p.r*Math.sin(p.a)*0.94;
         ctx.fillStyle=p.g? 'rgba('+P.green+','+(0.85-p.r/120)+')' : 'rgba('+P.teal+','+(0.9-p.r/110)+')';
         ctx.beginPath(); ctx.arc(x,y,p.z,0,6.283); ctx.fill(); });
-      inflow.forEach(p=>{ if(!still){ p.t+=p.s; if(p.t>1){ p.t=0; p.y=rnd(-26,26); } }
-        const x=474+(cx-22-474)*p.t, y=cy+p.y*(1-p.t);
+      inflow.forEach(p=>{ if(!still){ p.t+=p.s; if(p.t>1){ p.t=0; p.y=rnd(-26,26); p.y0=from(); } }
+        const x0=split? 486 : 474, x=x0+(cx-22-x0)*p.t, y=p.y0+(cy-p.y0)*p.t+(split? p.y*0.4 : p.y)*(1-p.t);
         ctx.fillStyle='rgba('+P.red+','+(0.25+0.5*p.t)+')'; ctx.beginPath(); ctx.arc(x,y,1.4,0,6.283); ctx.fill(); });
       outflow.forEach(p=>{ if(!still){ p.t+=p.s; if(p.t>1){ p.t=0; p.y=rnd(-10,10); } }
         const x=cx+22+(726-cx-22)*p.t, y=cy+p.y*p.t;
@@ -1683,7 +1757,8 @@
     const chips=C.openBySeverity? '<div class="lc-chips">'+SEV.map(([key,letter,col])=>{ const v=n0(C.openBySeverity[key]); return v? '<span class="lc-chip" style="background:'+col+'" title="'+key+'">'+letter+' '+v+'</span>' : ''; }).join('')+'</div>' : '';
     document.getElementById('lcStrip').innerHTML=
       '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':(avg>=10?Math.round(avg).toLocaleString('en-GB'):avg.toFixed(1))+'<small>GB / day</small>')+'</div>'+spark(daily)+'</div>'+
-      '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+num(alerts)+' alerts, '+num(incidents)+' incidents</div></div>'+
+      '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+
+        (split? num(aSen)+' Sentinel, '+num(aXdr)+' XDR alerts' : num(alerts)+' alerts, '+num(incidents)+' incidents')+'</div></div>'+
       '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+chips+'</div>'+
       '<div class="lc-kpi"><div class="k">Mean time to resolve</div><div class="v">'+dur(C.mttrMinutes)+'</div><div class="s">Closed incidents, '+win+'</div></div>'+
       '<div class="lc-kpi"><div class="k">Closed by automation</div><div class="v">'+(auto==null? 'n/a' : closed>0? Math.round(auto/closed*100)+'<small>%</small>' : '0<small>%</small>')+'</div><div class="s">'+
@@ -2870,14 +2945,18 @@
       const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
       const numCols = b.headers.map((h,ci)=> !wrapCols[ci] && b.rows.some(r=>plain(r[ci])!=='') && b.rows.every(r=>plain(r[ci])===''||isNum(plain(r[ci]))));
       const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'" aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'+h+'<span class="sorti" aria-hidden="true"></span></button></th>').join('')+'</tr></thead>';
-      const body=b.rows.map(r=>'<tr>'+r.map((c,ci)=>{
+      const cellsHtml=b.rows.map(r=>r.map((c,ci)=>{
           const num = numCols[ci];
-          const cell = formatCell(c);
+          const cell = formatCell(c, b.headers[ci]);
           const wrap = wrapCols[ci] || (!num && cell.replace(/<[^>]+>/g,'').length>40);   // long cells wrap rather than overflow
           return '<td class="'+(wrap?'wrap':'')+(num?' num':'')+'">'+cell+'</td>';
-        }).join('')+'</tr>').join('');
+        }).join(''));
+      // Which chip kinds a row holds, for the key's filter.
+      const kinds=cellsHtml.map(h=>({ready:h.indexOf('class="tagpill inst"')>=0, notinst:h.indexOf('class="tagpill"')>=0}));
+      const body=cellsHtml.map((h,ri)=>'<tr'+(kinds[ri].ready?' data-ready="1"':'')+(kinds[ri].notinst?' data-notinst="1"':'')+'>'+h+'</tr>').join('');
       const tid='dt'+idx;
-      const key=body.indexOf('tagpill inst')>=0 ? CHIP_KEY : '';
+      const nReady=kinds.filter(k=>k.ready).length;
+      const key=nReady ? chipKey(tid, nReady, kinds.filter(k=>k.notinst).length) : '';
       return '<div class="doctable-wrap">'+
         (many?'<div class="doctable-tools"><input type="search" data-for="'+tid+'" placeholder="Filter '+b.rows.length+' rows…">'+key+'<span class="dtc" id="'+tid+'c">'+b.rows.length+' rows</span></div>'
           : key?'<div class="doctable-tools">'+key+'</div>':'')+
@@ -2894,15 +2973,24 @@
     // is not installed stays grey. Tables with tinted chips carry a key.
     const CELL_CHIPS=3;
     const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(x.replace(/<[^>]+>/g,'').trim());
-    const CHIP_KEY='<span class="chipkey" title="Where the templates come from: green is ready to enable (its solution is installed, or it ships with Sentinel); grey needs its Content Hub solution installed first"><span class="tagpill inst">Installed or built in</span><span class="tagpill">Not installed</span></span>';
-    function listCell(c){
+    function chipKey(tid,nReady,nNot){
+      const k=(ck,label,n,tip)=>'<button type="button" class="fchip" data-ck="'+ck+'" aria-pressed="false" title="'+tip+'"><i class="ck-'+ck+'" aria-hidden="true"></i>'+label+'<span>'+n+'</span></button>';
+      return '<span class="chipkey" data-for="'+tid+'" role="group" aria-label="Filter by where the templates come from">'+
+        k('ready','Installed or built in',nReady,'Show the rows with templates ready to enable: their solution is installed, or they ship with Sentinel')+
+        k('notinst','Not installed',nNot,'Show the rows with templates whose Content Hub solution is not installed')+'</span>';
+    }
+    function listCell(c, head){
       const items=String(c).split(/(?<!&[a-z0-9#]{1,8});\s+/i).map(x=>x.trim()).filter(Boolean);
+      // A From solutions column ("Name (N, installed)") is chips even for one
+      // solution, so every row shows its colour.
+      const solCol=/^from solutions?$/i.test(String(head||'').replace(/<[^>]+>/g,'').trim()) && items.length>0 &&
+        items.every(x=>/\(\d+(,\s*installed)?\)$/.test(x.replace(/<[^>]+>/g,'').trim()));
       // Two or three short items are chips too; a sentence with a
       // semicolon in it (longer parts) stays text.
-      if(items.length<2 || (items.length<4 && items.some(x=>x.replace(/<[^>]+>/g,'').length>60))) return '';
+      if(!solCol && (items.length<2 || (items.length<4 && items.some(x=>x.replace(/<[^>]+>/g,'').length>60)))) return '';
       // A lead-in before the list ("146 rule(s) disabled: ...") stays text.
       let lead='';
-      const m=/^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
+      const m=solCol? null : /^(.{3,120}?:)\s+(.+)$/.exec(items[0]); if(m && !/<a\b/i.test(m[1])){ lead='<div class="cellp">'+m[1]+'</div>'; items[0]=m[2]; }
       return lead+'<div class="morewrap cellchips"><div class="chipl">'+items.map((x,i)=>'<span class="tagpill'+(readyChip(x)?' inst':'')+'"'+(i>=CELL_CHIPS?' data-mr hidden':'')+'>'+x+'</span>').join('')+'</div>'+
         (items.length>CELL_CHIPS? moreChev(items.length) : '')+'</div>';
     }
@@ -2910,9 +2998,9 @@
     // act on, red for something that no longer works or is risky.
     const STATUS_PILL={'Up to date':'Met','Current':'Met','Update available':'Warn','Stale':'Warn','Deprecated':'Gap','Not in catalogue':'Gap','Stale, used by rules':'Gap',
       'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'};
-    function formatCell(c){
+    function formatCell(c, head){
       const stc=STATUS_PILL[String(c==null?'':c).trim()]; if(stc) return '<span class="st '+stc+'">'+String(c).trim()+'</span>';
-      const chips=c? listCell(c) : ''; if(chips) return chips;
+      const chips=c? listCell(c, head) : ''; if(chips) return chips;
       if(!c || !/^[a-z][a-z0-9]*=/i.test(c)) return c;
       const parts = c.split(/,\s*(?=[a-zA-Z][a-zA-Z0-9]*=)/);
       if(parts.length<2 && !/^(description|tactics|techniques)=/i.test(c)) return c;
@@ -3138,16 +3226,93 @@
       content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
       // wire per-table sorting and filters
       content.querySelectorAll('table.doct thead th').forEach(th=>{ const b=th.querySelector('.thsort'); if(b) b.onclick=()=>sortTable(th.closest('table'), th); });
-      content.querySelectorAll('.doctable-tools input').forEach(inp=>{
-        inp.oninput=()=>{
-          const t=document.getElementById(inp.dataset.for); const q=inp.value.toLowerCase();
-          let shown=0; t.querySelectorAll('tbody tr').forEach(tr=>{ const m=tr.textContent.toLowerCase().includes(q); tr.style.display=m?'':'none'; if(m)shown++; });
-          const c=document.getElementById(inp.dataset.for+'c'); if(c)c.textContent=shown+' / '+t.querySelectorAll('tbody tr').length+' rows';
-        };
-      });
+      content.querySelectorAll('.doctable-tools input').forEach(inp=>{ inp.oninput=()=>docFilter(inp.dataset.for); });
+      content.querySelectorAll('.chipkey .fchip').forEach(k=>{ k.onclick=()=>{
+        const on=!k.classList.contains('active');
+        k.parentNode.querySelectorAll('.fchip').forEach(x=>{ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+        if(on){ k.classList.add('active'); k.setAttribute('aria-pressed','true'); }
+        docFilter(k.parentNode.dataset.for);
+      }; });
+      linkSolutionChips();
       layoutDoc();
       if(typeof fitIframe==='function') fitIframe();
     }
+
+    // Filters a report table by its search box (every word, or "quoted
+    // phrase", must appear in the row) and by its chip key when it has one.
+    function docFilter(tid){
+      const t=document.getElementById(tid); if(!t) return;
+      const inp=content.querySelector('.doctable-tools input[data-for="'+tid+'"]');
+      const q=inp? inp.value : '';
+      const words=(q.toLowerCase().match(/"[^"]*"|\S+/g)||[]).map(w=>w.replace(/"/g,'').trim()).filter(Boolean);
+      const k=content.querySelector('.chipkey[data-for="'+tid+'"] .fchip.active'), want=k? k.dataset.ck : '';
+      // A solution chip pins the template list to its solution and table, exactly.
+      const pin=t.dataset.pinSol!=null? {sol:t.dataset.pinSol, tbl:t.dataset.pinTbl} : null;
+      const h=pin? headsOf(t) : [], iS=h.indexOf('solution'), iTb=h.indexOf('tables');
+      const pinned=tr=>!pin || (tr.children[iS].textContent.trim()===pin.sol && tr.children[iTb].textContent.toLowerCase().split(',').map(x=>x.trim()).includes(pin.tbl.toLowerCase()));
+      const rows=t.querySelectorAll('tbody tr'); let shown=0;
+      rows.forEach(tr=>{ const txt=tr.textContent.toLowerCase(); const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr); tr.style.display=m?'':'none'; if(m) shown++; });
+      const c=document.getElementById(tid+'c'); if(c) c.textContent=(words.length||want||pin? shown+' / ' : '')+rows.length+' rows';
+      // With the key on, each row's chips narrow to that kind, every one of
+      // them, so the row shows what is (or is not) installed; off, the first
+      // chips and the chevron come back as they were.
+      t.querySelectorAll('.cellchips').forEach(w=>{
+        const chev=w.querySelector(':scope > .morechev');
+        w.querySelectorAll('.chipl > .tagpill').forEach(ch=>{
+          const ready=ch.classList.contains('inst');
+          ch.hidden=want? (want==='ready'? !ready : ready) : (ch.hasAttribute('data-mr') && !w.classList.contains('open'));
+        });
+        if(chev) chev.hidden=!!want;
+      });
+      if(typeof fitIframe==='function') fitIframe();
+    }
+    // A chip in a From solutions column names a solution and how many of the
+    // row's templates it ships; the page's template list (a table with
+    // Template, Solution and Tables columns) says which. The chip lists them
+    // in its tooltip and, selected, opens that list filtered to them.
+    const headsOf=t=>[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim().toLowerCase());
+    function templateList(){
+      return [...content.querySelectorAll('table.doct')].find(t=>{ const h=headsOf(t); return h.includes('template') && h.includes('solution') && h.includes('tables'); });
+    }
+    function linkSolutionChips(){
+      const list=templateList(); if(!list) return;
+      const lh=headsOf(list), iT=lh.indexOf('template'), iS=lh.indexOf('solution'), iTb=lh.indexOf('tables');
+      // Table names compare without case, as the renderer counts them.
+      const tpl=[...list.querySelectorAll('tbody tr')].map(tr=>({name:tr.children[iT].textContent.trim(), sol:tr.children[iS].textContent.trim(), tables:tr.children[iTb].textContent.toLowerCase().split(',').map(x=>x.trim())}));
+      content.querySelectorAll('table.doct').forEach(t=>{
+        const h=headsOf(t), iSrc=h.indexOf('from solutions'), iTab=h.indexOf('table'); if(iSrc<0 || iTab<0) return;
+        t.querySelectorAll('tbody tr').forEach(tr=>{
+          const tbl=tr.children[iTab].textContent.trim();
+          tr.children[iSrc].querySelectorAll('.tagpill').forEach(ch=>{
+            const m=/^(.*?) \((\d+)(?:,\s*installed)?\)$/.exec(ch.textContent.trim()); if(!m) return;
+            const names=tpl.filter(x=>x.sol===m[1] && x.tables.includes(tbl.toLowerCase())).map(x=>x.name); if(!names.length) return;
+            ch.classList.add('chiplink'); ch.tabIndex=0; ch.setAttribute('role','button');
+            ch.dataset.sol=m[1]; ch.dataset.tbl=tbl;
+            ch.title=names.join('\n')+'\n\nSelect to list '+(names.length===1?'it':'them')+' with severity, tactics and tables';
+          });
+        });
+      });
+    }
+    function openTemplates(sol, tbl){
+      const list=templateList(); if(!list) return;
+      const pane=list.closest('.docpane');
+      if(pane && pane.hidden){ const tab=document.getElementById(pane.getAttribute('aria-labelledby')); if(tab) tab.click(); }
+      list.dataset.pinSol=sol; list.dataset.pinTbl=tbl;
+      const wrap=list.closest('.doctable-wrap');
+      let tools=wrap && wrap.querySelector('.doctable-tools');
+      if(wrap && !tools){ tools=document.createElement('div'); tools.className='doctable-tools'; wrap.insertBefore(tools, wrap.firstChild); }
+      if(tools){
+        let chip=tools.querySelector('[data-unpin]');
+        if(!chip){ chip=document.createElement('button'); chip.type='button'; chip.className='fchip active'; chip.setAttribute('data-unpin',''); tools.insertBefore(chip, tools.querySelector('.dtc')); }
+        chip.innerHTML=esc(tbl)+' &middot; '+esc(sol)+'<span aria-hidden="true">&times;</span>';
+        chip.title='The templates for '+tbl+' from '+sol+'. Select to show every template again.';
+        chip.onclick=()=>{ delete list.dataset.pinSol; delete list.dataset.pinTbl; chip.remove(); docFilter(list.id); };
+      }
+      docFilter(list.id);
+      bringTop(wrap||list);
+    }
+    content.addEventListener('click',e=>{ const ch=e.target.closest('.chiplink'); if(ch) openTemplates(ch.dataset.sol, ch.dataset.tbl); });
+    content.addEventListener('keydown',e=>{ const ch=e.target.closest('.chiplink'); if(ch && (e.key==='Enter' || e.key===' ')){ e.preventDefault(); openTemplates(ch.dataset.sol, ch.dataset.tbl); } });
 
     // Links to another section open it here; links to a finding open it in
     // the findings view, or its section when this run's list does not hold

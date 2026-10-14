@@ -124,6 +124,12 @@ Describe 'iSOC Blueprint renderer' {
             $script:overview | Should -Match '"Entra ID / Identity","Ingestion"'
         }
 
+        It 'counts every product''s alerts into incidents, and the rules'' own alerts on their stage' {
+            # 565 alerts across every product in the fixture; 507 from Sentinel's scheduled and NRT rules.
+            $script:overview | Should -Match '"Alerts \(565 in 30d\)","Incidents \(40 in 30d\)"'
+            $script:overview | Should -Match '507 alerts from them and 40 from Defender XDR in 30 days'
+        }
+
         It 'rates the four pipeline stages' {
             $script:overview | Should -Match '\| Stage \| In use \| Of \| Share \| Rating \|'
             $script:overview | Should -Match 'Incidents: closed, of those created in 30d \| 32 \| 40 \| 80% \|'

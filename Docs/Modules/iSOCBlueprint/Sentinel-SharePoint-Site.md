@@ -83,12 +83,22 @@ carries the health-check views the Blueprint computes:
 
 Under the glance tiles, the **alert lifecycle** follows the light or dark theme
 (dark keeps a black "screen" behind the glow):
-source families on the left (strand width = GB) run into the alerts they
-raised, an animated core, and the incidents those became; on the right each
+source families on the left run into the alerts raised on them, split in two:
+Sentinel's (strand width = GB) and Defender XDR's (the Microsoft security
+products: Entra ID Protection, Defender for Endpoint, Office 365, Identity
+and Cloud, Purview and the rest; a strand from each family whose products
+raised alerts, width = alerts). Both feed an animated core and the incidents
+those became, so alerts and incidents count the same things: in a workspace
+joined to the Defender portal every incident is a Defender XDR one,
+whichever product raised its alerts. Alerts are counted once each, however
+often a status change wrote them again, and every figure is the exact count.
+A snapshot with no Defender XDR alerts shows one Alerts node. On the right
+each
 incident branch shows how it ended, closed by an automation rule, by an
 analyst, in Defender XDR or by another identity, or still open with its
 severities (strand width = incidents). A strip underneath gives ingestion per
-day with a sparkline, alerts per incident, open incidents, mean time to
+day with a sparkline, alerts per incident (with the Sentinel and Defender
+XDR split), open incidents, mean time to
 resolve and the share closed by automation. Every part opens its page (the
 sources open the Data flow tab). A snapshot collected before the closure
 counts shows one Closed branch and says the automation share was not
@@ -101,7 +111,15 @@ glow fading to near-black, and the base panel colour is darker to match; the
 coloured posture cards keep their colours. The estate flow is drawn in the
 same style: glowing source dots, ring arcs with a glow and spaced capitals
 for the captions, and the closed and open incidents as glowing nodes with
-their counts.
+their counts. When Defender XDR raised alerts, the band splits after
+Detection into two rings centred on the line, Defender XDR alerts above
+(Defender XDR's share of every alert, in its colour, since a share is not a
+score, with the exact count under it) and Sentinel alerts below (the rules
+that fired, as before), and the two merge into Incidents, which count both;
+Defender XDR's products read no workspace table, so the rings before the
+split do not count them. The Alerts figure under the flow gives the rules'
+own alerts and Defender XDR's side by side, as does the Alerts stage on the
+report's overview page.
 
 The estate flow moves too: beads run along the strands a detection rule
 reads, the band between the rings and the incident branches (faster for more
@@ -287,7 +305,18 @@ chips: the first three, then a Show all chevron for the rest, with a lead-in suc
 "146 rule(s) disabled:" kept as text above them. A template source that is
 ready to enable, a solution marked installed or Built-in (templates that
 ship with Sentinel), is tinted green; one whose solution is not installed
-stays grey, and the table's tool bar carries a key to the two. Status words in a table cell show as pills:
+stays grey. The table's tool bar carries a key to the two in the
+dashboard's filter chips, each with the legend's swatch and how many rows
+hold that kind; selecting one shows only those rows, and in each row only
+those chips, every one of them (so Not installed shows exactly what is not
+installed), alongside the search box; selecting it again brings back the
+first chips and the chevron. The search box matches every word,
+or "quoted phrase", anywhere in the row. Each solution chip lists the
+templates behind it in its tooltip and, selected, opens the page's
+Undeployed templates ready to enable list showing exactly those templates
+(that solution, that table), with a chip in the list's tool bar to show
+every template again. A From solutions cell with one solution is a chip
+too, so every row shows its colour. Status words in a table cell show as pills:
 green for Up to date and Current, amber for Update available and Stale,
 red for Deprecated, Not in catalogue and Stale, used by rules. A chart
 with more than one series shows its key above the bars. The Markdown pages refer to one another by
@@ -302,7 +331,7 @@ host page (with `scrollIntoView`) rather than its own window.
 
 | Model key | Panel | Source captures |
 | --- | --- | --- |
-| `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored") | `tables-with-data`, `rule-table-references`, `rules-fired`, `incidents-summary` |
+| `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored"). `alerts` is every product's alerts, split as `alertsSentinel` and `alertsXdr` for the alert lifecycle; `ruleAlerts` is the scheduled and NRT rules' own | `tables-with-data`, `rule-table-references`, `rules-fired`, `analytics-rule-volumes`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
 | `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
 | `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope, and every capability area's score against the target, weakest first, an area below target in amber; selecting an area opens the Assessment with the criteria filtered to it) and quick wins, filled to the maturity card's height so the two cards end level with their buttons in line (the rest behind Show all; when every quick win fits, the button opens the roadmap). Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target, the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |

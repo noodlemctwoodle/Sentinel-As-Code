@@ -183,6 +183,15 @@ Describe 'Collector API versions' {
     }
 }
 
+Describe 'Alert volume capture' {
+    It 'counts each alert once, not each record a status change writes' {
+        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
+        $block = [regex]::Match($collector, "(?s)Try-Capture 'analytics-rule-volumes' \{.*?\n\}").Value
+        $block | Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName\) by SystemAlertId'
+        $block | Should -Match 'by AlertName, ProductName, AlertSeverity'
+    }
+}
+
 Describe 'Incident closure capture' {
     It 'counts closed incidents by who closed them, exporting the category and never the name' {
         $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
