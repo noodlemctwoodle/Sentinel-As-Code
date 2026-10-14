@@ -50,7 +50,7 @@ with the dashboard template and the web part source:
 
 | Command (script) | Job |
 | --- | --- |
-| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint workspace folder into a site bundle in `<workspace>/sharepoint/`. |
+| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
 | `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
@@ -463,6 +463,20 @@ its data; a later design change does not reach older copies. Only the
 dashboard has a history: the section pages and the findings list show the
 latest run.
 
+Runs from the module land in a folder per day
+(`SecurityDocs/<workspace>/<yyyy-MM-dd>/`), so a machine that runs the
+Blueprint daily holds its own history. When `New-iSOCBlueprintSite` builds a
+bundle for a day folder, it copies the dashboards of the earlier days in the
+same window from the sibling day folders into the bundle's `history/`, with
+an `index.json` in the same shape as the site's (each day's figures come from
+its `site.json`). That makes the date picker work when the bundle is opened
+from disk, and the publisher uploads any of those days the site does not
+have yet, so a site first published from a machine with a month of runs
+starts with that month. A day the site already holds is left as it is. A
+bundle built from a flat folder (the pipelines, `-NoDateFolder`) has no
+`history/` and relies on the site's own. `-HistoryDays` on
+`New-iSOCBlueprintSite` sets the window (90 by default, `0` for none).
+
 ## Setting it up
 
 ### 1. App registrations
@@ -537,7 +551,8 @@ New-iSOCBlueprintSite -Path ./artefact/law-sentinel-prod |
 From a live workspace instead, in one line:
 `New-iSOCBlueprint -ResourceGroup <rg> -WorkspaceName <ws> -Format SharePoint -SiteUrl <url> -Interactive -ClientId <app> -Tenant <tenant>`.
 Without `-SiteUrl` it builds the bundle and stops, so you can open
-`sharepoint/index.html` to preview the dashboard.
+`SecurityDocs/<ws>/<yyyy-MM-dd>/sharepoint/index.html` to preview the
+dashboard.
 
 The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its

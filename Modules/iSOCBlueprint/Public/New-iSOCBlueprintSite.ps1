@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -46,7 +46,8 @@ function New-iSOCBlueprintSite {
         converted on the fly.
 
     .PARAMETER Path
-        The workspace folder holding _raw/ and sections/.
+        The run's folder holding _raw/ and sections/, or a workspace folder
+        holding day folders (the newest day is used).
 
     .PARAMETER OutputPath
         The bundle folder. Defaults to <workspace>/sharepoint. Its pages/
@@ -77,6 +78,12 @@ function New-iSOCBlueprintSite {
     .PARAMETER MaxTableRows
         Most rows per table on a SharePoint page. Defaults to 500; longer
         tables point to the dashboard, which has every row.
+
+    .PARAMETER HistoryDays
+        When the run is a day's folder beside earlier days, how many days
+        back, counting this one, the bundle carries for the dashboard's date
+        picker (each earlier day's own bundle is copied). Defaults to 90; 0
+        carries none.
 
     .OUTPUTS
         [pscustomobject] WorkspaceName and Path (the bundle folder). Pipe it
@@ -116,14 +123,17 @@ function New-iSOCBlueprintSite {
 
         [switch] $SkipWhatsNew,
 
-        [int] $MaxTableRows
+        [int] $MaxTableRows,
+
+        [ValidateRange(0, 3650)]
+        [int] $HistoryDays
     )
 
     process {
-        $source = Resolve-iSOCBlueprintPath -Path $Path
+        $source = Resolve-iSOCBlueprintRunPath -Path $Path
         $params = @{ Source = $source }
         if ($OutputPath) { $params.OutputRoot = Resolve-iSOCBlueprintPath -Path $OutputPath }
-        Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'ProductName', 'Title', 'WorkspaceName', 'WhatsNewFeedUrl', 'WhatsNewCount', 'MaxTableRows'
+        Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'ProductName', 'Title', 'WorkspaceName', 'WhatsNewFeedUrl', 'WhatsNewCount', 'MaxTableRows', 'HistoryDays'
         if ($SkipWhatsNew) { $params.SkipWhatsNew = $true }
 
         $result = @(Invoke-iSOCBlueprintEngine -Script 'SharePoint/Build-SentinelDocsSite.ps1' -Parameters $params -BoundParameters $PSBoundParameters)

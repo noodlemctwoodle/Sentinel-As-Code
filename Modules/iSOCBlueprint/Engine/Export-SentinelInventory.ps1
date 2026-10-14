@@ -35,7 +35,13 @@
 
 .PARAMETER OutputRoot
     Folder root for the export. Defaults to ./SecurityDocs (gitignored). Files are written
-    under <OutputRoot>/<WorkspaceName>/_raw/.
+    under <OutputRoot>/<WorkspaceName>/_raw/, or <OutputRoot>/<WorkspaceName>/<RunFolder>/_raw/
+    with -RunFolder.
+
+.PARAMETER RunFolder
+    A folder under the workspace's folder for this run, such as the date
+    (yyyy-MM-dd), so a run does not overwrite the last. Empty by default:
+    the run writes to the workspace's folder itself.
 
 .PARAMETER IncludePreview
     Use the 2024-10-01-preview API version where applicable (Content Hub product packages,
@@ -73,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.0
+    Version:        0.7.0
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -112,6 +118,10 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$OutputRoot = (Join-Path -Path (Get-Location).ProviderPath -ChildPath 'SecurityDocs'),
+
+    [Parameter(Mandatory = $false)]
+    [ValidatePattern('^[\w.-]*$')]
+    [string]$RunFolder,
 
     # Logic Apps resource group. Sentinel-As-Code allows playbooks to live in a
     # separate resource group from the workspace (the `playbookResourceGroup`
@@ -176,6 +186,7 @@ Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
 # Output paths
 # ---------------------------------------------------------------------------
 $workspaceOut = Join-Path $OutputRoot $WorkspaceName
+if ($RunFolder) { $workspaceOut = Join-Path $workspaceOut $RunFolder }
 $rawOut = Join-Path $workspaceOut '_raw'
 
 if (-not (Test-Path $rawOut)) {

@@ -327,8 +327,17 @@ Describe 'Public commands map their parameters onto the engine' {
             $Parameters.TargetMaturityLevel -eq 3 -and $Parameters.IncludePreview -eq $true -and
             -not $Parameters.ContainsKey('SubscriptionId') -and -not $Parameters.ContainsKey('PlaybookResourceGroup')
         }
+        # One folder a day, so a run does not overwrite the last.
+        $day = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter { $Parameters.RunFolder -eq $day }
+        $r.Path | Should -Be (Join-Path $script:cwd "SecurityDocs/ws/$day")
+        $r.RawPath | Should -Be (Join-Path $script:cwd "SecurityDocs/ws/$day/_raw")
+    }
+
+    It 'Export-iSOCBlueprintInventory writes to the workspace folder itself with -NoDateFolder' {
+        $r = Export-iSOCBlueprintInventory -ResourceGroup rg -WorkspaceName ws -NoDateFolder
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter { -not $Parameters.ContainsKey('RunFolder') }
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws')
-        $r.RawPath | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws/_raw')
     }
 
     It 'ConvertTo-iSOCBlueprint reads and writes the workspace folder by default' {
@@ -408,6 +417,7 @@ Describe 'New-iSOCBlueprint' {
     BeforeAll {
         Push-Location $TestDrive
         $script:cwd = (Get-Location).ProviderPath
+        $script:day = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
     }
 
     AfterAll { Pop-Location }
@@ -428,27 +438,41 @@ Describe 'New-iSOCBlueprint' {
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { "$Format" -eq 'Json' }
         Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 0 -Exactly
         Should -Invoke -ModuleName iSOCBlueprint New-iSOCBlueprintSite -Times 0 -Exactly
-        $r.SectionsPath | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws/sections')
+        $r.SectionsPath | Should -Be (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/sections")
         $r.MarkdownPath | Should -BeNullOrEmpty
+    }
+
+    It 'keeps the flat workspace folder with -NoDateFolder' {
+        $r = New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Json -NoDateFolder
+        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintInventory -Times 1 -Exactly -ParameterFilter { $NoDateFolder }
+        $r.SectionsPath | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws/sections')
+    }
+
+    It 'renders the newest day with -SkipCollection' {
+        foreach ($d in '2026-10-01', '2026-10-03', '2026-10-02') { New-Item -ItemType Directory -Path (Join-Path $script:cwd "SecurityDocs/wsd/$d/_raw") -Force | Out-Null }
+        $r = New-iSOCBlueprint -WorkspaceName wsd -SkipCollection -Format Json
+        $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03')
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03') }
     }
 
     It 'renders Markdown for Word and warns that charts need -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -WarningVariable warned -WarningAction SilentlyContinue | Out-Null
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { "$Format" -eq 'Markdown' }
-        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter { $OutputPath -eq (Join-Path $script:cwd 'SecurityDocs/ws.docx') }
+        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter { $OutputPath -eq (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/ws.docx") }
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 0 -Exactly
         "$warned" | Should -Match 'ChartImages'
     }
 
     It 'draws the charts before the Word report with -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -ChartImages | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs') }
+        # Chart images look one level down: the days under the workspace's folder.
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/ws') }
     }
 
     It 'builds the SharePoint bundle without publishing when no site is given' {
         $r = New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format SharePoint
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { "$Format" -eq 'Json' }
-        Should -Invoke -ModuleName iSOCBlueprint New-iSOCBlueprintSite -Times 1 -Exactly
+        Should -Invoke -ModuleName iSOCBlueprint New-iSOCBlueprintSite -Times 1 -Exactly -ParameterFilter { $HistoryDays -eq 90 }
         Should -Invoke -ModuleName iSOCBlueprint Publish-iSOCBlueprintSite -Times 0 -Exactly
         $r.SiteBundle | Should -Be 'bundle'
         $r.SiteUrl | Should -BeNullOrEmpty

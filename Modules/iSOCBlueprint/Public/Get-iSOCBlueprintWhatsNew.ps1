@@ -52,7 +52,8 @@ function Get-iSOCBlueprintWhatsNew {
         to 12.
 
     .PARAMETER Path
-        A workspace folder (holding _raw/) or a _raw folder. When given, the
+        A run's folder (holding _raw/), a workspace folder holding day
+        folders (the newest day is used), or a _raw folder. When given, the
         result is also saved there as whats-new.json, where the renderer
         reads it for the What's new page.
 

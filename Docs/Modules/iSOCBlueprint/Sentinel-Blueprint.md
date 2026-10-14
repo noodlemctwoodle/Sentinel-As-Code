@@ -119,80 +119,92 @@ topology that matches your setup:
 
 ## What it produces
 
-A folder per workspace under `SecurityDocs/<workspace>/`. The collector
-(`Export-iSOCBlueprintInventory`) writes the `_raw/` JSON snapshot; the renderer
-(`ConvertTo-iSOCBlueprint`) turns that snapshot into **35 numbered
-sections**, written twice: as the [section model](Section-Model.md) in `sections/`
-(typed JSON, what the SharePoint site is built from and what to build on) and as
-Markdown files with an `index.md` contents page (`-Format Json` skips the
-Markdown):
+A folder per workspace under `SecurityDocs/<workspace>/`, and inside it a
+folder per run day, `<yyyy-MM-dd>/` (UTC), so a second run on another day
+lands beside the first instead of over it. A second run on the same day
+replaces that day. The pipelines pass `-NoDateFolder` and write straight into
+`SecurityDocs/<workspace>/`, because each run starts from a clean agent and
+the docs pull request diffs that one folder; their history lives on the
+SharePoint site instead (see
+[Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md)).
+
+The collector (`Export-iSOCBlueprintInventory`) writes the `_raw/` JSON
+snapshot; the renderer (`ConvertTo-iSOCBlueprint`) turns that snapshot into
+**35 numbered sections**, written twice: as the [section model](Section-Model.md)
+in `sections/` (typed JSON, what the SharePoint site is built from and what to
+build on) and as Markdown files with an `index.md` contents page (`-Format Json`
+skips the Markdown). Every command that takes `-Path` accepts either a day
+folder or the workspace folder; given the workspace folder, it uses the newest
+day.
 
 ```
 SecurityDocs/
 └── law-sentinel-prod/
-    ├── _raw/                          machine-readable JSON snapshot
-    │   ├── workspace.json
-    │   ├── workspace-tables.json
-    │   ├── search-jobs.json            the search job (_SRCH) tables in workspace-tables.json
-    │   ├── restore-logs.json           the restored (_RST) tables in workspace-tables.json
-    │   ├── tables-with-data.json
-    │   ├── alert-rules.json
-    │   ├── data-connectors-classic.json
-    │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
-    │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
-    │   ├── playbook-runs.json          runs and failures per playbook (7d)
-    │   ├── ... (≈87 files)
-    │   ├── retail-prices-uksouth-2026-05-06.json
-    │   ├── cost-estimate.json
-    │   ├── gap-analysis.json          findings that fired
-    │   ├── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
-    │   └── maturity.json              maturity assessment: area scores, roadmap, quick wins, CSF rollup
-    ├── sections/                      the section model (see Section-Model.md)
-    │   ├── index.json                 the sections in reading order, with the run's facts
-    │   ├── 00-overview.json           one file per section below: blocks, text runs, charts as data
-    │   └── ...
-    ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
-    ├── 00-overview.md                 headline counts, top findings, cost summary
-    ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
-    ├── 02-deprecated-legacy-features.md  retirement deadlines, legacy features still in use
-    ├── 03-whats-new.md                what Microsoft released, previewed and is retiring in Sentinel and Defender XDR (12 months), each item tied to this report's pages and maturity criteria
-    ├── 10-data-connectors.md          classic + CCF + synthesised effective view with the connector behind each table, connected connectors against the connector catalogue, Defender XDR unification
-    ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
-    ├── 12-soc-optimization.md         SOC Optimization recommendations
-    ├── 13-data-source-hygiene.md      CEF/Syslog hygiene with vendors, SecurityEvent duplicates, noisy event IDs, Syslog and SecurityEvent contributors
-    ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics per category / Azure Firewall categories / XDR coverage by source, Entra ID table presence
-    ├── 15-incidents.md                incident MTTA/MTTR, outcomes, 7-day incident metrics, incidents by rule and by provider
-    ├── 16-alerts.md                   alert volume by severity, detection source and provider
-    ├── 20-analytics-rules.md          all rules by kind, Microsoft-managed, recent modifications, by Content Hub solution, Defender XDR custom detections
-    ├── 21-rule-performance.md         alert volume per rule, rule effectiveness, noisy rules
-    ├── 22-rule-health-quality.md      rule run failures, rules without entity mappings, alert-only rules, stale rules, template drift, complexity
-    ├── 25-mitre-coverage.md           ATT&CK tactics, techniques and sub-techniques covered, every rule's mapping
-    ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
-    ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
-    ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable
-    ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
-    ├── 35-parsers-functions.md        parsers and functions, other saved searches
-    ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
-    ├── 37-search-restore.md           search job and restored tables
-    ├── 38-summary-rules.md            summary rules
-    ├── 40-workbooks.md                saved workbooks + templates available
-    ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
-    ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants, automation opportunities
-    ├── 70-content-hub.md              installed solutions + repos
-    ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
-    ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
-    ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
-    ├── 83-data-collection.md          DCRs, DCEs, transforms
-    ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if, Sentinel pricing settings
-    ├── 85-rbac.md                     role assignments, by role, Sentinel and monitoring roles, high-privilege assignments
-    ├── 86-subscription-context.md     signed-in identity, subscription, tenant, RPs, locks, policy
-    ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace, agent heartbeat mix by OS and version
-    ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, usage evidence, migration candidates
-    ├── 89-retention.md                retention checks, per-table overrides, retention that rolls into the lake, ingestion validation
-    ├── 90-gap-analysis.md             every finding with remediation + Learn link
-    ├── 91-maturity-assessment.md     maturity scale, maturity by area, open gaps and their impact, roadmap, quick wins, NIST CSF rollup
-    ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
-    └── 99-references.md               blueprint's own API versions + modules (copied from Blueprint-References.md)
+    ├── 2026-10-13/                    an earlier run, kept as it was
+    └── 2026-10-14/                    this run (the folder holds what is below)
+        ├── _raw/                          machine-readable JSON snapshot
+        │   ├── workspace.json
+        │   ├── workspace-tables.json
+        │   ├── search-jobs.json            the search job (_SRCH) tables in workspace-tables.json
+        │   ├── restore-logs.json           the restored (_RST) tables in workspace-tables.json
+        │   ├── tables-with-data.json
+        │   ├── alert-rules.json
+        │   ├── data-connectors-classic.json
+        │   ├── rule-table-references.json  which tables each rule reads (and template-table-references.json)
+        │   ├── rule-effectiveness.json     incidents, closures and classifications per rule (30d)
+        │   ├── playbook-runs.json          runs and failures per playbook (7d)
+        │   ├── ... (≈87 files)
+        │   ├── retail-prices-uksouth-2026-05-06.json
+        │   ├── cost-estimate.json
+        │   ├── gap-analysis.json          findings that fired
+        │   ├── gap-checks.json            one outcome per rule: Fired, Passed, Errored or Undefined
+        │   └── maturity.json              maturity assessment: area scores, roadmap, quick wins, CSF rollup
+        ├── sections/                      the section model (see Section-Model.md)
+        │   ├── index.json                 the sections in reading order, with the run's facts
+        │   ├── 00-overview.json           one file per section below: blocks, text runs, charts as data
+        │   └── ...
+        ├── index.md                       full TOC, mapped to the Sentinel Config TOC numbering
+        ├── 00-overview.md                 headline counts, top findings, cost summary
+        ├── 01-live-snapshot.md            workspace-at-a-glance, regenerated every run
+        ├── 02-deprecated-legacy-features.md  retirement deadlines, legacy features still in use
+        ├── 03-whats-new.md                what Microsoft released, previewed and is retiring in Sentinel and Defender XDR (12 months), each item tied to this report's pages and maturity criteria
+        ├── 10-data-connectors.md          classic + CCF + synthesised effective view with the connector behind each table, connected connectors against the connector catalogue, Defender XDR unification
+        ├── 11-sentinel-health.md          SentinelHealth events and failures, connector and DCR health issues (last 7 days)
+        ├── 12-soc-optimization.md         SOC Optimization recommendations
+        ├── 13-data-source-hygiene.md      CEF/Syslog hygiene with vendors, SecurityEvent duplicates, noisy event IDs, Syslog and SecurityEvent contributors
+        ├── 14-coverage-breakdowns.md      AzureActivity / AzureDiagnostics per category / Azure Firewall categories / XDR coverage by source, Entra ID table presence
+        ├── 15-incidents.md                incident MTTA/MTTR, outcomes, 7-day incident metrics, incidents by rule and by provider
+        ├── 16-alerts.md                   alert volume by severity, detection source and provider
+        ├── 20-analytics-rules.md          all rules by kind, Microsoft-managed, recent modifications, by Content Hub solution, Defender XDR custom detections
+        ├── 21-rule-performance.md         alert volume per rule, rule effectiveness, noisy rules
+        ├── 22-rule-health-quality.md      rule run failures, rules without entity mappings, alert-only rules, stale rules, template drift, complexity
+        ├── 25-mitre-coverage.md           ATT&CK tactics, techniques and sub-techniques covered, every rule's mapping
+        ├── 26-ueba.md                     UEBA configuration, data sources over 7/12/14 days, entity analytics
+        ├── 27-threat-intelligence.md      TI table migration, indicator health, indicators by source and type, connectors, TAXII clients
+        ├── 28-detection-opportunities.md  tables with data but no detection with every candidate template, tables no template covers and the solutions that ship them, templates ready to enable
+        ├── 30-hunting-queries.md          hunting queries, hunts and bookmarks
+        ├── 35-parsers-functions.md        parsers and functions, other saved searches
+        ├── 36-data-export.md              continuous data exports, linked storage accounts, linked ADX clusters
+        ├── 37-search-restore.md           search job and restored tables
+        ├── 38-summary-rules.md            summary rules
+        ├── 40-workbooks.md                saved workbooks + templates available
+        ├── 50-watchlists.md               watchlist *definitions* (item contents never captured)
+        ├── 60-automation-rules-playbooks.md  automation rules + playbooks + MI grants, automation opportunities
+        ├── 70-content-hub.md              installed solutions + repos
+        ├── 80-workspace.md                SKU, retention, networking, resilience summary, CMK, feature flags
+        ├── 81-table-plans-retention.md    Analytics / Basic / Auxiliary / DataLake matrix, silent tables by detection impact, classic (Data Collector API) tables
+        ├── 82-dedicated-cluster.md        cluster, CMK, availability zones
+        ├── 83-data-collection.md          DCRs, DCEs, transforms
+        ├── 84-cost-estimate.md            estimated monthly cost + commitment-tier what-if, Sentinel pricing settings
+        ├── 85-rbac.md                     role assignments, by role, Sentinel and monitoring roles, high-privilege assignments
+        ├── 86-subscription-context.md     signed-in identity, subscription, tenant, RPs, locks, policy
+        ├── 87-azure-monitor-agents.md     AMA agents heartbeating into the workspace, agent heartbeat mix by OS and version
+        ├── 88-sentinel-data-lake.md       Data Lake enrollment, Lake-tier tables, usage evidence, migration candidates
+        ├── 89-retention.md                retention checks, per-table overrides, retention that rolls into the lake, ingestion validation
+        ├── 90-gap-analysis.md             every finding with remediation + Learn link
+        ├── 91-maturity-assessment.md     maturity scale, maturity by area, open gaps and their impact, roadmap, quick wins, NIST CSF rollup
+        ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
+        └── 99-references.md               blueprint's own API versions + modules (copied from Blueprint-References.md)
 ```
 
 Sections are numbered to line up with the formal Sentinel Configuration TOC where
@@ -340,8 +352,10 @@ so an operator who tries it is told exactly why.
 Connect-AzAccount
 Import-Module ./Modules/iSOCBlueprint
 
-# 2. Collect and render in one line. Writes ./SecurityDocs/<workspace>/:
-#    the _raw/ snapshot, sections/*.json and the Markdown pages.
+# 2. Collect and render in one line. Writes ./SecurityDocs/<workspace>/<yyyy-MM-dd>/:
+#    the _raw/ snapshot, sections/*.json and the Markdown pages. Earlier
+#    days stay where they are; -NoDateFolder writes ./SecurityDocs/<workspace>/
+#    instead, as the pipelines do.
 #    -ResourceGroup and -WorkspaceName are required; -SubscriptionId
 #    defaults to the current Az context. Add -PlaybookResourceGroup when
 #    playbooks live in a separate RG, and Word or SharePoint to -Format for
@@ -355,14 +369,20 @@ New-iSOCBlueprint `
     -Format Json, Markdown
 
 # Or step by step: collect, then render (-Format Json for the section
-# model only). Re-render an existing snapshot without collecting again with
-# New-iSOCBlueprint -WorkspaceName <ws> -SkipCollection.
+# model only). Re-render the newest day's snapshot without collecting again
+# with New-iSOCBlueprint -WorkspaceName <ws> -SkipCollection.
 Export-iSOCBlueprintInventory -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod' |
     ConvertTo-iSOCBlueprint
 ```
 
-Open `SecurityDocs/<workspace>/index.md` in your editor. To check what the
-machine can produce first, run `Test-iSOCBlueprintPrerequisite`.
+Open `SecurityDocs/<workspace>/<yyyy-MM-dd>/index.md` in your editor. To check
+what the machine can produce first, run `Test-iSOCBlueprintPrerequisite`.
+
+The SharePoint bundle built for a day (`<yyyy-MM-dd>/sharepoint/`) also carries
+the earlier days of the last 90 under `history/`, so the dashboard's date
+picker works when you open it locally, and publishing it seeds those days onto
+a site that has not seen them. `-HistoryDays` on `New-iSOCBlueprint` and
+`New-iSOCBlueprintSite` sets the window; `0` leaves the history out.
 
 At the end of a collection the collector prints a **Capture summary** table: it
 re-reads a set of files that are almost always populated on an active workspace

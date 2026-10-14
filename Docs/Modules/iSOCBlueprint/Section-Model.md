@@ -1,7 +1,8 @@
 # iSOC Blueprint section model
 
 Every Blueprint run writes its sections as JSON, under
-`SecurityDocs/<workspace>/sections/`, in a shape published as a JSON Schema.
+`SecurityDocs/<workspace>/<yyyy-MM-dd>/sections/` (`SecurityDocs/<workspace>/sections/`
+from the pipelines, which pass `-NoDateFolder`), in a shape published as a JSON Schema.
 This is the contract for anything that reads a Blueprint: the SharePoint site
 is built from it, and you can build on it too, without parsing Markdown.
 

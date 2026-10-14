@@ -116,7 +116,9 @@ Steps, in order:
    `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
    `-SubscriptionId`, `-ResourceGroup`, `-WorkspaceName`,
    `-IncludePreview:$includePreview`, `-TargetMaturityLevel` (from
-   `target-maturity-level`, default 3) and `-OutputPath` set to
+   `target-maturity-level`, default 3), `-NoDateFolder` (the run writes
+   `SecurityDocs/<workspace>/` itself rather than a day folder under it, so
+   the pull request diffs one folder) and `-OutputPath` set to
    `SecurityDocs/` in the checkout.
 6. **Render Markdown report** (`shell: pwsh`). Imports the module and runs
    `ConvertTo-iSOCBlueprint -WorkspaceName '${{ vars.SENTINEL_WORKSPACE }}'`
@@ -238,8 +240,9 @@ A SharePoint-only run renders no Markdown and no PNGs.
    `Modules/iSOCBlueprint` and runs `Export-iSOCBlueprintInventory` with
    `SubscriptionId`, `ResourceGroup`, `WorkspaceName`, optionally
    `IncludePreview` (when `flagIncludePreview` is set),
-   `PlaybookResourceGroup`, `TargetMaturityLevel` and `OutputPath`
-   (`$(Build.SourcesDirectory)/SecurityDocs`).
+   `PlaybookResourceGroup`, `TargetMaturityLevel`, `NoDateFolder` (the run
+   writes `SecurityDocs/<workspace>/` itself rather than a day folder under
+   it) and `OutputPath` (`$(Build.SourcesDirectory)/SecurityDocs`).
 4. **Run renderer** (`PowerShell@2`, inline). Runs
    `ConvertTo-iSOCBlueprint -WorkspaceName $(sentinelWorkspaceName)` on
    `SecurityDocs/<workspace>` with `-Format $(renderFormats)`, and logs

@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     The renderer itself requires powershell-yaml; see
@@ -50,7 +50,8 @@ function ConvertTo-iSOCBlueprint {
         the folder under ./SecurityDocs.
 
     .PARAMETER Path
-        The workspace folder that holds _raw/. Defaults to
+        The run's folder that holds _raw/, or a workspace folder holding day
+        folders (the newest day is used). Defaults to
         ./SecurityDocs/<WorkspaceName> under the current directory.
 
     .PARAMETER OutputPath
@@ -98,7 +99,7 @@ function ConvertTo-iSOCBlueprint {
     )
 
     process {
-        $in = Resolve-iSOCBlueprintPath -Path $Path -Default (Join-Path 'SecurityDocs' $WorkspaceName)
+        $in = Resolve-iSOCBlueprintRunPath -Path (Resolve-iSOCBlueprintPath -Path $Path -Default (Join-Path 'SecurityDocs' $WorkspaceName))
         $out = Resolve-iSOCBlueprintPath -Path $OutputPath -Default $in
         $params = @{
             WorkspaceName = $WorkspaceName

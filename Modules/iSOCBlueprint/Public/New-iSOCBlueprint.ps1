@@ -40,7 +40,7 @@ function New-iSOCBlueprint {
           3. With -ChartImages, replace the Markdown's Mermaid charts with
              PNG images (ConvertTo-iSOCBlueprintChartImage). The Word report
              carries charts only when this runs.
-          4. Word: one .docx beside the workspace folder
+          4. Word: one .docx in the run's folder
              (Export-iSOCBlueprintWord).
           5. SharePoint: the site bundle (New-iSOCBlueprintSite) and, with
              -SiteUrl, the publish (Publish-iSOCBlueprintSite).
@@ -49,10 +49,14 @@ function New-iSOCBlueprint {
         steps need (Test-iSOCBlueprintPrerequisite) and stops with the list
         of what is missing, so a run does not fail half way.
 
-        Output goes to <OutputPath>/<WorkspaceName>/, by default
-        ./SecurityDocs/<WorkspaceName>/ under the current directory. The
-        folder holds tenant configuration: keep it out of source control
-        and share it as you would the workspace itself.
+        Output goes to a folder for the day, <OutputPath>/<WorkspaceName>/
+        <yyyy-MM-dd>/ (UTC), by default under ./SecurityDocs in the current
+        directory, so a run does not overwrite the last; a second run on
+        the same day replaces that day. The SharePoint bundle of a day
+        carries the earlier days' dashboards for its date picker.
+        -NoDateFolder writes to <OutputPath>/<WorkspaceName>/ instead. The
+        folders hold tenant configuration: keep them out of source control
+        and share them as you would the workspace itself.
 
     .PARAMETER WorkspaceName
         Log Analytics workspace name.
@@ -75,8 +79,9 @@ function New-iSOCBlueprint {
         Maturity level, 1 to 5, the workspace is aiming for. Defaults to 3.
 
     .PARAMETER SkipCollection
-        Do not collect: render from the inventory already in
-        <OutputPath>/<WorkspaceName>/_raw/. Needs no Azure sign-in.
+        Do not collect: render from the newest day's inventory under
+        <OutputPath>/<WorkspaceName>/ (or <OutputPath>/<WorkspaceName>/_raw/
+        with -NoDateFolder). Needs no Azure sign-in.
 
     .PARAMETER Format
         Json, Markdown, Word, SharePoint, or several. Defaults to Markdown
@@ -85,6 +90,10 @@ function New-iSOCBlueprint {
     .PARAMETER OutputPath
         Folder that holds one folder per workspace. Defaults to
         ./SecurityDocs under the current directory.
+
+    .PARAMETER NoDateFolder
+        Write to the workspace's folder itself rather than a folder for the
+        day, so each run replaces the last. The pipelines use it.
 
     .PARAMETER ChartImages
         Replace the Mermaid charts in the Markdown with PNG images (needs
@@ -113,11 +122,13 @@ function New-iSOCBlueprint {
         differs from the one there.
 
     .PARAMETER HistoryDays
-        Days of dashboard snapshots the site keeps for its date picker.
-        Defaults to 90; 0 keeps none.
+        Days of dashboard snapshots the site keeps for its date picker, and
+        of earlier day folders the bundle carries in history/. Defaults to
+        90; 0 keeps none.
 
     .OUTPUTS
-        [pscustomobject] WorkspaceName, Path (the workspace folder), Format,
+        [pscustomobject] WorkspaceName, Path (the run's day folder, or the
+        workspace folder with -NoDateFolder), Format,
         and what was produced: SectionsPath, MarkdownPath, WordDocument,
         SiteBundle and SiteUrl (each $null when not produced).
 
@@ -175,6 +186,8 @@ function New-iSOCBlueprint {
 
         [string] $OutputPath,
 
+        [switch] $NoDateFolder,
+
         [switch] $ChartImages,
 
         [string] $SiteUrl,
@@ -220,14 +233,22 @@ function New-iSOCBlueprint {
     }
 
     $root = Resolve-iSOCBlueprintPath -Path $OutputPath -Default 'SecurityDocs'
-    $workspace = Join-Path $root $WorkspaceName
+    $workspaceRoot = Join-Path $root $WorkspaceName
+    # The run's folder: today's under the workspace's folder, or, with
+    # -SkipCollection, the newest day already there; the workspace's folder
+    # itself with -NoDateFolder.
+    $workspace = if ($NoDateFolder) { $workspaceRoot }
+        elseif ($SkipCollection) { Resolve-iSOCBlueprintRunPath -Path $workspaceRoot }
+        else { Join-Path $workspaceRoot (Get-iSOCBlueprintRunFolderName) }
     if (-not $PSCmdlet.ShouldProcess($workspace, "Create a Blueprint ($($Format -join ', '))")) { return }
 
     if (-not $SkipCollection) {
         $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel }
         Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $collect -Name 'SubscriptionId', 'PlaybookResourceGroup'
         if ($IncludePreview) { $collect.IncludePreview = $true }
-        $null = Export-iSOCBlueprintInventory @collect
+        if ($NoDateFolder) { $collect.NoDateFolder = $true }
+        $inventory = Export-iSOCBlueprintInventory @collect
+        if ($inventory -and $inventory.Path) { $workspace = $inventory.Path }
     }
     elseif (-not (Test-Path -LiteralPath (Join-Path $workspace '_raw') -PathType Container)) {
         throw "-SkipCollection needs an inventory at $(Join-Path $workspace '_raw')."
@@ -238,20 +259,23 @@ function New-iSOCBlueprint {
     if ($wantJson) { $render += 'Json' }
     $null = ConvertTo-iSOCBlueprint -WorkspaceName $WorkspaceName -Path $workspace -Format $render
 
-    if ($ChartImages) { $null = ConvertTo-iSOCBlueprintChartImage -Path $root }
+    # Chart images look one level down: the workspaces under the root, or
+    # the days under the workspace's folder.
+    if ($ChartImages) { $null = ConvertTo-iSOCBlueprintChartImage -Path $(if ($NoDateFolder) { $root } else { $workspaceRoot }) }
     elseif ($Format -contains 'Word') {
         Write-Warning 'The Word report will have no charts: pandoc drops Mermaid charts. Add -ChartImages to draw them as images.'
     }
 
     $document = $null
     if ($Format -contains 'Word') {
-        $document = Export-iSOCBlueprintWord -Path $workspace -OutputPath (Join-Path $root "$WorkspaceName.docx") -Title "$WorkspaceName - iSOC Blueprint"
+        $docPath = if ($NoDateFolder) { Join-Path $root "$WorkspaceName.docx" } else { Join-Path $workspace "$WorkspaceName.docx" }
+        $document = Export-iSOCBlueprintWord -Path $workspace -OutputPath $docPath -Title "$WorkspaceName - iSOC Blueprint"
     }
 
     $bundle = $null
     $published = $null
     if ($Format -contains 'SharePoint') {
-        $bundle = (New-iSOCBlueprintSite -Path $workspace).Path
+        $bundle = (New-iSOCBlueprintSite -Path $workspace -HistoryDays $HistoryDays).Path
         if ($SiteUrl) {
             $publish = @{ SiteUrl = $SiteUrl; Path = $bundle }
             if ($AccessToken) { $publish.AccessToken = $AccessToken }

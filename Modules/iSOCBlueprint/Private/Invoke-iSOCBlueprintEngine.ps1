@@ -18,8 +18,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.2.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -109,6 +109,48 @@ function Resolve-iSOCBlueprintPath {
     return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
 }
 
+function Get-iSOCBlueprintRunFolderName {
+    <#
+    .SYNOPSIS
+        The folder a run writes to under its workspace's folder: today's
+        date, yyyy-MM-dd, in UTC. One folder a day, so a run does not
+        overwrite the last and the dashboard can look back day by day.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Resolve-iSOCBlueprintRunPath {
+    <#
+    .SYNOPSIS
+        A run's folder, given it or its workspace's folder. A workspace
+        folder that holds day folders (yyyy-MM-dd) resolves to the newest
+        day with an inventory; any other folder is returned as it is.
+
+    .PARAMETER Path
+        A run's folder, or a workspace folder holding day folders.
+
+    .OUTPUTS
+        [string] The absolute path.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [string] $Path)
+
+    $full = Resolve-iSOCBlueprintPath -Path $Path
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { return $full }
+    foreach ($marker in '_raw', 'sections', 'run-context.json') {
+        if (Test-Path -LiteralPath (Join-Path $full $marker)) { return $full }
+    }
+    $days = @(Get-ChildItem -LiteralPath $full -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and ((Test-Path -LiteralPath (Join-Path $_.FullName '_raw')) -or (Test-Path -LiteralPath (Join-Path $_.FullName 'sections'))) } |
+        Sort-Object Name -Descending)
+    if ($days.Count) { return $days[0].FullName }
+    return $full
+}
+
 function Resolve-iSOCBlueprintRawPath {
     <#
     .SYNOPSIS
@@ -116,7 +158,8 @@ function Resolve-iSOCBlueprintRawPath {
         _raw folder itself.
 
     .PARAMETER Path
-        A workspace folder (holding _raw/) or a _raw folder.
+        A run's folder (holding _raw/), a workspace folder holding day
+        folders (the newest day is used), or a _raw folder.
 
     .OUTPUTS
         [string] The absolute path of the _raw folder. Throws when neither
@@ -126,7 +169,7 @@ function Resolve-iSOCBlueprintRawPath {
     [OutputType([string])]
     param([Parameter(Mandatory)] [string] $Path)
 
-    $full = Resolve-iSOCBlueprintPath -Path $Path
+    $full = Resolve-iSOCBlueprintRunPath -Path $Path
     $raw = Join-Path $full '_raw'
     if (Test-Path -LiteralPath $raw -PathType Container) { return $raw }
     if (Test-Path -LiteralPath (Join-Path $full 'run-context.json') -PathType Leaf) { return $full }

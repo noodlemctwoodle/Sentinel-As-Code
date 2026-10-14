@@ -1683,6 +1683,32 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match 'class="ctcard"'
     }
 
+    It 'carries the earlier days of a run written to day folders, for the date picker' {
+        $days = Join-Path $script:outDir 'days'
+        $today = Join-Path $days '2026-10-02'
+        New-Item -ItemType Directory -Path $today -Force | Out-Null
+        Copy-Item -Path (Join-Path $ws '_raw'), (Join-Path $ws 'sections') -Destination $today -Recurse
+        # An earlier day's own bundle, and one outside the window.
+        foreach ($d in '2026-10-01', '2026-06-01') {
+            $b = Join-Path $days "$d/sharepoint"
+            New-Item -ItemType Directory -Path $b -Force | Out-Null
+            "<html><!-- $d --></html>" | Set-Content (Join-Path $b 'index.html')
+            @{ generatedUtc = "$d 06:00 UTC"; summary = @{ findings = 4; critical = 1; score = 2.5 } } | ConvertTo-Json | Set-Content (Join-Path $b 'site.json')
+        }
+        $built = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $today -HistoryDays 30 6> $null
+        $ix = Get-Content (Join-Path $built 'history/index.json') -Raw | ConvertFrom-Json
+        @($ix.entries.date) | Should -Be @('2026-10-02', '2026-10-01')
+        Test-Path (Join-Path $built 'history/2026-10-02.html') | Should -BeTrue
+        (Get-Content (Join-Path $built 'history/2026-10-01.html') -Raw) | Should -Match '<!-- 2026-10-01 -->'
+        $ix.entries[1].findings | Should -Be 4
+        $ix.entries[1].score | Should -Be 2.5
+        # This day's own figures come from its site descriptor's summary.
+        $site = Get-Content (Join-Path $built 'site.json') -Raw | ConvertFrom-Json
+        $ix.entries[0].findings | Should -Be $site.summary.findings
+        # A run not in a day's folder carries no history.
+        Test-Path (Join-Path $bundle 'history') | Should -BeFalse
+    }
+
     It 'lets the dashboard open an earlier day, and reads files beside it the way SharePoint allows' {
         $html | Should -Match '<label class="snapwrap" id="snapWrap" hidden'
         $html | Should -Match '<select id="snapPick" aria-label="Snapshot date"></select>'
@@ -1702,7 +1728,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $pub = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw
         $pub | Should -Match '\[int\]\$HistoryDays = 90'
         $pub | Should -Match 'Send-SacSnapshot -Path \(Join-Path \$Bundle ''index\.html''\) -FileName \$snapFile'
-        $pub | Should -Match 'Add-SacSnapshotEntry -Index \(Read-SacSnapshotIndex\) -Entry \$snapEntry -Days \$HistoryDays'
+        $pub | Should -Match '\$siteIndex = Read-SacSnapshotIndex'
+        $pub | Should -Match 'Add-SacSnapshotEntry -Index \$siteIndex -Entry \$snapEntry -Days \$HistoryDays'
+        # Days the bundle carries that the site lacks go up first.
+        $pub | Should -Match 'Send-SacSnapshot -Path \$file -FileName \(\[string\]\$e\.file\)'
         $pub | Should -Match 'foreach \(\$old in @\(\$snapshots\.removed\)\) \{ Remove-SacSnapshot -FileName \$old \}'
     }
 

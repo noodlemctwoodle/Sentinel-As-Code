@@ -275,9 +275,28 @@ if ($HistoryDays -gt 0) {
         critical  = @($findingItems | Where-Object { $_ -and [string]$_.severity -eq 'Critical' }).Count
         score     = $(if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.maturity.PSObject.Properties['overall']) { $model.maturity.overall.score } else { $null })
     }
+    # Days the bundle carries (a local run written to day folders) that the
+    # site does not have yet go up first, so a first publish brings the
+    # history with it.
+    $siteIndex = Read-SacSnapshotIndex
+    $onSite = @($siteIndex.entries | ForEach-Object { [string]$_.date })
+    $cutoff = [datetime]::ParseExact($snapDate, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
+    $bundleIndexPath = Join-Path $Bundle 'history/index.json'
+    $carried = @(if (Test-Path -LiteralPath $bundleIndexPath) { @((Get-Content -LiteralPath $bundleIndexPath -Raw | ConvertFrom-Json -AsHashtable).entries) })
+    $seeded = 0
+    foreach ($e in $carried) {
+        $d = [string]$e.date
+        if (-not $d -or $d -eq $snapDate -or $onSite -contains $d -or [string]::CompareOrdinal($d, $cutoff) -lt 0) { continue }
+        $file = Join-Path $Bundle "history/$([string]$e.file)"
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
+        Send-SacSnapshot -Path $file -FileName ([string]$e.file)
+        $siteIndex = @{ entries = (Add-SacSnapshotEntry -Index $siteIndex -Entry $e -Days $HistoryDays).entries }
+        $seeded++
+    }
     Send-SacSnapshot -Path (Join-Path $Bundle 'index.html') -FileName $snapFile
-    $snapshots = Add-SacSnapshotEntry -Index (Read-SacSnapshotIndex) -Entry $snapEntry -Days $HistoryDays
+    $snapshots = Add-SacSnapshotEntry -Index $siteIndex -Entry $snapEntry -Days $HistoryDays
     foreach ($old in @($snapshots.removed)) { Remove-SacSnapshot -FileName $old }
+    if ($seeded) { Write-Host "  Snapshots: $seeded earlier day(s) from the bundle $(if ($WhatIfPreference) { 'would be' } else { 'were' }) added" }
     Save-SacSnapshotIndex -Index $snapshots
     Write-Host "  Snapshots: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $snapFile; $(@($snapshots.entries).Count) day(s) in the last $HistoryDays, $(@($snapshots.removed).Count) dropped"
 }

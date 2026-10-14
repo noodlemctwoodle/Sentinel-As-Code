@@ -6,6 +6,16 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A folder per day, so a run no longer overwrites the last** - the
+  module now writes each run to `SecurityDocs/<workspace>/<yyyy-MM-dd>/`
+  (UTC), so earlier runs stay where they are; a second run on the same day
+  replaces that day. Commands that take `-Path` accept the workspace folder
+  and use its newest day, and `New-iSOCBlueprint -SkipCollection` renders
+  the newest day. The SharePoint bundle for a day carries the earlier
+  days' dashboards in `history/`, so the date picker works from disk, and
+  publishing seeds the days the site does not have yet. `-NoDateFolder`
+  keeps the old flat layout, and both pipelines pass it, so their docs pull
+  request and artefact are unchanged.
 - **Look back up to 90 days** - every publish keeps the day's dashboard on
   the site, and a date picker beside the light and dark toggle opens the
   dashboard as it was on any kept day, with a banner and a way back to the

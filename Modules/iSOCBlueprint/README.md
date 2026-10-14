@@ -17,8 +17,12 @@ New-iSOCBlueprint -ResourceGroup rg-sentinel -WorkspaceName law-sentinel-prod -F
     -SiteUrl https://contoso.sharepoint.com/sites/isoc-prod -Interactive -ClientId '<app-id>' -Tenant contoso.onmicrosoft.com
 ```
 
-Output goes to `./SecurityDocs/<workspace>/` under the current directory
-unless `-OutputPath` says otherwise. That folder holds tenant configuration,
+Output goes to `./SecurityDocs/<workspace>/<yyyy-MM-dd>/` under the current
+directory unless `-OutputPath` says otherwise. Each day's run gets its own
+folder, so earlier runs stay where they are and the dashboard's date picker
+can offer them; `-NoDateFolder` writes straight into `<workspace>/`, as the
+pipelines do. Commands that take `-Path` accept a day folder or the workspace
+folder (and then use the newest day). The output holds tenant configuration,
 so keep it out of source control and share it as you would the workspace
 itself.
 
@@ -27,7 +31,7 @@ itself.
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `New-iSOCBlueprint` | Everything below, for the formats asked, in one line | Whatever those steps need |
-| `Export-iSOCBlueprintInventory` | Collects the workspace into `<workspace>/_raw/`; the only step that talks to Azure | Az modules, `Connect-AzAccount` |
+| `Export-iSOCBlueprintInventory` | Collects the workspace into `<workspace>/<yyyy-MM-dd>/_raw/`; the only step that talks to Azure | Az modules, `Connect-AzAccount` |
 | `ConvertTo-iSOCBlueprint` | Renders the inventory as the section model (`-Format Json`) and the Markdown report | powershell-yaml |
 | `ConvertTo-iSOCBlueprintChartImage` | Replaces the Markdown's Mermaid charts with PNG or SVG images | mmdc |
 | `Export-iSOCBlueprintWord` | Combines the Markdown report into one `.docx` | pandoc; LibreOffice for page numbers |

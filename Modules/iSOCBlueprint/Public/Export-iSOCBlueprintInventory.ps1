@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.2.0
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     The collector itself requires Az.Accounts, Az.OperationalInsights,
@@ -39,7 +39,11 @@ function Export-iSOCBlueprintInventory {
         Reads the workspace through Azure Resource Manager, its Log
         Analytics data and, where the identity allows, Microsoft Graph, and
         writes one JSON file per capture under
-        <OutputPath>/<WorkspaceName>/_raw/. The gap analysis and the maturity
+        <OutputPath>/<WorkspaceName>/<yyyy-MM-dd>/_raw/: one folder a day
+        (UTC), so a run does not overwrite the last and the dashboard can
+        look back day by day. A second run on the same day replaces that
+        day. -NoDateFolder writes to <OutputPath>/<WorkspaceName>/_raw/
+        instead, as the pipelines do. The gap analysis and the maturity
         assessment run at the end and are saved beside the captures
         (gap-analysis.json, gap-checks.json, maturity.json).
 
@@ -78,14 +82,19 @@ function Export-iSOCBlueprintInventory {
         Folder that holds one folder per workspace. Defaults to
         ./SecurityDocs under the current directory.
 
+    .PARAMETER NoDateFolder
+        Write to the workspace's folder itself rather than a folder for the
+        day. Each run then replaces the last; the pipelines use it, since
+        every pipeline run starts from a clean checkout.
+
     .OUTPUTS
-        [pscustomobject] WorkspaceName, Path (the workspace folder) and
-        RawPath (its _raw folder). Pipe it to ConvertTo-iSOCBlueprint.
+        [pscustomobject] WorkspaceName, Path (the run's folder) and RawPath
+        (its _raw folder). Pipe it to ConvertTo-iSOCBlueprint.
 
     .EXAMPLE
         Export-iSOCBlueprintInventory -ResourceGroup rg-sentinel -WorkspaceName law-sentinel-prod
 
-        Collects the workspace into ./SecurityDocs/law-sentinel-prod/_raw/.
+        Collects the workspace into ./SecurityDocs/law-sentinel-prod/<today>/_raw/.
 
     .EXAMPLE
         Export-iSOCBlueprintInventory -ResourceGroup rg-sentinel -WorkspaceName law-sentinel-prod |
@@ -118,22 +127,27 @@ function Export-iSOCBlueprintInventory {
         [ValidateRange(1, 5)]
         [int] $TargetMaturityLevel = 3,
 
-        [string] $OutputPath
+        [string] $OutputPath,
+
+        [switch] $NoDateFolder
     )
 
     $root = Resolve-iSOCBlueprintPath -Path $OutputPath -Default 'SecurityDocs'
+    $runFolder = if ($NoDateFolder) { '' } else { Get-iSOCBlueprintRunFolderName }
     $params = @{
         ResourceGroup       = $ResourceGroup
         WorkspaceName       = $WorkspaceName
         OutputRoot          = $root
         TargetMaturityLevel = $TargetMaturityLevel
     }
+    if ($runFolder) { $params.RunFolder = $runFolder }
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'SubscriptionId', 'PlaybookResourceGroup'
     if ($IncludePreview) { $params.IncludePreview = $true }
 
     $null = Invoke-iSOCBlueprintEngine -Script 'Export-SentinelInventory.ps1' -Parameters $params -BoundParameters $PSBoundParameters
 
     $workspace = Join-Path $root $WorkspaceName
+    if ($runFolder) { $workspace = Join-Path $workspace $runFolder }
     [pscustomobject]@{
         PSTypeName    = 'iSOCBlueprint.Inventory'
         WorkspaceName = $WorkspaceName

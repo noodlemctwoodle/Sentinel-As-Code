@@ -162,6 +162,7 @@ jobs:
               -WorkspaceName       $env:SENTINEL_WORKSPACE `
               -IncludePreview:$includePreview `
               -TargetMaturityLevel $targetLevel `
+              -NoDateFolder `
               -OutputPath          (Join-Path $env:GITHUB_WORKSPACE 'SecurityDocs') | Out-Null
 
       - name: Render Markdown report

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     Needs pandoc on PATH; LibreOffice with python3-uno adds page numbers to
@@ -46,7 +46,8 @@ function Export-iSOCBlueprintWord {
         Mermaid fences.
 
     .PARAMETER Path
-        The workspace folder holding the Markdown report.
+        The run's folder holding the Markdown report, or a workspace folder
+        holding day folders (the newest day is used).
 
     .PARAMETER OutputPath
         The .docx to write. Defaults to <workspace>.docx beside the
@@ -135,7 +136,7 @@ function Export-iSOCBlueprintWord {
     )
 
     process {
-        $source = Resolve-iSOCBlueprintPath -Path $Path
+        $source = Resolve-iSOCBlueprintRunPath -Path $Path
         $default = Join-Path (Split-Path -Parent $source) ((Split-Path -Leaf $source) + '.docx')
         $document = Resolve-iSOCBlueprintPath -Path $OutputPath -Default $default
         $params = @{ Source = $source; OutputPath = $document }

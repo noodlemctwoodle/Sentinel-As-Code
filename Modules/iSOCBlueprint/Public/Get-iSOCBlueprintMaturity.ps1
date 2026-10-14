@@ -16,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -42,7 +42,8 @@ function Get-iSOCBlueprintMaturity {
         _raw/maturity.json.
 
     .PARAMETER Path
-        The workspace folder holding _raw/, or the _raw folder itself.
+        The run's folder holding _raw/, a workspace folder holding day
+        folders (the newest day is used), or the _raw folder itself.
 
     .PARAMETER TargetMaturityLevel
         Level, 1 to 5, the workspace is aiming for. Sets the gap and the

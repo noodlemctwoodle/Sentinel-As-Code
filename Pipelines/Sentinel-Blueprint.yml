@@ -295,6 +295,9 @@ stages:
                     ResourceGroup  = "$(sentinelResourceGroup)"
                     WorkspaceName  = "$(sentinelWorkspaceName)"
                     OutputPath     = "$(Build.SourcesDirectory)/SecurityDocs"
+                    # Flat SecurityDocs/<workspace>/: every run starts from a clean
+                    # checkout, and the docs PR commits this tree.
+                    NoDateFolder   = $true
                 }
                 if ("$(flagIncludePreview)") { $params['IncludePreview'] = $true }
 

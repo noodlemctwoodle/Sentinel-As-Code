@@ -25,6 +25,10 @@
                           the isoc-blueprint chart web part)
       findings.json       gap-analysis findings plus per-check outcomes,
                           for the findings list
+      history/            when the source is a day's folder (yyyy-MM-dd)
+                          beside earlier days: each kept day's dashboard as
+                          <date>.html and index.json listing them, for the
+                          dashboard's date picker
 
     Nothing here talks to SharePoint, Azure or anything else on the
     network, so the bundle can be built from a downloaded pipeline artefact
@@ -71,6 +75,12 @@
     tables are cut with a note linking to the dashboard, whose copy of the
     section has every row.
 
+.PARAMETER HistoryDays
+    When -Source is a day's folder (yyyy-MM-dd) beside earlier days' folders,
+    how many days back, counting this one, the bundle carries for the
+    dashboard's date picker. Each earlier day needs its own bundle (its
+    sharepoint/index.html). Defaults to 90; 0 carries none.
+
 .OUTPUTS
     [string] The bundle folder path.
 
@@ -93,7 +103,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.11.1
+    Version:      0.12.0
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+
 
@@ -130,7 +140,11 @@ param(
     [switch]$SkipWhatsNew,
 
     [Parameter(Mandatory = $false)]
-    [int]$MaxTableRows = 500
+    [int]$MaxTableRows = 500,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(0, 3650)]
+    [int]$HistoryDays = 90
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1306,6 +1320,12 @@ $site = [ordered]@{
     dashboard     = [ordered]@{ page = $script:DashboardPage; file = 'index.html' }
     findingsList  = [ordered]@{ title = $script:FindingsTitle; url = $script:FindingsListUrl }
     familyOrder   = @(Get-SectionFamilyOrder)
+    # The run at a glance, for a snapshot list without reading the model.
+    summary       = [ordered]@{
+        findings = @($findingList).Count
+        critical = @($findingList | Where-Object { $_.severity -eq 'Critical' }).Count
+        score    = $(if ($maturityModel -and $maturityModel.overall) { $maturityModel.overall.score } else { $null })
+    }
     sections      = $siteSections
     # Always empty now that charts are data: the publisher recycles the
     # diagram images an earlier bundle uploaded.
@@ -1313,6 +1333,47 @@ $site = [ordered]@{
     warnings      = $buildWarnings.ToArray()
 }
 Write-BundleJson -Path (Join-Path $OutputRoot 'site.json') -Data $site -What 'Write site descriptor'
+
+# History: a run written to a day's folder (yyyy-MM-dd) beside earlier days
+# carries their dashboards, so the date picker works on this bundle and the
+# publisher can take those days to the site. Each earlier day's own bundle
+# is copied as it was built, so it runs that day's dashboard code. The list
+# keeps this day and up to -HistoryDays - 1 days before it.
+$sourceDay = Split-Path -Leaf $Source
+if ($HistoryDays -gt 0 -and $sourceDay -match '^\d{4}-\d{2}-\d{2}$') {
+    $historyDir = Join-Path $OutputRoot 'history'
+    $cutoff = [datetime]::ParseExact($sourceDay, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
+    $dayFolders = @(Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $cutoff) -ge 0 -and [string]::CompareOrdinal($_.Name, $sourceDay) -le 0 } |
+        Sort-Object Name -Descending)
+    $historyEntries = [System.Collections.Generic.List[object]]::new()
+    if ($PSCmdlet.ShouldProcess($historyDir, 'Write dashboard history')) {
+        if (Test-Path -LiteralPath $historyDir) { Remove-Item -LiteralPath $historyDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $historyDir -Force | Out-Null
+        foreach ($day in $dayFolders) {
+            $isThis = $day.Name -eq $sourceDay
+            $dayBundle = if ($isThis) { $OutputRoot } else { Join-Path $day.FullName 'sharepoint' }
+            $dayHtml = Join-Path $dayBundle 'index.html'
+            if (-not (Test-Path -LiteralPath $dayHtml -PathType Leaf)) { continue }
+            Copy-Item -LiteralPath $dayHtml -Destination (Join-Path $historyDir "$($day.Name).html") -Force
+            $daySite = if ($isThis) { $site } else {
+                $p = Join-Path $dayBundle 'site.json'
+                if (Test-Path -LiteralPath $p) { try { Get-Content -LiteralPath $p -Raw | ConvertFrom-Json } catch { $null } } else { $null }
+            }
+            $daySummary = if ($daySite -and $daySite.summary) { $daySite.summary } else { $null }
+            $historyEntries.Add([ordered]@{
+                date      = $day.Name
+                file      = "$($day.Name).html"
+                generated = $(if ($daySite) { [string]$daySite.generatedUtc } else { '' })
+                findings  = $(if ($daySummary) { $daySummary.findings } else { $null })
+                critical  = $(if ($daySummary) { $daySummary.critical } else { $null })
+                score     = $(if ($daySummary) { $daySummary.score } else { $null })
+            })
+        }
+        ([ordered]@{ entries = $historyEntries.ToArray() } | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath (Join-Path $historyDir 'index.json') -Encoding utf8
+    }
+    Write-Log "  History: $($historyEntries.Count) day(s) for the date picker (last $HistoryDays)" Info
+}
 
 foreach ($w in $buildWarnings) { Write-Log "  ! $w" Warning }
 Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $chartCount charts, $($findingList.Count) findings)" Success
