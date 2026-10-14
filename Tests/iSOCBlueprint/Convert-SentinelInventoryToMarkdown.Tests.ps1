@@ -1300,6 +1300,11 @@ Describe 'iSOC Blueprint renderer' {
             $p = Join-Path $script:tempWsRoot '99-references.md'
             (Get-Content $p -Raw) | Should -Match '## API versions in use'
         }
+
+        It 'is titled Conventions, and the What''s New page What''s New' {
+            (Get-Content (Join-Path $script:tempWsRoot '99-references.md') -First 1) | Should -Be '# Conventions'
+            (Get-Content (Join-Path $script:tempWsRoot '03-whats-new.md') -First 1) | Should -Be '# What''s New'
+        }
     }
 }
 

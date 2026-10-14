@@ -1,4 +1,4 @@
-# iSOC Blueprint: References & Conventions
+# Conventions
 
 A durable record of the API versions, modules, KQL queries and Microsoft Learn pages the
 Blueprint depends on. When something in Microsoft's surface area changes, this page is

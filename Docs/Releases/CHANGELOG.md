@@ -6,6 +6,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Shorter page titles** - the report's What's new page is titled
+  "What's New" and the Blueprint's own references page "Conventions", in
+  the report, its menu and the SharePoint site.
 - **A clear privacy notice at the foot of the dashboard** - the faint line
   "Generated from the iSOC Blueprint _raw snapshot" is now an amber-tinted
   Confidential notice with a lock, the date of the run, what the page holds

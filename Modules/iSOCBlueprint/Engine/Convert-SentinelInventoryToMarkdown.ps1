@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.6
+    Version:        0.6.7
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -4105,7 +4105,7 @@ $wnSourceLines = (@($wnPages | ForEach-Object {
 }) -join [Environment]::NewLine)
 $wnBody = if (-not $wnItems.Count) {
 @"
-$(Format-Banner -Title "What's New in Sentinel and Defender")
+$(Format-Banner -Title "What's New")
 
 What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR, read from their What's new pages on Microsoft Learn and linked to this report's pages and maturity criteria.
 
@@ -4115,7 +4115,7 @@ $wnSourceLines
 "@
 } else {
 @"
-$(Format-Banner -Title "What's New in Sentinel and Defender")
+$(Format-Banner -Title "What's New")
 
 What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR over the last $($whatsNew.Months) months, read from their What's new pages on Microsoft Learn on $wnFetched. Each item links to its entry on Learn and to the pages of this report and the maturity criteria it touches, with this workspace's status for each criterion; a criterion whose finding fired links to the finding.
 

@@ -84,7 +84,7 @@ live in `Docs/Modules/iSOCBlueprint/`.
 | [iSOC Blueprint](Modules/iSOCBlueprint/Sentinel-Blueprint.md) | The operating guide: what the iSOC Blueprint collects and produces, how to read the report, running it in CI or locally, permissions, the gap engine, the maturity assessment and the cost estimator |
 | [Renderer Design](Modules/iSOCBlueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
 | [Section Model](Modules/iSOCBlueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
-| [References & Conventions](Modules/iSOCBlueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
+| [Conventions](Modules/iSOCBlueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
 | [Maturity Model](Modules/iSOCBlueprint/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
 | [Health check cross-reference](Modules/iSOCBlueprint/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Blueprint, page by page, with the gap rule that covers it |
 | [Data Lake Coverage](Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) | What the Blueprint captures and renders for the Microsoft Sentinel data lake tier |
