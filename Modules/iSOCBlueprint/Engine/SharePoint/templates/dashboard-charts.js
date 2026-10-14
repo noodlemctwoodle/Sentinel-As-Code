@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: 564230d415fe15575c8b507931a253051daea5939ecb956f743645b5e285ba98 */
+   sources-sha256: 25fe0935d3c121703e7c5ef58a31e02a207b604d3263a4e9c1cc287ecae78aa8 */
 (function(){
 'use strict';
  var defs={};
@@ -67,7 +67,7 @@ function band(b, max, theme) {
 // chart builds a string of markup; anything taken from the chart data goes
 // through esc() first.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.compact = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
+exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.setSiteUrl = exports.compact = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
 exports.FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 // The dashboard's series colours, so a chart reads the same on both.
 exports.SERIES = [
@@ -126,9 +126,20 @@ function compact(value) {
     return fmt(value);
 }
 exports.compact = compact;
-// Only links the publisher writes: web URLs, mail and site-relative paths.
+// The site the charts are drawn on, for the publisher's ~site/ links. The
+// chart web part sets it to its site's server-relative URL.
+let siteBase = '';
+function setSiteUrl(url) {
+    siteBase = str(url).replace(/\/+$/, '');
+}
+exports.setSiteUrl = setSiteUrl;
+// Only links the publisher writes: web URLs, mail, site-relative paths, and
+// ~site/ paths, which resolve against the site.
 function safeHref(href) {
-    const h = str(href).trim();
+    let h = str(href).trim();
+    if (h.indexOf('~site/') === 0) {
+        h = siteBase + h.substring(5);
+    }
     return /^(https?:\/\/|mailto:|\/)/i.test(h) ? h : undefined;
 }
 exports.safeHref = safeHref;
@@ -542,6 +553,54 @@ function families(sources, data, theme) {
 }
 function gbText(v) {
     return (v >= 100 ? Math.round(v).toLocaleString('en-GB') : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString()) + ' GB';
+}
+
+};
+ defs['FindingCardsChart']=function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderFindingCards = void 0;
+const ChartKit_1 = require("./ChartKit");
+const Visual_1 = require("./Visual");
+// The most severe findings as cards, as the dashboard's Overview shows
+// them: severity, id and title, the category, what was found beside how to
+// fix it (four lines each; the finding holds the full text), and links to
+// the finding and to Microsoft Learn.
+const SEVERITY = { Critical: Visual_1.BAD, Warning: Visual_1.WARN, Info: Visual_1.INFO };
+const CLAMP = 'display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden';
+function renderFindingCards(data, theme) {
+    const cards = (0, ChartKit_1.list)(data && data.cards);
+    if (!cards.length) {
+        return '';
+    }
+    return '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        cards.map((c) => one(c, theme)).join('') + '</div>';
+}
+exports.renderFindingCards = renderFindingCards;
+function one(c, theme) {
+    const colour = SEVERITY[(0, ChartKit_1.str)(c.severity)] || Visual_1.INFO;
+    const head = '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">' +
+        (0, Visual_1.pill)((0, ChartKit_1.str)(c.severity), colour, true) +
+        '<b style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px">' + (0, ChartKit_1.esc)(c.id) + '</b>' +
+        '<span style="font-weight:700;font-size:14px;line-height:1.35">' + (0, ChartKit_1.esc)(c.title) + '</span></div>';
+    const meta = (0, ChartKit_1.str)(c.category) ? '<div style="margin-top:8px">' + (0, Visual_1.chip)((0, ChartKit_1.str)(c.category), theme) + '</div>' : '';
+    const block = (label, text) => text
+        ? '<div style="min-width:0">' + (0, Visual_1.eyebrow)(label, theme) + '<div style="margin-top:4px;font-size:12.5px;line-height:1.55;color:' + (0, ChartKit_1.esc)(theme.text) + ';' + CLAMP + '">' + (0, ChartKit_1.esc)(text) + '</div></div>'
+        : '';
+    const findingHref = (0, ChartKit_1.safeHref)(c.href);
+    const learnHref = (0, ChartKit_1.safeHref)(c.learn);
+    const link = (href, text, external) => '<a href="' + (0, ChartKit_1.esc)(href) + '"' + (external ? ' target="_blank" rel="noopener"' : '') + ' style="font-size:12px;font-weight:700;color:' + (0, ChartKit_1.esc)(theme.accent) + ';text-decoration:none">' + (0, ChartKit_1.esc)(text) + ' →</a>';
+    const links = [];
+    if (findingHref) {
+        links.push(link(findingHref, 'Open the finding', false));
+    }
+    if (learnHref) {
+        links.push(link(learnHref, 'Microsoft Learn', true));
+    }
+    return (0, Visual_1.card)(head + meta +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px 22px;margin-top:12px">' +
+        block('What was found', (0, ChartKit_1.str)(c.evidence)) + block('How to fix it', (0, ChartKit_1.str)(c.remediation)) + '</div>' +
+        (links.length ? '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">' + links.join('') + '</div>' : ''), theme);
 }
 
 };
@@ -2727,6 +2786,7 @@ const LakeChart_1 = require("./LakeChart");
 const EstateChart_1 = require("./EstateChart");
 const RunwayChart_1 = require("./RunwayChart");
 const WorkspaceAgeChart_1 = require("./WorkspaceAgeChart");
+const FindingCardsChart_1 = require("./FindingCardsChart");
 // The markup for one chart block: its title, then the chart drawn from its
 // data. A kind this web part does not draw, or data it cannot read, shows
 // the chart's Mermaid source (when it has one) rather than nothing.
@@ -2776,6 +2836,7 @@ function draw(chart, theme, label) {
         case 'estate': return (0, EstateChart_1.renderEstate)(data, theme);
         case 'runway': return (0, RunwayChart_1.renderRunway)(data, theme);
         case 'workspace-age': return (0, WorkspaceAgeChart_1.renderWorkspaceAge)(data, theme);
+        case 'finding-cards': return (0, FindingCardsChart_1.renderFindingCards)(data, theme);
         default: return '';
     }
 }
@@ -2786,7 +2847,7 @@ function describe(kind) {
         sequence: 'Sequence diagram', journey: 'Journey', 'incident-lifecycle': 'Incident lifecycle',
         meters: 'Proportions', 'rule-kinds': 'Rule kinds', 'response-chain': 'Response chain', topology: 'Topology',
         'cost-breakdown': 'Cost breakdown', access: 'Role assignments', lake: 'Data lake tiers',
-        estate: 'Estate flow', runway: 'Retirement runway', 'workspace-age': 'Workspace history'
+        estate: 'Estate flow', runway: 'Retirement runway', 'workspace-age': 'Workspace history', 'finding-cards': 'Findings'
     };
     return names[kind] || 'Chart';
 }

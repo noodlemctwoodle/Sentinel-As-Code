@@ -391,14 +391,6 @@
   .qw .qwt{font-weight:700;font-size:13px}
   .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
   .qw .qwl{font-size:11px;font-weight:700;color:var(--faint);white-space:nowrap}
-  .ctgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--gap);margin:0 0 var(--gap)}
-  .ctcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);padding:16px 16px 14px;display:flex;flex-direction:column;gap:6px}
-  .ctcard .ctt{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-  .ctcard .cth{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:4px}
-  .ctcard .cti{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line-2)}
-  .ctcard .cti a.sec{color:var(--ink-2);cursor:pointer;font-weight:600}
-  .ctcard .cti a.sec:hover{color:var(--brand-ink)}
-  .ctcard .cti a.pg{color:var(--faint);font-size:11px;white-space:nowrap}
   /* One grid for every area row (rows are display:contents) so the score
      and confidence columns line up across rows whatever the badge width. */
   .areabars{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:10px 12px}
@@ -831,7 +823,7 @@
   /* Dark mode: every card gets the alert lifecycle's screen, a teal-tinted
      glow fading to near-black. The coloured posture cards keep their own
      colours; :where keeps this below any hover or accent rule. */
-  html[data-theme="dark"] :where(.hero,.panel,.pill,.ipanel,.ctcard,.docnav,.docpanel,.card,.fcard){
+  html[data-theme="dark"] :where(.hero,.panel,.pill,.ipanel,.docnav,.docpanel,.card,.fcard){
     background:radial-gradient(120% 140% at 50% 42%,#0c1d26 0%,#070e18 55%,#04070d 100%);border-color:#13202f}
   @media(prefers-reduced-motion:reduce){*{animation:none !important}}
   /* Drop the tab strip to its own full-width row before it can overflow the bar.
@@ -943,8 +935,6 @@
       <div id="topFindings"></div>
     </div>
 
-    <div class="seclabel">Contents</div>
-    <div class="ctgrid" id="contents"></div>
   </section>
 
   <!-- DATA FLOW -->
@@ -1722,24 +1712,6 @@
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(fillQuickWins);
     let qwTimer=null;
     window.addEventListener('resize',()=>{ clearTimeout(qwTimer); qwTimer=setTimeout(fillQuickWins,150); });
-  })();
-
-  // ---- contents: one card per section family ----
-  (function(){
-    const el=document.getElementById('contents'); const secs=M.sections||[];
-    if(!secs.length){ el.innerHTML='<p class="note">No sections in this snapshot.</p>'; return; }
-    const order=M.familyOrder||[]; const fams=[]; const byFam={};
-    secs.forEach(s=>{ if(!byFam[s.family]){byFam[s.family]=[];fams.push(s.family);} byFam[s.family].push(s); });
-    fams.sort((a,b)=>{ const ia=order.indexOf(a), ib=order.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
-    const clean=t=>(t||'').replace(/\s*\(TOC[^)]*\)\s*$/i,'').trim();
-    el.innerHTML=fams.map(f=>{
-      const items=byFam[f].slice().sort((a,b)=>a.num-b.num);
-      const head=(items.find(s=>s.headline)||{}).headline||(items.length+' page'+(items.length===1?'':'s'));
-      return '<div class="ctcard"><div class="ctt">'+esc(f)+'</div><div class="cth">'+esc(head)+'</div>'+
-        items.map(s=>{ const u=sitePageUrl(s.page);
-          return '<div class="cti"><a class="sec" href="#report-'+s.num+'" role="button" data-num="'+s.num+'" title="Open in the Report tab">'+esc(clean(s.title))+'</a>'+(u?'<a class="pg" href="'+esc(u)+'" target="_top">page &rarr;</a>':'')+'</div>'; }).join('')+'</div>';
-    }).join('');
-    el.querySelectorAll('a.sec').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); jumpTo(+a.dataset.num); }));
   })();
 
   // ---- SANKEY ----

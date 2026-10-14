@@ -274,6 +274,8 @@ function Write-Section([string]$FileName, [string]$Body) {
     foreach ($line in ($body -split "(`r?`n)")) {
         if ($line -match '^\s*```') { $inFence = -not $inFence; [void]$sb.Append($line); continue }
         if ($inFence) { [void]$sb.Append($line); continue }
+        # A bp: comment carries data for the site (a graphic's JSON); its ids stay as written.
+        if ($line -match '^<!--\s*bp:') { [void]$sb.Append($line); continue }
         # Pass 1: bracketed-but-unlinked IDs (only ids the rule catalogue knows).
         $line = [regex]::Replace($line, '\[(SAC-[A-Z]{2,4}-\d{2})\](?!\()', {
             param($m)
@@ -481,6 +483,19 @@ $operationalTables = @($workspaceTables | Where-Object {
 $catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
 
 $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
+# The top findings as cards on the SharePoint site and the dashboard: a
+# comment Markdown does not show, read by the section model as a graphic;
+# the list after it stays for the Markdown and Word exports.
+$topFindingsVisual = '<!-- bp:visual finding-cards ' + ([ordered]@{
+    total = @($gapFindings).Count
+    cards = @($top5Findings | ForEach-Object {
+        [ordered]@{
+            id = [string]$_.Id; severity = [string]$_.Severity; title = [string]$_.Title; category = [string](_RProp $_ 'Category' '')
+            evidence = [string](_RProp $_ 'Evidence' ''); remediation = [string](_RProp $_ 'Remediation' ''); learn = [string](_RProp $_ 'Learn' '')
+            href = "90-gap-analysis.md#$(([string]$_.Id).ToLowerInvariant())"
+        }
+    })
+} | ConvertTo-Json -Compress -Depth 6).Replace('-->', '--\u003e') + ' -->'
 
 # ---------------------------------------------------------------------------
 # Health-check ports, hoisted: table-to-rule references, rule effectiveness,
@@ -859,7 +874,7 @@ foreach ($f in $gapFindings) {
 }
 
 $overviewBody = @"
-$(Format-Banner -Title "Microsoft Sentinel Workspace — Overview")
+$(Format-Banner -Title "SIEM Overview")
 
 ## Findings at a glance
 
@@ -912,7 +927,7 @@ $(if ($cost) {
 
 ## Top findings
 
-$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
+$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s), each with what was found and how to fix it; [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n$topFindingsVisual`n`n<!-- bp:shown-in-graphic -->`n`n" })$(if ($top5Findings.Count -gt 0) {
 ($top5Findings | ForEach-Object {
     "- **$($_.Severity)** [$($_.Id)] $($_.Title) - $($_.Evidence) [Learn]($($_.Learn))"
 }) -join [Environment]::NewLine
@@ -3920,11 +3935,7 @@ The findings by severity and the estate flow, from source families through detec
 
 ## Top recommendations
 
-$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s); [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n" })$(if ($top5Findings.Count -gt 0) {
-    ($top5Findings | ForEach-Object {
-        "- **$($_.Severity)** [$($_.Id)] $($_.Title)`n  $($_.Remediation) [Learn]($($_.Learn))"
-    }) -join [Environment]::NewLine
-} else { '_No findings — clean run._' })
+$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s), each with what was found and how to fix it, are on [00-overview.md](00-overview.md); [90-gap-analysis.md](90-gap-analysis.md) lists every one." } else { '_No findings: a clean run._' })
 
 ## Where to read more
 

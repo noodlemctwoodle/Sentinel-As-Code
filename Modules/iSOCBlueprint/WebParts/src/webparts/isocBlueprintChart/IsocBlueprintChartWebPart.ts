@@ -3,7 +3,7 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { type IReadonlyTheme } from '@microsoft/sp-component-base';
 
 import { type IChart } from './charts/ChartTypes';
-import { type IChartTheme, FONT, setTextMeasurer } from './charts/ChartKit';
+import { type IChartTheme, FONT, setSiteUrl, setTextMeasurer } from './charts/ChartKit';
 import { renderChart } from './charts/renderChart';
 import { chartStyles } from './charts/Visual';
 
@@ -24,6 +24,8 @@ export default class IsocBlueprintChartWebPart extends BaseClientSideWebPart<IIs
 
   protected onInit(): Promise<void> {
     setTextMeasurer(this._canvasMeasurer());
+    // The publisher writes links within the site as ~site/...; they resolve here.
+    setSiteUrl(this.context.pageContext.web.serverRelativeUrl);
     // A long list's Show all button, as the dashboard has it: the rows
     // marked data-mr show or hide, and the button reads Show fewer when open.
     this.domElement.addEventListener('click', (e: MouseEvent): void => {

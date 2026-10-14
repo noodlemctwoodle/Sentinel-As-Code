@@ -334,6 +334,20 @@ flowchart LR
         $paras[1].Contains('inGraphic') | Should -BeFalse
     }
 
+    It 'reads a graphic carried on a bp:visual comment, and flags the list it shows' {
+        $m = ConvertTo-Model "# T`n`n<!-- bp:visual finding-cards {""cards"":[{""id"":""SAC-LOG-03"",""severity"":""Warning"",""title"":""Cap""}]} -->`n`n<!-- bp:shown-in-graphic -->`n`n- **Warning** SAC-LOG-03 Cap`n`nAfter."
+        $c = @($m.blocks | Where-Object { $_.type -eq 'chart' })
+        $c.Count | Should -Be 1
+        $c[0].kind | Should -Be 'finding-cards'
+        $c[0].data.cards[0].id | Should -Be 'SAC-LOG-03'
+        $c[0].source | Should -Be ''
+        @($m.blocks | Where-Object { $_.type -eq 'list' })[0].inGraphic | Should -BeTrue
+        @($m.blocks | Where-Object { $_.type -eq 'html' }).Count | Should -Be 0
+        # A comment whose JSON does not parse is dropped, not shown.
+        $bad = ConvertTo-Model "# T`n`n<!-- bp:visual finding-cards {nope} -->`n`nText."
+        @($bad.blocks | Where-Object { $_.type -in 'chart', 'html' }).Count | Should -Be 0
+    }
+
     It 'returns kind other, with no data, for an unknown chart' {
         $c = Get-Chart "quadrantChart`n    title X"
         $c.kind | Should -Be 'other'; $c.data | Should -BeNullOrEmpty
@@ -486,8 +500,23 @@ Describe 'Renderer section model output' {
         @($section.blocks | Where-Object { $_.type -eq 'paragraph' -and $_.inGraphic }).Count | Should -Be 1
     }
 
-    It 'carries every Mermaid chart as a chart block' {
-        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid').Count } | Measure-Object -Sum).Sum
+    It 'titles the overview SIEM Overview and draws its top findings as cards, with clean ids' {
+        $ov = Get-Content (Join-Path $dirs.Both 'sections/00-overview.json') -Raw | ConvertFrom-Json
+        $ov.title | Should -Be 'SIEM Overview'
+        $fc = @($ov.blocks | Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'finding-cards' })
+        $fc.Count | Should -Be 1
+        @($fc[0].data.cards).Count | Should -BeGreaterThan 0
+        # The renderer links finding ids in prose; never inside a graphic's data.
+        foreach ($c in @($fc[0].data.cards)) { $c.id | Should -Match '^SAC-[A-Z]{2,4}-\d{2}$' }
+        @($ov.blocks | Where-Object { $_.type -eq 'list' -and $_.inGraphic }).Count | Should -Be 1
+        # The live snapshot points to them rather than repeating them.
+        $ls = Get-Content (Join-Path $dirs.Both '01-live-snapshot.md') -Raw
+        $ls | Should -Match 'are on \[00-overview\.md\]\(00-overview\.md\)'
+        $ls | Should -Not -Match '(?m)^- \*\*(Critical|Warning|Info)\*\*'
+    }
+
+    It 'carries every Mermaid chart, and every bp:visual graphic, as a chart block' {
+        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid|^<!-- bp:visual ').Count } | Measure-Object -Sum).Sum
         $charts = 0
         foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json') {
             $charts += ([regex]::Matches((Get-Content $f.FullName -Raw), '"type":\s*"chart"')).Count

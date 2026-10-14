@@ -348,3 +348,21 @@ export interface IWorkspaceAgeData {
   tablesReceiving?: number;
   tablesCatalogue?: number;
 }
+
+// The most severe findings as cards. href is the finding's link on the
+// site (the dashboard's #sac-finding-, or the findings list on SharePoint).
+export interface IFindingCardsData {
+  total?: number;
+  cards: IFindingCard[];
+}
+
+export interface IFindingCard {
+  id: string;
+  severity: string;
+  title: string;
+  category?: string;
+  evidence?: string;
+  remediation?: string;
+  learn?: string;
+  href?: string;
+}

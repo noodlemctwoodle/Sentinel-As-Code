@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **SIEM Overview, finding cards and a shorter Overview tab** - the
+  report's first page is now "SIEM Overview", and its top findings are
+  cards on SharePoint and in the dashboard: severity, id and title, what
+  was found beside how to fix it, and links to the finding and to
+  Microsoft Learn. The Live snapshot points to them rather than listing
+  the same five again. The dashboard's Overview tab no longer ends with a
+  contents card per family; the Report tab and the site's menu already
+  list every page. On SharePoint, links inside diagrams to findings and
+  pages now resolve against the site. Chart web part 1.10.0.
 - **What's new in Sentinel and Defender, in the report** - a new page
   (03) lists what Microsoft released, previewed and announced for
   retirement in Microsoft Sentinel and Microsoft Defender XDR over the

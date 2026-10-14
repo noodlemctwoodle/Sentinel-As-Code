@@ -97,6 +97,7 @@ table only.
 | Section | Chart type | Data source | Conditional guard |
 |---|---|---|---|
 | `00-overview.md` | pie | `$gapBySeverity` | none (always renders) |
+| `00-overview.md` | finding cards on a `bp:visual` comment (the top findings, what was found and how to fix it); the Markdown list after it is marked `bp:shown-in-graphic` | `$top5Findings` | findings `-gt 0` |
 | `00-overview.md` | sankey-beta, with a `%% visual estate` line (every family's GB and the part a detection reads; the four stages as in use of a whole); the stage table after it is marked `bp:shown-in-graphic` | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
 | `03-whats-new.md` | pie, with a `%% visual meters` line (each product's items by status, retiring and gap figures) | `_raw/whats-new.json` by status | items `-gt 0` (else a sentence) |
 | `02-deprecated-legacy-features.md` | gantt, with a `%% visual runway` line (each deadline and whether this workspace still uses what it retires) | static deadlines + `_DaysUntilFromToday` + the legacy-feature captures | none |

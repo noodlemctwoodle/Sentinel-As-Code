@@ -323,10 +323,16 @@ function ConvertTo-DashboardChartData {
         A chart's data for the dashboard. A flowchart node that links to a
         section or a finding gets an in-dashboard address (/#sac-section-NN,
         /#sac-finding-ID), which the dashboard opens in its Report tab or
-        findings view; a web link stays; anything else has no link. Other
-        kinds pass through.
+        findings view; a web link stays; anything else has no link. A
+        finding card links to its finding the same way. Other kinds pass
+        through.
     #>
     param($Chart)
+    if ([string]$Chart.kind -eq 'finding-cards' -and $null -ne $Chart.data) {
+        $cards = $Chart.data | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable -Depth 32
+        foreach ($c in @($cards.cards)) { if ($c) { $c['href'] = $(if ($c['id']) { "/#sac-finding-$([string]$c['id'])" } else { $null }) } }
+        return $cards
+    }
     if ([string]$Chart.kind -ne 'flowchart' -or $null -eq $Chart.data) { return $Chart.data }
     $data = $Chart.data | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable -Depth 32
     foreach ($n in @($data.nodes)) {

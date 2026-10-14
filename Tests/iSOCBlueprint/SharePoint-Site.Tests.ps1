@@ -1067,7 +1067,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # Pie and xy the dashboard draws itself; the rest carry their data and
         # their Mermaid source for the chart web part's renderers.
         @($charts | Where-Object { $_.kind -in 'pie', 'xy' -and $_.PSObject.Properties.Name -contains 'source' }).Count | Should -Be 0
-        @($charts | Where-Object { $_.kind -notin 'pie', 'xy' -and -not $_.source }).Count | Should -Be 0
+        # A graphic carried on a bp:visual comment has no Mermaid behind it.
+        @($charts | Where-Object { $_.kind -notin 'pie', 'xy', 'finding-cards' -and -not $_.source }).Count | Should -Be 0
         # The maturity page's area scores, which the dashboard used to drop
         # and replace with a chart of the Areas table's last number column.
         $area = @($model.sections | Where-Object num -EQ 91 | ForEach-Object { @($_.blocks) } | Where-Object { $_.t -eq 'chart' })[0]
@@ -1327,7 +1328,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives every card the dark screen in dark mode, below hover and accent rules' {
-        $html | Should -Match 'html\[data-theme="dark"\] :where\(\.hero,\.panel,\.pill,\.ipanel,\.ctcard,\.docnav,\.docpanel,\.card,\.fcard\)'
+        $html | Should -Match 'html\[data-theme="dark"\] :where\(\.hero,\.panel,\.pill,\.ipanel,\.docnav,\.docpanel,\.card,\.fcard\)'
     }
 
     It 'draws the estate flow in the alert lifecycle style with the same layout and links' {
@@ -1621,6 +1622,22 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $wn[0].family | Should -Be 'Overview'
         # Two or three short items in a cell are chips too; the button only past three.
         $html | Should -Match 'items\.length<4 && items\.some\(x=>x\.replace\(/<\[\^>\]\+>/g,''''\)\.length>60\)'
+    }
+
+    It 'links each finding card to its finding: in the dashboard, and on SharePoint through the findings list' {
+        $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
+        $ov = @($model.sections | Where-Object { $_.num -eq 0 })[0]
+        $fc = @($ov.blocks | Where-Object { $_.t -eq 'chart' -and $_.kind -eq 'finding-cards' })[0]
+        foreach ($c in @($fc.data.cards)) { $c.href | Should -Be ('/#sac-finding-' + $c.id) }
+        $page = ConvertTo-SacChartData -Chart ([pscustomobject]@{ kind = 'finding-cards'; data = [pscustomobject]@{ cards = @([pscustomobject]@{ id = 'SAC-LOG-03'; href = '90-gap-analysis.md#sac-log-03' }) } }) -FindingsListUrl 'Lists/SentinelFindings'
+        $page.cards[0].href | Should -Be '~site/Lists/SentinelFindings/AllItems.aspx?FilterField1=FindingId&FilterValue1=SAC-LOG-03'
+        # The web part resolves ~site/ links against its own site.
+        $html | Should -Match 'function setSiteUrl\(url\)'
+        $wp = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/IsocBlueprintChartWebPart.ts') -Raw
+        $wp | Should -Match 'setSiteUrl\(this\.context\.pageContext\.web\.serverRelativeUrl\)'
+        # The Overview no longer ends with a contents card per family.
+        $html | Should -Not -Match 'id="contents"'
+        $html | Should -Not -Match 'class="ctcard"'
     }
 
     It 'gives the chart web part the site''s button and its Show all toggle' {

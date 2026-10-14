@@ -74,9 +74,19 @@ export function compact(value: number): string {
   return fmt(value);
 }
 
-// Only links the publisher writes: web URLs, mail and site-relative paths.
+// The site the charts are drawn on, for the publisher's ~site/ links. The
+// chart web part sets it to its site's server-relative URL.
+let siteBase: string = '';
+
+export function setSiteUrl(url: string | undefined): void {
+  siteBase = str(url).replace(/\/+$/, '');
+}
+
+// Only links the publisher writes: web URLs, mail, site-relative paths, and
+// ~site/ paths, which resolve against the site.
 export function safeHref(href: unknown): string | undefined {
-  const h: string = str(href).trim();
+  let h: string = str(href).trim();
+  if (h.indexOf('~site/') === 0) { h = siteBase + h.substring(5); }
   return /^(https?:\/\/|mailto:|\/)/i.test(h) ? h : undefined;
 }
 

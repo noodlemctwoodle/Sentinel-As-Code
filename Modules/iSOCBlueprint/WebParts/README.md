@@ -87,7 +87,12 @@ tried in a plain browser page:
 | `estate` | Purpose-built: the four pipeline stages (ingestion, detection, alerts, incidents) with each one's share and rating, and every source family's GB split into what a detection reads and what nothing reads |
 | `runway` | Purpose-built: platform retirements on a time axis with today marked, and a card per deadline with how far off it is and whether this workspace still uses what it retires |
 | `workspace-age` | Purpose-built: how old the workspace is, its SKU and retention, its span from creation, and what it holds today |
+| `finding-cards` | Purpose-built: a card per finding with its severity, id, title and category, what was found beside how to fix it, and links to the finding and to Microsoft Learn |
 | `incident-lifecycle` | Purpose-built: stage tiles (Raised, New, Active, Closed) with each one's share, arrows carrying MTTA and the acknowledged closures, the path straight from New to Closed (red with SAC-INC-05 when that check fired), and the open incidents by severity and the closed ones by classification and by who closed them |
+
+A link within the site arrives as `~site/...` (a page or the findings
+list) and resolves against the web part's own site, so a diagram's links
+to findings and pages work on the SharePoint pages.
 
 A long list in a purpose-built graphic shows its first rows and the rest
 behind the site's button (`.sbtn`) under the list, reading Show fewer once

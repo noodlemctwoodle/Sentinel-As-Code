@@ -94,8 +94,13 @@ section model gives the chart that kind and the JSON as its data, and
 `source` keeps the Mermaid. A visual line whose JSON does not parse is
 ignored and the Mermaid is read as usual.
 
-A table or a line of figures that such a graphic shows in full follows a
-`<!-- bp:shown-in-graphic -->` comment. The table or paragraph block then
+A graphic with no Mermaid behind it (the overview's top findings as cards)
+rides on a `<!-- bp:visual <kind> {json} -->` comment instead, which
+Markdown does not show; the section model gives it a chart block of that
+kind with an empty `source`, and drops a comment whose JSON does not parse.
+
+A table, a list or a line of figures that such a graphic shows in full
+follows a `<!-- bp:shown-in-graphic -->` comment. The block then
 carries `inGraphic: true`: the Markdown and Word exports keep it, and the
 SharePoint pages and the dashboard leave it out rather than show the same
 figures twice.
@@ -124,6 +129,7 @@ figures twice.
 | `estate` | `totalGb`, `coveredGb`, `sources: [{ name, gb, coveredGb, tables, covered }]`, `stages: [{ name, value, of, label, detail }]` (ingestion, detection, alerts, incidents) |
 | `runway` | `today`, `items: [{ label, date, state, inUse, evidence }]`; `state` is done, crit or active; `inUse` is null when the workspace cannot say |
 | `workspace-age` | `created`, `today`, `ageDays`, `sku`, `retentionDays`, `rulesEnabled`, `connectors`, `tablesReceiving`, `tablesCatalogue` |
+| `finding-cards` | `total` (all findings), `cards: [{ id, severity, title, category, evidence, remediation, learn, href }]`; carried on a `bp:visual` comment, so `source` is empty |
 | `other` | null |
 
 ## The index
@@ -132,7 +138,7 @@ figures twice.
 {
   "schemaVersion": 1,
   "meta": { "workspace": "law-sentinel-prod", "generatedUtc": "...", "blueprintVersion": "0.2.0" },
-  "sections": [ { "id": "00-overview", "order": 0, "title": "Microsoft Sentinel Workspace — Overview", "file": "00-overview.json" } ]
+  "sections": [ { "id": "00-overview", "order": 0, "title": "SIEM Overview", "file": "00-overview.json" } ]
 }
 ```
 

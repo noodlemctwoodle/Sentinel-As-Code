@@ -52,6 +52,10 @@ $script:BpTableContinues = '<!-- bp:table-continues -->'
 # and is flagged inGraphic so the SharePoint pages and the dashboard do not
 # show it twice.
 $script:BpShownInGraphic = '<!-- bp:shown-in-graphic -->'
+# A purpose-built graphic with no Mermaid behind it (the top findings as
+# cards): "<!-- bp:visual <kind> {json} -->", which Markdown does not show.
+# It becomes a chart block of that kind with the JSON as its data.
+$script:BpVisualComment = '^<!--\s*bp:visual\s+(?<kind>[a-z][a-z0-9-]*)\s+(?<json>\{.*\})\s*-->$'
 
 function ConvertTo-BlueprintSection {
     <#
@@ -230,6 +234,7 @@ function ConvertTo-BpBlockList {
                 $Context.content = $true
                 $list = [ordered]@{ type = 'list'; ordered = [bool]$b.IsOrdered; items = @($items) }
                 if ($b.IsOrdered -and $b.OrderedStart -and $b.OrderedStart -ne '1') { $list.start = [int]$b.OrderedStart }
+                if ($Context.inGraphic) { $list.inGraphic = $true; $Context.inGraphic = $false }
                 $list
             }
             'Table' {
@@ -263,6 +268,13 @@ function ConvertTo-BpBlockList {
                 # Split-BpLongTable's seam; Join-BpTableChunk removes it.
                 if ($html -eq $script:BpTableContinues) { [ordered]@{ type = 'tableContinues' }; break }
                 if ($html -eq $script:BpShownInGraphic) { $Context.inGraphic = $true; break }
+                $visual = [regex]::Match($html, $script:BpVisualComment)
+                if ($visual.Success) {
+                    $data = $null
+                    try { $data = $visual.Groups['json'].Value | ConvertFrom-Json -ErrorAction Stop } catch { $data = $null }
+                    if ($null -ne $data) { $Context.content = $true; [ordered]@{ type = 'chart'; kind = $visual.Groups['kind'].Value; title = $null; data = $data; source = '' } }
+                    break
+                }
                 $Context.content = $true
                 [ordered]@{ type = 'html'; html = $html }
             }
