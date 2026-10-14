@@ -3320,6 +3320,9 @@ $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
 # has none of them.
 $costField = { param([string]$Name) if ($cost.PSObject.Properties.Name -contains $Name) { $cost.$Name } else { $null } }
 $costTier = & $costField 'CommitmentTier'
+# An estimate worked out before methodology 2.0.0 keeps the method it used.
+$costMethodV2 = $false
+try { $costMethodV2 = [version][string](& $costField 'MethodologyVersion') -ge [version]'2.0.0' } catch { $costMethodV2 = $false }
 $costPricing = [string](& $costField 'PricingModel')
 $costTierText = if ($costTier) {
     $ic = [System.Globalization.CultureInfo]::InvariantCulture
@@ -3558,11 +3561,20 @@ $(Format-Table -Items $grantRows -Columns 'Grant','Allowance','Gb30d','MonthlyCo
 
 1. Source of truth for ingestion: `Usage` table over the last {lookback}, `IsBillable` honoured, projected to 30 days for the monthly figures.
 2. Plan attribution: each table's current `plan` decides which meter applies (Analytics / Basic / Auxiliary / DataLake).
+$(if ($costMethodV2) { @"
 3. Unit price: the public prices from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time. Analytics-plan tables are priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion (an older price list falls back to the classic Log Analytics and Sentinel pair); Basic tables at the Basic logs rate; tables on the data lake tier only at data lake ingestion plus data processing, and Auxiliary tables the same once the workspace is onboarded to the data lake.
 4. Commitment tier: a workspace on a tier pays its price a day for its GB, and the Analytics GB above it at the tier's effective rate (the price over the GB), as Microsoft bills it; the cost is shared over the Analytics tables by their GB.
 5. Data grants: the tables in `Private/Resources/sentinel-benefit-tables.json` are priced at list and reported under Data grants, not deducted, since their allowances depend on licence and server counts.
 6. Commitment-tier what-if: every published tier priced against the window's Analytics ingest; the cheapest is shown when it beats the current cost.
 7. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
+"@ } else { @"
+3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at collection.
+4. Sentinel free benefit: the tables then listed in `Private/Resources/sentinel-benefit-tables.json` were priced at zero on the assumption the benefit was active.
+5. Commitment-tier projection: illustrative, as actual discounts depend on published rates.
+6. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
+
+This estimate was worked out at collection with that earlier method; the next collection prices with the current one.
+"@ })
 
 ## Caveats: explicitly NOT priced
 

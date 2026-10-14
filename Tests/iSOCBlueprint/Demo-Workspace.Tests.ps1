@@ -73,6 +73,15 @@ Describe 'The demo workspace generator' {
         $script:result.Summary.CommitmentTierGb | Should -Be ([int]$ws.properties.sku.capacityReservationLevel)
         @((Read-Demo 'retail-prices.json').Prices.meterName) | Should -Contain 'Analytics Logs Data Ingestion'
         @(Read-Demo 'gap-analysis.json' | Where-Object Id -eq 'SAC-LOG-10').Count | Should -Be 0
+        # Priced at its tier, with the grants reported, and the page says so.
+        $cost = Read-Demo 'cost-estimate.json'
+        $cost.PricingModel | Should -Be 'Simplified'
+        $cost.CommitmentTier.Level | Should -Be ([int]$ws.properties.sku.capacityReservationLevel)
+        @($cost.BenefitEligible).Count | Should -Be 2
+        $page = Get-Content (Join-Path $script:result.Path '84-cost-estimate.md') -Raw
+        $page | Should -Match 'GB a day commitment tier\*\*'
+        $page | Should -Match '## Data grants that may reduce this'
+        $page | Should -Match '4\. Commitment tier: a workspace on a tier pays its price a day'
     }
 
     It 'deploys the repository''s rules, and its Community rules as Content Hub templates' {

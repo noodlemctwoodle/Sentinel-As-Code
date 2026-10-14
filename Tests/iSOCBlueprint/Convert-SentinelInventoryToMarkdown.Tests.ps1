@@ -658,6 +658,12 @@ Describe 'iSOC Blueprint renderer' {
             $script:costMd | Should -Match 'GBP'
         }
 
+        It 'describes the method an estimate from before methodology 2.0.0 used, not the current one' {
+            $script:costMd | Should -Match 'priced at zero on the assumption the benefit was active'
+            $script:costMd | Should -Match 'This estimate was worked out at collection with that earlier method'
+            $script:costMd | Should -Not -Match '## Data grants that may reduce this'
+        }
+
         It 'says the estimate is at public list prices, without private discounts or agreements' {
             $script:costMd | Should -Match '<!-- bp:tone warning -->\s+> \*\*Public list prices only\.\*\*'
             $script:costMd | Should -Match 'does not include any discount or agreement your organisation may have that is not public'
