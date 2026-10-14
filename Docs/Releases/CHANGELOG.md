@@ -6,6 +6,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **A demo workspace for the Blueprint** - `Tools/New-BlueprintDemoWorkspace.ps1`
+  writes a complete synthetic inventory for a fictitious 2 TB a day
+  workspace on a 2,000 GB a day commitment tier, built from this
+  repository's own content: its analytics rules (the Community rules as
+  Content Hub templates, some deployed from them), hunting queries, Defender
+  XDR custom detections, playbooks, workbooks, watchlists, automation and
+  summary rules. About 60 tables ingest with weekday patterns and growth,
+  and alerts, incidents, verdicts, health events, playbook runs and the
+  daily series behind the window slider are simulated so they agree with
+  each other. The engine's table references, cost estimate, gap analysis
+  and maturity assessment run over it, and `-Build` renders the report and
+  the dashboard, so both can be developed and shown without a tenant.
 - **A window slider on the dashboard** - the dashboard's top bar has a
   slider in place of the snapshot date picker: from 1 day to the days
   collected (at most 90), with the dates the window covers beside it

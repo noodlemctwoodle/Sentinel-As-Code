@@ -125,6 +125,7 @@ CI, maintenance, and reporting that runs *around* deployment.
 | [Dependency Manifest](Tools/Dependency-Manifest.md) | Auto-derived `dependencies.json` from KQL discovery; PR-validation drift gate; daily auto-PR refresh |
 | [Sentinel Drift Detection](Tools/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
 | [DCR Watchlist Sync](Tools/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
+| [Blueprint Demo Workspace](Tools/Blueprint-Demo-Workspace.md) | `New-BlueprintDemoWorkspace.ps1`: a synthetic 2 TB a day workspace built from this repository's content, for developing and showing the Blueprint report and dashboard without a tenant |
 | [SDL Migration Workbook Export](Tools/SDL-Migration-Workbook-Export.md) | Read-only `Export-SdlMigrationWorkbook.ps1` that mirrors every Sentinel Data Lake Migration workbook dataset into one multi-sheet `.xlsx` |
 
 ### Classic to DCR - `Tools/ClassicToDcr/`
