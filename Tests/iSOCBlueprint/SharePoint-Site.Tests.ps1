@@ -1431,6 +1431,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'ends with a privacy notice that names the run date and never mentions _raw' {
         $html | Should -Match '\.privnote\{display:flex;'
         $html | Should -Not -Match 'privnote\{[^}]*border-left'
+        # Full width, so its line does not wrap.
+        $html | Should -Not -Match 'privnote\{[^}]*max-width'
         $html.Contains("'<div><div class=""privt"">Confidential: tenant configuration</div>'") | Should -BeTrue
         $html.Contains("const genAt=String((M.workspace&&M.workspace.generatedUtc)||'').trim();") | Should -BeTrue
         $html | Should -Not -Match '_raw snapshot'
