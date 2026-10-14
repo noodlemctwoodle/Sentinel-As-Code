@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: 25fe0935d3c121703e7c5ef58a31e02a207b604d3263a4e9c1cc287ecae78aa8 */
+   sources-sha256: 048072101dcf27a2736397014658df0db6ea340a869691557f72787f9e29eccf */
 (function(){
 'use strict';
  var defs={};
@@ -1759,46 +1759,112 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderResponseChain = void 0;
 const ChartKit_1 = require("./ChartKit");
 const Visual_1 = require("./Visual");
-// The alert-to-response chain as the target shape against this workspace:
-// the phases in order, each with this workspace's figure, and its numbered
-// steps; a step this workspace is missing, or has at risk, carries the
-// finding that says so.
+// The alert-to-response chain as the target shape against this workspace: a
+// rail of phases, each a glowing node with its icon and this workspace's
+// figure, joined in order by gradient connectors, and under each node a spine
+// of its numbered steps. A phase with a step missing or at risk takes that
+// state's colour, and the step carries the finding that says so.
 const STATE = {
     ok: { colour: Visual_1.OK, label: 'In place' },
     missing: { colour: Visual_1.BAD, label: 'Missing' },
     risk: { colour: Visual_1.WARN, label: 'At risk' }
 };
+// Cyan through violet, in the order the chain runs.
+const PHASE = ['#0891b2', '#2563eb', '#4f46e5', '#7c3aed', '#c026d3', '#0d9488'];
+const GAP = 12;
+const MIN_COL = 150;
+const ICON = [
+    [/ingest|collect|source/i, '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'],
+    [/detect|analy/i, '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M7.5 11h2l1-2 1.5 4 1-2h1.5"/>'],
+    [/automat|orchestr/i, '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
+    [/notif|alert|escalat/i, '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'],
+    [/respond|investigat|remediat/i, '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>']
+];
 function renderResponseChain(data, theme) {
     const phases = (0, ChartKit_1.list)(data && data.phases).filter((p) => (0, ChartKit_1.list)(p.steps).length > 0);
     if (!phases.length) {
         return '';
     }
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
-        phases.map((p, i) => phase(p, i, theme)).join('') + '</div>';
+    const colours = phases.map((p, i) => {
+        const worst = worstOf((0, ChartKit_1.list)(p.steps));
+        return worst ? STATE[worst].colour : PHASE[i % PHASE.length];
+    });
+    const n = phases.length;
+    const grid = 'display:grid;grid-template-columns:repeat(' + n + ',minmax(0,1fr));column-gap:' + GAP + 'px';
+    return '<div style="overflow-x:auto;font-size:13px;color:' + (0, ChartKit_1.esc)(theme.text) + '">' +
+        '<div style="min-width:' + (n * MIN_COL + (n - 1) * GAP) + 'px">' +
+        summary(phases, theme) +
+        '<div style="' + grid + '">' + phases.map((p, i) => node(p, i, colours, theme)).join('') + '</div>' +
+        '<div style="' + grid + ';margin-top:12px">' + phases.map((p, i) => column(p, colours[i], theme)).join('') + '</div>' +
+        '</div></div>';
 }
 exports.renderResponseChain = renderResponseChain;
-function phase(p, index, theme) {
-    const steps = (0, ChartKit_1.list)(p.steps);
-    const worst = steps.some((s) => s.state === 'missing') ? 'missing'
+function worstOf(steps) {
+    return steps.some((s) => s.state === 'missing') ? 'missing'
         : steps.some((s) => s.state === 'risk') ? 'risk' : '';
-    const head = '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="flex:none;font-size:10.5px;font-weight:800;color:' + (0, ChartKit_1.esc)(theme.muted) + ';font-variant-numeric:tabular-nums">' + (index + 1) + '</span>' +
-        (0, Visual_1.eyebrow)((0, ChartKit_1.str)(p.name), theme) + '</div>' +
-        ((0, ChartKit_1.str)(p.figure) ? '<div style="font-size:13px;font-weight:750;margin:6px 0 2px">' + (0, ChartKit_1.esc)(p.figure) + '</div>' : '');
-    const body = steps.map((s) => step(s, theme)).join('');
-    return (0, Visual_1.card)(head + '<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">' + body + '</div>', theme, worst ? STATE[worst].colour : undefined);
 }
-function step(s, theme) {
-    const state = STATE[(0, ChartKit_1.str)(s.state)];
-    const dot = state && s.state !== 'ok' ? state.colour : theme.accent;
-    const flag = state && s.state !== 'ok'
-        ? '<div style="margin-top:4px">' + (0, Visual_1.pill)(state.label + ((0, ChartKit_1.str)(s.finding) ? ' · ' + (0, ChartKit_1.str)(s.finding) : ''), state.colour) + '</div>'
+// How many steps are in place, at risk and missing, as a key above the rail.
+function summary(phases, theme) {
+    const steps = [];
+    phases.forEach((p) => { (0, ChartKit_1.list)(p.steps).forEach((s) => { steps.push(s); }); });
+    const tally = (state) => steps.filter((s) => (STATE[(0, ChartKit_1.str)(s.state)] ? (0, ChartKit_1.str)(s.state) : 'ok') === state).length;
+    const item = (state) => {
+        const c = tally(state);
+        if (!c && state !== 'ok') {
+            return '';
+        }
+        return '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:' + STATE[state].colour + '"></span>' +
+            '<b style="font-variant-numeric:tabular-nums">' + c + '</b> ' + STATE[state].label.toLowerCase() + '</span>';
+    };
+    return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-bottom:18px;font-size:12px;color:' + (0, ChartKit_1.esc)(theme.muted) + '">' +
+        '<span>' + steps.length + ' steps across ' + phases.length + ' phases</span>' + item('ok') + item('risk') + item('missing') + '</div>';
+}
+// A phase on the rail: its node, the connector on to the next phase, and its
+// name and figure.
+function node(p, index, colours, theme) {
+    const c = colours[index];
+    const worst = worstOf((0, ChartKit_1.list)(p.steps));
+    const glow = theme.dark
+        ? '0 0 0 5px ' + (0, ChartKit_1.tint)(c, 0.12) + ',0 0 24px ' + (0, ChartKit_1.tint)(c, 0.5)
+        : '0 0 0 5px ' + (0, ChartKit_1.tint)(c, 0.08) + ',0 6px 16px -6px ' + (0, ChartKit_1.tint)(c, 0.55);
+    const next = index < colours.length - 1 ? colours[index + 1] : '';
+    const link = next
+        ? '<div style="position:absolute;top:27px;left:50%;width:calc(100% + ' + GAP + 'px);height:3px;border-radius:99px;background:linear-gradient(90deg,' + c + ',' + next + ')">' +
+            '<span style="position:absolute;left:50%;top:50%;width:7px;height:7px;border-top:2px solid ' + next + ';border-right:2px solid ' + next + ';transform:translate(-70%,-50%) rotate(45deg)"></span></div>'
         : '';
-    return '<div style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start">' +
-        '<span style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;' +
-        'color:' + (0, ChartKit_1.esc)(dot) + ';background:' + (0, ChartKit_1.tint)(dot, theme.dark ? 0.2 : 0.12) + '">' + (0, ChartKit_1.esc)(s.n) + '</span>' +
+    const icon = ICON.filter((x) => x[0].test((0, ChartKit_1.str)(p.name)))[0];
+    const mark = icon
+        ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + icon[1] + '</svg>'
+        : '<span style="font-size:15px;font-weight:800;color:' + c + '">' + (index + 1) + '</span>';
+    const badge = worst
+        ? '<span title="' + (0, ChartKit_1.esc)(STATE[worst].label) + '" style="position:absolute;top:-3px;right:-3px;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+            'font-size:11px;font-weight:900;color:#fff;background:' + STATE[worst].colour + ';box-shadow:0 0 0 2px ' + (0, ChartKit_1.esc)(theme.surface) + '">!</span>'
+        : '';
+    return '<div style="position:relative;min-width:0;text-align:center">' + link +
+        '<div style="position:relative;width:56px;height:56px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+        'border:2px solid ' + c + ';background-color:' + (0, ChartKit_1.esc)(theme.surface) + ';background-image:linear-gradient(' + (0, ChartKit_1.tint)(c, theme.dark ? 0.22 : 0.1) + ',' + (0, ChartKit_1.tint)(c, theme.dark ? 0.22 : 0.1) + ');box-shadow:' + glow + '">' +
+        mark + badge + '</div>' +
+        '<div style="margin-top:12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:' + c + '">' + (index + 1) + ' · ' + (0, ChartKit_1.esc)(p.name) + '</div>' +
+        ((0, ChartKit_1.str)(p.figure) ? '<div style="margin-top:3px;font-size:13px;font-weight:750;line-height:1.3">' + (0, ChartKit_1.esc)(p.figure) + '</div>' : '') +
+        '</div>';
+}
+// A phase's steps on a spine in the phase's colour.
+function column(p, c, theme) {
+    const steps = (0, ChartKit_1.list)(p.steps);
+    return '<div style="position:relative;min-width:0;padding:14px 12px 12px;border-radius:14px;background:' + (0, ChartKit_1.tint)(c, theme.dark ? 0.08 : 0.04) + '">' +
+        '<div style="position:absolute;left:23px;top:24px;bottom:24px;width:2px;border-radius:2px;background:linear-gradient(' + (0, ChartKit_1.tint)(c, 0.5) + ',' + (0, ChartKit_1.tint)(c, 0.08) + ')"></div>' +
+        '<div style="position:relative;display:flex;flex-direction:column;gap:12px">' + steps.map((s) => step(s, c, theme)).join('') + '</div></div>';
+}
+function step(s, phaseColour, theme) {
+    const state = s.state !== 'ok' ? STATE[(0, ChartKit_1.str)(s.state)] : undefined;
+    const dot = state ? state.colour : phaseColour;
+    const flag = state ? '<div style="margin-top:5px">' + (0, Visual_1.pill)(state.label + ((0, ChartKit_1.str)(s.finding) ? ' · ' + (0, ChartKit_1.str)(s.finding) : ''), state.colour) + '</div>' : '';
+    return '<div style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:9px;align-items:start">' +
+        '<span style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;line-height:1;' +
+        'color:' + (state ? '#fff' : dot) + ';background-color:' + (0, ChartKit_1.esc)(theme.surface) + ';background-image:linear-gradient(' + (state ? dot : (0, ChartKit_1.tint)(dot, theme.dark ? 0.25 : 0.14)) + ',' + (state ? dot : (0, ChartKit_1.tint)(dot, theme.dark ? 0.25 : 0.14)) + ');' +
+        'box-shadow:0 0 0 1.5px ' + (0, ChartKit_1.tint)(dot, 0.55) + '">' + (0, ChartKit_1.esc)(s.n) + '</span>' +
         '<div style="min-width:0"><div style="font-weight:650;line-height:1.35">' + (0, ChartKit_1.esc)(s.action) + '</div>' +
-        '<div style="font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:1px">' + (0, ChartKit_1.esc)(s.actor) + ((0, ChartKit_1.str)(s.target) ? ' → ' + (0, ChartKit_1.esc)(s.target) : '') + '</div>' +
+        '<div style="font-size:11.5px;color:' + (0, ChartKit_1.esc)(theme.muted) + ';margin-top:2px;line-height:1.35">' + (0, ChartKit_1.esc)(s.actor) + ((0, ChartKit_1.str)(s.target) ? ' → ' + (0, ChartKit_1.esc)(s.target) : '') + '</div>' +
         flag + '</div></div>';
 }
 

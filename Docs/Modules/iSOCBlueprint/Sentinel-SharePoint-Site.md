@@ -331,7 +331,17 @@ MTTR: ... · Closed: ...") shows as a row of tiles, label above figure,
 lined up across the row however the labels wrap; a duration in minutes
 reads in days and hours with the exact minutes in its tooltip, and a
 bracketed qualifier ("last 30d") becomes a caption. A line that is mostly
-text, such as a finding's severity and category, stays as text. A table
+text, such as a finding's severity and category, stays as text. A
+paragraph or list that holds only links (the Microsoft Learn pointers
+that close a page, a finding's "Reference:", "See A and B.") shows as a
+card of link tiles under a Microsoft Learn heading (Further reading when
+other sites are among them): each tile carries the page's title, without
+its "(Microsoft Learn)" suffix, and the product area it belongs to, and
+link cards in a row merge into one. A numeric table column shrinks to its
+figures, so a short column such as Level sits beside its neighbour rather
+than at the far edge, and tables on one page with the same columns share
+their column widths so they line up. A bar chart's label column fits its
+longest label, up to half the card, so table names show whole. A table
 cell holding a list of four or more items separated by semicolons (the
 solutions behind a table's templates, a finding's evidence list) shows as
 chips: the first three, then a Show all chevron for the rest, with a lead-in such as

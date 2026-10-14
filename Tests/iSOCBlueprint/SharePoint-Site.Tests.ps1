@@ -1740,7 +1740,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'shows a line of figures in a Report page as aligned tiles' {
         $html | Should -Match 'function kvTiles\(html\)\{'
-        $html | Should -Match "if\(b\.t==='p'\) return kvTiles\(b\.html\) \|\| '<p>'\+b\.html\+'</p>';"
+        $html | Should -Match "if\(b\.t==='p'\) return kvTiles\(b\.html\) \|\| refLinks\(b\.html\) \|\| '<p>'\+b\.html\+'</p>';"
         # Minutes become days and hours; a text-only line stays text.
         $html | Should -Match "return d\? d\+'d '\+h\+'h' : h\? h\+'h '\+mi\+'m' : mi\+' min';"
         $html | Should -Match '\.length\*2 < tiles\.length\) return '''';'
@@ -1753,7 +1753,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'keeps a page''s description under its title, above any tabs' {
-        $html | Should -Match 'if\(intro\.length && intro\[0\]\.t===''p'' && !kvTiles\(intro\[0\]\.html\)\)\{ desc=''<p class="docdesc">'''
+        $html | Should -Match 'if\(intro\.length && intro\[0\]\.t===''p'' && !kvTiles\(intro\[0\]\.html\) && !refLinks\(intro\[0\]\.html\)\)\{ desc=''<p class="docdesc">'''
         $html | Should -Match '\.kvc\{[^}]*overflow-wrap:anywhere\}'
     }
 
@@ -1865,6 +1865,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match '\.docbody h3\{[^}]*border-left'
         $html | Should -Not -Match '\.docnote\{[^}]*border-left'
         $html | Should -Match '\.docnote\{position:relative;margin:16px 0;padding:10px 14px;border-radius:12px;'
+    }
+
+    It 'shows a paragraph or list of links only as a card of link tiles' {
+        $html.Contains('function refLinks(html){') | Should -BeTrue
+        $html.Contains("if(b.t==='p') return kvTiles(b.html) || refLinks(b.html) || '<p>'+b.html+'</p>';") | Should -BeTrue
+        $html.Contains("if(b.t==='ul') return refLinks((b.items||[]).join(' · ')) ||") | Should -BeTrue
+        # A lead-in (See, Reference:) and the separators between links are all a links-only paragraph may hold.
+        $html.Contains(".replace(/^(see also|see|references?|docs|further reading|read more)\s*:?/i,'').replace(/\band\b|&middot;|[·,;.:\s]/gi,'');") | Should -BeTrue
+        $html.Contains("const head=items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading';") | Should -BeTrue
+        $html | Should -Match '\.refl\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(300px,1fr\)\);gap:8px\}'
+        $html | Should -Not -Match '\.refa\{[^}]*border-left'
+    }
+
+    It 'keeps numeric report columns to their content and chart labels whole' {
+        # A numeric column shrinks to fit, so a Level column sits beside its Name.
+        $html | Should -Match 'table\.doct th\.num\{width:1%\}'
+        # A report bar chart's rows share one grid whose label column fits the longest label.
+        $html | Should -Match '\.cbars\{display:grid;grid-template-columns:fit-content\(50%\) minmax\(80px,1fr\) auto;'
+        $html | Should -Match '\.cbar\{grid-column:1/-1;display:grid;grid-template-columns:subgrid;'
+        $html.Contains('+''<div class="cbars">''+rows+''</div></div>'';') | Should -BeTrue
     }
 
     It 'gives a flowchart node an in-dashboard link to its section or finding' {

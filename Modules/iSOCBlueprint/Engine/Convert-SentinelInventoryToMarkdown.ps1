@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.10
+    Version:        0.6.11
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -2246,9 +2246,9 @@ $(Format-Banner -Title "Automation Rules and Playbooks")
 
 **$autoCount automation rule(s) · $pbCount playbook(s)** on this workspace.
 
-## Alert-to-response chain — target shape
+## Alert-to-response chain: the target shape
 
-The sequence below documents the handoff path an automation-enriched response chain follows. A workspace with zero automation rules has a sparse version of this — gaps in the diagram map directly to the gap-engine findings: missing steps 6-8 = [SAC-AUT-01], missing step 9's MI role = [SAC-AUT-05], missing step 11's analyst ack = [SAC-INC-05].
+The handoff path a response chain enriched by automation follows, from ingestion to the analyst, drawn against this workspace. A step this workspace is missing or has at risk names the finding behind it: steps 6 to 8 need automation rules ([SAC-AUT-01]), step 9 needs the playbook's managed identity role ([SAC-AUT-05]) and step 11 needs analysts to acknowledge incidents ([SAC-INC-05]).
 
 ``````mermaid
 sequenceDiagram
@@ -3349,6 +3349,7 @@ xychart-beta
     }) -join ', ')]
     y-axis "GB" 0 --> $([math]::Ceiling(([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Maximum).Maximum + 0.5)))
     bar [$(($cost.Top10TablesByCost | ForEach-Object { $_.Gb30d }) -join ', ')]
+$(Format-XyFullLabels @($cost.Top10TablesByCost | ForEach-Object { $_.Table }))
 ``````
 
 Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables; the table below lists every table with its full name.

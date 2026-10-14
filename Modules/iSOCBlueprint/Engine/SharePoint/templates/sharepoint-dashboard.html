@@ -539,6 +539,7 @@
   table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
   table.doct tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
   table.doct td.num,table.doct th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.doct th.num{width:1%}
   /* Sortable column titles: the title is a button; a small arrow shows the
      order, faint until the column is sorted. */
   table.doct th .thsort{all:unset;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;white-space:inherit}
@@ -586,6 +587,24 @@
   .kvv{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-top:6px;color:var(--ink);overflow-wrap:anywhere}
   .kvc{font-size:11.5px;color:var(--muted);margin-top:3px;min-width:0;overflow-wrap:anywhere}
   .kvt code,.kvc code{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  /* Further reading: a paragraph or list of links only, one tile a link. */
+  .refs{margin:20px 0 10px}
+  .refs-h{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:10.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em}
+  .refs-h svg{flex:none;color:var(--brand)}
+  .refs-h::after{content:'';flex:1;height:1px;background:var(--line)}
+  .refl{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+  .docbody a.refa{display:flex;align-items:center;gap:11px;min-width:0;padding:10px 12px;border-radius:12px;text-decoration:none;color:inherit;
+    background:var(--panel-soft);border:1px solid var(--line);transition:border-color .15s,background .15s}
+  .docbody a.refa:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));background:color-mix(in srgb,var(--brand) 6%,var(--panel-soft))}
+  .docbody a.refa:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .refi{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+    background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+  .reft{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .refn{font-size:13px;font-weight:650;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+  .refsub{font-size:11.5px;line-height:1.3;color:var(--muted)}
+  .refgo{flex:none;color:var(--faint);transition:color .15s}
+  .docbody a.refa:hover .refgo{color:var(--brand)}
   .docstat{display:flex;align-items:center;gap:10px;background:var(--panel-soft);border:1px solid var(--line);
     border-radius:11px;padding:9px 14px 9px 11px}
   .docstat .si{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--chip);color:var(--muted)}
@@ -598,8 +617,11 @@
     padding:16px 18px;background:var(--panel)}
   .docchart .cct{font-size:13px;font-weight:750;color:var(--ink);margin-bottom:3px}
   .docchart .ccn{font-size:11.5px;color:var(--muted);margin-bottom:13px}
-  .cbar{display:grid;grid-template-columns:minmax(160px,34%) 1fr auto;align-items:center;gap:12px;margin:9px 0}
-  .cbar .cl{font-size:12.5px;color:var(--ink-2);font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+  /* The rows share one grid: the label column fits the longest label (up to
+     half the card), so names show whole and every bar starts together. */
+  .cbars{display:grid;grid-template-columns:fit-content(50%) minmax(80px,1fr) auto;column-gap:12px;row-gap:9px;align-items:center;margin:9px 0}
+  .cbar{grid-column:1/-1;display:grid;grid-template-columns:subgrid;align-items:center}
+  .cbar .cl{min-width:120px;font-size:12.5px;color:var(--ink-2);font-weight:600;line-height:1.35;overflow-wrap:anywhere}
   .cbar .ct{height:10px;border-radius:999px;background:var(--line-2);overflow:hidden}
   .cbar .cf{height:100%;border-radius:999px;width:var(--w,0%);
     background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .6s cubic-bezier(.22,.8,.3,1)}
@@ -3014,7 +3036,7 @@
       const legend=multi? '<div class="legend">'+series.map((x,si)=>'<span><i style="background:'+col(si)+'"></i>'+esc(x.name||('Series '+(si+1)))+'</span>').join('')+'</div>' : '';
       const axis=d.yAxis&&d.yAxis.title? esc(oneLine(d.yAxis.title))+(d.yAxis.max!=null&&+d.yAxis.max>0&&+d.yAxis.min===0?', 0 to '+esc(fmtNum(d.yAxis.max)):'') : '';
       // The key goes above the bars, where it is read first.
-      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+(legend?legend.replace('class="legend"','class="legend top"'):'')+rows+'</div>';
+      return '<div class="docchart"><div class="cct">'+esc(oneLine(b.title))+'</div>'+(axis?'<div class="ccn">'+axis+'</div>':'')+(legend?legend.replace('class="legend"','class="legend top"'):'')+'<div class="cbars">'+rows+'</div></div>';
     }
     // Every other kind (state, journey, flowchart, sankey, gantt, timeline,
     // mindmap, class, sequence) is drawn by the chart web part's renderers,
@@ -3331,6 +3353,49 @@
       if(tiles.filter(x=>/^[£$€]?\s*\d/.test(plain(x.v))).length*2 < tiles.length) return '';
       return '<div class="kvtiles">'+tiles.map(x=>'<div class="kvt"'+(x.tip?' title="'+esc(x.tip)+'"':'')+'><div class="kvk">'+x.k+'</div><div class="kvv">'+x.v+'</div>'+(x.cap?'<div class="kvc">'+x.cap+'</div>':'')+'</div>').join('')+'</div><!--/kv-->';
     }
+    // A paragraph or list that holds only links (the Microsoft Learn pointers
+    // that close a page, a finding's "Reference:", "See A and B.") reads as a
+    // card of link tiles, each with the page title and the product area it
+    // belongs to, rather than a run of links side by side.
+    const REF_AREAS=[[/^azure\/sentinel/,'Microsoft Sentinel'],[/^azure\/azure-monitor/,'Azure Monitor'],[/^defender-xdr/,'Microsoft Defender XDR'],
+      [/^unified-secops/,'Unified security operations'],[/^azure\/azure-resource-manager/,'Azure Resource Manager'],[/^rest\/api/,'Azure REST API'],
+      [/^entra/,'Microsoft Entra'],[/^graph/,'Microsoft Graph'],[/^azure\/developer\/github/,'GitHub Actions'],[/^azure\/logic-apps/,'Azure Logic Apps'],
+      [/^azure\/role-based-access-control/,'Azure RBAC'],[/^azure\/defender-for-cloud/,'Defender for Cloud'],[/^kusto/,'Kusto Query Language'],
+      [/^azure\/governance/,'Azure governance'],[/^purview/,'Microsoft Purview'],[/^copilot/,'Security Copilot']];
+    function refArea(href){
+      try{
+        const u=new URL(href);
+        if(!/(^|\.)learn\.microsoft\.com$/i.test(u.hostname)) return u.hostname.replace(/^www\./,'');
+        const path=u.pathname.replace(/^\/+/,'').replace(/^[a-z]{2}-[a-z]{2}\//i,'');
+        const hit=REF_AREAS.find(a=>a[0].test(path)); if(hit) return hit[1];
+        const seg=path.split('/').filter(Boolean), one=(seg[0]==='azure'&&seg[1])? seg[1] : (seg[0]||'');
+        return one? one.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase()) : 'Microsoft Learn';
+      }catch(e){ return ''; }
+    }
+    const REF_BOOK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>';
+    const REF_LINK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+    const REF_GO='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+    function refLinks(html){
+      const A=/<a\b[^>]*>[\s\S]*?<\/a>/g, src=String(html||''), links=src.match(A);
+      if(!links) return '';
+      const rest=src.replace(A,' ').replace(/<[^>]+>/g,' ').trim()
+        .replace(/^(see also|see|references?|docs|further reading|read more)\s*:?/i,'').replace(/\band\b|&middot;|[·,;.:\s]/gi,'');
+      if(rest) return '';
+      const seen=new Set(), items=[];
+      for(const a of links){
+        const href=((/\shref="([^"]*)"/.exec(a)||[])[1]||'').replace(/&amp;/g,'&');
+        if(!/^https?:\/\//i.test(href)) return '';
+        if(seen.has(href)) continue; seen.add(href);
+        const title=a.replace(/^<a\b[^>]*>|<\/a>$/g,'').replace(/\s*\((?:Microsoft Learn|[a-z0-9-]+\.(?:org|com|io|net))\)\s*$/i,'').trim();
+        items.push({href, title:title||esc(href), area:refArea(href), learn:/(^|\.)learn\.microsoft\.com$/i.test((()=>{ try{ return new URL(href).hostname; }catch(e){ return ''; } })())});
+      }
+      if(!items.length) return '';
+      const head=items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading';
+      return '<div class="refs"><div class="refs-h">'+REF_BOOK+head+'</div><div class="refl">'+
+        items.map(x=>'<a class="refa" href="'+esc(x.href)+'" target="_blank" rel="noopener"><span class="refi">'+(x.learn?REF_BOOK:REF_LINK)+'</span>'+
+          '<span class="reft"><span class="refn">'+x.title+'</span>'+(x.area?'<span class="refsub">'+esc(x.area)+'</span>':'')+'</span><span class="refgo">'+REF_GO+'</span></a>').join('')+
+        '</div></div><!--/refs-->';
+    }
     let layoutDocTimer=null;
     window.addEventListener('resize',()=>{ clearTimeout(layoutDocTimer); layoutDocTimer=setTimeout(layoutDoc,150); });
     function render(num){
@@ -3341,9 +3406,9 @@
       const ownCharts=(s.blocks||[]).some(b=>b.t==='chart');
       const blockHtml=b=>{
         if(b.t==='h') return (b.lvl>=4?'<h4>':'<h3>')+b.html+(b.lvl>=4?'</h4>':'</h3>');
-        if(b.t==='p') return kvTiles(b.html) || '<p>'+b.html+'</p>';
+        if(b.t==='p') return kvTiles(b.html) || refLinks(b.html) || '<p>'+b.html+'</p>';
         if(b.t==='note') return noteHtml(b);
-        if(b.t==='ul') return '<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>';
+        if(b.t==='ul') return refLinks((b.items||[]).join(' · ')) || '<ul>'+b.items.map(it=>'<li>'+it+'</li>').join('')+'</ul>';
         if(b.t==='chart') return chartHtml(b);
         if(b.t==='table') return (ownCharts?'':chartFromTable(b))+tableHtml(b, ti++);
         return '';
@@ -3351,7 +3416,9 @@
       // Lines of figures one after another share one grid of tiles. Only a
       // tile grid's own end (marked) joins the next: a chart card before a
       // line of figures keeps its own end, and the tiles their own row.
-      const blocksHtml=list=>list.map(blockHtml).join('').replace(/<\/div><!--\/kv--><div class="kvtiles">/g,'');
+      // Link cards one after another merge the same way, under the first's heading.
+      const blocksHtml=list=>list.map(blockHtml).join('').replace(/<\/div><!--\/kv--><div class="kvtiles">/g,'')
+        .replace(/<\/div><\/div><!--\/refs--><div class="refs"><div class="refs-h">[\s\S]*?<\/div><div class="refl">/g,'');
       // The intro, then one block per main section, which layoutDoc may
       // gather into tabs.
       const intro=[], groups=[];
@@ -3364,7 +3431,7 @@
       // The page's description, its opening paragraph, always sits under the
       // title, above any tabs.
       let desc='';
-      if(intro.length && intro[0].t==='p' && !kvTiles(intro[0].html)){ desc='<p class="docdesc">'+intro[0].html+'</p>'; intro.shift(); }
+      if(intro.length && intro[0].t==='p' && !kvTiles(intro[0].html) && !refLinks(intro[0].html)){ desc='<p class="docdesc">'+intro[0].html+'</p>'; intro.shift(); }
       const body=desc+(intro.length? '<div class="docintro">'+blocksHtml(intro)+'</div>' : '')+
         groups.map(g=>'<section class="docsec" data-rows="'+rowsIn(g)+'" data-label="'+label(g).replace(/"/g,'&quot;')+'"><h3 class="dsech">'+g.head.html+'</h3>'+blocksHtml(g.blocks)+'</section>').join('');
       // summary stat chips

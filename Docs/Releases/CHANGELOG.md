@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Link cards, whole chart labels and a new response chain** - on the
+  SharePoint site, the Microsoft Learn links that close a report page
+  (and a finding's Reference, and "See A and B.") are a card of link
+  tiles with each page's title and product area, not a run of links. The
+  cost page's top tables chart shows every table name whole (the names
+  were cut to 14 characters), and a report bar chart's label column fits
+  its longest label. A numeric table column shrinks to its figures, so
+  the maturity scale's Level sits beside its name. The alert-to-response
+  chain is redrawn as a rail of glowing phase nodes joined by gradient
+  connectors, each phase's steps on a spine beneath, with a count of
+  steps in place and at risk; its heading and introduction are reworded.
 - **Conventions as tables; RBAC page renamed** - the Conventions page's
   Modules, Authentication pattern, REST-only gaps and Recurring KQL queries
   sections were dense bullet lists. They are now tables: modules with their

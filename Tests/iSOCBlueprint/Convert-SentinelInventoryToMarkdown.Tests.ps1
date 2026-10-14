@@ -377,6 +377,13 @@ Describe 'iSOC Blueprint renderer' {
             $md | Should -Match '"Succeeded" : 49'
             $md | Should -Match '\| IncidentEnrich-IP \| 42 \| 5 \| Failed \| 2026-05-05 22:15 \|'
         }
+
+        It 'introduces the alert-to-response chain in plain words' {
+            $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
+            $md | Should -Match '## Alert-to-response chain: the target shape'
+            $md | Should -Match 'steps 6 to 8 need automation rules \(\[SAC-AUT-01\]'
+            $md | Should -Not -Match 'Alert-to-response chain \u2014'
+        }
     }
 
     Context '70-content-hub.md marks deprecated and unlisted solutions in the one table' {
@@ -657,6 +664,10 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'lists at least one caveat' {
             $script:costMd | Should -Match 'NOT priced'
+        }
+
+        It 'carries the full table names for the cost chart' {
+            $script:costMd | Should -Match '(?m)^    %% x-labels \["[^"]+"'
         }
     }
 
