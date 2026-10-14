@@ -730,15 +730,17 @@ function Format-EstateSankey {
     $height = [math]::Max(360, 40 * $Estate.Sources.Count + 200)
     # The estate as data for the SharePoint graphic: every family's GB and
     # the part a detection reads, and the four stages as in use of a whole.
+    # Counts with thousands separators, whatever the machine's culture.
+    $n0 = { param($v) ([long]$v).ToString('N0', [System.Globalization.CultureInfo]::InvariantCulture) }
     $visual = Format-VisualLine -Kind 'estate' -Data ([ordered]@{
         totalGb   = [math]::Round([double]$Estate.TotalGb, 2)
         coveredGb = [math]::Round([double]$Estate.CoveredGb, 2)
         sources   = @($Estate.Sources | Sort-Object { -[double]$_.Gb } | ForEach-Object { [ordered]@{ name = [string]$_.Category; gb = [math]::Round([double]$_.Gb, 2); coveredGb = [math]::Round([double]$_.CoveredGb, 2); tables = [int]$_.Tables; covered = [int]$_.Covered } })
         stages    = @(
             [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables seen in 90 days still receiving data'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in 30 days" }
-            [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$($Estate.RulesEnabled) enabled rules" }
-            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$($Estate.RuleAlerts) alerts from them$(if ([long]$Estate.XdrAlerts -gt 0) { " and $($Estate.XdrAlerts) from Defender XDR" }) in 30 days" }
-            [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$($Estate.IncidentsOpen) still open" }
+            [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$(& $n0 $Estate.RulesEnabled) enabled rules" }
+            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in 30 days" }
+            [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$(& $n0 $Estate.IncidentsOpen) still open" }
         )
     })
     @"

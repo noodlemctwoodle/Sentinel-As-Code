@@ -6,6 +6,19 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Data flow tab leads with the estate flow; the ingest and billing flow
+  redrawn** - the estate flow moves from the Overview to the top of the
+  Data flow tab, above the ingest and billing flow, which is redrawn in the
+  alert lifecycle's style: source families as glowing dots, every table as
+  a pill in its family's colour, each plan and tier as a ring with its share
+  of the GB, and billed and free benefit as glowing nodes with their totals,
+  joined by GB strands with beads (filters, Every table and the Other pill
+  work as before). The estate strip gives Defender XDR alerts a tile of
+  their own, and the report's Alerts stage reads "N Sentinel alerts and N
+  Defender XDR alerts", with thousands separators. In the alert lifecycle
+  the figures sit centred on their lines and the incidents branch starts
+  clear of its count. The header's Open gap analysis button is gone; the
+  findings tile and the Assessment tab lead there.
 - **Templates from deprecated solutions are no longer offered** - the
   detection opportunities listed templates as ready to enable even when the
   only Content Hub solution shipping them is deprecated, such as the old

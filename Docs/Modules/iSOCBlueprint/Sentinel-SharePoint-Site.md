@@ -16,7 +16,7 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the estate flow with its pipeline figures, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow, insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, then the ingest and billing flow), insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
@@ -108,8 +108,8 @@ drawing pauses while the Overview is not on screen.
 In dark mode every card (the header, panels, glance tiles, insight, contents,
 section and finding cards) uses the alert lifecycle's screen, a teal-tinted
 glow fading to near-black, and the base panel colour is darker to match; the
-coloured posture cards keep their colours. The estate flow is drawn in the
-same style: glowing source dots, ring arcs with a glow and spaced capitals
+coloured posture cards keep their colours. The estate flow, at the top of
+the Data flow tab, is drawn in the same style: glowing source dots, ring arcs with a glow and spaced capitals
 for the captions, and the closed and open incidents as glowing nodes with
 their counts. When Defender XDR raised alerts, the band splits after
 Detection into two rings centred on the line, Defender XDR alerts above
@@ -117,19 +117,29 @@ Detection into two rings centred on the line, Defender XDR alerts above
 score, with the exact count under it) and Sentinel alerts below (the rules
 that fired, as before), and the two merge into Incidents, which count both;
 Defender XDR's products read no workspace table, so the rings before the
-split do not count them. The Alerts figure under the flow gives the rules'
-own alerts and Defender XDR's side by side, as does the Alerts stage on the
-report's overview page.
+split do not count them. The strip of figures under the flow follows the
+split: Sentinel alerts (the rules that fired, with their alerts) and
+Defender XDR alerts (their count against every alert, its bar in the
+Defender XDR colour) are tiles of their own, and the Alerts stage on the
+report's overview page names both counts.
 
 The estate flow moves too: beads run along the strands a detection rule
 reads, the band between the rings and the incident branches (faster for more
 data), the dashed "no detection rule" strands creep towards their pool, and
 each ring's arc draws in once when the page opens. Hovering a family dims the
-other strands and their beads; none of it runs for reduced motion. The Data
-flow tab's Sankey does the same: beads run along the middle of every ribbon
-thick enough to carry them, and the ribbons sweep in from the left when the
-tab opens and after each filter change (the sweep starts from a fully drawn
-chart, so it never leaves the ribbons hidden).
+other strands and their beads; none of it runs for reduced motion.
+
+The ingest and billing flow under it is drawn the same way: source families
+as glowing dots on the left, every table as a pill tinted in its family's
+colour with its GB inside (a long name is shortened, with the full name in
+its tooltip), each billing plan and lake tier as a ring showing its share of
+the GB shown with the GB under it, and the billed and free-benefit outcomes
+as glowing nodes with their totals and shares. Strands carry GB (width on a
+square-root scale) with beads, and sweep in from the left when the tab opens
+and after each filter change (the sweep starts from a fully drawn chart, so
+it never leaves the strands hidden). Hovering a family spotlights its
+strands and tables; selecting one, or its filter chip, shows every one of
+its tables, and the Other pill shows every table.
 
 The estate flow is interactive: hovering a source family spotlights its
 strands, clicking a family or the "Not monitored" pool opens a table of the
@@ -244,9 +254,7 @@ the theme's colours. Its switches look like the dashboard's tabs, and an
 links back to the grid. The content inventory's tiles
 open their pages in the Report tab.
 Every card grid balances its rows (five cards become three and two,
-never four and one) and a short last row widens to fill the band. The
-Sankey sizes each column to its longest label and stacks the GB value
-under the label when the two cannot share a line.
+never four and one) and a short last row widens to fill the band.
 
 The Report tab shows every section from the section model. It draws the
 section's own pie and xy (bar) charts from their data, and every other
@@ -337,7 +345,7 @@ host page (with `scrollIntoView`) rather than its own window.
 
 | Model key | Panel | Source captures |
 | --- | --- | --- |
-| `estate` | Overview: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored"). `alerts` is every product's alerts, split as `alertsSentinel` and `alertsXdr` for the alert lifecycle; `ruleAlerts` is the scheduled and NRT rules' own | `tables-with-data`, `rule-table-references`, `rules-fired`, `analytics-rule-volumes`, `incidents-summary` |
+| `estate` | Data flow: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, Defender XDR alerts, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored"). `alerts` is every product's alerts, split as `alertsSentinel` and `alertsXdr` for the alert lifecycle; `ruleAlerts` is the scheduled and NRT rules' own | `tables-with-data`, `rule-table-references`, `rules-fired`, `analytics-rule-volumes`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
 | `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
 | `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope, and every capability area's score against the target, weakest first, an area below target in amber; selecting an area opens the Assessment with the criteria filtered to it) and quick wins, filled to the maturity card's height so the two cards end level with their buttons in line (the rest behind Show all; when every quick win fits, the button opens the roadmap). Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target, the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |

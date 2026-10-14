@@ -127,7 +127,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'counts every product''s alerts into incidents, and the rules'' own alerts on their stage' {
             # 565 alerts across every product in the fixture; 507 from Sentinel's scheduled and NRT rules.
             $script:overview | Should -Match '"Alerts \(565 in 30d\)","Incidents \(40 in 30d\)"'
-            $script:overview | Should -Match '507 alerts from them and 40 from Defender XDR in 30 days'
+            $script:overview | Should -Match '507 Sentinel alerts and 40 Defender XDR alerts in 30 days'
         }
 
         It 'rates the four pipeline stages' {

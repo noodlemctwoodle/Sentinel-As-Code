@@ -1355,7 +1355,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("bigNode(ax,aSen,'SENTINEL ALERTS','Open the alerts page',") | Should -BeTrue
         $html.Contains("bigNode(ax,aXdr,'DEFENDER XDR ALERTS','Open the alerts page',") | Should -BeTrue
         # Split, the nodes sit further left so their figures clear the core's rings.
-        $html.Contains("const jx=split? 348 : 384, ax=split? 424 : 436;") | Should -BeTrue
+        $html.Contains("const ax=split? 424 : 436, jx=Math.round(ax-half(split? Math.max(aSen,aXdr) : alerts)-22);") | Should -BeTrue
+        # Figures are centred on their node's line, and the incidents junction keeps clear of its figure.
+        $html.Contains("mk('text',{x:x,y:y+11,'text-anchor':'middle','font-size':'32',class:'lc-num'},num(value),g);") | Should -BeTrue
+        $html.Contains("const ix=Math.round(764+half(incidents)+18);") | Should -BeTrue
         # Exact counts, never abbreviated (14,226, not 14.2k).
         $html.Contains("const num=v=>n0(v).toLocaleString('en-GB');") | Should -BeTrue
         $html | Should -Not -Match "notation:'compact'"
@@ -1396,12 +1399,33 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'animates the Data flow Sankey: beads on the ribbons and a reveal that fails open' {
         $html | Should -Match 'svg\.sankey \.sk-beads\{[^}]*pointer-events:none'
-        $html | Should -Match "bead\.setAttribute\('class','sk-beads'\)"
+        $html.Contains("const bd=mk('path',{d:d,class:'sk-beads','data-fam':fam,") | Should -BeTrue
         # The clip starts full width, so a reveal that never runs hides nothing.
-        $html | Should -Match "clipRect\.setAttribute\('width',W\)"
+        $html.Contains("mk('rect',{x:0,y:0,width:W,height:H},null,clip);") | Should -BeTrue
         $html | Should -Match 'function revealSankey\(svgEl\)'
         $html | Should -Match "prefers-reduced-motion: reduce\)'\)\.matches\) \|\| !svgEl\.getBoundingClientRect\(\)\.width\) return;"
         $html | Should -Match "if\(name==='flow' && big\) revealSankey\(big\);"
+    }
+
+    It 'draws the ingest and billing flow in the lifecycle style: family dots, table pills, plan rings, outcome nodes' {
+        $html | Should -Match 'function drawSankey\(svgEl, opts\)\{'
+        $html.Contains("const fx=232, tx=384, tw=262, px=842, ox=1012;") | Should -BeTrue
+        $html.Contains("mk('rect',{x:tx,y:n._y-12,width:tw,height:24,rx:12,fill:col,'fill-opacity':'.16'") | Should -BeTrue
+        $html.Contains("const C=2*Math.PI*R, planGb=cols[2].reduce((a,n)=>a+(+n.value||0),0)||1;") | Should -BeTrue
+        $html.Contains("mk('circle',{cx:ox,cy:n._y,r:7,fill:col,filter:'url(#ibGlow)'},null,g);") | Should -BeTrue
+        # Strands carry GB on a square-root scale; hovering a family spotlights it.
+        $html.Contains("const sw=v=>Math.max(1.5,22*Math.sqrt((+v||0)/maxGb));") | Should -BeTrue
+        $html | Should -Match 'svg\.sankey\.ib-dim \.ib-hot\{opacity:1\}'
+        # The family filter, every-table and Other paths still go through onNode.
+        $html.Contains("dim=drawSankey(big,{graph,onNode:n=>{") | Should -BeTrue
+    }
+
+    It 'shows the estate flow on the Data flow tab, above the ingest and billing flow, and no gap analysis button' {
+        $html | Should -Match '(?s)<section data-view="flow" class="hidden">\s*<div class="panel">\s*<div class="phead"><div>\s*<h2>Estate flow</h2>.*?<h2>Ingest &amp; billing flow</h2>'
+        $html | Should -Not -Match '(?s)<section data-view="overview">.*?<h2>Estate flow</h2>.*?</section>\s*<!-- DATA FLOW -->'
+        $html | Should -Not -Match 'id="gapBtn"'
+        # The estate strip gives Defender XDR's alerts a tile of their own.
+        $html.Contains("...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert (30d)',") | Should -BeTrue
     }
 
     It 'gives every card the dark screen in dark mode, below hover and accent rules' {
