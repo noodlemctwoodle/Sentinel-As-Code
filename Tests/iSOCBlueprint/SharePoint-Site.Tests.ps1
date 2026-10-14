@@ -1156,6 +1156,16 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $script:doHtml | Should -Match '\.dm thead th\.dm-fcol \.dm-fn\{display:flex;align-items:center;justify-content:center;min-height:2\.6em\}'
         # Every table's angled names get the room the longest needs.
         $script:doHtml.Contains("const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;") | Should -BeTrue
+        # The last names lean past the last column: a spacer column of that width keeps them clear of Health.
+        $script:doHtml.Contains("const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;") | Should -BeTrue
+        $script:doHtml.Contains('colspan="''+(cols.length+(over?1:0))+''"') | Should -BeTrue
+        $script:doHtml.Contains('h+=spacer;') | Should -BeTrue
+        # Tables on one page with the same columns share column widths, so they line up.
+        $script:doHtml.Contains("len.forEach(l=>{ const col=document.createElement('col'); col.style.width=(100*l/tot).toFixed(2)+'%'; cg.appendChild(col); });") | Should -BeTrue
+        $script:doHtml.Contains("if(ts.length<2) return;") | Should -BeTrue
+        # A short column (a window, a version) keeps to one line, and no column is narrower than its longest word.
+        $script:doHtml.Contains("const len=mx.map((m,i)=>m<=14 ? m+2 : Math.max(10,word[i]+4,Math.min(90,(m+sum[i]/rows)/2)));") | Should -BeTrue
+        $script:doHtml.Contains("c.style.whiteSpace=(i<n&&mx[i]<=14)?'nowrap':'normal';") | Should -BeTrue
         # The verdict cell reads incidents and the true-positive share of the closed ones.
         $script:doHtml.Contains("Math.round(100*n0(r.tp)/closed)+'% TP'") | Should -BeTrue
         $script:doHtml | Should -Match '\.dm-scroll::-webkit-scrollbar\{width:8px;height:8px\}|\.dm-scroll::-webkit-scrollbar\{'

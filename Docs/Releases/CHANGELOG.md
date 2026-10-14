@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Conventions as tables; RBAC page renamed** - the Conventions page's
+  Modules, Authentication pattern, REST-only gaps and Recurring KQL queries
+  sections were dense bullet lists. They are now tables: modules with their
+  pinned version and use, the Az cmdlets called, each role with its scope,
+  each REST-only surface with its endpoint and why, and every KQL capture
+  with the tables it reads, its window and what it gives, grouped by topic.
+  The sourceControls fallback joins the one-off versions table and the
+  Microsoft Learn pointer is gone (the pages are on Microsoft References).
+  On the SharePoint site, tables on one page with the same columns now line
+  up, with short columns kept on one line. The RBAC page is now Access
+  Control (RBAC).
 - **Conventions brought up to date; Microsoft References reorganised** - the
   Conventions page now lists every API the Blueprint calls: the Sentinel
   endpoints it was missing (onboarding state, connector definitions,

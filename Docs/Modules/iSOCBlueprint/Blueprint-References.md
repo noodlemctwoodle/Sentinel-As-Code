@@ -58,12 +58,7 @@ needs bumping.
 | `.../availableServiceTiers` | `2020-08-01` | `available-service-tiers` |
 | `.../linkedStorageAccounts` | `2020-08-01` | `linked-storage-accounts`: customer-owned storage per data source type |
 | `Microsoft.SecurityInsights/threatIntelligence/main/taxiiClients` | `Sentinel` pin, then `2024-03-01`, then `2023-11-01` | `taxii-clients`: not in the published REST reference, so a service that does not answer leaves an empty list rather than a failed capture |
-
-`sourceControls` (the `repositories` capture) is a special case: it is published on a
-different cadence than the rest of Sentinel and the GA Sentinel pin returns
-`UnsupportedApiVersion` against ARM. The collector tries a fallback chain in order,
-`2024-09-01` (the `Sentinel` pin) → `2023-11-01` → `2023-06-01-preview` → `2022-12-01-preview`,
-and treats any 4xx as "feature not present" rather than a failure.
+| `Microsoft.SecurityInsights/sourceControls` | `Sentinel` pin, then `2023-11-01`, `2023-06-01-preview`, `2022-12-01-preview` | `repositories`: published on its own cadence, and the GA pin can return `UnsupportedApiVersion`. Any 4xx means the feature is not present, not a failure |
 
 ### Other services
 
@@ -81,208 +76,151 @@ api-version from the tables above.
 
 ## Modules
 
-Pinned in the `Modules` block of `Engine/Blueprint.psd1`: `Az.Accounts`, `Az.SecurityInsights`,
-`Az.OperationalInsights`, `Az.Monitor`, `Az.Resources`, `Az.LogicApp` and `powershell-yaml`.
-The SharePoint commands also need PnP.PowerShell 3.4.1 on PowerShell 7.4, and the Defender
-custom detection capture uses the Graph PowerShell SDK (`Microsoft.Graph.Authentication`)
-when it is loaded. `Test-iSOCBlueprintPrerequisite` reports what a machine has.
+| Module | Version | Used for |
+|---|---|---|
+| `Az.Accounts` | `3.0.4` | The Azure context and `Invoke-AzRestMethod`, which every REST read goes through |
+| `Az.Resources` | `7.4.0` | Resource providers, locks, policy assignments and role assignments |
+| `Az.OperationalInsights` | `3.2.0` | `Invoke-AzOperationalInsightsQuery`, for the KQL captures only |
+| `Az.SecurityInsights` | `3.1.2` | Pinned for a possible cmdlet migration, not called: Sentinel is read over REST |
+| `Az.Monitor` | `5.2.1` | Pinned, not called: data collection and diagnostic settings are read over REST |
+| `Az.LogicApp` | `1.7.0` | Pinned, not called: playbooks are read over REST (see REST-only gaps) |
+| `powershell-yaml` | `0.4.12` | Reading YAML content when rendering |
+| `PnP.PowerShell` | `3.4.1` | The SharePoint commands, on PowerShell 7.4 |
+| `Microsoft.Graph.Authentication` | Any | The Defender custom detection capture, when a Graph session is open |
 
-The collector is **REST-first end to end**. Every Sentinel and Log Analytics artefact
-(alert rules, alert-rule templates, automation rules, watchlists, bookmarks, metadata,
-content packages, settings, threat-intelligence metrics, workspace, tables, saved searches,
-DCRs, playbooks, and so on) is fetched through `Invoke-SentinelRest`
-(`Private/Invoke-SentinelRest.ps1`, a thin wrapper over `Invoke-AzRestMethod`). No
-`Az.SecurityInsights`, `Az.OperationalInsights` or `Az.Monitor` inventory cmdlet is called
-anywhere in `Export-SentinelInventory.ps1`. The only Az cmdlets it actually invokes are:
+The first seven are pinned in the `Modules` block of `Engine/Blueprint.psd1`.
+`Test-iSOCBlueprintPrerequisite` reports what a machine has.
 
-- `Get-AzContext` / `Set-AzContext` / `Get-AzSubscription` (context and subscription resolution)
-- `Get-AzResourceProvider`, `Get-AzResourceLock`, `Get-AzPolicyAssignment`, `Get-AzRoleAssignment` (from `Az.Resources`)
-- `Invoke-AzOperationalInsightsQuery` (from `Az.OperationalInsights`, used **only** to run the KQL queries below, not for inventory reads)
-- `Invoke-AzRestMethod -Uri https://graph.microsoft.com/beta/security/rules/detectionRules` for the
-  `defender-custom-detections` capture (Defender XDR custom detection rules, paged on
-  `@odata.nextLink`), through `Private/Get-DefenderCustomDetections.ps1`. A Graph PowerShell SDK
-  session (`Connect-MgGraph -Scopes 'CustomDetection.Read.All'`, `Invoke-MgGraphRequest`) is used
-  when one exists, otherwise the Azure PowerShell context, which needs the application permission
-  `CustomDetection.Read.All`; a 401 or 403 is recorded as a failed capture, not as an empty list.
-  The companion `custom-detection-table-references` file is derived locally with
-  `Resolve-KqlTableNames`.
-- `Get-AzureRetailPrice` (repo-local helper in `Private/Get-AzureRetailPrice.ps1`)
+The collector is **REST-first end to end**: every Sentinel and Log Analytics artefact is
+read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wrapper over
+`Invoke-AzRestMethod`), and no `Az.SecurityInsights`, `Az.OperationalInsights` or
+`Az.Monitor` inventory cmdlet is called. These are the cmdlets it does call:
 
-The `Az.SecurityInsights` / `Az.OperationalInsights` / `Az.Monitor` pins therefore exist for
-a possible future cmdlet migration rather than current runtime use. Note `Az.LogicApp` is
-pinned but not exercised for the playbook LIST: see [REST-only gaps](#rest-only-gaps) for why
-that call deliberately uses REST instead of `Get-AzLogicApp`.
+| Cmdlet | Module | For |
+|---|---|---|
+| `Get-AzContext`, `Set-AzContext`, `Get-AzSubscription` | `Az.Accounts` | The context and the subscription |
+| `Invoke-AzRestMethod` | `Az.Accounts` | Every REST read, through `Invoke-SentinelRest`, and Microsoft Graph when no Graph session is open |
+| `Get-AzResourceProvider` | `Az.Resources` | Resource provider registration |
+| `Get-AzResourceLock` | `Az.Resources` | Locks on the subscription, resource group and workspace |
+| `Get-AzPolicyAssignment` | `Az.Resources` | Policy assignments on the subscription |
+| `Get-AzRoleAssignment` | `Az.Resources` | Role assignments on the workspace and resource group, and for playbook identities |
+| `Invoke-AzOperationalInsightsQuery` | `Az.OperationalInsights` | The 38 KQL captures, never inventory |
+| `Invoke-MgGraphRequest` | `Microsoft.Graph.Authentication` | Defender custom detections, when a Graph session is open |
+| `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Get-AzureRetailPrice.ps1`) |
 
 ## Authentication pattern
 
-GitHub Actions OIDC → Entra federated credential → service principal
-`AZURE_BLUEPRINT_CLIENT_ID` (separate from the deploy SP). Read-only roles:
+GitHub Actions OIDC → Entra federated credential → the service principal
+`AZURE_BLUEPRINT_CLIENT_ID`, separate from the deploy service principal. It holds read-only
+roles:
 
-- **Microsoft Sentinel Reader** at workspace scope
-- **Log Analytics Reader** at workspace scope
-- **Reader** at the resource group(s) hosting playbooks/DCRs
-- **Monitoring Reader** at subscription scope
-- **Reader** at subscription scope (clusters, policy assignments, locks, RP registration)
+| Role | Scope | Covers |
+|---|---|---|
+| Microsoft Sentinel Reader | Workspace | Sentinel resources: rules, automation, watchlists, content and settings |
+| Log Analytics Reader | Workspace | The workspace, its tables and the KQL captures |
+| Reader | Resource groups holding playbooks and data collection rules | Playbooks and data collection rules |
+| Monitoring Reader | Subscription | Monitoring configuration such as data collection and diagnostic settings |
+| Reader | Subscription | Clusters, policy assignments, locks and resource provider registration |
+| `CustomDetection.Read.All` (Microsoft Graph application permission) | Tenant | Defender custom detections, optional |
 
-Reference: <https://learn.microsoft.com/azure/sentinel/roles>,
-<https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect>.
+See [Roles and permissions in Microsoft Sentinel](https://learn.microsoft.com/azure/sentinel/roles)
+and [Connect from Azure with OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect).
 
 ## REST-only gaps
 
-As noted above, essentially the whole Sentinel/OperationalInsights surface is read via
-`Invoke-SentinelRest` in this codebase, not just the items below. The following are the
-cases where REST is not merely the house convention but the **only** option, or where the
-call shape is non-obvious enough to be worth pinning down here:
+Nearly everything is read over REST by convention. These are the surfaces where REST is the
+**only** option, or where the call shape is worth pinning down:
 
-- Codeless Connector Framework (CCF): `dataConnectors` (kind `RestApiPoller`/`GCP` etc.)
-  and `dataConnectorDefinitions`.
-- Content Hub: `contentPackages`, `contentTemplates`, `contentProductPackages`.
-- Repositories: `sourceControls` (via the api-version fallback chain documented above).
-- Summary rules: `.../workspaces/<ws>/summaryLogs` on the **OperationalInsights** provider
-  at api-version `2023-01-01-preview`. This is deliberately **not** the Content Hub
-  `contentTemplates?$filter=contentKind eq 'SummaryRule'` endpoint, which returns installable
-  templates rather than deployed rule instances; the earlier implementation also gated that
-  call on `-IncludePreview`, so production runs without the switch returned nothing regardless
-  of how many summary rules the workspace actually had.
-- Sentinel settings: `Microsoft.SecurityInsights/settings/{Ueba,EntityAnalytics,EyesOn,Anomalies}`,
-  bundled into a single `settings.json` with one property per setting. A `null` property means
-  no explicit settings resource exists (the toggle can live in the portal without one), not
-  that the feature is off, so the collector also infers UEBA state from data presence (see the
-  `ueba-data-presence` KQL capture below).
-- Playbooks: `Microsoft.Logic/workflows` at api-version `2016-06-01`. This uses REST rather
-  than `Get-AzLogicApp` on purpose: the cmdlet's list-style call returns `PSWorkflow` objects
-  with the `identity` property unpopulated even when a managed identity is attached, so REST is
-  the only path that reliably surfaces `identity.principalId` for the per-playbook MI RBAC
-  resolution (`rbac-playbook-mi.json`).
-- DCR full JSON (transforms): `Microsoft.Insights/dataCollectionRules/{name}`.
-- Pricings resource: `Microsoft.SecurityInsights/pricings`.
-- Sentinel Data Lake: workspace lake feature + organisational lake resource.
+| Surface | Endpoint | Why REST |
+|---|---|---|
+| Codeless Connector Framework | `dataConnectors` (kind `RestApiPoller`, `GCP` and others) and `dataConnectorDefinitions` | No cmdlet returns the CCF definitions |
+| Content Hub | `contentPackages`, `contentTemplates`, `contentProductPackages` | Not covered by the cmdlets |
+| Repositories | `sourceControls` | Published on its own cadence, read through the api-version fallback chain above |
+| Summary rules | `.../workspaces/<ws>/summaryLogs` on the OperationalInsights provider, `2023-01-01-preview` | Deployed rules live here, not in Content Hub `contentTemplates` (which lists installable templates) |
+| Sentinel settings | `Microsoft.SecurityInsights/settings/{Ueba,EntityAnalytics,EyesOn,Anomalies}`, bundled into `settings.json` | A `null` setting means no settings resource exists, not that the feature is off, so UEBA is also judged from data (`ueba-data-presence`) |
+| Playbooks | `Microsoft.Logic/workflows`, `2016-06-01` | `Get-AzLogicApp` leaves `identity` empty even when a managed identity is attached, and the playbook RBAC needs `identity.principalId` |
+| Data collection rules | `Microsoft.Insights/dataCollectionRules/{name}` | The cmdlet flattens the transforms that the full JSON carries |
+| Pricing | `Microsoft.SecurityInsights/pricings` | Not covered by the cmdlets |
+| Sentinel data lake | The workspace's lake feature and the organisational lake resource | Not covered by the cmdlets |
 
 ## Recurring KQL queries
 
-The collector runs **38 targeted KQL queries** through `Invoke-AzOperationalInsightsQuery`,
-each inside its own `Try-Capture` block that writes one `_raw/<name>.json` file. They are
-**not** all cheap billing-metadata reads: a good half of them query raw operational and
-security tables directly (`CommonSecurityLog`, `Syslog`, `SecurityEvent`, `SecurityAlert`,
-`AzureActivity`, `AzureDiagnostics`, XDR `Device*`/`Email*`/`Identity*` tables, and `Event`
-via `find`). To enumerate them at any time, grep the script for `Try-Capture` blocks that
-set `$kql`.
+The collector runs **38 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
+its own `Try-Capture` block that writes one `_raw/<name>.json`. About half read raw
+operational and security tables, not only billing metadata, so they cost query time on a
+busy workspace. To list them, grep the collector for `Try-Capture` blocks that set `$kql`.
 
-Grouped by purpose:
+### Usage, cost and ingestion health
 
-**Usage, cost and ingestion health**
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `tables-with-data` | `Usage` | 90 days | Which tables receive data, with billable GB over 90, 30 and 7 days and 24 hours, and the 7-day ingested total |
+| `ingestion-latency` | `Operation` | 7 days | Ingestion and schema operations that failed, the broken-pipeline signal |
+| `workspace-usage` | `Usage` | 30 days | Total and billable GB, and the peak day over 14 days |
+| `workspace-usage-daily` | `Usage` | 30 days | Billable and free GB per day, the dashboard's ingestion trend |
+| `azure-diagnostics-categories` | `AzureDiagnostics` | 7 days | Rows by resource provider and category, the input to the duplicate firewall logging rule |
+| `la-query-logs` | `LAQueryLogs` | 7 days | Query audit activity, where no records means auditing is off (SAC-PLT-12) |
+| `table-query-usage` | `LAQueryLogs` | 30 days | Audited queries, distinct users and the last query per lake-retained table, the data lake page's usage evidence |
 
-- `tables-with-data` - which schema'd tables actually receive data, with 90d/30d/7d/24h
-  billable-GB breakdowns and the 7-day ingested total (`Usage`).
-- `ingestion-latency` - broken-pipeline detector over ingestion/schema operations (`Operation`).
-- `workspace-usage` - workspace-level ingestion volume trend.
-- `workspace-usage-daily` - billable and free GB per day for 30 days, the ingestion trend
-  line on the dashboard.
-- `azure-diagnostics-categories` - `AzureDiagnostics` row counts by resource provider and
-  category over 7 days, the input to the duplicate-firewall-logging rule.
-- `la-query-logs` - Log Analytics query-audit activity over 7 days; zero records means query
-  auditing is off (SAC-PLT-12).
-- `table-query-usage` - audited queries, distinct users and the last query per lake-retained
-  table over 30 days (`LAQueryLogs` matched against every such table name from the
-  `workspace-tables` capture written earlier in the run, 60 names per query;
-  a failed batch fails the capture rather than writing an empty file); the usage evidence on the data lake
-  page. Empty when no table keeps data in the lake beyond its analytics retention.
+### Sentinel health and posture
 
-**Sentinel health and posture**
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `sentinel-health` | `SentinelHealth` | 7 days | Events, failures and the last failure per connector, rule and automation resource |
+| `sentinel-health-summary` | `SentinelHealth` | 7 days | Events by operation and status, the operations summary on page 11 |
+| `rule-health` | `SentinelHealth` | 7 days | Analytics rules whose runs failed, with the count, last failure and reason (SAC-DET-14) |
+| `ueba-data-presence` | `BehaviorAnalytics`, `IdentityInfo`, `UserPeerAnalytics` | 14 days | Whether UEBA produces data, with 7- and 14-day counts, the IdentityInfo evidence for entity analytics (SAC-COV-08) |
 
-- `sentinel-health` and `sentinel-health-summary` - `SentinelHealth`-based connector/rule health;
-  `sentinel-health` carries the failure count and last failure per resource, the connector
-  health issues on page 11.
-- `rule-health` - analytics rules whose scheduled runs failed in the last 7 days, with the
-  failure count, last failure and recorded reason (`SentinelHealth`, resource type
-  "Analytics Rule"); the input to SAC-DET-14 and the rule-run-failures table.
-- `ueba-data-presence` - infers whether UEBA is producing data (row presence in
-  `BehaviorAnalytics` / `IdentityInfo` / `UserPeerAnalytics`, over 12 days with 7- and 14-day
-  counts beside it), the operational counterpart to the `settings/Ueba` configuration signal,
-  and the IdentityInfo evidence for entity analytics (SAC-COV-08).
+SOC optimisation recommendations (`soc-optimization`) are read over REST from
+`.../recommendations`, not through KQL.
 
-(SOC-optimisation recommendations, `soc-optimization`, are captured separately over REST from
-`.../recommendations`, not via KQL.)
+### Incidents
 
-**Incidents**
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `incidents-summary` | `SecurityIncident` | 30 days | One row of counts: by status, severity, classification and provider, open by severity, and who closed each (automation rule, analyst, Defender XDR or other, the category only), with the last 7 days and the Defender XDR share beside them |
+| `incidents-mttr` | `SecurityIncident` | 30 days | Mean time to acknowledge and to resolve, with the 7-day figures |
+| `incidents-daily-metrics` | `SecurityIncident` | 7 days | Incidents created per day |
+| `incidents-detail-by-provider` | `SecurityIncident`, `SecurityAlert` | 7 days | Incidents by provider, product and rule, aggregates only |
+| `incidents-by-rule` | `SecurityIncident` | 30 days | Incidents per rule title, every title |
+| `rule-effectiveness` | `SecurityIncident`, `SecurityAlert` | 30 days | Per detection: incidents, closures, the true, false and benign positive split and the false-positive rate. Sentinel rules are keyed on their rule id, other products' alerts on their name |
+| `incident-title-stats` | `SecurityIncident` | 30 days | Titles seen five or more times, with closures, time to close and verdicts, the input to the automation opportunities |
 
-- `incidents-summary`, `incidents-mttr`, `incidents-daily-metrics`,
-  `incidents-detail-by-provider`, `incidents-by-rule` (every rule title) - incident counts, mean-time-to-respond,
-  daily trend, per-provider detail and per-rule breakdown. `incidents-summary` returns one
-  row with `Count`, `Closed` and six bags (`ByStatus`, `BySeverity`, `ByClassification`,
-  `ByProvider`, `OpenBySeverity`, `ClosedBy`) whose values are real counts; closed incidents
-  with an empty classification are reported as `Unclassified`. `ClosedBy` sorts each closed
-  incident by the first record that shows it Closed: `AutomationRule` (`ModifiedBy contains
-  "Automation"`, the test the automation rules guide uses), `DefenderXdr`, `Analyst` (a user
-  principal name) or `Other`; only the category is exported. The same row carries the last 7 days (`Count7d`,
-  `Closed7d`, `TruePositive7d`, `FalsePositive7d`) and the incidents raised through Defender
-  XDR (`Unified`, `Unified7d`: provider Microsoft XDR or Microsoft 365 Defender);
-  `incidents-mttr` carries the 7-day MTTA and MTTR beside the 30-day ones.
-- `rule-effectiveness` - per detection over 30 days: incidents, closures and the
-  true/false/benign-positive split, with a false-positive rate over closed incidents. Each
-  incident is counted once (`arg_max` by `IncidentNumber`) and joined to its alerts. Sentinel
-  rules are keyed on the rule id from `ExtendedProperties` (`Analytic Rule Ids` on current
-  alerts, `Analytic Rule Id` on older ones) and carry `Source` "Analytics rule"; alerts from
-  other products (Defender XDR, Entra ID Protection, Purview) have no rule id, are keyed on
-  the alert name and carry the product as `Source`. Sentinel rules sort first, then the
-  300-row cap applies, so a busy XDR tenant never pushes its own rules off the list.
-- `incident-title-stats` - incident titles seen five or more times in 30 days, with totals,
-  closures, average minutes to close, closures within an hour and the verdict split
-  (aggregates only, no per-incident rows); the input to the automation-opportunities table.
+### Analytics and threat intelligence
 
-**Analytics and threat intelligence**
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `analytics-rule-volumes` | `SecurityAlert` | 30 days | Alerts per rule, product and severity, each alert counted once (by `SystemAlertId`), with the 7-day count. Summed, the dashboard's Sentinel and Defender XDR alert totals |
+| `rules-fired` | `SecurityAlert` | 30 days | Alerts per scheduled or NRT rule, keyed on the rule id so renamed rules stay apart |
+| `threat-intel-counts` | `ThreatIntelIndicators`, `ThreatIntelligenceIndicator` | 30 days | Records and distinct indicators per source system |
+| `threat-intel-tables` | `ThreatIntelIndicators`, `ThreatIntelObjects`, `ThreatIntelligenceIndicator` | 30 days | Records, first and last record in each, the table migration status on page 27 |
+| `threat-intel-health` | `ThreatIntelIndicators` | 30 days | Indicators at their latest state: active, deleted, revoked or expired |
+| `threat-intel-objects` | `ThreatIntelObjects` | 30 days | Rows by STIX type |
+| `threat-intel-by-type` | `ThreatIntelIndicators` (the retired table when it is absent) | 30 days | Indicators by observable type: IP, domain, URL, file hash, email |
 
-- `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert`, each alert counted
-  once (its first record in the window, by `SystemAlertId`, however often a status change
-  wrote it again), grouped by `AlertName`, `ProductName`, `AlertSeverity` (every row, so the
-  pack and the dashboard list every alerting rule rather than a top fifty), with the provider
-  and the last 7 days' count beside the 30-day total. Summed, it gives the alerts in the
-  dashboard's alert lifecycle and estate flow, split into Sentinel's and Defender XDR's.
-- `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
-  than the alert name, so renamed rules and rules sharing a name are told apart.
-- `threat-intel-counts` - threat-intelligence records and distinct indicators per source
-  system from KQL. (The related `threat-intel-metrics` capture is REST, from
-  `.../threatIntelligence/main/metrics`.)
-- `threat-intel-tables` - records over 30 and 7 days, first and last record, in each of
-  `ThreatIntelIndicators`, `ThreatIntelObjects` and the retired `ThreatIntelligenceIndicator`:
-  the table migration status on page 27.
-- `threat-intel-health` - each indicator in `ThreatIntelIndicators` at its latest state:
-  active, deleted, revoked and still within its validity.
-- `threat-intel-objects` - `ThreatIntelObjects` rows by STIX type over 30 days.
-- `threat-intel-by-type` - indicators by observable type (IP, domain, URL, file hash, email)
-  over 30 days from `ThreatIntelIndicators` (`ObservableKey`), falling back to the retired
-  `ThreatIntelligenceIndicator` table when the current one is absent.
+### Table hygiene, agents and connector routing
 
-**Table hygiene, agent migration and connector misrouting**
+| Capture | Reads | Window | What it gives |
+|---|---|---|---|
+| `cef-devices` | `CommonSecurityLog` | 7 days | The top CEF device vendor and product pairs |
+| `cef-in-syslog` | `Syslog` | 7 days | CEF records that landed in Syslog, by forwarder, vendor and product (SAC-LOG-23) |
+| `security-event-duplicates` | `SecurityEvent` | 1 hour | Duplicate records per host, typically MMA and AMA both collecting (SAC-LOG-22) |
+| `agent-heartbeat-mix` | `Heartbeat` | 7 days | Machines by OS, agent type (AMA, the legacy MMA, SCOM) and version |
+| `ama-agents` | `Heartbeat` | 7 days | Azure Monitor Agent machines with their last heartbeat, OS and version |
+| `ama-mma-migration` | `Heartbeat` | 7 days | Machines still reporting through the legacy agent, the MMA to AMA migration status |
+| `syslog-contributors` | `Syslog` | 7 days | Records and billed size by host and facility |
+| `securityevent-top-hosts` | `SecurityEvent` | 7 days | Records and billed size by host |
+| `top-event-ids` | `Event`, `SecurityEvent` (through `find`) | 7 days | Every billable Windows event ID, largest first, for noise tuning |
+| `azure-activity-coverage` | `AzureActivity` | 7 days | Volume per subscription, showing subscriptions that send no activity log |
+| `azure-diagnostics-providers` | `AzureDiagnostics` | 7 days | Volume by resource provider |
+| `azure-firewall-categories` | `AzureDiagnostics` | 7 days | Azure Firewall rows by category, legacy `AzureFirewall*` and resource-specific `AZFW*` side by side |
+| `xdr-table-presence` | The Defender XDR tables (`Device*`, `Email*`, `Identity*` and others) | 7 days | Records per table, whether Defender XDR is connected and producing data |
 
-- `cef-devices` - top CEF device vendor/product pairs (`CommonSecurityLog`).
-- `cef-in-syslog` - CEF records (a message starting `CEF:` or `0|`) that landed in `Syslog`,
-  by forwarder and the vendor and product in the CEF header; a forwarder misconfiguration
-  that should be split into a dedicated `CommonSecurityLog` stream (SAC-LOG-23).
-- `security-event-duplicates` - duplicate `SecurityEvent` records per host in the last hour,
-  with the number of distinct events duplicated; typically MMA + AMA dual-collection
-  (SAC-LOG-22).
-- `agent-heartbeat-mix` - machines by OS, agent category (Azure Monitor Agent, Direct Agent
-  for the legacy MMA, SCOM) and agent version over 7 days.
-- `syslog-contributors` - `Syslog` records and billed size by host and facility over 7 days.
-- `securityevent-top-hosts` - `SecurityEvent` records and billed size by host over 7 days.
-- `ama-agents` and `ama-mma-migration` - Azure Monitor Agent inventory and MMA→AMA migration
-  status.
-- `top-event-ids` - every billable Windows event ID across `Event`/`SecurityEvent` (via
-  `find`), largest first, with the record count; drives table-noise tuning.
-- `azure-activity-coverage` - per-subscription `AzureActivity` volume, surfaces subscriptions
-  not shipping Activity Logs.
-- `azure-diagnostics-providers` - `AzureDiagnostics` volume by resource provider.
-- `azure-firewall-categories` - Azure Firewall rows by category, legacy `AzureFirewall*` and
-  resource-specific `AZFW*`, asked for by name so the legacy and resource-specific forms sit
-  side by side.
-- `xdr-table-presence` - record counts across the known Defender XDR table list, a quick
-  "is XDR connected and producing data?" check.
+### Two examples
 
-Two representative queries, the cheap `Usage`/`Operation` pair that most of the cost section
-is built on:
+The cheap `Usage` and `Operation` pair that most of the cost section is built on:
 
-1. **`tables-with-data.json`** - which schema'd tables actually receive data
+1. **`tables-with-data.json`**: which tables receive data
 
    ```kql
    Usage
@@ -300,7 +238,7 @@ is built on:
        by DataType, Solution
    ```
 
-2. **`ingestion-latency.json`** - broken-pipeline detector
+2. **`ingestion-latency.json`**: the broken-pipeline signal
 
    ```kql
    Operation
@@ -311,20 +249,16 @@ is built on:
    | where Failures > 0
    ```
 
-## Microsoft Learn pages
-
-The Microsoft Learn pages the findings and report pages link to, the best-practice pages
-among them, are listed by topic on the report's Microsoft References page
-(`96-references-microsoft.md`).
-
 ## Azure Retail Prices API
 
-Anonymous, no auth required. Used by `Private/Get-AzureRetailPrice.ps1`.
+Anonymous, with no authentication. Read by `Private/Get-AzureRetailPrice.ps1`.
 
-- Endpoint: <https://prices.azure.com/api/retail/prices>
-- Filter syntax: `$filter=serviceName eq '<name>' and armRegionName eq '<region>' and priceType eq 'Consumption'`
-- Pagination: follow `NextPageLink` in the response.
-- Documentation: <https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices>
+| | |
+|---|---|
+| Endpoint | `https://prices.azure.com/api/retail/prices` |
+| Filter | `serviceName eq '<name>' and armRegionName eq '<region>' and priceType eq 'Consumption'`, passed as `$filter` |
+| Pagination | Follow `NextPageLink` in each response |
+| Documentation | [Azure Retail Prices REST API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) |
 
 ## Data connector catalogue
 

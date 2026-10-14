@@ -3380,6 +3380,28 @@
         '<h2 class="dtitle">'+esc(cleanTitle(s.title))+'</h2>'+chips+'<div class="docbody">'+(body||'<p class="docempty">No content.</p>')+'</div></div>';
       nav.querySelectorAll('.docitem').forEach(el=>el.classList.toggle('active', +el.dataset.num===s.num));
       content.querySelectorAll('[data-akopen]').forEach(a=>a.addEventListener('click',()=>{ if(activateTab) activateTab('sections'); bringTop(document.getElementById('akPanel')); }));
+      // Tables on one page with the same columns (Microsoft References' topic
+      // tables, say) share column widths, so their columns line up. A column's
+      // width comes from its longest and its average text across the tables,
+      // never narrower than its longest single word (a capture name, say), and
+      // a short column (a window, a version) stays on one line. Other tables
+      // keep their own layout.
+      const sameCols={};
+      content.querySelectorAll('table.doct').forEach(t=>{ const sig=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim()).join('|'); (sameCols[sig]=sameCols[sig]||[]).push(t); });
+      Object.values(sameCols).forEach(ts=>{
+        if(ts.length<2) return;
+        const n=ts[0].querySelectorAll('thead th').length, mx=new Array(n).fill(0), sum=new Array(n).fill(0), word=new Array(n).fill(0); let rows=0;
+        ts.forEach(t=>t.querySelectorAll('tr').forEach(tr=>{ rows++; [...tr.children].forEach((c,i)=>{ if(i>=n) return; const tx=c.textContent.trim(); mx[i]=Math.max(mx[i],tx.length); sum[i]+=tx.length; word[i]=Math.max(word[i],...tx.split(/\s+/).map(w=>w.length)); }); }));
+        const len=mx.map((m,i)=>m<=14 ? m+2 : Math.max(10,word[i]+4,Math.min(90,(m+sum[i]/rows)/2)));
+        const tot=len.reduce((a,b)=>a+b,0);
+        ts.forEach(t=>{
+          t.style.tableLayout='fixed';
+          const cg=document.createElement('colgroup');
+          len.forEach(l=>{ const col=document.createElement('col'); col.style.width=(100*l/tot).toFixed(2)+'%'; cg.appendChild(col); });
+          t.insertBefore(cg,t.firstChild);
+          t.querySelectorAll('tr').forEach(tr=>[...tr.children].forEach((c,i)=>{ c.style.whiteSpace=(i<n&&mx[i]<=14)?'nowrap':'normal'; }));
+        });
+      });
       // wire per-table sorting and filters
       content.querySelectorAll('table.doct thead th').forEach(th=>{ const b=th.querySelector('.thsort'); if(b) b.onclick=()=>sortTable(th.closest('table'), th); });
       content.querySelectorAll('.doctable-tools input').forEach(inp=>{ inp.oninput=()=>docFilter(inp.dataset.for); });

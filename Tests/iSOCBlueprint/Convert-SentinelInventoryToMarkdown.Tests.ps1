@@ -1319,7 +1319,7 @@ Describe 'iSOC Blueprint renderer' {
             $script:ref96 | Should -Match '\[99-references\.md\]\(99-references\.md\)'
             $conv = Get-Content (Join-Path $script:tempWsRoot '99-references.md') -Raw
             $conv | Should -Not -Match '## Best-practice Microsoft Learn pages'
-            $conv | Should -Match '## Microsoft Learn pages'
+            $conv | Should -Not -Match '## Microsoft Learn pages'
             $conv | Should -Match '### Other services'
             $conv | Should -Match 'graph\.microsoft\.com/beta/security/rules/detectionRules'
             $conv | Should -Match 'prices\.azure\.com/api/retail/prices'
@@ -2071,6 +2071,7 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
     }
 
     It 'opens RBAC with headline figures' {
+        $script:rbac | Should -Match '^# Access Control \(RBAC\)'
         $script:rbac | Should -Match '\*\*\d+\*\* assignments at workspace scope  ·  \*\*\d+\*\* at resource-group scope  ·  \*\*\d+\*\* distinct principals'
         $script:rbac | Should -Match '\*\*\d+\*\* high-privilege assignments  ·  \*\*\d+%\*\* of assignments high-privilege'
         $script:rbac | Should -Not -Match 'Contributor\) \u2014 see'

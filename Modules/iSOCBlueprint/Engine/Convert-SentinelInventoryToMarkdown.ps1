@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.9
+    Version:        0.6.10
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -960,7 +960,7 @@ $(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $(
 }) -join [Environment]::NewLine
 } else { '_No findings — clean run._' })
 
-The deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [detection opportunities](28-detection-opportunities.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [RBAC](85-rbac.md), [gap analysis](90-gap-analysis.md), [maturity assessment](91-maturity-assessment.md).
+The deep-dive sections: [data connectors](10-data-connectors.md), [analytics rules](20-analytics-rules.md), [MITRE coverage](25-mitre-coverage.md), [detection opportunities](28-detection-opportunities.md), [workbooks](40-workbooks.md), [workspace](80-workspace.md), [table plans + retention](81-table-plans-retention.md), [data collection](83-data-collection.md), [cost estimate](84-cost-estimate.md), [access control (RBAC)](85-rbac.md), [gap analysis](90-gap-analysis.md), [maturity assessment](91-maturity-assessment.md).
 "@
 
 Write-Section '00-overview.md' $overviewBody
@@ -3547,7 +3547,7 @@ $rbacGuests = @($rbacPrincipals | Where-Object { [string](_RProp $_.Group[0] 'Si
 $rbacUnnamed = @($rbacPrincipals | Where-Object { -not (_RProp $_.Group[0] 'DisplayName' '') -and -not (_RProp $_.Group[0] 'SignInName' '') }).Count
 
 Write-Section '85-rbac.md' (@"
-$(Format-Banner -Title "RBAC")
+$(Format-Banner -Title "Access Control (RBAC)")
 
 $($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Broad roles (Owner and Contributor) are marked out below; see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
 
