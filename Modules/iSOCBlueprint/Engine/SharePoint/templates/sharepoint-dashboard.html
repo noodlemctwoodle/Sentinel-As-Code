@@ -648,6 +648,62 @@
   svg.estate .es-arc{transition:stroke-dasharray 1.2s cubic-bezier(.22,.8,.3,1)}
   /* Data flow: beads along the middle of each Sankey ribbon, as above. */
   svg.sankey .sk-beads{fill:none;stroke-linecap:round;stroke-opacity:.85;pointer-events:none;animation:lcflow linear infinite}
+  /* ---------- detection matrix (Data flow tab) ---------- */
+  .dm-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 2fr;border:1px solid var(--line);border-radius:14px;margin:0 0 14px;overflow:hidden}
+  .dm-sm{padding:12px 16px;border-left:1px solid var(--line)} .dm-sm:first-child{border-left:0}
+  .dm-sm .k{font-size:11px;color:var(--faint);font-weight:700} .dm-sm .v{font-size:22px;font-weight:800;margin-top:2px;color:var(--ink)} .dm-sm .s{font-size:11.5px;color:var(--muted)}
+  @media(max-width:900px){.dm-summary{grid-template-columns:repeat(2,minmax(0,1fr))} .dm-sm{border-left:0;border-top:1px solid var(--line)}}
+  .dm-vbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line-2);margin:8px 0 6px}
+  .dm-vbar i,.dm-bar i{display:block;height:100%}
+  .dm-vleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted)} .dm-vleg span{display:inline-flex;align-items:center;gap:5px} .dm-vleg i{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .dm-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+  .dm-tools input{flex:1 1 240px;font:inherit;font-size:12.5px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;background:var(--canvas);color:var(--ink)}
+  .dm-grp{display:inline-flex;flex-wrap:wrap;gap:4px;padding:3px;border-radius:12px;background:var(--chip);border:1px solid var(--line)}
+  .dm-grp .fchip:not(.active){border-color:transparent;background:transparent}
+  .dm-grp .fchip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dm-scroll{overflow:auto;max-height:680px;border:1px solid var(--line);border-radius:14px;background:var(--canvas)}
+  table.dm{border-collapse:separate;border-spacing:0;min-width:100%}
+  .dm th,.dm td{padding:0;font-size:12.5px;white-space:nowrap}
+  .dm thead th{position:sticky;top:0;z-index:3;background:var(--panel-soft);color:var(--faint);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;vertical-align:bottom;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .dm thead th.dm-fcol{width:84px;min-width:84px;padding:12px 6px 10px;text-align:center;letter-spacing:0;text-transform:none;font-size:11.5px;font-weight:650;color:var(--ink-2);white-space:normal;line-height:1.3}
+  .dm thead th.dm-fcol i{display:block;width:10px;height:10px;border-radius:50%;margin:0 auto 6px}
+  .dm thead th.dm-fcol small{display:block;color:var(--faint);font-weight:500;font-size:10.5px;margin-top:2px}
+  /* Every family name sits in a two-line box, so dots, names and counts line up across columns. */
+  .dm thead th.dm-fcol .dm-fn{display:flex;align-items:center;justify-content:center;min-height:2.6em}
+  .dm thead th.dm-tl{padding:0}
+  .dm-tlab{position:relative}
+  .dm-tlab span{position:absolute;bottom:12px;transform-origin:left bottom;transform:rotate(-64deg);font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);white-space:nowrap}
+  .dm-tlab span i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dm .dm-rn{position:sticky;left:0;z-index:2;background:var(--panel-soft);min-width:356px;max-width:356px;border-right:1px solid var(--line);white-space:normal}
+  .dm thead th.dm-rn{z-index:4;padding-left:16px}
+  .dm td.dm-rn{padding:7px 12px 7px 16px}
+  .dm-name{display:flex;align-items:center;gap:9px}
+  .dm-src{flex:none;width:32px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:9.5px;font-weight:800;letter-spacing:.04em}
+  .dm-src.S{background:color-mix(in srgb,#4f5bd5 18%,transparent);color:#4f5bd5} .dm-src.X{background:color-mix(in srgb,#2b8c9e 20%,transparent);color:#1f7a8a}
+  html[data-theme="dark"] .dm-src.S{color:#a5b4fc} html[data-theme="dark"] .dm-src.X{color:#67e8f9}
+  .dm-rtxt{min-width:0} .dm-rtxt b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.35;color:var(--ink)}
+  .dm-rtxt small{display:block;color:var(--faint);font-size:10.5px;margin-top:1px}
+  .dm td{border-top:1px solid var(--line-2);vertical-align:middle}
+  .dm td.dm-c{text-align:center;width:40px;min-width:40px}
+  .dm.dm-fam td.dm-c{width:84px;min-width:84px}
+  .dm td.dm-c i{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10.5px;font-weight:800;font-style:normal;line-height:1;font-variant-numeric:tabular-nums;vertical-align:middle}
+  /* The glow only on the dark screen; on light it blurs the dot and its number. */
+  html[data-theme="dark"] .dm td.dm-c i{box-shadow:0 0 9px var(--g)}
+  .dm td.dm-c i.one{width:11px;height:11px}
+  .dm .dm-h{padding-left:12px;padding-right:12px;text-align:left}
+  .dm td.dm-v{padding:0 12px;min-width:192px}
+  .dm .dm-n{padding-right:12px;text-align:right;min-width:136px}
+  .dm td.dm-n{color:var(--muted);font-size:11.5px;padding-right:16px}
+  .dm thead .morechev{margin-left:8px;vertical-align:middle}
+  .dm tbody tr:hover td{background:color-mix(in srgb,var(--brand) 6%,transparent)} .dm tbody tr:hover td.dm-rn{background:var(--chip)}
+  .dm td.dm-hot{background:color-mix(in srgb,var(--brand) 10%,transparent)!important}
+  .dm-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:750}
+  .dm-pill.Working{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+  .dm-pill.Silent{background:color-mix(in srgb,var(--slate) 16%,transparent);color:var(--muted)}
+  .dm-pill.Failing{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+  .dm-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line-2)}
+  .dm tfoot td{position:sticky;bottom:0;z-index:2;background:var(--panel-soft);border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:700;padding:8px 0;text-align:center}
+  .dm tfoot td.dm-rn{text-align:left;padding-left:16px;z-index:3}
   /* Ingest and billing flow: hovering a family spotlights its strands and tables. */
   svg.sankey.ib-dim .ib-strand,svg.sankey.ib-dim .sk-beads,svg.sankey.ib-dim .ib-tbl,svg.sankey.ib-dim .ib-src{opacity:.18;transition:opacity .15s}
   svg.sankey.ib-dim .ib-hot{opacity:1}
@@ -817,12 +873,12 @@
   .ak-scroll{overflow-x:auto;padding-bottom:6px}
   /* Scrolling regions get a slim scrollbar in the theme's colours rather
      than the browser's default light one. */
-  .ak-scroll,.doctscroll,.flowbox{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}
-  .ak-scroll::-webkit-scrollbar,.doctscroll::-webkit-scrollbar,.flowbox::-webkit-scrollbar{width:8px;height:8px}
-  .ak-scroll::-webkit-scrollbar-track,.doctscroll::-webkit-scrollbar-track,.flowbox::-webkit-scrollbar-track,
-  .ak-scroll::-webkit-scrollbar-corner,.doctscroll::-webkit-scrollbar-corner,.flowbox::-webkit-scrollbar-corner{background:transparent}
-  .ak-scroll::-webkit-scrollbar-thumb,.doctscroll::-webkit-scrollbar-thumb,.flowbox::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px}
-  .ak-scroll::-webkit-scrollbar-thumb:hover,.doctscroll::-webkit-scrollbar-thumb:hover,.flowbox::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
+  .ak-scroll,.doctscroll,.flowbox,.dm-scroll{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}
+  .ak-scroll::-webkit-scrollbar,.doctscroll::-webkit-scrollbar,.flowbox::-webkit-scrollbar,.dm-scroll::-webkit-scrollbar{width:8px;height:8px}
+  .ak-scroll::-webkit-scrollbar-track,.doctscroll::-webkit-scrollbar-track,.flowbox::-webkit-scrollbar-track,.dm-scroll::-webkit-scrollbar-track,
+  .ak-scroll::-webkit-scrollbar-corner,.doctscroll::-webkit-scrollbar-corner,.flowbox::-webkit-scrollbar-corner,.dm-scroll::-webkit-scrollbar-corner{background:transparent}
+  .ak-scroll::-webkit-scrollbar-thumb,.doctscroll::-webkit-scrollbar-thumb,.flowbox::-webkit-scrollbar-thumb,.dm-scroll::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px}
+  .ak-scroll::-webkit-scrollbar-thumb:hover,.doctscroll::-webkit-scrollbar-thumb:hover,.flowbox::-webkit-scrollbar-thumb:hover,.dm-scroll::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
   .ak-grid{display:grid;grid-template-columns:repeat(14,minmax(126px,1fr));gap:6px;min-width:1820px;align-items:start}
   .ak-col{display:flex;flex-direction:column;gap:5px}
   /* Every tactic header is the same height: two lines for the name (a
@@ -985,13 +1041,15 @@
       <div id="estateDetail" class="hidden"></div>
     </div>
 
-    <div class="panel" id="detOutcomesPanel">
+    <div class="panel" id="detMatrixPanel">
       <div class="phead"><div>
-        <h2>Detection outcomes</h2>
-        <p class="note">Each table an enabled analytics rule or Defender XDR custom detection reads &rarr; the rules and detections that read it &rarr; their health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) &rarr; the incidents they raised in 30 days, by how they were classified. Strand width is incidents; a dashed strand is a rule that raised none. Hover a table or a rule to follow it.</p>
+        <h2>Detection matrix</h2>
+        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in 30 days; Silent: raised none; Failing: had run failures in 7 days) and its incidents in 30 days by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them.</p>
       </div></div>
-      <div class="flowfilter" id="detFilter"></div>
-      <div class="flowbox estatebox"><svg class="sankey" id="detFlow" role="img" aria-label="Detection outcomes"></svg></div>
+      <div class="dm-summary" id="dmSummary"></div>
+      <div class="dm-tools"><input type="search" id="dmQ" placeholder="Find a rule, detection or table…" aria-label="Find a rule, detection or table"><div class="dm-grp" id="dmSrc" role="group" aria-label="Source"></div><div class="dm-grp" id="dmHealth" role="group" aria-label="Health"></div><div class="dm-grp" id="dmMode" role="group" aria-label="Columns"></div></div>
+      <div class="dm-scroll morewrap" id="dmBox"><table class="dm" id="dmTable"></table></div>
+      <div class="legend" id="dmLegend"></div>
     </div>
 
     <div class="panel">
@@ -2067,136 +2125,94 @@
   document.getElementById('zoomOut').onclick=()=>{zoom=Math.max(.5,zoom-.1);applyZoom();};
   document.getElementById('zoomFit').onclick=()=>{zoom=1;applyZoom();};
 
-  // ---- detection outcomes ----
-  // Tables -> the enabled rules and custom detections that read them ->
-  // their health (Working, Silent, Failing) -> the incidents they raised by
-  // classification, in the ingest and billing flow's style. Rules are the
-  // model's detectionOutcomes, every one; with more than 25 the default view
-  // keeps every failing rule and the 25 with the most incidents, and the
-  // chips show every rule or one health state.
+  // ---- detection matrix ----
+  // Every enabled rule and custom detection that reads a table (the model's
+  // detectionOutcomes): one row each, a column per source family (or per
+  // table), its health and its incidents by verdict. Rows run Failing,
+  // Working, Silent, the most incidents first; the first 25 show and the
+  // header's chevron (the site's moreChev) shows the rest. Chips filter by
+  // source and health, the search box by rule or table name.
   (function(){
-    const svgEl=document.getElementById('detFlow'), filterEl=document.getElementById('detFilter');
-    if(!svgEl) return;
-    const all=(M.detectionOutcomes||[]);
-    if(!all.length){ svgEl.parentNode.innerHTML='<p class="note" style="padding:16px">No enabled analytics rule or custom detection reads a workspace table in this snapshot.</p>'; if(filterEl) filterEl.innerHTML=''; return; }
-    const TOP=25, HEALTH=[['Working','#16a34a'],['Silent','#94a3b8'],['Failing','#dc2626']];
+    const box=document.getElementById('dmBox'), table=document.getElementById('dmTable');
+    if(!box || !table) return;
+    const all=(M.detectionOutcomes||[]), FAMOF=(M.detectionTableFamily||{});
+    const panel=document.getElementById('detMatrixPanel');
+    if(!all.length){ ['dmSummary','dmLegend'].forEach(id=>{ const e=document.getElementById(id); if(e) e.innerHTML=''; }); const t=panel.querySelector('.dm-tools'); if(t) t.remove();
+      box.outerHTML='<p class="note" style="padding:16px">No enabled analytics rule or custom detection reads a workspace table in this snapshot.</p>'; return; }
+    const FIRST=25, HEALTH=[['Failing','var(--red)'],['Working','var(--green)'],['Silent','var(--slate)']];
     const OUT=[['tp','True positive','#16a34a'],['fp','False positive','#dc2626'],['bp','Benign positive','#3b82f6'],['undetermined','Undetermined','#a78bfa'],['unclassified','Closed, unclassified','#64748b'],['open','Still open','#d97706']];
-    const tblFam={}; ((E&&E.tables)||[]).forEach(t=>{ tblFam[t.table]=t; });
-    const n0=v=>Number(v)||0;
-    let st={health:null, all:false};
-    const pickRules=()=>{
-      let rows=st.health? all.filter(r=>r.health===st.health) : all;
-      if(!st.health && !st.all && rows.length>TOP){
-        const others=rows.filter(r=>r.health!=='Failing').sort((a,b)=>n0(b.incidents)-n0(a.incidents)).slice(0,TOP);
-        const keep=new Set(rows.filter(r=>r.health==='Failing').concat(others));
-        rows=rows.filter(r=>keep.has(r));
-      }
-      return rows;
-    };
-    function renderFilter(){
-      if(!filterEl) return;
-      const chip=(label,active,attrs,sub)=>'<button type="button" class="fchip'+(active?' active':'')+'" '+attrs+'>'+esc(label)+(sub?'<span>'+esc(sub)+'</span>':'')+'</button>';
-      let h='';
-      if(all.length>TOP) h+=chip('Most active',!st.health&&!st.all,'data-det="top"','every failing rule and the '+TOP+' others with most incidents');
-      h+=chip('Every rule',(!st.health&&st.all)||(!st.health&&all.length<=TOP),'data-det="all"',all.length+' rule'+(all.length===1?'':'s'));
-      HEALTH.forEach(([hn])=>{ const c=all.filter(r=>r.health===hn).length; if(c) h+=chip(hn,st.health===hn,'data-det="h" data-h="'+hn+'"',String(c)); });
-      filterEl.innerHTML=h;
-      filterEl.querySelectorAll('[data-det]').forEach(b=>b.addEventListener('click',()=>{
-        const k=b.dataset.det; st = k==='top'? {health:null,all:false} : k==='all'? {health:null,all:true} : (st.health===b.dataset.h? {health:null,all:false} : {health:b.dataset.h,all:false});
-        draw();
-      }));
+    const n0=v=>Number(v)||0, rank={Failing:0,Working:1,Silent:2}, famOf=t=>FAMOF[t]||'Other';
+    // A bubble's number in white or near-black, whichever contrasts more with its colour.
+    const lum=hex=>{ const c=String(hex).replace('#',''); const v=[0,2,4].map(k=>parseInt(c.substr(k,2),16)/255).map(x=>x<=0.03928? x/12.92 : Math.pow((x+0.055)/1.055,2.4)); return 0.2126*v[0]+0.7152*v[1]+0.0722*v[2]; };
+    const inkOn=hex=>{ const L=lum(hex); return 1.05/(L+0.05) >= (L+0.05)/0.0567 ? '#ffffff' : '#0b1220'; };
+    let st={src:'all', health:null, mode:'family', q:''};
+    function columns(rows){
+      // Families, or every table grouped by family; each ordered by how many rules read it.
+      const use={}; rows.forEach(r=>(r.tables||[]).forEach(t=>{ use[t]=(use[t]||0)+1; }));
+      const famUse={}; Object.keys(use).forEach(t=>{ const f=famOf(t); famUse[f]=(famUse[f]||0)+use[t]; });
+      const fams=Object.keys(famUse).sort((a,b)=>famUse[b]-famUse[a]||a.localeCompare(b));
+      if(st.mode==='family') return fams.map(f=>({label:f, fam:f, tables:Object.keys(use).filter(t=>famOf(t)===f)}));
+      return fams.flatMap(f=>Object.keys(use).filter(t=>famOf(t)===f).sort((a,b)=>use[b]-use[a]||a.localeCompare(b)).map(t=>({label:t, fam:f, tables:[t]})));
     }
-    function draw(){
-      const rules=pickRules();
-      const ns='http://www.w3.org/2000/svg';
-      while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-      svgEl.classList.remove('ib-dim');
-      const mk=(tag,attrs,text,parent)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; (parent||svgEl).appendChild(el); return el; };
-      const tip=(el,text)=>{ mk('title',{},text,el); return el; };
-      const LBL='letter-spacing:.14em;', HALO='paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;';
-      // Tables, most rules first.
-      const tCount={}; rules.forEach(r=>(r.tables||[]).forEach(t=>{ tCount[t]=(tCount[t]||0)+1; }));
-      const tables=Object.keys(tCount).sort((a,b)=>tCount[b]-tCount[a]||a.localeCompare(b));
-      const healthN=HEALTH.map(([hn,col])=>({name:hn,col,rules:rules.filter(r=>r.health===hn)}));
-      const outs=OUT.map(([k,label,col])=>({k,label,col,v:rules.reduce((a,r)=>a+n0(r[k]),0)})).filter(o=>o.v>0);
-      const rowH=34, top=58, R=28, W=1200;
-      const bodyH=Math.max(300, tables.length*rowH, rules.length*rowH, 3*120, outs.length*78);
-      const H=top+bodyH+20;
-      svgEl.setAttribute('viewBox','0 0 '+W+' '+H); svgEl.setAttribute('width',W); svgEl.setAttribute('height',H);
-      const tx=40, tw=232, rx=392, rw=300, hx=842, ox=1010;
-      const place=(arr,gap)=>{ const g=arr.length>1? Math.min(gap,(bodyH-24)/(arr.length-1)) : 0, y0=top+bodyH/2-g*(arr.length-1)/2; return arr.map((_,i)=>Math.round(y0+i*g)); };
-      const tY=place(tables,rowH), rY=place(rules,rowH), hY=place(healthN,124), oY=place(outs,84);
-      const tYOf={}; tables.forEach((t,i)=>tYOf[t]=tY[i]);
-      const defs=mk('defs',{});
-      const glow=mk('filter',{id:'dfGlow',x:'-50%',y:'-50%',width:'200%',height:'200%'},null,defs);
-      glow.innerHTML='<feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>';
-      const clipId='skClip'+svgEl.id, clip=mk('clipPath',{id:clipId},null,defs);
-      mk('rect',{x:0,y:0,width:W,height:H},null,clip);
-      [['TABLE',tx,'start'],['RULE OR DETECTION',rx,'start'],['HEALTH',hx,'middle'],['INCIDENTS (30D)',ox,'start']].forEach(([t,x,a])=>mk('text',{x:x,y:26,'text-anchor':a,'font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},t));
-      const strands=mk('g',{'clip-path':'url(#'+clipId+')'});
-      const maxInc=Math.max(1,...rules.map(r=>n0(r.incidents)));
-      const sw=v=>Math.max(2,20*Math.sqrt(n0(v)/maxInc));
-      const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
-      const famCol=t=>famColor[(tblFam[t]||{}).family]||'#64748b';
-      const ruleCol=r=>r.source==='Defender XDR'? (famColor['Defender XDR']||'#2b8c9e') : '#4f5bd5';
-      const hCol={}; HEALTH.forEach(([hn,col])=>hCol[hn]=col);
-      const hYOf={}; healthN.forEach((h,i)=>hYOf[h.name]=hY[i]);
-      const line=(d,col,w,attrs,text,dashed,beadK)=>{
-        const p=mk('path',Object.assign({d:d,fill:'none',stroke:col,'stroke-opacity':'.45','stroke-width':w.toFixed(1),class:'ib-strand'},attrs,dashed?{'stroke-dasharray':'6 6'}:{}),null,strands); tip(p,text);
-        if(!dashed && w>=2.5 && beadK!=null){ const b=mk('path',Object.assign({d:d,class:'sk-beads',stroke:col,'stroke-width':Math.max(1,w*0.3).toFixed(1),'stroke-dasharray':'3 21'},attrs),null,strands); b.style.animationDuration=(3.4-1.8*Math.sqrt(Math.min(1,beadK))).toFixed(1)+'s'; }
-      };
-      // Table -> rule: one thin strand per table a rule reads.
-      rules.forEach((r,i)=>(r.tables||[]).forEach(t=>{ if(tYOf[t]==null) return;
-        line(curve(tx+tw,tYOf[t],rx,rY[i]),famCol(t),2,{'data-r':i,'data-t':t},t+' is read by '+r.name,false,null); }));
-      // Rule -> health: width by the rule's incidents; dashed when it raised none.
-      rules.forEach((r,i)=>{ const inc=n0(r.incidents), none=inc===0 && n0(r.alerts)===0;
-        line(curve(rx+rw,rY[i],hx-R-5,hYOf[r.health]),ruleCol(r),sw(inc),{'data-r':i},r.name+': '+r.health+(n0(r.failures)? ', '+n0(r.failures)+' run failure(s) in 7 days':'')+', '+inc.toLocaleString()+' incident(s), '+n0(r.alerts).toLocaleString()+' alert(s) in 30 days',none,inc/maxInc); });
-      // Health -> outcome: the incidents of that state's rules, by classification.
-      healthN.forEach(h=>outs.forEach((o,oi)=>{ const v=h.rules.reduce((a,r)=>a+n0(r[o.k]),0); if(!v) return;
-        line(curve(hx+R+5,hYOf[h.name],ox-10,oY[oi]),h.col,sw(v),{'data-h':h.name},h.name+' rules: '+v.toLocaleString()+' '+o.label.toLowerCase()+' incident(s)',false,v/maxInc); }));
-      const spot=(sel)=>{ svgEl.classList.toggle('ib-dim',!!sel); svgEl.querySelectorAll('.ib-hot').forEach(el=>el.classList.remove('ib-hot')); if(sel) svgEl.querySelectorAll(sel).forEach(el=>el.classList.add('ib-hot')); };
-      // Estimated width, with 8% to spare: the browser's text runs up to 6% wider.
-      const estText=t=>1.08*[...String(t)].reduce((a,ch)=>a+(/[A-Z]/.test(ch)?7.9:/[ijl.,'| ]/.test(ch)?3.6:6.3),0);
-      const fit=(t,avail)=>{ if(estText(t)<=avail) return t; let x=t; while(x.length>1 && estText(x+'…')>avail) x=x.slice(0,-1); return x+'…'; };
-      const pill=(x,y,w,col,label,val,attrs,text)=>{ const g=mk('g',Object.assign({class:'ib-tbl'},attrs));
-        mk('rect',{x:x,y:y-12,width:w,height:24,rx:12,fill:col,'fill-opacity':'.16',stroke:col,'stroke-opacity':'.55'},null,g);
-        mk('text',{x:x+12,y:y+4,'font-size':'11.5','font-weight':'600',style:'fill:var(--ink)'},fit(label,w-24-String(val).length*5.9-10),g);
-        if(val) mk('text',{x:x+w-12,y:y+4,'text-anchor':'end','font-size':'10',style:'fill:var(--muted)'},val,g);
-        tip(g,text); return g; };
-      // Tables.
-      tables.forEach((t,i)=>{ const meta=tblFam[t], g=pill(tx,tY[i],tw,famCol(t),t,tCount[t]+' rule'+(tCount[t]===1?'':'s'),{'data-t':t},t+(meta? ' ('+meta.family+', '+fmtN(meta.gb)+' GB in 30 days)':'')+': read by '+tCount[t]+' enabled rule(s) or detection(s) shown');
-        g.addEventListener('mouseenter',()=>spot('[data-t="'+CSS.escape(t)+'"],'+rules.map((r,ri)=>(r.tables||[]).includes(t)? '[data-r="'+ri+'"]' : null).filter(Boolean).join(','))); g.addEventListener('mouseleave',()=>spot(null)); });
-      // Rules and detections.
-      const perfSec=findSecNum(/^rule performance/i,null);
-      rules.forEach((r,i)=>{ const inc=n0(r.incidents), val=inc? inc.toLocaleString()+' inc.' : (n0(r.alerts)? n0(r.alerts).toLocaleString()+' alerts' : 'none');
-        const g=pill(rx,rY[i],rw,ruleCol(r),r.name,val,{'data-r':i},r.name+' ('+(r.kind||r.source)+', '+r.source+'): '+r.health+'. Reads '+(r.tables||[]).join(', ')+'. '+inc.toLocaleString()+' incident(s) and '+n0(r.alerts).toLocaleString()+' alert(s) in 30 days.'+(perfSec!=null? ' Select to open Rule Performance.':''));
-        g.addEventListener('mouseenter',()=>spot('[data-r="'+i+'"]')); g.addEventListener('mouseleave',()=>spot(null));
-        if(perfSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(perfSec)); } });
-      // Health: a ring each, its share of the rules shown, the count inside.
-      const C=2*Math.PI*R, healthSec=findSecNum(/rule health/i,null);
-      healthN.forEach((h,i)=>{ const share=rules.length? h.rules.length/rules.length : 0, g=mk('g',{'data-h':h.name}), y=hY[i];
-        mk('circle',{cx:hx,cy:y,r:R,'stroke-width':'6',style:'fill:var(--panel);stroke:var(--ring-track)'},null,g);
-        if(share>0) mk('circle',{cx:hx,cy:y,r:R,fill:'none','stroke-width':'6','stroke-linecap':'round','stroke-dasharray':(C*share).toFixed(1)+' '+C.toFixed(1),transform:'rotate(-90 '+hx+' '+y+')',filter:'url(#dfGlow)',style:'stroke:'+h.col},null,g);
-        mk('text',{x:hx,y:y+5,'text-anchor':'middle','font-size':'15','font-weight':'800',style:'fill:var(--ink)'},String(h.rules.length),g);
-        mk('text',{x:hx,y:y-R-12,'text-anchor':'middle','font-size':'9.5','font-weight':'800',style:'fill:var(--faint);'+LBL+HALO},h.name.toUpperCase(),g);
-        mk('text',{x:hx,y:y+R+18,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},Math.round(share*100)+'% of rules',g);
-        tip(g,h.name+': '+h.rules.length+' of the '+rules.length+' rules shown.'+(h.name==='Failing'&&healthSec!=null? ' Select to open Rule Health and Quality.':''));
-        g.addEventListener('mouseenter',()=>spot('[data-h="'+h.name+'"],'+rules.map((r,ri)=>r.health===h.name? '[data-r="'+ri+'"]' : null).filter(Boolean).join(','))); g.addEventListener('mouseleave',()=>spot(null));
-        if(h.name==='Failing' && healthSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(healthSec)); } });
-      // Outcomes: incidents by classification, with their totals.
-      const incTotal=outs.reduce((a,o)=>a+o.v,0)||1, incSec=findSecNum(/^incidents/i,null);
-      if(!outs.length) mk('text',{x:ox,y:top+bodyH/2,'font-size':'12',style:'fill:var(--muted)'},'No incidents from these rules in 30 days');
-      outs.forEach((o,i)=>{ const y=oY[i], g=mk('g',{});
-        mk('circle',{cx:ox,cy:y,r:7,fill:o.col,filter:'url(#dfGlow)'},null,g);
-        mk('text',{x:ox+18,y:y+7,'font-size':'22','font-weight':'800',style:'fill:var(--ink)'},o.v.toLocaleString(),g);
-        mk('text',{x:ox+18,y:y+22,'font-size':'9.5','font-weight':'700',style:'fill:var(--muted);'+LBL},o.label.toUpperCase(),g);
-        mk('text',{x:ox+18,y:y+36,'font-size':'10',style:'fill:var(--muted)'},Math.round(o.v/incTotal*100)+'% of these incidents',g);
-        tip(g,o.label+': '+o.v.toLocaleString()+' incident(s) from the rules shown, 30 days.'+(incSec!=null? ' Select to open the incidents page.':''));
-        if(incSec!=null){ g.style.cursor='pointer'; g.addEventListener('click',()=>jumpTo(incSec)); } });
-      revealSankey(svgEl);
-      renderFilter();
+    const chip=(grp,val,label,sub,active,dot)=>'<button type="button" class="fchip'+(active?' active':'')+'" data-dm="'+grp+'" data-v="'+esc(val)+'" aria-pressed="'+active+'">'+(dot?'<i style="background:'+dot+'"></i>':'')+esc(label)+(sub!=null?'<span>'+sub+'</span>':'')+'</button>';
+    function render(){
+      const q=st.q.trim().toLowerCase();
+      const match=r=>!q || String(r.name).toLowerCase().includes(q) || (r.tables||[]).some(t=>t.toLowerCase().includes(q));
+      const srcOk=r=>st.src==='all' || (st.src==='sentinel'? r.source!=='Defender XDR' : r.source==='Defender XDR');
+      const base=all.filter(r=>match(r) && srcOk(r));
+      const rows=base.filter(r=>!st.health || r.health===st.health).sort((a,b)=>rank[a.health]-rank[b.health]||n0(b.incidents)-n0(a.incidents)||String(a.name).localeCompare(String(b.name)));
+      const cnt=h=>base.filter(r=>r.health===h).length;
+      // Summary: the rules shown by source, each health state, and their incidents by verdict.
+      const tot={}; OUT.forEach(([k])=>tot[k]=rows.reduce((a,r)=>a+n0(r[k]),0)); const allInc=Object.values(tot).reduce((a,b)=>a+b,0);
+      document.getElementById('dmSummary').innerHTML=
+        '<div class="dm-sm"><div class="k">Rules and detections</div><div class="v">'+base.length.toLocaleString()+'</div><div class="s">'+base.filter(r=>r.source!=='Defender XDR').length+' analytics rules, '+base.filter(r=>r.source==='Defender XDR').length+' custom detections</div></div>'+
+        HEALTH.map(([h,c])=>'<div class="dm-sm"><div class="k" style="color:'+c+'">'+h+'</div><div class="v">'+cnt(h).toLocaleString()+'</div><div class="s">'+Math.round(100*cnt(h)/Math.max(1,base.length))+'% of rules</div></div>').join('')+
+        '<div class="dm-sm"><div class="k">Incidents in 30 days by verdict</div><div class="dm-vbar">'+(allInc? OUT.map(([k,l,c])=>tot[k]? '<i style="width:'+(100*tot[k]/allInc)+'%;background:'+c+'" title="'+l+': '+tot[k].toLocaleString()+'"></i>':'').join('') : '')+'</div>'+
+        '<div class="dm-vleg">'+OUT.map(([k,l,c])=>'<span><i style="background:'+c+'"></i>'+l+' '+tot[k].toLocaleString()+'</span>').join('')+'</div></div>';
+      // Chips.
+      const srcBase=all.filter(match);
+      document.getElementById('dmSrc').innerHTML=chip('src','all','All',srcBase.length,st.src==='all')+chip('src','sentinel','Analytics rules',srcBase.filter(r=>r.source!=='Defender XDR').length,st.src==='sentinel')+chip('src','xdr','Custom detections',srcBase.filter(r=>r.source==='Defender XDR').length,st.src==='xdr');
+      document.getElementById('dmHealth').innerHTML=chip('health','all','All',base.length,!st.health)+HEALTH.map(([h,c])=>chip('health',h,h,cnt(h),st.health===h,c)).join('');
+      document.getElementById('dmMode').innerHTML=chip('mode','family','By source family',null,st.mode==='family')+chip('mode','table','Every table',null,st.mode==='table');
+      // The matrix.
+      const cols=columns(rows), maxInc=Math.max(1,...rows.map(r=>n0(r.incidents)));
+      // Angled table names need room for the longest: about 6.9px a character, at 64 degrees.
+      const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;
+      let h='<thead><tr><th class="dm-rn">Rule or detection</th>'+(st.mode==='family'
+          ? cols.map((c,i)=>'<th class="dm-fcol" data-c="'+i+'" title="'+esc(c.label+': '+c.tables.join(', '))+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i><span class="dm-fn">'+esc(c.label)+'</span><small>'+c.tables.length+' table'+(c.tables.length===1?'':'s')+'</small></th>').join('')
+          : '<th class="dm-tl" colspan="'+cols.length+'"><div class="dm-tlab" style="width:'+(cols.length*40)+'px;height:'+labH+'px">'+cols.map((c,i)=>'<span style="left:'+(i*40+20)+'px" data-c="'+i+'" title="'+esc(c.label+' ('+c.fam+')')+'"><i style="background:'+(famColor[c.fam]||'#64748b')+'"></i>'+esc(c.label)+'</span>').join('')+'</div></th>')+
+        '<th class="dm-h">Health</th><th class="dm-h">Incidents by verdict</th><th class="dm-n">30 days'+(rows.length>FIRST? moreChev(rows.length,'rules') : '')+'</th></tr></thead><tbody>';
+      rows.forEach((r,ri)=>{
+        const isX=r.source==='Defender XDR', inc=n0(r.incidents), closed=Math.max(0,inc-n0(r.open)), tbls=r.tables||[];
+        h+='<tr'+(ri>=FIRST? ' data-mr hidden':'')+'><td class="dm-rn"><div class="dm-name"><span class="dm-src '+(isX?'X':'S')+'" title="'+(isX?'Defender XDR custom detection':'Sentinel analytics rule')+'">'+(isX?'XDR':'SEN')+'</span>'+
+          '<div class="dm-rtxt"><b title="'+esc(r.name)+'">'+esc(r.name)+'</b><small>'+esc(r.kind||r.source)+' · '+tbls.length+' table'+(tbls.length===1?'':'s')+(n0(r.failures)? ' · '+n0(r.failures)+' run failure'+(n0(r.failures)===1?'':'s'):'')+'</small></div></div></td>';
+        cols.forEach((c,i)=>{ const hit=tbls.filter(t=>c.tables.includes(t)), col=famColor[c.fam]||'#64748b';
+          h+='<td class="dm-c" data-c="'+i+'"'+(hit.length? ' title="'+esc(hit.join(', '))+'"':'')+'>'+(hit.length? (hit.length>1? '<i style="background:'+col+';--g:'+col+';color:'+inkOn(col)+'">'+hit.length+'</i>' : '<i class="one" style="background:'+col+';--g:'+col+'"></i>') : '')+'</td>'; });
+        h+='<td class="dm-h"><span class="dm-pill '+esc(r.health)+'">'+esc(r.health)+'</span></td><td class="dm-v">'+(inc
+            ? '<div class="dm-bar" style="width:'+Math.max(30,Math.round(168*Math.sqrt(inc/maxInc)))+'px">'+OUT.map(([k,l,c])=>n0(r[k])? '<i style="width:'+(100*n0(r[k])/inc)+'%;background:'+c+'" title="'+l+': '+n0(r[k])+'"></i>':'').join('')+'</div>'
+            : '<span class="note" style="font-size:11.5px">'+(n0(r.alerts)? n0(r.alerts).toLocaleString()+' alerts, no incidents' : 'no incidents')+'</span>')+'</td>'+
+          '<td class="dm-n"'+(inc? ' title="'+(closed? Math.round(100*n0(r.tp)/closed)+'% of its '+closed+' closed incidents were true positives; ' : 'No incident closed yet; ')+n0(r.open)+' still open"' : '')+'>'+
+            (inc? inc.toLocaleString()+' incident'+(inc===1?'':'s')+' · '+(closed? Math.round(100*n0(r.tp)/closed)+'% TP' : 'none closed') : '')+'</td></tr>';
+      });
+      h+='</tbody><tfoot><tr><td class="dm-rn">Rules reading it</td>'+cols.map((c,i)=>'<td data-c="'+i+'">'+rows.filter(r=>(r.tables||[]).some(t=>c.tables.includes(t))).length+'</td>').join('')+'<td colspan="3"></td></tr></tfoot>';
+      box.classList.remove('open');
+      table.className='dm'+(st.mode==='family'? ' dm-fam':'');
+      table.innerHTML=h;
+      document.getElementById('dmLegend').innerHTML=Object.keys(famColor).map(f=>'<span><i style="background:'+famColor[f]+';border-radius:50%"></i>'+esc(f)+'</span>').join('')+
+        '<span><i style="background:#64748b;border-radius:50%;width:16px;height:16px;display:inline-grid;place-items:center;font-style:normal;font-size:9.5px;font-weight:800;color:#ffffff">2</i>reads that many of the family\'s tables</span>'+
+        '<span><b class="dm-src S">SEN</b>Sentinel analytics rule</span><span><b class="dm-src X">XDR</b>Defender XDR custom detection</span>';
+      if(typeof window.fitIframe==='function') window.fitIframe();
     }
-    draw();
+    panel.addEventListener('click',e=>{
+      const c=e.target.closest('[data-dm]'); if(!c) return;
+      const g=c.dataset.dm, v=c.dataset.v;
+      if(g==='src') st.src=v; else if(g==='health') st.health=(v==='all' || st.health===v)? null : v; else st.mode=v;
+      render();
+    });
+    document.getElementById('dmQ').addEventListener('input',e=>{ st.q=e.target.value; render(); });
+    table.addEventListener('mouseover',e=>{ const c=e.target.closest('[data-c]'); table.querySelectorAll('.dm-hot').forEach(x=>x.classList.remove('dm-hot')); if(c) table.querySelectorAll('td[data-c="'+c.dataset.c+'"]').forEach(x=>x.classList.add('dm-hot')); });
+    table.addEventListener('mouseleave',()=>table.querySelectorAll('.dm-hot').forEach(x=>x.classList.remove('dm-hot')));
+    render();
   })();
 
   // ---- top tables / rules ----
@@ -3680,7 +3696,6 @@
     if(name==='sectionsdoc' && window.layoutDoc) window.layoutDoc();
     // The Sankey was drawn while its tab was hidden: reveal it now.
     if(name==='flow' && big) revealSankey(big);
-    if(name==='flow'){ const df=document.getElementById('detFlow'); if(df && df.querySelector('clipPath')) revealSankey(df); }
     if(typeof window.fitIframe==='function'){ window.fitIframe(); [60,180,400,800].forEach(t=>setTimeout(window.fitIframe,t)); }
   };
   document.querySelectorAll('.tab').forEach(t=>{

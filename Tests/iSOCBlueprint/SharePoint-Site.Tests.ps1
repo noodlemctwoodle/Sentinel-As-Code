@@ -1117,13 +1117,36 @@ Describe 'Detection outcomes and template solutions in the site build' {
         @($sec.templates.name) | Should -Not -Contain 'Low-severity noise'
     }
 
-    It 'draws detection outcomes on the Data flow tab, between the estate flow and the ingest and billing flow' {
-        $script:doHtml | Should -Match '(?s)<h2>Estate flow</h2>.*?<h2>Detection outcomes</h2>.*?<h2>Ingest &amp; billing flow</h2>'
-        $script:doHtml.Contains("const TOP=25, HEALTH=[['Working','#16a34a'],['Silent','#94a3b8'],['Failing','#dc2626']];") | Should -BeTrue
-        $script:doHtml.Contains("['tp','True positive','#16a34a'],['fp','False positive','#dc2626']") | Should -BeTrue
-        # A rule that raised nothing runs dashed into its health ring.
-        $script:doHtml.Contains("const inc=n0(r.incidents), none=inc===0 && n0(r.alerts)===0;") | Should -BeTrue
-        $script:doHtml | Should -Match "if\(name==='flow'\)\{ const df=document\.getElementById\('detFlow'\)"
+    It 'maps every table the rules read to its source family, for the matrix''s columns' {
+        $f = $script:doModel.detectionTableFamily
+        $f.SigninLogs | Should -Be 'Entra ID / Identity'
+        $f.AuditLogs | Should -Be 'Entra ID / Identity'
+        $f.DeviceProcessEvents | Should -Be 'Defender XDR'
+        @($f.PSObject.Properties).Count | Should -Be 5
+    }
+
+    It 'draws the detection matrix on the Data flow tab, between the estate flow and the ingest and billing flow' {
+        $script:doHtml | Should -Match '(?s)<h2>Estate flow</h2>.*?<h2>Detection matrix</h2>.*?<h2>Ingest &amp; billing flow</h2>'
+        $script:doHtml | Should -Not -Match 'id="detFlow"'
+        # Rows run Failing, Working, Silent; the first 25 show and the header's chevron shows the rest.
+        $script:doHtml.Contains("const FIRST=25, HEALTH=[['Failing','var(--red)'],['Working','var(--green)'],['Silent','var(--slate)']];") | Should -BeTrue
+        $script:doHtml.Contains("h+='<tr'+(ri>=FIRST? ' data-mr hidden':'')+'>") | Should -BeTrue
+        $script:doHtml.Contains("<th class=""dm-n"">30 days'+(rows.length>FIRST? moreChev(rows.length,'rules') : '')") | Should -BeTrue
+        $script:doHtml | Should -Match '<div class="dm-scroll morewrap" id="dmBox">'
+        # Filters: source, health with All, and family or table columns; a search box.
+        $script:doHtml.Contains("chip('health','all','All',base.length,!st.health)") | Should -BeTrue
+        $script:doHtml.Contains("chip('mode','family','By source family',null,st.mode==='family')+chip('mode','table','Every table',null,st.mode==='table')") | Should -BeTrue
+        $script:doHtml | Should -Match 'id="dmQ"'
+        # A numbered bubble's ink is whichever of white or near-black contrasts more; the glow is dark-only.
+        $script:doHtml.Contains("const inkOn=hex=>{ const L=lum(hex); return 1.05/(L+0.05) >= (L+0.05)/0.0567 ? '#ffffff' : '#0b1220'; };") | Should -BeTrue
+        $script:doHtml | Should -Match 'html\[data-theme="dark"\] \.dm td\.dm-c i\{box-shadow:0 0 9px var\(--g\)\}'
+        # Family names share a two-line box, so the column heads line up.
+        $script:doHtml | Should -Match '\.dm thead th\.dm-fcol \.dm-fn\{display:flex;align-items:center;justify-content:center;min-height:2\.6em\}'
+        # Every table's angled names get the room the longest needs.
+        $script:doHtml.Contains("const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;") | Should -BeTrue
+        # The verdict cell reads incidents and the true-positive share of the closed ones.
+        $script:doHtml.Contains("Math.round(100*n0(r.tp)/closed)+'% TP'") | Should -BeTrue
+        $script:doHtml | Should -Match '\.dm-scroll::-webkit-scrollbar\{width:8px;height:8px\}|\.dm-scroll::-webkit-scrollbar\{'
     }
 }
 
@@ -2014,7 +2037,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'themes the grid, report table and data flow scrollbars for light and dark' {
         $html | Should -Match 'color-scheme:light;'
         $html | Should -Match 'color-scheme:dark;'
-        $html | Should -Match '\.ak-scroll,\.doctscroll,\.flowbox\{scrollbar-width:thin;scrollbar-color:var\(--scroll-thumb\) transparent\}'
+        $html | Should -Match '\.ak-scroll,\.doctscroll,\.flowbox,\.dm-scroll\{scrollbar-width:thin;scrollbar-color:var\(--scroll-thumb\) transparent\}'
     }
 
     It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {

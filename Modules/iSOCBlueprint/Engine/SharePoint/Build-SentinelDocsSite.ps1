@@ -1031,6 +1031,10 @@ foreach ($r in @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true -a
 }
 $healthRank = @{ Failing = 0; Working = 1; Silent = 2 }
 $detectionOutcomes = @($detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { -[long]$_.incidents } }, @{ Expression = { $_.name } })
+# The source family of every table they read, for the matrix's columns: a
+# rule can read a table that has no ingestion, so the estate cannot say.
+$detectionTableFamily = [ordered]@{}
+foreach ($o in $detectionOutcomes) { foreach ($t in @($o.tables)) { if (-not $detectionTableFamily.Contains($t)) { $detectionTableFamily[$t] = Get-TableFamily $t } } }
 
 # When the bookmarks list was too large to fetch, the collector keeps the
 # count the service reported.
@@ -1316,6 +1320,7 @@ $model = [ordered]@{
     maturity     = $maturityModel
     detectionOpportunities = $detectionOpportunities
     detectionOutcomes = $detectionOutcomes
+    detectionTableFamily = $detectionTableFamily
     huntsSummary = $huntsSummary
     playbookHealth = $playbookHealth
     tiBySource   = $tiBySource

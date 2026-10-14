@@ -6,13 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
-- **Detection outcomes on the Data flow tab** - a new flow follows each
-  detection from data to verdict: the tables an enabled analytics rule or
-  Defender XDR custom detection reads, the rules and detections, their
-  health (Working, Silent, Failing), and the incidents they raised in 30
-  days by classification (true positive, false positive, benign positive,
-  undetermined, unclassified, still open). Chips filter by health; hovering
-  follows a table or rule through the flow.
+- **Detection matrix on the Data flow tab** - every enabled analytics rule
+  and Defender XDR custom detection that reads a workspace table, one row
+  each: the source families (or every table) it reads, its health (Working,
+  Silent, Failing) and its incidents in 30 days by verdict with the share
+  of closed ones that were true positives. A summary strip, chips for
+  source and health, a search box, Failing first, the first 25 rows with a
+  chevron for the rest, and a footer counting the rules that read each
+  column.
 - **Dashboard template solutions fixed** - the site build passed the
   Content Hub package lists as a single item, so the dashboard's detection
   opportunities showed every template as Built-in and the deprecated-solution

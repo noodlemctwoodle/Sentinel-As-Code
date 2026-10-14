@@ -16,7 +16,7 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection outcomes, then the ingest and billing flow), insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection matrix, then the ingest and billing flow), insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace & data, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
@@ -129,23 +129,29 @@ data), the dashed "no detection rule" strands creep towards their pool, and
 each ring's arc draws in once when the page opens. Hovering a family dims the
 other strands and their beads; none of it runs for reduced motion.
 
-Under it, the detection outcomes follow each detection from data to
-verdict, in the same style: every table an enabled analytics rule or
-Defender XDR custom detection reads (a pill in its family's colour, with how
-many rules read it), the rules and detections that read it (pills, Sentinel
-rules in indigo and custom detections in the Defender XDR colour, with their
-incidents or alerts), their health as three rings (Working: raised alerts or
-incidents in 30 days; Silent: raised none; Failing: had run failures in 7
-days, from SentinelHealth), and the incidents they raised in 30 days by
-classification (true positive, false positive, benign positive,
-undetermined, closed but unclassified, still open) as glowing nodes with
-their counts. Strand width is incidents, and a rule that raised nothing runs
-dashed into its ring. Chips filter to one health state; with more than 25
-rules the default view keeps every failing rule and the 25 others with the
-most incidents, and Every rule shows them all. Hovering a table, rule or
-ring follows it; a rule opens Rule Performance, the Failing ring Rule Health
-and Quality, and an outcome the incidents page. Custom detections show when
-the collector captured them (it needs a Graph sign-in); their health has no
+Under it, the detection matrix lists every enabled analytics rule and
+Defender XDR custom detection that reads a workspace table, one row each,
+with a SEN or XDR badge for its source and its kind and table count under
+its name (a long name wraps to two lines). Its columns are source families,
+each with how many of its tables the rules read; a dot means the rule reads
+one of the family's tables and a numbered bubble that many (the bubble's
+number in white or near-black, whichever contrasts more with its colour).
+Every table switches to one column per table, grouped by family, with the
+names angled and given the room the longest needs. Then each rule's health
+(Working: raised alerts or incidents in 30 days; Silent: raised none;
+Failing: had run failures in 7 days, from SentinelHealth), a bar of its
+incidents in 30 days by verdict (true positive, false positive, benign
+positive, undetermined, closed but unclassified, still open), and its
+incidents with the share of closed ones that were true positives (the
+tooltip gives the basis). Rows run Failing, Working, Silent, the most
+incidents first; the first 25 show and the chevron in the header shows the
+rest. A summary strip above counts the rules by source and health and
+totals their verdicts; chips filter by source (All, Analytics rules, Custom
+detections) and health (All, Failing, Working, Silent), and a search box
+finds a rule, detection or table. The header and rule names stay in place
+as the matrix scrolls, hovering a column highlights it, and the footer
+counts the rules reading each column. Custom detections show when the
+collector captured them (it needs a Graph sign-in); their health has no
 run-failure data, so they are Working or Silent.
 
 The ingest and billing flow under it is drawn the same way: source families
@@ -373,6 +379,7 @@ host page (with `scrollIntoView`) rather than its own window.
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
 | `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
 | `dataLake`, `dataLakeEnrolled` | Overview: the "Data lake" glance tile. Insights: enrolment status, the tier distribution donut (Analytics only, Analytics + Lake mirror, Analytics + Lake extended, Lake only), the top tables by lake-only retention and the lake cost split; counted over the operational tables through `Private/Get-TableTierProfile.ps1`, the same helper page 88 uses | `sentinel-data-lake`, `workspace`, `workspace-tables`, `tables-with-data`, `cost-estimate` |
+| `detectionTableFamily` | Data flow: the source family of every table in `detectionOutcomes`, for the detection matrix's columns (a rule can read a table with no ingestion) | `rule-table-references`, `custom-detection-table-references` |
 | `detectionOutcomes` | Data flow: every enabled analytics rule and Defender XDR custom detection that reads a workspace table, with its kind, source, tables, health (Working, Silent, Failing), run failures, alerts, and incidents by classification (tp, fp, bp, undetermined, unclassified, open). Failing first, then by incidents | `rule-table-references`, `custom-detection-table-references`, `rule-health`, `rules-fired`, `rule-effectiveness` |
 | `flowTables` | Data flow: every ingesting table with its family, plan label, GB and billed GB. The dashboard rebuilds the Sankey from this list: the default view keeps the nine largest tables and folds the rest into "Other"; clicking a source family (or its chip above the chart) shows every table in that family, clicking "Other" or the "Every table" chip shows them all | `cost-estimate`, `workspace-tables` |
 | `flow` | Data flow: the billing-flow Sankey as built by the site (the default view; kept for bundles built before `flowTables` existed). Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
