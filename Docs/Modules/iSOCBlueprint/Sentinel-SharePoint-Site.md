@@ -104,14 +104,14 @@ incident branch shows how it ended, closed by an automation rule, by an
 analyst, in Defender XDR or by another identity, or still open with its
 severities (strand width = incidents). A strip underneath gives ingestion per
 day with a sparkline, alerts per incident (with the Sentinel and Defender
-XDR split), open incidents, mean time to
-resolve and the share closed by automation. Open incidents are shown by
-age rather than by severity again (the open branch above has that): a
-column for each band of days since an incident was last updated (under a
-day, 1 to 7, 8 to 30 and over 30, those past the window left out), its
-count above it and its severities in its tooltip, coloured from cool to
-warm as they age, with how long the oldest has gone untouched under them;
-a snapshot without the daily series shows the severity chips instead. Every part opens its page (the
+XDR split), incidents, mean time to
+resolve and the share closed by automation. The incidents figure works
+like the ingestion one beside it: the average a day over the window and a
+line per severity, in its Defender colour, of the incidents each day (on
+the day each was last updated, which for a closed one is the day it
+closed), a trailing 7-day average past three weeks so the trend reads,
+with how many are still open under it. A snapshot without the daily
+series shows the open count and its severity chips instead. Every part opens its page (the
 sources open the Data flow tab). A snapshot collected before the closure
 counts shows one Closed branch and says the automation share was not
 captured. The particles stop for anyone who asks for reduced motion, and the

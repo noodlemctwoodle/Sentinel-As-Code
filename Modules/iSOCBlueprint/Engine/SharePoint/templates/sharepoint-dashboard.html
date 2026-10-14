@@ -905,12 +905,11 @@
   .lc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .lc-chip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:5px;color:#0b1220}
   .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
-  /* Open incidents by age: a column per band, its count above and band below. */
-  .lc-age{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;align-items:end;margin-top:6px;max-width:260px}
-  .lc-ab{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
-  .lc-ab b{font-size:11.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
-  .lc-ab i{display:block;width:100%;max-width:34px;border-radius:3px 3px 1px 1px}
-  .lc-ab span{font-size:10.5px;font-weight:650;color:var(--faint);white-space:nowrap;line-height:1}
+  /* Incidents a day: a line per severity, a soft halo under each so the
+     yellow Low line holds on white. */
+  .lc-sev{display:block;width:100%;height:30px;margin-top:6px;--lc-halo:rgba(15,18,34,.16)}
+  html[data-theme="dark"] .lc-sev{--lc-halo:rgba(0,0,0,.45)}
+  .lc-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:2px}
   .lc-spark polyline{stroke:var(--lc-glow)}
   /* ---------- ATT&CK coverage grid (Insights) ---------- */
   .ak-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
@@ -2138,37 +2137,43 @@
     const dur=m=>m==null? 'n/a' : m<60? Math.round(m)+'<small>min</small>' : m<1440? (m/60).toFixed(1)+'<small>hours</small>' : (m/1440).toFixed(1)+'<small>days</small>';
     const auto=cb? n0(cb.AutomationRule) : null;
     const chips=C.openBySeverity? '<div class="lc-chips">'+SEV.map(([key,letter,col])=>{ const v=n0(C.openBySeverity[key]); return v? '<span class="lc-chip" style="background:'+col+'" title="'+key+'">'+letter+' '+v+'</span>' : ''; }).join('')+'</div>' : '';
-    // The open incidents by age rather than by severity again (the open
-    // branch above carries that): how long since each was last updated, in
-    // four bands from under a day to over 30 days (the bands past the
-    // window drop out), coloured from cool to warm as they age, with the
-    // count on each and its severities in the tooltip. A model without the
-    // daily series keeps the chips.
-    const openTrend=(function(){
-      const D=M.daily; if(!D || !Array.isArray(D.incidents)) return '';
-      const n=WIN.days;
-      const BANDS=[['<1d','Under a day',0,0,'#60a5fa'],['1-7d','1 to 7 days',1,7,'#818cf8'],['8-30d','8 to 30 days',8,30,'#f59e0b'],['30d+','Over 30 days',31,Infinity,'#ef4444']]
-        .filter(b=>b[2]<n).map(b=>({lab:b[0], name:b[1], lo:b[2], hi:b[3], col:b[4], sev:{}, n:0}));
-      let oldest=-1;
-      D.incidents.forEach(i=>{ if(i.st==='Closed') return; (i.d||[]).forEach(e=>{
-        const k=+e[0], c=n0(e[1]); if(!(k>=0 && k<n) || c<=0) return;
-        const b=BANDS.find(x=>k>=x.lo && k<=x.hi); if(!b) return;
-        b.n+=c; b.sev[i.sev]=(b.sev[i.sev]||0)+c; if(k>oldest) oldest=k;
-      }); });
-      const mx=Math.max(...BANDS.map(b=>b.n),0);
-      if(mx<=0) return '';
-      const cols=BANDS.map(b=>{
-        const tip=b.name+': '+b.n.toLocaleString('en-GB')+' open'+(b.n? ' ('+SEV.filter(([key])=>b.sev[key]).map(([key,letter])=>letter+' '+b.sev[key]).join(', ')+')' : '');
-        return '<div class="lc-ab" title="'+esc(tip)+'"><b>'+b.n.toLocaleString('en-GB')+'</b><i style="height:'+(b.n? Math.max(3, Math.round(b.n/mx*30)) : 0)+'px;background:'+b.col+'"></i><span>'+esc(b.lab)+'</span></div>';
-      }).join('');
-      return '<div class="lc-age" role="img" aria-label="Open incidents by days since last updated: '+esc(BANDS.map(b=>b.name+' '+b.n).join(', '))+'">'+cols+'</div>'+
-        '<div class="s">'+(oldest<1? 'All updated in the last day' : 'Longest untouched: '+WIN.words(oldest))+'</div>';
+    // Incidents over the window, like the ingestion card beside it: the
+    // average a day, and a line per severity (Defender XDR colours) of the
+    // incidents each day, oldest on the left, on one scale; how many are
+    // still open sits under it (the open branch above splits them by
+    // severity). An incident counts on the day it was last updated, which
+    // for a closed one is the day it closed. Past three weeks each line is
+    // a trailing 7-day average, so the trend reads rather than the weekly
+    // swing. A model without the daily series keeps the open count and its
+    // severity chips.
+    const incTrend=(function(){
+      const D=M.daily; if(!D || !Array.isArray(D.incidents)) return null;
+      const n=WIN.days, by={};
+      D.incidents.forEach(i=>{ const a=by[i.sev]||(by[i.sev]=Array(n).fill(0));
+        (i.d||[]).forEach(e=>{ const k=+e[0]; if(k>=0 && k<n) a[k]+=n0(e[1]); }); });
+      const smooth=n>21;
+      const ma=a=>a.map((v,i)=>{ const lo=Math.max(0,i-6), s=a.slice(lo,i+1); return s.reduce((x,y)=>x+y,0)/s.length; });
+      const lines=SEV.filter(([key])=>by[key] && by[key].some(v=>v>0)).map(([key,letter,col])=>{ const raw=by[key].slice().reverse(); return {key, letter, col, raw, pts:smooth? ma(raw) : raw}; });
+      if(!lines.length) return null;
+      const total=lines.reduce((t,l)=>t+l.raw.reduce((a,b)=>a+b,0),0);
+      const mx=Math.max(...lines.map(l=>Math.max(...l.pts)),1), w=200, h=30;
+      const path=l=>l.pts.map((v,i)=>(n<2? 0 : i/(n-1)*w).toFixed(1)+','+(h-2-(v/mx)*(h-4)).toFixed(1)).join(' ');
+      const tip=WIN.w()+(smooth? ' (7-day average lines)' : '')+': '+lines.map(l=>l.letter+' '+l.raw.reduce((a,b)=>a+b,0).toLocaleString('en-GB')).join(', ');
+      const avg=total/n;
+      return {
+        value: (avg>=10? Math.round(avg).toLocaleString('en-GB') : avg.toFixed(1))+'<small>a day</small>',
+        chart: '<svg class="lc-sev" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" role="img" aria-label="'+esc('Incidents a day by severity, '+tip)+'"><title>'+esc(tip)+'</title>'+
+          lines.map(l=>'<polyline points="'+path(l)+'" fill="none" stroke="var(--lc-halo)" stroke-width="3" vector-effect="non-scaling-stroke"/>'+
+            '<polyline points="'+path(l)+'" fill="none" stroke="'+l.col+'" stroke-width="1.6" vector-effect="non-scaling-stroke"/>').join('')+'</svg>'+
+          '<div class="lc-axis"><span>'+esc(WIN.d())+' ago</span><span>Today</span></div>'
+      };
     })();
     document.getElementById('lcStrip').innerHTML=
       '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':(avg>=10?Math.round(avg).toLocaleString('en-GB'):avg.toFixed(1))+'<small>GB / day</small>')+'</div>'+spark(daily)+'</div>'+
       '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+
         (split? num(aSen)+' Sentinel, '+num(aXdr)+' XDR alerts' : num(alerts)+' alerts, '+num(incidents)+' incidents')+'</div></div>'+
-      '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+(openTrend||chips)+'</div>'+
+      (incTrend? '<div class="lc-kpi"><div class="k">Incidents</div><div class="v">'+incTrend.value+'</div>'+incTrend.chart+'<div class="s">'+num(open)+' still open</div></div>'
+               : '<div class="lc-kpi"><div class="k">Open incidents</div><div class="v">'+num(open)+'</div>'+chips+'</div>')+
       '<div class="lc-kpi"><div class="k">Mean time to resolve</div><div class="v">'+dur(C.mttrMinutes)+'</div><div class="s">Closed incidents, '+win+'</div></div>'+
       '<div class="lc-kpi"><div class="k">Closed by automation</div><div class="v">'+(auto==null? 'n/a' : closed>0? Math.round(auto/closed*100)+'<small>%</small>' : '0<small>%</small>')+'</div><div class="s">'+
         (auto==null? 'Not captured in this snapshot' : num(auto)+' of '+num(closed)+' closed')+'</div></div>';

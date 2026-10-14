@@ -241,15 +241,16 @@ Describe 'The dashboard re-scopes its cards to the slider''s window' {
         $script:html | Should -Not -Match "querySelector\('\[data-view=""'\+SAVED"
     }
 
-    It 'shows the open incidents by age in the window, falling back to the severity chips' {
-        $script:html | Should -Match 'const openTrend=\(function\(\)\{'
-        $script:html | Should -Match "if\(i\.st==='Closed'\) return;"
-        # Four age bands; those past the window drop out.
-        $script:html | Should -Match "\['<1d','Under a day',0,0,"
-        $script:html | Should -Match "\['30d\+','Over 30 days',31,Infinity,"
-        $script:html | Should -Match '\.filter\(b=>b\[2\]<n\)'
-        $script:html | Should -Match "'Longest untouched: '\+WIN\.words\(oldest\)"
-        $script:html | Should -Match "\+\(openTrend\|\|chips\)\+"
+    It 'draws incidents a day across the window, a line per severity, falling back to the open count and chips' {
+        $script:html | Should -Match 'const incTrend=\(function\(\)\{'
+        # Every incident in the window by day, one line per severity in its colour.
+        $script:html | Should -Match 'pts:smooth\? ma\(raw\) : raw'
+        $script:html | Should -Match 'const smooth=n>21;'
+        $script:html | Should -Match 'stroke="''\+l\.col\+''"'
+        $script:html | Should -Match '<svg class="lc-sev" viewBox'
+        $script:html | Should -Match "<small>a day</small>"
+        $script:html | Should -Match "\+num\(open\)\+' still open</div>"
+        $script:html | Should -Match '<div class="k">Open incidents</div><div class="v">''\+num\(open\)\+''</div>''\+chips'
     }
 
     It 'labels what keeps the collected window' {
