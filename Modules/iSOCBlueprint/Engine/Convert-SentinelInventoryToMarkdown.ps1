@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.6.8
+    Version:        0.6.9
     Last Updated:   2026-10-14
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -3749,6 +3749,9 @@ function _EscapeMdListItem {
 function _FormatGapEvidence {
     param([string]$Evidence)
     if (-not $Evidence) { return '_(none)_' }
+    # A snapshot collected before the gap checks named unnamed principals
+    # holds "?" for them; say so in words rather than print the "?".
+    $Evidence = [regex]::Replace($Evidence, '(?<=[:;]\s)\?(?=\s*(;|\.?\s*$))', 'Unnamed (no name in this snapshot)')
     # Threshold: only expand to bullets when the evidence is both long
     # AND list-shaped (4+ semicolons). Short evidence ("X 75% threshold
     # exceeded") stays inline.
@@ -6652,61 +6655,93 @@ Write-Section '89-retention.md' $retentionBody
 
 # Section 96 — User-facing Microsoft references (TOC 6.x)
 Write-Section '96-references-microsoft.md' (@"
-$(Format-Banner -Title "Useful Microsoft References")
+$(Format-Banner -Title "Microsoft References")
 
-Curated Microsoft Learn entry points for the topics covered in this report. Distinct from [99-references.md](99-references.md), which catalogues the API versions and modules the Blueprint itself depends on.
+Microsoft Learn pages for the topics this report covers, grouped by topic, the best-practice pages its findings link to among them. The Blueprint's own API versions, services, modules and queries are on [99-references.md](99-references.md).
 
 ## Microsoft Sentinel
 
-- [Microsoft Sentinel documentation](https://learn.microsoft.com/azure/sentinel/) — landing page
-- [Best practices](https://learn.microsoft.com/azure/sentinel/best-practices)
-- [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources) — training paths
-- [Move to Microsoft Defender XDR](https://learn.microsoft.com/azure/sentinel/move-to-defender) — 2027-03-31 portal retirement
+| Page | Use it for |
+| --- | --- |
+| [Microsoft Sentinel documentation](https://learn.microsoft.com/azure/sentinel/) | The starting point for every Sentinel topic |
+| [Best practices](https://learn.microsoft.com/azure/sentinel/best-practices) | Microsoft's recommendations for running Sentinel, which the findings measure against |
+| [Deployment guide](https://learn.microsoft.com/azure/sentinel/deploy-overview) | Planning and rolling out a workspace, step by step |
+| [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources) | Training paths for analysts and engineers |
+| [Move to the Defender portal](https://learn.microsoft.com/azure/sentinel/move-to-defender) | The move to the unified portal, as Sentinel in the Azure portal retires on 31 March 2027 |
+| [Manage data overview](https://learn.microsoft.com/azure/sentinel/manage-data-overview) | How Sentinel stores, tiers and keeps data |
 
-## Connectors
+## Workspace design and resilience
 
-- [Data connectors reference](https://learn.microsoft.com/azure/sentinel/data-connectors-reference)
-- [Connector prioritisation guide](https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors)
-- [Tables ↔ connectors map](https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference)
-- [Connector health monitoring](https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health)
-- [Codeless Connector Framework authoring](https://learn.microsoft.com/azure/sentinel/create-codeless-connector)
+| Page | Use it for |
+| --- | --- |
+| [Workspace design](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design) | Choosing how many workspaces, where, and for whom |
+| [Sample workspace designs](https://learn.microsoft.com/azure/sentinel/sample-workspace-designs) | Worked designs for common organisations |
+| [Workspace replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication) | Keeping ingestion and queries running through a regional outage |
+| [Dedicated clusters](https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters) | When a dedicated cluster pays off, and what it adds |
+| [Customer-managed keys](https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys) | Encrypting workspace data with your own key |
+| [Azure Monitor Private Link Scope (AMPLS)](https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security) | Keeping ingestion and queries on private networks |
 
-## Troubleshooting
+## Data connectors and coverage
 
-- [Sentinel health, audit, and monitoring](https://learn.microsoft.com/azure/sentinel/health-audit)
-- [Workspace replication](https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication)
-- [Logs ingestion troubleshooting](https://learn.microsoft.com/azure/azure-monitor/logs/data-ingestion-time)
+| Page | Use it for |
+| --- | --- |
+| [Data connectors reference](https://learn.microsoft.com/azure/sentinel/data-connectors-reference) | Every connector, what it collects and what it needs |
+| [Prioritise data connectors](https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors) | Which sources to connect first |
+| [Tables and connectors map](https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference) | Which connector fills which table |
+| [Monitor connector health](https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health) | Health monitoring for connectors with SentinelHealth |
+| [Codeless Connector Framework](https://learn.microsoft.com/azure/sentinel/create-codeless-connector) | Building a connector without code |
+| [MITRE ATT&CK coverage](https://learn.microsoft.com/azure/sentinel/mitre-coverage) | Viewing detection coverage against MITRE ATT&CK |
 
-## Log Analytics and KQL
+## Content and automation
 
-- [Log Analytics overview](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview)
-- [KQL quick reference](https://learn.microsoft.com/azure/data-explorer/kql-quick-reference)
-- [KQL tutorial](https://learn.microsoft.com/azure/azure-monitor/logs/get-started-queries)
-- [Table plans (Analytics / Basic / Auxiliary / DataLake)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans)
-- [Retention and archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive)
-- [Data collection rules](https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview)
-- [Data export](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export)
+| Page | Use it for |
+| --- | --- |
+| [Content Hub solutions](https://learn.microsoft.com/azure/sentinel/sentinel-solutions) | Installing and keeping solutions current |
+| [Repositories (CI/CD)](https://learn.microsoft.com/azure/sentinel/ci-cd) | Deploying content from source control |
+| [Custom content in CI/CD](https://learn.microsoft.com/azure/sentinel/ci-cd-custom-content) | Customising repository deployments |
+| [Automate responses with playbooks](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks) | Playbooks and how automation rules call them |
+| [Logic Apps documentation](https://learn.microsoft.com/azure/logic-apps/) | The platform playbooks run on |
 
-## Microsoft Sentinel pricing and cost
+## Log Analytics, tables and retention
 
-- [Sentinel billing overview](https://learn.microsoft.com/azure/sentinel/billing)
-- [Reduce Sentinel costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs)
-- [Monitor Sentinel costs](https://learn.microsoft.com/azure/sentinel/billing-monitor-costs)
-- [Cost logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs)
-- [Daily cap](https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap)
-- [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
+| Page | Use it for |
+| --- | --- |
+| [Log Analytics overview](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview) | Querying workspace data in the portal |
+| [KQL quick reference](https://learn.microsoft.com/azure/data-explorer/kql-quick-reference) | The query language at a glance |
+| [Get started with log queries](https://learn.microsoft.com/azure/azure-monitor/logs/get-started-queries) | A first KQL tutorial |
+| [Table plans](https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans) | Analytics, Basic and Auxiliary plans, and what each allows |
+| [Configure Basic logs](https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure) | Moving a table to the Basic plan |
+| [Retention and archive](https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive) | Interactive and total retention per table |
+| [Manage table tiers and retention](https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention) | Sentinel's view of tiers and retention, the data lake included |
+| [Microsoft Sentinel data lake](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview) | Long-term, low-cost storage that stays queryable |
+| [Data collection rules](https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview) | How data is collected, transformed and routed |
+| [Data export](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export) | Continuous export to storage or Event Hubs |
 
-## Logic Apps and playbooks
+## Cost
 
-- [Automate threat response with playbooks](https://learn.microsoft.com/azure/sentinel/automation/automate-responses-with-playbooks)
-- [Logic Apps documentation](https://learn.microsoft.com/azure/logic-apps/)
+| Page | Use it for |
+| --- | --- |
+| [Plan costs and understand billing](https://learn.microsoft.com/azure/sentinel/billing) | How Sentinel and Log Analytics charge |
+| [Reduce costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs) | Commitment tiers, table plans and filtering |
+| [Monitor costs](https://learn.microsoft.com/azure/sentinel/billing-monitor-costs) | Tracking spend and ingestion over time |
+| [Azure Monitor cost best practices](https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost) | Cost recommendations across Azure Monitor |
+| [Cost of logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs) | Pricing for ingestion, retention and queries |
+| [Daily cap](https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap) | Capping daily ingestion, and what it stops |
+| [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) | The price list the cost estimate reads |
 
-## Azure security context
+## Health and troubleshooting
 
-- [Sentinel roles and permissions](https://learn.microsoft.com/azure/sentinel/roles)
-- [Defender XDR](https://learn.microsoft.com/defender-xdr/)
-- [Azure Monitor Private Link Scope (AMPLS)](https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security)
-- [Customer-managed keys](https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys)
+| Page | Use it for |
+| --- | --- |
+| [Health, audit and monitoring](https://learn.microsoft.com/azure/sentinel/health-audit) | SentinelHealth and SentinelAudit, and what they record |
+| [Log data ingestion time](https://learn.microsoft.com/azure/azure-monitor/logs/data-ingestion-time) | Why data arrives late, and how to measure it |
+
+## Access and the wider platform
+
+| Page | Use it for |
+| --- | --- |
+| [Roles and permissions](https://learn.microsoft.com/azure/sentinel/roles) | Sentinel's built-in roles and what each can do |
+| [Microsoft Defender XDR documentation](https://learn.microsoft.com/defender-xdr/) | The unified security platform Sentinel joins |
 "@)
 
 # ---------------------------------------------------------------------------
@@ -6771,7 +6806,7 @@ Sections are numbered to match the formal Sentinel Configuration TOC where appli
 | [89-retention.md](89-retention.md) | 4.3.2 | Retention checks, per-table overrides, retention that rolls into the lake, ingestion validation |
 | [90-gap-analysis.md](90-gap-analysis.md) | - | Findings against MS Learn best practices |
 | [91-maturity-assessment.md](91-maturity-assessment.md) | - | Maturity by area, roadmap, quick wins, NIST CSF rollup |
-| [96-references-microsoft.md](96-references-microsoft.md) | 6 | User-facing Microsoft references |
+| [96-references-microsoft.md](96-references-microsoft.md) | 6 | Microsoft Learn pages by topic, best practices included |
 | [99-references.md](99-references.md) | - | Blueprint's own API versions and modules |
 "@
 Write-Section 'index.md' $indexBody

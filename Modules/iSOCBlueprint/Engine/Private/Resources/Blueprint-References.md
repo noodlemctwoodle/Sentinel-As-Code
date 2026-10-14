@@ -1,7 +1,7 @@
 # Conventions
 
-A durable record of the API versions, modules, KQL queries and Microsoft Learn pages the
-Blueprint depends on. When something in Microsoft's surface area changes, this page is
+A durable record of the API versions, services, modules and KQL queries the Blueprint
+depends on. When something in Microsoft's surface area changes, this page is
 the first thing to update; the change then ripples through `Blueprint.psd1`, the inline
 api-version table in `Export-SentinelInventory.ps1`, `Private/Invoke-SentinelRest.ps1`,
 and the gap-rule resources.
@@ -30,8 +30,8 @@ literal string.
 
 | Surface | Version | `$apiVersions` key | Why |
 |---|---|---|---|
-| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers connectors, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, settings, threat-intelligence metrics. |
-| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations, `pricings` resource, `hunts`. |
+| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers onboarding state, data connectors and connector definitions, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, workbook content templates, settings and threat-intelligence metrics, and is the first version tried for `pricings`, `sourceControls` and `taxiiClients`. |
+| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations, `hunts`, and the `pricings` resource when the GA version refuses it. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
 | `Microsoft.OperationalInsights/workspaces/tables` | `2025-02-01` (falls back to `2023-09-01`) | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`, and on the newer version `schema.tableSubType` (Classic or DCR-based), `lastPlanModifiedDate` and the `*AsDefault` retention flags. A region that does not serve the newer version gets the older one, with a warning in the run log. |
 | `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms; REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
@@ -51,7 +51,8 @@ needs bumping.
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
 | `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |
 | `Microsoft.Insights/diagnosticSettings` | `2021-05-01-preview` | `diagnostic-settings` |
-| Dedicated cluster resource + `Microsoft.ResourceGraph/resources` | `2022-10-01` | `dedicated-cluster` |
+| `Microsoft.OperationalInsights/clusters` (the linked dedicated cluster) | `2022-10-01` | `dedicated-cluster` |
+| `Microsoft.ResourceGraph/resources` (POST, Sentinel data lake resources across the visible subscriptions) | `2022-10-01` | `sentinel-data-lake` |
 | `Microsoft.OperationsManagement/solutions` | `2015-11-01-preview` | `solutions-installed` |
 | `Microsoft.Authorization/locks` (workspace scope) | `2016-09-01` | `workspace-locks` |
 | `.../availableServiceTiers` | `2020-08-01` | `available-service-tiers` |
@@ -64,10 +65,27 @@ different cadence than the rest of Sentinel and the GA Sentinel pin returns
 `2024-09-01` (the `Sentinel` pin) → `2023-11-01` → `2023-06-01-preview` → `2022-12-01-preview`,
 and treats any 4xx as "feature not present" rather than a failure.
 
+### Other services
+
+Beyond Azure Resource Manager, the Blueprint calls these services. None of them takes an
+api-version from the tables above.
+
+| Service | Endpoint | Used by | Notes |
+|---|---|---|---|
+| Log Analytics query API | `Invoke-AzOperationalInsightsQuery` (`api.loganalytics.io/v1`) | The 38 KQL captures below | Workspace-scoped and read-only; needs Log Analytics Reader. |
+| Microsoft Graph (beta) | `https://graph.microsoft.com/beta/security/rules/detectionRules`, paged on `@odata.nextLink` | `defender-custom-detections` | Needs `CustomDetection.Read.All`. A Graph PowerShell SDK session is used when one exists, otherwise the Azure PowerShell context; a 401 or 403 is a failed capture, not an empty list. |
+| Azure Retail Prices API | `https://prices.azure.com/api/retail/prices` with an OData `$filter` | `retail-prices` (the cost estimate) | Anonymous, no authentication header. |
+| Microsoft Learn | The Microsoft Sentinel and Defender XDR What's new pages, read as Markdown (`Accept: text/markdown`) | `whats-new`, `Get-iSOCBlueprintWhatsNew` | Public pages. A page that cannot be read is recorded and the other is still read. |
+| Sentinel-As-Code Toolkit (GitHub) | `https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json` | `Update-iSOCBlueprintConnectorCatalogue` (maintainers) | Refreshes the bundled connector catalogue; never called during a run. |
+| SharePoint Online | PnP.PowerShell 3.4.1 cmdlets (sites, lists, files, pages and web parts, navigation, the site collection app catalogue, Entra app site permissions), plus `/_api/web/sitecollectionappcatalog/AvailableApps` through `Invoke-PnPSPRestMethod` | `Publish-iSOCBlueprintSite`, `Initialize-iSOCBlueprintSite` | Publishing signs in interactively or with a SharePoint access token (audience `https://<tenant>.sharepoint.com`); initialising also needs the tenant admin site. |
+
 ## Modules
 
-Pinned in the `Modules` block of `Blueprint.psd1`: `Az.Accounts`, `Az.SecurityInsights`,
+Pinned in the `Modules` block of `Engine/Blueprint.psd1`: `Az.Accounts`, `Az.SecurityInsights`,
 `Az.OperationalInsights`, `Az.Monitor`, `Az.Resources`, `Az.LogicApp` and `powershell-yaml`.
+The SharePoint commands also need PnP.PowerShell 3.4.1 on PowerShell 7.4, and the Defender
+custom detection capture uses the Graph PowerShell SDK (`Microsoft.Graph.Authentication`)
+when it is loaded. `Test-iSOCBlueprintPrerequisite` reports what a machine has.
 
 The collector is **REST-first end to end**. Every Sentinel and Log Analytics artefact
 (alert rules, alert-rule templates, automation rules, watchlists, bookmarks, metadata,
@@ -214,10 +232,12 @@ Grouped by purpose:
 
 **Analytics and threat intelligence**
 
-- `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert` (grouped by
-  `AlertName`, `ProductName`, `AlertSeverity`, every row so the pack and the
-  dashboard list every alerting rule rather than a top fifty), with the provider and the
-  last 7 days' count beside the 30-day total.
+- `analytics-rule-volumes` - per-rule alert volume from `SecurityAlert`, each alert counted
+  once (its first record in the window, by `SystemAlertId`, however often a status change
+  wrote it again), grouped by `AlertName`, `ProductName`, `AlertSeverity` (every row, so the
+  pack and the dashboard list every alerting rule rather than a top fifty), with the provider
+  and the last 7 days' count beside the 30-day total. Summed, it gives the alerts in the
+  dashboard's alert lifecycle and estate flow, split into Sentinel's and Defender XDR's.
 - `rules-fired` - alerts in 30 days per Scheduled or NRT rule, keyed on the rule id rather
   than the alert name, so renamed rules and rules sharing a name are told apart.
 - `threat-intel-counts` - threat-intelligence records and distinct indicators per source
@@ -291,42 +311,11 @@ is built on:
    | where Failures > 0
    ```
 
-## Best-practice Microsoft Learn pages
+## Microsoft Learn pages
 
-Linked from `90-gap-analysis.md` and individual section pages.
-
-- Sentinel best practices: <https://learn.microsoft.com/azure/sentinel/best-practices>
-- Deployment guide: <https://learn.microsoft.com/azure/sentinel/deploy-overview>
-- Skill-up training: <https://learn.microsoft.com/azure/sentinel/skill-up-resources>
-- Workspace design: <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-design>
-- Sample workspace designs: <https://learn.microsoft.com/azure/sentinel/sample-workspace-designs>
-- MITRE coverage: <https://learn.microsoft.com/azure/sentinel/mitre-coverage>
-- Connector reference: <https://learn.microsoft.com/azure/sentinel/data-connectors-reference>
-- Connector prioritisation: <https://learn.microsoft.com/azure/sentinel/prioritize-data-connectors>
-- Tables ↔ connectors map: <https://learn.microsoft.com/azure/sentinel/sentinel-tables-connectors-reference>
-- Cost optimisation: <https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost>
-- Cost logs: <https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs>
-- Daily cap: <https://learn.microsoft.com/azure/azure-monitor/logs/daily-cap>
-- Table plans: <https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans>
-- Basic logs configuration: <https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure>
-- Retention & archive: <https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-archive>
-- Sentinel Data Lake overview: <https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview>
-- Sentinel billing: <https://learn.microsoft.com/azure/sentinel/billing>
-- Sentinel reduce costs: <https://learn.microsoft.com/azure/sentinel/billing-reduce-costs>
-- Sentinel monitor costs: <https://learn.microsoft.com/azure/sentinel/billing-monitor-costs>
-- Roles & permissions: <https://learn.microsoft.com/azure/sentinel/roles>
-- Content Hub: <https://learn.microsoft.com/azure/sentinel/sentinel-solutions>
-- CCF authoring: <https://learn.microsoft.com/azure/sentinel/create-codeless-connector>
-- CI/CD: <https://learn.microsoft.com/azure/sentinel/ci-cd>
-- Custom content CI/CD: <https://learn.microsoft.com/azure/sentinel/ci-cd-custom-content>
-- Connector health monitoring: <https://learn.microsoft.com/azure/sentinel/monitor-data-connectors-health>
-- Workspace replication: <https://learn.microsoft.com/azure/azure-monitor/logs/workspace-replication>
-- Dedicated clusters: <https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters>
-- Customer-managed keys: <https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys>
-- Private Link Scope (AMPLS): <https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security>
-- Manage data overview: <https://learn.microsoft.com/azure/sentinel/manage-data-overview>
-- Manage table tiers & retention: <https://learn.microsoft.com/azure/sentinel/manage-table-tiers-retention>
-- Defender migration: <https://learn.microsoft.com/azure/sentinel/move-to-defender>
+The Microsoft Learn pages the findings and report pages link to, the best-practice pages
+among them, are listed by topic on the report's Microsoft References page
+(`96-references-microsoft.md`).
 
 ## Azure Retail Prices API
 

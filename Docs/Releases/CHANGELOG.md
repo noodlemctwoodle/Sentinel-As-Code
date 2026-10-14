@@ -6,6 +6,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Conventions brought up to date; Microsoft References reorganised** - the
+  Conventions page now lists every API the Blueprint calls: the Sentinel
+  endpoints it was missing (onboarding state, connector definitions,
+  workbook content templates, the pricings fallback), Resource Graph under
+  the data lake capture where it belongs, and a new Other services table
+  (the Log Analytics query API, Microsoft Graph for custom detections, the
+  Azure Retail Prices API, Microsoft Learn's What's new Markdown, the
+  Toolkit's connector catalogue and SharePoint through PnP). Its
+  best-practice Learn links move to the report's Microsoft References page
+  (renamed from Useful Microsoft References), which now tables every Learn
+  page by topic with what each is for, each link once.
+- **No "?" for an unnamed principal** - findings from a snapshot collected
+  before unnamed principals were named showed "?" in their evidence; the
+  report and the SharePoint site now say "Unnamed (no name in this
+  snapshot)". A new collection names them by object id.
 - **Detection matrix on the Data flow tab** - every enabled analytics rule
   and Defender XDR custom detection that reads a workspace table, one row
   each: the source families (or every table) it reads, its health (Working,

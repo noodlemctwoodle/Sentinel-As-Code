@@ -203,8 +203,8 @@ SecurityDocs/
         ├── 89-retention.md                retention checks, per-table overrides, retention that rolls into the lake, ingestion validation
         ├── 90-gap-analysis.md             every finding with remediation + Learn link
         ├── 91-maturity-assessment.md     maturity scale, maturity by area, open gaps and their impact, roadmap, quick wins, NIST CSF rollup
-        ├── 96-references-microsoft.md     curated Microsoft Learn entry points (user-facing)
-        └── 99-references.md               blueprint's own API versions + modules (copied from Blueprint-References.md)
+        ├── 96-references-microsoft.md     Microsoft References: Microsoft Learn pages by topic, best practices included
+        └── 99-references.md               Conventions: the Blueprint's own API versions, services, modules and queries (copied from Blueprint-References.md)
 ```
 
 Sections are numbered to line up with the formal Sentinel Configuration TOC where

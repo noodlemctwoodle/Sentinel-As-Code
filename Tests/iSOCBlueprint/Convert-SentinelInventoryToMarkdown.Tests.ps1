@@ -1295,6 +1295,38 @@ Describe 'iSOC Blueprint renderer' {
         }
     }
 
+    Context '96-references-microsoft.md lists Microsoft Learn by topic' {
+        BeforeAll { $script:ref96 = Get-Content (Join-Path $script:tempWsRoot '96-references-microsoft.md') -Raw }
+
+        It 'is titled Microsoft References and tables its pages by topic, with what each is for' {
+            (Get-Content (Join-Path $script:tempWsRoot '96-references-microsoft.md') -First 1) | Should -Be '# Microsoft References'
+            foreach ($h in 'Microsoft Sentinel', 'Workspace design and resilience', 'Data connectors and coverage', 'Content and automation', 'Log Analytics, tables and retention', 'Cost', 'Health and troubleshooting', 'Access and the wider platform') {
+                $script:ref96 | Should -Match ('(?m)^## ' + [regex]::Escape($h) + '\r?$') -Because $h
+            }
+            $script:ref96 | Should -Match '\| Page \| Use it for \|'
+        }
+
+        It 'carries the best-practice pages the Conventions page used to list, each once' {
+            foreach ($u in '/azure/sentinel/best-practices', '/azure/sentinel/deploy-overview', '/azure/azure-monitor/logs/workspace-design', '/azure/sentinel/mitre-coverage', '/azure/azure-monitor/fundamentals/best-practices-cost', '/azure/sentinel/datalake/sentinel-lake-overview', '/azure/sentinel/ci-cd-custom-content', '/azure/azure-monitor/logs/logs-dedicated-clusters') {
+                ([regex]::Matches($script:ref96, [regex]::Escape('https://learn.microsoft.com' + $u + ')'))).Count | Should -Be 1 -Because $u
+            }
+            $script:ref96 | Should -Not -Match ([string][char]0x2014)
+            # No semicolon in a description: the report would read it as a list of chips.
+            @($script:ref96 -split "`n" | Where-Object { $_ -match '^\| \[' -and ($_ -split '\) \|', 2)[1] -match ';' }).Count | Should -Be 0
+        }
+
+        It 'points to Conventions, which no longer lists Learn pages itself' {
+            $script:ref96 | Should -Match '\[99-references\.md\]\(99-references\.md\)'
+            $conv = Get-Content (Join-Path $script:tempWsRoot '99-references.md') -Raw
+            $conv | Should -Not -Match '## Best-practice Microsoft Learn pages'
+            $conv | Should -Match '## Microsoft Learn pages'
+            $conv | Should -Match '### Other services'
+            $conv | Should -Match 'graph\.microsoft\.com/beta/security/rules/detectionRules'
+            $conv | Should -Match 'prices\.azure\.com/api/retail/prices'
+            $conv | Should -Match '`sentinel-data-lake`'
+        }
+    }
+
     Context '99-references.md is a copy of Blueprint-References.md' {
         It 'exists and contains the API versions table' {
             $p = Join-Path $script:tempWsRoot '99-references.md'
@@ -1848,6 +1880,15 @@ Describe 'Gap evidence lists keep a name that starts with a Markdown marker as t
             $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true)
             . ([scriptblock]::Create($fn.Extent.Text))
         }
+    }
+
+    It 'words an older snapshot''s "?" for an unnamed principal, and leaves a real question mark alone' {
+        $ev = '28 service principal(s) hold Owner or Contributor at workspace scope: ?; App one; App two; ?; App three; ?.'
+        $md = _FormatGapEvidence $ev
+        $md | Should -Not -Match '(?m)^  - \?\.?$'
+        ([regex]::Matches($md, 'Unnamed \(no name in this snapshot\)')).Count | Should -Be 3
+        $md | Should -Match '(?m)^  - App one$'
+        _FormatGapEvidence 'Is the cap set? No.' | Should -Be 'Is the cap set? No.'
     }
 
     It 'escapes a leading bullet, heading, quote or number marker' {

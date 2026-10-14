@@ -601,7 +601,8 @@ foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.Contains
         title       = $f.Title
         severity    = [string]$f.Severity
         category    = [string]$f.Category
-        evidence    = $f.Evidence
+        # An older snapshot's "?" for an unnamed principal, in words, as on the report page.
+        evidence    = $(if ($f.Evidence) { [regex]::Replace([string]$f.Evidence, '(?<=[:;]\s)\?(?=\s*(;|\.?\s*$))', 'Unnamed (no name in this snapshot)') } else { $f.Evidence })
         remediation = $f.Remediation
         learn       = $f.Learn
         maturity    = @($(if ($findingMaturity.ContainsKey([string]$f.Id)) { @($findingMaturity[[string]$f.Id]) } else { @() }) | ForEach-Object {

@@ -1085,11 +1085,18 @@ Describe 'Detection outcomes and template solutions in the site build' {
             @{ properties = @{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $dep 'tmpl-low-noise') } }
             @{ properties = @{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = 'false' } }
         ) | ConvertTo-Json -Depth 10 -AsArray | Set-Content (Join-Path $wsd '_raw/content-product-packages.json')
+        # A finding from an older snapshot, with "?" for unnamed principals.
+        $gp = Join-Path $wsd '_raw/gap-analysis.json'
+        $g = @(Get-Content $gp -Raw | ConvertFrom-Json)
+        $g[0].Evidence = '3 service principal(s) hold Owner or Contributor at workspace scope: ?; App one; ?.'
+        ConvertTo-Json -InputObject $g -Depth 10 | Set-Content $gp
+        $script:doGapId = $g[0].Id
         & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName 'law-do' -InputRoot $wsd -OutputRoot $wsd `
             -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -OutputFormat Json -InformationAction SilentlyContinue *> $null
         $b = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $wsd -SkipWhatsNew 6> $null
         $script:doModel = Get-Content (Join-Path $b 'model.json') -Raw | ConvertFrom-Json
         $script:doHtml = Get-Content (Join-Path $b 'index.html') -Raw
+        $script:doFindings = Get-Content (Join-Path $b 'findings.json') -Raw | ConvertFrom-Json
     }
     AfterAll { if ($script:doDir -and (Test-Path $script:doDir)) { Remove-Item $script:doDir -Recurse -Force } }
 
@@ -1115,6 +1122,11 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $office.templates[0].solution | Should -Be 'Microsoft 365'
         $sec = $script:doModel.detectionOpportunities | Where-Object table -eq 'SecurityEvent'
         @($sec.templates.name) | Should -Not -Contain 'Low-severity noise'
+    }
+
+    It 'words an older snapshot''s "?" for an unnamed principal in the findings' {
+        $f = @($script:doFindings.items) + @($script:doFindings) | Where-Object { $_ -and $_.PSObject.Properties['id'] -and $_.id -eq $script:doGapId } | Select-Object -First 1
+        $f.evidence | Should -Be '3 service principal(s) hold Owner or Contributor at workspace scope: Unnamed (no name in this snapshot); App one; Unnamed (no name in this snapshot).'
     }
 
     It 'maps every table the rules read to its source family, for the matrix''s columns' {
