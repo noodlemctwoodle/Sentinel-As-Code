@@ -75,7 +75,7 @@ with `workflow_dispatch` for on-demand runs.
 
 | Input | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `include-preview` | boolean | `false` | Passes `-IncludePreview` to the collector (Content Hub product packages, summary rules, pricings, data lake feature flag). |
+| `include-preview` | boolean | `false` | Passes `-IncludePreview` to the collector (Content Hub product packages, summary rules, data lake feature flag). |
 | `open-pull-request` | boolean | `true` | Whether to open / refresh the rolling docs PR after the artefact is uploaded. On a scheduled run the PR always opens (subject to the private-repo guard). |
 | `target-maturity-level` | choice (`1` to `5`) | `3` | Passed to the collector as `-TargetMaturityLevel`: the level the maturity assessment measures the workspace against (see [Sentinel-Maturity-Model.md](../Modules/iSOCBlueprint/Sentinel-Maturity-Model.md)). Scheduled runs use the default. |
 | `lookback-days` | number (`1` to `730`) | `30` | Passed to the collector as `-LookbackDays`: the days of activity every KQL capture reads. Scheduled runs read the `BLUEPRINT_LOOKBACK_DAYS` repository variable, else 30. The report's pages, the dashboard's cards and the findings name this window. |

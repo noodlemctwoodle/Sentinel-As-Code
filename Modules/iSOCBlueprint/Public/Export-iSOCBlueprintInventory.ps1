@@ -71,7 +71,7 @@ function Export-iSOCBlueprintInventory {
 
     .PARAMETER IncludePreview
         Use the preview API version where one adds data (Content Hub product
-        packages, summary rules, pricings).
+        packages, summary rules).
 
     .PARAMETER TargetMaturityLevel
         Maturity level, 1 to 5, the workspace is aiming for. Sets the gap

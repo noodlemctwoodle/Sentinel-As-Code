@@ -66,8 +66,8 @@
 #   Pipelines -> Sentinel-Blueprint -> Run pipeline. Tick the outputs you
 #   want; the SharePoint site and the Markdown pull request are ticked by
 #   default. 'Collector: include preview APIs' (on by default) adds Content
-#   Hub product packages, summary rules, pricings and the Sentinel Data Lake
-#   feature flag. Untick 'Export: SharePoint site' for a workspace that has
+#   Hub product packages, summary rules and the Sentinel Data Lake feature
+#   flag. Untick 'Export: SharePoint site' for a workspace that has
 #   no site or no sc-sentinel-sharepoint connection.
 #
 # Output review:
@@ -145,8 +145,8 @@ parameters:
     type: boolean
     default: true
 
-  # Content Hub product packages, summary rules, pricings and the Sentinel
-  # Data Lake feature flag.
+  # Content Hub product packages, summary rules and the Sentinel Data Lake
+  # feature flag.
   - name: includePreview
     displayName: "Collector: include preview APIs"
     type: boolean

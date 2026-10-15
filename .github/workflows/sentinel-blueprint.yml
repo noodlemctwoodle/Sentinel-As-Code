@@ -60,7 +60,7 @@ on:
   workflow_dispatch:
     inputs:
       include-preview:
-        description: "Include preview API surface (Content Hub product packages, summary rules, pricings, data lake)"
+        description: "Include preview API surface (Content Hub product packages, summary rules, data lake)"
         type: boolean
         default: false
       open-pull-request:

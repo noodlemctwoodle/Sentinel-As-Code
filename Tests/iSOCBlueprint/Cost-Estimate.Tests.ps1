@@ -48,7 +48,7 @@ BeforeAll {
     $script:Classic = @($script:Simplified | Where-Object { $_.serviceName -eq 'Log Analytics' })
 
     # A workspace: tables as @{ Name = @(GB over 30 days, plan) }.
-    function Invoke-Estimate([hashtable]$Tables, [object[]]$Prices, [string]$Sku = 'PerGB2018', [int]$Level = 0, [switch]$Lake) {
+    function Invoke-Estimate([hashtable]$Tables, [object[]]$Prices, [string]$Sku = 'PerGB2018', [int]$Level = 0, [switch]$Lake, [string]$SentinelSku = '') {
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-cost-" + [guid]::NewGuid())
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $tw = @(foreach ($k in $Tables.Keys) { [ordered]@{ DataType = $k; BillableLast30d = [double]$Tables[$k][0] } })
@@ -60,6 +60,7 @@ BeforeAll {
         ConvertTo-Json -InputObject ([ordered]@{ LookbackDays = 30 }) | Set-Content (Join-Path $dir 'run-context.json')
         ConvertTo-Json -InputObject ([ordered]@{ FetchedAtUtc = '2026-10-14T09:00:00Z'; Region = 'uksouth'; Prices = @($Prices | ForEach-Object { $_ + @{ currencyCode = 'GBP' } }) }) -Depth 5 | Set-Content (Join-Path $dir 'retail-prices.json')
         if ($Lake) { ConvertTo-Json -InputObject @(@{ name = 'default' }) | Set-Content (Join-Path $dir 'sentinel-data-lake.json') }
+        if ($SentinelSku) { ConvertTo-Json -InputObject @([ordered]@{ name = 'SecurityInsights(ws)'; plan = [ordered]@{ product = 'OMSGallery/SecurityInsights' }; properties = [ordered]@{ sku = [ordered]@{ name = $SentinelSku } } }) -Depth 5 | Set-Content (Join-Path $dir 'solutions-installed.json') }
         try { Get-SentinelCostEstimate -InputRoot $dir -ResourcesRoot $script:resources } finally { Remove-Item $dir -Recurse -Force }
     }
     function Get-Row($Estimate, [string]$Table) { @($Estimate.AllTablesByCost | Where-Object Table -eq $Table)[0] }
@@ -85,6 +86,18 @@ Describe 'Pricing by plan' {
         $e = Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified
         $e.PricingModel | Should -Be 'Simplified'
         (Get-Row $e 'CommonSecurityLog').MonthlyCost | Should -Be ([math]::Round(300 * 4.0605, 2))
+    }
+
+    It 'records how the workspace is billed, from the Sentinel solution''s SKU' {
+        (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'Unified').BilledPricingModel | Should -Be 'Simplified'
+        (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'capacityreservation').BilledPricingModel | Should -Be 'Classic'
+        (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified).BilledPricingModel | Should -BeNullOrEmpty
+    }
+
+    It 'says when a workspace billed on classic pricing is priced at the simplified rate' {
+        $classic = Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'PerGB2018'
+        @($classic.Caveats) -join ' ' | Should -Match 'billed on classic pricing .* priced at the simplified rate'
+        @((Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'Unified').Caveats) -join ' ' | Should -Not -Match 'billed on classic pricing'
     }
 
     It 'falls back to the classic Log Analytics and Sentinel pair without the simplified meter' {

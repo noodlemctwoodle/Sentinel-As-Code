@@ -1871,7 +1871,7 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
             [pscustomobject]@{ name = 'l1'; properties = [pscustomobject]@{ category = 'Log Management'; displayName = 'Failed sign-ins by user'; query = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName" } }
             [pscustomobject]@{ name = 'g1'; properties = [pscustomobject]@{ category = 'General Exploration'; displayName = 'All syslog'; query = 'Syslog' } }
         )
-        & $raw 'sentinel-pricing.json' @([pscustomobject]@{ name = 'default'; kind = 'Sentinel'; properties = [pscustomobject]@{ tier = 'CapacityReservation'; capacityGbPerDay = 100 } })
+        & $raw 'solutions-installed.json' @([pscustomobject]@{ name = 'SecurityInsights(law-cat)'; plan = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }; properties = [pscustomobject]@{ sku = [pscustomobject]@{ name = 'Unified' } } })
 
         & $script:renderer -WorkspaceName 'law-cat' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
         $script:catPage = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
@@ -1911,13 +1911,14 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
         ($md -split '## Other saved searches')[1] | Should -Not -Match 'A hunt|A parser'
     }
 
-    It 'shows what the Sentinel pricings endpoint reports, setting by setting' {
-        $md = & $script:catPage '84-cost-estimate'
-        $md | Should -Match '## Sentinel pricing settings[\s\S]*\| default \| tier \| CapacityReservation \|[\s\S]*\| default \| capacityGbPerDay \| 100 \|'
+    It 'says how the workspace is billed, from the Sentinel solution''s SKU' {
+        & $script:catPage '84-cost-estimate' | Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion \(solution SKU `Unified`\) \|'
+        & $script:catPage '80-workspace' | Should -Match '## SKU and pricing[\s\S]*\| Microsoft Sentinel pricing \| Simplified: '
     }
 
-    It 'says when the endpoint returned nothing, as on the sample' {
-        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Match '## Sentinel pricing settings[\s\S]*_The endpoint returned nothing for this workspace\._'
+    It 'says the pricing model is not recorded when the solution carries no SKU, as on the sample' {
+        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| _\(not recorded on the Microsoft Sentinel solution\)_ \|'
+        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Not -Match 'pricings endpoint'
     }
 }
 

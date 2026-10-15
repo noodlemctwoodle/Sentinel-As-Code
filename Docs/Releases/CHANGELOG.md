@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Microsoft Sentinel pricing from the solution's SKU** - the collector no
+  longer probes `Microsoft.SecurityInsights/pricings`, which is not a
+  documented resource and never answered (on some regions it printed a long
+  error every run). The workspace page's SKU table and the cost page's new
+  "How the workspace is billed" table say whether Sentinel is on simplified
+  or classic pricing, read from the Microsoft Sentinel solution's SKU, and
+  the commitment tier from the workspace's. The cost estimate records the
+  billed model, and a workspace billed on classic pricing gets a caveat
+  that it is priced at the simplified rate.
 - **Threat intelligence counts fixed** - the query behind the threat
   intelligence counts named a column (`Source`) the indicator tables do not
   have, so it failed on every workspace and the counts read as zero. The

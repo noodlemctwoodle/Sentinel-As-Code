@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.8
+    Version:        0.7.9
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -578,6 +578,18 @@ function Format-FeatureFlag {
 # Section: 00-overview
 # ---------------------------------------------------------------------------
 $workspace          = Read-Raw 'workspace.json'
+# How Microsoft Sentinel is billed: the SecurityInsights solution's
+# properties.sku (Unified is simplified pricing, anything else classic).
+$sentinelSolutionSku = ''
+foreach ($sol in @(Read-RawArray 'solutions-installed.json' | Where-Object { $_ })) {
+    $solPlan = _RProp $sol 'plan' $null
+    if (-not $solPlan -or [string](_RProp $solPlan 'product' '') -notmatch 'SecurityInsights$') { continue }
+    $solSku = _RProp (_RProp $sol 'properties' $null) 'sku' $null
+    if ($solSku) { $sentinelSolutionSku = [string](_RProp $solSku 'name' '') }
+}
+$sentinelPricingText = if (-not $sentinelSolutionSku) { '_(not recorded on the Microsoft Sentinel solution)_' }
+    elseif ($sentinelSolutionSku -eq 'Unified') { "Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion (solution SKU ``Unified``)" }
+    else { "Classic: Microsoft Sentinel analysis and Log Analytics ingestion billed separately (solution SKU ``$sentinelSolutionSku``)" }
 $run                = Read-Raw 'run-context.json'
 $rules              = Read-RawArray 'alert-rules.json'
 $connectors         = Read-RawArray 'data-connectors-classic.json'
@@ -2703,6 +2715,7 @@ When the workspace was created and on what terms, and what it holds today. Platf
 | Property | Value |
 |---|---|
 | SKU name | ``$($workspace.properties.sku.name)`` |
+| Microsoft Sentinel pricing | $sentinelPricingText |
 | Capacity reservation level | $(if ($workspace.properties.sku.capacityReservationLevel) { "$($workspace.properties.sku.capacityReservationLevel) GB/day" } else { '_(n/a)_' }) |
 | Default retention | $($workspace.properties.retentionInDays) days |
 | Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1 -or $null -eq $workspace.properties.workspaceCapping.dailyQuotaGb) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
@@ -3622,26 +3635,23 @@ $($cost.Caveats | ForEach-Object { "- $_" }) -join "`n")
 [Sentinel billing (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/billing) · [Reduce costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs) · [Cost logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs)
 "@
 }
-# What the Sentinel pricings endpoint reports, setting by setting. It is a
-# preview API that returns nothing in some regions; the estimate itself is
-# built from the workspace SKU and retail prices, not from it.
-$pricingRows = @(foreach ($item in @(Read-RawArray 'sentinel-pricing.json' | Where-Object { $_ })) {
-    $label = [string](_RProp $item 'name' (_RProp $item 'kind' 'pricing'))
-    $props = _RProp $item 'properties'
-    if ($props) {
-        foreach ($pp in $props.PSObject.Properties) {
-            [pscustomobject]@{ Pricing = $label; Setting = $pp.Name; Value = $(if ($null -eq $pp.Value -or $pp.Value -is [string] -or $pp.Value -is [ValueType]) { [string]$pp.Value } else { $pp.Value | ConvertTo-Json -Compress -Depth 6 }) }
-        }
-    }
-    else { [pscustomobject]@{ Pricing = $label; Setting = 'kind'; Value = [string](_RProp $item 'kind' '') } }
-})
+# How the workspace is billed, from the Microsoft Sentinel solution's SKU
+# and the workspace's own. (The Microsoft.SecurityInsights/pricings endpoint
+# the collector once read is not a documented resource and never answered.)
+$wsSkuName = [string](_RProp (_RProp (_RProp $workspace 'properties' $null) 'sku' $null) 'name' '')
+$wsSkuLevel = _RProp (_RProp (_RProp $workspace 'properties' $null) 'sku' $null) 'capacityReservationLevel' $null
+$billingRows = @(
+    [pscustomobject]@{ Setting = 'Microsoft Sentinel pricing'; Value = $sentinelPricingText }
+    [pscustomobject]@{ Setting = 'Workspace SKU'; Value = $(if ($wsSkuName) { "``$wsSkuName``" } else { '_(not captured)_' }) }
+    [pscustomobject]@{ Setting = 'Commitment tier'; Value = $(if ($wsSkuLevel) { "$(([double]$wsSkuLevel).ToString('N0', [System.Globalization.CultureInfo]::InvariantCulture)) GB a day" } else { 'None (pay-as-you-go)' }) }
+)
 $costBody += @"
 
-## Sentinel pricing settings
+## How the workspace is billed
 
-What the Microsoft Sentinel pricings endpoint (``Microsoft.SecurityInsights/pricings``) reports for the workspace. It is a preview API that is not available in every region; the estimate above is built from the workspace SKU and Azure retail prices, not from it.
+The Microsoft Sentinel solution's SKU says whether the workspace is on simplified or classic pricing; the workspace's SKU says whether it is on a commitment tier.
 
-$(Format-Table -Items $pricingRows -Columns 'Pricing','Setting','Value' -EmptyMessage (Get-EmptyMessage 'sentinel-pricing.json' '_The endpoint returned nothing for this workspace._'))
+$(Format-Table -Items $billingRows -Columns 'Setting','Value')
 "@
 Write-Section '84-cost-estimate.md' $costBody
 

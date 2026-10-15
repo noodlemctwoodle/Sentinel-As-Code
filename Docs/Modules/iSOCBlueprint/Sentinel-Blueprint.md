@@ -413,7 +413,7 @@ colour too), and listed under its own heading in the capture summary:
 
 | Outcome | Colour | Means | Example |
 | --- | --- | --- | --- |
-| **not available** | dark cyan | The workspace does not have what the capture reads: a table, a column or an endpoint not served in this region, tenant or plan (a KQL "Failed to resolve", a 404, an unregistered provider). Nothing to fix; the capture writes an empty file, as it always has. | `↳ not available: the pricings endpoint: 404 Not Found: Microsoft.SecurityInsights/pricings` |
+| **not available** | dark cyan | The workspace does not have what the capture reads: a table, a column or an endpoint not served in this region, tenant or plan (a KQL "Failed to resolve", a 404, an unregistered provider). Nothing to fix; the capture writes an empty file, as it always has. | `↳ not available: skipped. 404 Not Found: Microsoft.SecurityInsights/hunts` |
 | **no permission** | magenta | The service refused the identity (HTTP 401 or 403, `AuthorizationFailed`, a Microsoft Graph permission). Expected where the signed-in account or pipeline identity was not granted that role or permission. | `↳ no permission: skipped (Forbidden). The capture summary at the end says what it needs.` |
 | **failed** | yellow warning | Anything else: a timeout, throttling, a service error, or a query naming a column its tables do not have (KQL "Failed to resolve scalar expression"), which is the query's fault and should be reported. | `WARNING: [dcrs] FAILED: ...` |
 

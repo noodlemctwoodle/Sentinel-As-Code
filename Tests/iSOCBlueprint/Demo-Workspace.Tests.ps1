@@ -57,6 +57,12 @@ Describe 'The demo workspace generator' {
         foreach ($f in $expected) { Test-Path (Join-Path $script:raw $f) | Should -BeTrue -Because $f }
     }
 
+    It 'puts its Microsoft Sentinel solution on simplified pricing' {
+        $sol = @(Read-Demo 'solutions-installed.json') | Where-Object { $_.plan.product -eq 'OMSGallery/SecurityInsights' }
+        $sol.properties.sku.name | Should -Be 'Unified'
+        (Read-Demo 'cost-estimate.json').BilledPricingModel | Should -Be 'Simplified'
+    }
+
     It 'ingests the requested GB a day over the last 30 days' {
         $usage = @(Read-Demo 'workspace-usage-daily.json')
         $last30 = @($usage | Select-Object -Last 30)

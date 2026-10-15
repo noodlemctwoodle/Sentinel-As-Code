@@ -9,7 +9,7 @@
 .DESCRIPTION
     The Az.SecurityInsights cmdlets do not cover the full Sentinel REST surface, Codeless
     Connector Framework (CCF) connectors, Content Hub packages, summary rules, settings,
-    pricings, sourceControls, and full DCR JSON all require direct REST calls. This helper
+    sourceControls, and full DCR JSON all require direct REST calls. This helper
     centralises the call pattern so:
 
     - 'value[]' + 'nextLink' pagination is followed transparently and the caller receives

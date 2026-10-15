@@ -96,8 +96,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
+    Version:      0.1.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
     Offline: reads the repository and writes files, and calls no Azure
@@ -1155,6 +1155,18 @@ foreach ($f in @(Get-ChildItem -LiteralPath $fixtureRaw -Filter '*.json')) {
     $text = Get-Content -LiteralPath $f.FullName -Raw
     foreach ($k in $rename.Keys) { $text = $text.Replace($k, $rename[$k]) }
     Set-Content -LiteralPath $dest -Value $text -Encoding utf8NoBOM
+}
+# The Microsoft Sentinel solution's SKU, which the pages read the pricing
+# model from: simplified (Unified), as on any workspace since July 2023.
+$solPath = Join-Path $raw 'solutions-installed.json'
+if (Test-Path -LiteralPath $solPath) {
+    $sols = @(Get-Content -LiteralPath $solPath -Raw | ConvertFrom-Json -Depth 32)
+    foreach ($sol in $sols) {
+        if ($sol -and $sol.PSObject.Properties['plan'] -and [string]$sol.plan.product -eq 'OMSGallery/SecurityInsights' -and $sol.PSObject.Properties['properties']) {
+            $sol.properties | Add-Member -NotePropertyName sku -NotePropertyValue ([pscustomobject]@{ name = 'Unified' }) -Force
+        }
+    }
+    ConvertTo-Json -InputObject @($sols) -Depth 32 | Set-Content -LiteralPath $solPath -Encoding utf8NoBOM
 }
 
 # The run's context.

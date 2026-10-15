@@ -34,8 +34,8 @@ literal string.
 
 | Surface | Version | Key | Why |
 |---|---|---|---|
-| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers onboarding state, data connectors and connector definitions, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, workbook content templates, settings and threat-intelligence metrics, and is the first version tried for `pricings`, `sourceControls` and `taxiiClients`. |
-| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations, `hunts`, and the `pricings` resource when the GA version refuses it. |
+| `Microsoft.SecurityInsights/*` | `2024-09-01` | `Sentinel` | GA. Covers onboarding state, data connectors and connector definitions, alert-rule templates, automation rules, watchlists, bookmarks, metadata, content packages, workbook content templates, settings and threat-intelligence metrics, and is the first version tried for `sourceControls` and `taxiiClients`. |
+| `Microsoft.SecurityInsights/*` (preview) | `2024-10-01-preview` | `SentinelPreview` | Alert rules: every GA version leaves out `subTechniques`, which the MITRE page reads (falls back to `2024-09-01`, without sub-techniques, when the preview call is refused). Content Hub product packages, SOC-optimisation recommendations and `hunts`. |
 | `Microsoft.OperationalInsights/workspaces` | `2025-02-01` | `OperationalInsights` | Required for `replication`, `publicNetworkAccessForIngestion/Query`, full feature flags. Also used for `savedSearches`, `linkedServices` and `dataExports`. |
 | `Microsoft.OperationalInsights/workspaces/tables` | `2025-02-01` (falls back to `2023-09-01`) | `Tables` | `plan` (Analytics/Basic/Auxiliary/DataLake), `retentionInDays`, `totalRetentionInDays`, `archiveRetentionInDays`, and on the newer version `schema.tableSubType` (Classic or DCR-based), `lastPlanModifiedDate` and the `*AsDefault` retention flags. A region that does not serve the newer version gets the older one, with a warning in the run log. |
 | `Microsoft.Insights/dataCollectionRules` (full JSON) | `2023-03-11` | `DataCollection` | Cmdlet output flattens transforms, where REST returns `streamDeclarations` and `dataFlows.transformKql`. Also used for data collection endpoints. |
@@ -141,7 +141,7 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 | Sentinel settings | `Microsoft.SecurityInsights/settings/{Ueba,EntityAnalytics,EyesOn,Anomalies}`, bundled into `settings.json` | A `null` setting means no settings resource exists, not that the feature is off, so UEBA is also judged from data (`ueba-data-presence`) |
 | Playbooks | `Microsoft.Logic/workflows`, `2016-06-01` | `Get-AzLogicApp` leaves `identity` empty even when a managed identity is attached, and the playbook RBAC needs `identity.principalId` |
 | Data collection rules | `Microsoft.Insights/dataCollectionRules/{name}` | The cmdlet flattens the transforms that the full JSON carries |
-| Pricing | `Microsoft.SecurityInsights/pricings` | Not covered by the cmdlets |
+| Microsoft Sentinel pricing | The `SecurityInsights(<workspace>)` solution's `properties.sku` (`Microsoft.OperationsManagement/solutions`, in `solutions-installed.json`): `Unified` is simplified pricing, anything else classic. The commitment tier is the workspace's own SKU | There is no documented `Microsoft.SecurityInsights/pricings` resource; the collector once probed it and it never answered |
 | Sentinel data lake | The workspace's lake feature and the organisational lake resource | Not covered by the cmdlets |
 
 ## Recurring KQL queries

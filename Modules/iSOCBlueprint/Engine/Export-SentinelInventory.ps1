@@ -45,7 +45,7 @@
 
 .PARAMETER IncludePreview
     Use the 2024-10-01-preview API version where applicable (Content Hub product packages,
-    summary rules, pricings).
+    summary rules).
 
 .PARAMETER PlaybookResourceGroup
     Resource group holding the Logic App playbooks, when they do not live
@@ -417,30 +417,11 @@ Try-Capture 'workspace-tables' {
     Save-Json -FileName 'restore-logs.json' -Data @($found.Restores)
 }
 
-Try-Capture 'sentinel-pricing' {
-    # Microsoft.SecurityInsights/pricings is preview-only and the api-version
-    # surface is volatile. The endpoint also doesn't exist in every region, 
-    # against a uksouth workspace ARM rejects the preview version. Probe the
-    # GA Sentinel api-version first, fall back to preview, and treat 4xx as a
-    # 'not present' signal so an empty file is still produced.
-    #
-    # Always probe regardless of -IncludePreview: the GA version usually
-    # succeeds, and the inner try/catch handles the regional 4xx case. The
-    # earlier IncludePreview gate meant production runs without the switch
-    # produced no file at all.
-    $pricing = $null
-    try {
-        $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.Sentinel
-    } catch {
-        try {
-            $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
-        } catch {
-            Skip-Capture -FileName 'sentinel-pricing.json' -ErrorRecord $_ -What 'the pricings endpoint'
-            return
-        }
-    }
-    Save-Json -FileName 'sentinel-pricing.json' -Data $pricing
-}
+# Microsoft Sentinel pricing is not captured on its own: the
+# Microsoft.SecurityInsights/pricings endpoint once read here is not a
+# documented resource and never answered. The pricing model is the
+# SecurityInsights solution's properties.sku (solutions-installed below), the
+# commitment tier the workspace's own SKU.
 
 Try-Capture 'sentinel-onboarding-state' {
     $obs = Invoke-SentinelRest -Path "$sentinelScope/onboardingStates" -ApiVersion $apiVersions.Sentinel

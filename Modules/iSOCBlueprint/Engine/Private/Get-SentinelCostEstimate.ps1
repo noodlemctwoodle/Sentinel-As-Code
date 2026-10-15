@@ -35,7 +35,12 @@
       BenefitEligible              array of @{ Benefit; Allowance; Tables; Gb30d;
                                    MonthlyCost; Learn }: the data grants that may
                                    cover part of the cost, not deducted
-      PricingModel                 'Simplified' or 'Classic'
+      PricingModel                 'Simplified' or 'Classic': the rate the
+                                   estimate priced Analytics data at
+      BilledPricingModel           'Simplified' or 'Classic': how the
+                                   workspace is billed, from the Microsoft
+                                   Sentinel solution's SKU (Unified is
+                                   simplified); $null when not captured
       DedicatedClusterCandidate    bool
       Caveats                      array of strings, items NOT priced
       WindowDays                   days of Usage the estimate is projected from
@@ -76,8 +81,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.3.0
-    Last Updated: 2026-10-14
+    Version:      0.3.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -107,6 +112,15 @@ function Get-SentinelCostEstimate {
     $tables       = @(Read-Json (Join-Path $InputRoot 'tables-with-data.json'))
     $schemas      = @(Read-Json (Join-Path $InputRoot 'workspace-tables.json'))
     $workspace    = Read-Json (Join-Path $InputRoot 'workspace.json')
+    # How Sentinel is billed: the SecurityInsights solution's properties.sku
+    # (Unified is simplified pricing, anything else classic).
+    $billedModel  = $null
+    foreach ($sol in @(Read-Json (Join-Path $InputRoot 'solutions-installed.json'))) {
+        if (-not $sol -or -not $sol.PSObject.Properties['plan'] -or -not $sol.plan -or [string]$sol.plan.product -notmatch 'SecurityInsights$') { continue }
+        $solProps = if ($sol.PSObject.Properties['properties']) { $sol.properties } else { $null }
+        $solSku = if ($solProps -and $solProps.PSObject.Properties['sku'] -and $solProps.sku -and $solProps.sku.PSObject.Properties['name']) { [string]$solProps.sku.name } else { '' }
+        if ($solSku) { $billedModel = if ($solSku -eq 'Unified') { 'Simplified' } else { 'Classic' } }
+    }
     $pricesBlob   = Read-Json (Join-Path $InputRoot 'retail-prices.json')
     $benefitJson  = Read-Json (Join-Path $ResourcesRoot 'sentinel-benefit-tables.json')
     # The days of Usage the tables carry: the run's lookback (run-context.json),
@@ -267,6 +281,9 @@ function Get-SentinelCostEstimate {
     $up = { param([string]$Key) if ($unitPrices.ContainsKey($Key) -and $unitPrices[$Key]) { [double]$unitPrices[$Key] } else { 0.0 } }
     $simplified = (& $up 'SentinelAnalytics') -gt 0
     $analyticsUnit = if ($simplified) { & $up 'SentinelAnalytics' } else { (& $up 'AnalyticsLaIngestion') + (& $up 'SentinelPremium') }
+    if ($billedModel -eq 'Classic' -and $simplified) {
+        $caveats += 'The workspace is billed on classic pricing (Microsoft Sentinel analysis and Log Analytics ingestion billed separately), but the price list holds no classic Sentinel meters, so Analytics data is priced at the simplified rate, which can differ from the bill.'
+    }
     $basicUnit = if ((& $up 'SentinelBasic') -gt 0) { & $up 'SentinelBasic' } else { & $up 'BasicIngestion' }
     $lakeUnit = (& $up 'DataLakeIngestion') + (& $up 'DataLakeProcessing')
     $auxUnit = if ($lakeEnrolled -and $lakeUnit -gt 0) { $lakeUnit } else { (& $up 'SentinelAuxiliary') + (& $up 'AuxiliaryIngestion') }
@@ -420,6 +437,7 @@ function Get-SentinelCostEstimate {
         CommitmentTier            = $commitment
         BenefitEligible           = @($benefitEligible)
         PricingModel              = $(if ($simplified) { 'Simplified' } else { 'Classic' })
+        BilledPricingModel        = $billedModel
         DedicatedClusterCandidate = $clusterCandidate
         Caveats                   = $caveats
         WindowDays                = $windowDays
