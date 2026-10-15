@@ -48,10 +48,11 @@ AfterAll {
 Describe 'The demo workspace generator' {
     It 'writes every capture the collector writes' {
         $collector = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1') -Raw
-        # Two are written only in a case the demo does not have: a dedicated
-        # cluster, and a bookmark list too large to fetch.
+        # Three are written only in a case the demo does not have: a
+        # dedicated cluster, and a bookmark list too large to fetch (its count,
+        # and the list read from the HuntingBookmark table instead).
         $expected = @([regex]::Matches($collector, "Save-Json -FileName '([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique |
-                Where-Object { $_ -notin @('dedicated-cluster.json', 'bookmarks-count.json') })
+                Where-Object { $_ -notin @('dedicated-cluster.json', 'bookmarks-count.json', 'bookmarks-from-logs.json') })
         $expected.Count | Should -BeGreaterThan 90
         foreach ($f in $expected) { Test-Path (Join-Path $script:raw $f) | Should -BeTrue -Because $f }
     }

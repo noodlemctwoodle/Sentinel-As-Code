@@ -79,8 +79,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.4
-    Last Updated:   2026-10-14
+    Version:        0.7.5
+    Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
 
@@ -651,6 +651,7 @@ $rulesFired        = Read-RawArray 'rules-fired.json'
 $playbookRuns      = Read-RawArray 'playbook-runs.json'
 $hunts             = Read-RawArray 'hunts.json'
 $bookmarks         = Read-RawArray 'bookmarks.json'
+$bookmarksFromLogs = Read-RawArray 'bookmarks-from-logs.json'
 $bookmarkCountDoc  = Read-Raw 'bookmarks-count.json'
 $ruleVolumesAll    = Read-RawArray 'analytics-rule-volumes.json'
 $customDetectionsRaw = Read-RawArray 'defender-custom-detections.json'
@@ -1992,7 +1993,16 @@ $($hunting.Count) hunting query(ies). Tactic distribution reveals where the SOC'
 "@
 } else { '' }
 
-$bookmarkRows = @($bookmarks | Where-Object { $_ } | ForEach-Object {
+# When the bookmarks API refused its list as too large, the collector lists
+# them from the HuntingBookmark table instead.
+$bookmarksListed    = @($bookmarks | Where-Object { $_ })
+$bookmarksFromTable = $false
+if ($bookmarksListed.Count -eq 0 -and @($bookmarksFromLogs | Where-Object { $_ }).Count -gt 0) {
+    $bookmarksListed    = @($bookmarksFromLogs | Where-Object { $_ })
+    $bookmarksFromTable = $true
+}
+$bookmarkServiceCount = if ($bookmarkCountDoc) { [int](_RendererNumber (_RProp $bookmarkCountDoc 'Count' 0)) } else { 0 }
+$bookmarkRows = @($bookmarksListed | ForEach-Object {
     $p = _RProp $_ 'properties' $null
     $created = [string](_RProp $p 'created' '')
     [pscustomobject]@{
@@ -2003,9 +2013,16 @@ $bookmarkRows = @($bookmarks | Where-Object { $_ } | ForEach-Object {
     }
 })
 $bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
-    "Bookmarks saved from hunting and investigation, newest first. Their labels are the analyst's own tags.`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object Created -Descending) -Columns 'Name','Created','Labels','Notes')
-} elseif ($bookmarkCountDoc -and [int](_RendererNumber (_RProp $bookmarkCountDoc 'Count' 0)) -gt 0) {
-    "**$([int](_RendererNumber (_RProp $bookmarkCountDoc 'Count' 0))) bookmarks** exist. The list was too large for the API to return, so only the count was captured."
+    $bookmarkIntro = if ($bookmarksFromTable) {
+        $refused = if ($bookmarkServiceCount -gt 0) { "The bookmarks API refused its list of **$bookmarkServiceCount bookmarks** as too large" } else { 'The bookmarks API refused its list as too large' }
+        $held = if ($bookmarkServiceCount -gt $bookmarkRows.Count) { " The table holds $($bookmarkRows.Count) of the ${bookmarkServiceCount}: it keeps entries only for its retention period, so a bookmark not changed within that period is not in it." } else { '' }
+        "$refused, so these $($bookmarkRows.Count) come from the HuntingBookmark table, where Microsoft Sentinel logs every bookmark, newest first.$held Their labels are the analyst's own tags."
+    } else {
+        "Bookmarks saved from hunting and investigation, newest first. Their labels are the analyst's own tags."
+    }
+    "$bookmarkIntro`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object Created -Descending) -Columns 'Name','Created','Labels','Notes')
+} elseif ($bookmarkServiceCount -gt 0) {
+    "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return and the HuntingBookmark table could not be read, so only the count was captured."
 } else { '_None._' }
 $huntRows = @($hunts | ForEach-Object {
     $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }

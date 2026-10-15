@@ -50,7 +50,7 @@ needs bumping.
 | Surface | Version | Capture |
 |---|---|---|
 | `.../workspaces/<ws>/summaryLogs` (summary rules) | `2023-01-01-preview` | `summary-rules` |
-| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging, and the collector then keeps the item count the error reports in `bookmarks-count.json` |
+| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging. The collector then keeps the item count the error reports in `bookmarks-count.json` and lists the bookmarks from the `HuntingBookmark` table instead (below) |
 | `Microsoft.Insights/workbooks?category=sentinel` | `2023-06-01` | `workbooks-saved` |
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
 | `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |
@@ -147,7 +147,8 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 ## Recurring KQL queries
 
 The collector runs **43 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
-its own `Try-Capture` block that writes one `_raw/<name>.json`. About half read raw
+its own `Try-Capture` block that writes one `_raw/<name>.json`, and a 44th only when the
+bookmarks API refuses its list (below). About half read raw
 operational and security tables, not only billing metadata, so they cost query time on a
 busy workspace, and more the longer the lookback. To list them, grep the collector for
 `Try-Capture` blocks that set `$kql`.
@@ -187,6 +188,7 @@ the table still holds.
 | `sentinel-health-summary` | `SentinelHealth` | Lookback | Events by operation and status, the operations summary on page 11 |
 | `rule-health` | `SentinelHealth` | Lookback | Analytics rules whose runs failed, with the count, last failure and reason (SAC-DET-14) |
 | `ueba-data-presence` | `BehaviorAnalytics`, `IdentityInfo`, `UserPeerAnalytics` | Lookback | Whether UEBA produces data, with counts for the lookback and the recent window, the IdentityInfo evidence for entity analytics (SAC-COV-08) |
+| `bookmarks` (only when the API refuses the list as too large) | `HuntingBookmark` | The table's retention (no lookback) | Each bookmark's latest entry, less the deleted ones: name, created and updated times, tags and notes, without the query text, result row and entities. Written to `bookmarks-from-logs.json`; the table keeps entries only for its retention, so it can hold fewer bookmarks than the service counts |
 
 SOC optimisation recommendations (`soc-optimization`) are read over REST from
 `.../recommendations`, not through KQL.

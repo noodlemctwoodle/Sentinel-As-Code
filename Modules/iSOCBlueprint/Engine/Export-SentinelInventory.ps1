@@ -95,8 +95,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.10.0
-    Last Updated:   2026-10-14
+    Version:        0.10.1
+    Last Updated:   2026-10-15
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
@@ -478,12 +478,41 @@ Try-Capture 'watchlists' {
     Save-Json -FileName 'watchlists.json' -Data $wls
 }
 
+# One HuntingBookmark row (a bookmark's latest entry) in the shape of a
+# bookmarks API item, so the renderer reads either source the same way. The
+# table's Tags column is a comma-separated string.
+function ConvertFrom-HuntingBookmarkRow {
+    param([Parameter(Mandatory)] $Row)
+    $tags = [string]$Row.Tags
+    $labels = if ($tags.TrimStart().StartsWith('[')) {
+        try { @($tags | ConvertFrom-Json) } catch { @($tags) }
+    } else {
+        @($tags -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    [pscustomobject]@{
+        name       = [string]$Row.BookmarkId
+        properties = [pscustomobject]@{
+            displayName = [string]$Row.BookmarkName
+            created     = [string]$Row.CreatedTime
+            updated     = [string]$Row.LastUpdatedTime
+            labels      = @($labels)
+            notes       = [string]$Row.Notes
+        }
+    }
+}
+
 Try-Capture 'bookmarks' {
     # The list API refuses a response over about 8 MB ("Bookmarks response
     # is too large (N bytes, M items)") and has no paging. The message does
-    # carry the item count, so on that error the count is kept in
-    # bookmarks-count.json: the hunting rule and the maturity criterion then
-    # know bookmarks exist without the list itself.
+    # carry the item count, which is kept in bookmarks-count.json: the
+    # hunting rule, the maturity criterion and the dashboard count from it.
+    # The list itself then comes from the HuntingBookmark table, where
+    # Sentinel logs every bookmark and each change to it (Microsoft's own
+    # route past the portal's 1,000-bookmark view): each bookmark's latest
+    # entry, less the deleted ones, without the query text, result row and
+    # entities that make the API's answer large. It is written to
+    # bookmarks-from-logs.json rather than bookmarks.json because the table
+    # keeps only its retention, so it can hold fewer than the service counts.
     try {
         $bm = Invoke-SentinelRest -Path "$sentinelScope/bookmarks" -ApiVersion $apiVersions.Sentinel
         Save-Json -FileName 'bookmarks.json' -Data $bm
@@ -491,8 +520,21 @@ Try-Capture 'bookmarks' {
         $msg = $_.Exception.Message
         if ($msg -match 'too large[^)]*?(\d+)\s+items') {
             $count = [int]$Matches[1]
-            Write-Warning "Bookmarks list refused as too large; keeping the count the service reported ($count)."
             Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
+            $kql = @'
+HuntingBookmark
+| summarize arg_max(TimeGenerated, BookmarkName, CreatedTime, LastUpdatedTime, Tags, Notes, SoftDeleted) by BookmarkId
+| where not(coalesce(SoftDeleted, false))
+| project BookmarkId, BookmarkName, CreatedTime, LastUpdatedTime, Tags, Notes
+'@
+            try {
+                $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+                $listed = @($result.Results | ForEach-Object { ConvertFrom-HuntingBookmarkRow -Row $_ })
+                Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed
+                Write-Information "Bookmarks list refused as too large ($count bookmarks); listed $($listed.Count) from the HuntingBookmark table instead."
+            } catch {
+                Write-Warning "Bookmarks list refused as too large and the HuntingBookmark table could not be read ($($_.Exception.Message)); keeping the count the service reported ($count)."
+            }
         } else {
             throw
         }

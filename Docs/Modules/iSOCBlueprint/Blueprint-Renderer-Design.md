@@ -268,7 +268,7 @@ rest). The panels and the Markdown that carries them:
 | Operational health event mix | 11 `## Operations summary` |
 | Daily ingestion, ingestion by plan, data grant eligible, top tables | 80 `### Daily ingestion`, 81 `## Summary by plan`, 84 |
 | Sentinel data lake | 88 |
-| Hunts, bookmarks | 30 `## Hunts`, `## Bookmarks` (the count alone when the list was too large to capture) |
+| Hunts, bookmarks | 30 `## Hunts`, `## Bookmarks` (from the `HuntingBookmark` table, with the service's count, when the API refused the list as too large; the count alone when the table could not be read either) |
 | Maturity areas, roadmap, quick wins, criteria, CSF rollup | 91 (the whole roadmap, not the first twenty) |
 | Findings by severity and category, finding cards | 90 |
 

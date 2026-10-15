@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Bookmarks listed even when the API refuses them** - the Sentinel
+  bookmarks API refuses its list over about 8 MB and has no paging, so a
+  workspace with many bookmarks showed only their count on the hunting
+  page, with a warning in the run log. The collector now reads the list from
+  the `HuntingBookmark` table instead (each bookmark's latest entry, less
+  the deleted ones), and the page tables them with the service's count
+  beside them. The table keeps only its retention, so the page says when it
+  holds fewer than the service counted. The warning now appears only when
+  the table cannot be read either.
 - **Choose the cost estimate's currency** - `New-iSOCBlueprint` and
   `Export-iSOCBlueprintInventory` take `-Currency`, the Azure DevOps
   pipeline a `currency` parameter and the GitHub workflow a `currency` input

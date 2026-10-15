@@ -187,7 +187,7 @@ data. Where the window or shape differs, the note says how.
 | `Microsoft.Insights/workbooks` in the resource group | `workbooks-saved.json` | Scoped to the workspace rather than the resource group |
 | `.../huntsessions` | `hunts.json` | The documented `hunts` resource |
 | `.../savedSearches` | `kql-savedsearches.json`, `hunting-queries.json`, `parsers-functions.json` | |
-| `.../bookmarks` | `bookmarks.json`, or `bookmarks-count.json` when the list is too large | |
+| `.../bookmarks` | `bookmarks.json`, or when the list is too large `bookmarks-count.json` (the count) and `bookmarks-from-logs.json` (the list, from the `HuntingBookmark` table) | |
 | `.../threatIntelligence/main/taxiiClients` | `taxii-clients.json` | New |
 | `.../dataConnectors` (TI connectors, Defender for Cloud) | `data-connectors-classic.json` | |
 | `.../summaryLogs` | `summary-rules.json` | |

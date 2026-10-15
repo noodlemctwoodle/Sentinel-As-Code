@@ -1552,7 +1552,8 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         $script:bmOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-bookmarks-test-$(New-Guid)"
         $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
         $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
-        foreach ($root in $listRoot, $countRoot) {
+        $logsRoot  = Join-Path $script:bmOutDir 'law-sentinel-logs'
+        foreach ($root in $listRoot, $countRoot, $logsRoot) {
             New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw') -Force
         }
@@ -1564,11 +1565,22 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
 '@ | Set-Content (Join-Path $listRoot '_raw/bookmarks.json') -Encoding UTF8
         Remove-Item (Join-Path $countRoot '_raw/bookmarks.json') -Force
         '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $countRoot '_raw/bookmarks-count.json') -Encoding UTF8
-        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'))) {
+        # Refused by the API, listed from the HuntingBookmark table: the
+        # table holds fewer than the service counted.
+        Remove-Item (Join-Path $logsRoot '_raw/bookmarks.json') -Force
+        '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $logsRoot '_raw/bookmarks-count.json') -Encoding UTF8
+        @'
+[
+  { "name": "bm-3", "properties": { "displayName": "Beaconing to new domain", "created": "2026-10-02T09:00:00Z", "labels": ["c2"], "notes": "From the table" } },
+  { "name": "bm-4", "properties": { "displayName": "Mailbox rule created", "created": "2026-08-11T14:30:00Z", "labels": [], "notes": "" } }
+]
+'@ | Set-Content (Join-Path $logsRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
+        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'))) {
             & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
         }
         $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
+        $script:bmLogs  = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
     }
 
     AfterAll {
@@ -1580,8 +1592,19 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         ($script:bmList.IndexOf('Lateral movement from VPN')) | Should -BeLessThan ($script:bmList.IndexOf('Rare parent process'))
     }
 
-    It 'falls back to the service-reported count when the list was too large' {
+    It 'falls back to the service-reported count when the list was too large and the table unread' {
         $script:bmCount | Should -Match '## Bookmarks[\s\S]*\*\*350 bookmarks\*\* exist'
+        $script:bmCount | Should -Match 'HuntingBookmark table could not be read'
+    }
+
+    It 'tables the bookmarks from the HuntingBookmark table when the API refused the list' {
+        $script:bmLogs | Should -Match '## Bookmarks[\s\S]*refused its list of \*\*350 bookmarks\*\* as too large, so these 2 come from the HuntingBookmark table'
+        $script:bmLogs | Should -Match '\| Beaconing to new domain \| 2026-10-02[^|]*\| c2 \| From the table \|'
+        ($script:bmLogs.IndexOf('Beaconing to new domain')) | Should -BeLessThan ($script:bmLogs.IndexOf('Mailbox rule created'))
+    }
+
+    It 'says when the table holds fewer bookmarks than the service counted' {
+        $script:bmLogs | Should -Match 'The table holds 2 of the 350: it keeps entries only for its retention period'
     }
 }
 
