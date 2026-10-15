@@ -76,9 +76,12 @@ Describe 'ConvertFrom-HuntingBookmarkRow' {
 }
 
 Describe 'The bookmarks capture when the list is refused as too large' {
-    It 'keeps the count the error reports before reading the table' {
+    It 'keeps the count the error reports whether or not the table can be read' {
         $script:capture.Contains('too large[^)]*?(\d+)\s+items') | Should -BeTrue
-        $script:capture.IndexOf('''bookmarks-count.json''') | Should -BeLessThan $script:capture.IndexOf('| summarize arg_max')
+        # The table read is caught, and the count is written after every branch.
+        $script:capture | Should -Match '\} catch \{ \$tableError = \$_ \}'
+        $script:capture | Should -Match '(?s)\} else \{\s*Write-Information[^\n]*\n\s*\}\s*\n\s*Save-Json -FileName ''bookmarks-count\.json'''
+        $script:capture | Should -Match 'if \(-not \$tableError\) \{ Save-Json -FileName ''bookmarks-from-logs\.json'' -Data \$listed \}'
     }
 
     It 'lists each bookmark once, at its latest entry, less the deleted ones' {
@@ -97,10 +100,12 @@ Describe 'The bookmarks capture when the list is refused as too large' {
         ([regex]::Matches($script:capture, 'Save-Json -FileName ''bookmarks\.json''')).Count | Should -Be 1
     }
 
-    It 'notes a table that holds none of them, or could not be read, and lists it in the summary' {
-        $script:capture | Should -Match 'Write-Information "  ↳ the bookmarks list was refused as too large'
-        $script:capture | Should -Match 'the HuntingBookmark table holds none of them; kept the count\.'
+    It 'says the bookmarks exist, and whether the table shows any change, before writing the files' {
+        $script:capture | Should -Match 'Write-Information "  ↳ \$count bookmarks exist, too many for the API to list; listed the'
+        $script:capture | Should -Match 'none has been created or changed \$period \(the HuntingBookmark table, which logs every change, holds none\)\. Kept the count\.'
+        $script:capture | Should -Match '"in the last \$keeps days"'
         $script:capture | Should -Match 'the HuntingBookmark table could not be read: '
         ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{ Label = ''bookmarks''')).Count | Should -Be 2
+        $script:capture.IndexOf('Write-CaptureNote -Kind NotAvailable') | Should -BeLessThan $script:capture.IndexOf("Save-Json -FileName 'bookmarks-count.json'")
     }
 }

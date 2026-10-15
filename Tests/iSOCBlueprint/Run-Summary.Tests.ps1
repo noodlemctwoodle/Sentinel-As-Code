@@ -47,6 +47,7 @@ Describe 'Sorting a failed capture' {
     It 'calls a table, column or endpoint the workspace does not have not available' {
         Get-CaptureIssueKind 'Response status code does not indicate success: 404 (Not Found).' | Should -Be 'NotAvailable'
         Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. 'where' operator: Failed to resolve table or column expression named 'ThreatIntelObjects'" | Should -Be 'NotAvailable'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. The request had some invalid properties. A semantic error occurred. 'summarize' operator: Failed to resolve scalar expression named 'Source'" | Should -Be 'Error'
         Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'" | Should -Be 'NotAvailable'
         Get-CaptureIssueKind 'HTTP 400: {"error":{"code":"NoRegisteredProviderFound","message":"No registered resource provider found"}}' | Should -Be 'NotAvailable'
     }
@@ -283,5 +284,17 @@ Describe 'The run summary New-iSOCBlueprint prints' {
 
     It 'shows only the workspace and folder of the returned object by default' {
         @((Get-TypeData 'iSOCBlueprint.Blueprint').DefaultDisplayPropertySet.ReferencedProperties) | Should -Be @('WorkspaceName', 'Path')
+    }
+}
+
+Describe 'Notes for an empty capture' {
+    It 'drops the api-versions and regions ARM appends to an error' {
+        $msg = "400 NoRegisteredProviderFound: No registered resource provider found for location 'eastus2' and API version '2024-10-01-preview' for type 'workspaces'. The supported api-versions are '2015-03-20, 2025-02-01'. The supported locations are 'eastus, uksouth'."
+        Format-CaptureMessage $msg | Should -Be "400 NoRegisteredProviderFound: No registered resource provider found for location 'eastus2' and API version '2024-10-01-preview' for type 'workspaces'."
+    }
+
+    It 'says why before it writes the empty file' {
+        $body = [regex]::Match($script:collector, '(?s)function Skip-Capture \{.*?\n\}').Value
+        $body.IndexOf('Write-CaptureNote') | Should -BeLessThan $body.IndexOf('Save-Json -FileName $FileName')
     }
 }

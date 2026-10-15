@@ -6,6 +6,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Threat intelligence counts fixed** - the query behind the threat
+  intelligence counts named a column (`Source`) the indicator tables do not
+  have, so it failed on every workspace and the counts read as zero. The
+  new run output surfaced it. A query naming a column its tables lack is
+  now reported as failed rather than not available, so any other such slip
+  shows up the same way.
 - **Hunting judged on recent activity** - rule SAC-HNT-01 now also fires
   when hunts or bookmarks exist but none was created or changed within the
   run's lookback (a workspace can hold hundreds of bookmarks nobody has

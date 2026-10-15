@@ -95,7 +95,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.11.0
+    Version:        0.11.1
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -335,13 +335,14 @@ function Skip-Capture {
         $ErrorRecord,
         [string]$What
     )
-    Save-Json -FileName $FileName -Data @()
     $label = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
     $msg = Get-CaptureErrorText $ErrorRecord
     $kind = Get-CaptureIssueKind $msg
     $text = Format-CaptureMessage $msg
     if ($What) { $text = "${What}: $text" }
+    # Why first, then the empty file it leads to.
     Write-CaptureNote -Kind $kind -Label $label -Text $(if ($kind -eq 'Error') { $msg } else { $text })
+    Save-Json -FileName $FileName -Data @()
     $script:CaptureErrors.Add([pscustomobject]@{ Label = $label; Kind = $kind; Message = $(if ($What) { "${What}: $msg" } else { $msg }) })
 }
 
@@ -553,32 +554,45 @@ Try-Capture 'bookmarks' {
         $msg = $_.Exception.Message
         if ($msg -match 'too large[^)]*?(\d+)\s+items') {
             $count = [int]$Matches[1]
-            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
             $kql = @'
 HuntingBookmark
 | summarize arg_max(TimeGenerated, BookmarkName, CreatedTime, LastUpdatedTime, Tags, Notes, SoftDeleted) by BookmarkId
 | where not(coalesce(SoftDeleted, false))
 | project BookmarkId, BookmarkName, CreatedTime, LastUpdatedTime, Tags, Notes
 '@
+            $listed = $null
+            $tableError = $null
             try {
                 $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
                 $listed = @($result.Results | ForEach-Object { ConvertFrom-HuntingBookmarkRow -Row $_ })
-                Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed
-                if ($listed.Count -gt 0) {
-                    Write-Information "  ↳ the bookmarks list was refused as too large ($count bookmarks); listed $($listed.Count) from the HuntingBookmark table instead."
-                } else {
-                    # Read, but empty: the table keeps entries only for its
-                    # retention, so bookmarks not changed within it are gone.
-                    $text = "the bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table holds none of them; kept the count."
-                    Write-CaptureNote -Kind NotAvailable -Text $text
-                    $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "The bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table holds none of them within its retention, so only the count was kept." })
-                }
-            } catch {
-                $tableMsg = Get-CaptureErrorText $_
-                $tableKind = Get-CaptureIssueKind $tableMsg
-                Write-CaptureNote -Kind $tableKind -Label 'bookmarks' -Text "the bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table could not be read: $(Format-CaptureMessage $tableMsg) Kept the count."
-                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = $tableKind; Message = "The bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table could not be read: $tableMsg" })
+            } catch { $tableError = $_ }
+            # The table's retention, from the tables capture, to say how far
+            # back an empty table shows no change.
+            $keeps = 0
+            $tablesPath = Join-Path $rawOut 'workspace-tables.json'
+            if (Test-Path -LiteralPath $tablesPath) {
+                try {
+                    $hb = @(Get-Content -LiteralPath $tablesPath -Raw | ConvertFrom-Json -Depth 16) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name -eq 'HuntingBookmark' } | Select-Object -First 1
+                    if ($hb -and $hb.PSObject.Properties['properties'] -and $hb.properties.PSObject.Properties['retentionInDays']) { $keeps = [int]$hb.properties.retentionInDays }
+                } catch { $keeps = 0 }
             }
+            $period = if ($keeps -gt 0) { "in the last $keeps days" } else { 'within the table''s retention' }
+            # Why first, then the files it leads to.
+            if ($tableError) {
+                $tableMsg = Get-CaptureErrorText $tableError
+                $tableKind = Get-CaptureIssueKind $tableMsg
+                Write-CaptureNote -Kind $tableKind -Label 'bookmarks' -Text "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read: $(Format-CaptureMessage $tableMsg) Kept the count."
+                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = $tableKind; Message = "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read, so only the count was kept: $tableMsg" })
+            } elseif ($listed.Count -eq 0) {
+                # Read, but empty: the table logs every bookmark change for its
+                # retention, so none of them has changed in that time.
+                Write-CaptureNote -Kind NotAvailable -Text "$count bookmarks exist, too many for the API to list, and none has been created or changed $period (the HuntingBookmark table, which logs every change, holds none). Kept the count."
+                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed $period: the HuntingBookmark table, which logs every change, holds none. Only the count was kept." })
+            } else {
+                Write-Information "  ↳ $count bookmarks exist, too many for the API to list; listed the $($listed.Count) in the HuntingBookmark table instead."
+            }
+            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
+            if (-not $tableError) { Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed }
         } else {
             throw
         }
@@ -1426,12 +1440,15 @@ Try-Capture 'data-exports' {
 }
 
 Try-Capture 'threat-intel-counts' {
-    # KQL on the indicator tables, counts only, never indicator detail.
+    # KQL on the indicator tables, counts only, never indicator detail. Every
+    # column but TimeGenerated is read through column_ifexists: the union is
+    # fuzzy, so the columns are only those of the tables present, and a bare
+    # name neither has (Source) is a semantic error that left the file empty.
     $kql = @'
 union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
 | where TimeGenerated > ago(lookback)
 | extend IndicatorKey = coalesce(tostring(column_ifexists("Id", "")), tostring(column_ifexists("IndicatorId", "")))
-| summarize Count = count(), Indicators = dcount(IndicatorKey), Last = max(TimeGenerated) by SourceSystem = coalesce(SourceSystem, Source)
+| summarize Count = count(), Indicators = dcount(IndicatorKey), Last = max(TimeGenerated) by SourceSystem = coalesce(tostring(column_ifexists("SourceSystem", "")), tostring(column_ifexists("Source", "")))
 | order by Count desc
 '@
     try {
