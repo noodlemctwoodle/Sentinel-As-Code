@@ -46,6 +46,10 @@ BeforeDiscovery {
         Get-Item -LiteralPath (Join-Path $moduleRoot 'iSOCBlueprint.psm1')
         Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Engine/Private/Vendor') -Filter '*.ps1' -File
     ) | ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
+    # Every script the module ships, engine included: one that does not
+    # parse fails only when a run reaches it.
+    $allScripts = @(Get-ChildItem -LiteralPath $moduleRoot -Recurse -Filter '*.ps1' -File) |
+        ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
 }
 
 BeforeAll {
@@ -120,6 +124,14 @@ Describe 'File header of <Path>' -ForEach $ownFiles {
         $text = Get-Content -LiteralPath (Join-Path $script:repoRoot $Path) -Raw
         $text | Should -Match '^#Requires -Version 7\.2\r?\n'
         $text | Should -Match ("(?m)^\s*File:\s+" + [regex]::Escape($Path) + '\s*$')
+    }
+}
+
+Describe 'Script <Path>' -ForEach $allScripts {
+    It 'parses' {
+        $errors = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $script:repoRoot $Path), [ref]$null, [ref]$errors)
+        @($errors | ForEach-Object { "$($_.Message) (line $($_.Extent.StartLineNumber))" }) | Should -BeNullOrEmpty
     }
 }
 

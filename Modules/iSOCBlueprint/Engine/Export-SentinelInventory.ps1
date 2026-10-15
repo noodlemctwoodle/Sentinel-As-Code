@@ -568,7 +568,7 @@ HuntingBookmark
                 # Read, but empty: the table logs every bookmark change for its
                 # retention, so none of them has changed in that time.
                 Write-CaptureNote -Kind NotAvailable -Text "$count bookmarks exist, too many for the API to list, and none has been created or changed $period (the HuntingBookmark table, which logs every change, holds none). Kept the count."
-                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed $period: the HuntingBookmark table, which logs every change, holds none. Only the count was kept." })
+                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed ${period}: the HuntingBookmark table, which logs every change, holds none. Only the count was kept." })
             } else {
                 Write-Information "  ↳ $count bookmarks exist, too many for the API to list; listed the $($listed.Count) in the HuntingBookmark table instead."
             }
