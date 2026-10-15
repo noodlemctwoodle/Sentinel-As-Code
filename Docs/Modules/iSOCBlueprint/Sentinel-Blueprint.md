@@ -404,17 +404,47 @@ the earlier days' dashboards of the last 90 under `history/`, and publishing
 it seeds those days onto a site that has not seen them. `-HistoryDays` on `New-iSOCBlueprint` and
 `New-iSOCBlueprintSite` sets the window; `0` leaves the history out.
 
-At the end of a collection the collector prints a **Capture summary** table: it
-re-reads a set of files that are almost always populated on an active workspace
-(`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`) plus a
-set that should be populated *if the feature is in use* (`automation-rules`,
-`watchlists`, `playbooks`, `hunting-queries`, `workbooks-saved`, `cost-estimate`),
-flags any that came back empty or errored, and lists every capture step that raised
-an error (each GET is wrapped so one failure does not abort the run). An unexpected
-`EMPTY` almost always means an RBAC gap - the hint reminds you that **Microsoft
-Sentinel Reader at workspace scope** is required for automation rules, watchlists,
-hunting queries and incidents. Read this summary before filing a "the report says
-zero of X" bug.
+#### What a run prints
+
+Each capture step is wrapped, so one failure does not stop the run. When a
+step fails, the collector says so in one short line as it goes, and sorts
+the failure:
+
+- **No permission**: the service refused the identity (HTTP 401 or 403,
+  `AuthorizationFailed`, a Microsoft Graph permission). This is expected
+  where the signed-in account or pipeline identity was not granted that
+  role or permission, so the line is brief:
+  `[defender-custom-detections] Skipped, no permission (Forbidden).`
+  A capture that reads one item at a time (the run history and role
+  assignments of each playbook) says once which items it could not read,
+  rather than once an item: `No permission to read the run history of 3 of
+  12 playbooks (401 Unauthorized): <names>.`
+- **Failed**: any other error, with its message.
+
+At the end of a collection the collector prints a **Capture summary**:
+
+| Line | What it says |
+| --- | --- |
+| Written | How many files went to `_raw/`, and where |
+| No access | The captures not read in full for want of a role or permission, each with its message (and what to grant) wrapped under it |
+| Failed | The captures that raised any other error, each with its message |
+| Key data | The key captures that came back empty or missing, if any: the files almost always populated (`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`, `rule-table-references`) and those populated when the feature is in use (`automation-rules`, `watchlists`, `playbooks`, `hunting-queries`, `workbooks-saved`, `cost-estimate` and the activity captures). An unexpected empty almost always means an RBAC gap: **Microsoft Sentinel Reader at workspace scope** covers automation rules, watchlists, hunting queries and incidents |
+
+The failed captures, each marked `Permission` or `Error`, are also kept in
+`run-context.json` as `CaptureIssues`. In Azure DevOps and GitHub Actions the
+summary's headline lines carry the platform's warning annotation; locally
+they are coloured. Read this summary before filing a "the report says zero
+of X" bug.
+
+The renderer ends in one line (the pages and sections it wrote; `-Verbose`
+lists each), and the SharePoint build in its block of figures, with one note
+for tables longer than `-MaxTableRows` (their native pages show the first
+rows; the dashboard's Sections tab has every row). `New-iSOCBlueprint` then
+closes the run with a short summary: how long it took, the run's folder,
+the captures written and those not read in full or failed, the report's
+pages and sections, the Word document and the SharePoint bundle (and
+whether it was published). Its returned object shows only the workspace and
+folder by default; every property is still on it.
 
 ---
 

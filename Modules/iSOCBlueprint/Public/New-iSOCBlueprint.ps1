@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.0
-    Last Updated: 2026-10-14
+    Version:      0.3.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -264,6 +264,7 @@ function New-iSOCBlueprint {
         elseif ($SkipCollection) { Resolve-iSOCBlueprintRunPath -Path $workspaceRoot }
         else { Join-Path $workspaceRoot (Get-iSOCBlueprintRunFolderName) }
     if (-not $PSCmdlet.ShouldProcess($workspace, "Create a Blueprint ($($Format -join ', '))")) { return }
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
     if (-not $SkipCollection) {
         $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays; Currency = $Currency }
@@ -312,6 +313,8 @@ function New-iSOCBlueprint {
             $published = Publish-iSOCBlueprintSite @publish
         }
     }
+
+    Write-iSOCBlueprintRunSummary -Path $workspace -Elapsed $timer.Elapsed -Collected (-not $SkipCollection) -WordDocument $document -SiteBundle $bundle -SiteUrl $published
 
     [pscustomobject]@{
         PSTypeName    = 'iSOCBlueprint.Blueprint'

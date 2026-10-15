@@ -103,8 +103,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.16.0
-    Last Updated: 2026-10-14
+    Version:      0.16.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     Credit and thanks: the data behind the dashboard's estate flow,
@@ -1661,7 +1661,16 @@ if ($HistoryDays -gt 0 -and $sourceDay -match '^\d{4}-\d{2}-\d{2}$') {
     Write-Log "  History: $($historyEntries.Count) day(s) for the date picker (last $HistoryDays)" Info
 }
 
-foreach ($w in $buildWarnings) { Write-Log "  ! $w" Warning }
+# A table cut on a native page is a display limit, not missing data: the
+# dashboard's Sections tab carries every row. One note names the pages
+# rather than a warning a table.
+$cappedPattern = '^(?<page>\S+) : a table was capped at \d+ rows \((?<rows>\d+) not shown\)\.$'
+$cappedTables = @($buildWarnings | Where-Object { $_ -match $cappedPattern })
+foreach ($w in @($buildWarnings | Where-Object { $_ -notmatch $cappedPattern })) { Write-Log "  ! $w" Warning }
+if ($cappedTables.Count) {
+    $cappedPages = @($cappedTables | ForEach-Object { if ($_ -match $cappedPattern) { $Matches['page'] } } | Select-Object -Unique)
+    Write-Log "  Long tables: $($cappedTables.Count) table(s) longer than $MaxTableRows rows show their first $MaxTableRows on the native pages ($($cappedPages -join ', ')); the dashboard's Sections tab has every row." Info
+}
 Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $chartCount charts, $($findingList.Count) findings)" Success
 
 return $OutputRoot

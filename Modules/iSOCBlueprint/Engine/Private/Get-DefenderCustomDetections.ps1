@@ -24,8 +24,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.0
-    Last Updated: 2026-10-12
+    Version:      0.1.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Az.Accounts or Microsoft.Graph.Authentication
 
     This file defines functions rather than running.
@@ -63,7 +63,8 @@ function Get-DefenderCustomDetections {
             } catch {
                 $msg = $_.Exception.Message
                 if ($msg -match '401|403|Forbidden|Unauthorized|Authorization_RequestDenied') {
-                    throw "Microsoft Graph refused security/rules/detectionRules for the Graph SDK session: $msg. Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."
+                    $status = if ($msg -match '\b(40[13])\s*\(([A-Za-z ]+)\)') { "$($Matches[1]) $($Matches[2])" } elseif ($msg -match 'Forbidden|Unauthorized') { $Matches[0] } else { 'access denied' }
+                    throw "Microsoft Graph refused Defender custom detections to the Graph SDK session ($status). To include them, Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."
                 }
                 throw
             }

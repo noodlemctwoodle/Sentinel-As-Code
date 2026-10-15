@@ -95,7 +95,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.10.1
+    Version:        0.10.2
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -215,6 +215,7 @@ $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $
 
 . (Join-Path $PSScriptRoot 'Private/Invoke-SentinelRest.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AzureRetailPrice.ps1')
+. (Join-Path $PSScriptRoot 'Private/Write-CaptureSummary.ps1')
 
 # Sentinel.Common's KQL identifier extractor sits behind the table-reference
 # captures. The module carries its own copy of the two functions used
@@ -304,10 +305,21 @@ function Try-Capture {
         # Surface the failure prominently. Try-Capture used to log only a
         # Write-Warning which is easy to miss in long ADO logs and silently
         # leaves the corresponding _raw/<file>.json absent or stale. We now
-        # also accumulate the failure into a summary written at the end.
-        Write-Warning "[$Label] FAILED: $msg"
+        # also accumulate the failure into a summary written at the end,
+        # which lists refusals for want of a role or permission (expected
+        # under an identity without every role) apart from other errors.
+        $kind = Get-CaptureIssueKind $msg
+        if ($kind -eq 'Permission') {
+            # Short here; the capture summary at the end carries the message
+            # and what to grant.
+            $status = Get-CaptureStatusText $msg
+            Write-Warning "[$Label] Skipped, no permission$(if ($status) { " ($status)" }). The capture summary at the end says what it needs."
+        } else {
+            Write-Warning "[$Label] FAILED: $msg"
+        }
         $script:CaptureErrors.Add([pscustomobject]@{
             Label   = $Label
+            Kind    = $kind
             Message = $msg
         })
     }
@@ -745,6 +757,8 @@ Try-Capture 'playbooks' {
     # is guarded with PSObject.Properties.Name -contains '<name>'. A workflow
     # with no managed identity has the `identity` member absent entirely.
     $miAssignments = @()
+    $rbacTried = 0
+    $rbacFailures = @()
     foreach ($wf in @($workflows)) {
         if (-not ($wf.PSObject.Properties.Name -contains 'identity')) { continue }
         $mi = $wf.identity
@@ -765,6 +779,7 @@ Try-Capture 'playbooks' {
         if ($principalIds.Count -eq 0) { continue }
 
         foreach ($principalId in ($principalIds | Sort-Object -Unique)) {
+            $rbacTried++
             try {
                 $assignments = Get-AzRoleAssignment -ObjectId $principalId -ErrorAction SilentlyContinue
                 $workspaceRoles = @($assignments | Where-Object { $_.Scope -eq $workspaceResourceId } | Select-Object -ExpandProperty RoleDefinitionName)
@@ -775,10 +790,12 @@ Try-Capture 'playbooks' {
                     WorkspaceRoles   = $workspaceRoles
                 }
             } catch {
-                Write-Warning "RBAC enumeration for playbook $($wf.name) failed: $($_.Exception.Message)"
+                $rbacFailures += [pscustomobject]@{ Name = [string]$wf.name; Message = $_.Exception.Message }
             }
         }
     }
+    # One line for the identities that could not be read, not one each.
+    foreach ($issue in @(Write-PartialCaptureIssue -Label 'playbooks' -What 'the role assignments of' -Noun 'playbook identity', 'playbook identities' -Total $rbacTried -Failures $rbacFailures)) { $script:CaptureErrors.Add($issue) }
     Save-Json -FileName 'rbac-playbook-mi.json' -Data $miAssignments
 }
 
@@ -788,6 +805,8 @@ Try-Capture 'playbook-runs' {
     # failure on one workflow is logged and the others are still recorded.
     $since = (Get-Date).ToUniversalTime().AddDays(-$script:LookbackDays).ToString('yyyy-MM-ddTHH:mm:ssZ')
     $runRows = @()
+    $runsTried = 0
+    $runFailures = @()
     foreach ($wf in $script:Workflows) {
         if ($null -eq $wf) { continue }
         $wfName = [string]$wf.name
@@ -796,6 +815,7 @@ Try-Capture 'playbook-runs' {
             $wf.properties.PSObject.Properties.Name -contains 'state') { $state = [string]$wf.properties.state }
         $row = [ordered]@{ Playbook = $wfName; Id = [string]$wf.id; Runs7d = 0; Failed7d = 0; LastFailureUtc = $null; LastRunStatus = $null; Note = $null; Daily = @() }
         if ($state -eq 'Enabled') {
+            $runsTried++
             try {
                 $runs = @(Invoke-SentinelRest -Path "$($wf.id)/runs?`$top=250&`$filter=startTime ge $since" -ApiVersion '2016-06-01')
                 $runs = @($runs | Where-Object { $null -ne $_ -and $_.PSObject.Properties.Name -contains 'properties' })
@@ -826,11 +846,13 @@ Try-Capture 'playbook-runs' {
                 # Marked so consumers can tell "no runs" from "could not read".
                 $row.LastRunStatus = 'Unavailable'
                 $row.Note = "Run history not readable: $($_.Exception.Message)"
-                Write-Warning "Run history for playbook $wfName failed: $($_.Exception.Message)"
+                $runFailures += [pscustomobject]@{ Name = $wfName; Message = $_.Exception.Message }
             }
         }
         $runRows += [pscustomobject]$row
     }
+    # One line for the playbooks whose history could not be read, not one each.
+    foreach ($issue in @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total $runsTried -Failures $runFailures)) { $script:CaptureErrors.Add($issue) }
     Save-Json -FileName 'playbook-runs.json' -Data $runRows
 }
 
@@ -2092,6 +2114,9 @@ Try-Capture 'maturity' {
 # Wrap-up
 # ---------------------------------------------------------------------------
 $runContext = $runContext | Add-Member -MemberType NoteProperty -Name CompletedAtUtc -Value (Get-Date).ToUniversalTime().ToString('o') -PassThru
+# The captures that failed, each marked Permission or Error, for the run
+# summary New-iSOCBlueprint prints at the end.
+$runContext | Add-Member -MemberType NoteProperty -Name CaptureIssues -Value @($script:CaptureErrors) -Force
 Save-Json -FileName 'run-context.json' -Data $runContext
 
 # Diagnostic pass, sanity-check captures that typically contain data on
@@ -2123,56 +2148,4 @@ $expectIfActive = @(
     'workspace-usage-daily.json'
 )
 
-Write-Host ""
-Write-Host "##[section]Capture summary"
-Write-Host "============================================================"
-
-$captureRows = New-Object System.Collections.Generic.List[pscustomobject]
-foreach ($f in ($expectNonEmpty + $expectIfActive)) {
-    $p = Join-Path $rawOut $f
-    if (-not (Test-Path $p)) {
-        $captureRows.Add([pscustomobject]@{ File = $f; Items = '(missing)'; Status = 'ERROR'; Reason = 'File not written' })
-        continue
-    }
-    $raw = Get-Content -Path $p -Raw
-    $count = 0
-    $isSingleObj = ($raw.TrimStart().StartsWith('{'))
-    try {
-        $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
-        if ($isSingleObj) {
-            # Single-object file (cost-estimate, workspace, settings, ...), empty if `{}`.
-            $count = if ($raw.Trim() -eq '{}' -or $null -eq $parsed -or @($parsed.PSObject.Properties).Count -eq 0) { 0 } else { 1 }
-        } else {
-            $count = if ($null -eq $parsed) { 0 } else { @($parsed).Count }
-        }
-    } catch {
-        $captureRows.Add([pscustomobject]@{ File = $f; Items = '(parse error)'; Status = 'ERROR'; Reason = $_.Exception.Message })
-        continue
-    }
-    $status = if ($count -gt 0) {
-        'OK'
-    } elseif ($expectNonEmpty -contains $f) {
-        'EMPTY (unexpected)'
-    } else {
-        'EMPTY (verify)'
-    }
-    $captureRows.Add([pscustomobject]@{ File = $f; Items = $count; Status = $status; Reason = '' })
-}
-$captureRows | Format-Table -AutoSize | Out-String | Write-Host
-
-if ($script:CaptureErrors.Count -gt 0) {
-    Write-Host ""
-    Write-Host "##[warning]$($script:CaptureErrors.Count) capture step(s) raised an error and were skipped:"
-    foreach ($e in $script:CaptureErrors) {
-        Write-Host "  - [$($e.Label)]  $($e.Message)"
-    }
-}
-
-$suspectEmpty = $captureRows | Where-Object { $_.Status -like 'EMPTY*' -or $_.Status -eq 'ERROR' }
-if ($suspectEmpty) {
-    Write-Host ""
-    Write-Host "##[warning]The capture(s) above are usually populated on an active workspace."
-    Write-Host "If you expected non-zero counts: check RBAC (Microsoft Sentinel Reader at workspace scope is required for automation rules, watchlists, hunting queries, and incidents), and confirm the workspace has been used since deployment."
-}
-
-Write-Information "Sentinel inventory exported to $rawOut"
+Write-CaptureSummary -RawRoot $rawOut -Issues @($script:CaptureErrors) -ExpectNonEmpty $expectNonEmpty -ExpectIfActive $expectIfActive

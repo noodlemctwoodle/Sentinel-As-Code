@@ -462,6 +462,8 @@ SharePoint text web part keeps:
 - Tables use the SharePoint editor's responsive table markup and are capped
   at 500 rows (`-MaxTableRows`). A longer table says how many rows are not
   shown and links to the dashboard, whose copy has every row and a filter.
+  The cut is display only: the findings, coverage and dashboard read every
+  row. The build log names the pages with a cut table in one note.
 - Links follow their target in the model: another section goes to its
   page, a finding (`SAC-<AREA>-NN`) goes to the findings list filtered on
   that id, a web URL is kept, and a repository path or an in-page anchor

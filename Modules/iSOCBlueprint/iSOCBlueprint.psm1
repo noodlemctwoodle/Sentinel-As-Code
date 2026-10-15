@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -37,6 +37,10 @@ foreach ($folder in 'Private', 'Public') {
         . $file.FullName
     }
 }
+
+# New-iSOCBlueprint prints its own summary when a run ends, so its result
+# shows only where the run went; every property is still on the object.
+Update-TypeData -TypeName 'iSOCBlueprint.Blueprint' -DefaultDisplayPropertySet 'WorkspaceName', 'Path' -Force
 
 $public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -File | ForEach-Object BaseName)
 Export-ModuleMember -Function $public

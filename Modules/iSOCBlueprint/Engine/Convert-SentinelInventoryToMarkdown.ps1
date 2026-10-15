@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.5
+    Version:        0.7.6
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -164,6 +164,7 @@ $script:WriteJson     = $OutputFormat -contains 'Json'
 $script:SectionsRoot  = Join-Path $OutputRoot 'sections'
 $script:SectionIndex  = [System.Collections.Generic.List[object]]::new()
 $script:SectionMeta   = $null
+$script:PagesWritten  = 0
 if ($script:WriteJson -and -not (Test-Path $script:SectionsRoot)) {
     New-Item -ItemType Directory -Path $script:SectionsRoot -Force | Out-Null
 }
@@ -406,7 +407,8 @@ function Write-Section([string]$FileName, [string]$Body) {
     if ($FileName -ne 'index.md') { $body = Move-ReferenceLinks $body }
     if ($script:WriteMarkdown) {
         Set-Content -Path $target -Value $body -Encoding UTF8
-        Write-Information "  ↳ rendered $FileName"
+        if ($FileName -ne 'index.md') { $script:PagesWritten++ }
+        Write-Verbose "rendered $FileName"
     }
     if ($script:WriteJson) { Write-SectionModel -FileName $FileName -Markdown $body }
 }
@@ -427,7 +429,7 @@ function Write-SectionModel([string]$FileName, [string]$Markdown) {
     $model = ConvertTo-BlueprintSection -Markdown $Markdown -Id $id -Meta $script:SectionMeta
     $model | ConvertTo-Json -Depth 64 | Set-Content -Path (Join-Path $script:SectionsRoot "$id.json") -Encoding utf8
     $script:SectionIndex.Add([ordered]@{ id = $id; order = $model.order; title = $model.title; file = "$id.json" })
-    if (-not $script:WriteMarkdown) { Write-Information "  ↳ rendered sections/$id.json" }
+    Write-Verbose "rendered sections/$id.json"
 }
 
 function Format-DateUtc {
@@ -6969,7 +6971,8 @@ $refSrc = Join-Path $PSScriptRoot 'Private/Resources/Blueprint-References.md'
 if (Test-Path $refSrc) {
     if ($script:WriteMarkdown) {
         Copy-Item -Path $refSrc -Destination (Join-Path $OutputRoot '99-references.md') -Force
-        Write-Information "  ↳ copied 99-references.md"
+        $script:PagesWritten++
+        Write-Verbose 'copied 99-references.md'
     }
     if ($script:WriteJson) { Write-SectionModel -FileName '99-references.md' -Markdown (Get-Content -LiteralPath $refSrc -Raw) }
 }
@@ -7036,4 +7039,8 @@ if ($script:WriteJson) {
         ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $script:SectionsRoot 'index.json') -Encoding utf8
 }
 
-Write-Information "Renderer complete, output: $OutputRoot"
+# One line for the run log; -Verbose lists each page as it is written.
+$rendered = @()
+if ($script:WriteMarkdown) { $rendered += "$($script:PagesWritten) Markdown pages" }
+if ($script:WriteJson) { $rendered += "$(@($script:SectionIndex).Count) JSON sections" }
+Write-Information "Report: $($rendered -join ' and ') to $OutputRoot"
