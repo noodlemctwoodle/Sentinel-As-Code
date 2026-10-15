@@ -95,8 +95,14 @@ two rules fail.
 gap analysis (the gap checks run as they do after a collection) and the
 maturity assessment run over the demo inventory, so the findings and the
 score are what the Blueprint makes of it. With `-Build`, the bundle also
-carries a quarter of weekly maturity scores climbing to today's, so the
-maturity trend shows; on SharePoint that history comes from the site.
+carries a quarter of runs about a week apart, the first 90 days back, so
+the maturity trend and the Progress tab show: maturity scores climbing to
+today's (each area at its own pace, one slipping), and progress records
+with findings since fixed, fewer rules enabled, fewer criteria met, less
+ATT&CK coverage and more tables no detection reads, plus one finding new
+this week and one criterion that has become a gap. Every Progress baseline
+(previous run, 7, 30 and 90 days, first run) has a run. On SharePoint
+these histories come from the site.
 
 **Shapes no content drives** (subscription, locks, linked services, data
 exports, SOC optimisation, threat intelligence metrics and What's new)

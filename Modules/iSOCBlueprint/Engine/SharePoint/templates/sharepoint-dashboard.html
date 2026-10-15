@@ -100,16 +100,20 @@
   /* Assessment: maturity and findings under one tab, with a switch */
   .subnav{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:var(--gap) 0;padding:12px 14px;
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
-  .subtabs{display:inline-flex;gap:4px;background:var(--chip);border:1px solid var(--line);padding:4px;border-radius:12px}
-  .subtab{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:650;font-size:14px;padding:8px 16px;
+  .subtabs,.pgtabs{display:inline-flex;gap:4px;background:var(--chip);border:1px solid var(--line);padding:4px;border-radius:12px}
+  .subtab,.pgtab{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:650;font-size:14px;padding:8px 16px;
     border-radius:9px;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer;
     transition:color .15s,background .15s,box-shadow .15s}
-  .subtab:hover{color:var(--ink);background:var(--panel)}
-  .subtab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .subtab.active{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
+  .subtab:hover,.pgtab:hover:not([disabled]){color:var(--ink);background:var(--panel)}
+  .subtab:focus-visible,.pgtab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .subtab.active,.pgtab.active{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
   .subcount{font-size:12px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--ink-2);border:1px solid var(--line)}
-  .subtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+  .subtab.active .subcount,.pgtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
   .subnav .note{margin:0;flex:1 1 320px;min-width:0}
+  /* Progress: the baseline switch wraps on a narrow screen; a baseline with
+     no kept run that far back is greyed. */
+  .pgtabs{flex-wrap:wrap}
+  .pgtab[disabled]{opacity:.45;cursor:default}
   /* What the maturity score is based on and what it leaves out: two
      matching tiles, side by side where there is room. */
   .matscope{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 18px}
@@ -402,6 +406,8 @@
   /* One grid for every area row (rows are display:contents) so the score
      and confidence columns line up across rows whatever the badge width. */
   .areabars{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:10px 12px}
+  /* On a phone the name takes its own row, so the bar keeps its width. */
+  @media(max-width:560px){.areabars{grid-template-columns:1fr auto auto;row-gap:6px}.abar .al{grid-column:1/-1;margin-top:6px}}
   .abar{display:contents}
   .abar .al{font-size:12.5px;font-weight:650;color:var(--ink-2)}
   .abar .at{height:12px;border-radius:999px;background:var(--line-2);position:relative;overflow:visible}
@@ -584,20 +590,29 @@
      bigger table on the same page. */
   .grouplink{cursor:pointer;color:var(--brand);text-decoration:underline dotted;text-underline-offset:3px}
   .grouplink:hover,.grouplink:focus-visible{text-decoration-style:solid;outline:none}
-  /* Progress: the baseline picker, the change between runs, the lists. */
-  .pgchips{display:flex;flex-wrap:wrap;gap:8px}
-  .pgchips .fchip[disabled]{opacity:.45;cursor:default}
+  /* Progress: the change colours, the change lists and the baseline
+     marker on the area bars (the switch shares the Assessment switch's
+     rules above). */
   .pg-good{color:var(--green);font-weight:650;white-space:nowrap}
   .pg-bad{color:var(--red);font-weight:650;white-space:nowrap}
   .pg-same{color:var(--muted);white-space:nowrap}
-  .pggrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 24px}
-  .pggrid h3{margin:0 0 6px;font-size:14px;font-weight:700}
-  .pgcount{display:inline-block;min-width:20px;padding:0 7px;border-radius:999px;background:var(--chip);color:var(--ink-2);font-size:11.5px;font-weight:650;text-align:center}
-  .pglist{margin:6px 0 8px;padding:0;list-style:none}
-  .pglist li{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.4}
-  .pglist li:last-child{border-bottom:0}
-  .pglink{color:var(--brand);cursor:pointer;font-weight:600}
+  .abar .pgd{position:absolute;top:0;bottom:0;min-width:3px}
+  .abar .pgd.up{background:var(--green);border-radius:0 999px 999px 0}
+  .abar .pgd.down{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--red) 70%,transparent) 0 3px,color-mix(in srgb,var(--red) 25%,transparent) 3px 6px);border-radius:0 999px 999px 0}
+  .matbadge.worse{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+  .pgsub+.pgsub{margin-top:16px}
+  .pgsubh{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .pgsubh .subcount{font-size:11px;padding:1px 7px;letter-spacing:0}
+  .pgrow{display:flex;align-items:baseline;gap:9px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:13px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
+  .pgrow i{width:9px;height:9px;border-radius:3px;flex:none;background:var(--slate);transform:translateY(-1px)}
+  .pgrow i.good{background:var(--green)} .pgrow i.bad{background:var(--red)}
+  .pgrow b{color:var(--ink);font-weight:650}
+  .pgsub .morewrap>.pgrow:last-of-type{border-bottom:0}
+  .pgrow .tagpill{margin:0 2px}
+  .pglink{color:var(--brand);cursor:pointer;font-weight:650}
   .pglink:hover,.pglink:focus-visible{text-decoration:underline;outline:none}
+  p.note.pgquiet{margin:0 2px var(--gap)}
+  .panel p.note.pgquiet{margin:0}
   .cellchips .tagpill{white-space:normal}
   /* A maturity criterion with its state on this workspace ("SAC-DET-07 gap")
      is a chip in the state's colour, as on the maturity view. */
@@ -1164,7 +1179,11 @@
     <div id="maturityBoard"></div>
   </section>
 
-  <!-- PROGRESS (change across runs) -->
+  <!-- PROGRESS (change across runs): the baseline switch, then the board -->
+  <div class="subnav hidden" data-views="progress">
+    <div class="pgtabs" id="progressPick" role="tablist" aria-label="Compare with"></div>
+    <span class="note" id="progressNote"></span>
+  </div>
   <section data-view="progress" class="hidden">
     <div id="progressBoard"></div>
   </section>
@@ -1887,7 +1906,7 @@
     rings.forEach(rg=>{
       const d=(E.rings&&E.rings[rg.k])||{value:0,max:0,pct:null};
       const frac=d.pct==null?0:Math.max(0,Math.min(1,d.pct/100));
-      const ringTip=rg.label+': '+(d.pct==null?'not measured':d.pct+'%')+' ('+d.value+' of '+d.max+'). '+(d.label||'')+(opts.ringPage&&opts.ringPage(rg.k)!=null?' Click to open the page.':'');
+      const ringTip=rg.label+': '+(d.pct==null?'not measured':d.pct+'%')+' ('+Number(d.value).toLocaleString()+' of '+Number(d.max).toLocaleString()+'). '+(d.label||'')+(opts.ringPage&&opts.ringPage(rg.k)!=null?' Click to open the page.':'');
       const y=ry(rg);
       tip(mk('circle',{'data-ring':rg.k,cx:rg.x,cy:y,r:r,'stroke-width':'7',style:'fill:var(--panel);stroke:var(--ring-track)'}),ringTip);
       const arc=tip(mk('circle',{'data-ring':rg.k,class:'es-arc',cx:rg.x,cy:y,r:r,fill:'none','stroke-width':'7','stroke-linecap':'round','stroke-dasharray':(C*frac).toFixed(1)+' '+C.toFixed(1),
@@ -1895,7 +1914,7 @@
       arcs.push({el:arc, to:(C*frac).toFixed(1)+' '+C.toFixed(1), from:'0 '+C.toFixed(1)});
       tip(mk('text',{'data-ring':rg.k,x:rg.x,y:y+6,'text-anchor':'middle','font-size':'17','font-weight':'800',style:'fill:var(--ink)'},d.pct==null?'n/a':d.pct+'%'),ringTip);
       mk('text',{x:rg.x,y:y-r-14,'text-anchor':'middle','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},rg.label.toUpperCase());
-      mk('text',{x:rg.x,y:y+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},d.value+' of '+d.max);
+      mk('text',{x:rg.x,y:y+r+20,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},Number(d.value).toLocaleString()+' of '+Number(d.max).toLocaleString());
       mkLines(rg.x,y+r+35,wrapLines(d.label||'',24),{'text-anchor':'middle','font-size':'10',style:'fill:var(--muted);'+HALO},12);
     });
     const last=rings[rings.length-1];
@@ -1907,7 +1926,7 @@
       const incTip=b.l+' incidents in the last '+WIN.w()+'. Click to open the incidents page.';
       tip(mk('rect',{'data-inc':b.l,x:1088,y:b.y-18,width:104,height:40,rx:8,fill:'transparent'}),incTip);
       tip(mk('circle',{'data-inc':b.l,cx:1098,cy:b.y,r:6.5,fill:b.col,filter:'url(#esGlow)'}),incTip);
-      tip(mk('text',{'data-inc':b.l,x:1114,y:b.y+6,'font-size':'19','font-weight':'800',style:'fill:var(--ink)'},String(b.v)),incTip);
+      tip(mk('text',{'data-inc':b.l,x:1114,y:b.y+6,'font-size':'19','font-weight':'800',style:'fill:var(--ink)'},b.v.toLocaleString()),incTip);
       tip(mk('text',{'data-inc':b.l,x:1114,y:b.y+20,'font-size':'9.5','font-weight':'700',style:'fill:var(--muted);'+LBL},b.l.toUpperCase()),incTip);
     });
     // The rings' arcs draw in from empty, once; not for reduced motion.
@@ -3035,22 +3054,27 @@
   }
 
   // 7c. Daily ingestion trend (string-built SVG: area, line, average, three x labels)
+  // opts.fit scales the axis to the values' own range rather than from
+  // zero, so a change of a few points over weeks shows (the Progress tab);
+  // a volume keeps its zero baseline.
   function trendHtml(points, opts){
     opts=opts||{}; const col=THEME[opts.theme]||THEME.brand; const unit=opts.unit||'';
     if(!points||points.length<2) return '<p class="note">Not enough points for a trend.</p>';
     const W=640,H=180,pl=44,pr=12,pt=14,pb=26;
-    const vals=points.map(p=>+p.value||0); const max=Math.max(...vals,0.01);
-    const x=i=>pl+(W-pl-pr)*i/(points.length-1); const y=v=>pt+(H-pt-pb)*(1-v/max);
+    const vals=points.map(p=>+p.value||0); const vmax=Math.max(...vals), vmin=Math.min(...vals);
+    const pad=opts.fit? Math.max((vmax-vmin)*0.15, Math.abs(vmax)*0.02, 0.01) : 0;
+    const lo=opts.fit? vmin-pad : 0, max=opts.fit? vmax+pad : Math.max(vmax,0.01);
+    const x=i=>pl+(W-pl-pr)*i/(points.length-1); const y=v=>pt+(H-pt-pb)*(1-(v-lo)/(max-lo));
     const line=vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');
-    const area=line+' L'+x(vals.length-1).toFixed(1)+','+y(0).toFixed(1)+' L'+x(0).toFixed(1)+','+y(0).toFixed(1)+' Z';
+    const area=line+' L'+x(vals.length-1).toFixed(1)+','+y(lo).toFixed(1)+' L'+x(0).toFixed(1)+','+y(lo).toFixed(1)+' Z';
     const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
-    const lab=[0,Math.floor((points.length-1)/2),points.length-1].map(i=>'<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#9aa3af">'+esc(points[i].label)+'</text>').join('');
+    const lab=[0,Math.floor((points.length-1)/2),points.length-1].map(i=>'<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="'+(i===points.length-1?'end':'middle')+'" font-size="10" fill="#9aa3af">'+esc(points[i].label)+'</text>').join('');
     return '<svg class="trend" viewBox="0 0 '+W+' '+H+'" role="img">'+
       '<path d="'+area+'" fill="'+col[0]+'" fill-opacity=".12"/><path d="'+line+'" fill="none" stroke="'+col[0]+'" stroke-width="2.2" stroke-linejoin="round"/>'+
       '<line x1="'+pl+'" y1="'+y(avg).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(avg).toFixed(1)+'" stroke="'+col[1]+'" stroke-dasharray="4 4" stroke-width="1.2"/>'+
       '<text x="'+(W-pr)+'" y="'+(y(avg)-4).toFixed(1)+'" text-anchor="end" font-size="10" fill="'+col[1]+'">avg '+fmtN(avg)+unit+'</text>'+
       '<text x="'+(pl-6)+'" y="'+(pt+4)+'" text-anchor="end" font-size="10" fill="#9aa3af">'+fmtN(max)+unit+'</text>'+
-      '<text x="'+(pl-6)+'" y="'+(y(0)+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="#9aa3af">0</text>'+lab+'</svg>';
+      '<text x="'+(pl-6)+'" y="'+(y(lo)+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="#9aa3af">'+(opts.fit? fmtN(lo)+unit : '0')+'</text>'+lab+'</svg>';
   }
   if(M.usageDaily && M.usageDaily.length>=2){
     const pts=M.usageDaily.map(u=>({label:(u.day||'').slice(5),value:u.billable}));
@@ -3162,13 +3186,16 @@
     const sc=MAT.overall.score, tg=MAT.targetLevel;
     const pct=sc==null?0:Math.round(sc/5*100);
     const confCls=c=>c==='Good'?'good':(c==='Moderate'?'moderate':'');
+    // The badge is the confidence in the score (how many of the area's
+    // criteria this run could assess), not the score: it says so.
+    const confText=c=>!c||c==='Not assessed'? (c||'n/a') : c+' confidence';
     const areaName={}; (MAT.areas||[]).forEach(a=>areaName[a.id]=a.name);
     function areaBarsHtml(areas,target){
       return '<div class="areabars">'+areas.map(a=>{
         const s=a.score==null?0:+a.score; const below=a.score!=null&&a.level<target;
         return '<div class="abar" style="--c1:'+(below?'#d97706':'#2563eb')+';--c2:'+(below?'#f59e0b':'#6d5efc')+'"><div class="al"><b>'+esc(a.id)+'</b> '+esc(a.name)+'</div>'+
           '<div class="at"><div class="af" style="--w:'+(s/5*100).toFixed(1)+'%"></div><div class="am" style="--t:'+(target/5*100)+'%"></div></div>'+
-          '<div class="av">'+(a.score==null?'n/a':(+a.score).toFixed(2))+'</div><span class="matbadge '+confCls(a.confidence)+'">'+esc(a.confidence)+'</span></div>';
+          '<div class="av">'+(a.score==null?'n/a':(+a.score).toFixed(2))+'</div><span class="matbadge '+confCls(a.confidence)+'" title="Confidence in this score: how many of the area\'s criteria this run could assess">'+esc(confText(a.confidence))+'</span></div>';
       }).join('')+'</div>';
     }
     let html='';
@@ -3183,7 +3210,7 @@
       '<div class="di"><i style="background:var(--slate)"></i>Unknown<b>'+MAT.totals.unknown+'</b></div>'+
       '<div class="di" style="margin-top:6px"><i style="background:var(--amber)"></i>Target level '+tg+' ('+esc(MAT.targetLevelName)+')<b>'+
       (MAT.targetMet?'met':(MAT.areasBelowTarget||[]).length+' areas below')+'</b></div></div></div></div>';
-    html+='<div class="panel"><div class="phead"><div><h2>Areas</h2><p class="note">Dashed marker = target level. Amber bars are below it.</p></div></div>'+areaBarsHtml(MAT.areas||[],tg)+'</div>';
+    html+='<div class="panel"><div class="phead"><div><h2>Areas</h2><p class="note">Dashed marker = target level. Amber bars are below it. The badge is the confidence in the score: how many of the area\'s criteria this run could assess.</p></div></div>'+areaBarsHtml(MAT.areas||[],tg)+'</div>';
     html+='<div class="panel" id="maturityTrend" style="display:none"><div class="phead"><div><h2>Score over time</h2><p class="note">One point per published run.</p></div></div><div id="maturityTrendBody"></div></div>';
     if(MAT.csf&&MAT.csf.functions&&MAT.csf.functions.length){
       html+='<div class="panel"><div class="phead"><div><h2>NIST CSF 2.0 rollup</h2><p class="note">Criteria per function, by status.</p></div></div><div class="csfgrid">'+
@@ -3283,14 +3310,18 @@
   // (findings, criteria, rules, coverage) is as it was on the day. The build
   // writes a progress record for every run (M.progress) and the history of
   // them beside the dashboard (progress-history.json: earlier day folders'
-  // records locally, the publisher's on the site). This tab compares the run
-  // shown with a baseline from that history. A day's kept copy (history/)
+  // records locally, the publisher's on the site). This view compares the
+  // run shown with a baseline from that history, in the dashboard's own
+  // parts: the Assessment tab's switch, the Overview's tiles, the maturity
+  // view's area bars and the Insights cards. A day's kept copy (history/)
   // compares its own day with the runs before it.
   (function(){
-    const board=document.getElementById('progressBoard'); if(!board) return;
+    const board=document.getElementById('progressBoard'), pickEl=document.getElementById('progressPick'), noteEl=document.getElementById('progressNote');
+    if(!board) return;
     const cur=M.progress||null;
     if(!cur){
-      board.innerHTML='<div class="panel"><div class="phead"><div><h2>Progress</h2><p class="note">This snapshot was built before progress tracking. Each run from now on adds a record, and this tab compares them.</p></div></div></div>';
+      if(pickEl) pickEl.hidden=true;
+      if(noteEl) noteEl.textContent='This snapshot was built before progress tracking. Each run from now on adds a record, and this view compares them.';
       return;
     }
     // key, label, which way is better ('up', 'down' or '' for neither), format
@@ -3314,13 +3345,20 @@
       ['openIncidents','Open incidents','down'],
       ['mttrMinutes','Mean time to resolve','down','minutes']
     ];
-    const TRENDS=[['maturityScore','Maturity score','indigo'],['findings','Findings','amber'],['rulesEnabled','Analytics rules enabled','brand'],
-      ['techniquesCovered','ATT&CK techniques covered','teal'],['uncoveredGb','GB no detection reads','amber'],['monthlyCost','Estimated monthly cost','teal']];
+    const MK={}; METRICS.forEach(m=>{ MK[m[0]]=m; });
+    // The headline tiles, in the Overview's style.
+    const TILES=[['maturityScore',ICON.gauge],['findings',ICON.shieldAlert],['findingsCritical',ICON.flag],['rulesEnabled',ICON.bolt],
+      ['techniquesCovered',ICON.crosshair],['uncoveredGb',ICON.database],['openIncidents',ICON.pulse],['monthlyCost',ICON.coins]];
+    const TRENDS=[['maturityScore','indigo'],['findings','amber'],['rulesEnabled','brand'],['techniquesCovered','teal'],['uncoveredGb','violet'],['monthlyCost','cyan']];
     const CHIPS=[['prev','Previous run',0],['d7','7 days',7],['d30','30 days',30],['d90','90 days',90],['first','First run',null]];
-    const LIST_SHOW=12;
+    const SHOW=8;
     let entries=[cur], pick='prev';
-    const iso=d=>{ const t=new Date(cur.date+'T00:00:00Z'); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
-    const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);
+    const day=d=>new Date(d+'T00:00:00Z');
+    const iso=d=>{ const t=day(cur.date); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
+    const daysBetween=(a,b)=>Math.round((day(b)-day(a))/86400000);
+    const short=d=>day(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+    const long=d=>day(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+    const andList=a=>a.length<2? a.join('') : a.slice(0,-1).join(', ')+' and '+a[a.length-1];
     const baselines=()=>{
       const earlier=entries.filter(e=>e.date<cur.date), out={};
       CHIPS.forEach(([k,,d])=>{ out[k]= k==='prev'? earlier[earlier.length-1]||null : k==='first'? earlier[0]||null : earlier.filter(e=>e.date<=iso(d)).pop()||null; });
@@ -3328,7 +3366,7 @@
     };
     const mv=(e,k)=>{ const v=e&&e.metrics? e.metrics[k] : null; return v==null||v===''? null : +v; };
     const fmtVal=(v,f)=>{
-      if(v==null) return '<span class="pg-same">n/a</span>';
+      if(v==null) return 'n/a';
       if(f==='score') return (+v).toFixed(2);
       if(f==='gb') return fmtN(v)+' GB';
       if(f==='money') return esc(fmtMoney(cur.currency,v));
@@ -3342,83 +3380,135 @@
       const mag=f==='score'? Math.abs(d).toFixed(2) : f==='money'? fmtMoney(cur.currency,Math.abs(d)) : f==='gb'? fmtN(Math.abs(d))+' GB' : f==='minutes'? fmtVal(Math.abs(d),'minutes') : Math.abs(d).toLocaleString('en-GB');
       return '<span class="'+cls+'">'+(d>0?'&#9650; ':'&#9660; ')+esc(mag)+'</span>';
     };
-    // A list of changes: the first LIST_SHOW, then Show all, so nothing is hidden.
-    const listHtml=(items,render)=>{
-      if(!items.length) return '<p class="note">None.</p>';
-      const li=items.map((x,i)=>'<li'+(i>=LIST_SHOW?' hidden data-pgmore':'')+'>'+render(x)+'</li>').join('');
-      return '<ul class="pglist">'+li+'</ul>'+(items.length>LIST_SHOW? '<button type="button" class="fchip pgall">Show all '+items.length+'</button>' : '');
-    };
-    const group=(title,note,items,render)=>'<div class="pggroup"><h3>'+esc(title)+' <span class="pgcount">'+items.length+'</span></h3>'+(note?'<p class="note">'+note+'</p>':'')+listHtml(items,render)+'</div>';
     const diff=(a,b)=>{ const A=new Set(a||[]), B=new Set(b||[]); return {added:[...B].filter(x=>!A.has(x)).sort(), removed:[...A].filter(x=>!B.has(x)).sort()}; };
     const techName={}; ((M.attack&&M.attack.techniques)||[]).forEach(t=>{ techName[t.id]=t.name; });
-    const sevPill=s=>'<span class="tagpill">'+esc(s||'')+'</span>';
+    const listedFindings=new Set(((M.findings&&M.findings.items)||[]).map(f=>f.id));
     const link=(cls,data,text)=>'<span class="pglink '+cls+'" tabindex="0" role="button" '+data+'>'+esc(text)+'</span>';
+
+    // Tiles: each headline number now, and its change since the baseline.
+    function tilesHtml(base){
+      return '<div class="panel glance"><div class="phead"><div><h2>Progress at a glance</h2><p class="note">'+
+        (base? 'Each figure now, and how it has moved since '+esc(long(base.date))+'. Green is better and red is worse; cost and volume are neither.' : 'Each figure as this run collected it. The next run adds the comparison.')+
+        '</p></div></div><div class="tiles pgtiles">'+TILES.filter(([k])=>mv(cur,k)!=null).map(([k,ic])=>{
+          const m=MK[k], a=base? mv(base,k) : null, b=mv(cur,k);
+          const s=!base? 'No earlier run yet' : a==null? 'Not captured on '+esc(short(base.date)) : fmtDelta(a,b,m[2],m[3])+' since '+esc(short(base.date));
+          return '<div class="pill"><span class="kic">'+ic+'</span><div class="k">'+esc(m[1])+'</div><div class="v">'+fmtVal(b,m[3])+'</div><div class="s">'+s+'</div></div>';
+        }).join('')+'</div></div>';
+    }
+    // Area bars, as the maturity view draws them: the bar is the score now
+    // (amber below the target level) and the dashed marker the target, so
+    // the markers line up as they do there. The change since the baseline is
+    // a segment at the bar's end: green for what the area gained, red for
+    // what it lost.
+    function areasHtml(base){
+      const target=M.maturity&&M.maturity.targetLevel;
+      const pc=v=>(Math.max(0,Math.min(5,+v))/5*100).toFixed(1)+'%';
+      const order=((M.maturity&&M.maturity.areas)||[]).filter(a=>cur.areas && cur.areas[a.id]!==undefined);
+      if(!order.length) return '';
+      const rows=order.map(a=>{
+        const now=cur.areas[a.id], then=base&&base.areas? base.areas[a.id] : null;
+        const s=now==null? 0 : +now, d=(now!=null&&then!=null)? +now-+then : null;
+        const badge=!base? '<span class="matbadge">first run</span>' : d==null? '<span class="matbadge">not scored</span>' : Math.abs(d)<0.005? '<span class="matbadge">no change</span>' :
+          '<span class="matbadge '+(d>0?'good':'worse')+'">'+(d>0?'&#9650; ':'&#9660; ')+Math.abs(d).toFixed(2)+'</span>';
+        const below=now!=null&&target!=null&&a.level<target;
+        return '<div class="abar" style="--c1:'+(below?'#d97706':'#2563eb')+';--c2:'+(below?'#f59e0b':'#6d5efc')+'"><div class="al"><b>'+esc(a.id)+'</b> '+esc(a.name)+'</div>'+
+          '<div class="at"><div class="af" style="--w:'+(s/5*100).toFixed(1)+'%"></div>'+
+          (d!=null&&Math.abs(d)>=0.005? '<div class="pgd '+(d>0?'up':'down')+'" style="left:'+pc(Math.min(+now,+then))+';width:'+pc(Math.abs(d))+'" title="'+esc(short(base.date))+': '+(+then).toFixed(2)+', now '+(+now).toFixed(2)+'"></div>' : '')+
+          (target!=null? '<div class="am" style="--t:'+(target/5*100)+'%"></div>' : '')+'</div>'+
+          '<div class="av">'+(now==null? 'n/a' : (+now).toFixed(2))+'</div>'+badge+'</div>';
+      }).join('');
+      return '<div class="panel"><div class="phead"><div><h2>Maturity by area</h2><p class="note">Each area\'s score out of 5 now'+
+        (base? '; green at the end of a bar is what it gained since '+esc(long(base.date))+', red what it lost' : '')+'. '+
+        (target!=null? 'Dashed marker = target level; amber bars are below it.' : '')+'</p></div></div><div class="areabars">'+rows+'</div></div>';
+    }
+    // Insights cards: each headline number across every kept run, scaled to
+    // its own range so a small move shows.
+    function trendsHtml(){
+      if(entries.length<2) return '';
+      const cards=TRENDS.map(([k,theme])=>{
+        const m=MK[k], kept=entries.filter(e=>mv(e,k)!=null); if(kept.length<2) return '';
+        const first=mv(kept[0],k), last=mv(kept[kept.length-1],k);
+        return '<div class="ipanel"><h3>'+esc(m[1])+'</h3><p class="note">'+fmtVal(first,m[3])+' on '+esc(short(kept[0].date))+', '+fmtVal(last,m[3])+' now ('+fmtDelta(first,last,m[2],m[3])+'), over '+kept.length+' runs.</p>'+
+          trendHtml(kept.map(e=>({label:short(e.date),value:mv(e,k)})),{theme:theme,unit:m[3]==='gb'?' GB':'',fit:true})+'</div>';
+      }).join('');
+      return cards? '<div class="seclabel">Over time</div><div class="insights pgcards">'+cards+'</div>' : '';
+    }
+    // A card of changes: each side a list with its dot, every item listed
+    // (the first SHOW, then Show all). A subject with no change has no card.
+    function changeCard(title, sides){
+      const live=sides.filter(g=>g.items.length);
+      if(!live.length) return {title:title, html:''};
+      const body=live.map(g=>{
+        const rows=g.items.map((h,i)=>'<div class="pgrow"'+(i>=SHOW?' data-mr hidden':'')+'><i class="'+g.tone+'"></i><span>'+h+'</span></div>').join('');
+        const all='Show all '+g.items.length;
+        const more=g.items.length>SHOW? sbtn(all,'data-more data-all="'+all+'" data-less="Show fewer"',{cls:'morebtn'}) : '';
+        return '<div class="pgsub"><div class="pgsubh">'+esc(g.label)+'<span class="subcount">'+g.items.length.toLocaleString('en-GB')+'</span></div><div class="morewrap">'+rows+more+'</div></div>';
+      }).join('');
+      return {title:title, html:'<div class="ipanel"><h3>'+esc(title)+'</h3><p class="note">'+
+        esc(live.map(g=>g.items.length.toLocaleString('en-GB')+' '+g.label.toLowerCase()).join(', '))+'.</p>'+body+'</div>'};
+    }
+    function changesHtml(base){
+      if(!base) return '';
+      const bs=base.sets||{}, cs=cur.sets||{};
+      const fb={}, fc={}; (bs.findings||[]).forEach(f=>{ fb[f.id]=f; }); (cs.findings||[]).forEach(f=>{ fc[f.id]=f; });
+      const fd=diff(Object.keys(fb),Object.keys(fc));
+      const cb={}, cc={}; (bs.criteria||[]).forEach(c=>{ cb[c.id]=c; }); (cs.criteria||[]).forEach(c=>{ cc[c.id]=c; });
+      const nowMet=Object.keys(cc).filter(id=>cc[id].status==='M' && (!cb[id]||cb[id].status!=='M')).sort();
+      const nowGap=Object.keys(cc).filter(id=>cc[id].status==='G' && cb[id] && cb[id].status==='M').sort();
+      const rd=diff(bs.rules,cs.rules), td=diff(bs.techniques,cs.techniques), tbd=diff(bs.tables,cs.tables);
+      const ud=diff(bs.uncovered,cs.uncovered), ing=new Set(cs.tables||[]);
+      const findItem=f=>(listedFindings.has(f.id)? link('pgfind','data-id="'+esc(f.id)+'"',f.id) : '<b>'+esc(f.id)+'</b>')+' <span class="tagpill">'+esc(f.severity||'')+'</span> '+esc(f.title);
+      const critItem=id=>link('pgcrit','data-id="'+esc(id)+'"',id)+' '+esc((cc[id]||cb[id]||{}).name||'');
+      const ruleItem=n=>link('pgrule','data-name="'+esc(n)+'"',n);
+      const techItem=id=>'<b>'+esc(id)+'</b>'+(techName[id]? ' '+esc(techName[id]) : '');
+      const cards=[
+        changeCard('Findings',[{label:'Resolved',tone:'good',items:fd.removed.map(id=>findItem(fb[id]))},{label:'New',tone:'bad',items:fd.added.map(id=>findItem(fc[id]))}]),
+        changeCard('Maturity criteria',[{label:'Now met',tone:'good',items:nowMet.map(critItem)},{label:'Now a gap',tone:'bad',items:nowGap.map(critItem)}]),
+        changeCard('Analytics rules',[{label:'Enabled',tone:'good',items:rd.added.map(ruleItem)},{label:'No longer enabled',tone:'bad',items:rd.removed.map(esc)}]),
+        changeCard('ATT&CK coverage',[{label:'Now covered',tone:'good',items:td.added.map(techItem)},{label:'No longer covered',tone:'bad',items:td.removed.map(techItem)}]),
+        changeCard('Detection coverage of tables',[{label:'Now read by a detection',tone:'good',items:ud.removed.filter(t=>ing.has(t)).map(esc)},{label:'No detection reads them now',tone:'bad',items:ud.added.map(esc)}]),
+        changeCard('Ingestion',[{label:'Started ingesting',tone:'',items:tbd.added.map(esc)},{label:'Stopped ingesting',tone:'',items:tbd.removed.map(esc)}])
+      ];
+      const shown=cards.filter(c=>c.html), quiet=cards.filter(c=>!c.html).map(c=>c.title);
+      const head='<div class="seclabel">What changed since '+esc(long(base.date))+'</div>';
+      if(!shown.length) return head+'<div class="panel"><p class="note pgquiet">Nothing changed in findings, maturity criteria, analytics rules, ATT&amp;CK coverage, detection coverage or ingestion.</p></div>';
+      return head+'<div class="insights pgcards">'+shown.map(c=>c.html).join('')+'</div>'+
+        (quiet.length? '<p class="note pgquiet">No change in '+esc(andList(quiet))+'.</p>' : '');
+    }
+    // Every measure, then and now.
+    function tableHtml(base){
+      const rows=METRICS.filter(([k])=>mv(cur,k)!=null||mv(base,k)!=null).map(([k,label,better,f])=>
+        '<tr><td>'+esc(label)+'</td>'+(base?'<td class="num">'+fmtVal(mv(base,k),f)+'</td>':'')+'<td class="num">'+fmtVal(mv(cur,k),f)+'</td>'+(base?'<td class="num">'+fmtDelta(mv(base,k),mv(cur,k),better,f)+'</td>':'')+'</tr>');
+      return '<div class="panel"><div class="phead"><div><h2>Every measure</h2><p class="note">'+
+        (base? 'Each figure on '+esc(long(base.date))+' and now. Posture is as each run collected it; activity (ingestion, incidents) is each run\'s own '+WIN.w()+' view.' : 'Each figure as this run collected it.')+'</p></div></div>'+
+        '<table class="tbl"><thead><tr><th>Measure</th>'+(base?'<th class="num">'+esc(short(base.date))+'</th>':'')+'<th class="num">'+esc(short(cur.date))+'</th>'+(base?'<th class="num">Change</th>':'')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+    }
 
     function draw(){
       const B=baselines();
       if(!B[pick]) pick=CHIPS.map(c=>c[0]).find(k=>B[k])||'prev';
       const base=B[pick];
-      const chips='<div class="pgchips" role="group" aria-label="Compare with">'+CHIPS.map(([k,label])=>{
-        const b=B[k];
-        return '<button type="button" class="fchip'+(k===pick&&b?' active':'')+'" data-pgpick="'+k+'"'+(b?'':' disabled')+' title="'+(b? 'Compare with the run of '+esc(b.date) : 'No kept run that far back')+'">'+esc(label)+(b?'<span>'+esc(b.date)+'</span>':'')+'</button>';
-      }).join('')+'</div>';
-      let html='<div class="panel"><div class="phead"><div><h2>Progress</h2><p class="note">'+
-        (base? 'The run of <b>'+esc(cur.date)+'</b> against the run of <b>'+esc(base.date)+'</b>, '+daysBetween(base.date,cur.date)+' day'+(daysBetween(base.date,cur.date)===1?'':'s')+' earlier. ' :
-          'Only the run of <b>'+esc(cur.date)+'</b> is kept so far. ')+
-        entries.length+' run'+(entries.length===1?'':'s')+' kept. Posture (findings, criteria, rules, coverage) is as each run collected it; activity (ingestion, incidents) is each run\'s own window.</p></div></div>'+chips+'</div>';
-      // Headline numbers, then and now.
-      const rows=METRICS.filter(([k])=>mv(cur,k)!=null||mv(base,k)!=null).map(([k,label,better,f])=>
-        '<tr><td>'+esc(label)+'</td>'+(base?'<td class="num">'+fmtVal(mv(base,k),f)+'</td>':'')+'<td class="num">'+fmtVal(mv(cur,k),f)+'</td>'+(base?'<td class="num">'+fmtDelta(mv(base,k),mv(cur,k),better,f)+'</td>':'')+'</tr>');
-      html+='<div class="panel"><div class="phead"><div><h2>Headline numbers</h2><p class="note">Green is better, red is worse; cost and volume are neither.</p></div></div>'+
-        '<table class="tbl"><thead><tr><th>Measure</th>'+(base?'<th class="num">'+esc(base.date)+'</th>':'')+'<th class="num">'+esc(cur.date)+'</th>'+(base?'<th class="num">Change</th>':'')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
-      // Trends across every kept run.
-      if(entries.length>=2){
-        html+='<div class="panel"><div class="phead"><div><h2>Over time</h2><p class="note">Every kept run, oldest first.</p></div></div><div class="pggrid">'+
-          TRENDS.map(([k,label,theme])=>{
-            const pts=entries.filter(e=>mv(e,k)!=null).map(e=>({label:e.date.slice(5),value:mv(e,k)}));
-            return '<div><h3>'+esc(label)+'</h3>'+trendHtml(pts,{theme:theme,unit:k==='uncoveredGb'?' GB':''})+'</div>';
-          }).join('')+'</div></div>';
+      if(pickEl){
+        pickEl.hidden=false;
+        pickEl.innerHTML=CHIPS.map(([k,label])=>{ const b=B[k], on=k===pick&&!!b;
+          return '<button type="button" class="pgtab'+(on?' active':'')+'" role="tab" aria-selected="'+on+'" data-pgpick="'+k+'"'+(b?'':' disabled')+
+            ' title="'+(b? 'Compare with the run of '+esc(long(b.date)) : 'No kept run that far back')+'"><span>'+esc(label)+'</span>'+(b?'<span class="subcount">'+esc(short(b.date))+'</span>':'')+'</button>';
+        }).join('');
       }
-      // What changed since the baseline.
-      if(base){
-        const bs=base.sets||{}, cs=cur.sets||{};
-        const fb={}, fc={}; (bs.findings||[]).forEach(f=>{ fb[f.id]=f; }); (cs.findings||[]).forEach(f=>{ fc[f.id]=f; });
-        const fd=diff(Object.keys(fb),Object.keys(fc));
-        const cb={}, cc={}; (bs.criteria||[]).forEach(c=>{ cb[c.id]=c; }); (cs.criteria||[]).forEach(c=>{ cc[c.id]=c; });
-        const nowMet=Object.keys(cc).filter(id=>cc[id].status==='M' && (!cb[id]||cb[id].status!=='M')).sort();
-        const nowGap=Object.keys(cc).filter(id=>cc[id].status==='G' && cb[id] && cb[id].status==='M').sort();
-        const rd=diff(bs.rules,cs.rules), td=diff(bs.techniques,cs.techniques), tbd=diff(bs.tables,cs.tables);
-        const ud=diff(bs.uncovered,cs.uncovered), ing=new Set(cs.tables||[]);
-        const nowCovered=ud.removed.filter(t=>ing.has(t)), nowUncovered=ud.added;
-        const findItem=f=>(listedFindings.has(f.id)? link('pgfind','data-id="'+esc(f.id)+'"',f.id) : esc(f.id))+' '+sevPill(f.severity)+' '+esc(f.title);
-        const critItem=id=>link('pgcrit','data-id="'+esc(id)+'"',id)+' '+esc((cc[id]||cb[id]||{}).name||'');
-        const ruleItem=n=>link('pgrule','data-name="'+esc(n)+'"',n);
-        const techItem=id=>esc(id)+(techName[id]?' '+esc(techName[id]):'');
-        html+='<div class="panel"><div class="phead"><div><h2>Changes since '+esc(base.date)+'</h2><p class="note">Every change, in full. Select a finding, criterion or rule to open it.</p></div></div><div class="pggrid">'+
-          group('Findings resolved','Fired on '+esc(base.date)+', not now.',fd.removed.map(id=>fb[id]),findItem)+
-          group('New findings','Firing now, not on '+esc(base.date)+'.',fd.added.map(id=>fc[id]),findItem)+
-          group('Criteria now met','',nowMet,critItem)+
-          group('Criteria now a gap','Met on '+esc(base.date)+'.',nowGap,critItem)+
-          group('Analytics rules enabled','',rd.added,ruleItem)+
-          group('Analytics rules no longer enabled','Disabled, deleted or renamed.',rd.removed,esc)+
-          group('ATT&CK techniques now covered','',td.added,techItem)+
-          group('ATT&CK techniques no longer covered','',td.removed,techItem)+
-          group('Tables now read by a detection','',nowCovered,esc)+
-          group('Tables no detection reads now','',nowUncovered,esc)+
-          group('Tables started ingesting','',tbd.added,esc)+
-          group('Tables stopped ingesting','',tbd.removed,esc)+
-          '</div></div>';
+      if(noteEl){
+        const n=base? daysBetween(base.date,cur.date) : 0;
+        noteEl.innerHTML= base? 'The run of <b>'+esc(long(cur.date))+'</b> against the run of <b>'+esc(long(base.date))+'</b>, '+n+' day'+(n===1?'':'s')+' earlier. '+entries.length+' runs kept.' :
+          'Only the run of <b>'+esc(long(cur.date))+'</b> is kept so far. Each run adds a record, and this view compares them.';
       }
-      board.innerHTML=html;
+      board.innerHTML=tilesHtml(base)+areasHtml(base)+trendsHtml()+changesHtml(base)+tableHtml(base);
+      // Balanced rows, as the other boards: after this script has run, as
+      // the first draw comes before the grid list is set up.
+      requestAnimationFrame(()=>{ if(typeof balanceGrids==='function') balanceGrids(); });
+      if(typeof markClamped==='function') markClamped();
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
-    const listedFindings=new Set(((M.findings&&M.findings.items)||[]).map(f=>f.id));
-    board.addEventListener('click',e=>{
-      const c=e.target.closest('[data-pgpick]'); if(c && !c.disabled){ pick=c.dataset.pgpick; draw(); return; }
-      const more=e.target.closest('.pgall');
-      if(more){ more.parentNode.querySelectorAll('[data-pgmore]').forEach(li=>{ li.hidden=false; }); more.remove(); if(typeof window.fitIframe==='function') window.fitIframe(); return; }
-      openItem(e.target.closest('.pglink'));
-    });
+    if(pickEl) pickEl.addEventListener('click',e=>{ const c=e.target.closest('[data-pgpick]'); if(c && !c.disabled){ pick=c.dataset.pgpick; draw(); } });
+    board.addEventListener('click',e=>openItem(e.target.closest('.pglink')));
     board.addEventListener('keydown',e=>{ const l=e.target.closest('.pglink'); if(l && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openItem(l); } });
     function openItem(l){
       if(!l) return;
@@ -3624,7 +3714,9 @@
       // and cells then right-align together so the figures sit under the title.
       const plain=v=>String(v==null?'':v).replace(/<[^>]+>/g,'').trim();
       const numCols = b.headers.map((h,ci)=> !wrapCols[ci] && b.rows.some(r=>plain(r[ci])!=='') && b.rows.every(r=>plain(r[ci])===''||isNum(plain(r[ci]))));
-      const thead='<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'" aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'+h+'<span class="sorti" aria-hidden="true"></span></button></th>').join('')+'</tr></thead>';
+      // A key/value table ('| | |' in the Markdown) has no column names: no
+      // header row, as on the site's pages, rather than a band of sort arrows.
+      const thead=b.headers.every(h=>plain(h)==='')? '' : '<thead><tr>'+b.headers.map((h,ci)=>'<th class="'+(wrapCols[ci]?'wrap':'')+(numCols[ci]?' num':'')+'" aria-sort="none"><button type="button" class="thsort" title="Sort by this column">'+h+'<span class="sorti" aria-hidden="true"></span></button></th>').join('')+'</tr></thead>';
       // A column with a long cell wraps, every cell of it, so a short cell
       // on one line does not hold the column wider than the long ones need.
       const formatted=b.rows.map(r=>r.map((c,ci)=>formatCell(c, b.headers[ci])));
@@ -4374,7 +4466,7 @@
   // over those rows instead: ten cards at six wide become five and five.
   // Full-width panels (.full) span every column and are left out of the
   // count. Re-run on resize and when a hidden tab is shown.
-  const BALANCED=[['#contents',250],['#heroPills',150],['#estateRings',220],['#outcomes',290],['.iband',380],['.csfgrid',200],['.invg',130]];
+  const BALANCED=[['#contents',250],['#heroPills',150],['.pgtiles',150],['.pgcards',380],['#estateRings',220],['#outcomes',290],['.iband',380],['.csfgrid',200],['.invg',130]];
   // Rows are balanced (5 cards become 3 + 2, never 4 + 1), and when the last
   // row is still short by two or more cards, its cards widen to fill the row
   // instead of leaving a hole: the grid uses lcm(cols, k) tracks, regular

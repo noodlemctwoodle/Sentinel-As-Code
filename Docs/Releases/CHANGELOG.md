@@ -15,8 +15,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   baseline (the previous run, 7, 30 or 90 days earlier, or the first): the
   headline numbers then and now, coloured by whether each moved the right
   way, trends across every kept run, and every change since, each finding,
-  criterion and rule opening where it lives. The demo workspace carries a
-  quarter of weekly runs.
+  criterion and rule opening where it lives. It is drawn in the dashboard's
+  own parts: the Assessment tab's switch for the baseline, the Overview's
+  tiles, the maturity view's area bars (the target marker in line, the
+  change a green or red segment at each bar's end) and Insights cards for
+  the trends and the changes. The history keeps the newest run and the 90
+  days before it, so the 90-day baseline has a run. The demo workspace
+  carries a quarter of runs to compare, the first 90 days back, with a
+  regression or two among the gains.
+- **Dashboard labels** - the data flow's ring and incident figures have
+  thousands separators ("10,123 of 10,292"), as every other tab; the
+  maturity view's area badge says it is the confidence in the score ("Good
+  confidence"), so it is not read as the score itself on an amber bar; and
+  a key/value table on a report page (the Headline table, for one) no
+  longer shows an empty header row of sort arrows. On a phone, the area
+  bars put the area's name on its own row so the bar keeps its width.
 - **Summaries open the rows behind them** - on the dashboard's report
   pages, a small summary table's values are links when a bigger table on
   the same page groups by them: select a plan in Summary by plan to see its

@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
@@ -1206,24 +1206,35 @@ if ($Build) {
     & (Join-Path $engine 'Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName $WorkspaceName -InputRoot $OutputPath -OutputRoot $OutputPath -ResourcesRoot $resources -InformationAction SilentlyContinue *> $null
     $bundle = & (Join-Path $engine 'SharePoint/Build-SentinelDocsSite.ps1') -Source $OutputPath -SkipWhatsNew 6> $null
     # The maturity trend reads the history the publisher keeps on the site,
-    # which a local bundle lacks; the demo carries a quarter's weekly climb
-    # to today's score so the panel shows.
+    # which a local bundle lacks; the demo carries a quarter's climb to
+    # today's score so the panel shows: twelve runs about a week apart, the
+    # first 90 days back, so each of the Progress tab's baselines (previous
+    # run, 7, 30 and 90 days) has a run. Areas climb at their own pace
+    # (weights, in area order): some faster, some held at their score, one
+    # slipping, so the Progress tab's area bars show each kind of change.
     $maturity = Get-Content -LiteralPath (Join-Path $raw 'maturity.json') -Raw | ConvertFrom-Json -Depth 32
     if ($bundle -and $maturity -and $null -ne $maturity.overall.score) {
         $now = [double]$maturity.overall.score
+        $areaPace = @(1.6, 1.2, 0, 1.0, 0.8, 0, 1.4, 0.6, 0, -0.4, 0.9)
+        $runAgo = { param([int] $w) [int][math]::Round(7.5 * $w, [System.MidpointRounding]::AwayFromZero) }
         $entries = for ($w = 12; $w -ge 0; $w--) {
             $lift = 0.55 * $w / 12.0
-            $when = Format-DemoTime $asOfUtc.AddDays(-7 * $w)
+            $when = Format-DemoTime $asOfUtc.AddDays(-(& $runAgo $w))
             [ordered]@{ publishedUtc = $when; bundleBuiltUtc = $when; targetLevel = [int]$maturity.targetLevel
                 overall = [ordered]@{ score = [math]::Round([math]::Max(1.0, $now - $lift + $(if ($w -gt 0) { Get-DemoBetween -0.04 0.04 } else { 0 })), 2); level = [int]$maturity.overall.level }
-                areas = @(foreach ($a in @($maturity.areas)) { [ordered]@{ id = [string]$a.id; score = $(if ($null -ne $a.score) { [math]::Round([math]::Max(1.0, [double]$a.score - $lift), 2) } else { $null }) } }) }
+                areas = @($i = 0; foreach ($a in @($maturity.areas)) {
+                        $pace = $areaPace[$i++ % $areaPace.Count]
+                        [ordered]@{ id = [string]$a.id; score = $(if ($null -ne $a.score) { [math]::Round([math]::Min(5.0, [math]::Max(1.0, [double]$a.score - $lift * $pace)), 2) } else { $null }) }
+                    }) }
         }
         Set-Content -LiteralPath (Join-Path $bundle 'maturity-history.json') -Value (ConvertTo-Json -InputObject ([ordered]@{ entries = @($entries) }) -Depth 16) -Encoding utf8NoBOM
     }
     # The Progress tab compares runs; the demo carries the same quarter of
-    # weekly runs, each a step behind today's on the same climb: findings
+    # runs, each a step behind today's on the same climb: findings
     # that have since been fixed still firing, fewer rules enabled, fewer
-    # criteria met, less ATT&CK coverage, tables no detection read yet.
+    # criteria met, less ATT&CK coverage, tables no detection read yet. Not
+    # all of it is better: one warning is new this week and one criterion
+    # met until last week is a gap now.
     $progressPath = if ($bundle) { Join-Path $bundle 'progress.json' } else { $null }
     if ($progressPath -and (Test-Path -LiteralPath $progressPath)) {
         . (Join-Path $engine 'SharePoint/Private/Get-SacProgress.ps1')
@@ -1235,20 +1246,24 @@ if ($Build) {
         $nowRules = @($now.sets.rules); $nowTech = @($now.sets.techniques); $nowTables = @($now.sets.tables); $nowUncovered = @($now.sets.uncovered)
         $coveredNow = @($nowTables | Where-Object { $nowUncovered -notcontains $_ })
         $metNow = @($now.sets.criteria | Where-Object { $_.status -eq 'M' } | ForEach-Object { [string]$_.id })
+        $newId = [string](@($now.sets.findings | Where-Object { $_.severity -eq 'Warning' }) | Select-Object -Last 1).id
+        $slipped = [string](@($now.sets.criteria | Where-Object { $_.status -eq 'G' }) | Select-Object -First 1).id
         $records = for ($w = 12; $w -ge 1; $w--) {
             $f = $w / 12.0
             $rules = @($nowRules | Select-Object -First ($nowRules.Count - [int][math]::Round($nowRules.Count * 0.3 * $f)))
             $tech = @($nowTech | Select-Object -First ($nowTech.Count - [int][math]::Round($nowTech.Count * 0.25 * $f)))
-            $findings = @($now.sets.findings) + @($fixed | Select-Object -First ([int][math]::Round($fixed.Count * $f)))
+            $findings = @($now.sets.findings | Where-Object { [string]$_.id -ne $newId }) + @($fixed | Select-Object -First ([int][math]::Round($fixed.Count * $f)))
             $wasGap = @($metNow | Select-Object -First ([int][math]::Round($metNow.Count * 0.3 * $f)))
-            $criteria = @($now.sets.criteria | ForEach-Object { [ordered]@{ id = [string]$_.id; name = [string]$_.name; status = $(if ($wasGap -contains [string]$_.id) { 'G' } else { [string]$_.status }) } })
+            $criteria = @($now.sets.criteria | ForEach-Object { [ordered]@{ id = [string]$_.id; name = [string]$_.name; status = $(if ([string]$_.id -eq $slipped) { 'M' } elseif ($wasGap -contains [string]$_.id) { 'G' } else { [string]$_.status }) } })
             $uncovered = @($nowUncovered) + @($coveredNow | Select-Object -Last ([int][math]::Round($coveredNow.Count * 0.2 * $f)))
             $bySev = { param($s) @($findings | Where-Object { $_.severity -eq $s }).Count }
             $m = $now.metrics
+            $areas = [ordered]@{}
+            foreach ($a in @($entries[12 - $w].areas)) { $areas[[string]$a.id] = $a.score }
             [ordered]@{
                 schemaVersion = 1
-                date          = $asOfUtc.AddDays(-7 * $w).ToString('yyyy-MM-dd')
-                generatedUtc  = $asOfUtc.AddDays(-7 * $w).ToString('yyyy-MM-dd HH:mm') + ' UTC'
+                date          = $asOfUtc.AddDays(-(& $runAgo $w)).ToString('yyyy-MM-dd')
+                generatedUtc  = $asOfUtc.AddDays(-(& $runAgo $w)).ToString('yyyy-MM-dd HH:mm') + ' UTC'
                 windowDays    = $now.windowDays
                 currency      = $now.currency
                 metrics       = [ordered]@{
@@ -1276,7 +1291,7 @@ if ($Build) {
                     openIncidents     = [int]$m.openIncidents + [int][math]::Round(12 * $f)
                     mttrMinutes       = [math]::Round([double]$m.mttrMinutes * (1 + 0.4 * $f), 1)
                 }
-                areas         = $now.areas
+                areas         = $areas
                 sets          = [ordered]@{ findings = $findings; criteria = $criteria; rules = $rules; techniques = $tech; tables = $nowTables; uncovered = $uncovered }
             }
         }

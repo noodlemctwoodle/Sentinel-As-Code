@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -117,6 +117,11 @@ Describe 'The progress history' {
         @($h.entries | ForEach-Object date) | Should -Be @('2026-09-20', '2026-10-15')
     }
 
+    It 'keeps a run exactly the days kept before the newest, so the 90-day baseline has one' {
+        $h = Merge-SacProgressHistory -History $null -Records @((New-Rec '2026-07-16'), (New-Rec '2026-07-17'), (New-Rec '2026-10-15')) -Days 90
+        @($h.entries | ForEach-Object date) | Should -Be @('2026-07-17', '2026-10-15')
+    }
+
     It 'reads a history saved as JSON, as the publisher does' {
         $json = Merge-SacProgressHistory -History $null -Records @((New-Rec '2026-10-14')) | ConvertTo-Json -Depth 8
         $h = Merge-SacProgressHistory -History ($json | ConvertFrom-Json) -Records @((New-Rec '2026-10-15'))
@@ -172,9 +177,14 @@ Describe 'The publisher keeps the history on the site' {
 }
 
 Describe 'The dashboard''s Progress tab' {
-    It 'has its tab and view' {
+    It 'has its tab, its baseline switch and its board' {
         $script:html | Should -Match '<div class="tab" data-tab="progress" role="tab">'
+        $script:html | Should -Match '<div class="subnav hidden" data-views="progress">\s*<div class="pgtabs" id="progressPick" role="tablist" aria-label="Compare with"></div>'
         $script:html | Should -Match '<section data-view="progress" class="hidden">\s*<div id="progressBoard"></div>'
+        # The switch is the Assessment switch's look under its own class, as
+        # .subtab buttons switch views.
+        $script:html.Contains('.subtab,.pgtab{display:inline-flex;') | Should -BeTrue
+        $script:html.Contains('.subtab.active,.pgtab.active{') | Should -BeTrue
     }
 
     It 'reads the history beside the dashboard and compares against a chosen baseline' {
@@ -184,21 +194,47 @@ Describe 'The dashboard''s Progress tab' {
         $script:html.Contains("filter(e=>e&&e.date&&e.date<cur.date)") | Should -BeTrue
     }
 
-    It 'colours a change by which way is better, and lists every change' {
+    It 'draws in the dashboard''s own parts: tiles, area bars, trend cards' {
+        $script:html.Contains('<div class="tiles pgtiles">') | Should -BeTrue
+        $script:html.Contains("<div class=""insights pgcards"">") | Should -BeTrue
+        # Balanced rows, as the other boards (eight tiles are 4 + 4, not 7 + 1).
+        $script:html.Contains("['.pgtiles',150],['.pgcards',380]") | Should -BeTrue
+        $script:html.Contains("requestAnimationFrame(()=>{ if(typeof balanceGrids==='function') balanceGrids(); });") | Should -BeTrue
+        # Each trend scaled to its own range, so a small move shows.
+        $script:html.Contains("{theme:theme,unit:m[3]==='gb'?' GB':'',fit:true}") | Should -BeTrue
+    }
+
+    It 'marks the target level on the area bars, as the maturity view does, and the change as a segment' {
+        $script:html.Contains("(target!=null? '<div class=""am"" style=""--t:'+(target/5*100)+'%""></div>' : '')") | Should -BeTrue
+        $script:html.Contains("'<div class=""pgd '+(d>0?'up':'down')+'""") | Should -BeTrue
+        $script:html.Contains('.abar .pgd.up{background:var(--green);') | Should -BeTrue
+    }
+
+    It 'colours a change by which way is better' {
         $script:html.Contains("const cls=!better? 'pg-same' : (d>0)===(better==='up')? 'pg-good' : 'pg-bad';") | Should -BeTrue
-        $script:html | Should -Match "group\('Findings resolved'"
-        $script:html | Should -Match "group\('Criteria now met'"
-        $script:html | Should -Match "group\('Analytics rules enabled'"
-        $script:html | Should -Match "group\('ATT&CK techniques now covered'"
-        $script:html | Should -Match "group\('Tables now read by a detection'"
-        # The first entries, then Show all, so nothing is hidden.
-        $script:html.Contains("'<button type=""button"" class=""fchip pgall"">Show all '+items.length+'</button>'") | Should -BeTrue
+    }
+
+    It 'lists every change by subject, the first entries then Show all' {
+        $script:html.Contains("changeCard('Findings',[{label:'Resolved',tone:'good'") | Should -BeTrue
+        $script:html.Contains("changeCard('Maturity criteria',[{label:'Now met',tone:'good'") | Should -BeTrue
+        $script:html.Contains("changeCard('Analytics rules',[{label:'Enabled',tone:'good'") | Should -BeTrue
+        $script:html.Contains("changeCard('ATT&CK coverage',[{label:'Now covered',tone:'good'") | Should -BeTrue
+        $script:html.Contains("changeCard('Detection coverage of tables',[{label:'Now read by a detection',tone:'good'") | Should -BeTrue
+        $script:html.Contains("changeCard('Ingestion',[{label:'Started ingesting',tone:''") | Should -BeTrue
+        $script:html.Contains("(i>=SHOW?' data-mr hidden':'')") | Should -BeTrue
+        $script:html.Contains("sbtn(all,'data-more data-all=""'+all+'"" data-less=""Show fewer""',{cls:'morebtn'})") | Should -BeTrue
+        # A subject with no change has no card; one line names them.
+        $script:html.Contains("'<p class=""note pgquiet"">No change in '+esc(andList(quiet))+'.</p>'") | Should -BeTrue
     }
 
     It 'opens a finding, criterion or rule from its change' {
         $script:html.Contains("if(l.classList.contains('pgfind') && typeof window.showFinding==='function') window.showFinding(l.dataset.id);") | Should -BeTrue
         $script:html.Contains("window.showCriterion(l.dataset.id)") | Should -BeTrue
         $script:html.Contains("window.openRuleReport(l.dataset.name)") | Should -BeTrue
+    }
+
+    It 'closes a fitted trend''s area at the foot of its scale' {
+        $script:html.Contains("+','+y(lo).toFixed(1)+' L'+x(0).toFixed(1)+','+y(lo).toFixed(1)+' Z'") | Should -BeTrue
     }
 
     It 'says so when a snapshot predates progress tracking' {

@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -182,11 +182,20 @@ Describe 'The demo workspace generator' {
         $history = Get-Content (Join-Path $bundle 'maturity-history.json') -Raw | ConvertFrom-Json -Depth 16
         @($history.entries).Count | Should -Be 13
         @($history.entries)[-1].overall.score | Should -Be (Read-Demo 'maturity.json').overall.score
-        # The same quarter of weekly runs for the Progress tab, ending at today's record.
+        # The same quarter of runs for the Progress tab, ending at today's record.
         $progress = Get-Content (Join-Path $bundle 'progress-history.json') -Raw | ConvertFrom-Json -Depth 32
         @($progress.entries).Count | Should -Be 13
         @($progress.entries)[-1].date | Should -Be $model.progress.date
         @($progress.entries)[0].metrics.findings | Should -BeGreaterThan $model.progress.metrics.findings
         @($progress.entries)[0].metrics.rulesEnabled | Should -BeLessThan $model.progress.metrics.rulesEnabled
+        # The first run is 90 days back, so each baseline (90 days included) has a run.
+        ([datetime]$model.progress.date - [datetime]@($progress.entries)[0].date).Days | Should -Be 90
+        # Not all of it better: areas climb at their own pace and one slips;
+        # one finding is new since the previous run.
+        $first = @($progress.entries)[0]
+        @($first.areas.PSObject.Properties | Where-Object { [double]$_.Value -lt [double]$model.progress.areas.($_.Name) }).Count | Should -BeGreaterThan 0
+        @($first.areas.PSObject.Properties | Where-Object { [double]$_.Value -gt [double]$model.progress.areas.($_.Name) }).Count | Should -Be 1
+        $prevIds = @(@($progress.entries)[-2].sets.findings | ForEach-Object id)
+        @($model.progress.sets.findings | Where-Object { $prevIds -notcontains $_.id }).Count | Should -Be 1
     }
 }

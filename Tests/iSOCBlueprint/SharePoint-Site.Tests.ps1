@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.0
+    Version:      0.13.1
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -1707,7 +1707,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'styles the grid switches like the tabs and the Assessment switch' {
         $html | Should -Match '\.ak-seg button\.on\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
-        $html | Should -Match '\.subtab\.active\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
+        # The Progress tab's baseline switch shares the rule.
+        $html | Should -Match '\.subtab\.active,\.pgtab\.active\{color:#fff;background:var\(--btn-bg\);box-shadow:var\(--btn-shadow\)\}'
         $html | Should -Not -Match '\.ak-seg button\.on\{background:var\(--brand\);color:#fff\}'
     }
 
@@ -2367,5 +2368,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         Copy-Item (Join-Path $ws '_raw/run-context.json') (Join-Path $ws3 '_raw')
         & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws3 -SkipWhatsNew -WhatIf 6> $null | Out-Null
         Join-Path $ws3 'sharepoint' | Should -Not -Exist
+    }
+}
+
+Describe 'Dashboard figures and labels' {
+    BeforeAll {
+        $script:dash = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html') -Raw
+    }
+
+    It 'writes the data flow''s ring and incident figures with thousands separators' {
+        ([regex]::Matches($script:dash, [regex]::Escape("Number(d.value).toLocaleString()+' of '+Number(d.max).toLocaleString()"))).Count | Should -Be 2
+        $script:dash.Contains("style:'fill:var(--ink)'},b.v.toLocaleString()),incTip);") | Should -BeTrue
+        $script:dash | Should -Not -Match '\+d\.value\+'' of ''\+d\.max'
+    }
+
+    It 'labels the area badge as the confidence in the score, not the score' {
+        $script:dash.Contains("const confText=c=>!c||c==='Not assessed'? (c||'n/a') : c+' confidence';") | Should -BeTrue
+        $script:dash.Contains('esc(confText(a.confidence))') | Should -BeTrue
+    }
+
+    It 'gives a key/value table no header row to sort by, as the site''s pages do' {
+        $script:dash.Contains("const thead=b.headers.every(h=>plain(h)==='')? '' : '<thead><tr>'") | Should -BeTrue
     }
 }

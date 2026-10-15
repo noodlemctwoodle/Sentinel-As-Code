@@ -28,7 +28,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -175,8 +175,9 @@ function Merge-SacProgressHistory {
     .SYNOPSIS
         A history with the given records added: one record a day (a later
         record for the same day replaces the earlier), oldest first, and
-        none older than -Days before the newest. Pure; the inputs are not
-        changed.
+        none more than -Days days before the newest (a run exactly -Days
+        earlier is kept, so the dashboard's 90-day baseline has one). Pure;
+        the inputs are not changed.
 
     .PARAMETER History
         The history so far, @{ entries = @(...) }, or $null.
@@ -185,7 +186,8 @@ function Merge-SacProgressHistory {
         Records to add.
 
     .PARAMETER Days
-        How many days back from the newest record to keep. Defaults to 90.
+        How many days back from the newest record to keep, that day
+        included. Defaults to 90.
 
     .OUTPUTS
         [ordered] schemaVersion and entries.
@@ -207,7 +209,7 @@ function Merge-SacProgressHistory {
     foreach ($r in @($Records)) { & $add $r }
     $dates = @($byDate.Keys | Sort-Object)
     if ($dates.Count) {
-        $cutoff = [datetime]::ParseExact($dates[-1], 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $Days).ToString('yyyy-MM-dd')
+        $cutoff = [datetime]::ParseExact($dates[-1], 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(-$Days).ToString('yyyy-MM-dd')
         $dates = @($dates | Where-Object { [string]::CompareOrdinal($_, $cutoff) -ge 0 })
     }
     [ordered]@{ schemaVersion = 1; entries = @($dates | ForEach-Object { $byDate[$_] }) }

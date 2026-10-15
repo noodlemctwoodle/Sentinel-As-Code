@@ -330,6 +330,8 @@ page's own order; a small arrow shows which. A column of numbers sorts by
 value, units included (sizes from KB to TB are scaled, so 512 MB sorts
 below 65 GB, and days, percentages and currency read as numbers), and any
 other column in natural order (Rule 2 before Rule 10); empty cells go last.
+A key/value table (a Headline or Summary table with no column titles) has
+no header row to sort by, as on the site's pages.
 Sorting and the row filter work together. No page runs past the bottom
 of the contents list beside it. A page that fits reads top to bottom, and
 its scrolling tables (cut off at 620px) grow into any space above the
@@ -434,7 +436,7 @@ host page (with `scrollIntoView`) rather than its own window.
 | `estate` | Data flow: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, Defender XDR alerts, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored"). `alerts` is every product's alerts, split as `alertsSentinel` and `alertsXdr` for the alert lifecycle; `ruleAlerts` is the scheduled and NRT rules' own | `tables-with-data`, `rule-table-references`, `rules-fired`, `analytics-rule-volumes`, `incidents-summary` |
 | `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
 | `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
-| `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope, and every capability area's score against the target, weakest first, an area below target in amber; selecting an area opens the Assessment with the criteria filtered to it) and quick wins, filled to the maturity card's height so the two cards end level with their buttons in line (the rest behind Show all; when every quick win fits, the button opens the roadmap). Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target, the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |
+| `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope, and every capability area's score against the target, weakest first, an area below target in amber; selecting an area opens the Assessment with the criteria filtered to it) and quick wins, filled to the maturity card's height so the two cards end level with their buttons in line (the rest behind Show all; when every quick win fits, the button opens the roadmap). Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target (its badge is the confidence in the score, such as "Good confidence": how many of the area's criteria the run could assess, not how good the score is), the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |
 | `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
 | `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
 | `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
@@ -614,7 +616,9 @@ model):
   and the tables no detection reads.
 
 The records are kept as a history, one a day (a second run on the same day
-replaces the first), for the last `-HistoryDays` days (90 by default):
+replaces the first): the newest run and the `-HistoryDays` days before it
+(90 by default), so a run exactly 90 days back stays for the 90-day
+baseline:
 
 - **Locally**, a run in a day folder gathers the records the earlier day
   folders' builds left in their bundles into `progress-history.json`.
@@ -624,21 +628,34 @@ replaces the first), for the last `-HistoryDays` days (90 by default):
   pipeline run, which starts with no earlier folders, still adds to it.
 
 The dashboard's **Progress** tab compares the run it shows with a baseline
-from the history: the previous run (the default), the latest run at least
-7, 30 or 90 days earlier, or the first kept run. A choice with no run that
-far back is greyed out. The tab shows:
+from the history, and is drawn in the dashboard's own parts:
 
-- **Headline numbers**, then and now, with the change coloured green where
-  it is better and red where it is worse (cost and volume are neither).
-- **Over time**: the maturity score, findings, rules enabled, techniques
-  covered, GB no detection reads and the monthly cost across every kept run.
-- **Changes since** the baseline, every one of them (the first twelve of a
-  list, then Show all): findings resolved and new, criteria now met and now
-  a gap, analytics rules enabled and no longer enabled, ATT&CK techniques
-  now covered and no longer covered, tables now read by a detection and no
-  longer, tables that started and stopped ingesting. A current finding opens
-  in the findings view, a criterion in the maturity view and a rule on Rule
-  Performance.
+- **The baseline switch**, the Assessment tab's switch: the previous run
+  (the default), the latest run at least 7, 30 or 90 days earlier, or the
+  first kept run, each with its date. A choice with no run that far back is
+  greyed out. Beside it, the two runs compared and how many are kept.
+- **Progress at a glance**: the Overview's tiles (maturity score, findings,
+  critical findings, analytics rules enabled, ATT&CK techniques covered, GB
+  no detection reads, open incidents, monthly cost), each with its change
+  since the baseline coloured green where it is better and red where it is
+  worse (cost and volume are neither).
+- **Maturity by area**: the maturity view's area bars, the bar the score
+  now (amber below the target level) and the dashed marker the target, so
+  the markers line up as they do there. What an area gained since the
+  baseline is a green segment at the bar's end, what it lost a hatched red
+  one, and the badge gives the change.
+- **Over time**: Insights cards for the maturity score, findings, rules
+  enabled, techniques covered, GB no detection reads and the monthly cost
+  across every kept run, each scaled to its own range so a small move shows.
+- **What changed**: an Insights card per subject with a change, every one
+  listed (the first eight of a list, then Show all): findings resolved and
+  new, criteria now met and now a gap, analytics rules enabled and no longer
+  enabled, ATT&CK techniques now covered and no longer covered, tables now
+  read by a detection and no longer, tables that started and stopped
+  ingesting. Subjects with no change are named in one line rather than
+  drawn as empty cards. A current finding opens in the findings view, a
+  criterion in the maturity view and a rule on Rule Performance.
+- **Every measure**: the full table, then and now, with the change.
 
 A bundle built before progress tracking carries no record, and the tab says
 so; progress starts with the next run. On SharePoint the history is read
