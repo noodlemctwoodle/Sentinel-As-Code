@@ -224,7 +224,7 @@ Describe 'The renderer and the site build as they end' {
 
     It 'notes the long tables once, as a display limit' {
         $script:siteBuild | Should -Match 'Long tables: \$\(\$cappedTables\.Count\) table\(s\) longer than'
-        $script:siteBuild | Should -Match 'the dashboard''s Sections tab has every row'
+        $script:siteBuild | Should -Match 'Every row is in a CSV file under tables/'
     }
 }
 

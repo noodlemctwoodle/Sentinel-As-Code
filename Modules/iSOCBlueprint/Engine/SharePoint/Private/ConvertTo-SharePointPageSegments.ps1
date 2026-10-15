@@ -19,7 +19,10 @@
       2. Blocks become Text web part HTML: headings clamped to h2-h4,
          paragraphs, lists (nested), notes as blockquotes, tables in the
          responsive markup the SharePoint editor uses (capped at
-         -MaxTableRows), code as <pre>. Horizontal rules are dropped.
+         -MaxTableRows), code as <pre>. Horizontal rules are dropped. A
+         table cut at -MaxTableRows is also returned whole as CSV, for the
+         publisher to put in the assets library's tables/ folder, and the
+         note under the cut table links to that file.
       3. Links follow each run's target: another section goes to its
          generated page, a finding to the findings list filtered on its id,
          a URL stays a link, and same-page anchors and repository paths
@@ -39,8 +42,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.3.1
-    Last Updated: 2026-10-14
+    Version:      0.4.0
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -239,6 +242,101 @@ function ConvertTo-SacRunsHtml {
     return $sb.ToString()
 }
 
+# Where the publisher puts a cut table's CSV: the tables/ folder of the
+# assets library (SacSharePoint.ps1, $script:SacAssetsLibraryUrl).
+$script:SacTablesUrl = '~site/BlueprintAssets/tables'
+
+function Get-SacRunsText {
+    <#
+    .SYNOPSIS
+        The plain text of a list of text runs, for a CSV cell: a section
+        link shows its section's title, a line break becomes a space.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([AllowNull()] [AllowEmptyCollection()] [object[]] $Runs)
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($r in @($Runs)) {
+        if ($null -eq $r) { continue }
+        if ($r.break) { [void]$sb.Append(' '); continue }
+        $text = [string]$r.text
+        if ($r.href -and [string]$r.target.kind -eq 'section') { $text = Get-SacSectionLinkText -Text $text -SectionId ([string]$r.target.section) }
+        [void]$sb.Append($text)
+    }
+    return ($sb.ToString() -replace '\s+', ' ').Trim()
+}
+
+function ConvertTo-SacCsvField {
+    <#
+    .SYNOPSIS
+        One CSV field: quoted when it holds a comma, quote or line break,
+        and kept from being read as a formula.
+
+    .DESCRIPTION
+        A cell can carry text from the workspace (a rule name, an incident
+        title) that someone outside the SOC influenced. Excel runs a cell
+        that starts with =, +, -, @, a tab or a carriage return as a
+        formula, so such a field is prefixed with an apostrophe, which Excel
+        shows as text. A plain negative number is left alone.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([AllowEmptyString()] [string] $Value)
+    $v = $Value
+    if ($v -match '^[=+\-@\t\r]' -and $v -notmatch '^-\d+(\.\d+)?$') { $v = "'" + $v }
+    if ($v -match '[",\r\n]') { $v = '"' + $v.Replace('"', '""') + '"' }
+    return $v
+}
+
+function ConvertTo-SacTableCsv {
+    <#
+    .SYNOPSIS
+        A table block as CSV text: the header row, then every body row.
+        Lines end in CRLF, as RFC 4180 has it.
+
+    .PARAMETER Table
+        A table block from the section model.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] $Table)
+    $sb = [System.Text.StringBuilder]::new()
+    $columns = @($Table.columns)
+    $headers = @($columns | ForEach-Object { Get-SacRunsText -Runs @($_.text) })
+    [void]$sb.Append((@($headers | ForEach-Object { ConvertTo-SacCsvField $_ }) -join ',') + "`r`n")
+    foreach ($row in @($Table.rows)) {
+        $cells = @(@($row) | ForEach-Object { ConvertTo-SacCsvField (Get-SacRunsText -Runs @($_)) })
+        [void]$sb.Append(($cells -join ',') + "`r`n")
+    }
+    return $sb.ToString()
+}
+
+function Get-SacTableFileName {
+    <#
+    .SYNOPSIS
+        The CSV file name for a cut table: the section id and the heading
+        above the table, lower case, letters, digits and hyphens only, with
+        -2, -3 and so on when the section has more than one under a heading.
+
+    .PARAMETER Taken
+        File names already given out in this section.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string] $Id,
+        [AllowEmptyString()] [string] $Heading,
+        [AllowEmptyCollection()] [string[]] $Taken = @()
+    )
+    $slug = ($Heading.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
+    if ($slug.Length -gt 60) { $slug = $slug.Substring(0, 60).TrimEnd('-') }
+    $stem = if ($slug) { "$Id-$slug" } else { "$Id-table" }
+    $name = "$stem.csv"
+    $n = 2
+    while ($Taken -contains $name) { $name = "$stem-$n.csv"; $n++ }
+    return $name
+}
+
 function ConvertTo-SacTableHtml {
     <#
     .SYNOPSIS
@@ -254,6 +352,9 @@ function ConvertTo-SacTableHtml {
     .PARAMETER FindingsListUrl
         Site-relative URL of the findings list.
 
+    .PARAMETER CsvUrl
+        Where the whole table is as CSV, for the note under a cut table.
+
     .OUTPUTS
         [pscustomobject] Html (string) and Truncated (int, rows dropped).
     #>
@@ -262,7 +363,8 @@ function ConvertTo-SacTableHtml {
     param(
         [Parameter(Mandatory)] $Table,
         [Parameter(Mandatory)] [int] $MaxRows,
-        [Parameter(Mandatory)] [string] $FindingsListUrl
+        [Parameter(Mandatory)] [string] $FindingsListUrl,
+        [string] $CsvUrl
     )
 
     $out = [System.Text.StringBuilder]::new()
@@ -287,7 +389,8 @@ function ConvertTo-SacTableHtml {
     }
     if ($dropped -gt 0) {
         $span = [math]::Max($columns.Count, 1)
-        [void]$out.Append("<tr><td colspan=`"$span`"><em>$dropped more rows not shown here. The full table, with a filter, is under this section on the <a href=`"~site/SitePages/Dashboard.aspx`">dashboard</a>'s Sections tab.</em></td></tr>")
+        $csvText = if ($CsvUrl) { "Every row is in <a href=`"$CsvUrl`">this table as a CSV file</a>, which opens in Excel, and in" } else { 'The full table, with a filter, is in' }
+        [void]$out.Append("<tr><td colspan=`"$span`"><em>$dropped more rows not shown here. $csvText this section on the <a href=`"~site/SitePages/Dashboard.aspx`">dashboard</a>'s Sections tab$(if ($CsvUrl) { ', with a filter' }).</em></td></tr>")
     }
     [void]$out.Append('</tbody></table></div></div>')
     return [pscustomobject]@{ Html = $out.ToString(); Truncated = $dropped }
@@ -295,7 +398,9 @@ function ConvertTo-SacTableHtml {
 
 function ConvertTo-SacBlocksHtml {
     # HTML for blocks that stay inside one Text web part (lists, notes, tables).
-    param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings)
+    # A table cut at MaxTableRows is added whole to Tables as CSV, named from
+    # the heading above it.
+    param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings, [System.Collections.Generic.List[object]] $Tables, [string] $Heading = '')
     $sb = [System.Text.StringBuilder]::new()
     foreach ($b in @($Blocks)) {
         if ($null -eq $b) { continue }
@@ -312,15 +417,22 @@ function ConvertTo-SacBlocksHtml {
                 [void]$sb.Append("<$tag$start>")
                 foreach ($item in @($b.items)) {
                     [void]$sb.Append('<li>' + (ConvertTo-SacRunsHtml -Runs @($item.text) -FindingsListUrl $FindingsListUrl))
-                    if (@($item.blocks).Count) { [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @($item.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings)) }
+                    if (@($item.blocks).Count) { [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @($item.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading)) }
                     [void]$sb.Append('</li>')
                 }
                 [void]$sb.Append("</$tag>")
             }
-            'note' { [void]$sb.Append('<blockquote>' + (ConvertTo-SacBlocksHtml -Blocks @($b.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings) + '</blockquote>') }
+            'note' { [void]$sb.Append('<blockquote>' + (ConvertTo-SacBlocksHtml -Blocks @($b.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading) + '</blockquote>') }
             'table' {
-                $t = ConvertTo-SacTableHtml -Table $b -MaxRows $MaxTableRows -FindingsListUrl $FindingsListUrl
-                if ($t.Truncated -gt 0) { $Warnings.Add("$Id : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown).") }
+                $csvUrl = $null
+                $csvFile = $null
+                if ($null -ne $Tables -and @($b.rows).Count -gt $MaxTableRows) {
+                    $csvFile = Get-SacTableFileName -Id $Id -Heading $Heading -Taken @($Tables | ForEach-Object { $_.file })
+                    $Tables.Add([ordered]@{ file = $csvFile; heading = $Heading; rows = @($b.rows).Count; csv = (ConvertTo-SacTableCsv -Table $b) })
+                    $csvUrl = "$script:SacTablesUrl/$csvFile"
+                }
+                $t = ConvertTo-SacTableHtml -Table $b -MaxRows $MaxTableRows -FindingsListUrl $FindingsListUrl -CsvUrl $csvUrl
+                if ($t.Truncated -gt 0) { $Warnings.Add("$Id : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown)$(if ($csvFile) { "; every row is in tables/$csvFile" }).") }
                 [void]$sb.Append($t.Html)
             }
             'code' { [void]$sb.Append('<pre>' + (ConvertTo-SacHtmlText ([string]$b.text)) + '</pre>') }
@@ -356,6 +468,8 @@ function ConvertTo-SharePointPageSegments {
                      (kind 'other' also carries source)
           Warnings : array of strings (truncated tables, charts that could
                      not be placed)
+          Tables   : each table cut at -MaxTableRows, whole: file (the CSV
+                     file name), heading, rows and csv (the text)
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -366,6 +480,7 @@ function ConvertTo-SharePointPageSegments {
     )
 
     $warnings = [System.Collections.Generic.List[string]]::new()
+    $tables = [System.Collections.Generic.List[object]]::new()
     $id = [string]$Section.id
     $title = Get-SacSectionTitle -Title ([string]$Section.title)
 
@@ -396,7 +511,7 @@ function ConvertTo-SharePointPageSegments {
             continue
         }
         if ([string]$b.type -eq 'heading' -and [int]$b.level -le 2) { & $flush }
-        [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @($b) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings))
+        [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @($b) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings -Tables $tables -Heading $lastHeading))
     }
     & $flush
 
@@ -404,6 +519,7 @@ function ConvertTo-SharePointPageSegments {
         Title    = $title
         Segments = $segments.ToArray()
         Warnings = $warnings.ToArray()
+        Tables   = $tables.ToArray()
     }
 }
 

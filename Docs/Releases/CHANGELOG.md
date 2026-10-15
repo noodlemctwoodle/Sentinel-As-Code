@@ -6,6 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Long tables in full on SharePoint** - a table longer than 500 rows
+  still shows its first 500 on its native page (within Microsoft's
+  page-weight guidance), and is now also published whole as a CSV file in
+  the site's `BlueprintAssets` library, linked from the note under the cut,
+  so every row is in SharePoint and opens in Excel. The build writes them
+  to the bundle's `tables/` folder; the publisher uploads them every run
+  and recycles ones a later bundle no longer has. Cells that would run as
+  Excel formulas are written as text.
 - **A clearer end to a Blueprint run** - a capture that could not be read
   is now reported as one of three outcomes, each in its own colour as it
   happens and under its own heading in the capture summary: not available

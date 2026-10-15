@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.12.0
-    Last Updated: 2026-10-13
+    Version:      0.13.0
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -271,12 +271,105 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $html | Should -Match 'href="~site/SitePages/Dashboard.aspx"'
             $r.Warnings -join ' ' | Should -Match 'capped at 5 rows'
         }
+        It 'gives the cut table whole as CSV and links it from the note' {
+            @($r.Tables).Count | Should -Be 1
+            $r.Tables[0].file | Should -Be '20-analytics-rules-table.csv'
+            $r.Tables[0].rows | Should -Be 7
+            $r.Tables[0].csv | Should -Be ("Name,Count`r`n" + ((1..7 | ForEach-Object { "r$_,$_" }) -join "`r`n") + "`r`n")
+            $html | Should -Match 'Every row is in <a href="~site/BlueprintAssets/tables/20-analytics-rules-table\.csv">this table as a CSV file</a>, which opens in Excel'
+            $r.Warnings -join ' ' | Should -Match 'every row is in tables/20-analytics-rules-table\.csv'
+        }
     }
 
     It 'returns an empty result for empty Markdown' {
         $r = ConvertTo-Segments ''
         $r.Title | Should -Be ''
         $r.Segments.Count | Should -Be 0
+    }
+}
+
+Describe 'Cut tables as CSV files' {
+    It 'quotes a field with a comma, quote or line break' {
+        ConvertTo-SacCsvField 'a,b' | Should -Be '"a,b"'
+        ConvertTo-SacCsvField 'say "hi"' | Should -Be '"say ""hi"""'
+        ConvertTo-SacCsvField 'plain' | Should -Be 'plain'
+    }
+
+    It 'keeps a cell from being read as a formula, but not a negative number' {
+        ConvertTo-SacCsvField '=HYPERLINK("x")' | Should -Be '"''=HYPERLINK(""x"")"'
+        ConvertTo-SacCsvField '+1' | Should -Be "'+1"
+        ConvertTo-SacCsvField '@SUM(A1)' | Should -Be "'@SUM(A1)"
+        ConvertTo-SacCsvField '-cmd' | Should -Be "'-cmd"
+        ConvertTo-SacCsvField '-5' | Should -Be '-5'
+        ConvertTo-SacCsvField '-2.5' | Should -Be '-2.5'
+    }
+
+    It 'names the file from the section and the heading, unique within the section' {
+        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' | Should -Be '21-rule-performance-rule-effectiveness-last-90d.csv'
+        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' -Taken '21-rule-performance-rule-effectiveness-last-90d.csv' | Should -Be '21-rule-performance-rule-effectiveness-last-90d-2.csv'
+        Get-SacTableFileName -Id '15-incidents' -Heading '' | Should -Be '15-incidents-table.csv'
+    }
+
+    It 'writes each cell as its text, with formatting and line breaks dropped' {
+        Get-SacRunsText -Runs @([pscustomobject]@{ text = 'Bold'; bold = $true }, [pscustomobject]@{ break = $true }, [pscustomobject]@{ text = 'next' }) | Should -Be 'Bold next'
+    }
+
+    It 'links to the folder the publisher keeps in the assets library' {
+        $script:SacTablesUrl | Should -Be "~site/$script:SacAssetsLibraryUrl/tables"
+        (Get-Command Initialize-SacSiteStructure).Definition | Should -Match '''dashboard'', ''diagrams'', ''tables'', ''_state'''
+    }
+
+    It 'has the publisher upload every CSV the bundle lists, and prune the rest' {
+        $publisher = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw
+        $publisher | Should -Match 'Send-SacFile -Path \$csvPath -Folder ''tables'''
+        $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileNames -Folder ''tables''\)'
+        $publisher | Should -Match 'Remove-PnPFile -SiteRelativeUrl "\$script:SacAssetsLibraryUrl/tables/\$file" -Force -Recycle'
+        $publisher | Should -Match '\$siteTables = @\(if \(\$site\.PSObject\.Properties\[''tables''\]\)'
+    }
+}
+
+Describe 'Build-SentinelDocsSite with tables cut on their pages' {
+    BeforeAll {
+        $fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+        $script:cutDir = Join-Path ([System.IO.Path]::GetTempPath()) "sharepoint-cut-test-$(New-Guid)"
+        $script:cutWs = Join-Path $script:cutDir 'law-sentinel-test'
+        New-Item -ItemType Directory -Path (Join-Path $script:cutWs '_raw') -Force | Out-Null
+        Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $script:cutWs '_raw')
+        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') `
+            -WorkspaceName 'law-sentinel-test' -InputRoot $script:cutWs -OutputRoot $script:cutWs -OutputFormat Json `
+            -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+        $script:cutLog = (& (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $script:cutWs -MaxTableRows 3 -HistoryDays 0 6>&1 | Out-String)
+        $script:cutBundle = Join-Path $script:cutWs 'sharepoint'
+        $script:cutSite = Get-Content (Join-Path $script:cutBundle 'site.json') -Raw | ConvertFrom-Json
+    }
+
+    AfterAll {
+        if ($script:cutDir -and (Test-Path $script:cutDir)) { Remove-Item $script:cutDir -Recurse -Force }
+    }
+
+    It 'writes every cut table to tables/ and lists it in site.json' {
+        $files = @(Get-ChildItem (Join-Path $script:cutBundle 'tables') -Filter '*.csv' | ForEach-Object Name | Sort-Object)
+        $files.Count | Should -BeGreaterThan 3
+        @($script:cutSite.tables | Sort-Object) | Should -Be $files
+    }
+
+    It 'writes UTF-8 with a byte order mark, the header first, then every row' {
+        $first = Get-ChildItem (Join-Path $script:cutBundle 'tables') -Filter '*.csv' | Select-Object -First 1
+        $bytes = [System.IO.File]::ReadAllBytes($first.FullName)
+        @($bytes[0..2]) | Should -Be @(0xEF, 0xBB, 0xBF)
+        @(Get-Content $first.FullName).Count | Should -BeGreaterThan 4
+    }
+
+    It 'links each page''s note to its CSV' {
+        $file = [string]$script:cutSite.tables[0]
+        $pageText = (Get-ChildItem (Join-Path $script:cutBundle 'pages') -Filter '*.json' | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
+        $pageText | Should -Match ([regex]::Escape("~site/BlueprintAssets/tables/$file"))
+    }
+
+    It 'notes the long tables once, with where every row is' {
+        $script:cutLog | Should -Match 'Long tables: \d+ table\(s\) longer than 3 rows show their first 3 on the native pages'
+        $script:cutLog | Should -Match 'Every row is in a CSV file under tables/'
+        $script:cutLog | Should -Not -Match 'a table was capped at 3 rows'
     }
 }
 

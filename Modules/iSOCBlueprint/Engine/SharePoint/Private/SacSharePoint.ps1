@@ -25,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.5.0
-    Last Updated: 2026-10-14
+    Version:      0.5.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file defines functions rather than running. Per-parameter detail
@@ -194,7 +194,7 @@ function Initialize-SacSiteStructure {
             } | Out-Null
         }
     }
-    foreach ($folder in 'dashboard', 'diagrams', '_state') {
+    foreach ($folder in 'dashboard', 'diagrams', 'tables', '_state') {
         if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/$folder", 'Ensure folder')) {
             Resolve-PnPFolder -SiteRelativePath "$script:SacAssetsLibraryUrl/$folder" | Out-Null
         }

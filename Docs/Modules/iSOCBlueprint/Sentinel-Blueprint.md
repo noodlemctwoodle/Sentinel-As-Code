@@ -445,7 +445,8 @@ summary before filing a "the report says zero of X" bug.
 The renderer ends in one line (the pages and sections it wrote; `-Verbose`
 lists each), and the SharePoint build in its block of figures, with one note
 for tables longer than `-MaxTableRows` (their native pages show the first
-rows; the dashboard's Sections tab has every row). `New-iSOCBlueprint` then
+rows; every row is in a CSV file the page links to, and on the dashboard's
+Sections tab). `New-iSOCBlueprint` then
 closes the run with a short summary: how long it took, the run's folder,
 the captures written and, in the same colours, those not available, not
 read in full or failed, the report's

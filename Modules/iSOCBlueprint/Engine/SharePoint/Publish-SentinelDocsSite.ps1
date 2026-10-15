@@ -19,7 +19,9 @@
                      catalog, only when its version differs from what is
                      deployed (-AppPackagePath)
       3. Assets      dashboard HTML and its model uploaded (and diagrams,
-                     from a bundle built before charts became data);
+                     from a bundle built before charts became data); the
+                     CSV of each table cut on its page (tables/), which the
+                     page's note links to;
                      when the model carries a maturity assessment, one
                      entry is appended to the score history the dashboard
                      draws as a trend; and a copy of the dashboard is kept
@@ -37,8 +39,9 @@
                      retired (findings that stop firing keep their history)
       7. Navigation  the top navigation rebuilt from the pages that exist,
                      only when it differs from the plan
-      8. Prune       pages and diagrams the bundle no longer has are sent
-                     to the recycle bin, only when every page published
+      8. Prune       pages, diagrams and table CSVs the bundle no longer
+                     has are sent to the recycle bin, only when every page
+                     published
 
     The site itself, its site collection app catalog and this identity's
     access are created once by Initialize-SentinelDocsSite.ps1.
@@ -114,8 +117,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.5.0
-    Last Updated: 2026-10-14
+    Version:      0.6.0
+    Last Updated: 2026-10-15
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
 #>
@@ -190,10 +193,12 @@ foreach ($f in Get-ChildItem -LiteralPath (Join-Path $Bundle 'pages') -Filter '*
     $pageDocs[[string]$doc.name] = $doc
 }
 if ($AppPackagePath -and -not (Test-Path -LiteralPath $AppPackagePath)) { throw "App package not found: $AppPackagePath" }
+# The CSVs of the tables cut on their pages; a bundle built before them has none.
+$siteTables = @(if ($site.PSObject.Properties['tables']) { @($site.tables) | Where-Object { $_ } | ForEach-Object { [string]$_ } })
 
 Write-Host "iSOC Blueprint publish" -ForegroundColor Cyan
 Write-Host "  Site      : $SiteUrl"
-Write-Host "  Bundle    : $Bundle ($($pageDocs.Count) pages, $(@($site.diagrams).Count) diagrams, $(@($findingsDoc.items).Count) findings)"
+Write-Host "  Bundle    : $Bundle ($($pageDocs.Count) pages, $(@($site.diagrams).Count) diagrams, $($siteTables.Count) table CSVs, $(@($findingsDoc.items).Count) findings)"
 Write-Host "  Workspace : $($site.workspace.name)"
 if ($WhatIfPreference) { Write-Host '  Mode      : WhatIf (read and plan only)' -ForegroundColor Yellow }
 
@@ -227,7 +232,7 @@ else {
 }
 
 # 3. Assets ------------------------------------------------------------------
-Write-Step '3/8 Dashboard and diagrams'
+Write-Step '3/8 Dashboard, diagrams and tables'
 Assert-TokenFresh 'assets'
 Send-SacFile -Path (Join-Path $Bundle 'index.html') -Folder 'dashboard'
 Send-SacFile -Path (Join-Path $Bundle 'model.json') -Folder 'dashboard'
@@ -239,6 +244,15 @@ foreach ($file in @($site.diagrams)) {
     $uploaded++
 }
 Write-Host "  Diagrams uploaded: $uploaded (already present: $(@($site.diagrams).Count - $uploaded))"
+
+# Each table cut on its page, whole, as CSV: uploaded every run, since the
+# data behind it changes with every collection.
+foreach ($file in $siteTables) {
+    $csvPath = Join-Path (Join-Path $Bundle 'tables') $file
+    if (-not (Test-Path -LiteralPath $csvPath -PathType Leaf)) { throw "site.json lists tables/$file but the bundle does not have it. Rebuild the bundle." }
+    Send-SacFile -Path $csvPath -Folder 'tables'
+}
+Write-Host "  Table CSVs $(if ($WhatIfPreference) { 'to upload' } else { 'uploaded' }): $($siteTables.Count)"
 
 # Maturity history: one entry per published bundle, keyed on the bundle's
 # build time so a re-publish of the same bundle does not add a point.
@@ -409,7 +423,13 @@ else {
             Remove-PnPFile -SiteRelativeUrl "$script:SacAssetsLibraryUrl/diagrams/$file" -Force -Recycle
         }
     }
-    Write-Host "  Pages removed: $(@($pagePlan | Where-Object Action -eq 'Delete').Count)   Diagrams removed: $($stale.Count)"
+    $staleTables = Get-AssetPrunePlan -DesiredFiles $siteTables -ExistingFiles (Get-SacFolderFileNames -Folder 'tables')
+    foreach ($file in $staleTables) {
+        if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/tables/$file", 'Send table CSV to recycle bin')) {
+            Remove-PnPFile -SiteRelativeUrl "$script:SacAssetsLibraryUrl/tables/$file" -Force -Recycle
+        }
+    }
+    Write-Host "  Pages removed: $(@($pagePlan | Where-Object Action -eq 'Delete').Count)   Diagrams removed: $($stale.Count)   Table CSVs removed: $($staleTables.Count)"
 
     # The assets library's pre-Blueprint name. Its state files were read as
     # a fallback at the start of this run and are saved to the new library

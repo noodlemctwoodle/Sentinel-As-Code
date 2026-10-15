@@ -23,6 +23,9 @@
       pages/<page>.json   one file per section: title and the ordered
                           segments (HTML for Text web parts, chart data for
                           the isoc-blueprint chart web part)
+      tables/<name>.csv   each table cut at -MaxTableRows on its page, whole,
+                          as CSV (UTF-8); the page's note links to it and
+                          the publisher puts it in the assets library
       findings.json       gap-analysis findings plus per-check outcomes,
                           for the findings list
       history/            when the source is a day's folder (yyyy-MM-dd)
@@ -44,9 +47,9 @@
     sections/ (for example SecurityDocs/law-sentinel-prod).
 
 .PARAMETER OutputRoot
-    Bundle folder. Defaults to '<Source>/sharepoint'. The pages/ subfolder
-    is cleared at the start of each build so a removed section never
-    lingers.
+    Bundle folder. Defaults to '<Source>/sharepoint'. The pages/ and
+    tables/ subfolders are cleared at the start of each build so a removed
+    section or table never lingers.
 
 .PARAMETER ProductName
     Product name shown on the dashboard, in page titles and in the site
@@ -71,9 +74,10 @@
     scripts still run.
 
 .PARAMETER MaxTableRows
-    Maximum body rows per table on a native page. Defaults to 500. Longer
-    tables are cut with a note linking to the dashboard, whose copy of the
-    section has every row.
+    Maximum body rows per table on a native page. Defaults to 500, which
+    keeps a page within Microsoft's page-weight guidance. A longer table is
+    cut with a note linking to the whole table as a CSV file (tables/) and
+    to the dashboard, whose copy of the section has every row.
 
 .PARAMETER HistoryDays
     When -Source is a day's folder (yyyy-MM-dd) beside earlier days' folders,
@@ -103,7 +107,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.16.1
+    Version:      0.17.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -1444,6 +1448,8 @@ $sections = @()
 $siteSections = @()
 $pageDocs = @()
 $chartCount = 0
+# Tables cut on their page, whole, as CSV: file name and text.
+$tableFiles = [System.Collections.Generic.List[object]]::new()
 
 $allSectionModels = @(Get-SectionModels -Source $Source)
 # Every section's title first, so a link to a later section can show it.
@@ -1460,6 +1466,7 @@ foreach ($sec in $allSectionModels) {
 
     $converted = ConvertTo-SharePointPageSegments -Section $sec -FindingsListUrl $script:FindingsListUrl -MaxTableRows $MaxTableRows
     foreach ($w in $converted.Warnings) { $buildWarnings.Add($w) }
+    foreach ($t in @($converted.Tables)) { if ($t) { $tableFiles.Add($t) } }
     $segments = @($converted.Segments)
     $chartCount += @($segments | Where-Object { $_.type -eq 'chart' }).Count
 
@@ -1557,14 +1564,26 @@ if ($null -eq $checks) {
 # ---------------------------------------------------------------------------
 
 $pagesDir = Join-Path $OutputRoot 'pages'
+$tablesDir = Join-Path $OutputRoot 'tables'
 
 if ($PSCmdlet.ShouldProcess($OutputRoot, 'Prepare bundle folder')) {
     New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
     # diagrams/ is what a bundle built before charts became data carried.
-    foreach ($d in $pagesDir, (Join-Path $OutputRoot 'diagrams')) {
+    foreach ($d in $pagesDir, $tablesDir, (Join-Path $OutputRoot 'diagrams')) {
         if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force }
     }
     New-Item -ItemType Directory -Path $pagesDir -Force | Out-Null
+    if ($tableFiles.Count) { New-Item -ItemType Directory -Path $tablesDir -Force | Out-Null }
+}
+
+# Cut tables, whole. UTF-8 with a byte order mark, so Excel reads names
+# with accents and symbols as they are.
+$csvEncoding = [System.Text.UTF8Encoding]::new($true)
+foreach ($t in $tableFiles) {
+    $csvPath = Join-Path $tablesDir ([string]$t.file)
+    if ($PSCmdlet.ShouldProcess($csvPath, 'Write table CSV')) {
+        [System.IO.File]::WriteAllText($csvPath, [string]$t.csv, $csvEncoding)
+    }
 }
 
 # Dashboard. EscapeHtml encodes <, >, & and quotes as \uXXXX so no value in
@@ -1613,6 +1632,9 @@ $site = [ordered]@{
         score    = $(if ($maturityModel -and $maturityModel.overall) { $maturityModel.overall.score } else { $null })
     }
     sections      = $siteSections
+    # The cut tables' CSV files under tables/, for the publisher to upload
+    # (and to prune the ones a later bundle no longer has).
+    tables        = @($tableFiles | ForEach-Object { [string]$_.file })
     # Always empty now that charts are data: the publisher recycles the
     # diagram images an earlier bundle uploaded.
     diagrams      = @()
@@ -1664,12 +1686,12 @@ if ($HistoryDays -gt 0 -and $sourceDay -match '^\d{4}-\d{2}-\d{2}$') {
 # A table cut on a native page is a display limit, not missing data: the
 # dashboard's Sections tab carries every row. One note names the pages
 # rather than a warning a table.
-$cappedPattern = '^(?<page>\S+) : a table was capped at \d+ rows \((?<rows>\d+) not shown\)\.$'
+$cappedPattern = '^(?<page>\S+) : a table was capped at \d+ rows \((?<rows>\d+) not shown\)(; every row is in tables/\S+)?\.$'
 $cappedTables = @($buildWarnings | Where-Object { $_ -match $cappedPattern })
 foreach ($w in @($buildWarnings | Where-Object { $_ -notmatch $cappedPattern })) { Write-Log "  ! $w" Warning }
 if ($cappedTables.Count) {
     $cappedPages = @($cappedTables | ForEach-Object { if ($_ -match $cappedPattern) { $Matches['page'] } } | Select-Object -Unique)
-    Write-Log "  Long tables: $($cappedTables.Count) table(s) longer than $MaxTableRows rows show their first $MaxTableRows on the native pages ($($cappedPages -join ', ')); the dashboard's Sections tab has every row." Info
+    Write-Log "  Long tables: $($cappedTables.Count) table(s) longer than $MaxTableRows rows show their first $MaxTableRows on the native pages ($($cappedPages -join ', ')). Every row is in a CSV file under tables/ ($($tableFiles.Count)), linked from each page once published, and on the dashboard's Sections tab." Info
 }
 Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $chartCount charts, $($findingList.Count) findings)" Success
 

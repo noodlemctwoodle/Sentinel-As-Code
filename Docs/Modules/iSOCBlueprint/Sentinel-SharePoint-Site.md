@@ -20,7 +20,7 @@ One communication site per workspace, containing:
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, and a copy of the dashboard per day (`dashboard/history/`). | `BlueprintAssets` library |
+| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, a copy of the dashboard per day (`dashboard/history/`), and each table cut on its page, whole, as CSV (`tables/`). | `BlueprintAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -67,6 +67,7 @@ with the dashboard template and the web part source:
 | `model.json` | The dashboard's data model |
 | `site.json` | Product name, workspace, section list with page names, families and content hashes, build warnings. Its `diagrams` list is always empty now that charts are data; the publisher recycles the images earlier bundles uploaded. |
 | `pages/<page>.json` | Per section: title and ordered segments, `html` for a text web part or `chart` (kind, title, data) for the chart web part |
+| `tables/<name>.csv` | Each table longer than `-MaxTableRows`, whole, as CSV (UTF-8 with a byte order mark, so Excel reads accents and symbols as they are). Named from the section and the heading above the table. `site.json` lists them in `tables` |
 | `findings.json` | Findings plus per-check outcomes |
 
 Nothing in the build contacts SharePoint, Azure or anything else on the
@@ -463,7 +464,16 @@ SharePoint text web part keeps:
   at 500 rows (`-MaxTableRows`). A longer table says how many rows are not
   shown and links to the dashboard, whose copy has every row and a filter.
   The cut is display only: the findings, coverage and dashboard read every
-  row. The build log names the pages with a cut table in one note.
+  row. Every row of a cut table is also in a CSV file (`tables/`) the
+  publisher puts in the `BlueprintAssets` library, and the note under the
+  cut links to it, so the whole table is in SharePoint and opens in Excel.
+  The cap keeps a page within Microsoft's page-weight guidance (under about
+  500 KB); a 5,000-row table on the page itself would be several times
+  that. A cell that starts with `=`, `+`, `-` or `@` (other than a plain
+  negative number) is written with a leading apostrophe, so Excel shows it
+  as text rather than running it as a formula: rule names and incident
+  titles can carry text from outside the SOC. The build log names the
+  pages with a cut table in one note.
 - Links follow their target in the model: another section goes to its
   page, a finding (`SAC-<AREA>-NN`) goes to the findings list filtered on
   that id, a web URL is kept, and a repository path or an in-page anchor
@@ -510,8 +520,10 @@ In this order, so a failure part-way leaves the site consistent:
    **SharePoint: deploy the web part if it changed** is ticked). A package
    with the same solution id under an older solution name is removed first,
    because SharePoint keeps one catalog file per solution id.
-3. **Assets.** Upload the dashboard. When the bundle carries a maturity
-   assessment, append its score to the history (see below).
+3. **Assets.** Upload the dashboard, and the CSV of each table cut on its
+   page (`BlueprintAssets/tables/`, every run, since the data changes with
+   each collection). When the bundle carries a maturity assessment, append
+   its score to the history (see below).
 4. **Pages.** Create or rebuild each section page, skipping pages whose
    content hash matches the last publish. Pages are rebuilt in place (cleared
    and refilled, then published once), so URLs and version history survive
@@ -539,9 +551,9 @@ In this order, so a failure part-way leaves the site consistent:
    batch.
 7. **Navigation.** Rebuild the top navigation from the pages that exist,
    only when it differs from the plan.
-8. **Prune.** Send pages the bundle no longer has, and the diagram images
-   earlier versions uploaded, to the recycle bin, only when every page
-   published.
+8. **Prune.** Send pages and table CSVs the bundle no longer has, and the
+   diagram images earlier versions uploaded, to the recycle bin, only when
+   every page published.
 
 A failed section page is reported and retried on the next run; it never
 stops the rest of the publish.
