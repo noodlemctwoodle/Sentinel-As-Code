@@ -50,7 +50,7 @@ needs bumping.
 | Surface | Version | Capture |
 |---|---|---|
 | `.../workspaces/<ws>/summaryLogs` (summary rules) | `2023-01-01-preview` | `summary-rules` |
-| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging. The collector then keeps the item count the error reports in `bookmarks-count.json` and lists the bookmarks from the `HuntingBookmark` table instead (below) |
+| `Microsoft.SecurityInsights/bookmarks` (list) | `Sentinel` pin | `bookmarks`: the list is refused over about 8 MB with no paging (`$top` is refused with 400). The collector then keeps the item count the error reports in `bookmarks-count.json` and lists the bookmarks from the `HuntingBookmark` table instead (below); bookmarks not changed within the table's retention are not in it |
 | `Microsoft.Insights/workbooks?category=sentinel` | `2023-06-01` | `workbooks-saved` |
 | `Microsoft.Logic/workflows` (playbooks list) | `2016-06-01` | `playbooks` |
 | `Microsoft.Logic/workflows/{name}/runs` (7-day run history, `$filter=startTime ge ...`) | `2016-06-01` | `playbook-runs` |

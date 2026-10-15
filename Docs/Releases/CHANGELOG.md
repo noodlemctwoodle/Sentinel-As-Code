@@ -35,8 +35,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the `HuntingBookmark` table instead (each bookmark's latest entry, less
   the deleted ones), and the page tables them with the service's count
   beside them. The table keeps only its retention, so the page says when it
-  holds fewer than the service counted. The warning now appears only when
-  the table cannot be read either.
+  holds fewer than the service counted. When it holds none, the page says
+  no bookmark has been created, changed or deleted within the table's
+  retention (for example 90 days), which is itself a sign of how active
+  hunting is. The warning now appears only when the table cannot be read
+  either.
 - **Choose the cost estimate's currency** - `New-iSOCBlueprint` and
   `Export-iSOCBlueprintInventory` take `-Currency`, the Azure DevOps
   pipeline a `currency` parameter and the GitHub workflow a `currency` input

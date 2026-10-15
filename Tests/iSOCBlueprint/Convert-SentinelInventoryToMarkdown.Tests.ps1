@@ -1554,7 +1554,8 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
         $logsRoot  = Join-Path $script:bmOutDir 'law-sentinel-logs'
         $emptyRoot = Join-Path $script:bmOutDir 'law-sentinel-empty'
-        foreach ($root in $listRoot, $countRoot, $logsRoot, $emptyRoot) {
+        $quietRoot = Join-Path $script:bmOutDir 'law-sentinel-quiet'
+        foreach ($root in $listRoot, $countRoot, $logsRoot, $emptyRoot, $quietRoot) {
             New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw') -Force
         }
@@ -1580,13 +1581,21 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         Remove-Item (Join-Path $emptyRoot '_raw/bookmarks.json') -Force
         '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $emptyRoot '_raw/bookmarks-count.json') -Encoding UTF8
         '[]' | Set-Content (Join-Path $emptyRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
-        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'))) {
+        # The same, with the table's retention known: no change in 90 days.
+        Remove-Item (Join-Path $quietRoot '_raw/bookmarks.json') -Force
+        '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $quietRoot '_raw/bookmarks-count.json') -Encoding UTF8
+        '[]' | Set-Content (Join-Path $quietRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
+        $quietTables = Join-Path $quietRoot '_raw/workspace-tables.json'
+        $tablesDoc = @(Get-Content $quietTables -Raw | ConvertFrom-Json) + [pscustomobject]@{ name = 'HuntingBookmark'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 90; totalRetentionInDays = 90 } }
+        ConvertTo-Json -InputObject $tablesDoc -Depth 10 | Set-Content $quietTables -Encoding UTF8
+        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet'))) {
             & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
         }
         $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
         $script:bmLogs  = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
         $script:bmEmpty = Get-Content (Join-Path $emptyRoot '30-hunting-queries.md') -Raw
+        $script:bmQuiet = Get-Content (Join-Path $quietRoot '30-hunting-queries.md') -Raw
     }
 
     AfterAll {
@@ -1612,6 +1621,10 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     It 'says the table holds none of them when it was read but empty' {
         $script:bmEmpty | Should -Match '\*\*350 bookmarks\*\* exist\. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them'
         $script:bmEmpty | Should -Not -Match 'could not be read'
+    }
+
+    It 'says no bookmark has changed within the table''s retention when it names it' {
+        $script:bmQuiet | Should -Match '\*\*350 bookmarks\*\* exist, and none has been created, changed or deleted in the last 90 days: the HuntingBookmark table, which logs every bookmark change and keeps 90 days, holds no entries\.'
     }
 
     It 'says when the table holds fewer bookmarks than the service counted' {
