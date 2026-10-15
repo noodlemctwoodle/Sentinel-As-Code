@@ -654,7 +654,7 @@ checks from the Sentinel health-check script contributed to the project:
 | SAC-TI-05 Single TI feed | `data-connectors-classic.json`, `threat-intel-counts.json` | at most one TI connector kind and no non-Microsoft indicator source |
 | SAC-LOG-06 Azure Firewall logged twice | `azure-diagnostics-categories.json`, `tables-with-data.json` | `AzureFirewall*` categories and `AZFW*` tables both carry data |
 | SAC-INC-02 Closed unclassified | `incidents-summary.json` | 10+ closed and more than half Undetermined or unclassified |
-| SAC-HNT-01 No hunting | `hunts.json`, `bookmarks.json` (or `bookmarks-count.json` when the list was too large to fetch) | both captures ran and both are empty |
+| SAC-HNT-01 No hunting | `hunts.json`, `bookmarks.json` (or `bookmarks-count.json` and `bookmarks-from-logs.json` when the list was too large to fetch), `workspace-tables.json` | both captures ran and both are empty; or hunts or bookmarks exist but none was created or changed within the lookback (hunts dated by their `systemData`, bookmarks by their created and updated times or the `HuntingBookmark` table's rows). Unknown recency (an undated hunt, or a `HuntingBookmark` table that keeps fewer days than the lookback) does not fire |
 
 The collector only writes some of those files when their capture succeeds
 (`hunts.json`, `playbook-runs.json`, `rule-effectiveness.json` and the

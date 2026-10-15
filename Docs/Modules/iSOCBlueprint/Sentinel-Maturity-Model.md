@@ -193,6 +193,7 @@ Unknown), and `0` or `false` when the file exists but holds nothing.
 | `tiIndicators30d`, `mdtiRows30d` | `threat-intel-counts.json` | indicators in 30 days, all sources and Microsoft sources |
 | `tiObjects30d` | `threat-intel-objects.json` | STIX objects in 30 days |
 | `bookmarks` | `bookmarks.json`, else `bookmarks-count.json` | bookmarks; the list API refuses a workspace with many bookmarks, and the collector then keeps the count the service reported |
+| `bookmarksRecent` | `bookmarks.json`, else `bookmarks-from-logs.json` with `workspace-tables.json` | bookmarks created or changed within the lookback (SAC-HNT-02 "Findings are bookmarked"); unknown when the `HuntingBookmark` table was not read, or keeps fewer days than the lookback and holds nothing recent |
 | `huntingQueries` | `hunting-queries.json` | hunting queries |
 | `highPrivilegeAssignments` | `rbac-workspace.json` | Owner and Contributor assignments at workspace scope |
 | `sentinelRoleAssignments` | `rbac-workspace.json` | assignments of any `Microsoft Sentinel *` role |

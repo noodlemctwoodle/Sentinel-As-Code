@@ -509,6 +509,8 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1`](../../../Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1) | The summary `New-iSOCBlueprint` prints when a run ends |
 | [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends: the three outcomes, their colours and the summaries (29 tests) |
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1) | Hunts and bookmarks created or changed within the lookback, for SAC-HNT-01 and the maturity metric `bookmarksRecent` |
+| [`Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1`](../../../Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1) | Recent hunting activity: the helper, SAC-HNT-01 and `bookmarksRecent` (14 tests) |
 | `Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 
 ## How to extend the renderer

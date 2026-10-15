@@ -20,8 +20,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.0
-    Last Updated:   2026-10-14
+    Version:        0.7.1
+    Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
 
@@ -41,6 +41,8 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
 # Watchlist freshness (SAC-DET-15), shared with the watchlists page.
 . (Join-Path $PSScriptRoot 'Get-WatchlistFreshness.ps1')
+# Recent hunts and bookmarks (SAC-HNT-01), shared with the maturity metrics.
+. (Join-Path $PSScriptRoot 'Get-HuntingActivity.ps1')
 
 # Helper, produces a Finding object with consistent shape.
 function New-Finding {
@@ -1542,8 +1544,26 @@ function Test-HuntingActivityRecorded {
     if ($Inventory.RawFiles -notcontains 'bookmarks.json' -and $null -ne $Inventory.BookmarksCount) {
         $bookmarkCount = _ToInt (Get-PropOrDefault $Inventory.BookmarksCount 'Count' 0)
     }
-    if (@($Inventory.Hunts).Count -gt 0 -or $bookmarkCount -gt 0) { return $null }
-    return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
+    if (@($Inventory.Hunts).Count -eq 0 -and $bookmarkCount -eq 0) {
+        return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
+    }
+    # Hunts or bookmarks exist: is any of them recent? A workspace can hold
+    # hundreds of bookmarks nobody has touched in a year. Fires only when
+    # both are known to have had no change in the window; unknown (undated,
+    # or a HuntingBookmark table shorter than the window) stays quiet.
+    $w = Get-PropOrDefault $Inventory 'Window' $null
+    $days = (_Window $Inventory).Days
+    $asOf = if ($w -and (Get-PropOrDefault $w 'AsOfUtc' $null)) { [datetime]$w.AsOfUtc } else { [datetime]::UtcNow }
+    # Assigned rather than returned from an if: an empty array returned from
+    # a block becomes $null, which would read as "not captured".
+    $fromLogs = $null
+    if ($Inventory.RawFiles -contains 'bookmarks-from-logs.json') { $fromLogs = @(Get-PropOrDefault $Inventory 'BookmarksFromLogs' @()) }
+    $bookmarkList = $null
+    if ($Inventory.RawFiles -contains 'bookmarks.json') { $bookmarkList = @($Inventory.Bookmarks) }
+    $activity = Get-HuntingActivity -Bookmarks $bookmarkList -BookmarksCount $Inventory.BookmarksCount -BookmarksFromLogs $fromLogs -Hunts @($Inventory.Hunts) -WorkspaceTables @(Get-PropOrDefault $Inventory 'WorkspaceTables' @()) -WindowDays $days -AsOf $asOf
+    if ($activity.BookmarksRecent -ne 0 -or $activity.HuntsRecent -ne 0) { return $null }
+    $hunts = @($Inventory.Hunts).Count
+    return New-Finding -Evidence "$bookmarkCount bookmark$(if ($bookmarkCount -ne 1) { 's' }) and $hunts hunt$(if ($hunts -ne 1) { 's' }) exist, but none has been created or changed in the last $(_Days $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{ Hunts = $hunts; Bookmarks = $bookmarkCount; RecentHunts = 0; RecentBookmarks = 0; WindowDays = $days }
 }
 
 # ------------------------------------------------------------

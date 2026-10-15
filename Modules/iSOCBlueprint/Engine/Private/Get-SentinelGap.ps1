@@ -52,8 +52,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.7.0
-    Last Updated: 2026-10-14
+    Version:      0.7.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -199,9 +199,18 @@ function New-InventoryFromRaw {
     $recent = [math]::Min(7, $lookback)
     if ($runContext -and $runContext.PSObject.Properties['RecentDays'] -and [int]$runContext.RecentDays -ge 1) { $recent = [int]$runContext.RecentDays }
 
+    # When the run collected: the window ends here, so a re-render later
+    # judges the same days.
+    $asOf = [datetime]::UtcNow
+    if ($runContext -and $runContext.PSObject.Properties['StartedAtUtc'] -and $runContext.StartedAtUtc) {
+        $parsed = [datetime]::MinValue
+        if ($runContext.StartedAtUtc -is [datetime]) { $asOf = $runContext.StartedAtUtc.ToUniversalTime() }
+        elseif ([datetime]::TryParse([string]$runContext.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { $asOf = $parsed }
+    }
+
     [pscustomobject]@{
         RawFiles               = $rawFiles
-        Window                 = [pscustomobject]@{ Days = $lookback; RecentDays = $recent }
+        Window                 = [pscustomobject]@{ Days = $lookback; RecentDays = $recent; AsOfUtc = $asOf }
         Workspace              = Read-Json 'workspace.json'
         WorkspaceTables        = @(Read-Json 'workspace-tables.json')
         TablesWithData         = @(Read-Json 'tables-with-data.json')
@@ -233,6 +242,7 @@ function New-InventoryFromRaw {
         CustomDetectionRefs    = Read-JsonArray 'custom-detection-table-references.json'
         Bookmarks              = Read-JsonArray 'bookmarks.json'
         BookmarksCount         = Read-Json 'bookmarks-count.json'
+        BookmarksFromLogs      = Read-JsonArray 'bookmarks-from-logs.json'
         IncidentsSummary       = Read-JsonArray 'incidents-summary.json'
         AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
         ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'

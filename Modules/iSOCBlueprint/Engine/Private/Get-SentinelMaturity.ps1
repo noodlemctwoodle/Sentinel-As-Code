@@ -53,8 +53,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.3.0
-    Last Updated: 2026-10-13
+    Version:      0.4.0
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -68,6 +68,8 @@
     and the area taxonomy are this project's own.
 #>
 
+# Recent hunts and bookmarks (metric bookmarksRecent), shared with SAC-HNT-01.
+. (Join-Path $PSScriptRoot 'Get-HuntingActivity.ps1')
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'Get-TableFamily.ps1')
 }
@@ -325,6 +327,20 @@ function New-MaturityMetrics {
         if ($null -ne $bookmarkCountDoc) { $bookmarks = [int](ConvertTo-MaturityNumber (Get-MaturityPropertyValue $bookmarkCountDoc 'Count' 0)) }
     }
 
+    # Bookmarks created or changed within the run's window, from the API
+    # list or the HuntingBookmark table's rows; $null when the evidence
+    # cannot cover the window (Get-HuntingActivity.ps1).
+    $activityRc = Read-Json 'run-context.json'
+    $activityDays = 30
+    $activityAsOf = [datetime]::UtcNow
+    if ($activityRc -and $activityRc.PSObject.Properties['LookbackDays'] -and [int]$activityRc.LookbackDays -ge 1) { $activityDays = [int]$activityRc.LookbackDays }
+    if ($activityRc -and $activityRc.PSObject.Properties['StartedAtUtc'] -and $activityRc.StartedAtUtc) {
+        $parsedAsOf = [datetime]::MinValue
+        if ($activityRc.StartedAtUtc -is [datetime]) { $activityAsOf = $activityRc.StartedAtUtc.ToUniversalTime() }
+        elseif ([datetime]::TryParse([string]$activityRc.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsedAsOf)) { $activityAsOf = $parsedAsOf }
+    }
+    $huntingActivity = Get-HuntingActivity -Bookmarks (Read-Rows 'bookmarks.json') -BookmarksCount (Read-Json 'bookmarks-count.json') -BookmarksFromLogs (Read-Rows 'bookmarks-from-logs.json') -Hunts (Read-Rows 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
+
     $connectorFailures7d = Get-RowSum $health 'LogCount' { param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector') }
     $sentinelHealthRows7d = Get-RowSum $health 'LogCount'
     $laQueryLogs7d = Get-RowSum (Read-Rows 'la-query-logs.json') 'QueryCount'
@@ -356,6 +372,7 @@ function New-MaturityMetrics {
         mdtiRows30d               = $mdtiRows30d
         tiObjects30d              = $tiObjects30d
         bookmarks                 = $bookmarks
+        bookmarksRecent           = $huntingActivity.BookmarksRecent
         huntingQueries            = Get-RowCount 'hunting-queries.json'
         highPrivilegeAssignments  = $highPrivilegeAssignments
         sentinelRoleAssignments   = $sentinelRoleAssignments

@@ -6,6 +6,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Hunting judged on recent activity** - rule SAC-HNT-01 now also fires
+  when hunts or bookmarks exist but none was created or changed within the
+  run's lookback (a workspace can hold hundreds of bookmarks nobody has
+  touched in a year), and maturity criterion SAC-HNT-02 "Findings are
+  bookmarked" is met by a bookmark created or changed within the lookback
+  rather than by any bookmark ever saved. Hunts are dated by their
+  resource timestamps and bookmarks by their own or the HuntingBookmark
+  table's; where the evidence cannot cover the lookback the outcome is
+  unknown, never a gap.
 - **Long tables in full on SharePoint** - a table longer than 500 rows
   still shows its first 500 on its native page (within Microsoft's
   page-weight guidance), and is now also published whole as a CSV file in

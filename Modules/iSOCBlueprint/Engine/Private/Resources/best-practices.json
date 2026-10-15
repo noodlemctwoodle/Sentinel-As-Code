@@ -1,7 +1,7 @@
 {
   "$comment": "Credit and thanks: the gap rules ported from the health check's checks are based on the Sentinel health-check script by thinkndle, kindly given to the Sentinel-As-Code project. Thank you, thinkndle, for sharing your work so generously; it shaped much of the Blueprint's health, coverage and maturity reporting.",
   "$schema": "best-practices.schema.json",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "rules": [
     {
       "id": "SAC-LOG-03",
@@ -638,7 +638,7 @@
       "category": "Operational",
       "severity": "Info",
       "check": "Test-HuntingActivityRecorded",
-      "remediation": "No hunts and no bookmarks means hunting is either not happening or is happening outside Sentinel, where its findings are not linked to incidents or entities. Record hunts in the Hunts feature so hypotheses, queries and outcomes are tracked, and bookmark notable results so they can be promoted to incidents and feed detection engineering.",
+      "remediation": "No hunts and no bookmarks, or none created or changed within the window the run read, means hunting is either not happening or is happening outside Sentinel, where its findings are not linked to incidents or entities. Record hunts in the Hunts feature so hypotheses, queries and outcomes are tracked, and bookmark notable results so they can be promoted to incidents and feed detection engineering.",
       "learn": "https://learn.microsoft.com/azure/sentinel/hunts"
     },
     {
