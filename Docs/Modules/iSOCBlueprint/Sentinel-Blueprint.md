@@ -406,42 +406,49 @@ it seeds those days onto a site that has not seen them. `-HistoryDays` on `New-i
 
 #### What a run prints
 
-Each capture step is wrapped, so one failure does not stop the run. When a
-step fails, the collector says so in one short line as it goes, and sorts
-the failure:
+Each capture step is wrapped, so one failure does not stop the run. A capture
+that could not be read has one of three outcomes, each said once as it
+happens on a line of its own colour and lead word (so it reads without
+colour too), and listed under its own heading in the capture summary:
 
-- **No permission**: the service refused the identity (HTTP 401 or 403,
-  `AuthorizationFailed`, a Microsoft Graph permission). This is expected
-  where the signed-in account or pipeline identity was not granted that
-  role or permission, so the line is brief:
-  `[defender-custom-detections] Skipped, no permission (Forbidden).`
-  A capture that reads one item at a time (the run history and role
-  assignments of each playbook) says once which items it could not read,
-  rather than once an item: `No permission to read the run history of 3 of
-  12 playbooks (401 Unauthorized): <names>.`
-- **Failed**: any other error, with its message.
+| Outcome | Colour | Means | Example |
+| --- | --- | --- | --- |
+| **not available** | dark cyan | The workspace does not have what the capture reads: a table, a column or an endpoint not served in this region, tenant or plan (a KQL "Failed to resolve", a 404, an unregistered provider). Nothing to fix; the capture writes an empty file, as it always has. | `↳ not available: the pricings endpoint: 404 Not Found: Microsoft.SecurityInsights/pricings` |
+| **no permission** | magenta | The service refused the identity (HTTP 401 or 403, `AuthorizationFailed`, a Microsoft Graph permission). Expected where the signed-in account or pipeline identity was not granted that role or permission. | `↳ no permission: skipped (Forbidden). The capture summary at the end says what it needs.` |
+| **failed** | yellow warning | Anything else: a timeout, throttling, a service error. | `WARNING: [dcrs] FAILED: ...` |
+
+A capture that reads one item at a time (the run history and role
+assignments of each playbook) says once which items it could not read, not
+once an item: `↳ no permission: the run history of 3 of 12 playbooks (401
+Unauthorized): <names>.` The KQL captures that used to write an empty file
+without a word on any error now say which outcome it was.
 
 At the end of a collection the collector prints a **Capture summary**:
 
 | Line | What it says |
 | --- | --- |
 | Written | How many files went to `_raw/`, and where |
-| No access | The captures not read in full for want of a role or permission, each with its message (and what to grant) wrapped under it |
+| Not available | The captures that had nothing to read, each with the service's reason wrapped under it |
+| No access | The captures not read in full for want of a role or permission, each with its message (and what to grant) |
 | Failed | The captures that raised any other error, each with its message |
-| Key data | The key captures that came back empty or missing, if any: the files almost always populated (`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`, `rule-table-references`) and those populated when the feature is in use (`automation-rules`, `watchlists`, `playbooks`, `hunting-queries`, `workbooks-saved`, `cost-estimate` and the activity captures). An unexpected empty almost always means an RBAC gap: **Microsoft Sentinel Reader at workspace scope** covers automation rules, watchlists, hunting queries and incidents |
+| Key data | The key captures that came back empty or missing, if any (marked "listed above" when one of the lines above explains it): the files almost always populated (`alert-rules`, `data-connectors-classic`, `workspace`, `workspace-tables`, `rule-table-references`) and those populated when the feature is in use (`automation-rules`, `watchlists`, `playbooks`, `hunting-queries`, `workbooks-saved`, `cost-estimate` and the activity captures). An unexpected empty almost always means an RBAC gap: **Microsoft Sentinel Reader at workspace scope** covers automation rules, watchlists, hunting queries and incidents |
 
-The failed captures, each marked `Permission` or `Error`, are also kept in
-`run-context.json` as `CaptureIssues`. In Azure DevOps and GitHub Actions the
-summary's headline lines carry the platform's warning annotation; locally
-they are coloured. Read this summary before filing a "the report says zero
-of X" bug.
+Messages are tidied for the terminal: the service's own reason is added
+where the query cmdlet keeps it out of its message, and ARM URLs are
+shortened to their resource path, so no subscription or workspace ids
+appear. The captures not read in full, each marked `NotAvailable`,
+`Permission` or `Error`, are also kept in `run-context.json` as
+`CaptureIssues`. In Azure DevOps and GitHub Actions the No access, Failed
+and Key data headlines carry the platform's warning annotation. Read this
+summary before filing a "the report says zero of X" bug.
 
 The renderer ends in one line (the pages and sections it wrote; `-Verbose`
 lists each), and the SharePoint build in its block of figures, with one note
 for tables longer than `-MaxTableRows` (their native pages show the first
 rows; the dashboard's Sections tab has every row). `New-iSOCBlueprint` then
 closes the run with a short summary: how long it took, the run's folder,
-the captures written and those not read in full or failed, the report's
+the captures written and, in the same colours, those not available, not
+read in full or failed, the report's
 pages and sections, the Word document and the SharePoint bundle (and
 whether it was published). Its returned object shows only the workspace and
 folder by default; every property is still on it.

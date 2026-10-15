@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.6
+    Version:        0.7.7
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -2024,7 +2024,13 @@ $bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
     }
     "$bookmarkIntro`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object Created -Descending) -Columns 'Name','Created','Labels','Notes')
 } elseif ($bookmarkServiceCount -gt 0) {
-    "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return and the HuntingBookmark table could not be read, so only the count was captured."
+    # bookmarks-from-logs.json present but empty: the table was read and
+    # holds none of them; absent: the table could not be read.
+    if (Test-Path -LiteralPath (Join-Path $rawRoot 'bookmarks-from-logs.json')) {
+        "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them, so only the count was captured."
+    } else {
+        "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return and the HuntingBookmark table could not be read, so only the count was captured."
+    }
 } else { '_None._' }
 $huntRows = @($hunts | ForEach-Object {
     $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }

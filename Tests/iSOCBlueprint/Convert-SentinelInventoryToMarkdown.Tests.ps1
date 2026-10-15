@@ -1553,7 +1553,8 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
         $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
         $logsRoot  = Join-Path $script:bmOutDir 'law-sentinel-logs'
-        foreach ($root in $listRoot, $countRoot, $logsRoot) {
+        $emptyRoot = Join-Path $script:bmOutDir 'law-sentinel-empty'
+        foreach ($root in $listRoot, $countRoot, $logsRoot, $emptyRoot) {
             New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw') -Force
         }
@@ -1575,12 +1576,17 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
   { "name": "bm-4", "properties": { "displayName": "Mailbox rule created", "created": "2026-08-11T14:30:00Z", "labels": [], "notes": "" } }
 ]
 '@ | Set-Content (Join-Path $logsRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
-        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'))) {
+        # Refused, and the table read but empty.
+        Remove-Item (Join-Path $emptyRoot '_raw/bookmarks.json') -Force
+        '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $emptyRoot '_raw/bookmarks-count.json') -Encoding UTF8
+        '[]' | Set-Content (Join-Path $emptyRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
+        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'))) {
             & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
         }
         $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
         $script:bmLogs  = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
+        $script:bmEmpty = Get-Content (Join-Path $emptyRoot '30-hunting-queries.md') -Raw
     }
 
     AfterAll {
@@ -1601,6 +1607,11 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         $script:bmLogs | Should -Match '## Bookmarks[\s\S]*refused its list of \*\*350 bookmarks\*\* as too large, so these 2 come from the HuntingBookmark table'
         $script:bmLogs | Should -Match '\| Beaconing to new domain \| 2026-10-02[^|]*\| c2 \| From the table \|'
         ($script:bmLogs.IndexOf('Beaconing to new domain')) | Should -BeLessThan ($script:bmLogs.IndexOf('Mailbox rule created'))
+    }
+
+    It 'says the table holds none of them when it was read but empty' {
+        $script:bmEmpty | Should -Match '\*\*350 bookmarks\*\* exist\. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them'
+        $script:bmEmpty | Should -Not -Match 'could not be read'
     }
 
     It 'says when the table holds fewer bookmarks than the service counted' {

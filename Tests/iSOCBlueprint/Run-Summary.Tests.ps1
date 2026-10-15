@@ -44,9 +44,30 @@ Describe 'Sorting a failed capture' {
         Get-CaptureIssueKind "The client 'x' with object id 'y' does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/read' (AuthorizationFailed)" | Should -Be 'Permission'
     }
 
-    It 'calls anything else an error' {
-        Get-CaptureIssueKind 'Response status code does not indicate success: 404 (Not Found).' | Should -Be 'Error'
+    It 'calls a table, column or endpoint the workspace does not have not available' {
+        Get-CaptureIssueKind 'Response status code does not indicate success: 404 (Not Found).' | Should -Be 'NotAvailable'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. 'where' operator: Failed to resolve table or column expression named 'ThreatIntelObjects'" | Should -Be 'NotAvailable'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'" | Should -Be 'NotAvailable'
+        Get-CaptureIssueKind 'HTTP 400: {"error":{"code":"NoRegisteredProviderFound","message":"No registered resource provider found"}}' | Should -Be 'NotAvailable'
+    }
+
+    It 'calls a timeout, throttling or service error an error' {
         Get-CaptureIssueKind 'The operation has timed out.' | Should -Be 'Error'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. Query exceeded the maximum memory allowed" | Should -Be 'Error'
+        Get-CaptureIssueKind 'Response status code does not indicate success: 503 (Service Unavailable).' | Should -Be 'Error'
+        Get-CaptureIssueKind 'Something unexpected' | Should -Be 'Error'
+    }
+
+    It 'adds the service''s reason the query cmdlet keeps in the body' {
+        $ex = [System.Exception]::new("Operation returned an invalid status code 'BadRequest'")
+        $ex | Add-Member -NotePropertyName Body -NotePropertyValue ([pscustomobject]@{ Error = [pscustomobject]@{ Message = 'The request had some invalid properties'; Details = @([pscustomobject]@{ Message = "Failed to resolve table expression named 'X'" }) } })
+        $text = Get-CaptureErrorText ([System.Management.Automation.ErrorRecord]::new($ex, 'x', 'NotSpecified', $null))
+        $text | Should -Match '^Operation returned an invalid status code ''BadRequest''\. The request had some invalid properties\. Failed to resolve table expression named ''X''$'
+    }
+
+    It 'reads the service''s code and message from a REST error and shortens ARM URLs' {
+        Format-CaptureMessage 'HTTP 400: {"error":{"code":"BadRequest","message":"Bad \"thing\""}}' | Should -Be '400 BadRequest: Bad "thing"'
+        Format-CaptureMessage '404 Not Found: https://management.azure.com/subscriptions/0000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/pricings?api-version=2024-09-01' | Should -Be '404 Not Found: Microsoft.SecurityInsights/pricings'
     }
 
     It 'names the status the error carries' {
@@ -69,20 +90,25 @@ Describe 'Sorting a failed capture' {
 
 Describe 'A capture that could not read some of its items' {
     BeforeAll {
-        $fails = @('Add-IncidentTasks', 'Get-DeviceHealthStatus') | ForEach-Object { [pscustomobject]@{ Name = $_; Message = $script:http401 } }
-        $script:partial = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn -WarningAction SilentlyContinue)
+        $fails = @('Playbook-One', 'Playbook-Two') | ForEach-Object { [pscustomobject]@{ Name = $_; Message = $script:http401 } }
+        $script:partialOut = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn 6>&1)
+        $script:partial = @($script:partialOut | Where-Object { $_ -isnot [System.Management.Automation.InformationRecord] })
+        $script:partialNote = @($script:partialOut | Where-Object { $_ -is [System.Management.Automation.InformationRecord] })
         $script:partialWarn = @($partialWarn)
     }
 
-    It 'warns once, naming the items, the count and the status' {
-        @($script:partialWarn).Count | Should -Be 1
-        [string]$script:partialWarn[0] | Should -Be '[playbook-runs] No permission to read the run history of 2 of 12 playbooks (401 Unauthorized): Add-IncidentTasks, Get-DeviceHealthStatus.'
+    It 'says it once, as a no-permission note rather than a warning' {
+        $script:partialWarn.Count | Should -Be 0
+        $script:partialNote.Count | Should -Be 1
+        [string]$script:partialNote[0].MessageData | Should -Be '  ↳ no permission: the run history of 2 of 12 playbooks (401 Unauthorized): Playbook-One, Playbook-Two.'
+        $script:partialNote[0].MessageData.ForegroundColor | Should -Be 'Magenta'
     }
 
     It 'returns one permission issue for the summary' {
         $script:partial.Count | Should -Be 1
         $script:partial[0].Kind | Should -Be 'Permission'
         $script:partial[0].Label | Should -Be 'playbook-runs'
+        $script:partial[0].Message | Should -Be 'No permission to read the run history of 2 of 12 playbooks (401 Unauthorized): Playbook-One, Playbook-Two.'
     }
 
     It 'keeps other errors apart, with the first of their messages' {
@@ -90,14 +116,14 @@ Describe 'A capture that could not read some of its items' {
             [pscustomobject]@{ Name = 'A'; Message = $script:http401 }
             [pscustomobject]@{ Name = 'B'; Message = 'The operation has timed out.' }
         )
-        $issues = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 1 -Failures $mixed -WarningAction SilentlyContinue)
+        $issues = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 1 -Failures $mixed -WarningVariable mixedWarn -WarningAction SilentlyContinue 6>$null)
         $issues.Count | Should -Be 2
-        ($issues | Where-Object Kind -eq 'Error').Message | Should -Match 'Could not read the run history of 1 of 1 playbook: B\. First error: The operation has timed out\.'
+        ($issues | Where-Object Kind -eq 'Error').Message | Should -Match '^Could not read the run history of 1 of 1 playbook: B\. First error: The operation has timed out\.'
+        @($mixedWarn).Count | Should -Be 1
     }
 
     It 'says nothing when every item was read' {
-        @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 4 -Failures @() -WarningVariable none -WarningAction SilentlyContinue).Count | Should -Be 0
-        @($none).Count | Should -Be 0
+        @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 4 -Failures @() 6>&1).Count | Should -Be 0
     }
 }
 
@@ -109,6 +135,7 @@ Describe 'The capture summary' {
         $issues = @(
             [pscustomobject]@{ Label = 'defender-custom-detections'; Kind = 'Permission'; Message = $script:graph403 }
             [pscustomobject]@{ Label = 'dcrs'; Kind = 'Error'; Message = 'The operation has timed out.' }
+            [pscustomobject]@{ Label = 'watchlists'; Kind = 'NotAvailable'; Message = 'HTTP 400: {"error":{"code":"BadRequest","message":"Not served here"}}' }
         )
         $saved = $env:TF_BUILD
         $env:TF_BUILD = $null
@@ -122,9 +149,14 @@ Describe 'The capture summary' {
         if ($script:sumRaw -and (Test-Path $script:sumRaw)) { Remove-Item $script:sumRaw -Recurse -Force }
     }
 
+    It 'lists what the workspace does not have first, apart from refusals and failures' {
+        $script:summary | Should -Match 'Not available\s+1 capture\(s\) had nothing to read: a table, column or endpoint this workspace does not have\.'
+        $script:summary | Should -Match '(?s)Not available.*watchlists\r?\n {8}400 BadRequest: Not served here.*No access'
+    }
+
     It 'lists the permission refusals as expected, apart from failures' {
         $script:summary | Should -Match 'No access\s+1 capture\(s\) not read in full for want of a role or permission\.'
-        $script:summary | Should -Match 'Expected where the signed-in account or pipeline identity was not'
+        $script:summary | Should -Match 'Expected where the signed-in account'
         $script:summary | Should -Match '(?s)No access.*defender-custom-detections.*Failed\s+1 capture\(s\) raised an error.*dcrs'
     }
 
@@ -134,22 +166,39 @@ Describe 'The capture summary' {
 
     It 'lists only the key captures that hold no data' {
         $script:summary | Should -Match 'Key data\s+1 of 3 key captures hold no data:'
-        $script:summary | Should -Match 'watchlists\.json\s+empty'
+        $script:summary | Should -Match 'watchlists\.json\s+empty \(listed above\)'
         $script:summary | Should -Not -Match 'playbook-runs\.json\s+empty'
     }
 
-    It 'annotates the headlines only on a pipeline agent' {
+    It 'annotates the headlines that need someone to act, only on a pipeline agent' {
         $script:summary | Should -Not -Match '##\[warning\]'
         $script:summaryAdo | Should -Match '##\[section\]Capture summary'
         $script:summaryAdo | Should -Match '##\[warning\]  No access'
+        $script:summaryAdo | Should -Match '##\[warning\]  Failed'
+        $script:summaryAdo | Should -Not -Match '##\[warning\]  Not available'
+    }
+
+    It 'colours each outcome as the notes do' {
+        $records = @(Write-CaptureSummary -RawRoot $script:sumRaw -Issues @(
+            [pscustomobject]@{ Label = 'a'; Kind = 'NotAvailable'; Message = 'm' }
+            [pscustomobject]@{ Label = 'b'; Kind = 'Permission'; Message = 'm' }) 6>&1)
+        ($records | Where-Object { [string]$_.MessageData -match '^  Not available' }).MessageData.ForegroundColor | Should -Be 'DarkCyan'
+        ($records | Where-Object { [string]$_.MessageData -match '^  No access' }).MessageData.ForegroundColor | Should -Be 'Magenta'
     }
 }
 
 Describe 'The collector as it runs' {
     It 'sorts each failed capture and keeps the line short for a permission refusal' {
+        $script:collector | Should -Match '\$msg = Get-CaptureErrorText \$_'
         $script:collector | Should -Match '\$kind = Get-CaptureIssueKind \$msg'
-        $script:collector | Should -Match 'Skipped, no permission\$\(if \(\$status\)'
+        $script:collector | Should -Match 'Write-CaptureNote -Kind Permission -Label \$Label -Text "skipped\$\(if \(\$status\)'
         $script:collector | Should -Match 'Kind\s+= \$kind'
+    }
+
+    It 'says why a capture wrote an empty file, never silently' {
+        $script:collector | Should -Not -Match 'catch \{\s*Save-Json -FileName ''[^'']+'' -Data @\(\)\s*\}'
+        ([regex]::Matches($script:collector, 'Skip-Capture -FileName ''[^'']+'' -ErrorRecord \$_')).Count | Should -BeGreaterThan 40
+        $script:collector | Should -Not -Match 'Write-Information "  ↳ pricings endpoint not available'
     }
 
     It 'warns once for the playbooks it could not read, not once each' {
@@ -188,6 +237,7 @@ Describe 'The run summary New-iSOCBlueprint prints' {
             @{ Label = 'defender-custom-detections'; Kind = 'Permission'; Message = 'x' }
             @{ Label = 'playbook-runs'; Kind = 'Permission'; Message = 'y' }
             @{ Label = 'dcrs'; Kind = 'Error'; Message = 'z' }
+            @{ Label = 'hunts'; Kind = 'NotAvailable'; Message = 'w' }
         ) } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $script:runDir '_raw/run-context.json')
         '{}' | Set-Content (Join-Path $script:runDir '_raw/workspace.json')
         foreach ($n in '00-overview', '10-data-connectors') {
@@ -217,6 +267,7 @@ Describe 'The run summary New-iSOCBlueprint prints' {
     It 'lists the captures with no permission as expected, apart from failures' {
         $script:runText | Should -Match 'Captures\s+2 files written'
         $script:runText | Should -Match '2 not read in full, no permission \(expected without the role\): defender-custom-detections, playbook-runs'
+        $script:runText | Should -Match '1 not available in this workspace: hunts'
         $script:runText | Should -Match '1 failed: dcrs'
     }
 

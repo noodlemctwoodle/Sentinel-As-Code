@@ -507,7 +507,7 @@ assets root).
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | [`Modules/iSOCBlueprint/Engine/Private/Write-CaptureSummary.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Write-CaptureSummary.ps1) | The collector's capture summary, sorting failed captures into permission refusals and errors |
 | [`Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1`](../../../Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1) | The summary `New-iSOCBlueprint` prints when a run ends |
-| [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends (23 tests) |
+| [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends: the three outcomes, their colours and the summaries (29 tests) |
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |
 | `Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 

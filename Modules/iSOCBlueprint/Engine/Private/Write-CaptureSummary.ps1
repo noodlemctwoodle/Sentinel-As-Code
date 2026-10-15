@@ -2,22 +2,30 @@
 
 <#
 .SYNOPSIS
-    The collector's end-of-run capture summary, and how it sorts a failed
-    capture.
+    How the collector reports a capture it could not read, as it runs and
+    in the capture summary at the end.
 
 .DESCRIPTION
-    A run under an identity without every role loses some captures: the
-    service answers 401 or 403 and the collector carries on without them.
-    That is expected wherever a role or Graph permission was not granted,
-    so the summary lists those captures as skipped for permission, apart
-    from captures that failed for any other reason, and wraps each
-    message under its capture rather than letting it run across the
-    terminal. Key captures that are empty or missing are listed only when
-    there are some.
+    A capture the collector could not read has one of three outcomes:
 
-    In Azure DevOps (TF_BUILD) and GitHub Actions (GITHUB_ACTIONS) the
-    headline lines carry the platform's warning annotation; anywhere else
-    they are coloured.
+      NotAvailable  The workspace does not have what the capture reads: a
+                    table, a column or an endpoint that is not served in
+                    this region, tenant or plan. Nothing to fix; the
+                    capture writes an empty file.
+      Permission    The service refused the identity (HTTP 401 or 403 and
+                    the ARM and Graph codes that go with them). Expected
+                    where the signed-in account or pipeline identity was
+                    not granted that role or permission.
+      Error         Anything else: a timeout, throttling, a service error.
+
+    Each is said once as it happens, on a line of its own colour and lead
+    word so it reads without colour too: "not available" in dark cyan, "no
+    permission" in magenta, and an error as a warning (yellow). The capture
+    summary at the end lists them under Not available, No access and
+    Failed, each message wrapped under its capture, then the key captures
+    that hold no data. In Azure DevOps (TF_BUILD) and GitHub Actions
+    (GITHUB_ACTIONS) the No access and Failed headlines carry the platform's
+    warning annotation.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/Write-CaptureSummary.ps1
@@ -25,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -35,23 +43,69 @@
 function Get-CaptureIssueKind {
     <#
     .SYNOPSIS
-        'Permission' when a capture's error is a refusal for want of a role
-        or permission (HTTP 401 or 403 and the ARM and Graph codes that go
-        with them), else 'Error'.
+        Sort a capture's error: 'Permission', 'NotAvailable' or 'Error'.
+
+    .DESCRIPTION
+        A refusal (401, 403, AuthorizationFailed and the like) is Permission.
+        A table, column or endpoint the workspace does not have (a KQL
+        "Failed to resolve", 404, an unregistered provider or resource type)
+        is NotAvailable. A timeout, throttling or service error is Error. A
+        bare 400 with nothing more is NotAvailable: the collector's queries
+        are parsed in its tests, so a refused query is almost always one
+        that names a table or column this workspace lacks.
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param([AllowEmptyString()] [string] $Message)
 
-    $pattern = '\b40[13]\b|Forbidden|Unauthori[sz]ed|AuthorizationFailed|AuthorizationPermissionMismatch|Authorization_RequestDenied|does not have (authorization|permission)|Insufficient privileges|InsufficientPermissions|AccessDenied|Access denied'
-    if ($Message -match $pattern) { 'Permission' } else { 'Error' }
+    $permission = '\b40[13]\b|Forbidden|Unauthori[sz]ed|AuthorizationFailed|AuthorizationPermissionMismatch|Authorization_RequestDenied|does not have (authorization|permission)|Insufficient privileges|InsufficientPermissions|AccessDenied|Access denied'
+    $missing    = 'Failed to resolve|could not be resolved|SEM0100|\b404\b|Not ?Found|PathNotFound|ResourceNotFound|NoRegisteredProviderFound|InvalidResourceType|not (served|supported|available|enabled)|FeatureNotEnabled|does not exist'
+    $failure    = 'time(d)? ?out|exceeded|too large|throttl|\b429\b|TooManyRequests|\b50\d\b|InternalServerError|ServiceUnavailable|GatewayTimeout'
+    if ($Message -match $permission) { return 'Permission' }
+    if ($Message -match $missing) { return 'NotAvailable' }
+    if ($Message -match $failure) { return 'Error' }
+    if ($Message -match 'BadRequest|\b400\b') { return 'NotAvailable' }
+    'Error'
+}
+
+function Get-CaptureErrorText {
+    <#
+    .SYNOPSIS
+        An error's message with the service's own reason added, which
+        Invoke-AzOperationalInsightsQuery keeps out of the message ("Operation
+        returned an invalid status code 'BadRequest'") and in the body.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([AllowNull()] $ErrorRecord)
+
+    if ($null -eq $ErrorRecord) { return '' }
+    $ex = if ($ErrorRecord -is [System.Management.Automation.ErrorRecord]) { $ErrorRecord.Exception } else { $ErrorRecord }
+    if ($ex -isnot [System.Exception]) { return [string]$ErrorRecord }
+    $parts = [System.Collections.Generic.List[string]]::new()
+    $parts.Add($ex.Message.Trim())
+    $probes = @(
+        { $ex.Body.Error.Message }
+        { $ex.Body.Error.Innererror.Message }
+        { $ex.Body.Error.Details | ForEach-Object { $_.Message } }
+        { [regex]::Matches([string]$ex.Response.Content, '"message"\s*:\s*"((?:[^"\\]|\\.)*)"') | ForEach-Object { $_.Groups[1].Value -replace '\\"', '"' } }
+    )
+    foreach ($probe in $probes) {
+        try {
+            foreach ($value in @(& $probe)) {
+                $text = ([string]$value).Trim()
+                if ($text -and -not $parts.Contains($text) -and -not $parts[0].Contains($text)) { $parts.Add($text) }
+            }
+        } catch { }
+    }
+    ($parts | ForEach-Object { $_.TrimEnd('.') }) -join '. '
 }
 
 function Format-CaptureMessage {
     <#
     .SYNOPSIS
         A capture's error message on one line, without the HTTP client's
-        "Response status code does not indicate success: X (X)" wording.
+        "Response status code does not indicate success" wording.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -59,6 +113,23 @@ function Format-CaptureMessage {
 
     $text = ($Message -replace '\s+', ' ').Trim()
     $text = $text -replace 'Response status code does not indicate success: (\w+) \(\1\)\.?', '$1.'
+    $text = $text -replace 'Response status code does not indicate success: (\d{3}) \(([^)]+)\)\.?', '$1 $2.'
+    # "HTTP 400: {json}" from Invoke-SentinelRest: the service's code and message.
+    if ($text -match '^HTTP (?<status>\d{3}): (?<body>\{.*\})$') {
+        $status = $Matches['status']
+        $body = $Matches['body']
+        $code = if ($body -match '"code"\s*:\s*"(?<c>[^"]+)"') { " $($Matches['c'])" } else { '' }
+        $said = if ($body -match '"message"\s*:\s*"(?<m>(?:[^"\\]|\\.)*)"') { ": $($Matches['m'] -replace '\\"', '"')" } else { '' }
+        $text = "$status$code$said"
+    }
+    # An ARM URL shortened to its resource path after the last provider, so
+    # the line stays short and carries no subscription or workspace ids.
+    $text = [regex]::Replace($text, 'https?://management\.[a-z.]+(?<path>/[^\s?"]*)(\?[^\s"]*)?', [System.Text.RegularExpressions.MatchEvaluator] {
+        param($m)
+        $path = $m.Groups['path'].Value
+        $i = $path.LastIndexOf('/providers/')
+        if ($i -ge 0) { $path.Substring($i + 11) } else { $path }
+    })
     $text -replace '\.{2,}(?=\s|$)', '.'
 }
 
@@ -78,16 +149,45 @@ function Get-CaptureStatusText {
     $null
 }
 
+function Write-CaptureNote {
+    <#
+    .SYNOPSIS
+        Say, as it happens, that a capture could not be read and why: a line
+        in the outcome's colour under the capture's label, or a warning for
+        an error.
+
+    .PARAMETER Kind
+        NotAvailable, Permission or Error.
+
+    .PARAMETER Label
+        The capture's label, for an error's warning.
+
+    .PARAMETER Text
+        What happened.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [ValidateSet('NotAvailable', 'Permission', 'Error')] [string] $Kind,
+        [string] $Label,
+        [Parameter(Mandatory)] [AllowEmptyString()] [string] $Text
+    )
+
+    switch ($Kind) {
+        'NotAvailable' { Write-Host "  ↳ not available: $Text" -ForegroundColor DarkCyan }
+        'Permission'   { Write-Host "  ↳ no permission: $Text" -ForegroundColor Magenta }
+        default        { Write-Warning "[$Label] FAILED: $Text" }
+    }
+}
+
 function Write-PartialCaptureIssue {
     <#
     .SYNOPSIS
-        One warning for a capture that could not read some of its items, in
+        One line for a capture that could not read some of its items, in
         place of a line an item, and the issues for the run summary.
 
     .DESCRIPTION
-        Refusals for want of a permission are told apart from other errors:
-        "No permission to read the run history of 3 of 12 playbooks (401
-        Unauthorized): A, B, C."
+        Each outcome gets its own line: "no permission: the run history of
+        3 of 12 playbooks (401 Unauthorized): A, B, C."
 
     .PARAMETER Label
         The capture's label.
@@ -105,8 +205,8 @@ function Write-PartialCaptureIssue {
         Name and Message for each item that could not be read.
 
     .OUTPUTS
-        [pscustomobject] Label, Kind and Message, one for each kind of
-        failure, for the run's issue list.
+        [pscustomobject] Label, Kind and Message, one for each outcome, for
+        the run's issue list.
     #>
     [CmdletBinding()]
     param(
@@ -122,13 +222,16 @@ function Write-PartialCaptureIssue {
         $names = @($group.Group | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
         $statuses = @($group.Group | ForEach-Object { Get-CaptureStatusText $_.Message } | Where-Object { $_ } | Sort-Object -Unique)
         $status = if ($statuses.Count) { " ($($statuses -join ', '))" } else { '' }
-        $text = if ($group.Name -eq 'Permission') {
-            "No permission to read $What $($names.Count) of $Total $items${status}: $($names -join ', ')."
-        } else {
-            "Could not read $What $($names.Count) of $Total $items${status}: $($names -join ', '). First error: $(Format-CaptureMessage ([string]$group.Group[0].Message))"
+        $text = "$What $($names.Count) of $Total $items${status}: $($names -join ', ')."
+        if ($group.Name -eq 'Error') { $text = "could not read $text First error: $(Format-CaptureMessage ([string]$group.Group[0].Message))" }
+        Write-CaptureNote -Kind $group.Name -Label $Label -Text $text
+        # The summary lists it under its outcome, so it reads as a sentence.
+        $sentence = switch ($group.Name) {
+            'Permission'   { "No permission to read $text" }
+            'NotAvailable' { "Not available: $text" }
+            default        { 'C' + $text.Substring(1) }
         }
-        Write-Warning "[$Label] $text"
-        [pscustomobject]@{ Label = $Label; Kind = $group.Name; Message = $text }
+        [pscustomobject]@{ Label = $Label; Kind = $group.Name; Message = $sentence }
     }
 }
 
@@ -199,7 +302,8 @@ function Write-CaptureSummary {
         The run's _raw folder.
 
     .PARAMETER Issues
-        The failed captures: Label, Kind (Permission or Error) and Message.
+        The captures not read in full: Label, Kind (NotAvailable, Permission
+        or Error) and Message.
 
     .PARAMETER ExpectNonEmpty
         Files every workspace fills; empty or missing is unexpected.
@@ -215,18 +319,32 @@ function Write-CaptureSummary {
         [string[]] $ExpectIfActive = @()
     )
 
-    $annotate = if ($env:TF_BUILD) { '##[warning]' } elseif ($env:GITHUB_ACTIONS -eq 'true') { '::warning::' } else { '' }
+    $annotation = if ($env:TF_BUILD) { '##[warning]' } elseif ($env:GITHUB_ACTIONS -eq 'true') { '::warning::' } else { '' }
+    $row = { param([string] $Name, [string] $Value) '  {0,-15}{1}' -f $Name, $Value }
+    # A headline in its outcome's colour; on a pipeline agent, a warning
+    # annotation for the outcomes that need someone to act.
     $headline = {
-        param([string] $Text, [bool] $Warn)
-        if ($Warn -and $annotate) { Write-Host "$annotate$Text" }
-        elseif ($Warn) { Write-Host $Text -ForegroundColor Yellow }
+        param([string] $Text, [string] $Colour, [bool] $NeedsAction)
+        if ($NeedsAction -and $annotation) { Write-Host "$annotation$Text" }
+        elseif ($Colour) { Write-Host $Text -ForegroundColor $Colour }
         else { Write-Host $Text }
     }
-    $row = { param([string] $Name, [string] $Value) '  {0,-12}{1}' -f $Name, $Value }
+    $listed = {
+        param([object[]] $Group, [string] $Colour)
+        foreach ($i in $Group) {
+            Write-Host "    $($i.Label)"
+            foreach ($line in (Format-WrappedText -Text (Format-CaptureMessage ([string]$i.Message)) -Indent 8)) {
+                if ($Colour) { Write-Host $line -ForegroundColor $Colour } else { Write-Host $line }
+            }
+        }
+    }
 
-    $permission = @($Issues | Where-Object { $_ -and $_.Kind -eq 'Permission' })
-    $failed     = @($Issues | Where-Object { $_ -and $_.Kind -ne 'Permission' })
-    $written    = @(Get-ChildItem -LiteralPath $RawRoot -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
+    $all          = @($Issues | Where-Object { $_ })
+    $notAvailable = @($all | Where-Object { $_.Kind -eq 'NotAvailable' })
+    $permission   = @($all | Where-Object { $_.Kind -eq 'Permission' })
+    $failed       = @($all | Where-Object { $_.Kind -notin 'NotAvailable', 'Permission' })
+    $issueLabels  = @($all | ForEach-Object { [string]$_.Label })
+    $written      = @(Get-ChildItem -LiteralPath $RawRoot -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
 
     $problems = [System.Collections.Generic.List[pscustomobject]]::new()
     foreach ($f in @($ExpectNonEmpty) + @($ExpectIfActive)) {
@@ -235,6 +353,7 @@ function Write-CaptureSummary {
             elseif ($count -lt 0) { 'does not parse' }
             elseif ($count -eq 0) { if ($ExpectNonEmpty -contains $f) { 'empty, unexpected' } else { 'empty' } }
             else { $null }
+        if ($status -and $issueLabels -contains [System.IO.Path]::GetFileNameWithoutExtension($f)) { $status += ' (listed above)' }
         if ($status) { $problems.Add([pscustomobject]@{ File = $f; Status = $status }) }
     }
     $keyTotal = @($ExpectNonEmpty).Count + @($ExpectIfActive).Count
@@ -243,29 +362,30 @@ function Write-CaptureSummary {
     if ($env:TF_BUILD) { Write-Host '##[section]Capture summary' } else { Write-Host 'Capture summary' -ForegroundColor Cyan }
     Write-Host (& $row 'Written' "$written files to $RawRoot")
 
+    if ($notAvailable.Count) {
+        & $headline (& $row 'Not available' "$($notAvailable.Count) capture(s) had nothing to read: a table, column or endpoint this workspace does not have.") 'DarkCyan' $false
+        & $listed $notAvailable 'DarkGray'
+    } else {
+        Write-Host (& $row 'Not available' 'none')
+    }
+
     if ($permission.Count) {
-        & $headline ((& $row 'No access' "$($permission.Count) capture(s) not read in full for want of a role or permission.")) $true
-        foreach ($line in (Format-WrappedText -Text 'Expected where the signed-in account or pipeline identity was not granted it.' -Indent 14)) { Write-Host $line }
-        foreach ($i in $permission) {
-            Write-Host "    $($i.Label)"
-            foreach ($line in (Format-WrappedText -Text (Format-CaptureMessage $i.Message) -Indent 8)) { Write-Host $line -ForegroundColor DarkGray }
-        }
+        & $headline (& $row 'No access' "$($permission.Count) capture(s) not read in full for want of a role or permission.") 'Magenta' $true
+        foreach ($line in (Format-WrappedText -Text 'Expected where the signed-in account or pipeline identity was not granted it.' -Indent 17)) { Write-Host $line }
+        & $listed $permission 'DarkGray'
     } else {
         Write-Host (& $row 'No access' 'none')
     }
 
     if ($failed.Count) {
-        & $headline ((& $row 'Failed' "$($failed.Count) capture(s) raised an error and were skipped.")) $true
-        foreach ($i in $failed) {
-            Write-Host "    $($i.Label)"
-            foreach ($line in (Format-WrappedText -Text (Format-CaptureMessage $i.Message) -Indent 8)) { Write-Host $line }
-        }
+        & $headline (& $row 'Failed' "$($failed.Count) capture(s) raised an error and were skipped.") 'Yellow' $true
+        & $listed $failed ''
     } else {
         Write-Host (& $row 'Failed' 'none')
     }
 
     if ($problems.Count) {
-        & $headline ((& $row 'Key data' "$($problems.Count) of $keyTotal key captures hold no data:")) $true
+        & $headline (& $row 'Key data' "$($problems.Count) of $keyTotal key captures hold no data:") 'Yellow' $true
         $width = ($problems | ForEach-Object { $_.File.Length } | Measure-Object -Maximum).Maximum
         foreach ($p in $problems) { Write-Host ("    {0}  {1}" -f $p.File.PadRight($width), $p.Status) }
         foreach ($line in (Format-WrappedText -Text 'Usually populated on an active workspace. If you expected data: check RBAC (Microsoft Sentinel Reader at workspace scope covers automation rules, watchlists, hunting queries and incidents) and that the workspace has been used since deployment.' -Indent 4)) { Write-Host $line }

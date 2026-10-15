@@ -6,11 +6,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
-- **A clearer end to a Blueprint run** - a capture the identity has no
-  permission for (HTTP 401 or 403, a missing Graph permission) is now
-  reported as expected rather than as a failure: one short line as it
-  happens, and its message, with what to grant, in the capture summary
-  under "No access", apart from real failures. The run history and role
+- **A clearer end to a Blueprint run** - a capture that could not be read
+  is now reported as one of three outcomes, each in its own colour as it
+  happens and under its own heading in the capture summary: not available
+  (a table, column or endpoint the workspace does not have), no permission
+  (HTTP 401 or 403, a missing Graph permission; expected without the role,
+  so its line is short and the summary says what to grant) and failed (any
+  other error). About 45 KQL and REST captures that wrote an empty file
+  without a word on any error now say which it was. The run history and role
   assignments of playbooks are reported in one line naming the playbooks
   that could not be read, not one warning a playbook. The capture summary
   lists only the key captures that hold no data, the renderer ends in one

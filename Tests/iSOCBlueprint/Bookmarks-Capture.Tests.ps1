@@ -97,8 +97,10 @@ Describe 'The bookmarks capture when the list is refused as too large' {
         ([regex]::Matches($script:capture, 'Save-Json -FileName ''bookmarks\.json''')).Count | Should -Be 1
     }
 
-    It 'warns only when the table cannot be read' {
-        $script:capture | Should -Match 'Write-Information "Bookmarks list refused as too large'
-        $script:capture | Should -Match 'Write-Warning "Bookmarks list refused as too large and the HuntingBookmark table could not be read'
+    It 'notes a table that holds none of them, or could not be read, and lists it in the summary' {
+        $script:capture | Should -Match 'Write-Information "  ↳ the bookmarks list was refused as too large'
+        $script:capture | Should -Match 'the HuntingBookmark table holds none of them; kept the count\.'
+        $script:capture | Should -Match 'the HuntingBookmark table could not be read: '
+        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{ Label = ''bookmarks''')).Count | Should -Be 2
     }
 }

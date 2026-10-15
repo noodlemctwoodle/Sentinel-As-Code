@@ -95,7 +95,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.10.2
+    Version:        0.11.0
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
@@ -301,21 +301,21 @@ function Try-Capture {
         Write-Information "[$Label]"
         & $Action
     } catch {
-        $msg = $_.Exception.Message
+        $msg = Get-CaptureErrorText $_
         # Surface the failure prominently. Try-Capture used to log only a
         # Write-Warning which is easy to miss in long ADO logs and silently
         # leaves the corresponding _raw/<file>.json absent or stale. We now
         # also accumulate the failure into a summary written at the end,
-        # which lists refusals for want of a role or permission (expected
-        # under an identity without every role) apart from other errors.
+        # which lists what the workspace does not have and the refusals for
+        # want of a role or permission (expected under an identity without
+        # every role) apart from other errors. Each outcome has its own
+        # colour as it happens; the summary carries the full message.
         $kind = Get-CaptureIssueKind $msg
-        if ($kind -eq 'Permission') {
-            # Short here; the capture summary at the end carries the message
-            # and what to grant.
-            $status = Get-CaptureStatusText $msg
-            Write-Warning "[$Label] Skipped, no permission$(if ($status) { " ($status)" }). The capture summary at the end says what it needs."
-        } else {
-            Write-Warning "[$Label] FAILED: $msg"
+        $status = Get-CaptureStatusText $msg
+        switch ($kind) {
+            'Permission'   { Write-CaptureNote -Kind Permission -Label $Label -Text "skipped$(if ($status) { " ($status)" }). The capture summary at the end says what it needs." }
+            'NotAvailable' { Write-CaptureNote -Kind NotAvailable -Label $Label -Text "skipped. $(Format-CaptureMessage $msg)" }
+            default        { Write-CaptureNote -Kind Error -Label $Label -Text $msg }
         }
         $script:CaptureErrors.Add([pscustomobject]@{
             Label   = $Label
@@ -323,6 +323,26 @@ function Try-Capture {
             Message = $msg
         })
     }
+}
+
+# For a capture whose read failed inside its own try/catch: the empty file
+# it has always written (so consumers still read "captured, none"), and now
+# a line saying why, in the outcome's colour, and an entry in the summary.
+# The label is the file's name without .json.
+function Skip-Capture {
+    param(
+        [Parameter(Mandatory)] [string]$FileName,
+        $ErrorRecord,
+        [string]$What
+    )
+    Save-Json -FileName $FileName -Data @()
+    $label = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    $msg = Get-CaptureErrorText $ErrorRecord
+    $kind = Get-CaptureIssueKind $msg
+    $text = Format-CaptureMessage $msg
+    if ($What) { $text = "${What}: $text" }
+    Write-CaptureNote -Kind $kind -Label $label -Text $(if ($kind -eq 'Error') { $msg } else { $text })
+    $script:CaptureErrors.Add([pscustomobject]@{ Label = $label; Kind = $kind; Message = $(if ($What) { "${What}: $msg" } else { $msg }) })
 }
 
 # ---------------------------------------------------------------------------
@@ -384,7 +404,7 @@ Try-Capture 'workspace-tables' {
     try {
         $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion $apiVersions.Tables
     } catch {
-        Write-Warning "Tables API $($apiVersions.Tables) not served ($($_.Exception.Message)); falling back to 2023-09-01."
+        Write-CaptureNote -Kind NotAvailable -Text "the Tables API $($apiVersions.Tables) is not served ($(Format-CaptureMessage (Get-CaptureErrorText $_))); used 2023-09-01."
         $tables = Invoke-SentinelRest -Path "$workspaceResourceId/tables" -ApiVersion '2023-09-01'
     }
     Save-Json -FileName 'workspace-tables.json' -Data $tables
@@ -414,7 +434,8 @@ Try-Capture 'sentinel-pricing' {
         try {
             $pricing = Invoke-SentinelRest -Path "$sentinelScope/pricings" -ApiVersion $apiVersions.SentinelPreview
         } catch {
-            Write-Information "  ↳ pricings endpoint not available; emitting empty file."
+            Skip-Capture -FileName 'sentinel-pricing.json' -ErrorRecord $_ -What 'the pricings endpoint'
+            return
         }
     }
     Save-Json -FileName 'sentinel-pricing.json' -Data $pricing
@@ -446,7 +467,7 @@ Try-Capture 'alert-rules' {
     $rules = try {
         Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.SentinelPreview
     } catch {
-        Write-Warning "alertRules $($apiVersions.SentinelPreview) not served ($($_.Exception.Message)); falling back to $($apiVersions.Sentinel), which leaves out sub-techniques."
+        Write-CaptureNote -Kind NotAvailable -Text "alertRules $($apiVersions.SentinelPreview) is not served ($(Format-CaptureMessage (Get-CaptureErrorText $_))); used $($apiVersions.Sentinel), which leaves out sub-techniques."
         Invoke-SentinelRest -Path "$sentinelScope/alertRules" -ApiVersion $apiVersions.Sentinel
     }
     $script:AlertRules = @($rules)
@@ -543,9 +564,20 @@ HuntingBookmark
                 $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
                 $listed = @($result.Results | ForEach-Object { ConvertFrom-HuntingBookmarkRow -Row $_ })
                 Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed
-                Write-Information "Bookmarks list refused as too large ($count bookmarks); listed $($listed.Count) from the HuntingBookmark table instead."
+                if ($listed.Count -gt 0) {
+                    Write-Information "  ↳ the bookmarks list was refused as too large ($count bookmarks); listed $($listed.Count) from the HuntingBookmark table instead."
+                } else {
+                    # Read, but empty: the table keeps entries only for its
+                    # retention, so bookmarks not changed within it are gone.
+                    $text = "the bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table holds none of them; kept the count."
+                    Write-CaptureNote -Kind NotAvailable -Text $text
+                    $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "The bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table holds none of them within its retention, so only the count was kept." })
+                }
             } catch {
-                Write-Warning "Bookmarks list refused as too large and the HuntingBookmark table could not be read ($($_.Exception.Message)); keeping the count the service reported ($count)."
+                $tableMsg = Get-CaptureErrorText $_
+                $tableKind = Get-CaptureIssueKind $tableMsg
+                Write-CaptureNote -Kind $tableKind -Label 'bookmarks' -Text "the bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table could not be read: $(Format-CaptureMessage $tableMsg) Kept the count."
+                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = $tableKind; Message = "The bookmarks list was refused as too large ($count bookmarks), and the HuntingBookmark table could not be read: $tableMsg" })
             }
         } else {
             throw
@@ -582,7 +614,7 @@ Try-Capture 'content-product-packages' {
         $catalog = Invoke-SentinelRest -Path "$sentinelScope/contentProductPackages" -ApiVersion $apiVersions.SentinelPreview
         Save-Json -FileName 'content-product-packages.json' -Data $catalog
     } catch {
-        Save-Json -FileName 'content-product-packages.json' -Data @()
+        Skip-Capture -FileName 'content-product-packages.json' -ErrorRecord $_
     }
 }
 
@@ -679,7 +711,7 @@ union isfuzzy=true
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ueba-data-presence.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'ueba-data-presence.json' -Data @() }
+    } catch { Skip-Capture -FileName 'ueba-data-presence.json' -ErrorRecord $_ }
 }
 
 # ---------------------------------------------------------------------------
@@ -926,7 +958,7 @@ Try-Capture 'sentinel-data-lake' {
             Save-Json -FileName 'sentinel-data-lake.json' -Data @()
         }
     } catch {
-        Save-Json -FileName 'sentinel-data-lake.json' -Data @()
+        Skip-Capture -FileName 'sentinel-data-lake.json' -ErrorRecord $_
     }
 }
 
@@ -1050,7 +1082,7 @@ Operation
         Save-Json -FileName 'ingestion-latency.json' -Data ($result.Results)
     } catch {
         # Operation table may be empty/absent on quiet workspaces.
-        Save-Json -FileName 'ingestion-latency.json' -Data @()
+        Skip-Capture -FileName 'ingestion-latency.json' -ErrorRecord $_
     }
 }
 
@@ -1084,7 +1116,7 @@ SentinelHealth
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'sentinel-health.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'sentinel-health.json' -Data @()
+        Skip-Capture -FileName 'sentinel-health.json' -ErrorRecord $_
     }
 }
 
@@ -1096,7 +1128,7 @@ Try-Capture 'soc-optimization' {
         $opt = Invoke-SentinelRest -Path "$sentinelScope/recommendations" -ApiVersion $apiVersions.SentinelPreview
         Save-Json -FileName 'soc-optimization.json' -Data $opt
     } catch {
-        Save-Json -FileName 'soc-optimization.json' -Data @()
+        Skip-Capture -FileName 'soc-optimization.json' -ErrorRecord $_
     }
 }
 
@@ -1155,7 +1187,7 @@ inc
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-summary.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'incidents-summary.json' -Data @()
+        Skip-Capture -FileName 'incidents-summary.json' -ErrorRecord $_
     }
 }
 
@@ -1185,7 +1217,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-mttr.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'incidents-mttr.json' -Data @()
+        Skip-Capture -FileName 'incidents-mttr.json' -ErrorRecord $_
     }
 }
 
@@ -1199,7 +1231,7 @@ SentinelHealth
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'sentinel-health-summary.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'sentinel-health-summary.json' -Data @() }
+    } catch { Skip-Capture -FileName 'sentinel-health-summary.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'la-query-logs' {
@@ -1211,7 +1243,7 @@ LAQueryLogs
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'la-query-logs.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'la-query-logs.json' -Data @() }
+    } catch { Skip-Capture -FileName 'la-query-logs.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'workspace-locks' {
@@ -1245,7 +1277,7 @@ Total30d
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'workspace-usage.json' -Data ($r.Results)
     } catch {
-        Save-Json -FileName 'workspace-usage.json' -Data @()
+        Skip-Capture -FileName 'workspace-usage.json' -ErrorRecord $_
     }
 }
 
@@ -1272,7 +1304,7 @@ SecurityIncident
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-detail-by-provider.json' -Data ($r.Results)
     } catch {
-        Save-Json -FileName 'incidents-detail-by-provider.json' -Data @()
+        Skip-Capture -FileName 'incidents-detail-by-provider.json' -ErrorRecord $_
     }
 }
 
@@ -1292,7 +1324,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-daily-metrics.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'incidents-daily-metrics.json' -Data @()
+        Skip-Capture -FileName 'incidents-daily-metrics.json' -ErrorRecord $_
     }
 }
 
@@ -1309,7 +1341,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incidents-by-rule.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'incidents-by-rule.json' -Data @()
+        Skip-Capture -FileName 'incidents-by-rule.json' -ErrorRecord $_
     }
 }
 
@@ -1331,7 +1363,7 @@ Heartbeat
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ama-agents.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'ama-agents.json' -Data @()
+        Skip-Capture -FileName 'ama-agents.json' -ErrorRecord $_
     }
 }
 
@@ -1366,7 +1398,7 @@ Heartbeat
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'ama-mma-migration.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'ama-mma-migration.json' -Data @()
+        Skip-Capture -FileName 'ama-mma-migration.json' -ErrorRecord $_
     }
 }
 
@@ -1384,7 +1416,7 @@ Heartbeat
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'agent-heartbeat-mix.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'agent-heartbeat-mix.json' -Data @()
+        Skip-Capture -FileName 'agent-heartbeat-mix.json' -ErrorRecord $_
     }
 }
 
@@ -1406,7 +1438,7 @@ union isfuzzy=true ThreatIntelligenceIndicator, ThreatIntelIndicators
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-counts.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'threat-intel-counts.json' -Data @()
+        Skip-Capture -FileName 'threat-intel-counts.json' -ErrorRecord $_
     }
 }
 
@@ -1435,7 +1467,7 @@ union isfuzzy=true
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-tables.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'threat-intel-tables.json' -Data @()
+        Skip-Capture -FileName 'threat-intel-tables.json' -ErrorRecord $_
     }
 }
 
@@ -1456,7 +1488,7 @@ ThreatIntelIndicators
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-health.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'threat-intel-health.json' -Data @()
+        Skip-Capture -FileName 'threat-intel-health.json' -ErrorRecord $_
     }
 }
 
@@ -1487,7 +1519,7 @@ CommonSecurityLog
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'cef-devices.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'cef-devices.json' -Data @() }
+    } catch { Skip-Capture -FileName 'cef-devices.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'cef-in-syslog' {
@@ -1506,7 +1538,7 @@ Syslog
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'cef-in-syslog.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'cef-in-syslog.json' -Data @() }
+    } catch { Skip-Capture -FileName 'cef-in-syslog.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'security-event-duplicates' {
@@ -1530,7 +1562,7 @@ DuplicateEvents
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'security-event-duplicates.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'security-event-duplicates.json' -Data @() }
+    } catch { Skip-Capture -FileName 'security-event-duplicates.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'azure-activity-coverage' {
@@ -1545,7 +1577,7 @@ AzureActivity
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-activity-coverage.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'azure-activity-coverage.json' -Data @() }
+    } catch { Skip-Capture -FileName 'azure-activity-coverage.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'azure-diagnostics-providers' {
@@ -1558,7 +1590,7 @@ AzureDiagnostics
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-diagnostics-providers.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'azure-diagnostics-providers.json' -Data @() }
+    } catch { Skip-Capture -FileName 'azure-diagnostics-providers.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'xdr-table-presence' {
@@ -1581,7 +1613,7 @@ union withsource = tt *
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'xdr-table-presence.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'xdr-table-presence.json' -Data @() }
+    } catch { Skip-Capture -FileName 'xdr-table-presence.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'top-event-ids' {
@@ -1599,7 +1631,7 @@ find withsource = TableName1 in (Event, SecurityEvent)
     try {
         $r = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'top-event-ids.json' -Data ($r.Results)
-    } catch { Save-Json -FileName 'top-event-ids.json' -Data @() }
+    } catch { Skip-Capture -FileName 'top-event-ids.json' -ErrorRecord $_ }
 }
 
 Try-Capture 'analytics-rule-volumes' {
@@ -1623,7 +1655,7 @@ SecurityAlert
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'analytics-rule-volumes.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'analytics-rule-volumes.json' -Data @()
+        Skip-Capture -FileName 'analytics-rule-volumes.json' -ErrorRecord $_
     }
 }
 
@@ -1669,7 +1701,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rule-effectiveness.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'rule-effectiveness.json' -Data @()
+        Skip-Capture -FileName 'rule-effectiveness.json' -ErrorRecord $_
     }
 }
 
@@ -1692,7 +1724,7 @@ SecurityAlert
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rules-fired.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'rules-fired.json' -Data @()
+        Skip-Capture -FileName 'rules-fired.json' -ErrorRecord $_
     }
 }
 
@@ -1709,7 +1741,7 @@ Usage
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'workspace-usage-daily.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'workspace-usage-daily.json' -Data @()
+        Skip-Capture -FileName 'workspace-usage-daily.json' -ErrorRecord $_
     }
 }
 
@@ -1734,7 +1766,7 @@ Usage
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'daily-table-usage.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'daily-table-usage.json' -Data @()
+        Skip-Capture -FileName 'daily-table-usage.json' -ErrorRecord $_
     }
 }
 
@@ -1751,7 +1783,7 @@ SecurityAlert
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'daily-alerts.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'daily-alerts.json' -Data @()
+        Skip-Capture -FileName 'daily-alerts.json' -ErrorRecord $_
     }
 }
 
@@ -1781,7 +1813,7 @@ inc
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'daily-incidents.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'daily-incidents.json' -Data @()
+        Skip-Capture -FileName 'daily-incidents.json' -ErrorRecord $_
     }
 }
 
@@ -1813,7 +1845,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'daily-rule-incidents.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'daily-rule-incidents.json' -Data @()
+        Skip-Capture -FileName 'daily-rule-incidents.json' -ErrorRecord $_
     }
 }
 
@@ -1827,7 +1859,7 @@ SentinelHealth
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'daily-health.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'daily-health.json' -Data @()
+        Skip-Capture -FileName 'daily-health.json' -ErrorRecord $_
     }
 }
 
@@ -1844,7 +1876,7 @@ AzureDiagnostics
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-diagnostics-categories.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'azure-diagnostics-categories.json' -Data @()
+        Skip-Capture -FileName 'azure-diagnostics-categories.json' -ErrorRecord $_
     }
 }
 
@@ -1865,7 +1897,7 @@ AzureDiagnostics
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'azure-firewall-categories.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'azure-firewall-categories.json' -Data @()
+        Skip-Capture -FileName 'azure-firewall-categories.json' -ErrorRecord $_
     }
 }
 
@@ -1880,7 +1912,7 @@ ThreatIntelObjects
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'threat-intel-objects.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'threat-intel-objects.json' -Data @()
+        Skip-Capture -FileName 'threat-intel-objects.json' -ErrorRecord $_
     }
 }
 
@@ -1898,7 +1930,7 @@ SentinelHealth
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'rule-health.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'rule-health.json' -Data @()
+        Skip-Capture -FileName 'rule-health.json' -ErrorRecord $_
     }
 }
 
@@ -1922,7 +1954,7 @@ SecurityIncident
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'incident-title-stats.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'incident-title-stats.json' -Data @()
+        Skip-Capture -FileName 'incident-title-stats.json' -ErrorRecord $_
     }
 }
 
@@ -1966,7 +1998,7 @@ ThreatIntelligenceIndicator
             $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlLegacy) -ErrorAction Stop
             Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
         } catch {
-            Save-Json -FileName 'threat-intel-by-type.json' -Data @()
+            Skip-Capture -FileName 'threat-intel-by-type.json' -ErrorRecord $_
         }
     }
 }
@@ -1984,7 +2016,7 @@ Syslog
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'syslog-contributors.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'syslog-contributors.json' -Data @()
+        Skip-Capture -FileName 'syslog-contributors.json' -ErrorRecord $_
     }
 }
 
@@ -1999,7 +2031,7 @@ SecurityEvent
         $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
         Save-Json -FileName 'securityevent-top-hosts.json' -Data ($result.Results)
     } catch {
-        Save-Json -FileName 'securityevent-top-hosts.json' -Data @()
+        Skip-Capture -FileName 'securityevent-top-hosts.json' -ErrorRecord $_
     }
 }
 

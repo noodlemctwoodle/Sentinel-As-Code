@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -86,16 +86,22 @@ function Write-iSOCBlueprintRunSummary {
     $files = @(Get-ChildItem -LiteralPath $raw -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
     if ($Collected) {
         $issues = @(& $prop (& $readJson (Join-Path $raw 'run-context.json')) 'CaptureIssues' | Where-Object { $_ })
-        $permission = @($issues | Where-Object { (& $prop $_ 'Kind') -eq 'Permission' } | ForEach-Object { [string](& $prop $_ 'Label') } | Select-Object -Unique)
-        $failed = @($issues | Where-Object { (& $prop $_ 'Kind') -ne 'Permission' } | ForEach-Object { [string](& $prop $_ 'Label') } | Select-Object -Unique)
+        $labels = { param([string[]] $Kinds, [bool] $Not) @($issues | Where-Object { ((& $prop $_ 'Kind') -in $Kinds) -ne $Not } | ForEach-Object { [string](& $prop $_ 'Label') } | Select-Object -Unique) }
+        $notAvailable = @(& $labels @('NotAvailable') $false)
+        $permission = @(& $labels @('Permission') $false)
+        $failed = @(& $labels @('NotAvailable', 'Permission') $true)
         Write-Host (& $row 'Captures' "$files files written")
+        # The same colours as the collector's lines and capture summary.
+        if ($notAvailable.Count) {
+            Write-Host (& $row '' "$($notAvailable.Count) not available in this workspace: $($notAvailable -join ', ')") -ForegroundColor DarkCyan
+        }
         if ($permission.Count) {
-            Write-Host (& $row '' "$($permission.Count) not read in full, no permission (expected without the role): $($permission -join ', ')")
+            Write-Host (& $row '' "$($permission.Count) not read in full, no permission (expected without the role): $($permission -join ', ')") -ForegroundColor Magenta
         }
         if ($failed.Count) {
             Write-Host (& $row '' "$($failed.Count) failed: $($failed -join ', ')") -ForegroundColor Yellow
         }
-        if ($permission.Count -or $failed.Count) {
+        if ($notAvailable.Count -or $permission.Count -or $failed.Count) {
             Write-Host (& $row '' 'The capture summary above has each message.')
         }
     } else {
@@ -123,5 +129,4 @@ function Write-iSOCBlueprintRunSummary {
         $text = if ($detail.Count) { "$bundleShown ($($detail -join ', ')), $where" } else { "$bundleShown, $where" }
         Write-Host (& $row 'SharePoint' $text)
     }
-    Write-Host ''
 }

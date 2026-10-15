@@ -84,7 +84,7 @@ Describe 'The collector counts the daily series' {
             $m.Groups[1].Value | Should -Match 'ago\(daily\)' -Because $name
             $m.Groups[1].Value | Should -Match 'DaysAgo = toint\(\(now\(\) - TimeGenerated\) / 1d\)' -Because $name
             $m.Groups[1].Value | Should -Not -Match 'ago\(lookback\)|ago\(\d+d\)' -Because $name
-            $m.Groups[1].Value | Should -Match "Save-Json -FileName '$name\.json' -Data @\(\)" -Because "$name writes an empty file when the query fails"
+            $m.Groups[1].Value | Should -Match "Skip-Capture -FileName '$name\.json' -ErrorRecord \`$_" -Because "$name writes an empty file, and says why, when the query fails"
         }
     }
 
