@@ -1889,7 +1889,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("const key=nReady ? chipKey(tid, nReady, kinds.filter(k=>k.notinst).length) : '';") | Should -BeTrue
         # Rows carry their chip kinds; the search box and the key filter together.
         $html.Contains("'<tr'+(kinds[ri].ready?' data-ready=""1""':'')+(kinds[ri].notinst?' data-notinst=""1""':'')") | Should -BeTrue
-        $html.Contains("const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr);") | Should -BeTrue
+        $html.Contains("const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr) && grouped(tr);") | Should -BeTrue
         # With the key on, each row's chips narrow to that kind (all of them), and the chevron hides.
         $html.Contains("ch.hidden=want? (want==='ready'? !ready : ready) : (ch.hasAttribute('data-mr') && !w.classList.contains('open'));") | Should -BeTrue
         $html.Contains("if(chev) chev.hidden=!!want;") | Should -BeTrue
@@ -1909,6 +1909,26 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # The renderer's tables carry the columns this joins on.
         $md = Get-Content (Join-Path $ws 'sections/28-detection-opportunities.json') -Raw
         foreach ($col in 'Table', 'From solutions', 'Template', 'Solution', 'Tables') { $md | Should -Match ('"text": "' + $col + '"') -Because $col }
+    }
+
+    It 'lets a summary value open the rows behind it in the bigger table it groups' {
+        $html | Should -Match 'function linkGroupRows\(\)\{'
+        $html | Should -Match 'linkSolutionChips\(\);\s*linkGroupRows\(\);'
+        # The summary's first column names a column of a bigger table that repeats its values; the summary's own values are unique.
+        $html.Contains("if(vals.length<=sumRows.length || new Set(vals).size===vals.length) return;") | Should -BeTrue
+        $html.Contains("if(new Set(sumVals).size!==sumVals.length) return;") | Should -BeTrue
+        # Opening pins that table to the value, exactly, with a chip to clear it.
+        $html | Should -Match 'function openGroup\(detId, col, val\)\{'
+        $html.Contains("det.dataset.pinCol=String(col); det.dataset.pinVal=val;") | Should -BeTrue
+        $html.Contains("const grouped=tr=>!gp || (!!tr.children[gp.i] && tr.children[gp.i].textContent.trim().toLowerCase()===gp.v);") | Should -BeTrue
+        $html.Contains("chip.onclick=()=>{ delete det.dataset.pinCol; delete det.dataset.pinVal; chip.remove(); docFilter(det.id); };") | Should -BeTrue
+        # Keyboard as well as pointer, and its tooltip names the table by its section heading.
+        $html.Contains("const g=e.target.closest('.grouplink'); if(g && (e.key==='Enter' || e.key===' '))") | Should -BeTrue
+        $html.Contains("sec=el.closest('.docsec'), h=sec && sec.querySelector('.dsech');") | Should -BeTrue
+        # The plans page carries the summary and the table it groups.
+        $md = Get-Content (Join-Path $ws 'sections/81-table-plans-retention.json') -Raw
+        $md | Should -Match '"text": "Summary by plan"'
+        $md | Should -Match '"text": "Operational tables"'
     }
 
     It 'shows status words in report cells as pills and puts a chart''s key above its bars' {

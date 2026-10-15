@@ -580,6 +580,10 @@
   /* A solution chip that lists its templates (tooltip) and opens them. */
   .tagpill.chiplink{cursor:pointer}
   .tagpill.chiplink:hover,.tagpill.chiplink:focus-visible{border-color:var(--brand);color:var(--ink);outline:none}
+  /* A summary value (a plan, a provider) that lists the rows behind it in a
+     bigger table on the same page. */
+  .grouplink{cursor:pointer;color:var(--brand);text-decoration:underline dotted;text-underline-offset:3px}
+  .grouplink:hover,.grouplink:focus-visible{text-decoration-style:solid;outline:none}
   .cellchips .tagpill{white-space:normal}
   /* A maturity criterion with its state on this workspace ("SAC-DET-07 gap")
      is a chip in the state's colour, as on the maturity view. */
@@ -3861,6 +3865,7 @@
         docFilter(k.parentNode.dataset.for);
       }; });
       linkSolutionChips();
+      linkGroupRows();
       layoutDoc();
       if(typeof fitIframe==='function') fitIframe();
     }
@@ -3877,9 +3882,12 @@
       const pin=t.dataset.pinSol!=null? {sol:t.dataset.pinSol, tbl:t.dataset.pinTbl} : null;
       const h=pin? headsOf(t) : [], iS=h.indexOf('solution'), iTb=h.indexOf('tables');
       const pinned=tr=>!pin || (tr.children[iS].textContent.trim()===pin.sol && tr.children[iTb].textContent.toLowerCase().split(',').map(x=>x.trim()).includes(pin.tbl.toLowerCase()));
+      // A summary value picked above pins the table to the rows that hold it.
+      const gp=t.dataset.pinCol!=null? {i:+t.dataset.pinCol, v:String(t.dataset.pinVal||'').trim().toLowerCase()} : null;
+      const grouped=tr=>!gp || (!!tr.children[gp.i] && tr.children[gp.i].textContent.trim().toLowerCase()===gp.v);
       const rows=t.querySelectorAll('tbody tr'); let shown=0;
-      rows.forEach(tr=>{ const txt=tr.textContent.toLowerCase(); const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr); tr.style.display=m?'':'none'; if(m) shown++; });
-      const c=document.getElementById(tid+'c'); if(c) c.textContent=(words.length||want||pin? shown+' / ' : '')+rows.length+' rows';
+      rows.forEach(tr=>{ const txt=tr.textContent.toLowerCase(); const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr) && grouped(tr); tr.style.display=m?'':'none'; if(m) shown++; });
+      const c=document.getElementById(tid+'c'); if(c) c.textContent=(words.length||want||pin||gp? shown+' / ' : '')+rows.length+' rows';
       // With the key on, each row's chips narrow to that kind, every one of
       // them, so the row shows what is (or is not) installed; off, the first
       // chips and the chevron come back as they were.
@@ -3940,6 +3948,73 @@
     }
     content.addEventListener('click',e=>{ const ch=e.target.closest('.chiplink'); if(ch) openTemplates(ch.dataset.sol, ch.dataset.tbl); });
     content.addEventListener('keydown',e=>{ const ch=e.target.closest('.chiplink'); if(ch && (e.key==='Enter' || e.key===' ')){ e.preventDefault(); openTemplates(ch.dataset.sol, ch.dataset.tbl); } });
+
+    // A small summary table whose first column groups a bigger table on the
+    // same page (Summary by plan over the operational tables, by Plan): each
+    // of its values opens the bigger table at the rows that hold it, so a
+    // count always leads to what is behind it. The bigger table must repeat
+    // values in that column, so a list never links to itself row by row.
+    function tableTitleOf(t){
+      const pane=t.closest('.docpane');
+      if(pane){ const tab=document.getElementById(pane.getAttribute('aria-labelledby')); if(tab) return tab.textContent.trim(); }
+      // Its section's heading (a chart's own heading is not one), else the
+      // nearest heading above it.
+      const el=t.closest('.doctable-wrap')||t, sec=el.closest('.docsec'), h=sec && sec.querySelector('.dsech');
+      if(h) return h.textContent.trim();
+      for(let p=el.previousElementSibling;p;p=p.previousElementSibling){ if(/^H[2-4]$/.test(p.tagName)) return p.textContent.trim(); }
+      return '';
+    }
+    function linkGroupRows(){
+      const tables=[...content.querySelectorAll('table.doct')];
+      const norm=v=>String(v==null?'':v).trim().toLowerCase();
+      tables.forEach(sum=>{
+        const key=headsOf(sum)[0], sumRows=[...sum.querySelectorAll('tbody tr')];
+        if(!key || !sumRows.length) return;
+        // A summary has one row a value; a list that repeats them is not one.
+        const sumVals=sumRows.map(tr=>norm(tr.children[0] && tr.children[0].textContent));
+        if(new Set(sumVals).size!==sumVals.length) return;
+        let best=null;
+        tables.forEach(det=>{
+          if(det===sum) return;
+          const j=headsOf(det).indexOf(key); if(j<0) return;
+          const vals=[...det.querySelectorAll('tbody tr')].map(tr=>norm(tr.children[j] && tr.children[j].textContent));
+          if(vals.length<=sumRows.length || new Set(vals).size===vals.length) return;
+          if(!best || vals.length>best.vals.length) best={det, j, vals};
+        });
+        if(!best) return;
+        const where=tableTitleOf(best.det), th=best.det.querySelectorAll('thead th')[best.j], col=th? th.textContent.trim() : key;
+        sumRows.forEach(tr=>{
+          const cell=tr.children[0]; if(!cell || cell.querySelector('a,button,.grouplink,.tagpill')) return;
+          const v=cell.textContent.trim(), n=best.vals.filter(x=>x===norm(v)).length; if(!v || !n) return;
+          const g=document.createElement('span'); g.className='grouplink'; g.tabIndex=0; g.setAttribute('role','button');
+          g.dataset.gdet=best.det.id; g.dataset.gcol=String(best.j); g.dataset.gval=v;
+          g.title='Show the '+n.toLocaleString()+' row'+(n===1?'':'s')+(where? ' of '+where : '')+' whose '+col+' is '+v;
+          while(cell.firstChild) g.appendChild(cell.firstChild);
+          cell.appendChild(g);
+        });
+      });
+    }
+    function openGroup(detId, col, val){
+      const det=document.getElementById(detId); if(!det) return;
+      const pane=det.closest('.docpane');
+      if(pane && pane.hidden){ const tab=document.getElementById(pane.getAttribute('aria-labelledby')); if(tab) tab.click(); }
+      det.dataset.pinCol=String(col); det.dataset.pinVal=val;
+      const wrap=det.closest('.doctable-wrap');
+      let tools=wrap && wrap.querySelector('.doctable-tools');
+      if(wrap && !tools){ tools=document.createElement('div'); tools.className='doctable-tools'; wrap.insertBefore(tools, wrap.firstChild); }
+      if(tools){
+        let chip=tools.querySelector('[data-ungroup]');
+        if(!chip){ chip=document.createElement('button'); chip.type='button'; chip.className='fchip active'; chip.setAttribute('data-ungroup',''); tools.insertBefore(chip, tools.querySelector('.dtc')); }
+        const th=det.querySelectorAll('thead th')[col], name=th? th.textContent.trim() : '';
+        chip.innerHTML=esc(name)+': '+esc(val)+'<span aria-hidden="true">&times;</span>';
+        chip.title='Only the rows whose '+name+' is '+val+'. Select to show every row again.';
+        chip.onclick=()=>{ delete det.dataset.pinCol; delete det.dataset.pinVal; chip.remove(); docFilter(det.id); };
+      }
+      docFilter(det.id);
+      bringTop(wrap||det);
+    }
+    content.addEventListener('click',e=>{ const g=e.target.closest('.grouplink'); if(g) openGroup(g.dataset.gdet, +g.dataset.gcol, g.dataset.gval); });
+    content.addEventListener('keydown',e=>{ const g=e.target.closest('.grouplink'); if(g && (e.key==='Enter' || e.key===' ')){ e.preventDefault(); openGroup(g.dataset.gdet, +g.dataset.gcol, g.dataset.gval); } });
 
     // Links to another section open it here; links to a finding open it in
     // the findings view, or its section when this run's list does not hold

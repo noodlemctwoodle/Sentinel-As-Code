@@ -6,6 +6,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Summaries open the rows behind them** - on the dashboard's report
+  pages, a small summary table's values are links when a bigger table on
+  the same page groups by them: select a plan in Summary by plan to see its
+  operational tables, a severity to see its alert volumes, a role to see
+  its assignments. The bigger table filters to that value, with a chip to
+  show every row again.
 - **Microsoft Sentinel pricing from the solution's SKU** - the collector no
   longer probes `Microsoft.SecurityInsights/pricings`, which is not a
   documented resource and never answered (on some regions it printed a long

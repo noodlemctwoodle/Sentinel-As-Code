@@ -401,7 +401,14 @@ templates behind it in its tooltip and, selected, opens the page's
 Undeployed templates ready to enable list showing exactly those templates
 (that solution, that table), with a chip in the list's tool bar to show
 every template again. A From solutions cell with one solution is a chip
-too, so every row shows its colour. A template only a deprecated Content
+too, so every row shows its colour. A small summary table opens the rows
+behind each of its values: when its first column (Plan, Provider,
+Severity, Role) names a column of a bigger table on the same page that
+repeats those values, each value is a link (its tooltip says how many rows
+and which table), and selecting it filters that table to the rows that
+hold it, with a chip in its tool bar to show every row again. Summary by
+plan opens the operational tables on that plan, for example. A list whose
+first column repeats its own values is not a summary and gets no links. A template only a deprecated Content
 Hub solution ships (the catalogue flags it, as with Threat Intelligence,
 replaced by Threat Intelligence (NEW)) is never offered: it is left out of
 the chips, the counts and the ready list, and the page lists it under
