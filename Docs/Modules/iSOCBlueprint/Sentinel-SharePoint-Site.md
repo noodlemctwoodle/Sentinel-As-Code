@@ -16,11 +16,11 @@ One communication site per workspace, containing:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection matrix, then the ingest and billing flow), insights, every section with charts and table filters, and an Assessment tab that switches between the maturity assessment and the findings. The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection matrix, then the ingest and billing flow), insights, every section with charts and table filters, an Assessment tab that switches between the maturity assessment and the findings, and a Progress tab that compares this run with an earlier one (see [Progress across runs](#progress-across-runs)). The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
 | **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
 | **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
 | **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
-| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, a copy of the dashboard per day (`dashboard/history/`), and each table cut on its page, whole, as CSV (`tables/`). | `BlueprintAssets` library |
+| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, the progress history, a copy of the dashboard per day (`dashboard/history/`), and each table cut on its page, whole, as CSV (`tables/`). | `BlueprintAssets` library |
 
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
@@ -67,6 +67,8 @@ with the dashboard template and the web part source:
 | `model.json` | The dashboard's data model |
 | `site.json` | Product name, workspace, section list with page names, families and content hashes, build warnings. Its `diagrams` list is always empty now that charts are data; the publisher recycles the images earlier bundles uploaded. |
 | `pages/<page>.json` | Per section: title and ordered segments, `html` for a text web part or `chart` (kind, title, data) for the chart web part |
+| `progress.json` | This run's progress record: the headline numbers and the lists the Progress tab compares (see [Progress across runs](#progress-across-runs)) |
+| `progress-history.json` | Every kept day's record, oldest first, gathered from the earlier day folders' bundles |
 | `tables/<name>.csv` | Each table longer than `-MaxTableRows`, whole, as CSV (UTF-8 with a byte order mark, so Excel reads accents and symbols as they are). Named from the section and the heading above the table. `site.json` lists them in `tables` |
 | `findings.json` | Findings plus per-check outcomes |
 
@@ -530,7 +532,8 @@ In this order, so a failure part-way leaves the site consistent:
 3. **Assets.** Upload the dashboard, and the CSV of each table cut on its
    page (`BlueprintAssets/tables/`, every run, since the data changes with
    each collection). When the bundle carries a maturity assessment, append
-   its score to the history (see below).
+   its score to the history (see below), and add the run's progress record
+   to the progress history (see [Progress across runs](#progress-across-runs)).
 4. **Pages.** Create or rebuild each section page, skipping pages whose
    content hash matches the last publish. Pages are rebuilt in place (cleared
    and refilled, then published once), so URLs and version history survive
@@ -589,6 +592,60 @@ the dashboard reads it from beside its own page. Opened from disk there is
 nothing to read and the trend panel stays hidden. Both files are readable by
 anyone who can read the dashboard, which is the same audience. `-WhatIf`
 reports what it would append and writes nothing.
+
+### Progress across runs
+
+Each export is a snapshot: the window slider re-scopes its activity, but
+posture (rules enabled, findings, maturity criteria, coverage) is as it was
+on the day. To show change, every site build writes a **progress record**
+for its run (`progress.json` in the bundle, and `progress` in the dashboard
+model):
+
+- **Headline numbers**: the maturity score, criteria met and with a gap,
+  findings in total and by severity, analytics rules enabled, custom
+  detections enabled, ATT&CK techniques and tactics covered, data
+  connectors, tables ingesting, ingesting tables and GB no detection reads,
+  the estimated monthly cost, billable GB a day, open incidents and the mean
+  time to resolve. A number the run did not capture is left empty, not
+  zero.
+- **The lists a change is read from**: the findings (id, severity, title),
+  every maturity criterion with its status, the enabled analytics rules by
+  name, the ATT&CK techniques an enabled rule covers, the tables ingesting
+  and the tables no detection reads.
+
+The records are kept as a history, one a day (a second run on the same day
+replaces the first), for the last `-HistoryDays` days (90 by default):
+
+- **Locally**, a run in a day folder gathers the records the earlier day
+  folders' builds left in their bundles into `progress-history.json`.
+- **On the site**, the publisher merges the bundle's records with the
+  site's own and writes `BlueprintAssets/_state/progress-history.json` and
+  a copy beside the dashboard (`dashboard/progress-history.json`), so a
+  pipeline run, which starts with no earlier folders, still adds to it.
+
+The dashboard's **Progress** tab compares the run it shows with a baseline
+from the history: the previous run (the default), the latest run at least
+7, 30 or 90 days earlier, or the first kept run. A choice with no run that
+far back is greyed out. The tab shows:
+
+- **Headline numbers**, then and now, with the change coloured green where
+  it is better and red where it is worse (cost and volume are neither).
+- **Over time**: the maturity score, findings, rules enabled, techniques
+  covered, GB no detection reads and the monthly cost across every kept run.
+- **Changes since** the baseline, every one of them (the first twelve of a
+  list, then Show all): findings resolved and new, criteria now met and now
+  a gap, analytics rules enabled and no longer enabled, ATT&CK techniques
+  now covered and no longer covered, tables now read by a detection and no
+  longer, tables that started and stopped ingesting. A current finding opens
+  in the findings view, a criterion in the maturity view and a rule on Rule
+  Performance.
+
+A bundle built before progress tracking carries no record, and the tab says
+so; progress starts with the next run. On SharePoint the history is read
+the same way as the maturity history (the dashboard web part reads it for
+the frame); from disk there is nothing to read and the tab shows this run
+alone. A record is about 20 KB for a large workspace, so 90 days of history
+is a couple of megabytes.
 
 ### The window slider
 

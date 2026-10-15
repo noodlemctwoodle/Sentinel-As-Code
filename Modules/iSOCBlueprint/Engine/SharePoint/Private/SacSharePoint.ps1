@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.5.1
+    Version:      0.6.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -44,6 +44,7 @@ $script:SacFindingsListTitle  = 'Sentinel Findings'
 $script:SacFindingsListUrl    = 'Lists/SentinelFindings'
 $script:SacStateFile          = 'publish-state.json'
 $script:SacMaturityHistoryFile = 'maturity-history.json'
+$script:SacProgressHistoryFile = 'progress-history.json'
 # A copy of the dashboard per day, beside the live one, for its date picker.
 $script:SacSnapshotFolder     = 'dashboard/history'
 $script:SacSnapshotIndexFile  = 'index.json'
@@ -526,6 +527,39 @@ function Save-SacMaturityHistory {
     foreach ($folder in '_state', 'dashboard') {
         if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/$folder/$script:SacMaturityHistoryFile", 'Save maturity history')) {
             Add-PnPFile -Folder "$script:SacAssetsLibraryUrl/$folder" -FileName $script:SacMaturityHistoryFile -Content $json | Out-Null
+        }
+    }
+}
+
+function Read-SacProgressHistory {
+    <#
+    .SYNOPSIS
+        Read the progress history earlier publishes left on the site, or
+        $null when there is none (Merge-SacProgressHistory starts afresh).
+    #>
+    [CmdletBinding()]
+    param()
+    $text = Read-SacStateText -FileName $script:SacProgressHistoryFile
+    if (-not $text) { return $null }
+    try { return ($text | ConvertFrom-Json -Depth 32) }
+    catch {
+        Write-Verbose "Unreadable progress history, starting fresh: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Save-SacProgressHistory {
+    <#
+    .SYNOPSIS
+        Write the progress history to _state/ (the record) and to dashboard/
+        (what the dashboard's Progress tab fetches from beside its page).
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)] $History)
+    $json = $History | ConvertTo-Json -Depth 32 -Compress
+    foreach ($folder in '_state', 'dashboard') {
+        if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/$folder/$script:SacProgressHistoryFile", 'Save progress history')) {
+            Add-PnPFile -Folder "$script:SacAssetsLibraryUrl/$folder" -FileName $script:SacProgressHistoryFile -Content $json | Out-Null
         }
     }
 }

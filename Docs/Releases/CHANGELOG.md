@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Progress across runs** - each export was a snapshot, so the dashboard
+  could not say what had improved. Every site build now writes a progress
+  record for its run (the headline numbers and the findings, criteria,
+  rules, ATT&CK techniques and tables behind them), kept as a history: from
+  earlier day folders locally, and on the site by the publisher, so daily
+  pipeline runs build it up. A new **Progress** tab compares the run with a
+  baseline (the previous run, 7, 30 or 90 days earlier, or the first): the
+  headline numbers then and now, coloured by whether each moved the right
+  way, trends across every kept run, and every change since, each finding,
+  criterion and rule opening where it lives. The demo workspace carries a
+  quarter of weekly runs.
 - **Summaries open the rows behind them** - on the dashboard's report
   pages, a small summary table's values are links when a bigger table on
   the same page groups by them: select a plan in Summary by plan to see its

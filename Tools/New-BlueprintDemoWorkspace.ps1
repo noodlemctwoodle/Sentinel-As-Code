@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
@@ -1219,6 +1219,69 @@ if ($Build) {
                 areas = @(foreach ($a in @($maturity.areas)) { [ordered]@{ id = [string]$a.id; score = $(if ($null -ne $a.score) { [math]::Round([math]::Max(1.0, [double]$a.score - $lift), 2) } else { $null }) } }) }
         }
         Set-Content -LiteralPath (Join-Path $bundle 'maturity-history.json') -Value (ConvertTo-Json -InputObject ([ordered]@{ entries = @($entries) }) -Depth 16) -Encoding utf8NoBOM
+    }
+    # The Progress tab compares runs; the demo carries the same quarter of
+    # weekly runs, each a step behind today's on the same climb: findings
+    # that have since been fixed still firing, fewer rules enabled, fewer
+    # criteria met, less ATT&CK coverage, tables no detection read yet.
+    $progressPath = if ($bundle) { Join-Path $bundle 'progress.json' } else { $null }
+    if ($progressPath -and (Test-Path -LiteralPath $progressPath)) {
+        . (Join-Path $engine 'SharePoint/Private/Get-SacProgress.ps1')
+        $now = Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json -Depth 32
+        $firing = @($now.sets.findings | ForEach-Object { [string]$_.id })
+        $fixed = @((Get-Content -LiteralPath (Join-Path $resources 'best-practices.json') -Raw | ConvertFrom-Json -Depth 16).rules |
+            Where-Object { $firing -notcontains [string]$_.id -and $_.severity -in 'Critical', 'Warning' } | Select-Object -First 8 |
+            ForEach-Object { [ordered]@{ id = [string]$_.id; severity = [string]$_.severity; title = [string]$_.title } })
+        $nowRules = @($now.sets.rules); $nowTech = @($now.sets.techniques); $nowTables = @($now.sets.tables); $nowUncovered = @($now.sets.uncovered)
+        $coveredNow = @($nowTables | Where-Object { $nowUncovered -notcontains $_ })
+        $metNow = @($now.sets.criteria | Where-Object { $_.status -eq 'M' } | ForEach-Object { [string]$_.id })
+        $records = for ($w = 12; $w -ge 1; $w--) {
+            $f = $w / 12.0
+            $rules = @($nowRules | Select-Object -First ($nowRules.Count - [int][math]::Round($nowRules.Count * 0.3 * $f)))
+            $tech = @($nowTech | Select-Object -First ($nowTech.Count - [int][math]::Round($nowTech.Count * 0.25 * $f)))
+            $findings = @($now.sets.findings) + @($fixed | Select-Object -First ([int][math]::Round($fixed.Count * $f)))
+            $wasGap = @($metNow | Select-Object -First ([int][math]::Round($metNow.Count * 0.3 * $f)))
+            $criteria = @($now.sets.criteria | ForEach-Object { [ordered]@{ id = [string]$_.id; name = [string]$_.name; status = $(if ($wasGap -contains [string]$_.id) { 'G' } else { [string]$_.status }) } })
+            $uncovered = @($nowUncovered) + @($coveredNow | Select-Object -Last ([int][math]::Round($coveredNow.Count * 0.2 * $f)))
+            $bySev = { param($s) @($findings | Where-Object { $_.severity -eq $s }).Count }
+            $m = $now.metrics
+            [ordered]@{
+                schemaVersion = 1
+                date          = $asOfUtc.AddDays(-7 * $w).ToString('yyyy-MM-dd')
+                generatedUtc  = $asOfUtc.AddDays(-7 * $w).ToString('yyyy-MM-dd HH:mm') + ' UTC'
+                windowDays    = $now.windowDays
+                currency      = $now.currency
+                metrics       = [ordered]@{
+                    maturityScore     = [double]$entries[12 - $w].overall.score
+                    maturityLevel     = $m.maturityLevel
+                    criteriaMet       = @($criteria | Where-Object { $_.status -eq 'M' }).Count
+                    criteriaGap       = @($criteria | Where-Object { $_.status -eq 'G' }).Count
+                    findings          = $findings.Count
+                    findingsCritical  = & $bySev 'Critical'
+                    findingsWarning   = & $bySev 'Warning'
+                    findingsInfo      = & $bySev 'Info'
+                    rulesEnabled      = [int]$m.rulesEnabled - ($nowRules.Count - $rules.Count)
+                    rulesTotal        = $m.rulesTotal
+                    customDetections  = $m.customDetections
+                    techniquesCovered = $tech.Count
+                    tacticsCovered    = $m.tacticsCovered
+                    tacticsTotal      = $m.tacticsTotal
+                    connectors        = $m.connectors
+                    tablesIngesting   = $nowTables.Count
+                    uncoveredTables   = $uncovered.Count
+                    uncoveredGb       = [math]::Round([double]$m.uncoveredGb * (1 + 0.6 * $f), 2)
+                    totalGb           = $m.totalGb
+                    monthlyCost       = [math]::Round([double]$m.monthlyCost * (1 - 0.05 * $f), 2)
+                    dailyGb           = [math]::Round([double]$m.dailyGb * (1 - 0.05 * $f), 2)
+                    openIncidents     = [int]$m.openIncidents + [int][math]::Round(12 * $f)
+                    mttrMinutes       = [math]::Round([double]$m.mttrMinutes * (1 + 0.4 * $f), 1)
+                }
+                areas         = $now.areas
+                sets          = [ordered]@{ findings = $findings; criteria = $criteria; rules = $rules; techniques = $tech; tables = $nowTables; uncovered = $uncovered }
+            }
+        }
+        $history = Merge-SacProgressHistory -History $null -Records (@($records) + , $now) -Days 90
+        Set-Content -LiteralPath (Join-Path $bundle 'progress-history.json') -Value (ConvertTo-Json -InputObject $history -Depth 32 -Compress) -Encoding utf8NoBOM
     }
 }
 

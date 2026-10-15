@@ -182,5 +182,11 @@ Describe 'The demo workspace generator' {
         $history = Get-Content (Join-Path $bundle 'maturity-history.json') -Raw | ConvertFrom-Json -Depth 16
         @($history.entries).Count | Should -Be 13
         @($history.entries)[-1].overall.score | Should -Be (Read-Demo 'maturity.json').overall.score
+        # The same quarter of weekly runs for the Progress tab, ending at today's record.
+        $progress = Get-Content (Join-Path $bundle 'progress-history.json') -Raw | ConvertFrom-Json -Depth 32
+        @($progress.entries).Count | Should -Be 13
+        @($progress.entries)[-1].date | Should -Be $model.progress.date
+        @($progress.entries)[0].metrics.findings | Should -BeGreaterThan $model.progress.metrics.findings
+        @($progress.entries)[0].metrics.rulesEnabled | Should -BeLessThan $model.progress.metrics.rulesEnabled
     }
 }

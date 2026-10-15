@@ -23,6 +23,11 @@
       pages/<page>.json   one file per section: title and the ordered
                           segments (HTML for Text web parts, chart data for
                           the isoc-blueprint chart web part)
+      progress.json       this run's progress record: the headline numbers
+                          and the lists the dashboard's Progress tab compares
+      progress-history.json  every kept day's record, oldest first, from the
+                          earlier day folders' bundles (the publisher keeps
+                          the site's own)
       tables/<name>.csv   each table cut at -MaxTableRows on its page, whole,
                           as CSV (UTF-8); the page's note links to it and
                           the publisher puts it in the assets library
@@ -107,7 +112,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.17.0
+    Version:      0.18.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -155,6 +160,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-SacProgress.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-AttackCoverage.ps1')
 . (Join-Path $PSScriptRoot '../Private/Get-TemplateSolution.ps1')
@@ -1535,6 +1541,16 @@ $model = [ordered]@{
     generatedBlueprintUtc = $generatedBuildUtc
 }
 
+# This run's progress record (Private/Get-SacProgress.ps1): the headline
+# numbers and the lists the Progress tab compares across runs. The run's day
+# is its folder's name (yyyy-MM-dd), else the day it was collected.
+$runDay = Split-Path -Leaf $Source
+if ($runDay -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    $runDay = if ($generatedUtc -match '^\d{4}-\d{2}-\d{2}') { $Matches[0] } else { (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
+}
+$progressRecord = New-SacProgressRecord -Model $model -Date $runDay -GeneratedUtc $generatedUtc
+$model['progress'] = $progressRecord
+
 Write-Log "  Sections   : $($sections.Count)   Charts: $chartCount (drawn by the chart web part)" Info
 Write-Log "  Findings   : $($findings.total)   Rules enabled: $($counts.rulesEnabled)/$($counts.rulesTotal)   MITRE: $mitreCovered/$($mitre.Count)" Info
 Write-Log "  Maturity   : $(if ($maturityModel -and $null -ne $maturityModel.overall.score) { "$($maturityModel.overall.score) / 5 ($($maturityModel.overall.levelName)), target $($maturityModel.targetLevel)" } else { 'not assessed' })   Uncovered: $(if ($ruleRefs.Count -gt 0) { "$uncoveredTotal table(s), $($estate.uncoveredGb) GB" } else { 'n/a' })" Info
@@ -1601,6 +1617,22 @@ if ($PSCmdlet.ShouldProcess($indexPath, 'Write dashboard HTML')) {
     Set-Content -LiteralPath $indexPath -Value $html -Encoding utf8 -NoNewline
 }
 Write-BundleJson -Path (Join-Path $OutputRoot 'model.json') -Data $model -What 'Write dashboard model'
+
+# Progress: this run's record, and the history the Progress tab reads beside
+# the dashboard. A run in a day's folder takes the records earlier days'
+# builds left in their bundles; the publisher keeps the history on the site,
+# so a pipeline run, which has no earlier folders, still adds to it.
+Write-BundleJson -Path (Join-Path $OutputRoot 'progress.json') -Data $progressRecord -What 'Write progress record'
+$earlierProgress = @()
+if ($runDay -eq (Split-Path -Leaf $Source)) {
+    foreach ($day in @(Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $runDay) -lt 0 })) {
+        $p = Join-Path $day.FullName 'sharepoint/progress.json'
+        if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { continue }
+        try { $earlierProgress += , (Get-Content -LiteralPath $p -Raw | ConvertFrom-Json -Depth 32) } catch { $buildWarnings.Add("Unreadable progress record in $($day.Name): $($_.Exception.Message)") }
+    }
+}
+$progressHistory = Merge-SacProgressHistory -History $null -Records (@($earlierProgress) + , $progressRecord) -Days $(if ($HistoryDays -gt 0) { $HistoryDays } else { 90 })
+Write-BundleJson -Path (Join-Path $OutputRoot 'progress-history.json') -Data $progressHistory -What 'Write progress history'
 
 foreach ($p in $pageDocs) {
     Write-BundleJson -Path (Join-Path $pagesDir "$($p.name).json") -Data $p -What 'Write page'
@@ -1680,7 +1712,7 @@ if ($HistoryDays -gt 0 -and $sourceDay -match '^\d{4}-\d{2}-\d{2}$') {
         }
         ([ordered]@{ entries = $historyEntries.ToArray() } | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath (Join-Path $historyDir 'index.json') -Encoding utf8
     }
-    Write-Log "  History: $($historyEntries.Count) day(s) for the date picker (last $HistoryDays)" Info
+    Write-Log "  History: $($historyEntries.Count) day(s) of dashboard copies kept (last $HistoryDays)" Info
 }
 
 # A table cut on a native page is a display limit, not missing data: the
@@ -1693,6 +1725,7 @@ if ($cappedTables.Count) {
     $cappedPages = @($cappedTables | ForEach-Object { if ($_ -match $cappedPattern) { $Matches['page'] } } | Select-Object -Unique)
     Write-Log "  Long tables: $($cappedTables.Count) table(s) longer than $MaxTableRows rows show their first $MaxTableRows on the native pages ($($cappedPages -join ', ')). Every row is in a CSV file under tables/ ($($tableFiles.Count)), linked from each page once published, and on the dashboard's Sections tab." Info
 }
+Write-Log "  Progress: $(@($progressHistory.entries).Count) run(s) for the Progress tab ($(@($earlierProgress).Count) earlier, from this workspace's day folders)" Info
 Write-Log "Bundle -> $OutputRoot ($($pageDocs.Count) pages, $chartCount charts, $($findingList.Count) findings)" Success
 
 return $OutputRoot

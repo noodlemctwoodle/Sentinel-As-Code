@@ -584,6 +584,20 @@
      bigger table on the same page. */
   .grouplink{cursor:pointer;color:var(--brand);text-decoration:underline dotted;text-underline-offset:3px}
   .grouplink:hover,.grouplink:focus-visible{text-decoration-style:solid;outline:none}
+  /* Progress: the baseline picker, the change between runs, the lists. */
+  .pgchips{display:flex;flex-wrap:wrap;gap:8px}
+  .pgchips .fchip[disabled]{opacity:.45;cursor:default}
+  .pg-good{color:var(--green);font-weight:650;white-space:nowrap}
+  .pg-bad{color:var(--red);font-weight:650;white-space:nowrap}
+  .pg-same{color:var(--muted);white-space:nowrap}
+  .pggrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 24px}
+  .pggrid h3{margin:0 0 6px;font-size:14px;font-weight:700}
+  .pgcount{display:inline-block;min-width:20px;padding:0 7px;border-radius:999px;background:var(--chip);color:var(--ink-2);font-size:11.5px;font-weight:650;text-align:center}
+  .pglist{margin:6px 0 8px;padding:0;list-style:none}
+  .pglist li{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.4}
+  .pglist li:last-child{border-bottom:0}
+  .pglink{color:var(--brand);cursor:pointer;font-weight:600}
+  .pglink:hover,.pglink:focus-visible{text-decoration:underline;outline:none}
   .cellchips .tagpill{white-space:normal}
   /* A maturity criterion with its state on this workspace ("SAC-DET-07 gap")
      is a chip in the state's colour, as on the maturity view. */
@@ -1030,6 +1044,7 @@
       <div class="tab" data-tab="sections" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>Insights</div>
       <div class="tab" data-tab="sectionsdoc" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z"/></svg>Report</div>
       <div class="tab" data-tab="maturity" data-tabs="maturity findings" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6m5 6V9m5 11v-9m5 9V4"/><path d="M3 20h18"/></svg>Assessment</div>
+      <div class="tab" data-tab="progress" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Progress</div>
     </nav>
     <div class="spacer"></div>
     <label class="winwrap" id="winWrap" hidden title="Show the dashboard for the last N days of the collected activity">
@@ -1147,6 +1162,11 @@
   <!-- MATURITY -->
   <section data-view="maturity" class="hidden">
     <div id="maturityBoard"></div>
+  </section>
+
+  <!-- PROGRESS (change across runs) -->
+  <section data-view="progress" class="hidden">
+    <div id="progressBoard"></div>
   </section>
 
   <!-- SECTIONS (full documentation browser) -->
@@ -3253,6 +3273,167 @@
           document.getElementById('maturityTrendBody').innerHTML=trendHtml(pts,{theme:'indigo',unit:''});
           document.getElementById('maturityTrend').style.display='';
           if(typeof window.fitIframe==='function') window.fitIframe();
+        }).catch(()=>{});
+      }
+    }catch(e){}
+  })();
+
+  // ---- progress (change across runs) ----
+  // Each export is a snapshot: the slider re-scopes its activity, but posture
+  // (findings, criteria, rules, coverage) is as it was on the day. The build
+  // writes a progress record for every run (M.progress) and the history of
+  // them beside the dashboard (progress-history.json: earlier day folders'
+  // records locally, the publisher's on the site). This tab compares the run
+  // shown with a baseline from that history. A day's kept copy (history/)
+  // compares its own day with the runs before it.
+  (function(){
+    const board=document.getElementById('progressBoard'); if(!board) return;
+    const cur=M.progress||null;
+    if(!cur){
+      board.innerHTML='<div class="panel"><div class="phead"><div><h2>Progress</h2><p class="note">This snapshot was built before progress tracking. Each run from now on adds a record, and this tab compares them.</p></div></div></div>';
+      return;
+    }
+    // key, label, which way is better ('up', 'down' or '' for neither), format
+    const METRICS=[
+      ['maturityScore','Maturity score','up','score'],
+      ['criteriaMet','Maturity criteria met','up'],
+      ['criteriaGap','Maturity criteria with a gap','down'],
+      ['findings','Findings','down'],
+      ['findingsCritical','Critical findings','down'],
+      ['findingsWarning','Warning findings','down'],
+      ['rulesEnabled','Analytics rules enabled','up'],
+      ['customDetections','Custom detections enabled','up'],
+      ['techniquesCovered','ATT&CK techniques covered','up'],
+      ['tacticsCovered','ATT&CK tactics covered','up'],
+      ['connectors','Data connectors','up'],
+      ['tablesIngesting','Tables ingesting',''],
+      ['uncoveredTables','Ingesting tables no detection reads','down'],
+      ['uncoveredGb','GB no detection reads','down','gb'],
+      ['dailyGb','Billable GB a day','','gb'],
+      ['monthlyCost','Estimated monthly cost','','money'],
+      ['openIncidents','Open incidents','down'],
+      ['mttrMinutes','Mean time to resolve','down','minutes']
+    ];
+    const TRENDS=[['maturityScore','Maturity score','indigo'],['findings','Findings','amber'],['rulesEnabled','Analytics rules enabled','brand'],
+      ['techniquesCovered','ATT&CK techniques covered','teal'],['uncoveredGb','GB no detection reads','amber'],['monthlyCost','Estimated monthly cost','teal']];
+    const CHIPS=[['prev','Previous run',0],['d7','7 days',7],['d30','30 days',30],['d90','90 days',90],['first','First run',null]];
+    const LIST_SHOW=12;
+    let entries=[cur], pick='prev';
+    const iso=d=>{ const t=new Date(cur.date+'T00:00:00Z'); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
+    const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);
+    const baselines=()=>{
+      const earlier=entries.filter(e=>e.date<cur.date), out={};
+      CHIPS.forEach(([k,,d])=>{ out[k]= k==='prev'? earlier[earlier.length-1]||null : k==='first'? earlier[0]||null : earlier.filter(e=>e.date<=iso(d)).pop()||null; });
+      return out;
+    };
+    const mv=(e,k)=>{ const v=e&&e.metrics? e.metrics[k] : null; return v==null||v===''? null : +v; };
+    const fmtVal=(v,f)=>{
+      if(v==null) return '<span class="pg-same">n/a</span>';
+      if(f==='score') return (+v).toFixed(2);
+      if(f==='gb') return fmtN(v)+' GB';
+      if(f==='money') return esc(fmtMoney(cur.currency,v));
+      if(f==='minutes') return v<60? Math.round(v)+' min' : v<1440? (v/60).toFixed(1)+' hours' : (v/1440).toFixed(1)+' days';
+      return (+v).toLocaleString('en-GB');
+    };
+    const fmtDelta=(a,b,better,f)=>{
+      if(a==null||b==null) return '<span class="pg-same">n/a</span>';
+      const d=b-a; if(Math.abs(d)<1e-9) return '<span class="pg-same">no change</span>';
+      const cls=!better? 'pg-same' : (d>0)===(better==='up')? 'pg-good' : 'pg-bad';
+      const mag=f==='score'? Math.abs(d).toFixed(2) : f==='money'? fmtMoney(cur.currency,Math.abs(d)) : f==='gb'? fmtN(Math.abs(d))+' GB' : f==='minutes'? fmtVal(Math.abs(d),'minutes') : Math.abs(d).toLocaleString('en-GB');
+      return '<span class="'+cls+'">'+(d>0?'&#9650; ':'&#9660; ')+esc(mag)+'</span>';
+    };
+    // A list of changes: the first LIST_SHOW, then Show all, so nothing is hidden.
+    const listHtml=(items,render)=>{
+      if(!items.length) return '<p class="note">None.</p>';
+      const li=items.map((x,i)=>'<li'+(i>=LIST_SHOW?' hidden data-pgmore':'')+'>'+render(x)+'</li>').join('');
+      return '<ul class="pglist">'+li+'</ul>'+(items.length>LIST_SHOW? '<button type="button" class="fchip pgall">Show all '+items.length+'</button>' : '');
+    };
+    const group=(title,note,items,render)=>'<div class="pggroup"><h3>'+esc(title)+' <span class="pgcount">'+items.length+'</span></h3>'+(note?'<p class="note">'+note+'</p>':'')+listHtml(items,render)+'</div>';
+    const diff=(a,b)=>{ const A=new Set(a||[]), B=new Set(b||[]); return {added:[...B].filter(x=>!A.has(x)).sort(), removed:[...A].filter(x=>!B.has(x)).sort()}; };
+    const techName={}; ((M.attack&&M.attack.techniques)||[]).forEach(t=>{ techName[t.id]=t.name; });
+    const sevPill=s=>'<span class="tagpill">'+esc(s||'')+'</span>';
+    const link=(cls,data,text)=>'<span class="pglink '+cls+'" tabindex="0" role="button" '+data+'>'+esc(text)+'</span>';
+
+    function draw(){
+      const B=baselines();
+      if(!B[pick]) pick=CHIPS.map(c=>c[0]).find(k=>B[k])||'prev';
+      const base=B[pick];
+      const chips='<div class="pgchips" role="group" aria-label="Compare with">'+CHIPS.map(([k,label])=>{
+        const b=B[k];
+        return '<button type="button" class="fchip'+(k===pick&&b?' active':'')+'" data-pgpick="'+k+'"'+(b?'':' disabled')+' title="'+(b? 'Compare with the run of '+esc(b.date) : 'No kept run that far back')+'">'+esc(label)+(b?'<span>'+esc(b.date)+'</span>':'')+'</button>';
+      }).join('')+'</div>';
+      let html='<div class="panel"><div class="phead"><div><h2>Progress</h2><p class="note">'+
+        (base? 'The run of <b>'+esc(cur.date)+'</b> against the run of <b>'+esc(base.date)+'</b>, '+daysBetween(base.date,cur.date)+' day'+(daysBetween(base.date,cur.date)===1?'':'s')+' earlier. ' :
+          'Only the run of <b>'+esc(cur.date)+'</b> is kept so far. ')+
+        entries.length+' run'+(entries.length===1?'':'s')+' kept. Posture (findings, criteria, rules, coverage) is as each run collected it; activity (ingestion, incidents) is each run\'s own window.</p></div></div>'+chips+'</div>';
+      // Headline numbers, then and now.
+      const rows=METRICS.filter(([k])=>mv(cur,k)!=null||mv(base,k)!=null).map(([k,label,better,f])=>
+        '<tr><td>'+esc(label)+'</td>'+(base?'<td class="num">'+fmtVal(mv(base,k),f)+'</td>':'')+'<td class="num">'+fmtVal(mv(cur,k),f)+'</td>'+(base?'<td class="num">'+fmtDelta(mv(base,k),mv(cur,k),better,f)+'</td>':'')+'</tr>');
+      html+='<div class="panel"><div class="phead"><div><h2>Headline numbers</h2><p class="note">Green is better, red is worse; cost and volume are neither.</p></div></div>'+
+        '<table class="tbl"><thead><tr><th>Measure</th>'+(base?'<th class="num">'+esc(base.date)+'</th>':'')+'<th class="num">'+esc(cur.date)+'</th>'+(base?'<th class="num">Change</th>':'')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+      // Trends across every kept run.
+      if(entries.length>=2){
+        html+='<div class="panel"><div class="phead"><div><h2>Over time</h2><p class="note">Every kept run, oldest first.</p></div></div><div class="pggrid">'+
+          TRENDS.map(([k,label,theme])=>{
+            const pts=entries.filter(e=>mv(e,k)!=null).map(e=>({label:e.date.slice(5),value:mv(e,k)}));
+            return '<div><h3>'+esc(label)+'</h3>'+trendHtml(pts,{theme:theme,unit:k==='uncoveredGb'?' GB':''})+'</div>';
+          }).join('')+'</div></div>';
+      }
+      // What changed since the baseline.
+      if(base){
+        const bs=base.sets||{}, cs=cur.sets||{};
+        const fb={}, fc={}; (bs.findings||[]).forEach(f=>{ fb[f.id]=f; }); (cs.findings||[]).forEach(f=>{ fc[f.id]=f; });
+        const fd=diff(Object.keys(fb),Object.keys(fc));
+        const cb={}, cc={}; (bs.criteria||[]).forEach(c=>{ cb[c.id]=c; }); (cs.criteria||[]).forEach(c=>{ cc[c.id]=c; });
+        const nowMet=Object.keys(cc).filter(id=>cc[id].status==='M' && (!cb[id]||cb[id].status!=='M')).sort();
+        const nowGap=Object.keys(cc).filter(id=>cc[id].status==='G' && cb[id] && cb[id].status==='M').sort();
+        const rd=diff(bs.rules,cs.rules), td=diff(bs.techniques,cs.techniques), tbd=diff(bs.tables,cs.tables);
+        const ud=diff(bs.uncovered,cs.uncovered), ing=new Set(cs.tables||[]);
+        const nowCovered=ud.removed.filter(t=>ing.has(t)), nowUncovered=ud.added;
+        const findItem=f=>(listedFindings.has(f.id)? link('pgfind','data-id="'+esc(f.id)+'"',f.id) : esc(f.id))+' '+sevPill(f.severity)+' '+esc(f.title);
+        const critItem=id=>link('pgcrit','data-id="'+esc(id)+'"',id)+' '+esc((cc[id]||cb[id]||{}).name||'');
+        const ruleItem=n=>link('pgrule','data-name="'+esc(n)+'"',n);
+        const techItem=id=>esc(id)+(techName[id]?' '+esc(techName[id]):'');
+        html+='<div class="panel"><div class="phead"><div><h2>Changes since '+esc(base.date)+'</h2><p class="note">Every change, in full. Select a finding, criterion or rule to open it.</p></div></div><div class="pggrid">'+
+          group('Findings resolved','Fired on '+esc(base.date)+', not now.',fd.removed.map(id=>fb[id]),findItem)+
+          group('New findings','Firing now, not on '+esc(base.date)+'.',fd.added.map(id=>fc[id]),findItem)+
+          group('Criteria now met','',nowMet,critItem)+
+          group('Criteria now a gap','Met on '+esc(base.date)+'.',nowGap,critItem)+
+          group('Analytics rules enabled','',rd.added,ruleItem)+
+          group('Analytics rules no longer enabled','Disabled, deleted or renamed.',rd.removed,esc)+
+          group('ATT&CK techniques now covered','',td.added,techItem)+
+          group('ATT&CK techniques no longer covered','',td.removed,techItem)+
+          group('Tables now read by a detection','',nowCovered,esc)+
+          group('Tables no detection reads now','',nowUncovered,esc)+
+          group('Tables started ingesting','',tbd.added,esc)+
+          group('Tables stopped ingesting','',tbd.removed,esc)+
+          '</div></div>';
+      }
+      board.innerHTML=html;
+      if(typeof window.fitIframe==='function') window.fitIframe();
+    }
+    const listedFindings=new Set(((M.findings&&M.findings.items)||[]).map(f=>f.id));
+    board.addEventListener('click',e=>{
+      const c=e.target.closest('[data-pgpick]'); if(c && !c.disabled){ pick=c.dataset.pgpick; draw(); return; }
+      const more=e.target.closest('.pgall');
+      if(more){ more.parentNode.querySelectorAll('[data-pgmore]').forEach(li=>{ li.hidden=false; }); more.remove(); if(typeof window.fitIframe==='function') window.fitIframe(); return; }
+      openItem(e.target.closest('.pglink'));
+    });
+    board.addEventListener('keydown',e=>{ const l=e.target.closest('.pglink'); if(l && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openItem(l); } });
+    function openItem(l){
+      if(!l) return;
+      if(l.classList.contains('pgfind') && typeof window.showFinding==='function') window.showFinding(l.dataset.id);
+      else if(l.classList.contains('pgcrit') && typeof window.showCriterion==='function'){ if(activateTab) activateTab('maturity'); window.showCriterion(l.dataset.id); }
+      else if(l.classList.contains('pgrule') && typeof window.openRuleReport==='function') window.openRuleReport(l.dataset.name);
+    }
+    draw();
+    // The history beside the dashboard: the runs before this one.
+    try{
+      if(SNAP.read){
+        SNAP.read('progress-history.json').then(h=>{
+          const earlier=((h&&h.entries)||[]).filter(e=>e&&e.date&&e.date<cur.date).sort((a,b)=>a.date<b.date?-1:1);
+          if(!earlier.length) return;
+          entries=earlier.concat([cur]); pick='prev'; draw();
         }).catch(()=>{});
       }
     }catch(e){}

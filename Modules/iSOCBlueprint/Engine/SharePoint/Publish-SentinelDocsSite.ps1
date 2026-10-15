@@ -24,8 +24,10 @@
                      page's note links to;
                      when the model carries a maturity assessment, one
                      entry is appended to the score history the dashboard
-                     draws as a trend; and a copy of the dashboard is kept
-                     as the day's snapshot (dashboard/history/<date>.html)
+                     draws as a trend; the run's progress record is added
+                     to the progress history the Progress tab compares;
+                     and a copy of the dashboard is kept as the day's
+                     snapshot (dashboard/history/<date>.html)
                      for its date picker, the last -HistoryDays days
       4. Pages       section pages created or rebuilt, skipping any whose
                      content hash matches the last publish; each chart is
@@ -117,7 +119,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.6.0
+    Version:      0.7.0
     Last Updated: 2026-10-15
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
     Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
@@ -159,6 +161,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-SacSyncPlan.ps1')
 . (Join-Path $PSScriptRoot 'Private/SacSharePoint.ps1')
+. (Join-Path $PSScriptRoot 'Private/Get-SacProgress.ps1')
 # Publish-SacSectionPage writes a chart as a table, through
 # ConvertTo-SacChartFallbackHtml, when the chart web part is missing.
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
@@ -271,6 +274,27 @@ if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.matu
 }
 else {
     Write-Host '  Maturity history: no assessment in this bundle, nothing appended.'
+}
+
+# Progress history: each run's record (the headline numbers and the lists
+# the Progress tab compares), one a day. The bundle carries this run's record
+# and any earlier days' from local day folders; the site keeps the rest, so a
+# pipeline run, which starts with no earlier folders, still adds to it.
+$progressRecords = @()
+$bundleProgressHistory = Join-Path $Bundle 'progress-history.json'
+$bundleProgress = Join-Path $Bundle 'progress.json'
+if (Test-Path -LiteralPath $bundleProgressHistory -PathType Leaf) {
+    $progressRecords = @((Get-Content -LiteralPath $bundleProgressHistory -Raw | ConvertFrom-Json -Depth 32).entries)
+} elseif (Test-Path -LiteralPath $bundleProgress -PathType Leaf) {
+    $progressRecords = @(Get-Content -LiteralPath $bundleProgress -Raw | ConvertFrom-Json -Depth 32)
+}
+if ($progressRecords.Count) {
+    $progress = Merge-SacProgressHistory -History (Read-SacProgressHistory) -Records $progressRecords -Days $(if ($HistoryDays -gt 0) { $HistoryDays } else { 90 })
+    Save-SacProgressHistory -History $progress
+    Write-Host "  Progress history: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $(@($progress.entries).Count) run(s)"
+}
+else {
+    Write-Host '  Progress history: no progress record in this bundle (built before progress tracking), nothing added.'
 }
 
 # Dashboard snapshots: the day's dashboard kept beside the live one, listed
